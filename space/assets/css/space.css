@@ -255,6 +255,46 @@ input { font-family: inherit; }
   color: #aeaeb2; margin-bottom: 14px;
 }
 
+/* 横スクロール外枠 */
+.apps-scroll-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+/* 矢印ボタン */
+.apps-arrow {
+  flex-shrink: 0;
+  width: 34px; height: 34px;
+  background: rgba(255,255,255,.9);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: #3c3c43;
+  cursor: pointer;
+  transition: all .2s ease;
+  z-index: 2;
+  position: relative;
+}
+.apps-arrow:hover {
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(0,0,0,.15);
+  transform: scale(1.08);
+  color: #1c1c1e;
+}
+.apps-arrow:active { transform: scale(.96); }
+.apps-arrow.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(.8);
+}
+.apps-arrow-left  { margin-right: 10px; }
+.apps-arrow-right { margin-left: 10px; }
+
 /* 横スクロールコンテナ */
 .apps-grid {
   display: flex;

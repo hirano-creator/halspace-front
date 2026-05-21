@@ -285,4 +285,25 @@ if (appsGrid) {
     clearAuth();
     location.href = 'login.html';
   });
+
+  /* ── 横スクロール矢印 ── */
+  const arrowLeft  = document.getElementById('arrowLeft');
+  const arrowRight = document.getElementById('arrowRight');
+  const SCROLL_AMOUNT = 260;
+
+  function updateArrows() {
+    const sl = appsGrid.scrollLeft;
+    const maxSl = appsGrid.scrollWidth - appsGrid.clientWidth;
+    arrowLeft.classList.toggle('hidden',  sl <= 4);
+    arrowRight.classList.toggle('hidden', sl >= maxSl - 4);
+  }
+
+  arrowLeft.addEventListener('click', () => {
+    appsGrid.scrollBy({ left: -SCROLL_AMOUNT, behavior: 'smooth' });
+  });
+  arrowRight.addEventListener('click', () => {
+    appsGrid.scrollBy({ left:  SCROLL_AMOUNT, behavior: 'smooth' });
+  });
+  appsGrid.addEventListener('scroll', updateArrows, { passive: true });
+  updateArrows();
 }
