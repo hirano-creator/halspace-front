@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 案F: Dark Mode — 黒背景・白文字・細ライン -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 680" width="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap');
+    </style>
+  </defs>
+  <rect width="1920" height="680" fill="#0a0a0a"/>
+
+  <!-- 装飾グリッド線 -->
+  <line x1="0" y1="170" x2="1920" y2="170" stroke="#1e1e1e" stroke-width="1"/>
+  <line x1="0" y1="510" x2="1920" y2="510" stroke="#1e1e1e" stroke-width="1"/>
+  <line x1="480" y1="0" x2="480" y2="680" stroke="#1e1e1e" stroke-width="1"/>
+  <line x1="960" y1="0" x2="960" y2="680" stroke="#1e1e1e" stroke-width="1"/>
+  <line x1="1440" y1="0" x2="1440" y2="680" stroke="#1e1e1e" stroke-width="1"/>
+
+  <!-- メイン -->
+  <text x="120" y="360" font-family="'Space Grotesk',sans-serif" font-size="180" font-weight="700" fill="#fff" letter-spacing="-4">Observe.</text>
+  <text x="120" y="490" font-family="'Space Grotesk',sans-serif" font-size="180" font-weight="300" fill="#333" letter-spacing="-4">Build. Share.</text>
+
+  <!-- アクセントライン -->
+  <line x1="120" y1="540" x2="500" y2="540" stroke="#fff" stroke-width="1"/>
+
+  <text x="120" y="580" font-family="'JetBrains Mono',monospace" font-size="13" fill="#555" letter-spacing="5">ranoBlog — INVEST / AI / WEB / STEEL / CLAUDE</text>
+  <text x="1800" y="580" font-family="'JetBrains Mono',monospace" font-size="13" fill="#333" text-anchor="end" letter-spacing="3">2026</text>
+</svg>

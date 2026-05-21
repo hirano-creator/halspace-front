@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QRリンク | What'sNo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #1E3A5F;
+      --accent:  #2196F3;
+      --bg:      #F0F4F8;
+      --text:    #1A1A2E;
+      --muted:   #546E7A;
+      --white:   #fff;
+      --radius:  12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 40px 32px;
+      text-align: center;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 4px 24px rgba(30,58,95,.10);
+    }
+    .logo {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--primary);
+      margin-bottom: 32px;
+      letter-spacing: -.5px;
+    }
+    .logo span { color: var(--accent); }
+    .icon {
+      font-size: 56px;
+      margin-bottom: 20px;
+    }
+    .icon.loading  { color: var(--accent); animation: spin 1s linear infinite; }
+    .icon.success  { color: #00B894; }
+    .icon.error    { color: #e17055; }
+    .icon.expired  { color: #F39C12; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h1 { font-size: 18px; color: var(--primary); margin-bottom: 10px; }
+    p  { font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .file-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 16px 0 8px;
+      word-break: break-all;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 24px;
+      padding: 12px 28px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity .2s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1.5px solid #ddd;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">What's<span>No</span></div>
+
+  <div id="stateLoading">
+    <div class="icon loading"><i class="fa-solid fa-spinner"></i></div>
+    <h1>リンクを確認中…</h1>
+    <p>しばらくお待ちください</p>
+  </div>
+
+  <div id="stateSuccess" style="display:none;">
+    <div class="icon success"><i class="fa-solid fa-circle-check"></i></div>
+    <h1>ファイルが見つかりました</h1>
+    <div class="file-name" id="successFileName"></div>
+    <p>自動的にファイル詳細へ移動します…</p>
+    <a id="successBtn" href="#" class="btn">
+      <i class="fa-solid fa-file"></i> ファイルを開く
+    </a>
+  </div>
+
+  <div id="stateExpired" style="display:none;">
+    <div class="icon expired"><i class="fa-solid fa-clock"></i></div>
+    <h1>リンクの有効期限切れ</h1>
+    <p>このQRコードの有効期限が切れています。<br>ファイルの管理者に新しいQRコードを発行してもらってください。</p>
+    <a href="dashboard.html" class="btn btn-ghost">
+      <i class="fa-solid fa-house"></i> ダッシュボードへ
+    </a>
+  </div>
+
+  <div id="stateError" style="display:none;">
+    <div class="icon error"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <h1 id="errorTitle">リンクが無効です</h1>
+    <p id="errorMsg">このQRコードは存在しないか、削除されたファイルのリンクです。</p>
+    <a href="dashboard.html" class="btn btn-ghost">
+      <i class="fa-solid fa-house"></i> ダッシュボードへ
+    </a>
+  </div>
+</div>
+
+<script src="../../solid/assets/js/auth.js"></script>
+<script src="../assets/js/wn-api.js"></script>
+<script>
+(async () => {
+  const token = new URLSearchParams(location.search).get('token');
+
+  if (!token) {
+    showError('トークンがありません', 'URLにトークンパラメータが含まれていません。');
+    return;
+  }
+
+  /* QRトークンはログイン不要で照合（wn-api.js の WN_API_BASE を使用） */
+  let data;
+  try {
+    const res = await fetch(`${WN_API_BASE}/wn/qr/${encodeURIComponent(token)}`);
+    if (res.status === 404) { showError('リンクが無効です', 'このQRコードは存在しないか、削除されたファイルのリンクです。'); return; }
+    if (res.status === 410) { showState('stateExpired'); return; }
+    if (!res.ok) { showError('エラーが発生しました', `サーバーエラー (${res.status})`); return; }
+    data = (await res.json()).data;
+  } catch (e) {
+    showError('通信エラー', 'ネットワークに接続できません。再度お試しください。');
+    return;
+  }
+
+  /* ファイル詳細へリダイレクト */
+  const detailUrl = `file-detail.html?id=${data.file_id}`;
+  document.getElementById('successFileName').textContent = data.file_name;
+  document.getElementById('successBtn').href = detailUrl;
+  showState('stateSuccess');
+
+  /* 1.5秒後に自動遷移 */
+  setTimeout(() => { location.href = detailUrl; }, 1500);
+})();
+
+function showState(id) {
+  ['stateLoading','stateSuccess','stateExpired','stateError'].forEach(s => {
+    document.getElementById(s).style.display = s === id ? '' : 'none';
+  });
+}
+
+function showError(title, msg) {
+  document.getElementById('errorTitle').textContent = title;
+  document.getElementById('errorMsg').textContent   = msg;
+  showState('stateError');
+}
+</script>
+</body>
+</html>

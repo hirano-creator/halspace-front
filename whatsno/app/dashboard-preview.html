@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ダッシュボード | What'sNo [デザイン確認用]</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/wn-app.css">
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-title">What'sNo</span>
+      <span class="sidebar-logo-sub">by HaLSpace</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+      <a href="#" class="active" id="navAll"><i class="fa-solid fa-house"></i> ホーム</a>
+      <a href="#" id="navMine"><i class="fa-solid fa-user"></i> マイファイル</a>
+      <a href="#" id="navRecent"><i class="fa-solid fa-clock-rotate-left"></i> 最近のファイル</a>
+      <a href="#" id="navLiked"><i class="fa-solid fa-heart"></i> いいね済み</a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <div class="sidebar-avatar">山</div>
+        <div>
+          <span class="sidebar-user-name">山田 太郎</span>
+          <span class="sidebar-user-role">管理者</span>
+        </div>
+      </div>
+      <button class="btn-sidebar-logout">
+        <i class="fa-solid fa-right-from-bracket"></i> アプリ選択に戻る
+      </button>
+    </div>
+  </aside>
+
+  <!-- メインコンテンツ -->
+  <div class="main-content">
+
+    <!-- トップバー -->
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <span class="top-bar-title">What'sNo</span>
+      </div>
+      <div class="search-bar" style="flex:1;max-width:420px;">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" placeholder="ファイル名・タグで検索…">
+      </div>
+      <div class="top-bar-right">
+        <button class="btn btn-accent" onclick="openUploadModal()">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span>アップロード</span>
+        </button>
+        <a href="#" class="btn btn-ghost btn-sm">
+          <i class="fa-solid fa-gear"></i>
+        </a>
+      </div>
+    </div>
+
+    <!-- ページ本体 -->
+    <div class="page-body">
+
+      <!-- タグフィルター -->
+      <div class="card" style="margin-bottom:16px;padding:14px 20px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:700;color:var(--primary);flex-shrink:0;">
+            <i class="fa-solid fa-tag"></i> タグ
+          </span>
+          <div class="tag-list">
+            <span class="tag active">設計</span>
+            <span class="tag">図面</span>
+            <span class="tag">品管</span>
+            <span class="tag">現場</span>
+            <span class="tag">アルミ</span>
+            <span class="tag">ステンレス</span>
+            <span class="tag">検査表</span>
+            <span class="tag">最新版</span>
+            <span class="tag tag-ai">仕様書</span>
+            <span class="tag tag-ai">組立</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ファイル一覧 -->
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="card-header" style="padding:16px 20px 12px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="card-title" id="areaTitle">すべてのファイル</span>
+            <span style="font-size:13px;color:var(--muted);" id="fileCount">（6件）</span>
+          </div>
+          <div class="filter-bar" style="margin:0;">
+            <select class="form-select" style="width:auto;padding:6px 12px;font-size:13px;">
+              <option>新しい順</option>
+              <option>古い順</option>
+              <option>名前順</option>
+              <option>サイズ順</option>
+            </select>
+            <div class="view-toggle">
+              <button class="view-toggle-btn active" id="viewGrid"><i class="fa-solid fa-grip"></i></button>
+              <button class="view-toggle-btn" id="viewList"><i class="fa-solid fa-list"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- グリッド表示 -->
+        <div id="gridArea" style="padding:20px;">
+          <div class="file-grid">
+
+            <div class="file-card" data-mine="true" onclick="location.href='file-detail-preview.html'">
+              <div class="file-card-thumb">
+                <i class="fa-solid fa-file-pdf file-type-icon file-icon-pdf"></i>
+              </div>
+              <div class="file-card-body">
+                <div class="file-card-name">アルミブラケット_図面_v3.pdf</div>
+                <div class="file-card-meta">
+                  <span>2.4 MB</span>
+                  <span class="file-card-version">v3</span>
+                </div>
+                <div class="file-card-meta" style="margin-top:4px;"><span>2025/04/28</span></div>
+                <div class="tag-list" style="margin-top:8px;">
+                  <span class="tag" style="font-size:11px;">設計</span>
+                  <span class="tag" style="font-size:11px;">アルミ</span>
+                </div>
+                <div class="file-card-actions">
+                  <button class="like-btn liked"><i class="fa-solid fa-heart"></i><span>5</span></button>
+                  <button class="file-action-btn" title="ダウンロード"><i class="fa-solid fa-download"></i></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="file-card">
+              <div class="file-card-thumb">
+                <i class="fa-solid fa-file-lines file-type-icon file-icon-dxf"></i>
+              </div>
+              <div class="file-card-body">
+                <div class="file-card-name">部品_組立図.dxf</div>
+                <div class="file-card-meta"><span>856 KB</span></div>
+                <div class="file-card-meta" style="margin-top:4px;"><span>2025/04/30</span></div>
+                <div class="tag-list" style="margin-top:8px;">
+                  <span class="tag" style="font-size:11px;">組立</span>
+                  <span class="tag" style="font-size:11px;">図面</span>
+                </div>
+                <div class="file-card-actions">
+                  <button class="like-btn"><i class="fa-regular fa-heart"></i><span>2</span></button>
+                  <button class="file-action-btn" title="ダウンロード"><i class="fa-solid fa-download"></i></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="file-card" data-mine="true">
+              <div class="file-card-thumb">
+                <i class="fa-solid fa-cube file-type-icon file-icon-stl"></i>
+              </div>
+              <div class="file-card-body">
+                <div class="file-card-name">ハウジング_モデル.stl</div>
+                <div class="file-card-meta"><span>12.1 MB</span></div>
+                <div class="file-card-meta" style="margin-top:4px;"><span>2025/04/25</span></div>
+                <div class="tag-list" style="margin-top:8px;">
+                  <span class="tag" style="font-size:11px;">3Dモデル</span>
+                  <span class="tag" style="font-size:11px;">製造</span>
+                </div>
+                <div class="file-card-actions">
+                  <button class="like-btn"><i class="fa-regular fa-heart"></i><span>1</span></button>
+                  <button class="file-action-btn" title="ダウンロード"><i class="fa-solid fa-download"></i></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="file-card" data-mine="true">
+              <div class="file-card-thumb">
+                <i class="fa-solid fa-file-excel file-type-icon file-icon-xls"></i>
+              </div>
+              <div class="file-card-body">
+                <div class="file-card-name">検査記録表_2025年4月.xlsx</div>
+                <div class="file-card-meta"><span>340 KB</span></div>
+                <div class="file-card-meta" style="margin-top:4px;"><span>2025/04/29</span></div>
+                <div class="tag-list" style="margin-top:8px;">
+                  <span class="tag" style="font-size:11px;">品管</span>
+                  <span class="tag" style="font-size:11px;">検査表</span>
+                </div>
+                <div class="file-card-actions">
+                  <button class="like-btn"><i class="fa-regular fa-heart"></i><span>0</span></button>
+                  <button class="file-action-btn" title="ダウンロード"><i class="fa-solid fa-download"></i></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="file-card">
+              <div class="file-card-thumb">
+                <i class="fa-solid fa-file-image file-type-icon file-icon-img"></i>
+              </div>
+              <div class="file-card-body">
+                <div class="file-card-name">溶接箇所_写真.jpg</div>
+                <div class="file-card-meta"><span>4.8 MB</span></div>
+                <div class="file-card-meta" style="margin-top:4px;"><span>2025/04/22</span></div>
+                <div class="tag-list" style="margin-top:8px;">
+                  <span class="tag" style="font-size:11px;">現場</span>
+                  <span class="tag" style="font-size:11px;">溶接</span>
+                </div>
+                <div class="file-card-actions">
+                  <button class="like-btn liked"><i class="fa-solid fa-heart"></i><span>3</span></button>
+                  <button class="file-action-btn" title="ダウンロード"><i class="fa-solid fa-download"></i></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="file-card" data-mine="true">
+              <div class="file-card-thumb">
+                <i class="fa-solid fa-cube file-type-icon file-icon-stl"></i>
+              </div>
+              <div class="file-card-body">
+                <div class="file-card-name">ステンレスシャフト.stp</div>
+                <div class="file-card-meta">
+                  <span>5.2 MB</span>
+                  <span class="file-card-version">v2</span>
+                </div>
+                <div class="file-card-meta" style="margin-top:4px;"><span>2025/05/01</span></div>
+                <div class="tag-list" style="margin-top:8px;">
+                  <span class="tag" style="font-size:11px;">ステンレス</span>
+                  <span class="tag tag-ai" style="font-size:11px;">加工</span>
+                </div>
+                <div class="file-card-actions">
+                  <button class="like-btn"><i class="fa-regular fa-heart"></i><span>0</span></button>
+                  <button class="file-action-btn" title="ダウンロード"><i class="fa-solid fa-download"></i></button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- リスト表示（非表示） -->
+        <div id="listArea" style="display:none;" class="file-list-view">
+          <div class="file-row">
+            <div class="file-row-icon"><i class="fa-solid fa-file-pdf file-icon-pdf"></i></div>
+            <div class="file-row-name">
+              アルミブラケット_図面_v3.pdf
+              <span>
+                <span class="tag" style="font-size:10px;padding:1px 7px;">設計</span>
+                <span class="tag" style="font-size:10px;padding:1px 7px;">アルミ</span>
+              </span>
+            </div>
+            <div class="file-row-meta">
+              <span class="file-card-version">v3</span>
+              <span class="file-row-size col-hide-sm">2.4 MB</span>
+              <span class="file-row-date col-hide-sm">2025/04/28</span>
+              <button class="like-btn liked"><i class="fa-solid fa-heart"></i><span>5</span></button>
+              <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-download"></i></button>
+            </div>
+          </div>
+          <div class="file-row">
+            <div class="file-row-icon"><i class="fa-solid fa-file-lines file-icon-dxf"></i></div>
+            <div class="file-row-name">
+              部品_組立図.dxf
+              <span>
+                <span class="tag" style="font-size:10px;padding:1px 7px;">組立</span>
+                <span class="tag" style="font-size:10px;padding:1px 7px;">図面</span>
+              </span>
+            </div>
+            <div class="file-row-meta">
+              <span class="file-row-size col-hide-sm">856 KB</span>
+              <span class="file-row-date col-hide-sm">2025/04/30</span>
+              <button class="like-btn"><i class="fa-regular fa-heart"></i><span>2</span></button>
+              <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-download"></i></button>
+            </div>
+          </div>
+          <div class="file-row">
+            <div class="file-row-icon"><i class="fa-solid fa-cube file-icon-stl"></i></div>
+            <div class="file-row-name">ハウジング_モデル.stl</div>
+            <div class="file-row-meta">
+              <span class="file-row-size col-hide-sm">12.1 MB</span>
+              <span class="file-row-date col-hide-sm">2025/04/25</span>
+              <button class="like-btn"><i class="fa-regular fa-heart"></i><span>1</span></button>
+              <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-download"></i></button>
+            </div>
+          </div>
+          <div class="file-row">
+            <div class="file-row-icon"><i class="fa-solid fa-file-excel file-icon-xls"></i></div>
+            <div class="file-row-name">検査記録表_2025年4月.xlsx</div>
+            <div class="file-row-meta">
+              <span class="file-row-size col-hide-sm">340 KB</span>
+              <span class="file-row-date col-hide-sm">2025/04/29</span>
+              <button class="like-btn"><i class="fa-regular fa-heart"></i><span>0</span></button>
+              <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-download"></i></button>
+            </div>
+          </div>
+          <div class="file-row">
+            <div class="file-row-icon"><i class="fa-solid fa-file-image file-icon-img"></i></div>
+            <div class="file-row-name">溶接箇所_写真.jpg</div>
+            <div class="file-row-meta">
+              <span class="file-row-size col-hide-sm">4.8 MB</span>
+              <span class="file-row-date col-hide-sm">2025/04/22</span>
+              <button class="like-btn liked"><i class="fa-solid fa-heart"></i><span>3</span></button>
+              <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-download"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-body -->
+  </div>
+</div>
+
+<!-- D&D オーバーレイ（d キーで確認） -->
+<div class="drop-overlay" id="dropOverlay">
+  <div class="drop-overlay-inner">
+    <i class="fa-solid fa-cloud-arrow-up"></i>
+    <div class="drop-overlay-title">ここにドロップしてアップロード</div>
+    <div class="drop-overlay-sub">複数ファイル同時対応 · STP, STEP, STL, PDF, DXF, 画像 他</div>
+  </div>
+</div>
+
+<!-- アップロードモーダル -->
+<div class="modal-overlay hidden" id="uploadModal">
+  <div class="modal" style="max-width:540px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-cloud-arrow-up" style="color:var(--accent);"></i> ファイルをアップロード</span>
+      <button class="modal-close" onclick="closeUploadModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- ソース選択ボタン（PC・モバイル共通） -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <button class="btn btn-outline btn-sm" id="pickFileBtn" style="flex:1;min-width:120px;">
+        <i class="fa-solid fa-folder-open"></i> ファイル選択
+      </button>
+      <button class="btn btn-outline btn-sm" id="takePhotoBtn" style="flex:1;min-width:120px;">
+        <i class="fa-solid fa-camera"></i> 写真を撮る
+      </button>
+      <button class="btn btn-outline btn-sm" id="takeVideoBtn" style="flex:1;min-width:120px;">
+        <i class="fa-solid fa-video"></i> 動画を撮る
+      </button>
+    </div>
+
+    <!-- 隠しinput（capture属性：モバイルではカメラ起動、PCでは通常ファイル選択にフォールバック） -->
+    <input type="file" id="inputFile"  accept="*/*"     multiple           style="display:none;">
+    <input type="file" id="inputPhoto" accept="image/*" capture="environment" style="display:none;">
+    <input type="file" id="inputVideo" accept="video/*" capture="environment" style="display:none;">
+
+    <!-- ドラッグ&ドロップゾーン -->
+    <div class="upload-zone" id="uploadZoneMini">
+      <i class="fa-solid fa-cloud-arrow-up"></i>
+      <p class="upload-zone-text">クリックまたはドラッグ&ドロップ</p>
+      <p class="upload-zone-sub">PDF, DXF, STL, STP, STEP, 画像, 動画, Excel, ZIP など（最大500MB）</p>
+    </div>
+
+    <!-- 選択済みファイルリスト -->
+    <div class="upload-file-list" id="uploadFileList" style="margin-top:12px;"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeUploadModal()">キャンセル</button>
+      <button class="btn btn-accent" id="doUploadBtn" disabled style="opacity:.5;">
+        <i class="fa-solid fa-cloud-arrow-up"></i> アップロード
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- スマホ ボトムナビ -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <div class="bottom-nav-item active">
+      <i class="fa-solid fa-house"></i><span>ホーム</span>
+    </div>
+    <div class="bottom-nav-item">
+      <i class="fa-solid fa-magnifying-glass"></i><span>検索</span>
+    </div>
+    <div class="bottom-nav-item" onclick="openUploadModal()">
+      <i class="fa-solid fa-plus bottom-nav-upload"></i>
+    </div>
+    <div class="bottom-nav-item">
+      <i class="fa-solid fa-heart"></i><span>いいね</span>
+    </div>
+    <div class="bottom-nav-item">
+      <i class="fa-solid fa-clock-rotate-left"></i><span>最近</span>
+    </div>
+  </div>
+</nav>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* ══════════════════════════════════════
+   アップロードモーダル
+   ══════════════════════════════════════ */
+const uploadedFiles = []; // 選択済みFileオブジェクトのリスト
+
+function openUploadModal() {
+  uploadedFiles.length = 0;
+  renderUploadList();
+  document.getElementById('uploadModal').classList.remove('hidden');
+}
+function closeUploadModal() {
+  document.getElementById('uploadModal').classList.add('hidden');
+}
+
+/* ── ソース選択ボタン ── */
+document.getElementById('pickFileBtn').addEventListener('click',  () => document.getElementById('inputFile').click());
+document.getElementById('takePhotoBtn').addEventListener('click', () => document.getElementById('inputPhoto').click());
+document.getElementById('takeVideoBtn').addEventListener('click', () => document.getElementById('inputVideo').click());
+
+/* ── ファイル選択時の共通ハンドラ ── */
+['inputFile','inputPhoto','inputVideo'].forEach(id => {
+  document.getElementById(id).addEventListener('change', function() {
+    addFiles(this.files);
+    this.value = ''; // 同じファイルを再選択できるようリセット
+  });
+});
+
+/* ── ドラッグ&ドロップ（モーダル内ゾーン） ── */
+const zone = document.getElementById('uploadZoneMini');
+zone.addEventListener('click', () => document.getElementById('inputFile').click());
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('drag-over');
+  addFiles(e.dataTransfer.files);
+});
+
+function addFiles(fileList) {
+  Array.from(fileList).forEach(f => {
+    if (f.size > 500 * 1024 * 1024) {
+      alert(`${f.name} は500MBを超えています。`);
+      return;
+    }
+    uploadedFiles.push(f);
+  });
+  renderUploadList();
+}
+
+function renderUploadList() {
+  const list = document.getElementById('uploadFileList');
+  const btn  = document.getElementById('doUploadBtn');
+
+  if (!uploadedFiles.length) {
+    list.innerHTML = '';
+    btn.disabled = true;
+    btn.style.opacity = '.5';
+    return;
+  }
+  btn.disabled = false;
+  btn.style.opacity = '1';
+
+  list.innerHTML = uploadedFiles.map((f, i) => {
+    const icon = fileIcon(f.name, f.type);
+    const size = formatSize(f.size);
+    const isMedia = f.type.startsWith('image/') || f.type.startsWith('video/');
+    return `
+      <div class="upload-file-item" id="ufi-${i}">
+        ${isMedia && f.type.startsWith('image/')
+          ? `<img src="${URL.createObjectURL(f)}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0;" alt="">`
+          : `<i class="fa-solid ${icon}"></i>`
+        }
+        <span class="upload-file-name">${escHtml(f.name)}</span>
+        <span class="upload-file-size">${size}</span>
+        <button class="upload-file-remove" onclick="removeFile(${i})"><i class="fa-solid fa-xmark"></i></button>
+      </div>`;
+  }).join('');
+}
+
+function removeFile(i) {
+  uploadedFiles.splice(i, 1);
+  renderUploadList();
+}
+
+/* ── アップロード実行（デモ：プログレスバーのみ） ── */
+document.getElementById('doUploadBtn').addEventListener('click', () => {
+  if (!uploadedFiles.length) return;
+  const list = document.getElementById('uploadFileList');
+  const names = uploadedFiles.map(f => escHtml(f.name)).join('、');
+
+  // プログレスバーアニメーション
+  list.querySelectorAll('.upload-file-item').forEach(item => {
+    const bar = document.createElement('div');
+    bar.className = 'progress-bar-bg';
+    bar.style.cssText = 'width:100%;margin-top:6px;';
+    bar.innerHTML = '<div class="progress-bar-fill" style="width:0%;transition:width 1.2s ease;"></div>';
+    item.appendChild(bar);
+    setTimeout(() => bar.querySelector('.progress-bar-fill').style.width = '100%', 50);
+  });
+  document.getElementById('doUploadBtn').disabled = true;
+  document.getElementById('doUploadBtn').textContent = 'アップロード中…';
+
+  setTimeout(() => {
+    closeUploadModal();
+    showToastMsg(`${uploadedFiles.length}件をアップロードしました`, 'success');
+  }, 1400);
+});
+
+/* ── ファイルアイコン判定 ── */
+function fileIcon(name, mime = '') {
+  const e = name.split('.').pop().toLowerCase();
+  if (mime.startsWith('image/')) return 'fa-file-image file-icon-img';
+  if (mime.startsWith('video/')) return 'fa-file-video file-icon-img';
+  const m = {
+    pdf:'fa-file-pdf file-icon-pdf', dxf:'fa-file-lines file-icon-dxf',
+    dwg:'fa-file-lines file-icon-dxf', stl:'fa-cube file-icon-stl',
+    stp:'fa-cube file-icon-stl', step:'fa-cube file-icon-stl',
+    xlsx:'fa-file-excel file-icon-xls', xls:'fa-file-excel file-icon-xls',
+    jpg:'fa-file-image file-icon-img', jpeg:'fa-file-image file-icon-img',
+    png:'fa-file-image file-icon-img', mp4:'fa-file-video file-icon-img',
+    mov:'fa-file-video file-icon-img',
+  };
+  return m[e] ?? 'fa-file file-icon-other';
+}
+function formatSize(bytes) {
+  if (bytes < 1024)        return bytes + ' B';
+  if (bytes < 1024*1024)   return (bytes/1024).toFixed(0) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showToastMsg(msg, type='info') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 2800);
+}
+
+/* ── ビュー切替共通 ── */
+let currentView = 'all'; // 'all' | 'mine' | 'recent' | 'liked'
+
+function setView(view) {
+  currentView = view;
+  setActiveNav('nav' + view.charAt(0).toUpperCase() + view.slice(1));
+  applyView();
+}
+
+function setActiveNav(id) {
+  ['navAll','navMine','navRecent','navLiked'].forEach(n => {
+    document.getElementById(n).classList.toggle('active', n === id);
+  });
+}
+
+function applyView() {
+  const allCards = document.querySelectorAll('.file-grid .file-card');
+  const titleEl  = document.getElementById('areaTitle');
+  const countEl  = document.getElementById('fileCount');
+
+  let visible = 0;
+  allCards.forEach(card => {
+    let show = false;
+    if (currentView === 'all') {
+      show = true;
+    } else if (currentView === 'mine') {
+      show = card.dataset.mine === 'true';
+    } else if (currentView === 'recent') {
+      show = true; // デモ：全件表示（日付順）
+    } else if (currentView === 'liked') {
+      show = card.querySelector('.like-btn.liked') !== null;
+    }
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  const labels = { all: 'すべてのファイル', mine: 'マイファイル', recent: '最近のファイル', liked: 'いいね済み' };
+  titleEl.textContent = labels[currentView] ?? 'すべてのファイル';
+  countEl.textContent = `（${visible}件）`;
+}
+
+/* ナビクリック */
+document.getElementById('navAll').addEventListener('click',    e => { e.preventDefault(); setView('all');    });
+document.getElementById('navMine').addEventListener('click',   e => { e.preventDefault(); setView('mine');   });
+document.getElementById('navRecent').addEventListener('click', e => { e.preventDefault(); setView('recent'); });
+document.getElementById('navLiked').addEventListener('click',  e => { e.preventDefault(); setView('liked');  });
+
+/* 初期件数を反映 */
+applyView();
+
+/* グリッド/リスト切替 */
+document.getElementById('viewGrid').addEventListener('click', () => {
+  document.getElementById('viewGrid').classList.add('active');
+  document.getElementById('viewList').classList.remove('active');
+  document.getElementById('gridArea').style.display = 'block';
+  document.getElementById('listArea').style.display = 'none';
+});
+document.getElementById('viewList').addEventListener('click', () => {
+  document.getElementById('viewList').classList.add('active');
+  document.getElementById('viewGrid').classList.remove('active');
+  document.getElementById('gridArea').style.display = 'none';
+  document.getElementById('listArea').style.display = 'block';
+});
+
+/* タグ選択トグル */
+document.querySelectorAll('.tag-list .tag').forEach(t => {
+  t.addEventListener('click', () => t.classList.toggle('active'));
+});
+
+/* いいねボタン */
+document.querySelectorAll('.like-btn').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    btn.classList.toggle('liked');
+    const i = btn.querySelector('i');
+    i.className = btn.classList.contains('liked') ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
+  });
+});
+
+/* ハンバーガーメニュー */
+const menuToggle = document.getElementById('menuToggle');
+const sidebar    = document.querySelector('.sidebar');
+const overlay    = document.getElementById('sidebarOverlay');
+if (menuToggle) {
+  menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+  });
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('open');
+  });
+}
+
+/* d キーでD&Dオーバーレイ確認 */
+let dragDemo = false;
+document.addEventListener('keydown', e => {
+  if (e.key === 'd' && e.target.tagName !== 'INPUT') {
+    dragDemo = !dragDemo;
+    document.getElementById('dropOverlay').classList.toggle('active', dragDemo);
+  }
+});
+</script>
+</body>
+</html>

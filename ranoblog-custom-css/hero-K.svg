@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 案K: Center Lines — 中央テキスト + 左右対称の罫線装飾 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap');
+    </style>
+  </defs>
+  <rect width="1200" height="700" fill="#fff"/>
+
+  <!-- 上下の太線フレーム -->
+  <line x1="0" y1="120" x2="1200" y2="120" stroke="#0a0a0a" stroke-width="2"/>
+  <line x1="0" y1="580" x2="1200" y2="580" stroke="#0a0a0a" stroke-width="2"/>
+
+  <!-- 中央テキスト -->
+  <text x="600" y="280" font-family="'Space Grotesk',sans-serif" font-size="120" font-weight="700" fill="#0a0a0a" text-anchor="middle" letter-spacing="-3">Observe.</text>
+  <text x="600" y="400" font-family="'Space Grotesk',sans-serif" font-size="120" font-weight="700" fill="#0a0a0a" text-anchor="middle" letter-spacing="-3">Build.</text>
+  <text x="600" y="520" font-family="'Space Grotesk',sans-serif" font-size="120" font-weight="700" fill="#0a0a0a" text-anchor="middle" letter-spacing="-3">Share.</text>
+
+  <!-- 上部ラベル行 -->
+  <text x="80" y="80" font-family="'JetBrains Mono',monospace" font-size="13" fill="#aaa" letter-spacing="4">ranoBlog</text>
+  <text x="1120" y="80" font-family="'JetBrains Mono',monospace" font-size="13" fill="#aaa" text-anchor="end" letter-spacing="3">EST. 2026</text>
+
+  <!-- 下部ラベル行 -->
+  <text x="600" y="640" font-family="'JetBrains Mono',monospace" font-size="12" fill="#bbb" text-anchor="middle" letter-spacing="5">INVEST · AI · WEB · STEEL · CLAUDE</text>
+</svg>

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理者画面 | SOLID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/app.css">
+  <style>
+    .tab-bar{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:24px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+    .tab-bar::-webkit-scrollbar{display:none;}
+    .tab-btn{padding:10px 20px;font-size:13px;font-weight:700;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;transition:color var(--trans),border-color var(--trans);white-space:nowrap;flex-shrink:0;}
+    .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary);}
+    .tab-btn:hover:not(.active){color:var(--dark);}
+    .tab-pane{display:none;}
+    .tab-pane.active{display:block;}
+
+    /* 会社カード */
+    .company-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+    .company-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px;transition:box-shadow var(--trans);}
+    .company-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.08);}
+    .company-card.inactive{opacity:.6;}
+    .company-card-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+    .company-name{font-weight:700;font-size:15px;}
+    .plan-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;}
+    .plan-trial   {background:rgba(253,203,110,.3);color:#b8690f;}
+    .plan-standard{background:rgba(9,132,227,.15);color:var(--blue);}
+    .plan-pro     {background:rgba(0,184,148,.2);color:var(--accent);}
+    .company-meta{font-size:12px;color:var(--muted);display:flex;gap:16px;margin-bottom:14px;}
+    .company-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+    /* ユーザーリスト */
+    .user-role-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;}
+    .role-jp_client   {background:rgba(116,185,255,.2);color:var(--blue);}
+    .role-id_modeler  {background:rgba(253,203,110,.25);color:#9d6a00;}
+    .role-jp_admin    {background:rgba(0,184,148,.2);color:var(--accent);}
+    .role-super_admin {background:rgba(255,107,53,.2);color:var(--primary);}
+
+    /* 削除管理 */
+    .expire-item{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);}
+    .expire-item:last-child{border-bottom:none;}
+    .expire-info{display:flex;flex-direction:column;gap:4px;}
+    .expire-title{font-size:14px;font-weight:600;}
+    .expire-meta{font-size:12px;color:var(--muted);}
+    .expire-countdown{font-size:13px;font-weight:700;text-align:right;}
+    .expire-soon{color:var(--danger);}
+    .expire-warn{color:#e17055;}
+    .expire-ok  {color:var(--muted);}
+
+    /* モーダル共通 */
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    @media(max-width:600px){.form-row{grid-template-columns:1fr;}}
+
+    /* ── レスポンシブ ── */
+    @media(max-width:768px){
+      .company-grid{grid-template-columns:1fr;}
+      #tab-cleanup .summary-grid{grid-template-columns:repeat(2,1fr)!important;}
+      .expire-item{flex-direction:column;align-items:flex-start;gap:6px;}
+      .expire-countdown{text-align:left;}
+    }
+    @media(max-width:480px){
+      /* 全プロジェクトテーブル: 担当モデラー(3列目)・優先度(5列目)を非表示 */
+      #adminProjectTable th:nth-child(3),#adminProjectTable td:nth-child(3),
+      #adminProjectTable th:nth-child(5),#adminProjectTable td:nth-child(5){display:none;}
+      /* ユーザーテーブル: 登録日(1)・メール(3)・国(6)・最終ログイン(7)を非表示 */
+      #adminUserTable th:nth-child(1),#adminUserTable td:nth-child(1),
+      #adminUserTable th:nth-child(3),#adminUserTable td:nth-child(3),
+      #adminUserTable th:nth-child(6),#adminUserTable td:nth-child(6),
+      #adminUserTable th:nth-child(7),#adminUserTable td:nth-child(7){display:none;}
+      /* 削除管理サマリー: 1列 */
+      #tab-cleanup .summary-grid{grid-template-columns:1fr!important;}
+      /* カードヘッダーのタイトルを折り返し */
+      #tab-cleanup .card-header{flex-wrap:wrap;gap:8px;}
+    }
+
+    /* トグルスイッチ */
+    .toggle-switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;}
+    .toggle-switch input{opacity:0;width:0;height:0;}
+    .toggle-slider{position:absolute;inset:0;background:#ccc;border-radius:24px;cursor:pointer;transition:.3s;}
+    .toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s;}
+    .toggle-switch input:checked + .toggle-slider{background:var(--primary);}
+    .toggle-switch input:checked + .toggle-slider:before{transform:translateX(20px);}
+
+    /* 統計バー */
+    .stat-row{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+    .stat-label{font-size:12px;color:var(--muted);width:100px;flex-shrink:0;}
+    .stat-bar-wrap{flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden;}
+    .stat-bar{height:100%;border-radius:4px;transition:width .5s;}
+    .stat-val{font-size:12px;font-weight:700;width:32px;text-align:right;}
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-title">SOLID</span>
+      <span class="sidebar-logo-sub">by HaLSpace</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+      <a href="dashboard.html"><i class="fa-solid fa-gauge"></i> ダッシュボード</a>
+      <a href="calendar.html"><i class="fa-solid fa-calendar-days"></i> 受注カレンダー</a>
+      <a href="project-new.html"><i class="fa-solid fa-plus-circle"></i> 新規発注</a>
+      <a href="admin.html" class="active" id="adminLink"><i class="fa-solid fa-gear"></i> 管理者画面</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div id="sidebarUser"></div>
+      <button class="btn-sidebar-logout" onclick="solidLogout()">
+        <i class="fa-solid fa-arrow-left"></i> アプリ選択に戻る
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <span class="top-bar-title">管理者画面</span>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- タブバー -->
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="projects">
+          <i class="fa-solid fa-folder-open"></i> 全プロジェクト
+        </button>
+        <button class="tab-btn" data-tab="companies">
+          <i class="fa-solid fa-building"></i> 会社管理
+        </button>
+        <button class="tab-btn" data-tab="users">
+          <i class="fa-solid fa-users"></i> ユーザー管理
+        </button>
+        <button class="tab-btn" data-tab="cleanup">
+          <i class="fa-solid fa-trash-can"></i> 自動削除管理
+        </button>
+      </div>
+
+      <!-- タブ1: 全プロジェクト -->
+      <div class="tab-pane active" id="tab-projects">
+        <div class="card">
+          <div class="card-header" style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;">
+            <span class="card-title" style="flex-shrink:0;">全プロジェクト一覧</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;align-items:center;">
+              <select class="form-select" id="filterCompany" style="width:180px;">
+                <option value="">全会社</option>
+              </select>
+              <select class="form-select" id="filterStatus" style="width:160px;">
+                <option value="">全ステータス</option>
+                <option value="submitted">提出済み</option>
+                <option value="in_progress">モデリング中</option>
+                <option value="review_pending">検査待ち</option>
+                <option value="revision_requested">修正依頼中</option>
+                <option value="approved">承認済み</option>
+                <option value="delivered">納品完了</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="adminProjectTable">
+              <thead>
+                <tr>
+                  <th>コード</th>
+                  <th>タイトル</th>
+                  <th>担当モデラー</th>
+                  <th>ステータス</th>
+                  <th>優先度</th>
+                  <th>期限</th>
+                </tr>
+              </thead>
+              <tbody id="adminProjectBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- タブ2: 会社管理 -->
+      <div class="tab-pane" id="tab-companies">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+          <h3 style="font-size:16px;font-weight:700;">登録会社一覧</h3>
+          <button class="btn btn-primary btn-sm" id="addCompanyBtn">
+            <i class="fa-solid fa-plus"></i> 会社を追加
+          </button>
+        </div>
+        <div class="company-grid" id="companyGrid"></div>
+
+        <!-- 統計サマリー -->
+        <div class="card" style="margin-top:24px;">
+          <div class="card-header"><span class="card-title">プラン別状況</span></div>
+          <div id="planStats"></div>
+        </div>
+      </div>
+
+      <!-- タブ3: ユーザー管理 -->
+      <div class="tab-pane" id="tab-users">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+          <h3 style="font-size:16px;font-weight:700;">ユーザー一覧</h3>
+          <button class="btn btn-primary btn-sm" id="inviteUserBtn">
+            <i class="fa-solid fa-user-plus"></i> ユーザーを招待
+          </button>
+        </div>
+        <div class="card">
+          <div class="card-header" style="flex-wrap:wrap;gap:10px;">
+            <span class="card-title">全ユーザー</span>
+            <select class="form-select" id="filterUserCompany" style="max-width:180px;margin-left:auto;">
+              <option value="">全会社</option>
+            </select>
+            <select class="form-select" id="filterUserRole" style="max-width:160px;">
+              <option value="">全ロール</option>
+              <option value="jp_client">発注担当</option>
+              <option value="id_modeler">モデラー</option>
+              <option value="jp_admin">管理者</option>
+              <option value="super_admin">スーパー管理者</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table id="adminUserTable">
+              <thead>
+                <tr>
+                  <th>登録日</th>
+                  <th>名前</th>
+                  <th>メールアドレス</th>
+                  <th>会社</th>
+                  <th>ロール</th>
+                  <th>国</th>
+                  <th>最終ログイン</th>
+                </tr>
+              </thead>
+              <tbody id="userBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- タブ4: 自動削除管理 -->
+      <div class="tab-pane" id="tab-cleanup">
+        <div class="summary-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
+          <div class="summary-card">
+            <div class="summary-icon" style="background:rgba(225,112,85,.15);">
+              <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);"></i>
+            </div>
+            <div>
+              <span class="summary-num" id="cntExpireSoon">—</span>
+              <span class="summary-label">7日以内に削除</span>
+            </div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-icon" style="background:rgba(253,203,110,.2);">
+              <i class="fa-solid fa-clock" style="color:#e17055;"></i>
+            </div>
+            <div>
+              <span class="summary-num" id="cntExpireWarn">—</span>
+              <span class="summary-label">14日以内に削除</span>
+            </div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-icon" style="background:rgba(116,185,255,.15);">
+              <i class="fa-solid fa-hard-drive text-blue"></i>
+            </div>
+            <div>
+              <span class="summary-num" id="totalStorage">—</span>
+              <span class="summary-label">総ストレージ使用量</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">削除予定プロジェクト（納品後3ヶ月で自動削除）</span>
+            <button class="btn btn-outline btn-sm" id="cleanupNowBtn" style="color:var(--danger);border-color:var(--danger);">
+              <i class="fa-solid fa-trash-can"></i> 今すぐ削除実行
+            </button>
+          </div>
+          <div id="expireList"></div>
+          <p style="font-size:12px;color:var(--muted);margin-top:16px;">
+            <i class="fa-solid fa-circle-info"></i>
+            毎日 02:00 JST に自動実行。14日前・7日前にメール通知送信。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 会社追加モーダル -->
+<div class="modal-overlay hidden" id="companyModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <span class="modal-title" id="companyModalTitle">会社を追加</span>
+      <button class="modal-close" id="companyModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">会社名 <span class="req">*</span></label>
+      <input type="text" class="form-input" id="companyName" placeholder="株式会社〇〇製作所">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">スラッグ <span class="req">*</span></label>
+        <input type="text" class="form-input" id="companySlug" placeholder="abc-mfg">
+      </div>
+      <div class="form-group">
+        <label class="form-label">プラン</label>
+        <select class="form-select" id="companyPlan">
+          <option value="trial">トライアル</option>
+          <option value="standard">スタンダード</option>
+          <option value="pro">プロ</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 契約情報セクション -->
+    <div style="border-top:1px solid var(--border);margin:16px 0 12px;padding-top:14px;">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:12px;letter-spacing:.04em;">
+        <i class="fa-solid fa-file-contract"></i> 契約情報
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">契約開始日</label>
+          <input type="date" class="form-input" id="companyContractDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">請求方式</label>
+          <select class="form-select" id="companyBillingType">
+            <option value="subscription">月次サブスク</option>
+            <option value="annual">年間契約</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="companyPriceLabel">月額（円）</label>
+        <input type="number" class="form-input" id="companyPrice" placeholder="150000" min="0" step="1000">
+      </div>
+      <div id="contractEndRow">
+        <div class="form-group">
+          <label class="form-label">契約終了日 <span style="font-size:10px;color:var(--muted);">（年間契約の場合）</span></label>
+          <input type="date" class="form-input" id="companyContractEndDate">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="companyModalClose2">キャンセル</button>
+      <button class="btn btn-primary" id="companyModalSubmit">
+        <i class="fa-solid fa-check"></i> 保存
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ユーザー招待モーダル -->
+<div class="modal-overlay hidden" id="userModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <span class="modal-title">ユーザーを招待</span>
+      <button class="modal-close" id="userModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">名前 <span class="req">*</span></label>
+        <input type="text" class="form-input" id="inviteName" placeholder="山田 太郎">
+      </div>
+      <div class="form-group">
+        <label class="form-label">メールアドレス <span class="req">*</span></label>
+        <input type="email" class="form-input" id="inviteEmail" placeholder="yamada@example.com">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">会社 <span class="req">*</span></label>
+        <select class="form-select" id="inviteCompany"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ロール <span class="req">*</span></label>
+        <select class="form-select" id="inviteRole">
+          <option value="jp_client">発注担当（日本）</option>
+          <option value="id_modeler">モデラー（インドネシア）</option>
+          <option value="jp_admin">管理者</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="userModalClose2">キャンセル</button>
+      <button class="btn btn-primary" id="userModalSubmit">
+        <i class="fa-solid fa-paper-plane"></i> 招待メールを送る
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ユーザー編集モーダル -->
+<div class="modal-overlay hidden" id="editUserModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <span class="modal-title" id="editUserModalTitle">ユーザー設定</span>
+      <button class="modal-close" id="editUserModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <input type="hidden" id="editUserId">
+    <div class="form-group">
+      <label class="form-label">ロール</label>
+      <select class="form-select" id="editUserRole">
+        <option value="jp_client">発注担当（日本）</option>
+        <option value="id_modeler">モデラー（インドネシア）</option>
+        <option value="jp_admin">管理者</option>
+        <option value="super_admin">スーパー管理者</option>
+      </select>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px;">
+      <div style="font-weight:700;font-size:13px;margin-bottom:14px;color:var(--muted);">
+        <i class="fa-solid fa-bell"></i> メール通知設定
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-size:13px;font-weight:600;">モデリング完了通知</div>
+          <div style="font-size:11px;color:var(--muted);">3Dデータ提出時にメールを受信</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="editToggleModeling">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-size:13px;font-weight:600;">ファイル削除警告通知</div>
+          <div style="font-size:11px;color:var(--muted);">削除14日前にメールを受信</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="editToggleExpiring">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div style="padding-top:12px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">追加送信先</div>
+        <div id="editExtraEmailList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+        <button class="btn btn-outline btn-sm" id="editAddExtraEmailBtn">
+          <i class="fa-solid fa-plus"></i> 追加
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="editUserModalCancel">キャンセル</button>
+      <button class="btn btn-primary" id="editUserModalSubmit">
+        <i class="fa-solid fa-floppy-disk"></i> 保存
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ステータス強制変更モーダル -->
+<div class="modal-overlay hidden" id="statusModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">ステータスを変更</span>
+      <button class="modal-close" id="statusModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;" id="statusModalDesc"></p>
+    <div class="form-group">
+      <label class="form-label">新しいステータス</label>
+      <select class="form-select" id="statusSelect">
+        <option value="submitted">提出済み（未着手）</option>
+        <option value="in_progress">モデリング中</option>
+        <option value="review_pending">検査待ち</option>
+        <option value="revision_requested">修正依頼中</option>
+        <option value="approved">承認済み</option>
+        <option value="delivered">納品完了</option>
+        <option value="cancelled">キャンセル</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="statusModalClose2">キャンセル</button>
+      <button class="btn btn-warning" id="statusModalSubmit" style="background:var(--warning);color:var(--dark);">
+        <i class="fa-solid fa-pen"></i> 変更する
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/uploader.js"></script>
+<script src="../assets/js/pages/admin.js"></script>
+</body>
+</html>

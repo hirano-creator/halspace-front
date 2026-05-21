@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#7C3AED">
+  <title>テンプレート管理 | MeetLog</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/ml-app.css">
+  <style>
+    .tpl-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      transition: box-shadow var(--trans);
+    }
+    .tpl-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+    .tpl-drag-handle {
+      color: var(--muted);
+      cursor: grab;
+      padding: 2px 4px;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .tpl-body-preview {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: pre-wrap;
+      max-height: 80px;
+      overflow: hidden;
+      font-family: monospace;
+      margin-top: 4px;
+    }
+    .tpl-actions { display:flex; gap:6px; flex-shrink:0; margin-left:auto; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <a href="dashboard.html" style="text-decoration:none;display:flex;flex-direction:column;gap:1px;">
+        <span class="sidebar-logo-title">MeetLog</span>
+        <span class="sidebar-logo-sub">by HaLSpace</span>
+      </a>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+      <a href="dashboard.html"><i class="fa-solid fa-house"></i> ホーム</a>
+      <div class="sidebar-nav-label" style="margin-top:16px;">管理</div>
+      <a href="templates.html" class="active"><i class="fa-solid fa-layer-group"></i> テンプレート管理</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div id="sidebarUser"></div>
+      <button class="btn-sidebar-logout" onclick="solidLogout()">
+        <i class="fa-solid fa-right-from-bracket"></i> アプリ選択に戻る
+      </button>
+    </div>
+  </aside>
+
+  <!-- メインコンテンツ -->
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <a href="dashboard.html" class="btn btn-ghost btn-sm" style="padding:6px 10px;">
+          <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <span class="top-bar-title">テンプレート管理</span>
+      </div>
+      <div class="top-bar-right">
+        <button class="btn btn-accent" id="newTplBtn">
+          <i class="fa-solid fa-plus"></i>
+          <span>テンプレートを追加</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="card" style="margin-bottom:16px;padding:14px 20px;">
+        <p style="font-size:13px;color:var(--muted);margin:0;">
+          <i class="fa-solid fa-circle-info" style="color:var(--ml-accent);"></i>
+          テンプレートは議事録作成時に選択できます。ドラッグで並び順を変更できます。
+        </p>
+      </div>
+
+      <!-- テンプレート一覧 -->
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="card-header" style="padding:16px 20px 12px;border-bottom:1px solid var(--border);">
+          <span class="card-title"><i class="fa-solid fa-layer-group" style="color:var(--ml-accent);"></i> テンプレート一覧</span>
+          <span id="tplCount" style="font-size:13px;color:var(--muted);"></span>
+        </div>
+        <div id="loadingArea" style="padding:40px;text-align:center;color:var(--muted);">
+          <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+        </div>
+        <div id="tplListWrap" style="padding:16px 20px;display:flex;flex-direction:column;gap:10px;display:none;">
+          <div id="tplList"></div>
+        </div>
+        <div id="emptyMsg" style="display:none;padding:40px;text-align:center;color:var(--muted);">
+          <i class="fa-solid fa-layer-group fa-3x" style="opacity:.3;margin-bottom:12px;display:block;"></i>
+          <p style="font-size:14px;">テンプレートがありません</p>
+          <p style="font-size:13px;margin-top:6px;">「テンプレートを追加」ボタンから作成できます</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- テンプレート作成/編集モーダル -->
+<div class="modal-overlay hidden" id="tplModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <span class="modal-title" id="tplModalTitle">
+        <i class="fa-solid fa-layer-group" style="color:var(--ml-accent);"></i> テンプレートを追加
+      </span>
+      <button class="modal-close" id="tplModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <label style="font-size:12px;font-weight:700;color:var(--primary);display:block;margin-bottom:6px;">テンプレート名</label>
+        <input type="text" id="tplNameInput" class="form-input" placeholder="例: 一般会議" maxlength="100" style="width:100%;">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:700;color:var(--primary);display:block;margin-bottom:6px;">本文（Markdown）</label>
+        <textarea id="tplBodyInput" class="md-textarea" style="min-height:200px;"
+          placeholder="## 協議事項&#10;&#10;## 決定事項&#10;&#10;## アクションアイテム&#10;"></textarea>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="tplIsDefault" style="width:16px;height:16px;accent-color:var(--ml-accent);">
+        <label for="tplIsDefault" style="font-size:13px;color:var(--text);cursor:pointer;">
+          このテンプレートをデフォルトにする
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="tplModalCancel">キャンセル</button>
+      <button class="btn btn-accent" id="tplModalSave">
+        <i class="fa-solid fa-floppy-disk"></i> 保存
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="../../../solid/assets/js/auth.js?v=6"></script>
+<script src="../assets/js/ml-api.js?v=1"></script>
+<script src="../assets/js/pages/ml-templates.js?v=1"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const toggle  = document.getElementById('menuToggle');
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  toggle.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+  });
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('open');
+  });
+});
+</script>
+</body>
+</html>

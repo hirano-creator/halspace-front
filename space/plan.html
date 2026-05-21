@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HaLSpace 開発計画書</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1E3A5F;
+      --accent:  #2196F3;
+      --bg:      #F0F4F8;
+      --white:   #FFFFFF;
+      --text:    #1A1A2E;
+      --muted:   #546E7A;
+      --border:  #D1D9E0;
+      --green:   #00B894;
+      --orange:  #F39C12;
+      --red:     #E17055;
+      --radius:  10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.75;
+    }
+    /* ヘッダー */
+    .page-header {
+      background: var(--primary);
+      color: #fff;
+      padding: 40px 48px 32px;
+    }
+    .page-header h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: .5px;
+      margin-bottom: 6px;
+    }
+    .page-header p { font-size: 14px; opacity: .75; }
+    .header-badges { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .badge {
+      font-size: 12px; font-weight: 700; padding: 4px 12px;
+      border-radius: 20px; background: rgba(255,255,255,.15); color: #fff;
+    }
+    /* ナビ（目次） */
+    .toc {
+      background: var(--white); border-bottom: 1px solid var(--border);
+      padding: 0 48px;
+      position: sticky; top: 0; z-index: 100;
+      overflow-x: auto; white-space: nowrap;
+    }
+    .toc a {
+      display: inline-block; padding: 14px 16px;
+      font-size: 13px; font-weight: 700; color: var(--muted);
+      text-decoration: none; border-bottom: 3px solid transparent;
+      transition: color .2s, border-color .2s;
+    }
+    .toc a:hover { color: var(--accent); border-color: var(--accent); }
+    /* メインレイアウト */
+    .container { max-width: 1080px; margin: 0 auto; padding: 40px 24px 80px; }
+    /* セクション */
+    .section { margin-bottom: 48px; }
+    .section-title {
+      font-family: 'Poppins', sans-serif;
+      font-size: 20px; font-weight: 800;
+      color: var(--primary); margin-bottom: 20px;
+      padding-bottom: 10px; border-bottom: 3px solid var(--accent);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-title .icon {
+      width: 34px; height: 34px; border-radius: 8px;
+      background: var(--accent); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .subsection-title {
+      font-size: 16px; font-weight: 700; color: var(--primary);
+      margin: 24px 0 12px;
+    }
+    /* カード */
+    .card {
+      background: var(--white); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 24px;
+      margin-bottom: 16px;
+    }
+    /* テーブル */
+    .tbl-wrap { overflow-x: auto; }
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: 14px;
+    }
+    th {
+      background: var(--primary); color: #fff;
+      padding: 10px 14px; text-align: left;
+      font-weight: 700; font-size: 13px;
+    }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    /* コードブロック */
+    pre {
+      background: #1A1A2E; color: #e8f0fe;
+      border-radius: var(--radius); padding: 20px;
+      font-size: 13px; line-height: 1.6; overflow-x: auto;
+      font-family: 'Consolas', 'Monaco', monospace;
+      margin: 12px 0;
+    }
+    code {
+      background: rgba(33,150,243,.1); color: var(--accent);
+      border-radius: 4px; padding: 2px 6px; font-size: 13px;
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+    pre code { background: none; color: inherit; padding: 0; }
+    /* リスト */
+    ul, ol { padding-left: 24px; margin: 8px 0; }
+    li { margin-bottom: 4px; }
+    /* フェーズバッジ */
+    .phase-card {
+      background: var(--white); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 20px 24px;
+      margin-bottom: 12px;
+      border-left: 4px solid var(--accent);
+    }
+    .phase-card h4 { font-size: 15px; font-weight: 700; margin-bottom: 8px; color: var(--primary); }
+    .phase-card ol { margin: 0; padding-left: 20px; }
+    /* 特徴カードグリッド */
+    .feature-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .feature-card {
+      background: var(--white); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 18px;
+    }
+    .feature-card .fc-icon { font-size: 24px; margin-bottom: 8px; }
+    .feature-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; color: var(--primary); }
+    .feature-card p { font-size: 13px; color: var(--muted); }
+    /* ステータスドット */
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .dot-done  { background: var(--green); }
+    .dot-next  { background: var(--accent); }
+    .dot-later { background: var(--border); }
+    /* コスト */
+    .cost-highlight {
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+      border-radius: var(--radius); padding: 20px 24px; margin: 16px 0;
+      border: 1px solid #90caf9;
+    }
+    .cost-highlight .big { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; color: var(--primary); }
+    .cost-highlight .sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    /* 比較表 */
+    .compare-better { color: var(--green); font-weight: 700; }
+    .compare-na { color: var(--muted); }
+    /* 権限マトリクス */
+    .allow  { color: var(--green);  font-weight: 700; }
+    .deny   { color: var(--red);    font-weight: 700; }
+    .partial{ color: var(--orange); font-weight: 700; }
+    /* ファイル一覧 */
+    .file-list { list-style: none; padding: 0; }
+    .file-list li {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+    }
+    .file-list li:last-child { border-bottom: none; }
+    .file-list .fpath { color: var(--accent); font-family: 'Consolas', monospace; font-size: 13px; }
+    .file-list .fdesc { color: var(--muted); font-size: 13px; }
+    /* 更新日 */
+    .updated { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    /* レスポンシブ */
+    @media (max-width: 700px) {
+      .page-header { padding: 24px 20px; }
+      .toc { padding: 0 8px; }
+      .container { padding: 24px 14px 60px; }
+      .section-title { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>HaLSpace 開発計画書</h1>
+  <p>What'sNo v2 / SOLID / Space ポータル — 全機能設計ドキュメント</p>
+  <div class="header-badges">
+    <span class="badge">v2.0</span>
+    <span class="badge">2025年〜</span>
+    <span class="badge">フェーズ1 MVP</span>
+    <span class="badge">製造業向けクラウドストレージ</span>
+  </div>
+</div>
+
+<nav class="toc">
+  <a href="#overview">概要</a>
+  <a href="#positioning">市場ポジション</a>
+  <a href="#features">機能一覧</a>
+  <a href="#screens">画面構成</a>
+  <a href="#db">DBスキーマ</a>
+  <a href="#api">API</a>
+  <a href="#uiux">UI/UX</a>
+  <a href="#aitag">AIタグ</a>
+  <a href="#qr">QRコード</a>
+  <a href="#auditlog">監査ログ</a>
+  <a href="#cost">コスト</a>
+  <a href="#phases">実装フェーズ</a>
+  <a href="#files">変更ファイル</a>
+  <a href="#solid">SOLID詳細</a>
+</nav>
+
+<div class="container">
+
+  <!-- 概要 -->
+  <section class="section" id="overview">
+    <div class="section-title"><div class="icon">📋</div>プロジェクト概要</div>
+    <div class="card">
+      <p>HaLSpaceが提供するWhat'sNoを<strong>「製造業の現場と管理側の両方が使いたくなるクラウドストレージ」</strong>として全面刷新する。</p>
+      <br>
+      <p>現行版はスマホ非対応・基本的なファイル管理のみ。競合（Box・Fleekdrive・DirectCloud）との差別化として、
+      <strong>AIタグ自動付与・QRコードリンク・バージョン管理・承認ワークフロー</strong>を中核機能として実装する。</p>
+      <br>
+      <p>対象：中堅製造業（100〜500名）。Spaceシステムの子アプリとして <code>space/login.html</code> の認証を共有する。</p>
+    </div>
+    <div class="subsection-title">ターゲットペルソナ</div>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="fc-icon">🏭</div>
+        <h4>現場作業員</h4>
+        <p>スマホでQRスキャン→最新図面を即表示。印刷・ダウンロード不要。</p>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">📐</div>
+        <h4>設計担当者</h4>
+        <p>図面アップロード時にAIがタグを自動付与。バージョン管理で過去版を参照。</p>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">👔</div>
+        <h4>管理者</h4>
+        <p>承認ワークフローで図面変更を統制。誰がいつ何を見たか監査ログで追跡。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 市場ポジション -->
+  <section class="section" id="positioning">
+    <div class="section-title"><div class="icon">📊</div>市場ポジショニング</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>サービス</th><th>製造業特化</th><th>スマホ現場対応</th><th>AI機能</th><th>QR連携</th><th>承認ワークフロー</th><th>価格</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Box</td><td>△</td><td>○</td><td>○（高額）</td><td class="deny">✗</td><td>○（複雑）</td><td>高</td></tr>
+          <tr><td>Fleekdrive</td><td>○</td><td>△</td><td class="deny">✗</td><td class="deny">✗</td><td>△</td><td>中</td></tr>
+          <tr><td>DirectCloud</td><td>○</td><td>○</td><td class="deny">✗</td><td class="deny">✗</td><td>△</td><td>中</td></tr>
+          <tr>
+            <td><strong>What'sNo v2</strong></td>
+            <td class="compare-better">◎</td>
+            <td class="compare-better">◎</td>
+            <td class="compare-better">◎</td>
+            <td class="compare-better">◎</td>
+            <td class="compare-better">◎</td>
+            <td class="compare-better">中低</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 機能一覧 -->
+  <section class="section" id="features">
+    <div class="section-title"><div class="icon">⚡</div>機能一覧</div>
+    <div class="subsection-title">フェーズ1（MVP）— 今回実装</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>機能</th><th>概要</th></tr></thead>
+        <tbody>
+          <tr><td><strong>スマホ対応（レスポンシブ）</strong></td><td>320px〜対応。現場でのタブレット・スマホ閲覧を想定</td></tr>
+          <tr><td><strong>バージョン管理</strong></td><td>同名ファイル更新時に旧版を保持。v1/v2/v3で履歴表示</td></tr>
+          <tr><td><strong>AIタグ自動付与</strong></td><td>アップロード時にファイル名・拡張子・内容からタグを提案（Claude API活用）</td></tr>
+          <tr><td><strong>QRコードリンク</strong></td><td>ファイルごとにQRを発行。現場掲示物にQRを貼れば最新版に即アクセス</td></tr>
+          <tr><td><strong>承認ワークフロー</strong></td><td>ファイルに「申請→承認→公開」フローを設定可能</td></tr>
+          <tr><td><strong>いいね・コメント</strong></td><td>既存機能を継続・強化（スレッド形式）</td></tr>
+          <tr><td><strong>タグ検索・絞り込み</strong></td><td>AIタグ＋手動タグで高精度フィルタリング</td></tr>
+          <tr><td><strong>印刷・ダウンロード</strong></td><td>既存機能を継続</td></tr>
+          <tr><td><strong>ドラッグ&ドロップ</strong></td><td>ブラウザウィンドウ全体がドロップゾーン。複数ファイル同時対応</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="subsection-title">フェーズ2（後続）</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>機能</th><th>概要</th></tr></thead>
+        <tbody>
+          <tr><td>AI類似ファイル検索</td><td>図面をアップロードして似た図面を検索</td></tr>
+          <tr><td>変更差分ハイライト</td><td>PDF/DXFのバージョン間の変更箇所を視覚化</td></tr>
+          <tr><td>オフラインキャッシュ</td><td>PWA化してオフラインでも最新取得済み図面を閲覧</td></tr>
+          <tr><td>ERP/BOM連携</td><td>部品表との自動連動</td></tr>
+          <tr><td>図面アノテーション</td><td>スマホ・タブレットでPDF/画像上に手書き書き込み</td></tr>
+          <tr><td>既読確認</td><td>重要ファイルを誰がいつ開いたか管理・未読者へリマインド</td></tr>
+          <tr><td>有効期限付き外部共有</td><td>社外向けにパスワード＋期限付きURL発行（期限切れ自動無効化）</td></tr>
+          <tr><td>変更通知</td><td>フォルダ/ファイルをウォッチ登録して更新時にメール通知</td></tr>
+          <tr><td>フォルダテンプレート</td><td>「新規プロジェクト」で定型フォルダ構成を一括生成</td></tr>
+          <tr><td>アクセス分析</td><td>よく見られるファイル・アクセス傾向をグラフ表示</td></tr>
+          <tr><td>印刷履歴管理</td><td>誰がいつ何枚印刷したか記録・旧版印刷の追跡</td></tr>
+          <tr><td>AI音声検索</td><td>スマホマイクで話して検索（現場での手が汚れた状態でも操作可）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 画面構成 -->
+  <section class="section" id="screens">
+    <div class="section-title"><div class="icon">🖥</div>画面構成</div>
+    <pre>whatsno/
+├── index.html              ← ランディングページ（既存をリニューアル）
+└── app/
+    ├── dashboard.html      ← ファイル一覧・検索・アップロード
+    ├── file-detail.html    ← ファイル詳細（プレビュー・コメント・バージョン・QR）
+    ├── folder.html         ← フォルダ別表示
+    └── admin.html          ← 管理者（ユーザー管理・承認設定・監査ログ）</pre>
+  </section>
+
+  <!-- DBスキーマ -->
+  <section class="section" id="db">
+    <div class="section-title"><div class="icon">🗄</div>DBスキーマ</div>
+
+    <div class="subsection-title">wn_files テーブル</div>
+    <pre>CREATE TABLE wn_files (
+    id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    company_id      BIGINT UNSIGNED NOT NULL,
+    folder_id       BIGINT UNSIGNED NULL,
+    uploaded_by     BIGINT UNSIGNED NOT NULL,
+    file_name       VARCHAR(255) NOT NULL,
+    storage_path    VARCHAR(500) NOT NULL,
+    file_size       BIGINT UNSIGNED NOT NULL,
+    mime_type       VARCHAR(100),
+    version         TINYINT UNSIGNED DEFAULT 1,
+    parent_id       BIGINT UNSIGNED NULL,
+    status          ENUM('draft','pending_approval','approved','rejected') DEFAULT 'draft',
+    approved_by     BIGINT UNSIGNED NULL,
+    approved_at     TIMESTAMP NULL,
+    is_deleted      BOOLEAN DEFAULT FALSE,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES companies(id),
+    FOREIGN KEY (uploaded_by) REFERENCES users(id)
+);</pre>
+
+    <div class="subsection-title">wn_tags / wn_file_tags テーブル</div>
+    <pre>CREATE TABLE wn_tags (
+    id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    company_id BIGINT UNSIGNED NOT NULL,
+    name       VARCHAR(100) NOT NULL,
+    source     ENUM('manual','ai') DEFAULT 'manual',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE wn_file_tags (
+    file_id BIGINT UNSIGNED NOT NULL,
+    tag_id  BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (file_id, tag_id)
+);</pre>
+
+    <div class="subsection-title">wn_folders テーブル</div>
+    <pre>CREATE TABLE wn_folders (
+    id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    company_id BIGINT UNSIGNED NOT NULL,
+    parent_id  BIGINT UNSIGNED NULL,
+    name       VARCHAR(200) NOT NULL,
+    created_by BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);</pre>
+
+    <div class="subsection-title">wn_comments / wn_likes テーブル</div>
+    <pre>CREATE TABLE wn_comments (
+    id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    file_id    BIGINT UNSIGNED NOT NULL,
+    user_id    BIGINT UNSIGNED NOT NULL,
+    parent_id  BIGINT UNSIGNED NULL,
+    body       TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE wn_likes (
+    file_id    BIGINT UNSIGNED NOT NULL,
+    user_id    BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (file_id, user_id)
+);</pre>
+
+    <div class="subsection-title">wn_qr_tokens テーブル</div>
+    <pre>CREATE TABLE wn_qr_tokens (
+    id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    file_id    BIGINT UNSIGNED NOT NULL,
+    token      VARCHAR(64) UNIQUE NOT NULL,
+    expires_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);</pre>
+
+    <div class="subsection-title">space_audit_logs テーブル（Space共通）</div>
+    <pre>CREATE TABLE space_audit_logs (
+    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id     BIGINT UNSIGNED NULL,
+    company_id  BIGINT UNSIGNED NULL,
+    app         ENUM('space','solid','whatsno') NOT NULL,
+    action      VARCHAR(100) NOT NULL,       -- 'file.view', 'auth.login' 等
+    target_type VARCHAR(50) NULL,
+    target_id   BIGINT UNSIGNED NULL,
+    detail      JSON NULL,
+    ip_address  VARCHAR(45) NULL,
+    user_agent  TEXT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_id (user_id),
+    INDEX idx_company_id (company_id),
+    INDEX idx_created_at (created_at)
+);</pre>
+  </section>
+
+  <!-- API -->
+  <section class="section" id="api">
+    <div class="section-title"><div class="icon">🔌</div>APIエンドポイント（Laravel）</div>
+    <pre>GET    /api/wn/files                → 一覧（タグ・フォルダ・キーワードで絞り込み）
+POST   /api/wn/files                → アップロード（バージョン自動判定）
+GET    /api/wn/files/:id            → 詳細
+DELETE /api/wn/files/:id            → 論理削除
+GET    /api/wn/files/:id/versions   → バージョン履歴
+GET    /api/wn/files/:id/view       → プレビュー用URL取得
+GET    /api/wn/files/:id/download   → ダウンロード
+POST   /api/wn/files/:id/ai-tags    → AIタグ提案（Claude Haiku API）
+POST   /api/wn/files/:id/qr         → QRトークン発行
+GET    /api/wn/qr/:token            → QR経由アクセス（最新版へリダイレクト）
+POST   /api/wn/files/:id/submit     → 承認申請
+POST   /api/wn/files/:id/approve    → 承認
+POST   /api/wn/files/:id/reject     → 差し戻し
+GET    /api/wn/files/:id/comments   → コメント一覧
+POST   /api/wn/files/:id/comments   → コメント投稿
+POST   /api/wn/files/:id/like       → いいね トグル
+GET    /api/wn/folders              → フォルダツリー
+POST   /api/wn/folders              → フォルダ作成
+
+GET    /api/admin/audit-logs        → ログ一覧（フィルター・ページネーション）
+GET    /api/admin/audit-logs/export → CSV出力</pre>
+  </section>
+
+  <!-- UI/UX -->
+  <section class="section" id="uiux">
+    <div class="section-title"><div class="icon">🎨</div>UI/UX 設計方針</div>
+    <div class="card">
+      <div class="subsection-title" style="margin-top:0">デザインテーマ</div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>役割</th><th>カラーコード</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr><td>プライマリ</td><td><span style="display:inline-block;width:16px;height:16px;background:#1E3A5F;border-radius:3px;vertical-align:middle;margin-right:6px;"></span><code>#1E3A5F</code></td><td>ディープブルー — 信頼感・製造業BtoB向け</td></tr>
+            <tr><td>アクセント</td><td><span style="display:inline-block;width:16px;height:16px;background:#2196F3;border-radius:3px;vertical-align:middle;margin-right:6px;"></span><code>#2196F3</code></td><td>ブライトブルー — ボタン・リンク</td></tr>
+            <tr><td>背景</td><td><span style="display:inline-block;width:16px;height:16px;background:#F0F4F8;border:1px solid #ccc;border-radius:3px;vertical-align:middle;margin-right:6px;"></span><code>#F0F4F8</code></td><td>薄いグレー</td></tr>
+            <tr><td>承認済み</td><td><span style="display:inline-block;width:16px;height:16px;background:#00B894;border-radius:3px;vertical-align:middle;margin-right:6px;"></span><code>#00B894</code></td><td>緑</td></tr>
+            <tr><td>申請中</td><td><span style="display:inline-block;width:16px;height:16px;background:#F39C12;border-radius:3px;vertical-align:middle;margin-right:6px;"></span><code>#F39C12</code></td><td>オレンジ</td></tr>
+            <tr><td>差し戻し</td><td><span style="display:inline-block;width:16px;height:16px;background:#E17055;border-radius:3px;vertical-align:middle;margin-right:6px;"></span><code>#E17055</code></td><td>赤</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="subsection-title">レスポンシブ対応</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>幅</th><th>レイアウト</th></tr></thead>
+        <tbody>
+          <tr><td>PC（1024px〜）</td><td>3カラムグリッド + 左サイドバー</td></tr>
+          <tr><td>タブレット（768px〜）</td><td>2カラムグリッド + ハンバーガーメニュー</td></tr>
+          <tr><td>スマホ（〜767px）</td><td>1カラム + <strong>ボトムナビゲーション</strong>（現場利用想定）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="subsection-title">スマホ専用UI要素</div>
+    <ul>
+      <li><strong>ボトムナビ</strong>: ホーム / 検索 / アップロード(＋) / QRスキャン / マイページ</li>
+      <li><strong>フローティングボタン</strong>: 右下の＋ボタンでカメラ/ファイル選択</li>
+      <li><strong>スワイプ操作</strong>: ファイルカードを左スワイプで「ダウンロード/共有/削除」</li>
+    </ul>
+    <div class="subsection-title">ドラッグ&ドロップ 実装仕様</div>
+    <div class="card">
+      <ul>
+        <li><strong>発火タイミング</strong>: ブラウザウィンドウにファイルをドラッグした瞬間にメインエリアがドロップゾーンに変化</li>
+        <li><strong>視覚フィードバック</strong>: 点線ボーダー（#2196F3）＋背景色変化＋「ここにドロップ」テキスト表示</li>
+        <li><strong>複数ファイル対応</strong>: 同時に複数ファイルをドロップ可能。プログレスバーで個別進捗表示</li>
+        <li><strong>バージョン自動判定</strong>: 同フォルダ内に同名ファイルが存在する場合、自動的にv+1として保存</li>
+        <li><strong>アップロード後</strong>: AIタグ提案モーダルを表示してからファイル一覧に追加</li>
+        <li><strong>スマホ対応</strong>: ボトムナビの「＋」ボタン → カメラ/ファイル選択（drag&dropは非対応のためボタン方式）</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- AIタグ -->
+  <section class="section" id="aitag">
+    <div class="section-title"><div class="icon">🤖</div>AIタグ自動付与</div>
+    <div class="card">
+      <p>Claude Haiku（<code>claude-haiku-4-5</code>）を使用してコスト最小化。</p>
+      <div class="subsection-title">フロー</div>
+      <ol>
+        <li>ファイル名・拡張子・ファイルサイズをLaravelに送信</li>
+        <li>PDFの場合: 先頭テキスト（1000文字）を抽出して送信</li>
+        <li>Claude Haikuがタグ候補（5〜10個）をJSON配列で返す</li>
+        <li>フロントエンドでユーザーが確認・選択して確定</li>
+      </ol>
+      <div class="subsection-title">プロンプト</div>
+      <pre>製造業向けファイル管理システムです。
+ファイル名: "{file_name}"
+以下カテゴリからタグを最大8つ提案（JSON配列で返す）:
+部門: [設計, 製造, 品管, 調達, 現場, 営業]
+種別: [図面, 仕様書, 手順書, 検査表, 見積, 報告書]
+工程: [組立, 加工, 検査, 塗装, 溶接, 出荷]
+素材: [鉄, アルミ, ステンレス, 樹脂, 銅]
+その他: [重要, 要承認, 最新版, 廃版]</pre>
+    </div>
+  </section>
+
+  <!-- QRコード -->
+  <section class="section" id="qr">
+    <div class="section-title"><div class="icon">📱</div>QRコードリンク</div>
+    <div class="card">
+      <div class="subsection-title" style="margin-top:0">発行フロー</div>
+      <ol>
+        <li>ファイル詳細画面でQR発行ボタンをクリック</li>
+        <li>ランダムトークン（64文字）を生成 → wn_qr_tokens に保存</li>
+        <li>qrcode.min.js（CDN）でQR画像を生成 → ダウンロード or 印刷</li>
+        <li>現場の掲示板・機械・棚にQRを貼付</li>
+      </ol>
+      <div class="subsection-title">アクセスフロー</div>
+      <pre>スマホでQRスキャン
+→ https://halspace.pages.dev/whatsno/qr/{token}
+→ Laravel がトークンを照合
+→ 最新承認済みバージョンの file-detail.html にリダイレクト
+→ ブラウザ上でPDF/画像をそのまま閲覧</pre>
+    </div>
+  </section>
+
+  <!-- 監査ログ -->
+  <section class="section" id="auditlog">
+    <div class="section-title"><div class="icon">📝</div>Space共通ログ機能</div>
+    <div class="subsection-title">記録対象</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>ログ種別</th><th>記録内容</th></tr></thead>
+        <tbody>
+          <tr><td><strong>ログイン/ログアウト</strong></td><td>ユーザーID・日時・IPアドレス・デバイス種別（PC/スマホ）・成功/失敗</td></tr>
+          <tr><td><strong>ファイル操作</strong></td><td>閲覧・ダウンロード・アップロード・削除・バージョン更新・QRアクセス</td></tr>
+          <tr><td><strong>管理者操作</strong></td><td>ユーザー追加・削除・権限変更・会社設定変更・承認/差し戻し</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="subsection-title">ログ閲覧画面（管理者専用）</div>
+    <div class="card">
+      <ul>
+        <li>期間フィルター（今日/今週/今月/カスタム）</li>
+        <li>アプリフィルター（Space/SOLID/What'sNo）</li>
+        <li>操作種別フィルター（ログイン/ファイル/管理）</li>
+        <li>ユーザー・会社フィルター</li>
+        <li>ログ一覧テーブル（日時/ユーザー/操作/対象/IP）</li>
+        <li>CSVエクスポートボタン</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- コスト -->
+  <section class="section" id="cost">
+    <div class="section-title"><div class="icon">💰</div>運用コスト試算</div>
+    <div class="cost-highlight">
+      <div class="big">〜¥2,000/月</div>
+      <div class="sub">小規模運用時（1〜3社、〜50ユーザー）の目安</div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>サービス</th><th>用途</th><th>月額</th></tr></thead>
+        <tbody>
+          <tr><td>Cloudflare Pages</td><td>フロントエンド配信</td><td class="compare-better">無料</td></tr>
+          <tr><td>Cloudflare R2</td><td>ファイルストレージ（10GBまで）</td><td class="compare-better">無料</td></tr>
+          <tr><td>Cloudflare R2</td><td>10GB超過分（1GBあたり）</td><td>$0.015/GB</td></tr>
+          <tr><td>Railway — Web</td><td>Laravel API</td><td>$5〜</td></tr>
+          <tr><td>Railway — MySQL</td><td>DB</td><td>$5〜</td></tr>
+          <tr><td>ドメイン</td><td>halspace-premium.com 等</td><td>約100円/月（年払い）</td></tr>
+          <tr><td><strong>合計（基本）</strong></td><td></td><td><strong>約1,500〜2,000円/月</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="subsection-title">AIタグ機能のコスト（Claude Haiku API）</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>利用量</th><th>試算</th></tr></thead>
+        <tbody>
+          <tr><td>1ファイルあたりのAPI料金</td><td>約<strong>0.03〜0.05円</strong>（Haiku: $0.25/MTok）</td></tr>
+          <tr><td>月100ファイルアップロード</td><td>約<strong>3〜5円/月</strong></td></tr>
+          <tr><td>月1,000ファイルアップロード</td><td>約<strong>30〜50円/月</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="subsection-title">スケール時のコスト</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>規模</th><th>Railwayコスト</th><th>合計目安</th></tr></thead>
+        <tbody>
+          <tr><td>1〜3社（〜50ユーザー）</td><td>$10/月</td><td><strong>約1,500〜2,000円/月</strong></td></tr>
+          <tr><td>5〜10社（〜200ユーザー）</td><td>$20〜30/月</td><td><strong>約3,000〜5,000円/月</strong></td></tr>
+          <tr><td>20社超（〜500ユーザー）</td><td>$50〜/月</td><td><strong>スケールアップ検討</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 実装フェーズ -->
+  <section class="section" id="phases">
+    <div class="section-title"><div class="icon">🚀</div>実装フェーズ</div>
+    <div class="phase-card">
+      <h4>フェーズ1-A: 基盤（1〜2日）</h4>
+      <ol>
+        <li>DBマイグレーション作成・実行</li>
+        <li>Laravel Controllerのスケルトン作成</li>
+        <li><code>wn-app.css</code> のベーススタイル（レスポンシブ含む）</li>
+        <li><code>dashboard.html</code> の基本レイアウト</li>
+      </ol>
+    </div>
+    <div class="phase-card">
+      <h4>フェーズ1-B: コア機能（3〜4日）</h4>
+      <ol>
+        <li>ファイルアップロード（ドラッグ&ドロップ）</li>
+        <li>バージョン管理（更新時に旧版を保持）</li>
+        <li>タグ付け（手動）+ AIタグ提案</li>
+        <li>ファイル一覧・検索・絞り込み</li>
+      </ol>
+    </div>
+    <div class="phase-card">
+      <h4>フェーズ1-C: 差別化機能（2〜3日）</h4>
+      <ol>
+        <li>QRコード発行・スキャンアクセス</li>
+        <li>承認ワークフロー</li>
+        <li>コメント・いいね</li>
+        <li>スマホ用ボトムナビ・スワイプ操作</li>
+      </ol>
+    </div>
+    <div class="phase-card">
+      <h4>フェーズ1-D: 仕上げ（1日）</h4>
+      <ol>
+        <li>プレビュー（viewer.html流用）</li>
+        <li>印刷・ダウンロード</li>
+        <li>管理者画面（監査ログ・ユーザー管理）</li>
+      </ol>
+    </div>
+    <div class="subsection-title">検証手順</div>
+    <ol>
+      <li>ファイルをドラッグ&ドロップでアップロード → AIタグ提案が表示されること</li>
+      <li>同名ファイルを再アップロード → バージョンv2として保存されること</li>
+      <li>QR発行 → スマホでスキャン → ファイル詳細が開くこと</li>
+      <li>承認申請 → 管理者が承認 → ステータスが「承認済み」になること</li>
+      <li>スマホ（375px幅）でダッシュボードを開く → ボトムナビが表示されること</li>
+      <li>タグで絞り込み → 該当ファイルのみ表示されること</li>
+    </ol>
+  </section>
+
+  <!-- 変更ファイル -->
+  <section class="section" id="files">
+    <div class="section-title"><div class="icon">📁</div>変更ファイル一覧</div>
+    <div class="subsection-title">新規作成（フロントエンド）</div>
+    <ul class="file-list">
+      <li><span class="fpath">whatsno/app/dashboard.html</span><span class="fdesc">メインダッシュボード</span></li>
+      <li><span class="fpath">whatsno/app/file-detail.html</span><span class="fdesc">ファイル詳細・プレビュー・コメント・QR・バージョン</span></li>
+      <li><span class="fpath">whatsno/app/folder.html</span><span class="fdesc">フォルダ別ファイル一覧</span></li>
+      <li><span class="fpath">whatsno/app/admin.html</span><span class="fdesc">管理者画面（ユーザー・承認設定・監査ログ）</span></li>
+      <li><span class="fpath">whatsno/assets/css/wn-app.css</span><span class="fdesc">アプリ用CSS（スマホ対応込み）</span></li>
+      <li><span class="fpath">whatsno/assets/js/wn-api.js</span><span class="fdesc">What'sNo専用APIラッパー</span></li>
+      <li><span class="fpath">whatsno/assets/js/pages/wn-dashboard.js</span><span class="fdesc">ダッシュボードロジック</span></li>
+      <li><span class="fpath">whatsno/assets/js/pages/wn-file-detail.js</span><span class="fdesc">ファイル詳細ロジック</span></li>
+    </ul>
+    <div class="subsection-title">新規作成（Laravel API）</div>
+    <ul class="file-list">
+      <li><span class="fpath">app/Http/Controllers/WhatsNo/FileController.php</span><span class="fdesc">ファイルCRUD・バージョン管理</span></li>
+      <li><span class="fpath">app/Http/Controllers/WhatsNo/TagController.php</span><span class="fdesc">タグ管理・AI提案</span></li>
+      <li><span class="fpath">app/Http/Controllers/WhatsNo/QrController.php</span><span class="fdesc">QRトークン発行・照合</span></li>
+      <li><span class="fpath">app/Http/Controllers/WhatsNo/ApprovalController.php</span><span class="fdesc">承認ワークフロー</span></li>
+      <li><span class="fpath">app/Http/Controllers/Admin/AuditLogController.php</span><span class="fdesc">ログ一覧・CSV出力</span></li>
+      <li><span class="fpath">app/Services/AuditLogService.php</span><span class="fdesc">ログ書き込みヘルパー</span></li>
+      <li><span class="fpath">database/migrations/xxxx_create_wn_tables.php</span><span class="fdesc">全WNテーブル作成</span></li>
+      <li><span class="fpath">database/migrations/xxxx_create_space_audit_logs.php</span><span class="fdesc">audit_logsテーブル</span></li>
+    </ul>
+    <div class="subsection-title">更新（既存）</div>
+    <ul class="file-list">
+      <li><span class="fpath">space/apps.html</span><span class="fdesc">What'sNoカードを有効化・監査ログタブ追加（super_admin）</span></li>
+      <li><span class="fpath">whatsno/index.html</span><span class="fdesc">LPを新機能対応にリニューアル</span></li>
+      <li><span class="fpath">solid/assets/js/auth.js</span><span class="fdesc">ログイン・ログアウト時にAuditLogServiceを呼び出す</span></li>
+      <li><span class="fpath">routes/api.php</span><span class="fdesc">/api/wn/ ルート追加</span></li>
+    </ul>
+  </section>
+
+  <!-- SOLID詳細 -->
+  <section class="section" id="solid">
+    <div class="section-title"><div class="icon">🔩</div>SOLID 詳細仕様</div>
+    <div class="subsection-title">権限マトリクス</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>操作</th><th>jp_client</th><th>id_modeler</th><th>jp_admin</th><th>super_admin</th></tr></thead>
+        <tbody>
+          <tr><td>自社プロジェクト閲覧</td><td class="allow">✅</td><td class="allow">✅(担当分)</td><td class="allow">✅(全社)</td><td class="allow">✅</td></tr>
+          <tr><td>発注作成</td><td class="allow">✅</td><td class="deny">❌</td><td class="allow">✅</td><td class="allow">✅</td></tr>
+          <tr><td>図面アップロード</td><td class="allow">✅</td><td class="deny">❌</td><td class="allow">✅</td><td class="allow">✅</td></tr>
+          <tr><td>3Dデータアップロード</td><td class="deny">❌</td><td class="allow">✅</td><td class="allow">✅</td><td class="allow">✅</td></tr>
+          <tr><td>承認/修正依頼</td><td class="allow">✅</td><td class="deny">❌</td><td class="allow">✅</td><td class="allow">✅</td></tr>
+          <tr><td>会社管理</td><td class="deny">❌</td><td class="deny">❌</td><td class="deny">❌</td><td class="allow">✅</td></tr>
+          <tr><td>ユーザー管理</td><td class="deny">❌</td><td class="deny">❌</td><td class="allow">✅(自社)</td><td class="allow">✅</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="subsection-title">ステータスフロー</div>
+    <pre>draft → submitted → in_progress → review_pending
+                                          ↓              ↓
+                                   revision_requested  approved → delivered</pre>
+    <div class="subsection-title">3Dプレビュー対応形式</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>形式</th><th>ライブラリ</th><th>対応</th></tr></thead>
+        <tbody>
+          <tr><td>.stl</td><td>Three.js STLLoader</td><td class="allow">✅</td></tr>
+          <tr><td>.stp / .step</td><td>occt-import-js (WASM) + Three.js</td><td class="allow">✅</td></tr>
+          <tr><td>.sldprt / .sldasm</td><td>—</td><td class="deny">❌ プレビュー非対応（アップロードのみ可）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="subsection-title">ファイル単位承認フロー（次の作業）</div>
+    <div class="card">
+      <ol>
+        <li>モデラーが3Dファイルをアップロードして「完成・提出」→ <code>review_pending</code></li>
+        <li>管理者が各ファイルに <strong>OK</strong> / <strong>修正依頼</strong> を設定</li>
+        <li>「検査完了・発注者へ公開」ボタンを押す<br>
+          — <code>revision</code> ファイルあり → <code>revision_requested</code><br>
+          — 全部 <code>ok</code> → <code>approved</code>
+        </li>
+        <li>発注者は <code>ok</code> ファイルのみ閲覧可能</li>
+        <li>モデラーが再提出 → <code>review_status</code> が全件 <code>pending</code> にリセット</li>
+      </ol>
+    </div>
+  </section>
+
+</div>
+
+<footer style="text-align:center;padding:24px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);">
+  HaLSpace 開発計画書 — 最終更新: 2025年
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 案C: Number Stack — 01/02/03 番号付き縦積み、雑誌目次風 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 680" width="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap');
+    </style>
+  </defs>
+  <rect width="1920" height="680" fill="#fff"/>
+
+  <!-- 01 Observe -->
+  <line x1="120" y1="148" x2="1800" y2="148" stroke="#e0e0e0" stroke-width="1"/>
+  <text x="120" y="220" font-family="'JetBrains Mono',monospace" font-size="22" fill="#ccc" letter-spacing="2">01</text>
+  <text x="220" y="225" font-family="'Space Grotesk',sans-serif" font-size="100" font-weight="700" fill="#0a0a0a">Observe</text>
+  <text x="1800" y="220" font-family="'JetBrains Mono',monospace" font-size="13" fill="#ccc" text-anchor="end" letter-spacing="4">INVEST · STEEL</text>
+
+  <!-- 02 Build -->
+  <line x1="120" y1="290" x2="1800" y2="290" stroke="#e0e0e0" stroke-width="1"/>
+  <text x="120" y="370" font-family="'JetBrains Mono',monospace" font-size="22" fill="#ccc" letter-spacing="2">02</text>
+  <text x="220" y="375" font-family="'Space Grotesk',sans-serif" font-size="100" font-weight="700" fill="#0a0a0a">Build</text>
+  <text x="1800" y="370" font-family="'JetBrains Mono',monospace" font-size="13" fill="#ccc" text-anchor="end" letter-spacing="4">AI · WEB · CLAUDE</text>
+
+  <!-- 03 Share -->
+  <line x1="120" y1="440" x2="1800" y2="440" stroke="#e0e0e0" stroke-width="1"/>
+  <text x="120" y="520" font-family="'JetBrains Mono',monospace" font-size="22" fill="#ccc" letter-spacing="2">03</text>
+  <text x="220" y="525" font-family="'Space Grotesk',sans-serif" font-size="100" font-weight="700" fill="#0a0a0a">Share</text>
+  <text x="1800" y="520" font-family="'JetBrains Mono',monospace" font-size="13" fill="#ccc" text-anchor="end" letter-spacing="4">BLOG · NOTE</text>
+
+  <line x1="120" y1="590" x2="1800" y2="590" stroke="#e0e0e0" stroke-width="1"/>
+  <text x="120" y="640" font-family="'JetBrains Mono',monospace" font-size="13" fill="#bbb" letter-spacing="3">ranoBlog — observe, build, share</text>
+  <text x="1800" y="640" font-family="'JetBrains Mono',monospace" font-size="13" fill="#bbb" text-anchor="end" letter-spacing="3">EST. 2026</text>
+</svg>

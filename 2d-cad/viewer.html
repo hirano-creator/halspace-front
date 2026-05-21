@@ -1,0 +1,3594 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2DCAD Viewer SheetEye</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', 'Yu Gothic UI', 'Meiryo', sans-serif; background: #1e1e2e; color: #cdd6f4; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+
+/* ===== Toolbar ===== */
+#toolbar {
+  display: flex; align-items: center; gap: 4px;
+  background: #181825; padding: 6px 10px; border-bottom: 1px solid #313244;
+  flex-shrink: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin; scrollbar-color: #45475a #181825;
+  white-space: nowrap;
+}
+#toolbar::-webkit-scrollbar { height: 6px; }
+#toolbar::-webkit-scrollbar-track { background: #181825; }
+#toolbar::-webkit-scrollbar-thumb { background: #45475a; border-radius: 3px; }
+#toolbar button, #toolbar label {
+  background: #313244; color: #cdd6f4; border: 1px solid #45475a;
+  border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 12px;
+  display: inline-flex; align-items: center; gap: 4px; transition: all .15s;
+  height: 30px; flex-shrink: 0; white-space: nowrap;
+}
+#toolbar button:hover, #toolbar label:hover { background: #45475a; border-color: #585b70; }
+#toolbar button.active { background: #89b4fa; color: #1e1e2e; border-color: #89b4fa; }
+#toolbar button.active:hover { background: #74c7ec; border-color: #74c7ec; }
+#toolbar button:disabled { opacity: .35; cursor: not-allowed; }
+#toolbar button svg, #toolbar label svg { width: 14px; height: 14px; }
+/* Segmented group: connected buttons share borders */
+#toolbar .group { display: inline-flex; align-items: center; flex-shrink: 0; }
+#toolbar .group > button, #toolbar .group > label {
+  border-radius: 0; margin: 0;
+}
+#toolbar .group > button + button,
+#toolbar .group > label + button,
+#toolbar .group > button + label { border-left: none; }
+#toolbar .group > :first-child { border-top-left-radius: 5px; border-bottom-left-radius: 5px; }
+#toolbar .group > :last-child { border-top-right-radius: 5px; border-bottom-right-radius: 5px; }
+#toolbar .icon-btn { padding: 5px 8px; }
+#toolbar .sep { width: 1px; height: 22px; background: #313244; margin: 0 4px; flex-shrink: 0; }
+#toolbar .spacer { flex: 1; min-width: 8px; }
+#toolbar .brand {
+  color: #89b4fa; font-weight: 600; font-size: 13px; padding: 0 10px 0 2px;
+  letter-spacing: .3px; flex-shrink: 0;
+}
+#toolbar select {
+  background: #313244; color: #cdd6f4; border: 1px solid #45475a;
+  border-radius: 5px; padding: 5px 8px; font-size: 12px; height: 30px;
+}
+#scaleInput {
+  background: #313244; color: #cdd6f4; border: 1px solid #45475a;
+  border-right: none; border-radius: 0; padding: 5px 6px; font-size: 12px;
+  height: 30px; width: 64px; flex-shrink: 0; outline: none;
+}
+#scaleInput::placeholder { color: #585b70; }
+#fileInput { display: none; }
+
+/* ===== Main Area ===== */
+#main { display: flex; flex: 1; overflow: hidden; }
+
+/* ===== Canvas ===== */
+#canvasWrap { flex: 1; position: relative; background: #11111b; overflow: hidden; }
+canvas { display: block; }
+
+/* ===== Coordinate display ===== */
+#coords {
+  position: absolute; bottom: 8px; left: 8px;
+  background: rgba(24,24,37,.85); padding: 4px 10px;
+  border-radius: 4px; font-size: 12px; font-family: 'Consolas', monospace;
+  pointer-events: none;
+}
+
+/* ===== Info panel ===== */
+#infoPanel {
+  position: absolute; top: 8px; right: 8px;
+  background: rgba(24,24,37,.92); padding: 10px 14px;
+  border-radius: 8px; font-size: 12px; max-width: 280px;
+  border: 1px solid #313244;
+}
+#infoPanel input[type=range] { width: 120px; vertical-align: middle; }
+#infoPanel input[type=number] { width: 56px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 2px 5px; font-size: 12px; }
+#infoPanel h3 { color: #89b4fa; margin-bottom: 6px; font-size: 13px; }
+#infoPanel .row { display: flex; justify-content: space-between; margin: 2px 0; }
+#infoPanel .label { color: #a6adc8; }
+#infoPanel .val { color: #f9e2af; font-family: 'Consolas', monospace; }
+
+/* ===== Draw mode indicator ===== */
+#drawMode {
+  position: absolute; top: 8px; left: 8px;
+  background: rgba(243,139,168,.9); color: #1e1e2e;
+  padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 600;
+  display: none;
+}
+
+/* Drag-drop overlay */
+#dropOverlay {
+  position: absolute; inset: 0; background: rgba(137,180,250,.15);
+  border: 3px dashed #89b4fa; display: none;
+  align-items: center; justify-content: center; z-index: 50;
+  font-size: 20px; color: #89b4fa; font-weight: 600;
+}
+
+/* ===== Settings Popover ===== */
+#settingsPanel {
+  position: absolute; top: 52px; right: 12px; z-index: 100;
+  background: #181825; border: 1px solid #45475a; border-radius: 8px;
+  padding: 12px 14px; min-width: 240px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  display: none; font-size: 12px;
+}
+#settingsPanel.open { display: block; }
+#settingsPanel h4 { color: #89b4fa; font-size: 12px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #313244; }
+#settingsPanel .row { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; gap: 10px; }
+#settingsPanel .row label { color: #a6adc8; flex: 1; }
+#settingsPanel .row input[type=range] { flex: 1.2; }
+#settingsPanel .row input[type=number] { width: 56px; background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
+#settingsPanel .row input[type=color] { width: 34px; height: 22px; border: 1px solid #45475a; border-radius: 4px; background: none; cursor: pointer; padding: 0; }
+#settingsPanel .row select { background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
+#settingsPanel .row button { background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 4px 12px; font-size: 12px; cursor: pointer; }
+#settingsPanel .row button:hover { background: #45475a; }
+#settingsPanel .row button.active { background: #89b4fa; color: #1e1e2e; border-color: #89b4fa; }
+#settingsPanel .val { color: #f9e2af; font-family: 'Consolas', monospace; min-width: 28px; text-align: right; }
+#settingsPanel .resetBtn {
+  margin-top: 8px; width: 100%; background: #313244; color: #cdd6f4;
+  border: 1px solid #45475a; border-radius: 6px; padding: 5px; cursor: pointer; font-size: 12px;
+}
+#settingsPanel .resetBtn:hover { background: #45475a; }
+</style>
+</head>
+<body>
+
+<!-- Toolbar -->
+<div id="toolbar">
+  <span class="brand">2DCAD Viewer SheetEye</span>
+
+  <label for="fileInput" title="DXFファイルを開く">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    開く
+  </label>
+  <input type="file" id="fileInput" accept=".dxf">
+  <button id="btnExportDxf" title="DXFエクスポート">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    保存
+  </button>
+  <button id="btnPrint" title="印刷 (範囲指定)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+    印刷
+  </button>
+
+  <div class="sep"></div>
+
+  <div class="group">
+    <button id="btnUndo" class="icon-btn" title="元に戻す (Ctrl+Z)" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+    </button>
+    <button id="btnRedo" class="icon-btn" title="やり直し (Ctrl+Y)" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
+    </button>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="group">
+    <button id="btnFitAll" class="icon-btn" title="全体表示 (F)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9V5a2 2 0 0 1 2-2h4M21 9V5a2 2 0 0 0-2-2h-4M3 15v4a2 2 0 0 0 2 2h4M21 15v4a2 2 0 0 1-2 2h-4"/></svg>
+    </button>
+    <button id="btnZoomIn" class="icon-btn" title="拡大">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+    </button>
+    <button id="btnZoomOut" class="icon-btn" title="縮小">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+    </button>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="group" title="図面縮尺を実寸(1:1)に変換">
+    <input type="text" id="scaleInput" placeholder="縮尺 例:1:4">
+    <button id="btnScaleConvert" title="入力した縮尺の図面を実寸(1:1)に変換">→1:1変換</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="group">
+    <button id="btnSmartDim" title="スマート寸法 (D)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="18" x2="20" y2="18"/><line x1="4" y1="15" x2="4" y2="21"/><line x1="20" y1="15" x2="20" y2="21"/></svg>
+      スマート寸法
+    </button>
+    <button id="btnMeasure" title="直線距離 (M)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="1.5"/><circle cx="20" cy="4" r="1.5"/></svg>
+      直線距離
+    </button>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="group">
+    <button id="btnDrawLine" title="直線 (L)">直線</button>
+    <button id="btnDrawRect" title="矩形 (R)">矩形</button>
+    <button id="btnDrawCircle" title="円 (C)">円</button>
+    <button id="btnConstruction" title="作図線 (X)">作図線</button>
+    <button id="btnText" title="文字 (T)">文字</button>
+    <button id="btnBoxDelete" title="範囲削除: 矩形内のエンティティを削除">範囲削除</button>
+    <button id="btnZoomBox" title="範囲拡大: 矩形で囲んだ範囲に拡大 (Z)">範囲拡大</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="group">
+    <button id="btnToggleDim" title="DXF寸法 表示/非表示" class="active">DXF寸法</button>
+    <button id="btnToggleAnn" title="計測寸法 表示/非表示" class="active">計測寸法</button>
+  </div>
+
+  <div class="spacer"></div>
+
+  <button id="btnSettings" class="icon-btn" title="表示・寸法スタイル設定">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+</div>
+
+<!-- Settings popover -->
+<div id="settingsPanel">
+  <h4>表示</h4>
+  <div class="row">
+    <label for="btnGrid">グリッド</label>
+    <button id="btnGrid" title="グリッド切替 (G)" class="active">Grid</button>
+  </div>
+  <div class="row">
+    <label for="btnSnap">スナップ</label>
+    <button id="btnSnap" title="スナップ切替 (S)" class="active">Snap</button>
+  </div>
+  <div class="row">
+    <label for="unitSelect">単位</label>
+    <select id="unitSelect">
+      <option value="mm">mm</option>
+      <option value="cm">cm</option>
+      <option value="m">m</option>
+      <option value="inch">inch</option>
+    </select>
+  </div>
+  <h4 style="margin-top:10px;">寸法スタイル</h4>
+  <div class="row">
+    <label for="setSizeMultiplier">寸法の大きさ</label>
+    <input type="range" id="setSizeMultiplier" min="0.2" max="3.0" step="0.1">
+    <span class="val" id="setSizeMultiplierVal"></span>
+  </div>
+  <div class="row">
+    <label for="setShowUnit">単位を表示</label>
+    <input type="checkbox" id="setShowUnit" style="width:auto;cursor:pointer;">
+  </div>
+  <div class="row">
+    <label for="setFontSize">文字サイズ(基準)</label>
+    <input type="range" id="setFontSize" min="5" max="32" step="1">
+    <span class="val" id="setFontSizeVal"></span>
+  </div>
+  <div class="row">
+    <label for="setArrowSize">矢印サイズ(基準)</label>
+    <input type="range" id="setArrowSize" min="2" max="20" step="1">
+    <span class="val" id="setArrowSizeVal"></span>
+  </div>
+  <div class="row">
+    <label for="setLineWidth">線の太さ</label>
+    <input type="range" id="setLineWidth" min="0.5" max="5" step="0.5">
+    <span class="val" id="setLineWidthVal"></span>
+  </div>
+  <div class="row">
+    <label for="setDecimals">小数桁数</label>
+    <input type="number" id="setDecimals" min="0" max="5" step="1">
+  </div>
+  <div class="row">
+    <label for="setTextColor">文字色</label>
+    <input type="color" id="setTextColor">
+  </div>
+  <div class="row">
+    <label for="setLineColor">線・矢印色</label>
+    <input type="color" id="setLineColor">
+  </div>
+  <div class="row">
+    <label for="setBgAlpha">文字背景の不透明度</label>
+    <input type="range" id="setBgAlpha" min="0" max="1" step="0.05">
+    <span class="val" id="setBgAlphaVal"></span>
+  </div>
+  <button class="resetBtn" id="setReset">デフォルトに戻す</button>
+</div>
+
+<!-- Main Area -->
+<div id="main">
+  <div id="canvasWrap">
+    <canvas id="cadCanvas"></canvas>
+    <div id="coords">X: 0.00 Y: 0.00</div>
+    <div id="infoPanel" style="display:none;">
+      <h3 id="infoPanelTitle">Entity Info</h3>
+      <div id="infoPanelContent"></div>
+    </div>
+    <div id="drawMode"></div>
+    <div id="dropOverlay">DXFファイルをドロップしてください</div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  2D CAD Viewer with DXF Support
+// ============================================================
+
+const canvas = document.getElementById('cadCanvas');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvasWrap');
+
+// --- State ---
+let entities = [];
+let blocks = {};           // Block name → array of entities
+let textStyles = {};       // Style name → { font, widthFactor, oblique, isShx }
+let annotations = [];      // User-created dimension annotations (persist across renders)
+let selectedEntity = -1;
+let showGrid = true;
+let snapEnabled = true;
+let showDxfDimensions = true;  // DXF original dimensions visibility
+let showAnnotations = true;    // User-created annotations visibility
+let unit = 'mm';
+
+// Dimension style (persisted to localStorage)
+const DIM_STYLE_DEFAULTS = {
+  fontSize: 20,
+  arrowSize: 10,
+  lineWidth: 0.5,
+  decimals: 2,
+  textColor: '#f9e2af',
+  lineColor: '#f9e2af',
+  bgAlpha: 0.85,
+  sizeMultiplier: 3.0,
+  showUnit: false,
+};
+const DIM_STYLE_VERSION = 10; // bump when defaults change to reset saved settings
+let dimStyle = { ...DIM_STYLE_DEFAULTS };
+try {
+  const saved = localStorage.getItem('cad_dim_style');
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    if ((parsed._v || 0) >= DIM_STYLE_VERSION) {
+      dimStyle = { ...DIM_STYLE_DEFAULTS, ...parsed };
+    }
+    // else: old version → use new defaults silently
+  }
+} catch (e) {}
+
+function getDimScale() {
+  return (dimStyle.sizeMultiplier || 1) * cam.zoom;
+}
+function saveDimStyle() {
+  try { localStorage.setItem('cad_dim_style', JSON.stringify({ ...dimStyle, _v: DIM_STYLE_VERSION })); } catch (e) {}
+}
+
+// Per-file annotation store: { "<filename>": [...annotations] }
+// Key "__default__" is used when no DXF has been opened (freehand session)
+let currentFileKey = '__default__';
+function loadAnnotationStore() {
+  try {
+    const s = localStorage.getItem('cad_annotations_by_file');
+    if (s) return JSON.parse(s) || {};
+  } catch (e) {}
+  return {};
+}
+function saveAnnotationStore(store) {
+  try { localStorage.setItem('cad_annotations_by_file', JSON.stringify(store)); } catch (e) {}
+}
+function saveAnnotations() {
+  const store = loadAnnotationStore();
+  store[currentFileKey] = annotations;
+  saveAnnotationStore(store);
+}
+function loadAnnotationsForCurrentFile() {
+  const store = loadAnnotationStore();
+  annotations = store[currentFileKey] ? JSON.parse(JSON.stringify(store[currentFileKey])) : [];
+}
+// One-time migration from the old global key
+(function migrateOldAnnotations() {
+  try {
+    const oldRaw = localStorage.getItem('cad_annotations');
+    if (oldRaw) {
+      const store = loadAnnotationStore();
+      if (!store['__default__']) {
+        store['__default__'] = JSON.parse(oldRaw) || [];
+        saveAnnotationStore(store);
+      }
+      localStorage.removeItem('cad_annotations');
+    }
+  } catch (e) {}
+})();
+loadAnnotationsForCurrentFile();
+
+// Undo/Redo
+let undoStack = [];
+let redoStack = [];
+
+// Camera
+let cam = { x: 0, y: 0, zoom: 1 };
+
+// Interaction
+let drag = { active: false, sx: 0, sy: 0, cx: 0, cy: 0 };
+let annDrag = { active: false, index: -1, moved: false };
+let textDrag = { active: false, index: -1, moved: false, offsetX: 0, offsetY: 0 };
+let selectedAnnotation = -1;
+let drawState = { mode: null, points: [], preview: null };
+let zoomBoxState = { active: false, sx: 0, sy: 0, ex: 0, ey: 0 }; // screen coords
+let zoomBoxMode = false; // waiting for drag
+// modes: line, rect, circle, measure, angle, smartDim
+// smartDim sub-states tracked via drawState.smartPhase:
+//   'pick1' - waiting for first entity pick
+//   'pick2' - first entity picked, waiting for second entity or placement click
+//   'place' - both entities picked (or single edge), dragging to place dimension
+let smartDimState = { phase: 'pick1', sel1: null, sel2: null, hoverEntity: null };
+
+// ============================================================
+//  Undo / Redo
+// ============================================================
+function saveUndoState() {
+  undoStack.push(JSON.stringify({ entities, annotations }));
+  if (undoStack.length > 100) undoStack.shift();
+  redoStack = [];
+  updateUndoButtons();
+}
+
+function undo() {
+  if (undoStack.length === 0) return;
+  redoStack.push(JSON.stringify({ entities, annotations }));
+  const state = JSON.parse(undoStack.pop());
+  entities = state.entities;
+  annotations = state.annotations || [];
+  selectedEntity = -1;
+  document.getElementById('infoPanel').style.display = 'none';
+  updateEntityList();
+  updateUndoButtons();
+  saveAnnotations();
+  render();
+}
+
+function redo() {
+  if (redoStack.length === 0) return;
+  undoStack.push(JSON.stringify({ entities, annotations }));
+  const state = JSON.parse(redoStack.pop());
+  entities = state.entities;
+  annotations = state.annotations || [];
+  selectedEntity = -1;
+  document.getElementById('infoPanel').style.display = 'none';
+  updateEntityList();
+  updateUndoButtons();
+  saveAnnotations();
+  render();
+}
+
+function updateUndoButtons() {
+  document.getElementById('btnUndo').disabled = undoStack.length === 0;
+  document.getElementById('btnRedo').disabled = redoStack.length === 0;
+}
+
+// ============================================================
+//  Resize
+// ============================================================
+function resize() {
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  render();
+}
+window.addEventListener('resize', resize);
+
+// ============================================================
+//  DXF Parser
+// ============================================================
+function parseDXF(text) {
+  const lines = text.split(/\r?\n/);
+  const pairs = [];
+  for (let i = 0; i < lines.length - 1; i += 2) {
+    const code = parseInt(lines[i].trim(), 10);
+    const val = lines[i + 1] ? lines[i + 1].trim() : '';
+    pairs.push({ code, val });
+  }
+
+  // --- Parse STYLE table (text styles → font + width factor) ---
+  textStyles = {};
+  for (let si = 0; si < pairs.length; si++) {
+    if (pairs[si].code === 0 && pairs[si].val === 'STYLE') {
+      si++;
+      let name = '', font = '', wf = 1.0, oblique = 0;
+      while (si < pairs.length && pairs[si].code !== 0) {
+        const c = pairs[si].code, v = pairs[si].val;
+        if (c === 2) name = v;
+        else if (c === 3) font = v;       // primary font file (e.g. isocp.shx, arial.ttf)
+        else if (c === 4) { if (!font) font = v; }  // bigfont fallback
+        else if (c === 41) wf = pf(v) || 1.0;
+        else if (c === 50) oblique = pf(v) || 0;
+        else if (c === 1071) {} // extended
+        si++;
+      }
+      if (name) {
+        const fLower = (font || '').toLowerCase();
+        const isShx = fLower.endsWith('.shx') || (fLower && !fLower.endsWith('.ttf') && !fLower.endsWith('.ttc') && !fLower.endsWith('.otf'));
+        textStyles[name] = { font, widthFactor: wf, oblique, isShx };
+      }
+      si--;
+    }
+  }
+
+  // --- Parse BLOCKS section ---
+  blocks = {};
+  let bi = 0;
+  while (bi < pairs.length) {
+    if (pairs[bi].code === 2 && pairs[bi].val === 'BLOCKS') { bi++; break; }
+    bi++;
+  }
+  while (bi < pairs.length) {
+    if (pairs[bi].code === 0 && pairs[bi].val === 'ENDSEC') break;
+    if (pairs[bi].code === 0 && pairs[bi].val === 'BLOCK') {
+      bi++;
+      let blockName = '', bx = 0, by = 0;
+      while (bi < pairs.length && pairs[bi].code !== 0) {
+        if (pairs[bi].code === 2) blockName = pairs[bi].val;
+        else if (pairs[bi].code === 10) bx = pf(pairs[bi].val);
+        else if (pairs[bi].code === 20) by = pf(pairs[bi].val);
+        bi++;
+      }
+      // Read entities inside this block until ENDBLK
+      const blockEnts = [];
+      while (bi < pairs.length) {
+        if (pairs[bi].code === 0 && pairs[bi].val === 'ENDBLK') {
+          bi++;
+          while (bi < pairs.length && pairs[bi].code !== 0) bi++;
+          break;
+        }
+        bi = readOneEntity(pairs, bi, blockEnts);
+      }
+      blocks[blockName] = { entities: blockEnts, baseX: bx, baseY: by };
+    } else {
+      bi++;
+    }
+  }
+
+  // --- Parse ENTITIES section ---
+  const ents = [];
+  let i = 0;
+  while (i < pairs.length) {
+    if (pairs[i].code === 2 && pairs[i].val === 'ENTITIES') { i++; break; }
+    i++;
+  }
+  while (i < pairs.length) {
+    if (pairs[i].code === 0 && pairs[i].val === 'ENDSEC') break;
+    i = readOneEntity(pairs, i, ents);
+  }
+
+  // --- Detect all VIEWPORTs (multi-viewport paper space support) ---
+  // VIEWPORT id=1 is the paper border (skip). Collect ALL id>1 viewports.
+  // Each model-space entity is assigned to the viewport whose model-view bounds contain it.
+  // group 40 = viewport width (paper units), group 41 = viewport height (paper units),
+  // group 45 = view height (model units)  →  scale = group41/group45
+  const viewports = [];
+  for (let vi = 0; vi < pairs.length - 1; vi++) {
+    if (pairs[vi].code === 0 && pairs[vi].val === 'VIEWPORT') {
+      vi++;
+      const vd = {};
+      while (vi < pairs.length && pairs[vi].code !== 0) {
+        const c = pairs[vi].code, v = pairs[vi].val;
+        if (vd[c] === undefined) vd[c] = v;
+        vi++;
+      }
+      vi--;
+      const vpId = parseInt(vd[69]) || 0;
+      if (vpId <= 1) continue; // id=1 is the paper border, skip
+      const paperH = pf(vd[41]); // viewport height in paper units
+      const paperW = pf(vd[40]); // viewport width in paper units
+      const modelH = pf(vd[45]); // view height in model units
+      if (paperH > 0 && modelH > 0) {
+        const scale = paperH / modelH;
+        const modelW = (paperW > 0) ? modelH * (paperW / paperH) : modelH;
+        const modelCX = pf(vd[17]) + pf(vd[12]); // view target + DCS offset
+        const modelCY = pf(vd[27]) + pf(vd[22]);
+        const twist = pf(vd[51]) * Math.PI / 180;
+        viewports.push({
+          paperCX: pf(vd[10]), paperCY: pf(vd[20]),
+          paperH, modelH, scale,
+          modelCX, modelCY,
+          modelHalfW: modelW / 2,
+          modelHalfH: modelH / 2,
+          twist,
+          cos: Math.cos(-twist),
+          sin: Math.sin(-twist),
+        });
+      }
+    }
+  }
+
+  // --- Flatten: resolve INSERT references ---
+  const flat = flattenInserts(ents, 0);
+
+  // --- Apply viewport transforms (multi-viewport support) ---
+  // Model-space entities (no _paperSpace flag) are mapped to the viewport whose
+  // model-space view bounds best contain them. Paper-space entities pass through unchanged.
+  if (viewports.length > 0) {
+    return flat.map(e => {
+      if (e._paperSpace) return e;
+      const vp = findBestViewport(e, viewports);
+      if (!vp) return e;
+      return applyViewportTransform(e, vp, vp.cos, vp.sin);
+    });
+  }
+  return flat;
+}
+
+// Read one entity from pairs at position i, push result into arr, return new i
+function readOneEntity(pairs, i, arr) {
+  if (i >= pairs.length || pairs[i].code !== 0) return i + 1;
+  const etype = pairs[i].val;
+
+  // Handle POLYLINE → VERTEX* → SEQEND
+  if (etype === 'POLYLINE') {
+    i++;
+    const hd = {};
+    while (i < pairs.length && pairs[i].code !== 0) { hd[pairs[i].code] = pairs[i].val; i++; }
+    const layer = hd[8] || '0', color = parseInt(hd[62]) || 7;
+    const closed = (parseInt(hd[70]) & 1) === 1;
+    const vertices = [];
+    while (i < pairs.length) {
+      if (pairs[i].code === 0 && pairs[i].val === 'SEQEND') {
+        i++; while (i < pairs.length && pairs[i].code !== 0) i++; break;
+      }
+      if (pairs[i].code === 0 && pairs[i].val === 'VERTEX') {
+        i++;
+        let vx = 0, vy = 0, vb = 0;
+        while (i < pairs.length && pairs[i].code !== 0) {
+          if (pairs[i].code === 10) vx = pf(pairs[i].val);
+          else if (pairs[i].code === 20) vy = pf(pairs[i].val);
+          else if (pairs[i].code === 42) vb = pf(pairs[i].val);
+          i++;
+        }
+        vertices.push({ x: vx, y: vy, bulge: vb });
+      } else break;
+    }
+    if (vertices.length >= 2) arr.push({ type: 'LWPOLYLINE', layer, color, vertices, closed });
+    return i;
+  }
+
+  // Skip orphaned VERTEX / SEQEND
+  if (etype === 'VERTEX' || etype === 'SEQEND') {
+    i++; while (i < pairs.length && pairs[i].code !== 0) i++; return i;
+  }
+
+  // Generic entity
+  i++;
+  const data = {};
+  while (i < pairs.length && pairs[i].code !== 0) {
+    const c = pairs[i].code, v = pairs[i].val;
+    if (data[c] !== undefined) {
+      if (!Array.isArray(data[c])) data[c] = [data[c]];
+      data[c].push(v);
+    } else data[c] = v;
+    i++;
+  }
+  const ent = parseEntity(etype, data);
+  if (ent) {
+    if (data[67] === '1') ent._paperSpace = true; // paper space entity
+    arr.push(ent);
+  }
+  return i;
+}
+
+// Case-insensitive block lookup helper
+function findBlock(name) {
+  if (!name) return null;
+  if (blocks[name]) return blocks[name];
+  const lo = name.toLowerCase();
+  for (const k of Object.keys(blocks)) {
+    if (k.toLowerCase() === lo) return blocks[k];
+  }
+  return null;
+}
+
+// Resolve INSERT entities by inlining block contents (with transform)
+function flattenInserts(ents, depth) {
+  if (depth > 10) return ents; // prevent infinite recursion
+  const result = [];
+  for (const e of ents) {
+    const insertBlk = e.type === 'INSERT' ? findBlock(e.blockName) : null;
+    if (e.type === 'INSERT' && insertBlk) {
+      const blk = insertBlk;
+      const bx = blk.baseX || 0, by = blk.baseY || 0;
+      const sx = e.sx || 1, sy = e.sy || 1;
+      const rot = (e.rotation || 0) * Math.PI / 180;
+      const cosR = Math.cos(rot), sinR = Math.sin(rot);
+
+      for (const be of blk.entities) {
+        const transformed = transformEntity(be, e.x, e.y, bx, by, sx, sy, cosR, sinR, e.color);
+        if (transformed) {
+          if (e._isDimension) transformed._isDimension = true;
+          if (e._paperSpace) transformed._paperSpace = true;
+          result.push(transformed);
+        }
+      }
+    } else if (e.type === 'DIMENSION' && e.blockName && findBlock(e.blockName)) {
+      // DIMENSION entities reference an anonymous block (*D0, *D1, etc.)
+      // containing the actual dimension geometry (lines, arrows, text).
+      // Expand that block at origin (no transform needed - block coords are world coords).
+      const blk = findBlock(e.blockName);
+      const bx = blk.baseX || 0, by = blk.baseY || 0;
+      for (const be of blk.entities) {
+        // Dimension blocks are defined in world coordinates, base point is usually 0,0
+        const transformed = transformEntity(be, 0, 0, bx, by, 1, 1, 1, 0, e.color);
+        if (transformed) {
+          // Replace <> placeholder in text with actual measurement value
+          if (transformed.type === 'TEXT' && transformed.text) {
+            const dist = Math.sqrt((e.defX2 - e.defX1) ** 2 + (e.defY2 - e.defY1) ** 2);
+            const measText = e.text || dist.toFixed(2);
+            transformed.text = transformed.text.replace(/<>/g, measText);
+          }
+          transformed._isDimension = true; // Tag for show/hide toggle
+          result.push(transformed);
+        }
+      }
+    } else if (e.type === 'DIMENSION') {
+      // No block reference found - skip (can't render without geometry)
+      continue;
+    } else {
+      result.push(e);
+    }
+  }
+  // Recursively resolve any nested INSERTs
+  const hasInsert = result.some(e => e.type === 'INSERT');
+  return hasInsert ? flattenInserts(result, depth + 1) : result;
+}
+
+// Transform an entity from block-local coords to world coords
+function transformEntity(e, ix, iy, bx, by, sx, sy, cosR, sinR, insertColor) {
+  function tx(x, y) {
+    const lx = (x - bx) * sx, ly = (y - by) * sy;
+    return { x: ix + lx * cosR - ly * sinR, y: iy + lx * sinR + ly * cosR };
+  }
+  // Inherit color: 0 means BYBLOCK (use insert's color)
+  const color = (e.color === 0 || e.color === 256) ? (insertColor || 7) : e.color;
+
+  switch (e.type) {
+    case 'LINE': {
+      const a = tx(e.x1, e.y1), b = tx(e.x2, e.y2);
+      return { type: 'LINE', layer: e.layer, color, x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+    }
+    case 'CIRCLE': {
+      const c = tx(e.cx, e.cy);
+      return { type: 'CIRCLE', layer: e.layer, color, cx: c.x, cy: c.y, r: e.r * Math.abs(sx) };
+    }
+    case 'ARC': {
+      const c = tx(e.cx, e.cy);
+      const rotDeg = Math.atan2(sinR, cosR) * 180 / Math.PI;
+      let sa = e.startAngle + rotDeg, ea = e.endAngle + rotDeg;
+      if (sx * sy < 0) { const tmp = sa; sa = 180 - ea; ea = 180 - tmp; } // mirror
+      return { type: 'ARC', layer: e.layer, color, cx: c.x, cy: c.y, r: e.r * Math.abs(sx), startAngle: sa, endAngle: ea };
+    }
+    case 'POINT': {
+      const p = tx(e.x, e.y);
+      return { type: 'POINT', layer: e.layer, color, x: p.x, y: p.y };
+    }
+    case 'LWPOLYLINE': {
+      const verts = e.vertices.map(v => {
+        const p = tx(v.x, v.y);
+        return { x: p.x, y: p.y, bulge: v.bulge * (sx * sy > 0 ? 1 : -1) };
+      });
+      return { type: 'LWPOLYLINE', layer: e.layer, color, vertices: verts, closed: e.closed };
+    }
+    case 'TEXT': {
+      const p = tx(e.x, e.y);
+      const rotDeg = Math.atan2(sinR, cosR) * 180 / Math.PI;
+      return { type: 'TEXT', layer: e.layer, color, x: p.x, y: p.y,
+               height: e.height * Math.abs(sy), text: e.text,
+               rotation: (e.rotation || 0) + rotDeg,
+               halign: e.halign, valign: e.valign,
+               _isMText: e._isMText,
+               _refWidth: (e._refWidth || 0) * Math.abs(sx),
+               _lineSpacing: e._lineSpacing,
+               _widthFactor: e._widthFactor,
+               _style: e._style };
+    }
+    case 'ELLIPSE': {
+      const c = tx(e.cx, e.cy);
+      // Transform endpoint of major axis
+      const ep = tx(e.cx + e.ex, e.cy + e.ey);
+      return { type: 'ELLIPSE', layer: e.layer, color, cx: c.x, cy: c.y,
+               ex: ep.x - c.x, ey: ep.y - c.y, ratio: e.ratio,
+               startParam: e.startParam, endParam: e.endParam };
+    }
+    case 'SPLINE': {
+      const pts = e.controlPoints.map(p => tx(p.x, p.y));
+      return { type: 'SPLINE', layer: e.layer, color, controlPoints: pts, degree: e.degree };
+    }
+    case 'SOLID': {
+      const p1 = tx(e.x1, e.y1), p2 = tx(e.x2, e.y2), p3 = tx(e.x3, e.y3), p4 = tx(e.x4, e.y4);
+      return { type: 'SOLID', layer: e.layer, color, x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, x3: p3.x, y3: p3.y, x4: p4.x, y4: p4.y };
+    }
+    case 'INSERT': {
+      // Nested insert - keep for recursive flattening
+      const p = tx(e.x, e.y);
+      return { type: 'INSERT', layer: e.layer, color, x: p.x, y: p.y,
+               blockName: e.blockName, sx: (e.sx || 1) * sx, sy: (e.sy || 1) * sy,
+               rotation: (e.rotation || 0) + Math.atan2(sinR, cosR) * 180 / Math.PI };
+    }
+    default:
+      return null;
+  }
+}
+
+function pf(v) { return parseFloat(v) || 0; }
+
+// Get the representative center point of an entity (used for viewport assignment)
+function getEntityCenter(e) {
+  switch (e.type) {
+    case 'LINE':      return { x: (e.x1+e.x2)/2, y: (e.y1+e.y2)/2 };
+    case 'CIRCLE': case 'ARC': case 'ELLIPSE': return { x: e.cx, y: e.cy };
+    case 'LWPOLYLINE': {
+      const n = e.vertices.length;
+      return n ? { x: e.vertices.reduce((s,v)=>s+v.x,0)/n, y: e.vertices.reduce((s,v)=>s+v.y,0)/n }
+               : { x: 0, y: 0 };
+    }
+    case 'SPLINE': return e.controlPoints && e.controlPoints.length
+      ? { x: e.controlPoints[0].x, y: e.controlPoints[0].y } : { x: 0, y: 0 };
+    case 'SOLID': return { x: (e.x1+e.x2+e.x3+e.x4)/4, y: (e.y1+e.y2+e.y3+e.y4)/4 };
+    case 'DIMENSION': return { x: e.defX, y: e.defY };
+    default: return { x: e.x || 0, y: e.y || 0 };
+  }
+}
+
+// Assign an entity to the viewport whose model-space view bounds best contain it.
+// First pass: strict containment. Fallback: normalized nearest-center distance.
+function findBestViewport(e, vps) {
+  const c = getEntityCenter(e);
+  for (const vp of vps) {
+    if (c.x >= vp.modelCX - vp.modelHalfW && c.x <= vp.modelCX + vp.modelHalfW &&
+        c.y >= vp.modelCY - vp.modelHalfH && c.y <= vp.modelCY + vp.modelHalfH) {
+      return vp;
+    }
+  }
+  let minD = Infinity, best = vps[0];
+  for (const vp of vps) {
+    const dx = (c.x - vp.modelCX) / (vp.modelHalfW || 1);
+    const dy = (c.y - vp.modelCY) / (vp.modelHalfH || 1);
+    const d = dx*dx + dy*dy;
+    if (d < minD) { minD = d; best = vp; }
+  }
+  return best;
+}
+
+// Transform one model-space entity into paper-space coordinates via VIEWPORT
+function applyViewportTransform(e, vp, cos, sin) {
+  const s = vp.scale;
+  const pcx = vp.paperCX, pcy = vp.paperCY;
+  const mcx = vp.modelCX, mcy = vp.modelCY;
+  function tx(mx, my) {
+    // Rotate (for viewport twist), then scale+translate
+    const rx = (mx - mcx) * cos - (my - mcy) * sin;
+    const ry = (mx - mcx) * sin + (my - mcy) * cos;
+    return { x: pcx + rx * s, y: pcy + ry * s };
+  }
+  switch (e.type) {
+    case 'LINE': {
+      const a = tx(e.x1, e.y1), b = tx(e.x2, e.y2);
+      return { ...e, x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+    }
+    case 'CIRCLE': case 'ARC': {
+      const c = tx(e.cx, e.cy);
+      return { ...e, cx: c.x, cy: c.y, r: e.r * s };
+    }
+    case 'LWPOLYLINE': {
+      const verts = e.vertices.map(v => { const p = tx(v.x, v.y); return { ...v, x: p.x, y: p.y }; });
+      return { ...e, vertices: verts };
+    }
+    case 'TEXT': {
+      const p = tx(e.x, e.y);
+      return { ...e, x: p.x, y: p.y, height: e.height * s, _refWidth: (e._refWidth || 0) * s };
+    }
+    case 'SOLID': {
+      const p1 = tx(e.x1, e.y1), p2 = tx(e.x2, e.y2), p3 = tx(e.x3, e.y3), p4 = tx(e.x4, e.y4);
+      return { ...e, x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, x3: p3.x, y3: p3.y, x4: p4.x, y4: p4.y };
+    }
+    case 'ELLIPSE': {
+      const c = tx(e.cx, e.cy);
+      return { ...e, cx: c.x, cy: c.y, ex: e.ex * s, ey: e.ey * s };
+    }
+    case 'SPLINE': {
+      const pts = e.controlPoints.map(p => { const q = tx(p.x, p.y); return { x: q.x, y: q.y }; });
+      return { ...e, controlPoints: pts };
+    }
+    case 'POINT': {
+      const p = tx(e.x, e.y);
+      return { ...e, x: p.x, y: p.y };
+    }
+    default:
+      return e;
+  }
+}
+
+// Clean MTEXT formatting codes like {\fArial|b0|i0|c128|p34;text}
+function cleanMText(s) {
+  if (!s) return '';
+  // Remove {\f...;  } formatting blocks - extract text inside
+  s = s.replace(/\{\\[^;]*;([^}]*)\}/g, '$1');
+  // Remove remaining format codes
+  s = s.replace(/\\[AaCcFfHLlOoPpQqSsTtWw][^;]*;/gi, '');
+  s = s.replace(/\\P/g, '\n');  // paragraph break
+  s = s.replace(/\\~/g, ' ');   // non-breaking space
+  s = s.replace(/\{|\}/g, '');  // leftover braces
+  s = s.replace(/%%c/gi, '\u2300'); // diameter symbol
+  s = s.replace(/%%d/gi, '\u00B0'); // degree symbol
+  s = s.replace(/%%p/gi, '\u00B1'); // plus-minus symbol
+  s = s.replace(/%%u/gi, '');   // underline toggle (can't render)
+  s = s.replace(/\\/g, '');     // leftover backslashes
+  return s.trim();
+}
+
+function parseEntity(type, d) {
+  const layer = d[8] || '0';
+  const color = parseInt(d[62]) || 7;
+  switch (type) {
+    case 'LINE':
+      return { type: 'LINE', layer, color, x1: pf(d[10]), y1: pf(d[20]), x2: pf(d[11]), y2: pf(d[21]) };
+    case 'CIRCLE':
+      return { type: 'CIRCLE', layer, color, cx: pf(d[10]), cy: pf(d[20]), r: pf(d[40]) };
+    case 'ARC':
+      return { type: 'ARC', layer, color, cx: pf(d[10]), cy: pf(d[20]), r: pf(d[40]),
+               startAngle: pf(d[50]), endAngle: pf(d[51]) };
+    case 'POINT':
+      return { type: 'POINT', layer, color, x: pf(d[10]), y: pf(d[20]) };
+    case 'LWPOLYLINE':
+      return parseLWPolyline(d, layer, color);
+    case 'TEXT': {
+      const ha = parseInt(d[72]) || 0;
+      const va = parseInt(d[73]) || 0;
+      // halign meanings: 0=Left 1=Center 2=Right 3=Aligned 4=Middle 5=Fit
+      // For 3 (Aligned) and 5 (Fit), position is group 10/20 (baseline-left start point);
+      // group 11/21 is the END point. For 1/2/4 or any valign != 0, group 11/21 is the
+      // alignment reference (center/right/middle).
+      const usesEndPoint = (ha === 1 || ha === 2 || ha === 4 || va !== 0);
+      const useAlign = usesEndPoint && d[11] !== undefined;
+      const wf = pf(d[41]); // width factor (relative X scale)
+      return { type: 'TEXT', layer, color,
+               x: useAlign ? pf(d[11]) : pf(d[10]),
+               y: useAlign ? pf(d[21]) : pf(d[20]),
+               height: pf(d[40]) || 2.5, text: cleanMText(d[1] || ''),
+               rotation: pf(d[50]),
+               halign: ha, valign: va,
+               _widthFactor: (wf && wf > 0) ? wf : 1.0,
+               _style: d[7] || 'Standard' };
+    }
+    case 'MTEXT': {
+      // MTEXT attachment point (71): 1=TL 2=TC 3=TR 4=ML 5=MC 6=MR 7=BL 8=BC 9=BR
+      const ap = parseInt(d[71]) || 1;
+      const halignMap = [0, 0, 1, 2, 0, 1, 2, 0, 1, 2];
+      const valignMap = [0, 3, 3, 3, 2, 2, 2, 1, 1, 1];
+      // Group 41 = reference rectangle width for word-wrap (0 = no wrap)
+      // Group 44 = line spacing factor (default 1.0 → AutoCAD draws 5/3 × text height)
+      const refWidth = pf(d[41]) || 0;
+      const lineSpacingFactor = pf(d[44]) || 1.0;
+      // Prefer explicit rotation (50); fall back to x-axis vector (11/21)
+      let rot = pf(d[50]);
+      if ((!rot || rot === 0) && d[11] !== undefined && d[21] !== undefined) {
+        const vx = pf(d[11]), vy = pf(d[21]);
+        if (vx !== 0 || vy !== 0) rot = Math.atan2(vy, vx) * 180 / Math.PI;
+      }
+      if (!rot) rot = 0;
+      return { type: 'TEXT', layer, color, x: pf(d[10]), y: pf(d[20]),
+               height: pf(d[40]) || 2.5, text: cleanMText(d[1] || ''),
+               rotation: rot,
+               halign: halignMap[ap], valign: valignMap[ap],
+               _isMText: true, _refWidth: refWidth, _lineSpacing: lineSpacingFactor,
+               _style: d[7] || 'Standard' };
+    }
+    case 'DIMENSION':
+      return parseDimension(d, layer, color);
+    case 'ELLIPSE':
+      return { type: 'ELLIPSE', layer, color, cx: pf(d[10]), cy: pf(d[20]),
+               ex: pf(d[11]), ey: pf(d[21]), ratio: pf(d[40]),
+               startParam: pf(d[41]), endParam: pf(d[42]) };
+    case 'SPLINE':
+      return parseSpline(d, layer, color);
+    case 'INSERT':
+      return { type: 'INSERT', layer, color, x: pf(d[10]), y: pf(d[20]),
+               blockName: d[2] || '', sx: pf(d[41]) || 1, sy: pf(d[42]) || 1, rotation: pf(d[50]) };
+    case 'SOLID': case '3DFACE':
+      return { type: 'SOLID', layer, color,
+               x1: pf(d[10]), y1: pf(d[20]), x2: pf(d[11]), y2: pf(d[21]),
+               x3: pf(d[12]), y3: pf(d[22]), x4: pf(d[13]), y4: pf(d[23]) };
+    case 'ATTRIB':
+    case 'ATTDEF': {
+      // Block attributes share TEXT group codes (10/20=pos, 40=height, 1=value, 7=style, 50=rot, 72/73=align)
+      const ha2 = parseInt(d[72]) || 0;
+      const va2 = parseInt(d[73]) || 0;
+      const usesEndPoint2 = (ha2 === 1 || ha2 === 2 || ha2 === 4 || va2 !== 0);
+      const useAlign2 = usesEndPoint2 && d[11] !== undefined;
+      const wf2 = pf(d[41]);
+      const txt = cleanMText(d[1] || '');
+      if (!txt) return null; // skip empty attributes (prompts only)
+      return { type: 'TEXT', layer, color,
+               x: useAlign2 ? pf(d[11]) : pf(d[10]),
+               y: useAlign2 ? pf(d[21]) : pf(d[20]),
+               height: pf(d[40]) || 2.5, text: txt,
+               rotation: pf(d[50]),
+               halign: ha2, valign: va2,
+               _widthFactor: (wf2 && wf2 > 0) ? wf2 : 1.0,
+               _style: d[7] || 'Standard' };
+    }
+    case 'HATCH':
+    case 'VIEWPORT':
+      return null;
+    default:
+      return null;
+  }
+}
+
+function parseLWPolyline(d, layer, color) {
+  const xs = Array.isArray(d[10]) ? d[10].map(pf) : [pf(d[10])];
+  const ys = Array.isArray(d[20]) ? d[20].map(pf) : [pf(d[20])];
+  const bulges = Array.isArray(d[42]) ? d[42].map(pf) : d[42] !== undefined ? [pf(d[42])] : [];
+  const closed = (parseInt(d[70]) & 1) === 1;
+  const vertices = [];
+  for (let i = 0; i < xs.length; i++) {
+    vertices.push({ x: xs[i], y: ys[i] || 0, bulge: bulges[i] || 0 });
+  }
+  return { type: 'LWPOLYLINE', layer, color, vertices, closed };
+}
+
+function parseDimension(d, layer, color) {
+  // DXF dimension type: bits 0-3 indicate type
+  const dimType = parseInt(d[70]) || 0;
+  const baseType = dimType & 0x0F; // 0=linear, 1=aligned, 2=angular, 3=diameter, 4=radius, 5=angular3pt, 6=ordinate
+
+  return {
+    type: 'DIMENSION', layer, color,
+    blockName: d[2] || '',                  // anonymous block with dimension geometry
+    defX: pf(d[10]), defY: pf(d[20]),
+    textX: pf(d[11]), textY: pf(d[21]),
+    defX1: pf(d[13]), defY1: pf(d[23]),
+    defX2: pf(d[14]), defY2: pf(d[24]),
+    text: cleanMText(d[1] || ''),
+    dimType: dimType,
+    baseType: baseType,
+    rotation: pf(d[50]),
+    leaderX: pf(d[15]), leaderY: pf(d[25])
+  };
+}
+
+function parseSpline(d, layer, color) {
+  const xs = Array.isArray(d[10]) ? d[10].map(pf) : [pf(d[10])];
+  const ys = Array.isArray(d[20]) ? d[20].map(pf) : [pf(d[20])];
+  const pts = [];
+  for (let i = 0; i < xs.length; i++) pts.push({ x: xs[i], y: ys[i] || 0 });
+  return { type: 'SPLINE', layer, color, controlPoints: pts, degree: parseInt(d[71]) || 3 };
+}
+
+// ============================================================
+//  Coordinate Transforms
+// ============================================================
+function worldToScreen(wx, wy) {
+  return {
+    x: (wx - cam.x) * cam.zoom + canvas.width / 2,
+    y: -(wy - cam.y) * cam.zoom + canvas.height / 2
+  };
+}
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx - canvas.width / 2) / cam.zoom + cam.x,
+    y: -(sy - canvas.height / 2) / cam.zoom + cam.y
+  };
+}
+
+// ============================================================
+//  Snap to nearest point
+// ============================================================
+function snapToNearest(wx, wy, threshold) {
+  if (!snapEnabled) return { x: wx, y: wy };
+  const t = threshold || 15 / cam.zoom;
+  let best = null, bestD = t * t;
+
+  for (const e of entities) {
+    if (e._isDimension) continue;
+    const pts = getEntitySnapPoints(e);
+    for (const p of pts) {
+      const dd = (p.x - wx) ** 2 + (p.y - wy) ** 2;
+      if (dd < bestD) { bestD = dd; best = p; }
+    }
+    // Also snap to nearest point on line/polyline edges (perpendicular foot)
+    if (e.type === 'LINE') {
+      const np = nearestPointOnSegment(wx, wy, e.x1, e.y1, e.x2, e.y2);
+      const dd = (np.x - wx) ** 2 + (np.y - wy) ** 2;
+      if (dd < bestD) { bestD = dd; best = np; }
+    } else if (e.type === 'LWPOLYLINE') {
+      const verts = e.vertices;
+      const count = e.closed ? verts.length : verts.length - 1;
+      for (let j = 0; j < count; j++) {
+        const v1 = verts[j], v2 = verts[(j + 1) % verts.length];
+        const np = nearestPointOnSegment(wx, wy, v1.x, v1.y, v2.x, v2.y);
+        const dd = (np.x - wx) ** 2 + (np.y - wy) ** 2;
+        if (dd < bestD) { bestD = dd; best = np; }
+      }
+    }
+  }
+  return best || { x: wx, y: wy };
+}
+
+function nearestPointOnSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return { x: x1, y: y1 };
+  let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return { x: x1 + t * dx, y: y1 + t * dy };
+}
+
+function nearestPointOnInfiniteLine(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq < 1e-9) return null;
+  const t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  return { x: x1 + t * dx, y: y1 + t * dy };
+}
+
+// ============================================================
+//  Annotation drag — get text position / update from mouse
+// ============================================================
+function getAnnotationTextPos(ann) {
+  if (ann.type === 'linear') {
+    if (ann._dir === 'horizontal') {
+      const p1 = ann._origP1, p2 = ann._origP2;
+      return { x: (p1.x + p2.x) / 2, y: p1.y + ann.offset };
+    }
+    if (ann._dir === 'vertical') {
+      const p1 = ann._origP1, p2 = ann._origP2;
+      return { x: p1.x + ann.offset, y: (p1.y + p2.y) / 2 };
+    }
+    // aligned or plain linear: offset along normal
+    const dx = ann.x2 - ann.x1, dy = ann.y2 - ann.y1;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 0.001) return { x: ann.x1, y: ann.y1 };
+    const nx = -dy / len, ny = dx / len;
+    return {
+      x: (ann.x1 + ann.x2) / 2 + nx * ann.offset,
+      y: (ann.y1 + ann.y2) / 2 + ny * ann.offset,
+    };
+  }
+  if (ann.type === 'diameter' || ann.type === 'radius') {
+    const cosA = Math.cos(ann.angle), sinA = Math.sin(ann.angle);
+    const useLeader = typeof ann.leaderDist === 'number' && ann.leaderDist > ann.r * 1.05;
+    if (ann.type === 'diameter') {
+      if (useLeader) {
+        const nx = ann.cx + ann.r * cosA, ny = ann.cy + ann.r * sinA;
+        const lx = ann.cx + ann.leaderDist * cosA, ly = ann.cy + ann.leaderDist * sinA;
+        return { x: (nx + lx) / 2, y: (ny + ly) / 2 };
+      }
+      return { x: ann.cx, y: ann.cy };
+    } else {
+      if (useLeader) {
+        const nx = ann.cx + ann.r * cosA, ny = ann.cy + ann.r * sinA;
+        const lx = ann.cx + ann.leaderDist * cosA, ly = ann.cy + ann.leaderDist * sinA;
+        return { x: (nx + lx) / 2, y: (ny + ly) / 2 };
+      }
+      return { x: ann.cx + ann.r / 2 * cosA, y: ann.cy + ann.r / 2 * sinA };
+    }
+  }
+  if (ann.type === 'angle') {
+    const mid = (ann.startAngle + ann.endAngle) / 2;
+    return { x: ann.cx + ann.r * Math.cos(mid), y: ann.cy + ann.r * Math.sin(mid) };
+  }
+  if (ann.type === 'between') {
+    return { x: (ann.x1 + ann.x2) / 2, y: (ann.y1 + ann.y2) / 2 };
+  }
+  return null;
+}
+
+function hitTestAnnotation(wx, wy) {
+  const threshold = 12 / cam.zoom;
+  for (let i = annotations.length - 1; i >= 0; i--) {
+    const p = getAnnotationTextPos(annotations[i]);
+    if (!p) continue;
+    const d = Math.sqrt((wx - p.x) ** 2 + (wy - p.y) ** 2);
+    if (d < threshold) return i;
+  }
+  return -1;
+}
+
+function updateAnnotationForDrag(ann, mouseW) {
+  if (ann.type === 'linear') {
+    if (ann._dir === 'horizontal') {
+      ann.offset = mouseW.y - ann._origP1.y;
+      return;
+    }
+    if (ann._dir === 'vertical') {
+      ann.offset = mouseW.x - ann._origP1.x;
+      return;
+    }
+    // aligned / plain linear: perpendicular signed distance from line to mouse
+    const dx = ann.x2 - ann.x1, dy = ann.y2 - ann.y1;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 0.001) return;
+    const nx = -dy / len, ny = dx / len;
+    ann.offset = (mouseW.x - ann.x1) * nx + (mouseW.y - ann.y1) * ny;
+    return;
+  }
+  if (ann.type === 'diameter' || ann.type === 'radius') {
+    ann.angle = Math.atan2(mouseW.y - ann.cy, mouseW.x - ann.cx);
+    ann.leaderDist = Math.sqrt((mouseW.x - ann.cx) ** 2 + (mouseW.y - ann.cy) ** 2);
+    return;
+  }
+  if (ann.type === 'angle') {
+    const l1 = ann.line1, l2 = ann.line2;
+    const a1 = Math.atan2(l1.y2 - l1.y1, l1.x2 - l1.x1);
+    const a2 = Math.atan2(l2.y2 - l2.y1, l2.x2 - l2.x1);
+    const rays = [a1, a1 + Math.PI, a2, a2 + Math.PI].map(norm2PI);
+    rays.sort((a, b) => a - b);
+    const mAng = norm2PI(Math.atan2(mouseW.y - ann.cy, mouseW.x - ann.cx));
+    let startAngle = rays[rays.length - 1] - 2 * Math.PI, endAngle = rays[0];
+    for (let i = 0; i < rays.length; i++) {
+      const s = rays[i], e = rays[(i + 1) % rays.length];
+      const eAdj = e < s ? e + 2 * Math.PI : e;
+      const mAdj = mAng < s ? mAng + 2 * Math.PI : mAng;
+      if (mAdj >= s && mAdj <= eAdj) { startAngle = s; endAngle = eAdj; break; }
+    }
+    ann.startAngle = startAngle;
+    ann.endAngle = endAngle;
+    ann.value = (endAngle - startAngle) * 180 / Math.PI;
+    ann.r = Math.sqrt((mouseW.x - ann.cx) ** 2 + (mouseW.y - ann.cy) ** 2);
+    return;
+  }
+}
+
+function norm2PI(a) {
+  a = a % (2 * Math.PI);
+  if (a < 0) a += 2 * Math.PI;
+  return a;
+}
+
+// Intersection of two infinite lines (given as segments). Returns null if parallel.
+function lineLineIntersection(a, b) {
+  const x1 = a.x1, y1 = a.y1, x2 = a.x2, y2 = a.y2;
+  const x3 = b.x1, y3 = b.y1, x4 = b.x2, y4 = b.y2;
+  const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  if (Math.abs(den) < 1e-9) return null;
+  const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / den;
+  return { x: x1 + t * (x2 - x1), y: y1 + t * (y2 - y1) };
+}
+
+function getEntitySnapPoints(e) {
+  switch (e.type) {
+    case 'LINE':
+      return [
+        { x: e.x1, y: e.y1 }, { x: e.x2, y: e.y2 },
+        { x: (e.x1 + e.x2) / 2, y: (e.y1 + e.y2) / 2 }
+      ];
+    case 'CIRCLE':
+      return [
+        { x: e.cx, y: e.cy },
+        { x: e.cx + e.r, y: e.cy }, { x: e.cx - e.r, y: e.cy },
+        { x: e.cx, y: e.cy + e.r }, { x: e.cx, y: e.cy - e.r }
+      ];
+    case 'ARC': {
+      const sa = e.startAngle * Math.PI / 180, ea = e.endAngle * Math.PI / 180;
+      return [
+        { x: e.cx, y: e.cy },
+        { x: e.cx + e.r * Math.cos(sa), y: e.cy + e.r * Math.sin(sa) },
+        { x: e.cx + e.r * Math.cos(ea), y: e.cy + e.r * Math.sin(ea) }
+      ];
+    }
+    case 'LWPOLYLINE':
+      return e.vertices.map(v => ({ x: v.x, y: v.y }));
+    case 'POINT':
+      return [{ x: e.x, y: e.y }];
+    default:
+      return [];
+  }
+}
+
+// ============================================================
+//  Rendering
+// ============================================================
+const DXF_COLORS = {
+  1: '#ff0000', 2: '#ffff00', 3: '#00ff00', 4: '#00ffff',
+  5: '#0000ff', 6: '#ff00ff', 7: '#ffffff', 8: '#808080',
+  9: '#c0c0c0', 10: '#ff0000', 11: '#ff7f7f', 12: '#cc0000',
+  30: '#ff7f00', 40: '#ffff00', 50: '#7fff00', 60: '#00ff00',
+  70: '#00ff7f', 80: '#00ffff', 90: '#007fff', 100: '#0000ff',
+  110: '#7f00ff', 120: '#ff00ff', 130: '#ff007f',
+  250: '#333333', 251: '#545454', 252: '#787878', 253: '#a0a0a0',
+  254: '#c8c8c8', 255: '#ffffff', 256: '#cdd6f4'
+};
+
+function dxfColor(c) { return DXF_COLORS[c] || '#cdd6f4'; }
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#11111b';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (showGrid) drawGrid();
+
+  // Draw entities
+  for (let i = 0; i < entities.length; i++) {
+    const e = entities[i];
+    // Skip DXF dimension entities if hidden
+    if (!showDxfDimensions && e._isDimension) continue;
+    const sel = i === selectedEntity;
+    const baseColor = sel ? '#f9e2af' : (e._isConstruction ? '#94e2d5' : dxfColor(e.color));
+    ctx.strokeStyle = baseColor;
+    ctx.lineWidth = sel ? 2.5 : 1.2;
+    ctx.fillStyle = baseColor;
+    ctx.setLineDash(e._isConstruction ? [4, 4] : []);
+    drawEntity(e, sel);
+    ctx.setLineDash([]);
+  }
+
+  // Draw user annotations (dimension lines)
+  if (showAnnotations) {
+    for (let ai = 0; ai < annotations.length; ai++) drawAnnotation(annotations[ai], ai === selectedAnnotation);
+  }
+
+  // Draw in-progress drawing
+  drawPreview();
+
+  // Snap indicator (hide in smartDim mode - entity highlight is used instead)
+  if (drawState.mode && drawState.mode !== 'smartDim' && drawState.preview) {
+    const sp = worldToScreen(drawState.preview.x, drawState.preview.y);
+    ctx.beginPath();
+    ctx.arc(sp.x, sp.y, 6, 0, Math.PI * 2);
+    ctx.strokeStyle = '#a6e3a1';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+    ctx.stroke();
+  }
+}
+
+function drawGrid() {
+  const gridSizes = [0.1, 0.5, 1, 5, 10, 50, 100, 500, 1000, 5000];
+  let gridSize = 10;
+  for (const gs of gridSizes) {
+    if (gs * cam.zoom >= 20) { gridSize = gs; break; }
+  }
+
+  const tl = screenToWorld(0, canvas.height);
+  const br = screenToWorld(canvas.width, 0);
+  const startX = Math.floor(tl.x / gridSize) * gridSize;
+  const startY = Math.floor(tl.y / gridSize) * gridSize;
+
+  ctx.strokeStyle = 'rgba(69,71,90,.4)';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  for (let x = startX; x <= br.x; x += gridSize) {
+    const s = worldToScreen(x, 0);
+    ctx.moveTo(s.x, 0); ctx.lineTo(s.x, canvas.height);
+  }
+  for (let y = startY; y <= br.y; y += gridSize) {
+    const s = worldToScreen(0, y);
+    ctx.moveTo(0, s.y); ctx.lineTo(canvas.width, s.y);
+  }
+  ctx.stroke();
+
+  // Axes
+  const o = worldToScreen(0, 0);
+  ctx.strokeStyle = 'rgba(243,139,168,.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(o.x, 0); ctx.lineTo(o.x, canvas.height); ctx.stroke();
+  ctx.strokeStyle = 'rgba(166,227,161,.5)';
+  ctx.beginPath(); ctx.moveTo(0, o.y); ctx.lineTo(canvas.width, o.y); ctx.stroke();
+}
+
+function drawEntity(e, sel) {
+  ctx.beginPath();
+  switch (e.type) {
+    case 'LINE': {
+      const a = worldToScreen(e.x1, e.y1), b = worldToScreen(e.x2, e.y2);
+      ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      break;
+    }
+    case 'CIRCLE': {
+      const c = worldToScreen(e.cx, e.cy);
+      ctx.arc(c.x, c.y, e.r * cam.zoom, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    }
+    case 'ARC': {
+      const c = worldToScreen(e.cx, e.cy);
+      const sa = -e.endAngle * Math.PI / 180;
+      const ea = -e.startAngle * Math.PI / 180;
+      ctx.arc(c.x, c.y, e.r * cam.zoom, sa, ea);
+      ctx.stroke();
+      break;
+    }
+    case 'POINT': {
+      const p = worldToScreen(e.x, e.y);
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'LWPOLYLINE': {
+      if (e.vertices.length < 2) break;
+      // Draw each segment separately to avoid stray connecting lines
+      const verts = e.vertices;
+      const count = e.closed ? verts.length : verts.length - 1;
+      for (let j = 0; j < count; j++) {
+        const v1 = verts[j], v2 = verts[(j + 1) % verts.length];
+        ctx.beginPath();
+        if (v1.bulge && Math.abs(v1.bulge) > 0.001) {
+          drawBulgeArc(v1, v2, v1.bulge);
+        } else {
+          const pa = worldToScreen(v1.x, v1.y);
+          const pb = worldToScreen(v2.x, v2.y);
+          ctx.moveTo(pa.x, pa.y);
+          ctx.lineTo(pb.x, pb.y);
+        }
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'TEXT': {
+      const p = worldToScreen(e.x, e.y);
+      const fs = e.height * cam.zoom;
+      if (fs < 1) break; // too small to read — skip rather than upscale and overflow
+      ctx.save();
+      ctx.font = `${fs}px 'Meiryo', 'Yu Gothic', 'MS Gothic', sans-serif`;
+      // Map DXF halign (0=L 1=C 2=R 3=Aligned 4=Middle 5=Fit) to Canvas textAlign
+      ctx.textAlign = (e.halign === 1 || e.halign === 4) ? 'center'
+                    : (e.halign === 2) ? 'right' : 'left';
+      // halign=4 (Middle) implies vertical middle too. Otherwise honor valign.
+      ctx.textBaseline = (e.halign === 4) ? 'middle'
+                       : (e.valign === 3) ? 'top'
+                       : (e.valign === 2) ? 'middle'
+                       : (e.valign === 1) ? 'bottom' : 'alphabetic';
+      const isMText = e._isMText;
+      const lineHeight = fs * 1.2 * (e._lineSpacing || 1.0);
+      // Word-wrap MTEXT to reference width (in pixels)
+      let lines;
+      if (isMText && e._refWidth > 0) {
+        const maxPx = e._refWidth * cam.zoom;
+        lines = [];
+        for (const para of e.text.split('\n')) {
+          if (ctx.measureText(para).width <= maxPx) { lines.push(para); continue; }
+          // Greedy wrap by characters (handles CJK without spaces) with word preference
+          let cur = '';
+          for (let ci = 0; ci < para.length; ci++) {
+            const test = cur + para[ci];
+            if (ctx.measureText(test).width > maxPx && cur) {
+              // try breaking at last space
+              const lastSp = cur.lastIndexOf(' ');
+              if (lastSp > 0 && para[ci] !== ' ') {
+                lines.push(cur.slice(0, lastSp));
+                cur = cur.slice(lastSp + 1) + para[ci];
+              } else {
+                lines.push(cur);
+                cur = para[ci];
+              }
+            } else {
+              cur = test;
+            }
+          }
+          if (cur) lines.push(cur);
+        }
+      } else {
+        lines = e.text.split('\n');
+      }
+      // Effective horizontal scale = entity width factor × style width factor × SHX compensation.
+      // SHX (single-stroke CAD fonts) render ~30% narrower than TrueType, so compress to match.
+      const style = textStyles[e._style];
+      const styleWf = style ? style.widthFactor : 1.0;
+      const shxComp = (style && style.isShx) ? 0.72 : 1.0;
+      const wf = (e._widthFactor || 1.0) * styleWf * shxComp;
+      ctx.translate(p.x, p.y);
+      if (e.rotation) ctx.rotate(-e.rotation * Math.PI / 180);
+      if (wf !== 1.0) ctx.scale(wf, 1);
+      for (let li = 0; li < lines.length; li++) {
+        ctx.fillText(lines[li], 0, li * lineHeight);
+      }
+      ctx.restore();
+      break;
+    }
+    case 'DIMENSION': {
+      // Dimensions are rendered via their anonymous block INSERT - skip direct render
+      break;
+    }
+    case 'SOLID': {
+      // DXF SOLID vertex order is 1,2,4,3 (not 1,2,3,4) — drawing as 1,2,3,4 creates an X
+      const sp1 = worldToScreen(e.x1, e.y1), sp2 = worldToScreen(e.x2, e.y2);
+      const sp3 = worldToScreen(e.x3, e.y3), sp4 = worldToScreen(e.x4, e.y4);
+      ctx.beginPath();
+      ctx.moveTo(sp1.x, sp1.y); ctx.lineTo(sp2.x, sp2.y);
+      ctx.lineTo(sp4.x, sp4.y); ctx.lineTo(sp3.x, sp3.y);
+      ctx.closePath(); ctx.fill();
+      break;
+    }
+    case 'ELLIPSE': {
+      const c = worldToScreen(e.cx, e.cy);
+      const a = Math.sqrt(e.ex ** 2 + e.ey ** 2) * cam.zoom;
+      const b = a * (e.ratio || 0.5);
+      const rot = Math.atan2(e.ey, e.ex);
+      ctx.ellipse(c.x, c.y, Math.max(0.1, a), Math.max(0.1, b), -rot, e.startParam || 0, e.endParam || Math.PI * 2);
+      ctx.stroke();
+      break;
+    }
+    case 'SPLINE': {
+      if (e.controlPoints.length < 2) break;
+      const pts = e.controlPoints.map(p => worldToScreen(p.x, p.y));
+      ctx.moveTo(pts[0].x, pts[0].y);
+      if (pts.length === 2) {
+        ctx.lineTo(pts[1].x, pts[1].y);
+      } else if (pts.length === 3) {
+        ctx.quadraticCurveTo(pts[1].x, pts[1].y, pts[2].x, pts[2].y);
+      } else {
+        for (let j = 1; j < pts.length - 2; j++) {
+          const xc = (pts[j].x + pts[j + 1].x) / 2;
+          const yc = (pts[j].y + pts[j + 1].y) / 2;
+          ctx.quadraticCurveTo(pts[j].x, pts[j].y, xc, yc);
+        }
+        const n = pts.length - 1;
+        ctx.quadraticCurveTo(pts[n - 1].x, pts[n - 1].y, pts[n].x, pts[n].y);
+      }
+      ctx.stroke();
+      break;
+    }
+  }
+}
+
+// Draw bulge arc between two vertices
+function drawBulgeArc(v1, v2, bulge) {
+  const dx = v2.x - v1.x, dy = v2.y - v1.y;
+  const chordLen = Math.sqrt(dx * dx + dy * dy);
+  if (chordLen < 0.0001) return;
+  const sagitta = Math.abs(bulge) * chordLen / 2;
+  const r = (chordLen * chordLen / 4 + sagitta * sagitta) / (2 * sagitta);
+  const midX = (v1.x + v2.x) / 2, midY = (v1.y + v2.y) / 2;
+  const d = Math.sqrt(Math.max(0, r * r - (chordLen / 2) ** 2));
+  const sign = bulge > 0 ? 1 : -1;
+  const nx = -dy / chordLen, ny = dx / chordLen;
+  const cx = midX + nx * d * sign;
+  const cy = midY + ny * d * sign;
+
+  const sc = worldToScreen(cx, cy);
+  // Y is flipped in screen coords
+  const screenStartA = Math.atan2(-(v1.y - cy), (v1.x - cx));
+  const screenEndA = Math.atan2(-(v2.y - cy), (v2.x - cx));
+  // In screen coords Y is inverted, so counterclockwise flips
+  const ccw = bulge < 0;
+
+  // Move to start point first to avoid stray connecting line
+  const sp = worldToScreen(v1.x, v1.y);
+  ctx.moveTo(sp.x, sp.y);
+  ctx.arc(sc.x, sc.y, r * cam.zoom, screenStartA, screenEndA, ccw);
+}
+
+// ============================================================
+//  Annotation (user-created dimension lines) rendering
+// ============================================================
+function drawAnnotation(ann, selected) {
+  ctx.save();
+  ctx.strokeStyle = selected ? '#a6e3a1' : dimStyle.lineColor;
+  ctx.fillStyle = selected ? '#a6e3a1' : dimStyle.lineColor;
+  ctx.lineWidth = selected ? dimStyle.lineWidth + 1 : dimStyle.lineWidth;
+  ctx.setLineDash([]);
+  drawDimResult(ann);
+  if (selected) {
+    const tp = getAnnotationTextPos(ann);
+    if (tp) {
+      const sp = worldToScreen(tp.x, tp.y);
+      ctx.strokeStyle = '#a6e3a1';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(sp.x - 28, sp.y - 11, 56, 22);
+    }
+  }
+  ctx.restore();
+}
+
+// Unified dimension drawing dispatcher
+function drawDimResult(dim) {
+  if (dim._dir) {
+    // Point-to-point dimension (horizontal/vertical/aligned)
+    drawPointToPointDim(dim);
+  } else if (dim.type === 'linear') {
+    drawLinearDimAnnotation(dim.x1, dim.y1, dim.x2, dim.y2, dim.offset);
+  } else if (dim.type === 'radius' || dim.type === 'diameter') {
+    drawRadiusDimAnnotation(dim.cx, dim.cy, dim.r, dim.angle, dim.type === 'diameter', dim.leaderDist);
+  } else if (dim.type === 'between') {
+    drawBetweenDimAnnotation(dim);
+  } else if (dim.type === 'angle') {
+    drawAngleDimAnnotation(dim);
+  }
+}
+
+function drawAngleDimAnnotation(dim) {
+  const { cx, cy, r, startAngle, endAngle, value, line1, line2 } = dim;
+  const sc = worldToScreen(cx, cy);
+  const rs = r * cam.zoom;
+
+  // Extension lines from line endpoints (farthest from intersection) toward the arc along each ray
+  const rayPts = [
+    { x: cx + r * Math.cos(startAngle), y: cy + r * Math.sin(startAngle) },
+    { x: cx + r * Math.cos(endAngle), y: cy + r * Math.sin(endAngle) },
+  ];
+  ctx.setLineDash([3, 3]);
+  for (const rp of rayPts) {
+    const sp = worldToScreen(rp.x, rp.y);
+    ctx.beginPath();
+    ctx.moveTo(sc.x, sc.y); ctx.lineTo(sp.x, sp.y);
+    ctx.stroke();
+  }
+
+  // Arc (solid) — canvas Y is flipped relative to math angles
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(sc.x, sc.y, rs, -endAngle, -startAngle);
+  ctx.stroke();
+
+  // Arrows at arc endpoints, tangent to the arc
+  const tanStart = startAngle - Math.PI / 2;
+  const tanEnd = endAngle + Math.PI / 2;
+  const sStart = worldToScreen(cx + r * Math.cos(startAngle), cy + r * Math.sin(startAngle));
+  const sEnd = worldToScreen(cx + r * Math.cos(endAngle), cy + r * Math.sin(endAngle));
+  // Canvas Y inverted, so negate sin
+  drawDimArrow(sStart.x, sStart.y, -tanStart);
+  drawDimArrow(sEnd.x, sEnd.y, -tanEnd);
+
+  // Text at mid arc
+  const midAngle = (startAngle + endAngle) / 2;
+  const tx = cx + r * Math.cos(midAngle), ty = cy + r * Math.sin(midAngle);
+  const st = worldToScreen(tx, ty);
+  drawDimText(st.x, st.y, value.toFixed(dimStyle.decimals) + '\u00B0');
+}
+
+function drawLinearDimAnnotation(x1, y1, x2, y2, offset) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 0.001) return;
+  const angle = Math.atan2(dy, dx);
+  const nx = -Math.sin(angle), ny = Math.cos(angle);
+
+  const ox1 = x1 + nx * offset, oy1 = y1 + ny * offset;
+  const ox2 = x2 + nx * offset, oy2 = y2 + ny * offset;
+  const sa = worldToScreen(x1, y1), sb = worldToScreen(x2, y2);
+  const so1 = worldToScreen(ox1, oy1), so2 = worldToScreen(ox2, oy2);
+
+  // Extension lines (dashed)
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(sa.x, sa.y); ctx.lineTo(so1.x, so1.y);
+  ctx.moveTo(sb.x, sb.y); ctx.lineTo(so2.x, so2.y);
+  ctx.stroke();
+
+  // Dimension line (solid)
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(so1.x, so1.y); ctx.lineTo(so2.x, so2.y);
+  ctx.stroke();
+
+  const dimAngle = Math.atan2(so2.y - so1.y, so2.x - so1.x);
+  drawDimArrow(so1.x, so1.y, dimAngle);
+  drawDimArrow(so2.x, so2.y, dimAngle + Math.PI);
+
+  // Rotate text if dimension line is more vertical
+  const screenAngle = Math.atan2(so2.y - so1.y, so2.x - so1.x);
+  const isVertical = Math.abs(Math.sin(screenAngle)) > Math.abs(Math.cos(screenAngle));
+  drawDimText((so1.x + so2.x) / 2, (so1.y + so2.y) / 2, formatDist(dist), isVertical ? -Math.PI / 2 : 0);
+}
+
+function drawRadiusDimAnnotation(cx, cy, r, angle, isDiameter, leaderDist) {
+  const cosA = Math.cos(angle), sinA = Math.sin(angle);
+  const sc = worldToScreen(cx, cy);
+  // Near edge (toward leader direction)
+  const nearX = cx + r * cosA, nearY = cy + r * sinA;
+  const sn = worldToScreen(nearX, nearY);
+
+  // If leader position extends beyond circle, draw a leader line with text at the end
+  const useLeader = typeof leaderDist === 'number' && leaderDist > r * 1.05;
+
+  ctx.setLineDash([]);
+
+  if (isDiameter) {
+    // Far edge (opposite side)
+    const sf = worldToScreen(cx - r * cosA, cy - r * sinA);
+    if (useLeader) {
+      // Line from far edge through center, extended to leader end
+      const leaderX = cx + leaderDist * cosA, leaderY = cy + leaderDist * sinA;
+      const sl = worldToScreen(leaderX, leaderY);
+      ctx.beginPath();
+      ctx.moveTo(sf.x, sf.y); ctx.lineTo(sl.x, sl.y);
+      ctx.stroke();
+      const arrAngle = Math.atan2(sl.y - sf.y, sl.x - sf.x);
+      drawDimArrow(sn.x, sn.y, arrAngle);
+      drawDimArrow(sf.x, sf.y, arrAngle + Math.PI);
+      // Text placed between near edge and leader end
+      const val = r * 2;
+      drawDimText((sn.x + sl.x) / 2, (sn.y + sl.y) / 2, '\u2300' + formatDist(val));
+    } else {
+      // Classic: line from far edge to near edge, text in middle
+      ctx.beginPath();
+      ctx.moveTo(sf.x, sf.y); ctx.lineTo(sn.x, sn.y);
+      ctx.stroke();
+      const arrAngle = Math.atan2(sn.y - sf.y, sn.x - sf.x);
+      drawDimArrow(sn.x, sn.y, arrAngle);
+      drawDimArrow(sf.x, sf.y, arrAngle + Math.PI);
+      drawDimText((sf.x + sn.x) / 2, (sf.y + sn.y) / 2, '\u2300' + formatDist(r * 2));
+    }
+  } else {
+    // Radius
+    if (useLeader) {
+      // Line from center, past edge, to leader end
+      const leaderX = cx + leaderDist * cosA, leaderY = cy + leaderDist * sinA;
+      const sl = worldToScreen(leaderX, leaderY);
+      ctx.beginPath();
+      ctx.moveTo(sc.x, sc.y); ctx.lineTo(sl.x, sl.y);
+      ctx.stroke();
+      const arrAngle = Math.atan2(sl.y - sc.y, sl.x - sc.x);
+      drawDimArrow(sn.x, sn.y, arrAngle);
+      drawDimText((sn.x + sl.x) / 2, (sn.y + sl.y) / 2, 'R' + formatDist(r));
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(sc.x, sc.y); ctx.lineTo(sn.x, sn.y);
+      ctx.stroke();
+      const arrAngle = Math.atan2(sn.y - sc.y, sn.x - sc.x);
+      drawDimArrow(sn.x, sn.y, arrAngle);
+      drawDimText((sc.x + sn.x) / 2, (sc.y + sn.y) / 2, 'R' + formatDist(r));
+    }
+  }
+}
+
+function drawBetweenDimAnnotation(ann) {
+  const sa = worldToScreen(ann.x1, ann.y1);
+  const sb = worldToScreen(ann.x2, ann.y2);
+
+  // Extension lines (dashed)
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  const dx = sb.x - sa.x, dy = sb.y - sa.y;
+  const dlen = Math.sqrt(dx * dx + dy * dy);
+  if (dlen < 1) { ctx.restore(); return; }
+  const ext = 8;
+  ctx.moveTo(sa.x - dx / dlen * ext, sa.y - dy / dlen * ext);
+  ctx.lineTo(sa.x + dx / dlen * ext, sa.y + dy / dlen * ext);
+  ctx.moveTo(sb.x - dx / dlen * ext, sb.y - dy / dlen * ext);
+  ctx.lineTo(sb.x + dx / dlen * ext, sb.y + dy / dlen * ext);
+  ctx.stroke();
+
+  // Dimension line (solid)
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(sa.x, sa.y); ctx.lineTo(sb.x, sb.y);
+  ctx.stroke();
+
+  const dimAngle = Math.atan2(sb.y - sa.y, sb.x - sa.x);
+  drawDimArrow(sa.x, sa.y, dimAngle);
+  drawDimArrow(sb.x, sb.y, dimAngle + Math.PI);
+
+  const isVert = Math.abs(Math.sin(dimAngle)) > Math.abs(Math.cos(dimAngle));
+  drawDimText((sa.x + sb.x) / 2, (sa.y + sb.y) / 2, formatDist(ann.dist), isVert ? -Math.PI / 2 : 0);
+}
+
+function drawDimArrow(x, y, angle) {
+  const sz = Math.max(1, dimStyle.arrowSize * getDimScale());
+  const ha = Math.PI * 0.92;
+  ctx.beginPath();
+  ctx.moveTo(x + sz * Math.cos(angle + ha), y + sz * Math.sin(angle + ha));
+  ctx.lineTo(x, y);
+  ctx.lineTo(x + sz * Math.cos(angle - ha), y + sz * Math.sin(angle - ha));
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawDimText(sx, sy, label, rotation) {
+  const fs = Math.max(4, dimStyle.fontSize * getDimScale());
+  ctx.font = `${fs}px Consolas, monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const tw = ctx.measureText(label).width + 8;
+  const th = fs + 4;
+  const oldFill = ctx.fillStyle;
+  const bg = `rgba(17,17,27,${dimStyle.bgAlpha})`;
+
+  if (rotation) {
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(rotation);
+    if (dimStyle.bgAlpha > 0) { ctx.fillStyle = bg; ctx.fillRect(-tw / 2, -th / 2, tw, th); }
+    ctx.fillStyle = dimStyle.textColor;
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
+    ctx.fillStyle = oldFill;
+  } else {
+    if (dimStyle.bgAlpha > 0) { ctx.fillStyle = bg; ctx.fillRect(sx - tw / 2, sy - th / 2, tw, th); }
+    ctx.fillStyle = dimStyle.textColor;
+    ctx.fillText(label, sx, sy);
+    ctx.fillStyle = oldFill;
+  }
+}
+
+function formatDist(d) {
+  const u = document.getElementById('unitSelect').value;
+  const n = dimStyle.decimals;
+  const su = dimStyle.showUnit;
+  switch (u) {
+    case 'cm':   return (d / 10).toFixed(n)    + (su ? ' cm' : '');
+    case 'm':    return (d / 1000).toFixed(n)   + (su ? ' m'  : '');
+    case 'inch': return (d / 25.4).toFixed(n)   + (su ? '"'   : '');
+    default:     return d.toFixed(n)             + (su ? ' mm' : '');
+  }
+}
+
+// ============================================================
+//  Smart Dimension — entity/point detection helpers
+// ============================================================
+
+// Collect all snap points (vertices, endpoints, centers, intersections)
+function getAllSnapPoints() {
+  const pts = [];
+  for (const e of entities) {
+    if (e._isDimension) continue;
+    if (e.type === 'LINE') {
+      pts.push({ x: e.x1, y: e.y1 }, { x: e.x2, y: e.y2 });
+    } else if (e.type === 'CIRCLE') {
+      pts.push({ x: e.cx, y: e.cy });
+      pts.push({ x: e.cx + e.r, y: e.cy }, { x: e.cx - e.r, y: e.cy });
+      pts.push({ x: e.cx, y: e.cy + e.r }, { x: e.cx, y: e.cy - e.r });
+    } else if (e.type === 'ARC') {
+      pts.push({ x: e.cx, y: e.cy });
+      const sa = e.startAngle * Math.PI / 180, ea = e.endAngle * Math.PI / 180;
+      pts.push({ x: e.cx + e.r * Math.cos(sa), y: e.cy + e.r * Math.sin(sa) });
+      pts.push({ x: e.cx + e.r * Math.cos(ea), y: e.cy + e.r * Math.sin(ea) });
+    } else if (e.type === 'LWPOLYLINE') {
+      for (const v of e.vertices) pts.push({ x: v.x, y: v.y });
+    } else if (e.type === 'POINT') {
+      pts.push({ x: e.x, y: e.y });
+    }
+  }
+  return pts;
+}
+
+// Detect what user clicked: point, line, or circle
+// Priority: point (vertex/endpoint) > circle/arc edge > line/polyline edge
+function detectEntityAtPoint(wx, wy) {
+  const tPt = 8 / cam.zoom;   // tighter threshold for points
+  const tEdge = 10 / cam.zoom; // wider threshold for edges
+  const tInter = 15 / cam.zoom; // threshold for virtual intersection corners
+
+  // 1. Check for nearby vertex/endpoint (highest priority)
+  let bestPt = null, bestPtDist = tPt;
+  const allPts = getAllSnapPoints();
+  for (const p of allPts) {
+    const d = Math.sqrt((wx - p.x) ** 2 + (wy - p.y) ** 2);
+    if (d < bestPtDist) { bestPtDist = d; bestPt = { kind: 'point', x: p.x, y: p.y }; }
+  }
+
+  // 1b. Virtual corner: intersection of nearby lines (even if endpoints don't coincide)
+  if (!bestPt) {
+    const nearbyLines = [];
+    const searchR = 40 / cam.zoom;
+    for (const e of entities) {
+      if (e._isDimension) continue;
+      if (e.type === 'LINE') {
+        if (distToSegment(wx, wy, e.x1, e.y1, e.x2, e.y2) < searchR) {
+          nearbyLines.push({ x1: e.x1, y1: e.y1, x2: e.x2, y2: e.y2 });
+        }
+      } else if (e.type === 'LWPOLYLINE') {
+        const verts = e.vertices;
+        const count = e.closed ? verts.length : verts.length - 1;
+        for (let j = 0; j < count; j++) {
+          const v1 = verts[j], v2 = verts[(j + 1) % verts.length];
+          if (Math.abs(v1.bulge || 0) > 0.001) continue;
+          if (distToSegment(wx, wy, v1.x, v1.y, v2.x, v2.y) < searchR) {
+            nearbyLines.push({ x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y });
+          }
+        }
+      }
+    }
+    let bestInterDist = tInter;
+    for (let i = 0; i < nearbyLines.length; i++) {
+      for (let j = i + 1; j < nearbyLines.length; j++) {
+        const ip = lineLineIntersection(nearbyLines[i], nearbyLines[j]);
+        if (!ip) continue;
+        const d = Math.sqrt((wx - ip.x) ** 2 + (wy - ip.y) ** 2);
+        if (d < bestInterDist) {
+          bestInterDist = d;
+          bestPt = { kind: 'point', x: ip.x, y: ip.y };
+        }
+      }
+    }
+  }
+
+  // 2. Check circles/arcs
+  let bestCircle = null, bestCircleDist = tEdge;
+  for (const e of entities) {
+    if (e._isDimension) continue;
+    if (e.type === 'CIRCLE' || e.type === 'ARC') {
+      const d = Math.abs(Math.sqrt((wx - e.cx) ** 2 + (wy - e.cy) ** 2) - e.r);
+      if (d < bestCircleDist) {
+        bestCircleDist = d;
+        bestCircle = { kind: 'circle', cx: e.cx, cy: e.cy, r: e.r };
+      }
+    }
+  }
+
+  // 3. Check line segments
+  let bestLine = null, bestLineDist = tEdge;
+  for (const e of entities) {
+    if (e._isDimension) continue;
+    if (e.type === 'LINE') {
+      const d = distToSegment(wx, wy, e.x1, e.y1, e.x2, e.y2);
+      if (d < bestLineDist) { bestLineDist = d; bestLine = { kind: 'line', x1: e.x1, y1: e.y1, x2: e.x2, y2: e.y2 }; }
+    } else if (e.type === 'LWPOLYLINE') {
+      const verts = e.vertices;
+      const count = e.closed ? verts.length : verts.length - 1;
+      for (let j = 0; j < count; j++) {
+        const v1 = verts[j], v2 = verts[(j + 1) % verts.length];
+        if (Math.abs(v1.bulge || 0) > 0.001) continue;
+        const d = distToSegment(wx, wy, v1.x, v1.y, v2.x, v2.y);
+        if (d < bestLineDist) { bestLineDist = d; bestLine = { kind: 'line', x1: v1.x, y1: v1.y, x2: v2.x, y2: v2.y }; }
+      }
+    }
+  }
+
+  // Priority: point > circle > line
+  if (bestPt) return bestPt;
+  if (bestCircle && bestLine) return bestCircleDist < bestLineDist ? bestCircle : bestLine;
+  return bestCircle || bestLine || null;
+}
+
+// Highlight a selection on canvas
+function drawEntityHighlight(sel) {
+  if (!sel) return;
+  ctx.save();
+  ctx.setLineDash([]);
+  if (sel.kind === 'point') {
+    const sp = worldToScreen(sel.x, sel.y);
+    // Draw a diamond marker
+    ctx.strokeStyle = '#a6e3a1';
+    ctx.lineWidth = 2;
+    ctx.fillStyle = 'rgba(166,227,161,0.3)';
+    const s = 8;
+    ctx.beginPath();
+    ctx.moveTo(sp.x, sp.y - s); ctx.lineTo(sp.x + s, sp.y);
+    ctx.lineTo(sp.x, sp.y + s); ctx.lineTo(sp.x - s, sp.y);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  } else if (sel.kind === 'line') {
+    ctx.strokeStyle = '#a6e3a1';
+    ctx.lineWidth = 3;
+    const a = worldToScreen(sel.x1, sel.y1), b = worldToScreen(sel.x2, sel.y2);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  } else if (sel.kind === 'circle') {
+    ctx.strokeStyle = '#a6e3a1';
+    ctx.lineWidth = 3;
+    const c = worldToScreen(sel.cx, sel.cy);
+    ctx.beginPath(); ctx.arc(c.x, c.y, sel.r * cam.zoom, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Determine dimension type based on two points and mouse placement position
+// Returns 'horizontal', 'vertical', or 'aligned'
+function determineDimDirection(p1x, p1y, p2x, p2y, mouseW) {
+  const dx = Math.abs(p2x - p1x);
+  const dy = Math.abs(p2y - p1y);
+  const mx = mouseW.x, my = mouseW.y;
+
+  // For nearly horizontal/vertical lines, always use aligned
+  if (dx < 0.001 || dy < 0.001) return 'aligned';
+
+  // Measure how far the mouse is from the aligned dimension line vs horizontal/vertical
+  // Use the position relative to the bounding box of the two points
+  const minX = Math.min(p1x, p2x), maxX = Math.max(p1x, p2x);
+  const minY = Math.min(p1y, p2y), maxY = Math.max(p1y, p2y);
+
+  // If mouse is beyond the X-range, prefer vertical dimension
+  // If mouse is beyond the Y-range, prefer horizontal dimension
+  // If mouse is near the aligned direction, prefer aligned
+  const beyondX = mx < minX - dx * 0.3 || mx > maxX + dx * 0.3;
+  const beyondY = my < minY - dy * 0.3 || my > maxY + dy * 0.3;
+
+  // Calculate perpendicular distance from the aligned line (p1→p2)
+  const ldx = p2x - p1x, ldy = p2y - p1y;
+  const len = Math.sqrt(ldx * ldx + ldy * ldy);
+  const nx = -ldy / len, ny = ldx / len;
+  const alignedDist = Math.abs((mx - p1x) * nx + (my - p1y) * ny);
+
+  // Distance from horizontal line through points
+  const hDist = Math.min(Math.abs(my - p1y), Math.abs(my - p2y));
+  // Distance from vertical line through points
+  const vDist = Math.min(Math.abs(mx - p1x), Math.abs(mx - p2x));
+
+  // If mouse is close to the diagonal, use aligned
+  if (alignedDist < Math.max(hDist, vDist) * 0.7) return 'aligned';
+
+  // Otherwise pick based on which axis the mouse deviates most from
+  if (beyondY && !beyondX) return 'horizontal';
+  if (beyondX && !beyondY) return 'vertical';
+
+  return hDist > vDist ? 'horizontal' : 'vertical';
+}
+
+// Build a "point-to-point" dimension annotation given direction and mouse position
+function computePointToPointDim(p1x, p1y, p2x, p2y, mouseW) {
+  const dir = determineDimDirection(p1x, p1y, p2x, p2y, mouseW);
+
+  if (dir === 'horizontal') {
+    // Horizontal dimension: same Y for dimension line, X values from two points
+    const dimY = mouseW.y;
+    const offset = dimY - p1y;
+    // Projected points: keep original X, project Y to dimY
+    return { type: 'linear', x1: p1x, y1: p1y, x2: p2x, y2: p1y, offset: offset,
+             _origP1: { x: p1x, y: p1y }, _origP2: { x: p2x, y: p2y }, _dir: 'horizontal' };
+  } else if (dir === 'vertical') {
+    // Vertical dimension: same X for dimension line, Y values from two points
+    const dimX = mouseW.x;
+    const offset = dimX - p1x;
+    // For vertical: use points with same X, varying Y
+    // We treat it as a "linear" but with the line going vertical
+    return { type: 'linear', x1: p1x, y1: p1y, x2: p1x, y2: p2y, offset: offset,
+             _origP1: { x: p1x, y: p1y }, _origP2: { x: p2x, y: p2y }, _dir: 'vertical' };
+  } else {
+    // Aligned dimension: along the actual line between points
+    const dx = p2x - p1x, dy = p2y - p1y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 0.001) return null;
+    const angle = Math.atan2(dy, dx);
+    const nx = -Math.sin(angle), ny = Math.cos(angle);
+    const mx = mouseW.x - p1x, my = mouseW.y - p1y;
+    const perpDist = mx * nx + my * ny;
+    return { type: 'linear', x1: p1x, y1: p1y, x2: p2x, y2: p2y, offset: perpDist,
+             _origP1: { x: p1x, y: p1y }, _origP2: { x: p2x, y: p2y }, _dir: 'aligned' };
+  }
+}
+
+// Draw a point-to-point dimension (handles horizontal/vertical with proper extension lines from original points)
+function drawPointToPointDim(dim) {
+  ctx.save();
+  ctx.strokeStyle = dimStyle.lineColor; ctx.fillStyle = dimStyle.lineColor; ctx.lineWidth = dimStyle.lineWidth;
+
+  if (dim._dir === 'horizontal') {
+    const p1 = dim._origP1, p2 = dim._origP2;
+    const dimY = p1.y + dim.offset;
+    // Extension lines from original points to dimension line
+    const sa1 = worldToScreen(p1.x, p1.y), sa2 = worldToScreen(p2.x, p2.y);
+    const sd1 = worldToScreen(p1.x, dimY), sd2 = worldToScreen(p2.x, dimY);
+
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(sa1.x, sa1.y); ctx.lineTo(sd1.x, sd1.y);
+    ctx.moveTo(sa2.x, sa2.y); ctx.lineTo(sd2.x, sd2.y);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(sd1.x, sd1.y); ctx.lineTo(sd2.x, sd2.y);
+    ctx.stroke();
+
+    const dimAngle = Math.atan2(sd2.y - sd1.y, sd2.x - sd1.x);
+    drawDimArrow(sd1.x, sd1.y, dimAngle);
+    drawDimArrow(sd2.x, sd2.y, dimAngle + Math.PI);
+
+    const dist = Math.abs(p2.x - p1.x);
+    drawDimText((sd1.x + sd2.x) / 2, (sd1.y + sd2.y) / 2, formatDist(dist));
+  } else if (dim._dir === 'vertical') {
+    const p1 = dim._origP1, p2 = dim._origP2;
+    const dimX = p1.x + dim.offset;
+    const sa1 = worldToScreen(p1.x, p1.y), sa2 = worldToScreen(p2.x, p2.y);
+    const sd1 = worldToScreen(dimX, p1.y), sd2 = worldToScreen(dimX, p2.y);
+
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(sa1.x, sa1.y); ctx.lineTo(sd1.x, sd1.y);
+    ctx.moveTo(sa2.x, sa2.y); ctx.lineTo(sd2.x, sd2.y);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(sd1.x, sd1.y); ctx.lineTo(sd2.x, sd2.y);
+    ctx.stroke();
+
+    const dimAngle = Math.atan2(sd2.y - sd1.y, sd2.x - sd1.x);
+    drawDimArrow(sd1.x, sd1.y, dimAngle);
+    drawDimArrow(sd2.x, sd2.y, dimAngle + Math.PI);
+
+    const dist = Math.abs(p2.y - p1.y);
+    drawDimText((sd1.x + sd2.x) / 2, (sd1.y + sd2.y) / 2, formatDist(dist), -Math.PI / 2);
+  } else {
+    // Aligned - use standard linear annotation
+    drawLinearDimAnnotation(dim.x1, dim.y1, dim.x2, dim.y2, dim.offset);
+  }
+  ctx.restore();
+}
+
+// Compute dimension data for preview/final given smartDimState + mouse pos
+function computeSmartDim(sel1, sel2, mouseW) {
+  // --- Single entity ---
+  if (!sel2) {
+    if (sel1.kind === 'circle') {
+      const angle = Math.atan2(mouseW.y - sel1.cy, mouseW.x - sel1.cx);
+      const dist = Math.sqrt((mouseW.x - sel1.cx) ** 2 + (mouseW.y - sel1.cy) ** 2);
+      return { type: 'diameter', cx: sel1.cx, cy: sel1.cy, r: sel1.r, angle, leaderDist: dist };
+    }
+    if (sel1.kind === 'line') {
+      const dx = sel1.x2 - sel1.x1, dy = sel1.y2 - sel1.y1;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 0.001) return null;
+      const angle = Math.atan2(dy, dx);
+      const nx = -Math.sin(angle), ny = Math.cos(angle);
+      const mx = mouseW.x - sel1.x1, my = mouseW.y - sel1.y1;
+      const perpDist = mx * nx + my * ny;
+      return { type: 'linear', x1: sel1.x1, y1: sel1.y1, x2: sel1.x2, y2: sel1.y2, offset: perpDist };
+    }
+    if (sel1.kind === 'point') {
+      // Single point - can't dimension alone, need second selection
+      return null;
+    }
+  }
+
+  // --- Two selections: extract points for point-to-point dimension ---
+  let p1, p2;
+
+  // Point + Point
+  if (sel1.kind === 'point' && sel2.kind === 'point') {
+    p1 = { x: sel1.x, y: sel1.y }; p2 = { x: sel2.x, y: sel2.y };
+    return computePointToPointDim(p1.x, p1.y, p2.x, p2.y, mouseW);
+  }
+
+  // Point + Line → distance from point to nearest point on line, or treat as two-point
+  if (sel1.kind === 'point' && sel2.kind === 'line') {
+    p1 = { x: sel1.x, y: sel1.y };
+    // Project point onto line to get the closest point
+    const np = nearestPointOnSegment(p1.x, p1.y, sel2.x1, sel2.y1, sel2.x2, sel2.y2);
+    p2 = np;
+    return computePointToPointDim(p1.x, p1.y, p2.x, p2.y, mouseW);
+  }
+  if (sel1.kind === 'line' && sel2.kind === 'point') {
+    p2 = { x: sel2.x, y: sel2.y };
+    const np = nearestPointOnSegment(p2.x, p2.y, sel1.x1, sel1.y1, sel1.x2, sel1.y2);
+    p1 = np;
+    return computePointToPointDim(p1.x, p1.y, p2.x, p2.y, mouseW);
+  }
+
+  // Point + Circle → distance from point to center
+  if (sel1.kind === 'point' && sel2.kind === 'circle') {
+    return computePointToPointDim(sel1.x, sel1.y, sel2.cx, sel2.cy, mouseW);
+  }
+  if (sel1.kind === 'circle' && sel2.kind === 'point') {
+    return computePointToPointDim(sel1.cx, sel1.cy, sel2.x, sel2.y, mouseW);
+  }
+
+  // Two lines → angle if non-parallel, perpendicular distance if parallel
+  if (sel1.kind === 'line' && sel2.kind === 'line') {
+    const a1 = Math.atan2(sel1.y2 - sel1.y1, sel1.x2 - sel1.x1);
+    const a2 = Math.atan2(sel2.y2 - sel2.y1, sel2.x2 - sel2.x1);
+    let diff = Math.abs(a1 - a2);
+    while (diff > Math.PI) diff -= Math.PI;
+    const parallelTol = 0.0175; // ~1 degree
+    const isParallel = diff < parallelTol || Math.PI - diff < parallelTol;
+
+    if (!isParallel) {
+      const ip = lineLineIntersection(sel1, sel2);
+      if (ip) {
+        // Determine which sector the mouse is in
+        const rays = [a1, a1 + Math.PI, a2, a2 + Math.PI].map(norm2PI);
+        rays.sort((a, b) => a - b);
+        const mAng = norm2PI(Math.atan2(mouseW.y - ip.y, mouseW.x - ip.x));
+        let startAngle = rays[rays.length - 1] - 2 * Math.PI, endAngle = rays[0];
+        for (let i = 0; i < rays.length; i++) {
+          const s = rays[i], e = rays[(i + 1) % rays.length];
+          const eAdj = e < s ? e + 2 * Math.PI : e;
+          const mAdj = mAng < s ? mAng + 2 * Math.PI : mAng;
+          if (mAdj >= s && mAdj <= eAdj) { startAngle = s; endAngle = eAdj; break; }
+        }
+        const radius = Math.sqrt((mouseW.x - ip.x) ** 2 + (mouseW.y - ip.y) ** 2);
+        const value = (endAngle - startAngle) * 180 / Math.PI;
+        return { type: 'angle', cx: ip.x, cy: ip.y, r: radius,
+                 startAngle, endAngle, value,
+                 line1: { x1: sel1.x1, y1: sel1.y1, x2: sel1.x2, y2: sel1.y2 },
+                 line2: { x1: sel2.x1, y1: sel2.y1, x2: sel2.x2, y2: sel2.y2 } };
+      }
+    }
+
+    // Parallel: perpendicular distance
+    const mid1x = (sel1.x1 + sel1.x2) / 2, mid1y = (sel1.y1 + sel1.y2) / 2;
+    const foot = nearestPointOnInfiniteLine(mid1x, mid1y, sel2.x1, sel2.y1, sel2.x2, sel2.y2);
+    if (!foot) return null;
+    return computePointToPointDim(mid1x, mid1y, foot.x, foot.y, mouseW);
+  }
+
+  // Line + Circle or Circle + Line → perpendicular distance from circle center to line
+  if ((sel1.kind === 'line' && sel2.kind === 'circle') || (sel1.kind === 'circle' && sel2.kind === 'line')) {
+    const line = sel1.kind === 'line' ? sel1 : sel2;
+    const circ = sel1.kind === 'circle' ? sel1 : sel2;
+    const foot = nearestPointOnInfiniteLine(circ.cx, circ.cy, line.x1, line.y1, line.x2, line.y2);
+    if (!foot) return null;
+    return computePointToPointDim(foot.x, foot.y, circ.cx, circ.cy, mouseW);
+  }
+
+  // Two circles → distance between centers
+  if (sel1.kind === 'circle' && sel2.kind === 'circle') {
+    return computePointToPointDim(sel1.cx, sel1.cy, sel2.cx, sel2.cy, mouseW);
+  }
+
+  return null;
+}
+
+// ============================================================
+//  Drawing Preview
+// ============================================================
+function drawPreview() {
+  // Zoom box overlay (drawn regardless of drawState)
+  if (zoomBoxState.active) {
+    const x = Math.min(zoomBoxState.sx, zoomBoxState.ex);
+    const y = Math.min(zoomBoxState.sy, zoomBoxState.ey);
+    const w = Math.abs(zoomBoxState.ex - zoomBoxState.sx);
+    const h = Math.abs(zoomBoxState.ey - zoomBoxState.sy);
+    ctx.save();
+    ctx.setLineDash([5, 3]);
+    ctx.strokeStyle = '#89b4fa';
+    ctx.fillStyle = 'rgba(137,180,250,0.08)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  if (!drawState.mode || !drawState.preview) return;
+  ctx.save();
+
+  // Smart dimension preview
+  if (drawState.mode === 'smartDim') {
+    // Highlight hovered entity
+    if (smartDimState.phase === 'pick1' && smartDimState.hoverEntity) {
+      drawEntityHighlight(smartDimState.hoverEntity);
+    }
+    // Highlight first selection
+    if (smartDimState.sel1) {
+      drawEntityHighlight(smartDimState.sel1);
+    }
+    // Highlight second selection or hovered entity in pick2
+    if (smartDimState.phase === 'pick2' && smartDimState.hoverEntity) {
+      drawEntityHighlight(smartDimState.hoverEntity);
+    }
+    if (smartDimState.sel2) {
+      drawEntityHighlight(smartDimState.sel2);
+    }
+    // Preview dimension in place phase
+    if (smartDimState.phase === 'place' && smartDimState.sel1) {
+      const dim = computeSmartDim(smartDimState.sel1, smartDimState.sel2, drawState.preview);
+      if (dim) {
+        ctx.strokeStyle = dimStyle.lineColor; ctx.fillStyle = dimStyle.lineColor; ctx.lineWidth = dimStyle.lineWidth; ctx.setLineDash([]);
+        drawDimResult(dim);
+      }
+    }
+    ctx.restore();
+    return;
+  }
+
+  // Other draw modes
+  if (drawState.points.length === 0) { ctx.restore(); return; }
+  ctx.strokeStyle = '#89b4fa';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 4]);
+
+  const last = drawState.points[drawState.points.length - 1];
+  const ls = worldToScreen(last.x, last.y);
+  const ps = worldToScreen(drawState.preview.x, drawState.preview.y);
+
+  if (drawState.mode === 'line' || drawState.mode === 'measure' || drawState.mode === 'construction') {
+    if (drawState.mode === 'construction') ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(ls.x, ls.y); ctx.lineTo(ps.x, ps.y); ctx.stroke();
+    const d = Math.sqrt((drawState.preview.x - last.x) ** 2 + (drawState.preview.y - last.y) ** 2);
+    ctx.setLineDash([]);
+    ctx.font = '12px Consolas, monospace';
+    ctx.fillStyle = '#89b4fa';
+    ctx.fillText(formatDist(d), (ls.x + ps.x) / 2 + 10, (ls.y + ps.y) / 2 - 10);
+  } else if (drawState.mode === 'rect' || drawState.mode === 'printRange' || drawState.mode === 'boxDelete') {
+    const p0 = drawState.points[0];
+    const s0 = worldToScreen(p0.x, p0.y);
+    ctx.setLineDash([6, 4]);
+    if (drawState.mode === 'printRange') {
+      ctx.strokeStyle = '#f38ba8';
+      ctx.lineWidth = 2;
+    } else if (drawState.mode === 'boxDelete') {
+      ctx.strokeStyle = '#f38ba8';
+      ctx.fillStyle = 'rgba(243,139,168,0.08)';
+      ctx.lineWidth = 1.5;
+    }
+    ctx.beginPath();
+    ctx.rect(s0.x, s0.y, ps.x - s0.x, ps.y - s0.y);
+    if (drawState.mode === 'boxDelete') ctx.fill();
+    ctx.stroke();
+    const w = Math.abs(drawState.preview.x - p0.x);
+    const h = Math.abs(drawState.preview.y - p0.y);
+    ctx.setLineDash([]);
+    ctx.font = '11px Consolas, monospace';
+    ctx.fillStyle = '#89b4fa';
+    ctx.fillText(`${formatDist(w)} x ${formatDist(h)}`, ps.x + 10, ps.y - 10);
+  } else if (drawState.mode === 'circle') {
+    const c = drawState.points[0];
+    const cs = worldToScreen(c.x, c.y);
+    const r = Math.sqrt((drawState.preview.x - c.x) ** 2 + (drawState.preview.y - c.y) ** 2);
+    ctx.beginPath();
+    ctx.arc(cs.x, cs.y, r * cam.zoom, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = '11px Consolas, monospace';
+    ctx.fillStyle = '#89b4fa';
+    ctx.fillText(`R=${formatDist(r)}`, ps.x + 10, ps.y - 10);
+  }
+
+  ctx.restore();
+}
+
+// ============================================================
+//  Bounding Box / Fit
+// ============================================================
+function getBoundingBox() {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  let found = false;
+
+  function ext(x, y) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); found = true; }
+
+  for (const e of entities) {
+    switch (e.type) {
+      case 'LINE': ext(e.x1, e.y1); ext(e.x2, e.y2); break;
+      case 'CIRCLE': ext(e.cx - e.r, e.cy - e.r); ext(e.cx + e.r, e.cy + e.r); break;
+      case 'ARC': ext(e.cx - e.r, e.cy - e.r); ext(e.cx + e.r, e.cy + e.r); break;
+      case 'POINT': ext(e.x, e.y); break;
+      case 'LWPOLYLINE': e.vertices.forEach(v => ext(v.x, v.y)); break;
+      case 'TEXT': ext(e.x, e.y); break;
+      case 'DIMENSION': ext(e.defX1, e.defY1); ext(e.defX2, e.defY2); ext(e.textX, e.textY); break;
+      case 'ELLIPSE': {
+        const a = Math.sqrt(e.ex ** 2 + e.ey ** 2);
+        ext(e.cx - a, e.cy - a); ext(e.cx + a, e.cy + a); break;
+      }
+      case 'SPLINE': e.controlPoints.forEach(p => ext(p.x, p.y)); break;
+      case 'SOLID': ext(e.x1, e.y1); ext(e.x2, e.y2); ext(e.x3, e.y3); ext(e.x4, e.y4); break;
+    }
+  }
+  return found ? { minX, maxX, minY, maxY } : null;
+}
+
+function fitAll() {
+  const bb = getBoundingBox();
+  if (!bb) { cam = { x: 0, y: 0, zoom: 1 }; render(); return; }
+  const w = bb.maxX - bb.minX || 1;
+  const h = bb.maxY - bb.minY || 1;
+  const margin = 0.1;
+  cam.x = (bb.minX + bb.maxX) / 2;
+  cam.y = (bb.minY + bb.maxY) / 2;
+  cam.zoom = Math.min(canvas.width * (1 - margin) / w, canvas.height * (1 - margin) / h);
+  render();
+}
+
+// ============================================================
+//  Scale Conversion (図面縮尺 → 実寸 1:1)
+// ============================================================
+// Parse scale string: "1:4", "1/4", "4", "0.25" → returns multiplier (e.g. 4)
+function parseScaleInput(str) {
+  str = (str || '').trim();
+  // "1:4" or "1/4" → a/b → factor = b/a
+  const m = str.match(/^(\d+(?:\.\d+)?)\s*[:\/]\s*(\d+(?:\.\d+)?)$/);
+  if (m) {
+    const a = parseFloat(m[1]), b = parseFloat(m[2]);
+    if (a > 0 && b > 0) return b / a;
+  }
+  // plain number "4" → factor = 4, "0.25" → factor = 4 (inverse)
+  const n = parseFloat(str);
+  if (!isNaN(n) && n > 0) return n < 1 ? 1 / n : n;
+  return null;
+}
+
+function applyScaleConversion() {
+  const factor = parseScaleInput(document.getElementById('scaleInput').value);
+  if (!factor) { alert('縮尺の形式が正しくありません。\n例: 1:4  /  1/4  /  4'); return; }
+  if (Math.abs(factor - 1) < 1e-9) return; // already 1:1
+
+  saveUndoState();
+
+  const s = factor;
+  entities = entities.map(e => {
+    switch (e.type) {
+      case 'LINE':
+        return { ...e, x1: e.x1*s, y1: e.y1*s, x2: e.x2*s, y2: e.y2*s };
+      case 'CIRCLE': case 'ARC':
+        return { ...e, cx: e.cx*s, cy: e.cy*s, r: e.r*s };
+      case 'LWPOLYLINE':
+        return { ...e, vertices: e.vertices.map(v => ({ ...v, x: v.x*s, y: v.y*s })) };
+      case 'TEXT':
+        return { ...e, x: e.x*s, y: e.y*s, height: e.height*s,
+                 _refWidth: (e._refWidth||0)*s };
+      case 'ELLIPSE':
+        return { ...e, cx: e.cx*s, cy: e.cy*s, ex: e.ex*s, ey: e.ey*s };
+      case 'SPLINE':
+        return { ...e, controlPoints: e.controlPoints.map(p => ({ x: p.x*s, y: p.y*s })) };
+      case 'SOLID':
+        return { ...e, x1: e.x1*s, y1: e.y1*s, x2: e.x2*s, y2: e.y2*s,
+                 x3: e.x3*s, y3: e.y3*s, x4: e.x4*s, y4: e.y4*s };
+      case 'POINT':
+        return { ...e, x: e.x*s, y: e.y*s };
+      default: return e;
+    }
+  });
+
+  // Scale annotations (smart dimensions / measurements)
+  annotations = annotations.map(a => {
+    if (a.type === 'linear') {
+      return { ...a,
+        x1: a.x1*s, y1: a.y1*s, x2: a.x2*s, y2: a.y2*s,
+        offset: a.offset*s,
+        _origP1: a._origP1 ? { x: a._origP1.x*s, y: a._origP1.y*s } : a._origP1,
+        _origP2: a._origP2 ? { x: a._origP2.x*s, y: a._origP2.y*s } : a._origP2,
+      };
+    }
+    if (a.type === 'diameter' || a.type === 'radius') {
+      return { ...a, cx: a.cx*s, cy: a.cy*s, r: a.r*s,
+               leaderDist: (a.leaderDist||0)*s };
+    }
+    return a;
+  });
+
+  saveAnnotations();
+  fitAll();
+}
+
+// ============================================================
+//  Box Delete
+// ============================================================
+function deleteInBox(minX, minY, maxX, maxY) {
+  function inBox(x, y) { return x >= minX && x <= maxX && y >= minY && y <= maxY; }
+  // Entity is included if its representative center is inside the box
+  function entityInBox(e) {
+    const c = getEntityCenter(e);
+    return inBox(c.x, c.y);
+  }
+  // Annotation is included if its main reference point(s) are inside the box
+  function annInBox(a) {
+    if (a.type === 'linear') return inBox(a.x1, a.y1) && inBox(a.x2, a.y2);
+    if (a.type === 'diameter' || a.type === 'radius') return inBox(a.cx, a.cy);
+    return false;
+  }
+  const toRemoveE = entities.filter(entityInBox).length;
+  const toRemoveA = annotations.filter(annInBox).length;
+  if (toRemoveE + toRemoveA === 0) return;
+  saveUndoState();
+  entities = entities.filter(e => !entityInBox(e));
+  annotations = annotations.filter(a => !annInBox(a));
+  selectedEntity = -1;
+  document.getElementById('infoPanel').style.display = 'none';
+  saveAnnotations();
+  updateEntityList();
+  render();
+}
+
+// ============================================================
+//  Entity Selection / Hit Test
+// ============================================================
+function hitTest(wx, wy, tolerance) {
+  const t = tolerance || 5 / cam.zoom;
+  for (let i = entities.length - 1; i >= 0; i--) {
+    if (hitTestEntity(entities[i], wx, wy, t)) return i;
+  }
+  return -1;
+}
+
+function hitTestEntity(e, wx, wy, t) {
+  switch (e.type) {
+    case 'LINE': return distToSegment(wx, wy, e.x1, e.y1, e.x2, e.y2) < t;
+    case 'CIRCLE': return Math.abs(Math.sqrt((wx - e.cx) ** 2 + (wy - e.cy) ** 2) - e.r) < t;
+    case 'ARC': {
+      const d = Math.sqrt((wx - e.cx) ** 2 + (wy - e.cy) ** 2);
+      if (Math.abs(d - e.r) > t) return false;
+      let a = Math.atan2(wy - e.cy, wx - e.cx) * 180 / Math.PI;
+      if (a < 0) a += 360;
+      let sa = e.startAngle, ea = e.endAngle;
+      if (sa < 0) sa += 360; if (ea < 0) ea += 360;
+      if (sa <= ea) return a >= sa && a <= ea;
+      return a >= sa || a <= ea;
+    }
+    case 'POINT': return Math.sqrt((wx - e.x) ** 2 + (wy - e.y) ** 2) < t * 2;
+    case 'LWPOLYLINE':
+      for (let j = 0; j < e.vertices.length - 1; j++) {
+        if (distToSegment(wx, wy, e.vertices[j].x, e.vertices[j].y, e.vertices[j + 1].x, e.vertices[j + 1].y) < t) return true;
+      }
+      if (e.closed && e.vertices.length > 2) {
+        const v1 = e.vertices[e.vertices.length - 1], v2 = e.vertices[0];
+        if (distToSegment(wx, wy, v1.x, v1.y, v2.x, v2.y) < t) return true;
+      }
+      return false;
+    case 'TEXT': {
+      const fs = e.height;
+      return wx >= e.x - fs && wx <= e.x + fs * e.text.length * 0.6 + fs && wy >= e.y - fs * 2 && wy <= e.y + fs;
+    }
+    case 'DIMENSION': {
+      if (distToSegment(wx, wy, e.defX1, e.defY1, e.defX2, e.defY2) < t * 3) return true;
+      const tdist = Math.sqrt((wx - e.textX) ** 2 + (wy - e.textY) ** 2);
+      return tdist < t * 5;
+    }
+    default: return false;
+  }
+}
+
+function distToSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
+  let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return Math.sqrt((px - x1 - t * dx) ** 2 + (py - y1 - t * dy) ** 2);
+}
+
+// ============================================================
+//  Side Panel
+// ============================================================
+function updateEntityList() {}
+
+function showEntityInfo(e) {
+  const panel = document.getElementById('infoPanel');
+  const title = document.getElementById('infoPanelTitle');
+  const content = document.getElementById('infoPanelContent');
+  panel.style.display = 'block';
+  title.textContent = e.type;
+
+  let html = `<div class="row"><span class="label">Layer:</span><span class="val">${e.layer}</span></div>`;
+  switch (e.type) {
+    case 'LINE': {
+      const len = Math.sqrt((e.x2 - e.x1) ** 2 + (e.y2 - e.y1) ** 2);
+      html += `<div class="row"><span class="label">始点:</span><span class="val">(${e.x1.toFixed(2)}, ${e.y1.toFixed(2)})</span></div>`;
+      html += `<div class="row"><span class="label">終点:</span><span class="val">(${e.x2.toFixed(2)}, ${e.y2.toFixed(2)})</span></div>`;
+      html += `<div class="row"><span class="label">長さ:</span><span class="val">${formatDist(len)}</span></div>`;
+      const ang = Math.atan2(e.y2 - e.y1, e.x2 - e.x1) * 180 / Math.PI;
+      html += `<div class="row"><span class="label">角度:</span><span class="val">${ang.toFixed(2)}\u00B0</span></div>`;
+      break;
+    }
+    case 'CIRCLE':
+      html += `<div class="row"><span class="label">中心:</span><span class="val">(${e.cx.toFixed(2)}, ${e.cy.toFixed(2)})</span></div>`;
+      html += `<div class="row"><span class="label">半径:</span><span class="val">${formatDist(e.r)}</span></div>`;
+      html += `<div class="row"><span class="label">直径:</span><span class="val">${formatDist(e.r * 2)}</span></div>`;
+      break;
+    case 'ARC':
+      html += `<div class="row"><span class="label">中心:</span><span class="val">(${e.cx.toFixed(2)}, ${e.cy.toFixed(2)})</span></div>`;
+      html += `<div class="row"><span class="label">半径:</span><span class="val">${formatDist(e.r)}</span></div>`;
+      html += `<div class="row"><span class="label">開始角:</span><span class="val">${e.startAngle.toFixed(2)}\u00B0</span></div>`;
+      html += `<div class="row"><span class="label">終了角:</span><span class="val">${e.endAngle.toFixed(2)}\u00B0</span></div>`;
+      break;
+    case 'LWPOLYLINE':
+      html += `<div class="row"><span class="label">頂点数:</span><span class="val">${e.vertices.length}</span></div>`;
+      html += `<div class="row"><span class="label">閉合:</span><span class="val">${e.closed ? 'はい' : 'いいえ'}</span></div>`;
+      let perimeter = 0;
+      for (let j = 0; j < e.vertices.length - 1; j++) {
+        perimeter += Math.sqrt((e.vertices[j + 1].x - e.vertices[j].x) ** 2 + (e.vertices[j + 1].y - e.vertices[j].y) ** 2);
+      }
+      if (e.closed && e.vertices.length > 2) {
+        const v1 = e.vertices[e.vertices.length - 1], v2 = e.vertices[0];
+        perimeter += Math.sqrt((v2.x - v1.x) ** 2 + (v2.y - v1.y) ** 2);
+      }
+      html += `<div class="row"><span class="label">周長:</span><span class="val">${formatDist(perimeter)}</span></div>`;
+      break;
+    case 'TEXT':
+      html += `<div class="row"><span class="label">位置:</span><span class="val">(${e.x.toFixed(2)}, ${e.y.toFixed(2)})</span></div>`;
+      html += `<div class="row"><span class="label">テキスト:</span><span class="val">${e.text}</span></div>`;
+      html += `<div class="row"><span class="label">サイズ:</span><input type="number" id="textHeightNum" min="0.1" step="0.1" value="${e.height.toFixed(2)}"></div>`;
+      html += `<div class="row"><input type="range" id="textHeightRange" min="0.5" max="100" step="0.5" value="${Math.min(100, Math.max(0.5, e.height))}" style="width:100%"></div>`;
+      break;
+    case 'DIMENSION': {
+      const dist = Math.sqrt((e.defX2 - e.defX1) ** 2 + (e.defY2 - e.defY1) ** 2);
+      html += `<div class="row"><span class="label">寸法値:</span><span class="val">${e.text || dist.toFixed(2)}</span></div>`;
+      html += `<div class="row"><span class="label">距離:</span><span class="val">${formatDist(dist)}</span></div>`;
+      html += `<div class="row"><span class="label">P1:</span><span class="val">(${e.defX1.toFixed(2)}, ${e.defY1.toFixed(2)})</span></div>`;
+      html += `<div class="row"><span class="label">P2:</span><span class="val">(${e.defX2.toFixed(2)}, ${e.defY2.toFixed(2)})</span></div>`;
+      break;
+    }
+  }
+  content.innerHTML = html;
+
+  // Wire up TEXT size controls
+  if (e.type === 'TEXT') {
+    const num = document.getElementById('textHeightNum');
+    const range = document.getElementById('textHeightRange');
+    let resizing = false;
+    const applySize = (v) => {
+      const nv = parseFloat(v);
+      if (!isFinite(nv) || nv <= 0) return;
+      if (!resizing) { saveUndoState(); resizing = true; }
+      e.height = nv;
+      if (num) num.value = nv.toFixed(2);
+      if (range) range.value = Math.min(100, Math.max(0.5, nv));
+      render();
+    };
+    const commit = () => { resizing = false; };
+    if (num) {
+      num.oninput = () => applySize(num.value);
+      num.onchange = commit;
+    }
+    if (range) {
+      range.oninput = () => applySize(range.value);
+      range.onchange = commit;
+    }
+  }
+}
+
+// ============================================================
+//  Mouse / Touch Events
+// ============================================================
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
+    drag = { active: true, sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y };
+    canvas.style.cursor = 'grabbing';
+    return;
+  }
+  if (e.button === 0 && zoomBoxMode) {
+    zoomBoxState = { active: true, sx: e.offsetX, sy: e.offsetY, ex: e.offsetX, ey: e.offsetY };
+    return;
+  }
+  if (e.button === 0 && drawState.mode) {
+    const w = screenToWorld(e.offsetX, e.offsetY);
+    const snapped = snapToNearest(w.x, w.y);
+    if (drawState.mode === 'smartDim') {
+      handleSmartDimClick(w, e.shiftKey);
+    } else {
+      handleDrawClick(snapped);
+    }
+    return;
+  }
+  if (e.button === 0) {
+    const w = screenToWorld(e.offsetX, e.offsetY);
+    // Check annotation text drag first (highest priority)
+    const annHit = hitTestAnnotation(w.x, w.y);
+    if (annHit >= 0) {
+      annDrag = { active: true, index: annHit, moved: false };
+      selectedAnnotation = annHit;
+      selectedEntity = -1;
+      document.getElementById('infoPanel').style.display = 'none';
+      canvas.style.cursor = 'move';
+      render();
+      return;
+    }
+    // Clicked elsewhere - clear annotation selection
+    if (selectedAnnotation >= 0) {
+      selectedAnnotation = -1;
+      render();
+    }
+    const hit = hitTest(w.x, w.y);
+    if (hit >= 0) {
+      selectedEntity = hit;
+      // Start drag if this is a TEXT entity
+      if (entities[hit].type === 'TEXT') {
+        textDrag = {
+          active: true, index: hit, moved: false,
+          offsetX: w.x - entities[hit].x,
+          offsetY: w.y - entities[hit].y,
+        };
+        canvas.style.cursor = 'move';
+      }
+      showEntityInfo(entities[hit]);
+      updateEntityList();
+      render();
+    } else {
+      selectedEntity = -1;
+      document.getElementById('infoPanel').style.display = 'none';
+      updateEntityList();
+      render();
+      drag = { active: true, sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y };
+      canvas.style.cursor = 'grabbing';
+    }
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const w = screenToWorld(e.offsetX, e.offsetY);
+  document.getElementById('coords').textContent = `X: ${w.x.toFixed(2)}  Y: ${w.y.toFixed(2)}  Zoom: ${cam.zoom.toFixed(1)}x`;
+
+  if (zoomBoxState.active) {
+    zoomBoxState.ex = e.offsetX;
+    zoomBoxState.ey = e.offsetY;
+    render();
+    return;
+  }
+
+  if (annDrag.active) {
+    if (!annDrag.moved) {
+      saveUndoState();
+      annDrag.moved = true;
+    }
+    updateAnnotationForDrag(annotations[annDrag.index], w);
+    render();
+    return;
+  }
+
+  if (textDrag.active) {
+    if (!textDrag.moved) {
+      saveUndoState();
+      textDrag.moved = true;
+    }
+    const t = entities[textDrag.index];
+    t.x = w.x - textDrag.offsetX;
+    t.y = w.y - textDrag.offsetY;
+    render();
+    return;
+  }
+
+  if (!drawState.mode && !drag.active) {
+    // Hover cursor hint when over a dimension text or text entity
+    if (hitTestAnnotation(w.x, w.y) >= 0) canvas.style.cursor = 'move';
+    else {
+      const h = hitTest(w.x, w.y);
+      if (h >= 0 && entities[h].type === 'TEXT') canvas.style.cursor = 'move';
+      else canvas.style.cursor = 'default';
+    }
+  }
+
+  if (drag.active) {
+    const dx = (e.clientX - drag.sx) / cam.zoom;
+    const dy = (e.clientY - drag.sy) / cam.zoom;
+    cam.x = drag.cx - dx;
+    cam.y = drag.cy + dy;
+    render();
+    return;
+  }
+
+  if (drawState.mode) {
+    drawState.preview = snapToNearest(w.x, w.y);
+    // Smart dim: detect entity under mouse for hover highlight
+    if (drawState.mode === 'smartDim' && (smartDimState.phase === 'pick1' || smartDimState.phase === 'pick2')) {
+      smartDimState.hoverEntity = detectEntityAtPoint(w.x, w.y);
+    }
+    render();
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (zoomBoxState.active) {
+    zoomBoxState.active = false;
+    const x0 = Math.min(zoomBoxState.sx, e.offsetX);
+    const y0 = Math.min(zoomBoxState.sy, e.offsetY);
+    const x1 = Math.max(zoomBoxState.sx, e.offsetX);
+    const y1 = Math.max(zoomBoxState.sy, e.offsetY);
+    const pw = x1 - x0, ph = y1 - y0;
+    if (pw > 5 && ph > 5) {
+      const w0 = screenToWorld(x0, y0), w1 = screenToWorld(x1, y1);
+      const ww = Math.abs(w1.x - w0.x), wh = Math.abs(w1.y - w0.y);
+      if (ww > 0 && wh > 0) {
+        cam.zoom = Math.min(canvas.width / ww, canvas.height / wh) * 0.9;
+        cam.x = (w0.x + w1.x) / 2;
+        cam.y = (w0.y + w1.y) / 2;
+      }
+    }
+    zoomBoxMode = false;
+    document.getElementById('btnZoomBox').classList.remove('active');
+    canvas.style.cursor = 'default';
+    render();
+    return;
+  }
+  drag.active = false;
+  if (annDrag.active) {
+    if (annDrag.moved) saveAnnotations();
+    annDrag = { active: false, index: -1, moved: false };
+  }
+  if (textDrag.active) {
+    textDrag = { active: false, index: -1, moved: false, offsetX: 0, offsetY: 0 };
+  }
+  canvas.style.cursor = drawState.mode ? 'crosshair' : 'default';
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const w = screenToWorld(e.offsetX, e.offsetY);
+  const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  cam.zoom *= factor;
+  cam.zoom = Math.max(0.001, Math.min(100000, cam.zoom));
+  const newW = screenToWorld(e.offsetX, e.offsetY);
+  cam.x -= newW.x - w.x;
+  cam.y -= newW.y - w.y;
+  render();
+}, { passive: false });
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (drawState.mode) cancelDraw();
+});
+
+// ============================================================
+//  Drawing Logic
+// ============================================================
+function setDrawMode(mode) {
+  drawState = { mode, points: [], preview: null };
+  smartDimState = { phase: 'pick1', sel1: null, sel2: null, hoverEntity: null };
+  canvas.style.cursor = mode ? 'crosshair' : 'default';
+  const indicator = document.getElementById('drawMode');
+  if (mode) {
+    const labels = {
+      line: '直線描画', rect: '矩形描画', circle: '円描画',
+      construction: '作図線 (点線)', measure: '距離計測',
+      text: '文字入力: 配置する位置をクリック',
+      printRange: '印刷範囲: 対角2点をクリックで指定',
+      boxDelete: '範囲削除: 対角2点をクリックして範囲を指定 — 範囲内のエンティティを削除',
+      smartDim: 'スマート寸法: 点/エッジ/円をクリック (Shift=半径)'
+    };
+    indicator.textContent = (labels[mode] || mode) + '  (右クリックでキャンセル)';
+    indicator.style.display = 'block';
+  } else {
+    indicator.style.display = 'none';
+  }
+  updateToolbarButtons();
+}
+
+function cancelDraw() {
+  setDrawMode(null);
+  render();
+}
+
+// Render the given world bounds to an off-screen canvas and open a print window
+function printRange(minX, minY, maxX, maxY) {
+  const w = maxX - minX, h = maxY - minY;
+  if (w < 0.001 || h < 0.001) return;
+
+  // Target canvas ~2000px on long side for crisp print
+  const longPx = 2000;
+  const pxPerUnit = longPx / Math.max(w, h);
+  const cw = Math.round(w * pxPerUnit);
+  const ch = Math.round(h * pxPerUnit);
+
+  const off = document.createElement('canvas');
+  off.width = cw; off.height = ch;
+  const octx = off.getContext('2d');
+  octx.fillStyle = '#ffffff';
+  octx.fillRect(0, 0, cw, ch);
+
+  // Map world (wx, wy) → off-canvas (ox, oy). Y flipped.
+  function w2o(wx, wy) {
+    return { x: (wx - minX) * pxPerUnit, y: (maxY - wy) * pxPerUnit };
+  }
+
+  octx.strokeStyle = '#000';
+  octx.fillStyle = '#000';
+  octx.lineWidth = 1.2;
+
+  // Draw entities
+  for (const e of entities) {
+    if (!showDxfDimensions && e._isDimension) continue;
+    octx.setLineDash(e._isConstruction ? [6, 6] : []);
+    drawEntityPrint(octx, e, w2o, pxPerUnit);
+  }
+  octx.setLineDash([]);
+
+  // Draw annotations
+  if (showAnnotations) {
+    for (const ann of annotations) drawAnnotationPrint(octx, ann, w2o, pxPerUnit);
+  }
+
+  const dataUrl = off.toDataURL('image/png');
+  const win = window.open('', '_blank');
+  if (!win) { alert('ポップアップがブロックされました。許可してください。'); return; }
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>印刷</title>
+<style>
+  @page { margin: 10mm; }
+  body { margin: 0; padding: 0; background: #fff; }
+  img { display: block; width: 100%; height: auto; max-height: 100vh; object-fit: contain; }
+  @media print { img { max-height: none; width: 100%; } }
+</style></head><body>
+<img src="${dataUrl}" onload="window.focus();window.print();">
+</body></html>`);
+  win.document.close();
+}
+
+function drawEntityPrint(octx, e, w2o, pxPerUnit) {
+  octx.beginPath();
+  switch (e.type) {
+    case 'LINE': {
+      const a = w2o(e.x1, e.y1), b = w2o(e.x2, e.y2);
+      octx.moveTo(a.x, a.y); octx.lineTo(b.x, b.y); octx.stroke();
+      break;
+    }
+    case 'CIRCLE': {
+      const c = w2o(e.cx, e.cy);
+      octx.arc(c.x, c.y, e.r * pxPerUnit, 0, Math.PI * 2);
+      octx.stroke();
+      break;
+    }
+    case 'ARC': {
+      const c = w2o(e.cx, e.cy);
+      // Y flipped: angles negate
+      const sa = -e.endAngle * Math.PI / 180;
+      const ea = -e.startAngle * Math.PI / 180;
+      octx.arc(c.x, c.y, e.r * pxPerUnit, sa, ea);
+      octx.stroke();
+      break;
+    }
+    case 'LWPOLYLINE': {
+      const verts = e.vertices;
+      if (verts.length < 2) break;
+      const a = w2o(verts[0].x, verts[0].y);
+      octx.moveTo(a.x, a.y);
+      for (let i = 1; i < verts.length; i++) {
+        const p = w2o(verts[i].x, verts[i].y);
+        octx.lineTo(p.x, p.y);
+      }
+      if (e.closed) octx.closePath();
+      octx.stroke();
+      break;
+    }
+    case 'TEXT': {
+      const p = w2o(e.x, e.y);
+      const fs = e.height * pxPerUnit;
+      if (fs < 1) break;
+      octx.save();
+      octx.font = `${fs}px 'Meiryo', 'Yu Gothic', 'MS Gothic', sans-serif`;
+      octx.textAlign = (e.halign === 1 || e.halign === 4) ? 'center'
+                     : (e.halign === 2) ? 'right' : 'left';
+      octx.textBaseline = (e.halign === 4) ? 'middle'
+                        : (e.valign === 3) ? 'top'
+                        : (e.valign === 2) ? 'middle'
+                        : (e.valign === 1) ? 'bottom' : 'alphabetic';
+      octx.fillStyle = '#000';
+      const isMTextP = e._isMText;
+      const lh = fs * 1.2 * (e._lineSpacing || 1.0);
+      let lines;
+      if (isMTextP && e._refWidth > 0) {
+        const maxPx = e._refWidth * pxPerUnit;
+        lines = [];
+        for (const para of (e.text || '').split('\n')) {
+          if (octx.measureText(para).width <= maxPx) { lines.push(para); continue; }
+          let cur = '';
+          for (let ci = 0; ci < para.length; ci++) {
+            const test = cur + para[ci];
+            if (octx.measureText(test).width > maxPx && cur) {
+              const lastSp = cur.lastIndexOf(' ');
+              if (lastSp > 0 && para[ci] !== ' ') {
+                lines.push(cur.slice(0, lastSp));
+                cur = cur.slice(lastSp + 1) + para[ci];
+              } else { lines.push(cur); cur = para[ci]; }
+            } else { cur = test; }
+          }
+          if (cur) lines.push(cur);
+        }
+      } else {
+        lines = (e.text || '').split('\n');
+      }
+      const styleP = textStyles[e._style];
+      const styleWfP = styleP ? styleP.widthFactor : 1.0;
+      const shxCompP = (styleP && styleP.isShx) ? 0.72 : 1.0;
+      const wfP = (e._widthFactor || 1.0) * styleWfP * shxCompP;
+      octx.translate(p.x, p.y);
+      if (e.rotation) octx.rotate(-(e.rotation || 0) * Math.PI / 180);
+      if (wfP !== 1.0) octx.scale(wfP, 1);
+      for (let li = 0; li < lines.length; li++) octx.fillText(lines[li], 0, li * lh);
+      octx.restore();
+      break;
+    }
+    case 'SOLID': {
+      const sp1 = w2o(e.x1, e.y1), sp2 = w2o(e.x2, e.y2);
+      const sp3 = w2o(e.x3, e.y3), sp4 = w2o(e.x4, e.y4);
+      octx.beginPath();
+      octx.moveTo(sp1.x, sp1.y); octx.lineTo(sp2.x, sp2.y);
+      octx.lineTo(sp4.x, sp4.y); octx.lineTo(sp3.x, sp3.y);
+      octx.closePath(); octx.fill();
+      break;
+    }
+    case 'ELLIPSE': {
+      const c = w2o(e.cx, e.cy);
+      const a = Math.sqrt(e.ex ** 2 + e.ey ** 2) * pxPerUnit;
+      const b = a * e.ratio;
+      const rot = -Math.atan2(e.ey, e.ex);
+      octx.ellipse(c.x, c.y, a, b, rot, 0, Math.PI * 2);
+      octx.stroke();
+      break;
+    }
+  }
+}
+
+function drawAnnotationPrint(octx, ann, w2o, pxPerUnit) {
+  octx.save();
+  octx.strokeStyle = '#000';
+  octx.fillStyle = '#000';
+  octx.lineWidth = 1;
+  octx.setLineDash([]);
+  drawAnnotationPrintImpl(octx, ann, w2o, pxPerUnit);
+  octx.restore();
+}
+
+function drawAnnotationPrintImpl(octx, ann, w2o, pxPerUnit) {
+  const arrowSz = dimStyle.arrowSize;
+  const fs = dimStyle.fontSize;
+  octx.font = `bold ${fs}px Consolas, monospace`;
+  octx.textAlign = 'center';
+  octx.textBaseline = 'middle';
+
+  function arrow(x, y, angle) {
+    const ha = Math.PI * 0.92;
+    octx.beginPath();
+    octx.moveTo(x + arrowSz * Math.cos(angle + ha), y + arrowSz * Math.sin(angle + ha));
+    octx.lineTo(x, y);
+    octx.lineTo(x + arrowSz * Math.cos(angle - ha), y + arrowSz * Math.sin(angle - ha));
+    octx.closePath();
+    octx.fill();
+  }
+  function text(sx, sy, label, rot) {
+    octx.save();
+    octx.translate(sx, sy);
+    if (rot) octx.rotate(rot);
+    const tw = octx.measureText(label).width + 8;
+    const th = fs + 4;
+    octx.fillStyle = '#fff';
+    octx.fillRect(-tw / 2, -th / 2, tw, th);
+    octx.fillStyle = '#000';
+    octx.fillText(label, 0, 0);
+    octx.restore();
+  }
+
+  if (ann.type === 'linear') {
+    let p1, p2, dimP1, dimP2, value;
+    if (ann._dir === 'horizontal') {
+      p1 = ann._origP1; p2 = ann._origP2;
+      dimP1 = { x: p1.x, y: p1.y + ann.offset };
+      dimP2 = { x: p2.x, y: p1.y + ann.offset };
+      value = Math.abs(p2.x - p1.x);
+    } else if (ann._dir === 'vertical') {
+      p1 = ann._origP1; p2 = ann._origP2;
+      dimP1 = { x: p1.x + ann.offset, y: p1.y };
+      dimP2 = { x: p1.x + ann.offset, y: p2.y };
+      value = Math.abs(p2.y - p1.y);
+    } else {
+      p1 = { x: ann.x1, y: ann.y1 }; p2 = { x: ann.x2, y: ann.y2 };
+      const dx = p2.x - p1.x, dy = p2.y - p1.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 0.001) return;
+      const nx = -dy / len, ny = dx / len;
+      dimP1 = { x: p1.x + nx * ann.offset, y: p1.y + ny * ann.offset };
+      dimP2 = { x: p2.x + nx * ann.offset, y: p2.y + ny * ann.offset };
+      value = len;
+    }
+    const sa = w2o(p1.x, p1.y), sb = w2o(p2.x, p2.y);
+    const so1 = w2o(dimP1.x, dimP1.y), so2 = w2o(dimP2.x, dimP2.y);
+    octx.setLineDash([3, 3]);
+    octx.beginPath();
+    octx.moveTo(sa.x, sa.y); octx.lineTo(so1.x, so1.y);
+    octx.moveTo(sb.x, sb.y); octx.lineTo(so2.x, so2.y);
+    octx.stroke();
+    octx.setLineDash([]);
+    octx.beginPath();
+    octx.moveTo(so1.x, so1.y); octx.lineTo(so2.x, so2.y);
+    octx.stroke();
+    const ang = Math.atan2(so2.y - so1.y, so2.x - so1.x);
+    arrow(so1.x, so1.y, ang);
+    arrow(so2.x, so2.y, ang + Math.PI);
+    const isV = Math.abs(Math.sin(ang)) > Math.abs(Math.cos(ang));
+    text((so1.x + so2.x) / 2, (so1.y + so2.y) / 2, formatDist(value), isV ? -Math.PI / 2 : 0);
+    return;
+  }
+
+  if (ann.type === 'diameter' || ann.type === 'radius') {
+    const cosA = Math.cos(ann.angle), sinA = Math.sin(ann.angle);
+    const useLeader = typeof ann.leaderDist === 'number' && ann.leaderDist > ann.r * 1.05;
+    const sc = w2o(ann.cx, ann.cy);
+    const near = w2o(ann.cx + ann.r * cosA, ann.cy + ann.r * sinA);
+    if (ann.type === 'diameter') {
+      const far = w2o(ann.cx - ann.r * cosA, ann.cy - ann.r * sinA);
+      if (useLeader) {
+        const lead = w2o(ann.cx + ann.leaderDist * cosA, ann.cy + ann.leaderDist * sinA);
+        octx.beginPath(); octx.moveTo(far.x, far.y); octx.lineTo(lead.x, lead.y); octx.stroke();
+        const ang = Math.atan2(lead.y - far.y, lead.x - far.x);
+        arrow(near.x, near.y, ang);
+        arrow(far.x, far.y, ang + Math.PI);
+        text((near.x + lead.x) / 2, (near.y + lead.y) / 2, '\u2300' + formatDist(ann.r * 2), 0);
+      } else {
+        octx.beginPath(); octx.moveTo(far.x, far.y); octx.lineTo(near.x, near.y); octx.stroke();
+        const ang = Math.atan2(near.y - far.y, near.x - far.x);
+        arrow(near.x, near.y, ang);
+        arrow(far.x, far.y, ang + Math.PI);
+        text((far.x + near.x) / 2, (far.y + near.y) / 2, '\u2300' + formatDist(ann.r * 2), 0);
+      }
+    } else {
+      if (useLeader) {
+        const lead = w2o(ann.cx + ann.leaderDist * cosA, ann.cy + ann.leaderDist * sinA);
+        octx.beginPath(); octx.moveTo(sc.x, sc.y); octx.lineTo(lead.x, lead.y); octx.stroke();
+        const ang = Math.atan2(lead.y - sc.y, lead.x - sc.x);
+        arrow(near.x, near.y, ang);
+        text((near.x + lead.x) / 2, (near.y + lead.y) / 2, 'R' + formatDist(ann.r), 0);
+      } else {
+        octx.beginPath(); octx.moveTo(sc.x, sc.y); octx.lineTo(near.x, near.y); octx.stroke();
+        const ang = Math.atan2(near.y - sc.y, near.x - sc.x);
+        arrow(near.x, near.y, ang);
+        text((sc.x + near.x) / 2, (sc.y + near.y) / 2, 'R' + formatDist(ann.r), 0);
+      }
+    }
+    return;
+  }
+
+  if (ann.type === 'angle') {
+    const sc = w2o(ann.cx, ann.cy);
+    const rPix = ann.r * pxPerUnit;
+    const startPt = w2o(ann.cx + ann.r * Math.cos(ann.startAngle), ann.cy + ann.r * Math.sin(ann.startAngle));
+    const endPt = w2o(ann.cx + ann.r * Math.cos(ann.endAngle), ann.cy + ann.r * Math.sin(ann.endAngle));
+    octx.setLineDash([3, 3]);
+    octx.beginPath();
+    octx.moveTo(sc.x, sc.y); octx.lineTo(startPt.x, startPt.y);
+    octx.moveTo(sc.x, sc.y); octx.lineTo(endPt.x, endPt.y);
+    octx.stroke();
+    octx.setLineDash([]);
+    octx.beginPath();
+    // Y inverted
+    octx.arc(sc.x, sc.y, rPix, -ann.endAngle, -ann.startAngle);
+    octx.stroke();
+    const mid = (ann.startAngle + ann.endAngle) / 2;
+    const midPt = w2o(ann.cx + ann.r * Math.cos(mid), ann.cy + ann.r * Math.sin(mid));
+    text(midPt.x, midPt.y, ann.value.toFixed(dimStyle.decimals) + '\u00B0', 0);
+    return;
+  }
+}
+
+function handleDrawClick(pt) {
+  drawState.points.push(pt);
+
+  switch (drawState.mode) {
+    case 'line':
+      if (drawState.points.length === 2) {
+        const [p1, p2] = drawState.points;
+        saveUndoState();
+        entities.push({ type: 'LINE', layer: '0', color: 7, x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y });
+        drawState.points = [p2];
+        updateEntityList(); render();
+      }
+      break;
+    case 'construction':
+      if (drawState.points.length === 2) {
+        const [p1, p2] = drawState.points;
+        saveUndoState();
+        entities.push({ type: 'LINE', layer: '0', color: 7, x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, _isConstruction: true });
+        drawState.points = [p2];
+        updateEntityList(); render();
+      }
+      break;
+    case 'rect':
+      if (drawState.points.length === 2) {
+        const [p1, p2] = drawState.points;
+        saveUndoState();
+        const verts = [
+          { x: p1.x, y: p1.y, bulge: 0 }, { x: p2.x, y: p1.y, bulge: 0 },
+          { x: p2.x, y: p2.y, bulge: 0 }, { x: p1.x, y: p2.y, bulge: 0 }
+        ];
+        entities.push({ type: 'LWPOLYLINE', layer: '0', color: 7, vertices: verts, closed: true });
+        cancelDraw(); updateEntityList(); render();
+      }
+      break;
+    case 'circle':
+      if (drawState.points.length === 2) {
+        const [c, p] = drawState.points;
+        saveUndoState();
+        const r = Math.sqrt((p.x - c.x) ** 2 + (p.y - c.y) ** 2);
+        entities.push({ type: 'CIRCLE', layer: '0', color: 7, cx: c.x, cy: c.y, r });
+        cancelDraw(); updateEntityList(); render();
+      }
+      break;
+    case 'measure':
+      if (drawState.points.length === 2) {
+        const [p1, p2] = drawState.points;
+        const d = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+        alert(`距離: ${formatDist(d)}\ndX: ${formatDist(Math.abs(p2.x - p1.x))}\ndY: ${formatDist(Math.abs(p2.y - p1.y))}`);
+        cancelDraw(); render();
+      }
+      break;
+    case 'text': {
+      const p = drawState.points[drawState.points.length - 1];
+      const text = prompt('文字を入力してください:');
+      drawState.points = [];
+      if (text && text.trim()) {
+        const heightPx = 14;
+        const heightWorld = heightPx / cam.zoom;
+        saveUndoState();
+        entities.push({
+          type: 'TEXT', layer: '0', color: 7,
+          x: p.x, y: p.y,
+          height: heightWorld,
+          text: text,
+          rotation: 0, halign: 0, valign: 0,
+        });
+        updateEntityList(); render();
+      }
+      break;
+    }
+    case 'printRange':
+      if (drawState.points.length === 2) {
+        const [p1, p2] = drawState.points;
+        const minX = Math.min(p1.x, p2.x), maxX = Math.max(p1.x, p2.x);
+        const minY = Math.min(p1.y, p2.y), maxY = Math.max(p1.y, p2.y);
+        cancelDraw();
+        printRange(minX, minY, maxX, maxY);
+      }
+      break;
+    case 'boxDelete':
+      if (drawState.points.length === 2) {
+        const [p1, p2] = drawState.points;
+        const minX = Math.min(p1.x, p2.x), maxX = Math.max(p1.x, p2.x);
+        const minY = Math.min(p1.y, p2.y), maxY = Math.max(p1.y, p2.y);
+        cancelDraw();
+        deleteInBox(minX, minY, maxX, maxY);
+      }
+      break;
+  }
+}
+
+// ============================================================
+//  Smart Dimension Click Handler
+// ============================================================
+function handleSmartDimClick(w, shiftKey) {
+  const indicator = document.getElementById('drawMode');
+
+  if (smartDimState.phase === 'pick1') {
+    const det = detectEntityAtPoint(w.x, w.y);
+    if (!det) return;
+    smartDimState.sel1 = det;
+    smartDimState.shiftKey = shiftKey;
+    smartDimState.hoverEntity = null;
+
+    if (det.kind === 'point') {
+      // Point selected - must pick a second point/entity
+      smartDimState.phase = 'pick2';
+      indicator.textContent = 'スマート寸法: 2つ目の点/エッジ/円をクリック  (右クリックでキャンセル)';
+    } else {
+      // Line or circle - can go to pick2 for a second entity, or place directly
+      smartDimState.phase = 'pick2';
+      indicator.textContent = 'スマート寸法: 2つ目をクリック or 空白クリックで配置へ (Shift=半径)  (右クリックでキャンセル)';
+    }
+    render();
+    return;
+  }
+
+  if (smartDimState.phase === 'pick2') {
+    const det = detectEntityAtPoint(w.x, w.y);
+
+    if (det) {
+      // Check it's not the exact same entity
+      const s1 = smartDimState.sel1;
+      const isSame =
+        (s1.kind === 'point' && det.kind === 'point' && s1.x === det.x && s1.y === det.y) ||
+        (s1.kind === 'line' && det.kind === 'line' && s1.x1 === det.x1 && s1.y1 === det.y1 && s1.x2 === det.x2 && s1.y2 === det.y2) ||
+        (s1.kind === 'circle' && det.kind === 'circle' && s1.cx === det.cx && s1.cy === det.cy && s1.r === det.r);
+
+      if (!isSame) {
+        smartDimState.sel2 = det;
+      }
+    }
+
+    // If first selection is a point and no second entity detected, ignore click (need a target)
+    if (smartDimState.sel1.kind === 'point' && !smartDimState.sel2) return;
+
+    if (shiftKey) smartDimState.shiftKey = true;
+
+    // Move to placement phase
+    smartDimState.phase = 'place';
+    smartDimState.hoverEntity = null;
+    indicator.textContent = 'スマート寸法: マウスで配置位置を決めてクリック  (右クリックでキャンセル)';
+    render();
+    return;
+  }
+
+  if (smartDimState.phase === 'place') {
+    const dim = computeSmartDim(smartDimState.sel1, smartDimState.sel2, w);
+    if (dim) {
+      if (dim.type === 'diameter' && (shiftKey || smartDimState.shiftKey)) {
+        dim.type = 'radius';
+      }
+      saveUndoState();
+      annotations.push(dim);
+      saveAnnotations();
+    }
+    // Reset for next dimension (stay in smartDim mode)
+    smartDimState = { phase: 'pick1', sel1: null, sel2: null, hoverEntity: null };
+    indicator.textContent = 'スマート寸法: 点/エッジ/円をクリック (Shift=半径)  (右クリックでキャンセル)';
+    render();
+  }
+}
+
+// ============================================================
+//  DXF Export
+// ============================================================
+function exportDXF() {
+  let dxf = '0\nSECTION\n2\nENTITIES\n';
+
+  for (const e of entities) {
+    switch (e.type) {
+      case 'LINE':
+        dxf += `0\nLINE\n8\n${e.layer}\n62\n${e.color}\n10\n${e.x1}\n20\n${e.y1}\n30\n0\n11\n${e.x2}\n21\n${e.y2}\n31\n0\n`;
+        break;
+      case 'CIRCLE':
+        dxf += `0\nCIRCLE\n8\n${e.layer}\n62\n${e.color}\n10\n${e.cx}\n20\n${e.cy}\n30\n0\n40\n${e.r}\n`;
+        break;
+      case 'ARC':
+        dxf += `0\nARC\n8\n${e.layer}\n62\n${e.color}\n10\n${e.cx}\n20\n${e.cy}\n30\n0\n40\n${e.r}\n50\n${e.startAngle}\n51\n${e.endAngle}\n`;
+        break;
+      case 'LWPOLYLINE': {
+        const flag = e.closed ? 1 : 0;
+        dxf += `0\nLWPOLYLINE\n8\n${e.layer}\n62\n${e.color}\n90\n${e.vertices.length}\n70\n${flag}\n`;
+        for (const v of e.vertices) dxf += `10\n${v.x}\n20\n${v.y}\n`;
+        break;
+      }
+      case 'TEXT':
+        dxf += `0\nTEXT\n8\n${e.layer}\n62\n${e.color}\n10\n${e.x}\n20\n${e.y}\n30\n0\n40\n${e.height}\n1\n${e.text}\n`;
+        break;
+    }
+  }
+
+  dxf += '0\nENDSEC\n0\nEOF\n';
+  const blob = new Blob([dxf], { type: 'application/dxf' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'drawing.dxf';
+  a.click();
+}
+
+// ============================================================
+//  File Loading (with Shift-JIS support)
+// ============================================================
+async function loadDXFFile(file) {
+  let text;
+
+  // Try UTF-8 first
+  text = await file.text();
+
+  // Check for garbled characters (common indicator: replacement character or suspicious patterns)
+  const hasGarbled = /[\uFFFD]/.test(text) || (/[\x80-\xFF]/.test(text) && !/[\u3000-\u9FFF\uF900-\uFAFF]/.test(text));
+
+  if (hasGarbled) {
+    // Try Shift-JIS (common for Japanese CAD software)
+    try {
+      const buffer = await file.arrayBuffer();
+      const decoder = new TextDecoder('shift-jis');
+      text = decoder.decode(buffer);
+    } catch (e) {
+      // Try EUC-JP
+      try {
+        const buffer = await file.arrayBuffer();
+        const decoder = new TextDecoder('euc-jp');
+        text = decoder.decode(buffer);
+      } catch (e2) {
+        // Fallback to original
+      }
+    }
+  }
+
+  // Also try Shift-JIS proactively if no Japanese chars detected but file may be Japanese
+  if (!/[\u3000-\u9FFF]/.test(text) && /[\x80-\xFF]/.test(text)) {
+    try {
+      const buffer = await file.arrayBuffer();
+      const sjisText = new TextDecoder('shift-jis').decode(buffer);
+      if (/[\u3000-\u9FFF]/.test(sjisText)) {
+        text = sjisText;
+      }
+    } catch (e) {}
+  }
+
+  entities = parseDXF(text);
+  // Switch annotation scope to this file (annotations are stored per filename)
+  currentFileKey = file.name || '__default__';
+  loadAnnotationsForCurrentFile();
+  undoStack = [];
+  redoStack = [];
+  updateUndoButtons();
+  selectedEntity = -1;
+  selectedAnnotation = -1;
+  document.getElementById('infoPanel').style.display = 'none';
+  updateEntityList();
+  fitAll();
+}
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files[0]) loadDXFFile(e.target.files[0]);
+});
+
+// Drag & drop
+const dropOverlay = document.getElementById('dropOverlay');
+wrap.addEventListener('dragover', e => { e.preventDefault(); dropOverlay.style.display = 'flex'; });
+wrap.addEventListener('dragleave', e => { if (e.relatedTarget && wrap.contains(e.relatedTarget)) return; dropOverlay.style.display = 'none'; });
+wrap.addEventListener('drop', e => {
+  e.preventDefault(); dropOverlay.style.display = 'none';
+  if (e.dataTransfer.files[0]) loadDXFFile(e.dataTransfer.files[0]);
+});
+
+// ============================================================
+//  Toolbar Button Handlers
+// ============================================================
+function updateToolbarButtons() {
+  document.querySelectorAll('#toolbar button').forEach(btn => {
+    if (['btnGrid', 'btnSnap', 'btnUndo', 'btnRedo'].includes(btn.id)) return;
+    if (btn.id === 'btnDrawLine') btn.classList.toggle('active', drawState.mode === 'line');
+    else if (btn.id === 'btnConstruction') btn.classList.toggle('active', drawState.mode === 'construction');
+    else if (btn.id === 'btnText') btn.classList.toggle('active', drawState.mode === 'text');
+    else if (btn.id === 'btnBoxDelete') btn.classList.toggle('active', drawState.mode === 'boxDelete');
+    else if (btn.id === 'btnPrint') btn.classList.toggle('active', drawState.mode === 'printRange');
+    else if (btn.id === 'btnDrawRect') btn.classList.toggle('active', drawState.mode === 'rect');
+    else if (btn.id === 'btnDrawCircle') btn.classList.toggle('active', drawState.mode === 'circle');
+    else if (btn.id === 'btnSmartDim') btn.classList.toggle('active', drawState.mode === 'smartDim');
+    else if (btn.id === 'btnMeasure') btn.classList.toggle('active', drawState.mode === 'measure');
+  });
+}
+
+document.getElementById('btnUndo').onclick = undo;
+document.getElementById('btnRedo').onclick = redo;
+document.getElementById('btnFitAll').onclick = fitAll;
+document.getElementById('btnScaleConvert').onclick = applyScaleConversion;
+document.getElementById('scaleInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') applyScaleConversion();
+});
+document.getElementById('btnZoomIn').onclick = () => { cam.zoom *= 1.3; render(); };
+document.getElementById('btnZoomOut').onclick = () => { cam.zoom /= 1.3; render(); };
+document.getElementById('btnSmartDim').onclick = () => setDrawMode(drawState.mode === 'smartDim' ? null : 'smartDim');
+document.getElementById('btnMeasure').onclick = () => setDrawMode(drawState.mode === 'measure' ? null : 'measure');
+document.getElementById('btnDrawLine').onclick = () => setDrawMode(drawState.mode === 'line' ? null : 'line');
+document.getElementById('btnConstruction').onclick = () => setDrawMode(drawState.mode === 'construction' ? null : 'construction');
+document.getElementById('btnText').onclick = () => setDrawMode(drawState.mode === 'text' ? null : 'text');
+document.getElementById('btnBoxDelete').onclick = () => setDrawMode(drawState.mode === 'boxDelete' ? null : 'boxDelete');
+document.getElementById('btnZoomBox').onclick = function() {
+  zoomBoxMode = !zoomBoxMode;
+  zoomBoxState.active = false;
+  this.classList.toggle('active', zoomBoxMode);
+  canvas.style.cursor = zoomBoxMode ? 'crosshair' : 'default';
+  if (zoomBoxMode) setDrawMode(null); // draw modeと排他
+};
+document.getElementById('btnPrint').onclick = () => setDrawMode(drawState.mode === 'printRange' ? null : 'printRange');
+document.getElementById('btnDrawRect').onclick = () => setDrawMode(drawState.mode === 'rect' ? null : 'rect');
+document.getElementById('btnDrawCircle').onclick = () => setDrawMode(drawState.mode === 'circle' ? null : 'circle');
+document.getElementById('btnGrid').onclick = function() { showGrid = !showGrid; this.classList.toggle('active', showGrid); render(); };
+document.getElementById('btnSnap').onclick = function() { snapEnabled = !snapEnabled; this.classList.toggle('active', snapEnabled); };
+document.getElementById('btnToggleDim').onclick = function() {
+  showDxfDimensions = !showDxfDimensions;
+  this.classList.toggle('active', showDxfDimensions);
+  render();
+};
+document.getElementById('btnToggleAnn').onclick = function() {
+  showAnnotations = !showAnnotations;
+  this.classList.toggle('active', showAnnotations);
+  render();
+};
+document.getElementById('btnExportDxf').onclick = exportDXF;
+document.getElementById('unitSelect').onchange = function() { unit = this.value; render(); };
+
+// ===== Settings panel =====
+(function initSettingsPanel() {
+  const panel = document.getElementById('settingsPanel');
+  const btn = document.getElementById('btnSettings');
+  btn.onclick = (e) => { e.stopPropagation(); panel.classList.toggle('open'); };
+  document.addEventListener('click', (e) => {
+    if (!panel.contains(e.target) && e.target !== btn) panel.classList.remove('open');
+  });
+
+  const bindings = [
+    ['setSizeMultiplier', 'sizeMultiplier', 'setSizeMultiplierVal', v => '×' + v.toFixed(1), parseFloat],
+    ['setFontSize', 'fontSize', 'setFontSizeVal', v => v + 'px', parseInt],
+    ['setArrowSize', 'arrowSize', 'setArrowSizeVal', v => v + 'px', parseInt],
+    ['setLineWidth', 'lineWidth', 'setLineWidthVal', v => v.toFixed(1), parseFloat],
+    ['setBgAlpha', 'bgAlpha', 'setBgAlphaVal', v => v.toFixed(2), parseFloat],
+  ];
+  const sync = () => {
+    bindings.forEach(([id, key, valId, fmt]) => {
+      document.getElementById(id).value = dimStyle[key];
+      document.getElementById(valId).textContent = fmt(dimStyle[key]);
+    });
+    document.getElementById('setDecimals').value = dimStyle.decimals;
+    document.getElementById('setTextColor').value = dimStyle.textColor;
+    document.getElementById('setLineColor').value = dimStyle.lineColor;
+    document.getElementById('setShowUnit').checked = !!dimStyle.showUnit;
+  };
+  bindings.forEach(([id, key, valId, fmt, parse]) => {
+    document.getElementById(id).oninput = function() {
+      dimStyle[key] = parse(this.value);
+      document.getElementById(valId).textContent = fmt(dimStyle[key]);
+      saveDimStyle(); render();
+    };
+  });
+  document.getElementById('setDecimals').oninput = function() {
+    dimStyle.decimals = Math.max(0, Math.min(5, parseInt(this.value) || 0));
+    saveDimStyle(); render();
+  };
+  document.getElementById('setTextColor').oninput = function() {
+    dimStyle.textColor = this.value; saveDimStyle(); render();
+  };
+  document.getElementById('setLineColor').oninput = function() {
+    dimStyle.lineColor = this.value; saveDimStyle(); render();
+  };
+  document.getElementById('setShowUnit').onchange = function() {
+    dimStyle.showUnit = this.checked; saveDimStyle(); render();
+  };
+  document.getElementById('setReset').onclick = function() {
+    dimStyle = { ...DIM_STYLE_DEFAULTS };
+    saveDimStyle(); sync(); render();
+  };
+  sync();
+})();
+
+// ============================================================
+//  Keyboard Shortcuts
+// ============================================================
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+  // Ctrl+Z undo, Ctrl+Y redo
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+
+  switch (e.key.toLowerCase()) {
+    case 'f': fitAll(); break;
+    case 'z': document.getElementById('btnZoomBox').click(); break;
+    case 'l': setDrawMode(drawState.mode === 'line' ? null : 'line'); break;
+    case 'r': setDrawMode(drawState.mode === 'rect' ? null : 'rect'); break;
+    case 'c': setDrawMode(drawState.mode === 'circle' ? null : 'circle'); break;
+    case 'm': setDrawMode(drawState.mode === 'measure' ? null : 'measure'); break;
+    case 'd': setDrawMode(drawState.mode === 'smartDim' ? null : 'smartDim'); break;
+    case 'x': setDrawMode(drawState.mode === 'construction' ? null : 'construction'); break;
+    case 't': setDrawMode(drawState.mode === 'text' ? null : 'text'); break;
+    case 'g': document.getElementById('btnGrid').click(); break;
+    case 's': document.getElementById('btnSnap').click(); break;
+    case 'escape':
+      if (zoomBoxMode) {
+        zoomBoxMode = false;
+        zoomBoxState.active = false;
+        document.getElementById('btnZoomBox').classList.remove('active');
+        canvas.style.cursor = 'default';
+        render();
+      }
+      cancelDraw();
+      break;
+    case 'delete': case 'backspace':
+      if (selectedAnnotation >= 0) {
+        saveUndoState();
+        annotations.splice(selectedAnnotation, 1);
+        saveAnnotations();
+        selectedAnnotation = -1;
+        render();
+      } else if (selectedEntity >= 0) {
+        saveUndoState();
+        entities.splice(selectedEntity, 1);
+        selectedEntity = -1;
+        document.getElementById('infoPanel').style.display = 'none';
+        updateEntityList(); render();
+      }
+      break;
+  }
+});
+
+// ============================================================
+//  Init with a sample
+// ============================================================
+function loadSample() {
+  entities = [
+    { type: 'LINE', layer: '0', color: 7, x1: 0, y1: 0, x2: 200, y2: 0 },
+    { type: 'LINE', layer: '0', color: 7, x1: 200, y1: 0, x2: 200, y2: 100 },
+    { type: 'LINE', layer: '0', color: 7, x1: 200, y1: 100, x2: 0, y2: 100 },
+    { type: 'LINE', layer: '0', color: 7, x1: 0, y1: 100, x2: 0, y2: 0 },
+    { type: 'CIRCLE', layer: '0', color: 1, cx: 50, cy: 50, r: 20 },
+    { type: 'CIRCLE', layer: '0', color: 1, cx: 150, cy: 50, r: 15 },
+    { type: 'LINE', layer: '0', color: 3, x1: 0, y1: 50, x2: 200, y2: 50 },
+    { type: 'ARC', layer: '0', color: 5, cx: 100, cy: 50, r: 30, startAngle: 0, endAngle: 180 },
+  ];
+  updateEntityList();
+  fitAll();
+}
+
+resize();
+
+// URLパラメータからDXFファイルを自動ロード（What'sNo連携）
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const fileUrl = params.get('url');
+  const fileName = params.get('name') || 'file.dxf';
+  if (!fileUrl) { loadSample(); return; }
+  document.title = fileName + ' — SheetEye';
+  const titleEl = document.querySelector('.app-title');
+  if (titleEl) titleEl.textContent = fileName;
+  fetch(fileUrl)
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.arrayBuffer();
+    })
+    .then(function (buffer) {
+      var text = new TextDecoder('utf-8').decode(buffer);
+      if (/[�]/.test(text) || (/[\x80-\xFF]/.test(text) && !/[　-鿿]/.test(text))) {
+        try { text = new TextDecoder('shift-jis').decode(buffer); } catch (e) {}
+      }
+      entities = parseDXF(text);
+      currentFileKey = fileName;
+      loadAnnotationsForCurrentFile();
+      undoStack = []; redoStack = [];
+      updateUndoButtons();
+      selectedEntity = -1; selectedAnnotation = -1;
+      document.getElementById('infoPanel').style.display = 'none';
+      updateEntityList();
+      fitAll();
+    })
+    .catch(function (err) {
+      console.error('SheetEye auto-load error:', err);
+      loadSample();
+    });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 案A: Terminal — 左寄せ3行 プロンプト風 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 680" width="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;display=swap');
+      text { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    </style>
+  </defs>
+  <rect width="1920" height="680" fill="#fff"/>
+  <line x1="120" y1="70" x2="1800" y2="70" stroke="#ddd" stroke-width="1"/>
+
+  <!-- prompt + words -->
+  <text x="120" y="240" font-size="100" font-weight="700" fill="#ccc">&gt;</text>
+  <text x="210" y="240" font-size="100" font-weight="700" fill="#0a0a0a">Observe</text>
+
+  <text x="120" y="370" font-size="100" font-weight="700" fill="#ccc">&gt;</text>
+  <text x="210" y="370" font-size="100" font-weight="700" fill="#0a0a0a">Build</text>
+
+  <text x="120" y="500" font-size="100" font-weight="700" fill="#ccc">&gt;</text>
+  <text x="210" y="500" font-size="100" font-weight="700" fill="#0a0a0a">Share<tspan fill="#ccc">_</tspan></text>
+
+  <line x1="120" y1="570" x2="600" y2="570" stroke="#ddd" stroke-width="1"/>
+  <text x="120" y="610" font-size="15" fill="#aaa" letter-spacing="5">INVEST / AI / WEB / STEEL / CLAUDE</text>
+
+  <line x1="120" y1="650" x2="1800" y2="650" stroke="#ddd" stroke-width="1"/>
+  <text x="120" y="672" font-size="13" fill="#bbb">ranoBlog</text>
+  <text x="1800" y="672" font-size="13" fill="#bbb" text-anchor="end">EST. 2026</text>
+</svg>

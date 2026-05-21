@@ -1,0 +1,51 @@
+# ==============================
+# Netlify 設定ファイル
+# ==============================
+
+[build]
+  # ビルド不要の静的サイトのためカレントディレクトリをそのまま公開
+  publish = "."
+  command = "echo 'No build step required'"
+
+# ==============================
+# リダイレクト設定
+# ==============================
+# ルートアクセス時に preview.html を表示
+[[redirects]]
+  from = "/"
+  to = "/preview.html"
+  status = 200
+
+# PHP ファイルへの直接アクセスをブロック（WordPressテンプレートの保護）
+[[redirects]]
+  from = "/*.php"
+  to = "/preview.html"
+  status = 200
+  force = true
+
+# ==============================
+# HTTP ヘッダー設定
+# ==============================
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# CSS/JS キャッシュ（1年）
+[[headers]]
+  for = "/assets/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/img/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 案I: Ticker / Marquee Strip — ニューステロップ風2段ストリップ -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 680" width="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;700&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap');
+    </style>
+  </defs>
+  <rect width="1920" height="680" fill="#fff"/>
+
+  <!-- 中央メイン -->
+  <text x="960" y="300" font-family="'Space Grotesk',sans-serif" font-size="155" font-weight="700" fill="#0a0a0a" text-anchor="middle" letter-spacing="-3">Observe.</text>
+  <text x="960" y="450" font-family="'Space Grotesk',sans-serif" font-size="155" font-weight="300" fill="#d0d0d0" text-anchor="middle" letter-spacing="-3">Build. Share.</text>
+
+  <!-- 上部テロップ帯 -->
+  <rect x="0" y="0" width="1920" height="68" fill="#0a0a0a"/>
+  <text x="60" y="44" font-family="'JetBrains Mono',monospace" font-size="14" fill="#fff" letter-spacing="6">ranoBlog</text>
+  <line x1="190" y1="20" x2="190" y2="48" stroke="#444" stroke-width="1"/>
+  <text x="210" y="44" font-family="'JetBrains Mono',monospace" font-size="12" fill="#777" letter-spacing="5">INVEST  ·  AI  ·  WEB  ·  STEEL  ·  CLAUDE CODE</text>
+  <text x="1860" y="44" font-family="'JetBrains Mono',monospace" font-size="12" fill="#555" text-anchor="end" letter-spacing="3">2026</text>
+
+  <!-- 下部テロップ帯 -->
+  <rect x="0" y="612" width="1920" height="68" fill="#0a0a0a"/>
+  <text x="60" y="655" font-family="'JetBrains Mono',monospace" font-size="12" fill="#777" letter-spacing="5">A QUIET MAKER'S JOURNAL</text>
+  <line x1="420" y1="628" x2="420" y2="656" stroke="#444" stroke-width="1"/>
+  <text x="440" y="655" font-family="'JetBrains Mono',monospace" font-size="12" fill="#555" letter-spacing="4">OBSERVE · BUILD · SHARE</text>
+</svg>

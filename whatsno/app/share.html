@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>共有ファイル | What'sNo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --primary: #1E3A5F;
+      --accent:  #2196F3;
+      --bg:      #F0F4F8;
+      --white:   #FFFFFF;
+      --text:    #1A1A2E;
+      --muted:   #546E7A;
+      --border:  #E0E6ED;
+      --red:     #C62828;
+    }
+    body {
+      margin: 0; font-family: 'Noto Sans JP', sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+    }
+    .topbar {
+      height: 52px; background: var(--primary);
+      display: flex; align-items: center; padding: 0 20px; gap: 10px;
+    }
+    .topbar-logo {
+      font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 18px;
+      color: #fff; letter-spacing: -0.5px;
+    }
+    .topbar-logo span { font-size: 11px; font-weight: 400; opacity: .7; margin-left: 6px; }
+    .wrap {
+      max-width: 800px; margin: 0 auto; padding: 24px 16px;
+    }
+    .card {
+      background: var(--white); border-radius: 12px;
+      border: 1px solid var(--border); padding: 24px;
+      margin-bottom: 16px;
+    }
+    .file-header {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 20px;
+    }
+    .file-icon {
+      font-size: 40px; color: var(--accent); flex-shrink: 0;
+    }
+    .file-name {
+      font-size: 18px; font-weight: 700; color: var(--primary);
+      word-break: break-all; margin-bottom: 4px;
+    }
+    .file-meta {
+      font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: 700;
+      border: none; cursor: pointer; text-decoration: none;
+    }
+    .btn-accent  { background: var(--accent);  color: #fff; }
+    .btn-outline { background: transparent; border: 1.5px solid var(--accent); color: var(--accent); }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .btn:not(:disabled):hover { filter: brightness(1.08); }
+    .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    /* パスワードフォーム */
+    .pw-form {
+      max-width: 360px; margin: 40px auto; padding: 32px;
+      background: var(--white); border-radius: 12px; border: 1px solid var(--border);
+      text-align: center;
+    }
+    .pw-form h2 { font-size: 16px; margin-bottom: 8px; color: var(--primary); }
+    .pw-form p  { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .pw-input {
+      width: 100%; padding: 10px 12px; font-size: 14px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      margin-bottom: 12px; outline: none;
+    }
+    .pw-input:focus { border-color: var(--accent); }
+    .pw-error { color: var(--red); font-size: 13px; margin-bottom: 10px; display: none; }
+
+    /* 期限切れ・エラー */
+    .error-box {
+      text-align: center; padding: 60px 20px;
+    }
+    .error-box i { font-size: 48px; color: var(--muted); margin-bottom: 16px; display: block; }
+    .error-box h2 { font-size: 20px; color: var(--primary); margin-bottom: 8px; }
+    .error-box p  { font-size: 14px; color: var(--muted); }
+
+    /* プレビュー */
+    .preview-area {
+      width: 100%; height: 500px; background: #f8f9fb;
+      border-radius: 8px; overflow: hidden; position: relative;
+      border: 1px solid var(--border); margin-top: 16px;
+    }
+    .preview-area iframe { width: 100%; height: 100%; border: none; }
+    .preview-area img {
+      width: 100%; height: 100%; object-fit: contain;
+    }
+    .preview-placeholder {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; color: var(--muted);
+    }
+    .preview-placeholder i { font-size: 48px; }
+    .preview-placeholder p { font-size: 13px; }
+
+    .expiry-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+      background: #E8F5E9; color: #2E7D32;
+    }
+    .expiry-badge.expiring { background: #FFF3E0; color: #F57C00; }
+
+    .toast-container {
+      position: fixed; bottom: 20px; right: 20px;
+      display: flex; flex-direction: column; gap: 8px; z-index: 9999;
+    }
+    .toast {
+      padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 700;
+      background: #333; color: #fff; opacity: 0; transform: translateY(10px);
+      transition: all .25s;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast-success { background: #2E7D32; }
+    .toast-danger  { background: #C62828; }
+
+    @media (max-width: 500px) {
+      .file-name { font-size: 15px; }
+      .preview-area { height: 320px; }
+      .btn { padding: 8px 14px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">What'sNo <span>by HaLSpace</span></div>
+</div>
+
+<div class="wrap" id="main">
+  <div class="preview-placeholder" style="padding:80px 0;">
+    <i class="fa-solid fa-spinner fa-spin" style="font-size:32px;color:var(--accent);"></i>
+    <p style="font-size:14px;color:var(--muted);">読み込み中…</p>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+'use strict';
+
+const WN_API_BASE = (() => {
+  const h = location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.test')) return 'http://solid-api.test/api';
+  return 'https://halspace-api-production.up.railway.app/api';
+})();
+
+const shareToken = new URLSearchParams(location.search).get('token') || location.pathname.split('/').pop();
+
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, type = '') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast${type ? ' toast-' + type : ''}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+function fileIcon(fileName) {
+  const ext = (fileName || '').split('.').pop().toLowerCase();
+  const map = {
+    pdf: 'fa-file-pdf', dxf: 'fa-file-lines', dwg: 'fa-file-lines',
+    stl: 'fa-cube', stp: 'fa-cube', step: 'fa-cube',
+    png: 'fa-file-image', jpg: 'fa-file-image', jpeg: 'fa-file-image',
+    gif: 'fa-file-image', webp: 'fa-file-image',
+    xlsx: 'fa-file-excel', xls: 'fa-file-excel',
+    docx: 'fa-file-word', doc: 'fa-file-word',
+    mp4: 'fa-file-video', mov: 'fa-file-video',
+    zip: 'fa-file-zipper',
+  };
+  return map[ext] ?? 'fa-file';
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024)        return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit' });
+}
+
+function renderError(icon, title, msg) {
+  document.getElementById('main').innerHTML = `
+    <div class="error-box">
+      <i class="fa-solid ${icon}"></i>
+      <h2>${esc(title)}</h2>
+      <p>${esc(msg)}</p>
+    </div>`;
+}
+
+async function fetchShare(password = null) {
+  const body = password !== null ? JSON.stringify({ password }) : undefined;
+  const method = password !== null ? 'POST' : 'GET';
+  const res = await fetch(WN_API_BASE + `/wn/share/${shareToken}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    ...(body ? { body } : {}),
+  });
+  return { status: res.status, data: await res.json().catch(() => null) };
+}
+
+function renderPasswordForm(errorMsg = '') {
+  document.getElementById('main').innerHTML = `
+    <div class="pw-form">
+      <i class="fa-solid fa-lock" style="font-size:36px;color:var(--accent);margin-bottom:12px;display:block;"></i>
+      <h2>パスワードが必要です</h2>
+      <p>このファイルにアクセスするにはパスワードを入力してください</p>
+      <p class="pw-error" id="pwError" style="${errorMsg ? 'display:block;' : ''}">${esc(errorMsg)}</p>
+      <input type="password" class="pw-input" id="pwInput" placeholder="パスワードを入力" autofocus>
+      <button class="btn btn-accent" id="pwSubmit" style="width:100%;justify-content:center;">
+        <i class="fa-solid fa-unlock"></i> アクセス
+      </button>
+    </div>`;
+
+  const submit = async () => {
+    const pw = document.getElementById('pwInput').value;
+    if (!pw) return;
+    document.getElementById('pwSubmit').disabled = true;
+    document.getElementById('pwSubmit').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 確認中…';
+    const { status, data } = await fetchShare(pw);
+    if (status === 200 && data?.data) {
+      renderFile(data.data);
+    } else {
+      renderPasswordForm('パスワードが正しくありません');
+    }
+  };
+
+  document.getElementById('pwSubmit').addEventListener('click', submit);
+  document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+}
+
+function renderFile(file) {
+  const icon = fileIcon(file.file_name);
+  const ext  = (file.file_name || '').split('.').pop().toLowerCase();
+  const mime = file.mime_type ?? '';
+
+  const expiresAt   = file.share_expires_at;
+  const daysLeft    = expiresAt ? Math.ceil((new Date(expiresAt) - Date.now()) / 86400000) : null;
+  const expiryHtml  = expiresAt
+    ? `<span class="expiry-badge${daysLeft <= 3 ? ' expiring' : ''}">
+        <i class="fa-solid fa-clock"></i>
+        ${daysLeft > 0 ? `あと${daysLeft}日` : '本日まで'}（${formatDate(expiresAt)}）
+      </span>`
+    : '';
+
+  document.getElementById('main').innerHTML = `
+    <div class="card">
+      <div class="file-header">
+        <i class="fa-solid ${icon} file-icon"></i>
+        <div>
+          <div class="file-name">${esc(file.file_name)}</div>
+          <div class="file-meta">
+            <span><i class="fa-solid fa-weight-hanging"></i> ${formatSize(file.file_size)}</span>
+            <span><i class="fa-solid fa-calendar"></i> ${formatDate(file.created_at)}</span>
+            <span><i class="fa-solid fa-user"></i> ${esc(file.uploader?.name ?? '—')}</span>
+          </div>
+          ${expiryHtml ? `<div style="margin-top:8px;">${expiryHtml}</div>` : ''}
+        </div>
+      </div>
+      <div class="btn-group">
+        <a href="${WN_API_BASE}/wn/files/${file.id}/download?share_token=${encodeURIComponent(shareToken)}"
+          class="btn btn-accent" target="_blank">
+          <i class="fa-solid fa-download"></i> ダウンロード
+        </a>
+        ${(mime.startsWith('image/') || ext === 'pdf' || mime === 'application/pdf')
+          ? `<button class="btn btn-outline" id="previewToggleBtn">
+              <i class="fa-solid fa-eye"></i> プレビュー表示
+            </button>`
+          : ''}
+      </div>
+      <div id="previewArea"></div>
+    </div>
+    <p style="text-align:center;font-size:11px;color:var(--muted);margin-top:8px;">
+      <i class="fa-solid fa-shield-halved"></i> このリンクはWhat'sNoによって発行された安全な共有リンクです
+    </p>`;
+
+  document.getElementById('previewToggleBtn')?.addEventListener('click', async () => {
+    const btn  = document.getElementById('previewToggleBtn');
+    const area = document.getElementById('previewArea');
+    if (area.innerHTML) { area.innerHTML = ''; btn.innerHTML = '<i class="fa-solid fa-eye"></i> プレビュー表示'; return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…';
+
+    const viewRes = await fetch(WN_API_BASE + `/wn/files/${file.id}/view?share_token=${encodeURIComponent(shareToken)}`, {
+      headers: { 'Accept': 'application/json' },
+    });
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i> プレビューを閉じる';
+
+    if (!viewRes.ok) { showToast('プレビューを読み込めませんでした', 'danger'); return; }
+    const viewData = await viewRes.json();
+    const url = viewData.url;
+    if (!url) { showToast('プレビューURLを取得できませんでした', 'danger'); return; }
+
+    area.innerHTML = `<div class="preview-area"></div>`;
+    const previewArea = area.querySelector('.preview-area');
+
+    if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp'].includes(ext)) {
+      const img = document.createElement('img');
+      img.src = url;
+      previewArea.appendChild(img);
+    } else {
+      const frame = document.createElement('iframe');
+      frame.src = url;
+      previewArea.appendChild(frame);
+    }
+  });
+}
+
+async function init() {
+  if (!shareToken || shareToken === 'share.html') {
+    renderError('fa-link-slash', 'リンクが無効です', '共有トークンが見つかりません');
+    return;
+  }
+
+  const { status, data } = await fetchShare();
+
+  if (status === 200 && data?.data) {
+    renderFile(data.data);
+  } else if (status === 403 && data?.requires_password) {
+    renderPasswordForm();
+  } else if (status === 410 || (data?.error && data.error.includes('期限'))) {
+    renderError('fa-clock', '共有リンクの有効期限が切れました', 'このリンクはもう有効ではありません。ファイルの所有者に新しいリンクを発行してもらってください。');
+  } else if (status === 404 || status === 403) {
+    renderError('fa-link-slash', 'リンクが見つかりません', 'このリンクは存在しないか、すでに削除されています。');
+  } else {
+    renderError('fa-triangle-exclamation', 'エラーが発生しました', 'しばらく経ってから再度お試しください。');
+  }
+}
+
+init();
+</script>
+</body>
+</html>

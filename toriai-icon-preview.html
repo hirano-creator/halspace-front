@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TORIAI アイコンプレビュー</title>
+<style>
+body { font-family: 'Segoe UI', 'Hiragino Sans', sans-serif; background: #f0f2f5; padding: 40px; text-align: center; }
+h1 { margin-bottom: 40px; color: #333; }
+.preview-grid { display: flex; justify-content: center; gap: 60px; flex-wrap: wrap; }
+.preview-item { text-align: center; }
+.preview-item p { margin-top: 12px; font-size: 14px; color: #666; }
+.phone-frame {
+  width: 200px; height: 120px; background: #1a1a2e; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  padding: 16px; margin: 0 auto;
+}
+.phone-icon { width: 56px; text-align: center; }
+.phone-icon svg { border-radius: 12px; }
+.phone-icon span { display: block; font-size: 9px; color: #ccc; margin-top: 4px; }
+.tab-frame {
+  display: inline-flex; align-items: center; background: #dee1e6; border-radius: 8px 8px 0 0;
+  padding: 8px 16px; gap: 8px; margin: 0 auto;
+}
+.tab-frame span { font-size: 13px; color: #333; }
+</style>
+</head>
+<body>
+<h1>TORIAI アイコン プレビュー</h1>
+<div class="preview-grid">
+
+  <div class="preview-item">
+    <h3>アイコン単体</h3>
+    <div style="margin:20px auto;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="128" height="128">
+        <rect width="512" height="512" rx="96" fill="#2B3A4E"/>
+        <text x="256" y="380" font-family="Arial,Helvetica,sans-serif" font-weight="bold" font-size="360" fill="white" text-anchor="middle">T</text>
+      </svg>
+    </div>
+    <p>128 × 128px 表示</p>
+  </div>
+
+  <div class="preview-item">
+    <h3>スマホ ホーム画面イメージ</h3>
+    <div class="phone-frame">
+      <div class="phone-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="48" height="48">
+          <rect width="512" height="512" rx="96" fill="#2B3A4E"/>
+          <text x="256" y="380" font-family="Arial,Helvetica,sans-serif" font-weight="bold" font-size="360" fill="white" text-anchor="middle">T</text>
+        </svg>
+        <span>TORIAI</span>
+      </div>
+      <div class="phone-icon">
+        <div style="width:48px;height:48px;background:#34C759;border-radius:12px;"></div>
+        <span>Phone</span>
+      </div>
+      <div class="phone-icon">
+        <div style="width:48px;height:48px;background:#007AFF;border-radius:12px;"></div>
+        <span>Safari</span>
+      </div>
+    </div>
+    <p>ホーム画面での見え方</p>
+  </div>
+
+  <div class="preview-item">
+    <h3>ブラウザタブ イメージ</h3>
+    <div class="tab-frame">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16">
+        <rect width="512" height="512" rx="96" fill="#2B3A4E"/>
+        <text x="256" y="380" font-family="Arial,Helvetica,sans-serif" font-weight="bold" font-size="360" fill="white" text-anchor="middle">T</text>
+      </svg>
+      <span>TORIAI｜鋼材歩留まり計算</span>
+    </div>
+    <p>PCブラウザタブでの見え方</p>
+  </div>
+
+</div>
+
+<div style="margin-top:60px;">
+  <h3>サイズ比較</h3>
+  <div style="display:flex;justify-content:center;align-items:end;gap:30px;margin-top:20px;">
+    <div style="text-align:center;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="16" height="16">
+        <rect width="512" height="512" rx="96" fill="#2B3A4E"/>
+        <text x="256" y="380" font-family="Arial,Helvetica,sans-serif" font-weight="bold" font-size="360" fill="white" text-anchor="middle">T</text>
+      </svg>
+      <p>16px<br>favicon</p>
+    </div>
+    <div style="text-align:center;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="32" height="32">
+        <rect width="512" height="512" rx="96" fill="#2B3A4E"/>
+        <text x="256" y="380" font-family="Arial,Helvetica,sans-serif" font-weight="bold" font-size="360" fill="white" text-anchor="middle">T</text>
+      </svg>
+      <p>32px</p>
+    </div>
+    <div style="text-align:center;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="60" height="60">
+        <rect width="512" height="512" rx="96" fill="#2B3A4E"/>
+        <text x="256" y="380" font-family="Arial,Helvetica,sans-serif" font-weight="bold" font-size="360" fill="white" text-anchor="middle">T</text>
+      </svg>
+      <p>60px<br>スマホ</p>
+    </div>
+    <div style="text-align:center;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="120" height="120">
+        <rect width="512" height="512" rx="96" fill="#2B3A4E"/>
+        <text x="256" y="380" font-family="Arial,Helvetica,sans-serif" font-weight="bold" font-size="360" fill="white" text-anchor="middle">T</text>
+      </svg>
+      <p>120px</p>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

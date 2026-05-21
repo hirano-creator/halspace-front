@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 20 120 120" width="180" height="180" overflow="visible">
+  <g fill="none" stroke="#6b6b6b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 地球 -->
+    <circle cx="80" cy="80" r="52"/>
+    <!-- 赤道 -->
+    <ellipse cx="80" cy="80" rx="52" ry="20"/>
+    <!-- 子午線 -->
+    <ellipse cx="80" cy="80" rx="20" ry="52"/>
+    <!-- 垂直・水平中心線 -->
+    <line x1="80" y1="28" x2="80" y2="132"/>
+    <line x1="28" y1="80" x2="132" y2="80"/>
+  </g>
+</svg>

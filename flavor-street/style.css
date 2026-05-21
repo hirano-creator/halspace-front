@@ -1,0 +1,257 @@
+/*
+Theme Name: Flavor Street
+Theme URI: https://example.com/flavor-street
+Author: Your Name
+Author URI: https://example.com
+Description: キッチンカー出展・誘致プラットフォーム向けWordPressテーマ。写真・動画を後から簡単に挿入できる設計。
+Version: 1.0.0
+Requires at least: 6.0
+Tested up to: 6.5
+Requires PHP: 8.0
+License: GNU General Public License v2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: flavor-street
+Tags: food-truck, kitchen-car, one-page, custom-logo, featured-images
+*/
+
+/* ==========================================================================
+   CSS Custom Properties
+   ========================================================================== */
+:root {
+  /* Brand Colors */
+  --fs-primary: #FF6B35;
+  --fs-primary-dark: #E55A2B;
+  --fs-primary-light: #FF8F65;
+  --fs-secondary: #2D3436;
+  --fs-accent: #00B894;
+  --fs-accent-dark: #00A381;
+  --fs-white: #FFFFFF;
+  --fs-off-white: #F8F9FA;
+  --fs-gray-light: #E9ECEF;
+  --fs-gray: #6C757D;
+  --fs-gray-dark: #343A40;
+  --fs-text: #2D3436;
+  --fs-text-light: #636E72;
+
+  /* Typography */
+  --fs-font-primary: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+  --fs-font-heading: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+  --fs-font-en: 'Poppins', sans-serif;
+
+  /* Spacing */
+  --fs-section-padding: 100px;
+  --fs-container-width: 1200px;
+
+  /* Transitions */
+  --fs-transition: all 0.3s ease;
+
+  /* Shadows */
+  --fs-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --fs-shadow-md: 0 4px 20px rgba(0, 0, 0, 0.12);
+  --fs-shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.15);
+
+  /* Border Radius */
+  --fs-radius-sm: 8px;
+  --fs-radius-md: 12px;
+  --fs-radius-lg: 20px;
+  --fs-radius-round: 50px;
+}
+
+/* ==========================================================================
+   Reset & Base
+   ========================================================================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--fs-font-primary);
+  color: var(--fs-text);
+  line-height: 1.8;
+  background-color: var(--fs-white);
+  overflow-x: hidden;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+  transition: var(--fs-transition);
+}
+
+ul, ol {
+  list-style: none;
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+.fs-container {
+  max-width: var(--fs-container-width);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.fs-section {
+  padding: var(--fs-section-padding) 0;
+}
+
+.fs-section--gray {
+  background-color: var(--fs-off-white);
+}
+
+.fs-section-header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.fs-section-header__en {
+  font-family: var(--fs-font-en);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fs-primary);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.fs-section-header__title {
+  font-family: var(--fs-font-heading);
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--fs-secondary);
+}
+
+.fs-section-header__subtitle {
+  font-size: 16px;
+  color: var(--fs-text-light);
+  margin-top: 16px;
+  line-height: 1.8;
+}
+
+/* Buttons */
+.fs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 40px;
+  border-radius: var(--fs-radius-round);
+  font-family: var(--fs-font-primary);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: var(--fs-transition);
+  white-space: nowrap;
+}
+
+.fs-btn--primary {
+  background-color: var(--fs-primary);
+  color: var(--fs-white);
+}
+
+.fs-btn--primary:hover {
+  background-color: var(--fs-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--fs-shadow-md);
+}
+
+.fs-btn--secondary {
+  background-color: var(--fs-white);
+  color: var(--fs-primary);
+  border: 2px solid var(--fs-primary);
+}
+
+.fs-btn--secondary:hover {
+  background-color: var(--fs-primary);
+  color: var(--fs-white);
+  transform: translateY(-2px);
+}
+
+.fs-btn--accent {
+  background-color: var(--fs-accent);
+  color: var(--fs-white);
+}
+
+.fs-btn--accent:hover {
+  background-color: var(--fs-accent-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--fs-shadow-md);
+}
+
+.fs-btn--large {
+  padding: 20px 56px;
+  font-size: 18px;
+}
+
+.fs-btn__arrow {
+  transition: transform 0.3s ease;
+}
+
+.fs-btn:hover .fs-btn__arrow {
+  transform: translateX(4px);
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+@media (max-width: 1024px) {
+  :root {
+    --fs-section-padding: 80px;
+  }
+
+  .fs-section-header__title {
+    font-size: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --fs-section-padding: 60px;
+  }
+
+  html {
+    font-size: 15px;
+  }
+
+  .fs-section-header {
+    margin-bottom: 40px;
+  }
+
+  .fs-section-header__title {
+    font-size: 26px;
+  }
+
+  .fs-btn {
+    padding: 14px 32px;
+    font-size: 15px;
+  }
+
+  .fs-btn--large {
+    padding: 16px 40px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .fs-section-header__title {
+    font-size: 22px;
+  }
+}

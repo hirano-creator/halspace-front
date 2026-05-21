@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PAGE-ONE CRAFTER'S | 精密金属加工の職人が作るキャンプギア</title>
+  <meta name="description" content="千葉県旭市の精密金属加工メーカー・株式会社ヒラノが手がけるキャンプブランド PAGE-ONE CRAFTER'S。焚き火台CORN、グリルパンSPIDER2、S字フックKOUKKUなど。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ===== RESET ===== */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      color: #fff;
+      background: #0a0a0a;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    img { max-width: 100%; display: block; }
+    a { text-decoration: none; color: inherit; }
+    ul { list-style: none; }
+
+    /* ===== NAV ===== */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.4s, padding 0.4s;
+    }
+    .nav.scrolled {
+      background: rgba(10,10,10,0.95);
+      backdrop-filter: blur(12px);
+      padding: 14px 40px;
+    }
+    .nav-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      letter-spacing: 0.15em;
+      color: #fff;
+    }
+    .nav-logo small {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.55rem;
+      font-weight: 300;
+      letter-spacing: 0.2em;
+      opacity: 0.5;
+      display: block;
+      margin-top: 2px;
+    }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      opacity: 0.6;
+      transition: opacity 0.3s;
+    }
+    .nav-links a:hover { opacity: 1; }
+    .nav-cta {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 10px 28px;
+      border: 1px solid rgba(255,255,255,0.3);
+      transition: all 0.3s;
+    }
+    .nav-cta:hover { background: #fff; color: #0a0a0a; }
+
+    /* ===== HERO (FULL-SCREEN VIDEO STYLE) ===== */
+    .hero {
+      position: relative;
+      height: 100vh;
+      min-height: 700px;
+      display: flex;
+      align-items: flex-end;
+      overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 100% 80% at 50% 30%, rgba(180,120,40,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 60% at 70% 60%, rgba(220,100,20,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse 80% 80% at 30% 70%, rgba(200,80,10,0.06) 0%, transparent 50%),
+        linear-gradient(180deg, #0a0a0a 0%, #1a1510 40%, #12100c 100%);
+      animation: heroPulse 8s ease-in-out infinite alternate;
+    }
+    @keyframes heroPulse {
+      0% { opacity: 1; }
+      100% { opacity: 0.85; }
+    }
+    .hero-particles {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+    .hero-particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: rgba(255,180,60,0.4);
+      border-radius: 50%;
+      animation: particleFloat linear infinite;
+    }
+    @keyframes particleFloat {
+      0% { transform: translateY(0) translateX(0); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateY(-100vh) translateX(30px); opacity: 0; }
+    }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      padding: 0 60px 100px;
+      width: 100%;
+    }
+    .hero-eyecatch {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(4rem, 12vw, 10rem);
+      line-height: 0.9;
+      letter-spacing: 0.03em;
+      margin-bottom: 24px;
+    }
+    .hero-eyecatch .line2 {
+      display: block;
+      font-size: 0.55em;
+      opacity: 0.4;
+      letter-spacing: 0.08em;
+    }
+    .hero-lead {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: clamp(0.82rem, 1.4vw, 0.95rem);
+      font-weight: 300;
+      line-height: 2.2;
+      max-width: 520px;
+      opacity: 0.7;
+      margin-bottom: 40px;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      opacity: 0.5;
+      padding: 8px 0;
+      border-top: 1px solid rgba(255,255,255,0.15);
+    }
+    .hero-scroll-indicator {
+      position: absolute;
+      right: 60px;
+      bottom: 100px;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .hero-scroll-text {
+      writing-mode: vertical-rl;
+      font-size: 0.6rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      opacity: 0.4;
+    }
+    .hero-scroll-line {
+      width: 1px;
+      height: 60px;
+      background: linear-gradient(to bottom, rgba(255,255,255,0.5), transparent);
+      animation: scrollPulse 2s ease-in-out infinite;
+    }
+    @keyframes scrollPulse {
+      0%, 100% { transform: scaleY(0.4); transform-origin: top; opacity: 0.3; }
+      50% { transform: scaleY(1); opacity: 1; }
+    }
+
+    /* ===== FULL-WIDTH MESSAGE SECTION ===== */
+    .message {
+      position: relative;
+      padding: 160px 60px;
+      text-align: center;
+      background: #0d0b08;
+      overflow: hidden;
+    }
+    .message::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1px;
+      height: 80px;
+      background: linear-gradient(to bottom, transparent, rgba(200,164,90,0.3));
+    }
+    .message-catch {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: clamp(1.4rem, 3vw, 2.2rem);
+      font-weight: 700;
+      line-height: 2;
+      letter-spacing: 0.08em;
+      margin-bottom: 40px;
+    }
+    .message-catch em {
+      font-style: normal;
+      color: #d4a24a;
+    }
+    .message-body {
+      font-size: 0.9rem;
+      font-weight: 300;
+      line-height: 2.4;
+      max-width: 640px;
+      margin: 0 auto;
+      opacity: 0.6;
+    }
+
+    /* ===== PARALLAX DIVIDER ===== */
+    .parallax-divider {
+      position: relative;
+      height: 60vh;
+      min-height: 400px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .parallax-divider-bg {
+      position: absolute;
+      inset: -20%;
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+    }
+    .parallax-divider .pd-fire {
+      background:
+        radial-gradient(ellipse 50% 60% at 50% 55%, rgba(220,120,20,0.15) 0%, transparent 70%),
+        radial-gradient(ellipse 80% 40% at 50% 80%, rgba(180,80,10,0.1) 0%, transparent 60%),
+        linear-gradient(180deg, #0a0a0a, #1a1208, #0a0a0a);
+    }
+    .parallax-divider .pd-metal {
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 80px),
+        linear-gradient(180deg, #0a0a0a, #111, #0a0a0a);
+    }
+    .parallax-divider .pd-nature {
+      background:
+        radial-gradient(ellipse 70% 50% at 40% 50%, rgba(80,120,60,0.08) 0%, transparent 70%),
+        linear-gradient(180deg, #0a0a0a, #0e100c, #0a0a0a);
+    }
+    .parallax-quote {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 0 40px;
+    }
+    .parallax-quote-text {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2rem, 5vw, 4rem);
+      letter-spacing: 0.08em;
+      line-height: 1.3;
+      opacity: 0.9;
+    }
+    .parallax-quote-sub {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 300;
+      letter-spacing: 0.15em;
+      margin-top: 20px;
+      opacity: 0.4;
+    }
+
+    /* ===== PRODUCT SHOWCASE (LARGE) ===== */
+    .product-showcase {
+      padding: 0;
+    }
+    .product-section {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 100vh;
+    }
+    .product-section:nth-child(even) .product-visual { order: 2; }
+    .product-visual {
+      position: relative;
+      background: #111;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .product-visual-bg {
+      position: absolute;
+      inset: 0;
+      opacity: 0.06;
+    }
+    .product-model-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(5rem, 10vw, 9rem);
+      letter-spacing: 0.05em;
+      opacity: 0.07;
+      position: absolute;
+      white-space: nowrap;
+    }
+    .product-img-area {
+      position: relative;
+      z-index: 2;
+      width: 70%;
+      aspect-ratio: 1;
+      background: rgba(255,255,255,0.03);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .product-img-icon {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.5rem;
+      letter-spacing: 0.1em;
+      opacity: 0.3;
+    }
+    .product-detail {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 80px 60px;
+      background: #0a0a0a;
+    }
+    .product-number {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.3em;
+      color: #d4a24a;
+      margin-bottom: 16px;
+    }
+    .product-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      letter-spacing: 0.06em;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .product-subtitle {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 400;
+      opacity: 0.4;
+      margin-bottom: 36px;
+      letter-spacing: 0.1em;
+    }
+    .product-description {
+      font-size: 0.88rem;
+      font-weight: 300;
+      line-height: 2.2;
+      opacity: 0.65;
+      margin-bottom: 40px;
+      max-width: 420px;
+    }
+    .product-spec-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      margin-bottom: 40px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .product-spec-item {
+      padding: 20px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .product-spec-item:nth-child(odd) { padding-right: 20px; }
+    .product-spec-item:nth-child(even) { padding-left: 20px; border-left: 1px solid rgba(255,255,255,0.08); }
+    .product-spec-label {
+      font-size: 0.6rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      opacity: 0.35;
+      margin-bottom: 6px;
+    }
+    .product-spec-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: 0.05em;
+    }
+    .product-spec-value small {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 400;
+      opacity: 0.6;
+    }
+    .product-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #d4a24a;
+      transition: gap 0.3s;
+    }
+    .product-btn:hover { gap: 20px; }
+    .product-btn-arrow {
+      width: 40px;
+      height: 1px;
+      background: #d4a24a;
+      position: relative;
+    }
+    .product-btn-arrow::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: -3px;
+      width: 8px;
+      height: 8px;
+      border-top: 1px solid #d4a24a;
+      border-right: 1px solid #d4a24a;
+      transform: rotate(45deg);
+    }
+
+    /* ===== HORIZONTAL FEATURES STRIP ===== */
+    .features-strip {
+      background: #0d0b08;
+      padding: 100px 0;
+      overflow: hidden;
+    }
+    .features-strip-header {
+      padding: 0 60px;
+      margin-bottom: 60px;
+    }
+    .features-strip-label {
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: #d4a24a;
+      margin-bottom: 12px;
+    }
+    .features-strip-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2rem, 4vw, 3rem);
+      letter-spacing: 0.05em;
+    }
+    .features-scroll {
+      display: flex;
+      gap: 2px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+      padding: 0 60px;
+    }
+    .features-scroll::-webkit-scrollbar { display: none; }
+    .feature-slide {
+      flex: 0 0 320px;
+      scroll-snap-align: start;
+      background: rgba(255,255,255,0.03);
+      padding: 48px 36px;
+      border: 1px solid rgba(255,255,255,0.05);
+      transition: background 0.4s, border-color 0.4s;
+    }
+    .feature-slide:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(212,162,74,0.2);
+    }
+    .feature-slide-number {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.5rem;
+      color: rgba(212,162,74,0.15);
+      line-height: 1;
+      margin-bottom: 24px;
+    }
+    .feature-slide h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      margin-bottom: 16px;
+    }
+    .feature-slide p {
+      font-size: 0.8rem;
+      font-weight: 300;
+      line-height: 1.9;
+      opacity: 0.5;
+    }
+
+    /* ===== PROCESS TIMELINE ===== */
+    .process {
+      padding: 140px 60px;
+      background: #0a0a0a;
+      position: relative;
+    }
+    .process-header {
+      margin-bottom: 80px;
+    }
+    .process-label {
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: #d4a24a;
+      margin-bottom: 12px;
+    }
+    .process-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2rem, 4vw, 3rem);
+      letter-spacing: 0.05em;
+    }
+    .process-timeline {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      position: relative;
+    }
+    .process-timeline::before {
+      content: '';
+      position: absolute;
+      top: 32px;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(212,162,74,0.3), rgba(212,162,74,0.1));
+    }
+    .timeline-item {
+      padding: 0 24px;
+      position: relative;
+    }
+    .timeline-dot {
+      width: 8px;
+      height: 8px;
+      background: #d4a24a;
+      border-radius: 50%;
+      margin-bottom: 32px;
+      position: relative;
+    }
+    .timeline-dot::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border: 1px solid rgba(212,162,74,0.3);
+      border-radius: 50%;
+    }
+    .timeline-step {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      color: #d4a24a;
+      margin-bottom: 12px;
+    }
+    .timeline-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      letter-spacing: 0.02em;
+    }
+    .timeline-desc {
+      font-size: 0.78rem;
+      font-weight: 300;
+      line-height: 1.9;
+      opacity: 0.45;
+    }
+
+    /* ===== LIFESTYLE GALLERY ===== */
+    .lifestyle {
+      padding: 0;
+      background: #0a0a0a;
+    }
+    .lifestyle-header {
+      padding: 120px 60px 60px;
+    }
+    .lifestyle-label {
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: #d4a24a;
+      margin-bottom: 12px;
+    }
+    .lifestyle-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2rem, 4vw, 3rem);
+      letter-spacing: 0.05em;
+    }
+    .lifestyle-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+    }
+    .lifestyle-cell {
+      position: relative;
+      aspect-ratio: 1;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .lifestyle-cell-bg {
+      position: absolute;
+      inset: 0;
+      transition: transform 0.6s ease;
+    }
+    .lifestyle-cell:nth-child(1) .lifestyle-cell-bg { background: linear-gradient(135deg, #1a1510, #2a1f14); }
+    .lifestyle-cell:nth-child(2) .lifestyle-cell-bg { background: linear-gradient(135deg, #141810, #1a2a14); }
+    .lifestyle-cell:nth-child(3) .lifestyle-cell-bg { background: linear-gradient(135deg, #181410, #2a2014); }
+    .lifestyle-cell:nth-child(4) .lifestyle-cell-bg { background: linear-gradient(135deg, #101418, #14202a); }
+    .lifestyle-cell:nth-child(5) .lifestyle-cell-bg { background: linear-gradient(135deg, #18140e, #2a1e12); }
+    .lifestyle-cell:nth-child(6) .lifestyle-cell-bg { background: linear-gradient(135deg, #12100e, #221e1a); }
+    .lifestyle-cell:hover .lifestyle-cell-bg { transform: scale(1.08); }
+    .lifestyle-cell-content {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 28px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.4s, transform 0.4s;
+    }
+    .lifestyle-cell:hover .lifestyle-cell-content {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .lifestyle-cell-tag {
+      font-size: 0.6rem;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #d4a24a;
+      margin-bottom: 6px;
+    }
+    .lifestyle-cell-text {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 300;
+      line-height: 1.7;
+      opacity: 0.8;
+    }
+    .lifestyle-cell-watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      letter-spacing: 0.15em;
+      opacity: 0.08;
+      white-space: nowrap;
+      transition: opacity 0.4s;
+    }
+    .lifestyle-cell:hover .lifestyle-cell-watermark { opacity: 0; }
+
+    /* ===== SUSTAINABILITY ===== */
+    .sustainability {
+      position: relative;
+      padding: 160px 60px;
+      text-align: center;
+      overflow: hidden;
+    }
+    .sustainability::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 50%, rgba(60,100,60,0.06) 0%, transparent 70%),
+        linear-gradient(180deg, #0a0a0a, #0c0e0a, #0a0a0a);
+    }
+    .sustainability-content {
+      position: relative;
+      z-index: 2;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .sustainability-label {
+      font-size: 0.65rem;
+      font-weight: 500;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: #7aaa6a;
+      margin-bottom: 16px;
+    }
+    .sustainability-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      letter-spacing: 0.06em;
+      margin-bottom: 40px;
+    }
+    .sustainability-text {
+      font-size: 0.9rem;
+      font-weight: 300;
+      line-height: 2.4;
+      opacity: 0.6;
+      margin-bottom: 20px;
+    }
+
+    /* ===== CTA SECTION ===== */
+    .cta {
+      position: relative;
+      padding: 160px 60px;
+      text-align: center;
+      overflow: hidden;
+    }
+    .cta::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 70% 60% at 50% 50%, rgba(212,162,74,0.08) 0%, transparent 60%),
+        linear-gradient(180deg, #0a0a0a, #14120e, #0a0a0a);
+    }
+    .cta-content {
+      position: relative;
+      z-index: 2;
+    }
+    .cta-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(3rem, 7vw, 6rem);
+      letter-spacing: 0.05em;
+      line-height: 1;
+      margin-bottom: 32px;
+    }
+    .cta-desc {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 300;
+      line-height: 2.2;
+      opacity: 0.6;
+      max-width: 480px;
+      margin: 0 auto 48px;
+    }
+    .cta-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn-solid {
+      display: inline-block;
+      padding: 18px 52px;
+      background: #d4a24a;
+      color: #0a0a0a;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      transition: background 0.3s, transform 0.3s;
+    }
+    .btn-solid:hover { background: #e0b45c; transform: translateY(-2px); }
+    .btn-ghost {
+      display: inline-block;
+      padding: 18px 52px;
+      border: 1px solid rgba(255,255,255,0.2);
+      font-size: 0.8rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      transition: all 0.3s;
+    }
+    .btn-ghost:hover { border-color: #d4a24a; color: #d4a24a; }
+
+    /* ===== FOOTER ===== */
+    .footer {
+      padding: 60px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 24px;
+    }
+    .footer-brand {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 0.15em;
+    }
+    .footer-brand span {
+      display: block;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.6rem;
+      font-weight: 300;
+      letter-spacing: 0.1em;
+      opacity: 0.3;
+      margin-top: 4px;
+    }
+    .footer-links {
+      display: flex;
+      gap: 28px;
+    }
+    .footer-links a {
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      opacity: 0.3;
+      transition: opacity 0.3s;
+    }
+    .footer-links a:hover { opacity: 0.8; }
+    .footer-copy {
+      width: 100%;
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      opacity: 0.2;
+    }
+
+    /* ===== SCROLL REVEAL ===== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1), transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+    .reveal-delay-4 { transition-delay: 0.4s; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1024px) {
+      .hero-content { padding: 0 40px 80px; }
+      .product-section { grid-template-columns: 1fr; min-height: auto; }
+      .product-section:nth-child(even) .product-visual { order: 0; }
+      .product-visual { min-height: 50vh; }
+      .product-detail { padding: 60px 40px; }
+      .process { padding: 100px 40px; }
+      .process-timeline { grid-template-columns: repeat(2, 1fr); gap: 40px; }
+      .process-timeline::before { display: none; }
+      .lifestyle-grid { grid-template-columns: repeat(3, 1fr); }
+      .message { padding: 120px 40px; }
+    }
+    @media (max-width: 768px) {
+      .nav { padding: 16px 24px; }
+      .nav.scrolled { padding: 12px 24px; }
+      .nav-links { display: none; }
+      .hero-content { padding: 0 24px 60px; }
+      .hero-scroll-indicator { right: 24px; bottom: 60px; }
+      .message { padding: 100px 24px; }
+      .product-detail { padding: 48px 24px; }
+      .product-spec-grid { grid-template-columns: 1fr; }
+      .product-spec-item:nth-child(even) { padding-left: 0; border-left: none; }
+      .features-strip-header { padding: 0 24px; }
+      .features-scroll { padding: 0 24px; }
+      .feature-slide { flex: 0 0 280px; }
+      .process { padding: 80px 24px; }
+      .process-timeline { grid-template-columns: 1fr; gap: 32px; }
+      .lifestyle-header { padding: 80px 24px 40px; }
+      .lifestyle-grid { grid-template-columns: repeat(2, 1fr); }
+      .sustainability { padding: 100px 24px; }
+      .cta { padding: 100px 24px; }
+      .footer { padding: 40px 24px; }
+      .cta-buttons { flex-direction: column; align-items: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== NAVIGATION ===== -->
+  <nav class="nav" id="nav">
+    <div class="nav-logo">
+      PAGE-ONE CRAFTER'S
+      <small>by HIRANO Co., Ltd.</small>
+    </div>
+    <div class="nav-links">
+      <a href="#products">Products</a>
+      <a href="#features">Features</a>
+      <a href="#process">Process</a>
+      <a href="#lifestyle">Lifestyle</a>
+    </div>
+    <a href="https://page01.stores.jp/" target="_blank" class="nav-cta">Online Store</a>
+  </nav>
+
+  <!-- ===== HERO ===== -->
+  <section class="hero" id="top">
+    <div class="hero-bg"></div>
+    <div class="hero-particles" id="particles"></div>
+    <div class="hero-content">
+      <h1 class="hero-eyecatch reveal">
+        FORGED FOR FIRE
+        <span class="line2">OUTDOOR GEAR SERIES</span>
+      </h1>
+      <p class="hero-lead reveal reveal-delay-1">
+        精密金属加工のプロフェッショナルが<br>
+        1/1000mmの精度で仕上げる、ソロキャンプギア。<br>
+        あなたの焚き火に、職人の技を。
+      </p>
+      <div class="hero-badge reveal reveal-delay-2">
+        <span>Precision Metal Processing</span>
+        <span>&mdash;</span>
+        <span>Asahi, Chiba, Japan</span>
+      </div>
+    </div>
+    <div class="hero-scroll-indicator">
+      <span class="hero-scroll-text">Scroll</span>
+      <span class="hero-scroll-line"></span>
+    </div>
+  </section>
+
+  <!-- ===== MESSAGE ===== -->
+  <section class="message">
+    <div class="reveal">
+      <p class="message-catch">
+        戦闘機の部品を削り出す<em>精密さ</em>を、<br>
+        あなたの<em>焚き火</em>に届ける。
+      </p>
+      <p class="message-body">
+        千葉県旭市。株式会社ヒラノは、航空機部品やCTスキャン部品など<br>
+        ミクロン単位の精度が求められる金属加工を専門とする職人集団です。<br>
+        代表・平野が1年半をかけて開発したキャンプギアシリーズ「PAGE-ONE CRAFTER'S」。<br>
+        量産品では決して到達できない精度と仕上げが、キャンプの夜を変えます。
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== PARALLAX DIVIDER 1 ===== -->
+  <div class="parallax-divider">
+    <div class="parallax-divider-bg pd-fire"></div>
+    <div class="parallax-quote reveal">
+      <p class="parallax-quote-text">WHERE PRECISION<br>MEETS THE FLAME</p>
+      <p class="parallax-quote-sub">精度と炎が交わる場所</p>
+    </div>
+  </div>
+
+  <!-- ===== PRODUCTS ===== -->
+  <section class="product-showcase" id="products">
+
+    <!-- CORN -->
+    <div class="product-section">
+      <div class="product-visual">
+        <span class="product-model-name">CORN</span>
+        <div class="product-img-area">
+          <span class="product-img-icon">CORN</span>
+        </div>
+      </div>
+      <div class="product-detail">
+        <p class="product-number reveal">PRODUCT 01</p>
+        <h3 class="product-title reveal reveal-delay-1">CORN<br>STARTER KIT</h3>
+        <p class="product-subtitle reveal reveal-delay-1">焚き火台 スターターキット</p>
+        <p class="product-description reveal reveal-delay-2">
+          無駄を一切排除したミニマルデザイン。薪を2本横並びに置いても五徳と干渉しない設計で、焚き火を存分に楽しめます。組み立ては簡単、収納時はわずか7mm。バックパックの隙間に忍ばせる、ソロキャンパー究極の相棒。
+        </p>
+        <div class="product-spec-grid reveal reveal-delay-2">
+          <div class="product-spec-item">
+            <div class="product-spec-label">Weight</div>
+            <div class="product-spec-value">570<small>g</small></div>
+          </div>
+          <div class="product-spec-item">
+            <div class="product-spec-label">Use Size</div>
+            <div class="product-spec-value">&phi;305 &times; 230<small>mm</small></div>
+          </div>
+          <div class="product-spec-item">
+            <div class="product-spec-label">Storage</div>
+            <div class="product-spec-value">240 &times; 360<small>mm</small></div>
+          </div>
+          <div class="product-spec-item">
+            <div class="product-spec-label">Thickness</div>
+            <div class="product-spec-value">7<small>mm</small></div>
+          </div>
+        </div>
+        <a href="https://page01.stores.jp/items/608640c4e70dc479627c2d14" target="_blank" class="product-btn reveal reveal-delay-3">
+          View Details <span class="product-btn-arrow"></span>
+        </a>
+      </div>
+    </div>
+
+    <!-- SPIDER2 -->
+    <div class="product-section">
+      <div class="product-visual" style="background: #0f0e0c;">
+        <span class="product-model-name">SPIDER2</span>
+        <div class="product-img-area">
+          <span class="product-img-icon">SPIDER2</span>
+        </div>
+      </div>
+      <div class="product-detail">
+        <p class="product-number reveal">PRODUCT 02</p>
+        <h3 class="product-title reveal reveal-delay-1">SPIDER2</h3>
+        <p class="product-subtitle reveal reveal-delay-1">CORN用 オプショングリルパン</p>
+        <p class="product-description reveal reveal-delay-2">
+          CORNの可能性を広げる専用グリルパン。レーザー加工で精密に刻まれたデザインが、機能と美を両立。焚き火での調理をワンランク上へ引き上げる、遊び心を刺激するオプションパーツ。
+        </p>
+        <div class="product-spec-grid reveal reveal-delay-2">
+          <div class="product-spec-item">
+            <div class="product-spec-label">Type</div>
+            <div class="product-spec-value">Grill Pan</div>
+          </div>
+          <div class="product-spec-item">
+            <div class="product-spec-label">Compatible</div>
+            <div class="product-spec-value">CORN Series</div>
+          </div>
+          <div class="product-spec-item">
+            <div class="product-spec-label">Material</div>
+            <div class="product-spec-value">Iron</div>
+          </div>
+          <div class="product-spec-item">
+            <div class="product-spec-label">Finish</div>
+            <div class="product-spec-value">Laser Cut</div>
+          </div>
+        </div>
+        <a href="https://page01.stores.jp/items/60c82b6c02a5895ff0550701" target="_blank" class="product-btn reveal reveal-delay-3">
+          View Details <span class="product-btn-arrow"></span>
+        </a>
+      </div>
+    </div>
+
+    <!-- KOUKKU -->
+    <div class="product-section">
+      <div class="product-visual" style="background: #0e0c0a;">
+        <span class="product-model-name">KOUKKU</span>
+        <div class="product-img-area">
+          <span class="product-img-icon">KOUKKU</span>
+        </div>
+      </div>
+      <div class="product-detail">
+        <p class="product-number reveal">PRODUCT 03</p>
+        <h3 class="product-title reveal reveal-delay-1">KOUKKU</h3>
+        <p class="product-subtitle reveal reveal-delay-1">S字フック 3個セット</p>
+        <p class="product-description reveal reveal-delay-2">
+          厚さ3.2mmの黒皮鉄から生まれる、無骨で頼れるS字フック。ガイロープ、テント、タープに引っ掛けて、ランタンやギアを自在に吊り下げ。使い込むほど錆と風合いが増す、育てるギア。
+        </p>
+        <div class="product-spec-grid reveal reveal-delay-2">
+          <div class="product-spec-item">
+            <div class="product-spec-label">Size</div>
+            <div class="product-spec-value">50 &times; 150<small>mm</small></div>
+          </div>
+          <div class="product-spec-item">
+            <div class="product-spec-label">Material</div>
+            <div class="product-spec-value">Iron <small>(Black Skin)</small></div>
+          </div>
+          <div class="product-spec-item">
+            <div class="product-spec-label">Thickness</div>
+            <div class="product-spec-value">3.2<small>mm</small></div>
+          </div>
+          <div class="product-spec-item">
+            <div class="product-spec-label">Set</div>
+            <div class="product-spec-value">3 <small>pcs</small></div>
+          </div>
+        </div>
+        <a href="https://page01.stores.jp/items/63d0700425c9063c540cb207" target="_blank" class="product-btn reveal reveal-delay-3">
+          View Details <span class="product-btn-arrow"></span>
+        </a>
+      </div>
+    </div>
+
+    <!-- FUKURO -->
+    <div class="product-section">
+      <div class="product-visual" style="background: #100e0a;">
+        <span class="product-model-name">FUKURO</span>
+        <div class="product-img-area">
+          <span class="product-img-icon">FUKURO</span>
+        </div>
+      </div>
+      <div class="product-detail">
+        <p class="product-number reveal">PRODUCT 04</p>
+        <h3 class="product-title reveal reveal-delay-1">FUKURO</h3>
+        <p class="product-subtitle reveal reveal-delay-1">レザー小物入れ</p>
+        <p class="product-description reveal reveal-delay-2">
+          鉄のギアを包み込む、上質なレザーケース。金属加工の職人だからこそ分かる「道具を大切にする心」が形に。キャンプサイトでも日常でも、あなたの大切な小物を守り続けます。
+        </p>
+        <div class="product-spec-grid reveal reveal-delay-2">
+          <div class="product-spec-item">
+            <div class="product-spec-label">Material</div>
+            <div class="product-spec-value">Leather</div>
+          </div>
+          <div class="product-spec-item">
+            <div class="product-spec-label">Made in</div>
+            <div class="product-spec-value">Japan</div>
+          </div>
+        </div>
+        <a href="https://page01.stores.jp/items/60f5263d0d4f3a15a4822a6d" target="_blank" class="product-btn reveal reveal-delay-3">
+          View Details <span class="product-btn-arrow"></span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PARALLAX DIVIDER 2 ===== -->
+  <div class="parallax-divider">
+    <div class="parallax-divider-bg pd-metal"></div>
+    <div class="parallax-quote reveal">
+      <p class="parallax-quote-text">BORN IN THE FACTORY.<br>PROVEN BY THE FLAME.</p>
+      <p class="parallax-quote-sub">工場で生まれ、炎で鍛えられる</p>
+    </div>
+  </div>
+
+  <!-- ===== FEATURES HORIZONTAL SCROLL ===== -->
+  <section class="features-strip" id="features">
+    <div class="features-strip-header reveal">
+      <p class="features-strip-label">Why PAGE-ONE</p>
+      <h2 class="features-strip-title">CHOSEN BY SOLO CAMPERS</h2>
+    </div>
+    <div class="features-scroll">
+      <div class="feature-slide">
+        <div class="feature-slide-number">01</div>
+        <h4>精密加工の技術</h4>
+        <p>航空機やCTスキャン部品を製造する工場で、同じ職人が1/1000mmの精度でキャンプギアを削り出す。量産品にはない手触りと仕上がり。</p>
+      </div>
+      <div class="feature-slide">
+        <div class="feature-slide-number">02</div>
+        <h4>圧倒的な軽さ</h4>
+        <p>焚き火台CORNはわずか570g。収納時の厚さは7mm。バックパックの隙間にスッと入る、ソロキャンパーの機動力を損なわないミニマル設計。</p>
+      </div>
+      <div class="feature-slide">
+        <div class="feature-slide-number">03</div>
+        <h4>モジュラーシステム</h4>
+        <p>SPIDER2グリルパン、KOUKKUフックなど豊富なオプション。自分だけのキャンプスタイルを、パーツの組み合わせで自由に構築。</p>
+      </div>
+      <div class="feature-slide">
+        <div class="feature-slide-number">04</div>
+        <h4>サステナブル</h4>
+        <p>「自然に優しい商品開発」をテーマに、素材選びから製造プロセスまでサステナブルを追求。遊ぶフィールドへの敬意を形に。</p>
+      </div>
+      <div class="feature-slide">
+        <div class="feature-slide-number">05</div>
+        <h4>経年変化を楽しむ</h4>
+        <p>黒皮鉄のKOUKKUは、使い込むほど錆が風合いとなり唯一無二の表情に変化。育てる楽しみがある、一生モノのギア。</p>
+      </div>
+      <div class="feature-slide">
+        <div class="feature-slide-number">06</div>
+        <h4>旭市から世界へ</h4>
+        <p>飯岡海岸でサーフィンとキャンプを愛する職人が、自らフィールドで試し改良を重ねた実戦派。机上ではなく自然の中で磨かれた道具。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PROCESS ===== -->
+  <section class="process" id="process">
+    <div class="process-header reveal">
+      <p class="process-label">Craftsmanship</p>
+      <h2 class="process-title">FROM FACTORY TO FIRESIDE</h2>
+    </div>
+    <div class="process-timeline">
+      <div class="timeline-item reveal">
+        <div class="timeline-dot"></div>
+        <div class="timeline-step">Step 01</div>
+        <div class="timeline-title">Design</div>
+        <div class="timeline-desc">代表・平野自らが設計。ソロキャンプの実体験から生まれるインスピレーションで、無駄を一切削ぎ落とす。</div>
+      </div>
+      <div class="timeline-item reveal reveal-delay-1">
+        <div class="timeline-dot"></div>
+        <div class="timeline-step">Step 02</div>
+        <div class="timeline-title">Prototype</div>
+        <div class="timeline-desc">精密金属加工技術で何度も試作を繰り返す。CORNは完成までに1年半もの歳月を要した。</div>
+      </div>
+      <div class="timeline-item reveal reveal-delay-2">
+        <div class="timeline-dot"></div>
+        <div class="timeline-step">Step 03</div>
+        <div class="timeline-title">Field Test</div>
+        <div class="timeline-desc">千葉県旭市・飯岡海岸のキャンプフィールドで実際に使用。炎の中で性能と耐久性を徹底検証。</div>
+      </div>
+      <div class="timeline-item reveal reveal-delay-3">
+        <div class="timeline-dot"></div>
+        <div class="timeline-step">Step 04</div>
+        <div class="timeline-title">Handcraft</div>
+        <div class="timeline-desc">プロの職人が1/1000mmの精度で一つひとつ仕上げ。手作業ならではの質感を、あなたの元へ届ける。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== LIFESTYLE ===== -->
+  <section class="lifestyle" id="lifestyle">
+    <div class="lifestyle-header reveal">
+      <p class="lifestyle-label">Lifestyle</p>
+      <h2 class="lifestyle-title">YOUR FIRE, YOUR STYLE</h2>
+    </div>
+    <div class="lifestyle-grid">
+      <div class="lifestyle-cell">
+        <div class="lifestyle-cell-bg"></div>
+        <span class="lifestyle-cell-watermark">SOLO CAMP</span>
+        <div class="lifestyle-cell-content">
+          <span class="lifestyle-cell-tag">Solo</span>
+          <span class="lifestyle-cell-text">静寂の中、自分だけの焚き火と向き合う</span>
+        </div>
+      </div>
+      <div class="lifestyle-cell">
+        <div class="lifestyle-cell-bg"></div>
+        <span class="lifestyle-cell-watermark">BUSHCRAFT</span>
+        <div class="lifestyle-cell-content">
+          <span class="lifestyle-cell-tag">Adventure</span>
+          <span class="lifestyle-cell-text">570gの相棒と山へ森へ自由に</span>
+        </div>
+      </div>
+      <div class="lifestyle-cell">
+        <div class="lifestyle-cell-bg"></div>
+        <span class="lifestyle-cell-watermark">BEACH CAMP</span>
+        <div class="lifestyle-cell-content">
+          <span class="lifestyle-cell-tag">Beach</span>
+          <span class="lifestyle-cell-text">飯岡海岸で波音を聴きながら</span>
+        </div>
+      </div>
+      <div class="lifestyle-cell">
+        <div class="lifestyle-cell-bg"></div>
+        <span class="lifestyle-cell-watermark">COOKING</span>
+        <div class="lifestyle-cell-content">
+          <span class="lifestyle-cell-tag">Cooking</span>
+          <span class="lifestyle-cell-text">SPIDER2で広がる焚き火料理の世界</span>
+        </div>
+      </div>
+      <div class="lifestyle-cell">
+        <div class="lifestyle-cell-bg"></div>
+        <span class="lifestyle-cell-watermark">NIGHT FIRE</span>
+        <div class="lifestyle-cell-content">
+          <span class="lifestyle-cell-tag">Night</span>
+          <span class="lifestyle-cell-text">KOUKKUにランタンを吊るし炎を眺める</span>
+        </div>
+      </div>
+      <div class="lifestyle-cell">
+        <div class="lifestyle-cell-bg"></div>
+        <span class="lifestyle-cell-watermark">MINIMAL</span>
+        <div class="lifestyle-cell-content">
+          <span class="lifestyle-cell-tag">Minimal</span>
+          <span class="lifestyle-cell-text">7mm厚。持たない美学を貫く</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PARALLAX DIVIDER 3 ===== -->
+  <div class="parallax-divider">
+    <div class="parallax-divider-bg pd-nature"></div>
+    <div class="parallax-quote reveal">
+      <p class="parallax-quote-text">RESPECT THE FIELD</p>
+      <p class="parallax-quote-sub">フィールドへの敬意を忘れない</p>
+    </div>
+  </div>
+
+  <!-- ===== SUSTAINABILITY ===== -->
+  <section class="sustainability">
+    <div class="sustainability-content reveal">
+      <p class="sustainability-label">Sustainability</p>
+      <h2 class="sustainability-title">SUSTAINABLE<br>CRAFTSMANSHIP</h2>
+      <p class="sustainability-text">
+        自然の中で遊ぶ道具だからこそ、自然に対する敬意を忘れない。<br>
+        PAGE-ONE CRAFTER'Sは「サステナブル」をテーマに、<br>
+        地球に優しい商品開発を追求し続けています。
+      </p>
+      <p class="sustainability-text">
+        長く使える本物の品質。修理して使い続けられる構造設計。<br>
+        使い捨てではなく、育てて愛着が湧く素材選び。<br>
+        それが職人としての、キャンパーとしての、私たちの責任です。
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== CTA ===== -->
+  <section class="cta" id="shop">
+    <div class="cta-content reveal">
+      <p class="features-strip-label">Shop Now</p>
+      <h2 class="cta-title">IGNITE YOUR<br>ADVENTURE</h2>
+      <p class="cta-desc">
+        精密金属加工の職人が手がけるキャンプギアで、<br>
+        あなたの次のキャンプを、特別な時間に。
+      </p>
+      <div class="cta-buttons">
+        <a href="https://page01.stores.jp/" target="_blank" class="btn-solid">Online Store</a>
+        <a href="https://www.hirano-web.com/page-one%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%97%E3%83%96%E3%83%A9%E3%83%B3%E3%83%89" target="_blank" class="btn-ghost">Brand Story</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        PAGE-ONE CRAFTER'S
+        <span>by HIRANO Co., Ltd. &mdash; Asahi, Chiba, Japan</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://page01.stores.jp/" target="_blank">Store</a>
+        <a href="https://www.hirano-web.com/" target="_blank">Hirano</a>
+        <a href="#top">Top</a>
+      </div>
+    </div>
+    <div class="footer-copy">&copy; PAGE-ONE CRAFTER'S All Rights Reserved.</div>
+  </footer>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script>
+    // Scroll Reveal
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -60px 0px' });
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    // Nav Scroll
+    let lastScroll = 0;
+    window.addEventListener('scroll', () => {
+      const nav = document.getElementById('nav');
+      nav.classList.toggle('scrolled', window.scrollY > 80);
+    });
+
+    // Particles (fire embers)
+    const particleContainer = document.getElementById('particles');
+    for (let i = 0; i < 30; i++) {
+      const p = document.createElement('div');
+      p.className = 'hero-particle';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.top = (60 + Math.random() * 40) + '%';
+      p.style.animationDuration = (4 + Math.random() * 6) + 's';
+      p.style.animationDelay = Math.random() * 6 + 's';
+      p.style.width = (1 + Math.random() * 2) + 'px';
+      p.style.height = p.style.width;
+      particleContainer.appendChild(p);
+    }
+
+    // Parallax on scroll
+    window.addEventListener('scroll', () => {
+      const scrollY = window.scrollY;
+      document.querySelectorAll('.parallax-divider-bg').forEach(bg => {
+        const rect = bg.parentElement.getBoundingClientRect();
+        const speed = 0.3;
+        bg.style.transform = `translateY(${rect.top * speed}px)`;
+      });
+    });
+
+    // Horizontal scroll drag
+    const scrollContainer = document.querySelector('.features-scroll');
+    let isDown = false, startX, scrollLeft;
+    scrollContainer.addEventListener('mousedown', e => {
+      isDown = true;
+      scrollContainer.style.cursor = 'grabbing';
+      startX = e.pageX - scrollContainer.offsetLeft;
+      scrollLeft = scrollContainer.scrollLeft;
+    });
+    scrollContainer.addEventListener('mouseleave', () => { isDown = false; scrollContainer.style.cursor = ''; });
+    scrollContainer.addEventListener('mouseup', () => { isDown = false; scrollContainer.style.cursor = ''; });
+    scrollContainer.addEventListener('mousemove', e => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - scrollContainer.offsetLeft;
+      scrollContainer.scrollLeft = scrollLeft - (x - startX) * 1.5;
+    });
+  </script>
+
+</body>
+</html>

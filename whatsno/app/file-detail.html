@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1E3A5F">
+  <title>ファイル詳細 | What'sNo</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="apple-touch-icon" href="../assets/icons/icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/wn-app.css">
+  <link rel="stylesheet" href="../assets/css/wn-sheeteye.css">
+  <style>
+    body { background: var(--bg); }
+    /* SheetEye埋め込み用スコープ調整 */
+    #sheetEyeContainer { background: #1e1e2e; color: #cdd6f4; }
+    #sheetEyeContainer #toolbar { position: static; }
+    #sheetEyeContainer #main { flex: 1; overflow: hidden; position: relative; min-height: 0; }
+    #sheetEyeContainer #canvasWrap { width: 100%; height: 100%; position: relative; overflow: hidden; }
+    #sheetEyeContainer #cadCanvas { image-rendering: pixelated; opacity: 1 !important; filter: none !important; }
+    #sheetEyeContainer #settingsPanel { position: absolute; top: 0; right: 0; z-index: 100; }
+
+    /* ── 全画面ラッパー（サイドバーなし） ── */
+    .detail-wrap {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* トップバー */
+    .detail-topbar {
+      height: 52px;
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .detail-topbar-back {
+      color: var(--muted); font-size: 13px;
+      display: flex; align-items: center; gap: 6px;
+      white-space: nowrap; text-decoration: none;
+    }
+    .detail-topbar-back:hover { color: var(--primary); }
+    .detail-topbar-title {
+      font-size: 14px; font-weight: 700; color: var(--primary);
+      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      margin: 0 8px; cursor: pointer; border-radius: 4px; padding: 2px 4px;
+    }
+    .detail-topbar-title:hover { background: rgba(99,91,255,.08); }
+    .detail-topbar-title-input {
+      flex: 1; font-size: 14px; font-weight: 700; color: var(--primary);
+      margin: 0 8px; padding: 2px 8px; border: 1.5px solid var(--accent);
+      border-radius: 6px; outline: none; min-width: 0; background: var(--white);
+    }
+    .detail-topbar-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+
+    /* メイン2カラム */
+    .detail-body {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* 左：プレビュー + 下部情報 */
+    .detail-left {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    /* プレビューエリア：固定高さで大きく表示 */
+    .preview-area {
+      background: #2a2a2a;
+      flex-shrink: 0;
+      height: calc(100vh - 52px - 60px);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    /* PDF表示時は背景を白に切り替える（JSで付与） */
+    .preview-area.is-pdf {
+      background: #525659;
+      padding: 0;
+    }
+    .preview-area img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    /* PDF・Office iframe：エリア全体を使う */
+    .preview-area iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    /* 下部情報 */
+    .detail-info-section {
+      flex-shrink: 0;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+    /* placeholder は中央寄せ */
+    .preview-placeholder {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px; color: rgba(255,255,255,.45);
+      width: 100%; height: 100%;
+    }
+    .preview-placeholder i { font-size: 80px; opacity: .45; }
+    .preview-placeholder p { font-size: 14px; }
+    .preview-badge {
+      position: absolute; top: 14px; right: 14px;
+      background: rgba(255,255,255,.12); backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,.15);
+      color: #fff; font-size: 12px; font-weight: 700;
+      padding: 4px 12px; border-radius: 20px;
+    }
+
+    /* 下部情報カード群（横並び） */
+    .detail-info-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    /* 右パネル */
+    .detail-right {
+      width: 340px;
+      flex-shrink: 0;
+      border-left: 1px solid var(--border);
+      background: var(--white);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* タブヘッダー */
+    .right-panel-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .right-panel-tab {
+      flex: 1;
+      padding: 12px 8px;
+      font-size: 13px; font-weight: 700;
+      color: var(--muted);
+      background: none; border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      border-bottom: 2.5px solid transparent;
+      transition: color .15s, border-color .15s;
+      font-family: inherit;
+    }
+    .right-panel-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .right-panel-tab:hover:not(.active) { color: var(--text); }
+    .tab-badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px; font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 10px;
+      line-height: 1.4;
+      display: none;
+    }
+    .tab-badge.show { display: inline-block; }
+
+    /* タブコンテンツ */
+    .right-panel-pane {
+      display: none;
+      flex: 1;
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .right-panel-pane.active { display: flex; }
+
+    /* コメントペイン */
+    .comment-panel-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .comment-panel-input {
+      border-top: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+    .comment-panel-input textarea {
+      flex: 1; border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 9px 12px; font-size: 13px; resize: none; outline: none;
+      min-height: 60px; max-height: 120px;
+      transition: border-color var(--trans);
+      font-family: inherit;
+    }
+    .comment-panel-input textarea:focus { border-color: var(--accent); }
+
+    /* コメント */
+    .comment-item { display: flex; gap: 10px; }
+    .comment-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 12px; color: #fff;
+      flex-shrink: 0; background: var(--accent);
+    }
+    .comment-body-wrap { flex: 1; min-width: 0; }
+    .comment-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .comment-user { font-size: 12px; font-weight: 700; color: var(--primary); }
+    .comment-date { font-size: 11px; color: var(--muted); margin-left: auto; }
+    .comment-text {
+      background: var(--bg); border-radius: 0 8px 8px 8px;
+      padding: 8px 12px; font-size: 13px; line-height: 1.65; color: var(--text);
+      word-break: break-word;
+    }
+
+    /* サイドカード（下部用） */
+    .side-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .side-card-header {
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px; font-weight: 700; color: var(--primary);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .side-card-body { padding: 12px 16px; }
+
+    /* 情報行 */
+    .info-row {
+      display: flex; justify-content: space-between;
+      align-items: baseline; font-size: 12px;
+      padding: 5px 0; border-bottom: 1px solid var(--border);
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: var(--muted); flex-shrink: 0; }
+    .info-value { font-weight: 600; color: var(--text); text-align: right; word-break: break-all; max-width: 60%; }
+
+    /* バージョン履歴 */
+    .version-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border-radius: 0;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      text-decoration: none;
+      transition: background .15s;
+    }
+    .version-item:last-child { border-bottom: none; }
+    .version-item.current {
+      border: 1.5px solid var(--accent) !important;
+      border-radius: 6px !important;
+      background: rgba(33,150,243,.06);
+      margin-bottom: 4px;
+    }
+    .version-item:not(.current):hover { background: var(--bg); }
+    .version-badge { display: none; }
+    .version-info { min-width: 0; }
+    .version-info .name {
+      display: flex; align-items: baseline; gap: 4px;
+      font-weight: 600; font-size: 12px; color: var(--text);
+    }
+    .version-info .name .ver-label {
+      font-size: 11px; font-weight: 700; color: var(--accent);
+      flex-shrink: 0; white-space: nowrap;
+    }
+    .version-info .name .ver-filename {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+    }
+    .version-info .meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .version-actions {
+      display: flex; gap: 4px; align-items: center; flex-shrink: 0;
+    }
+
+    /* 類似ファイル */
+    .similar-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 20px;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .15s;
+      border-bottom: 1px solid var(--border);
+    }
+    .similar-item:last-child { border-bottom: none; }
+    .similar-item:hover { background: var(--bg); }
+    .similar-item .name {
+      font-weight: 600; font-size: 12px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      color: var(--text);
+    }
+    .similar-item .meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .similar-item .arrow { color: var(--muted); font-size: 11px; text-align: center; }
+
+    /* 関連ファイルパネル */
+    .relation-panel-body {
+      flex: 1; overflow-y: auto;
+      padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .relation-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .15s, border-color .15s;
+    }
+    .relation-item:hover { background: var(--bg); border-color: var(--accent); }
+    .relation-item-icon {
+      width: 32px; height: 32px; border-radius: 6px;
+      background: rgba(33,150,243,.1);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent); font-size: 14px; flex-shrink: 0;
+    }
+    .relation-item-body { flex: 1; min-width: 0; }
+    .relation-item-name {
+      font-size: 12px; font-weight: 700; color: var(--text);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .relation-item-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .relation-item-del {
+      background: none; border: none; padding: 4px 6px;
+      color: var(--muted); cursor: pointer; border-radius: 4px;
+      font-size: 12px; flex-shrink: 0;
+      transition: color .15s, background .15s;
+    }
+    .relation-item-del:hover { color: var(--red); background: rgba(229,62,62,.08); }
+
+    .relation-suggest-section { margin-top: 4px; }
+    .relation-suggest-label {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      display: flex; align-items: center; gap: 5px;
+      padding: 6px 0 8px;
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+    }
+    .relation-suggest-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      margin-bottom: 6px;
+      transition: border-color .15s;
+    }
+    .relation-suggest-item:hover { border-color: var(--accent); }
+    .relation-suggest-body { flex: 1; min-width: 0; }
+    .relation-suggest-name {
+      font-size: 12px; font-weight: 600; color: var(--text);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .relation-suggest-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .relation-suggest-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+    .relation-panel-footer {
+      border-top: 1px solid var(--border);
+      padding: 10px 14px;
+      flex-shrink: 0;
+    }
+
+    /* 関連ファイル追加モーダル */
+    .relation-search-input {
+      width: 100%; padding: 9px 12px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 13px; outline: none; font-family: inherit;
+      transition: border-color .2s;
+    }
+    .relation-search-input:focus { border-color: var(--accent); }
+    .relation-search-results {
+      margin-top: 10px;
+      max-height: 260px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .relation-search-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 6px; cursor: pointer;
+      transition: background .15s;
+    }
+    .relation-search-row:hover { background: var(--bg); }
+    .relation-search-row-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .relation-search-row-meta { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+    /* QRモーダル */
+    .qr-modal-inner { text-align: center; }
+
+    /* レスポンシブ */
+    @media (max-width: 768px) {
+      .detail-body { flex-direction: column; }
+      .detail-right {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        min-height: 300px;
+      }
+      .preview-area { height: 60vw; min-height: 280px; }
+    }
+  </style>
+</head>
+<body>
+<div class="detail-wrap">
+
+  <!-- トップバー -->
+  <div class="detail-topbar">
+    <a href="dashboard.html" class="detail-topbar-back">
+      <i class="fa-solid fa-chevron-left"></i> 一覧に戻る
+    </a>
+    <div class="detail-topbar-title" id="topFileName" title="クリックしてファイル名を変更"></div>
+    <input type="text" id="topFileNameInput" class="detail-topbar-title-input" style="display:none;" />
+    <!-- 承認バッジ・バージョン -->
+    <span id="fileVersionBadge" style="display:none;flex-shrink:0;" class="file-card-version"></span>
+    <span id="approvalBadge" style="flex-shrink:0;"></span>
+    <div style="display:flex;gap:6px;flex-shrink:0;" id="approvalActions"></div>
+    <div class="detail-topbar-actions">
+      <button class="btn btn-ghost btn-sm" id="addTagBtn">
+        <i class="fa-solid fa-tag"></i> <span class="btn-label">タグ</span>
+      </button>
+      <button class="like-btn" id="likeBtn">
+        <i class="fa-regular fa-heart"></i>
+        <span id="likeCount">0</span>
+      </button>
+      <button class="btn btn-outline btn-sm" id="downloadBtn">
+        <i class="fa-solid fa-download"></i> <span class="btn-label">DL</span>
+      </button>
+      <button class="btn btn-outline btn-sm" id="qrBtn">
+        <i class="fa-solid fa-qrcode"></i> <span class="btn-label">QR</span>
+      </button>
+      <button class="btn btn-outline btn-sm" id="annotateBtn" style="display:none;">
+        <i class="fa-solid fa-pen-to-square"></i> <span class="btn-label">注釈</span>
+      </button>
+      <button class="btn btn-outline btn-sm" id="previewBtn">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> <span class="btn-label">別タブ</span>
+      </button>
+      <button class="btn btn-outline btn-sm" id="deleteBtn" style="color:var(--red);border-color:var(--red);">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+    </div>
+  </div>
+
+
+  <!-- メイン2カラム -->
+  <div class="detail-body">
+
+    <!-- 左：プレビュー大 + 下部情報 -->
+    <div class="detail-left">
+
+      <!-- プレビュー（大） -->
+      <div class="preview-area" id="previewArea">
+        <div class="preview-placeholder" id="previewPlaceholder">
+          <i class="fa-solid fa-file" id="previewIcon"></i>
+          <p id="previewHint">プレビュー読み込み中…</p>
+        </div>
+        <!-- PDF用Canvasコンテナ -->
+        <div id="pdfContainer" style="display:none;width:100%;height:100%;overflow:auto;background:#525659;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;">
+          <canvas id="pdfCanvas" style="display:block;box-shadow:0 4px 16px rgba(0,0,0,.5);flex-shrink:0;"></canvas>
+        </div>
+        <!-- 画像・動画・Office用 -->
+        <iframe id="previewFrame" style="display:none;width:100%;height:100%;border:none;"></iframe>
+        <!-- SheetEye DXFビューア（埋め込み） -->
+        <div id="sheetEyeContainer" style="display:none;width:100%;height:100%;flex-direction:column;overflow:hidden;">
+          <div id="toolbar">
+            <span class="brand">SheetEye</span>
+            <label for="seFileInput" title="DXFファイルを開く">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>開く
+            </label>
+            <input type="file" id="seFileInput" accept=".dxf">
+            <button id="btnExportDxf" title="DXFエクスポート">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>保存
+            </button>
+            <button id="btnPrint" title="印刷 (範囲指定)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>印刷
+            </button>
+            <div class="sep"></div>
+            <div class="group">
+              <button id="btnUndo" class="icon-btn" title="元に戻す (Ctrl+Z)" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              </button>
+              <button id="btnRedo" class="icon-btn" title="やり直し (Ctrl+Y)" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/></svg>
+              </button>
+            </div>
+            <div class="sep"></div>
+            <div class="group">
+              <button id="btnFitAll" class="icon-btn" title="全体表示 (F)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9V5a2 2 0 0 1 2-2h4M21 9V5a2 2 0 0 0-2-2h-4M3 15v4a2 2 0 0 0 2 2h4M21 15v4a2 2 0 0 1-2 2h-4"/></svg>
+              </button>
+              <button id="btnZoomIn" class="icon-btn" title="拡大">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+              </button>
+              <button id="btnZoomOut" class="icon-btn" title="縮小">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+              </button>
+            </div>
+            <div class="sep"></div>
+            <div class="group" title="図面縮尺を実寸(1:1)に変換">
+              <input type="text" id="scaleInput" placeholder="縮尺 例:1:4">
+              <button id="btnScaleConvert" title="入力した縮尺の図面を実寸(1:1)に変換">→1:1変換</button>
+            </div>
+            <div class="sep"></div>
+            <div class="group">
+              <button id="btnSmartDim" title="スマート寸法 (D)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="18" x2="20" y2="18"/><line x1="4" y1="15" x2="4" y2="21"/><line x1="20" y1="15" x2="20" y2="21"/></svg>スマート寸法
+              </button>
+              <button id="btnMeasure" title="直線距離 (M)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="20" y2="4"/><circle cx="4" cy="20" r="1.5"/><circle cx="20" cy="4" r="1.5"/></svg>直線距離
+              </button>
+            </div>
+            <div class="sep"></div>
+            <div class="group">
+              <button id="btnDrawLine" title="直線 (L)">直線</button>
+              <button id="btnDrawRect" title="矩形 (R)">矩形</button>
+              <button id="btnDrawCircle" title="円 (C)">円</button>
+              <button id="btnConstruction" title="作図線 (X)">作図線</button>
+              <button id="btnText" title="文字 (T)">文字</button>
+              <button id="btnBoxDelete" title="範囲削除: 矩形内のエンティティを削除">範囲削除</button>
+              <button id="btnZoomBox" title="範囲拡大: 矩形で囲んだ範囲に拡大 (Z)">範囲拡大</button>
+            </div>
+            <div class="sep"></div>
+            <div class="group">
+              <button id="btnToggleDim" title="DXF寸法 表示/非表示" class="active">DXF寸法</button>
+              <button id="btnToggleAnn" title="計測寸法 表示/非表示" class="active">計測寸法</button>
+            </div>
+            <div class="spacer"></div>
+            <button id="btnSettings" class="icon-btn" title="表示・寸法スタイル設定">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+          </div>
+          <div id="settingsPanel">
+            <h4>表示</h4>
+            <div class="row"><label for="btnGrid">グリッド</label><button id="btnGrid" title="グリッド切替 (G)" class="active">Grid</button></div>
+            <div class="row"><label for="btnSnap">スナップ</label><button id="btnSnap" title="スナップ切替 (S)" class="active">Snap</button></div>
+            <div class="row"><label for="unitSelect">単位</label><select id="unitSelect"><option value="mm">mm</option><option value="cm">cm</option><option value="m">m</option><option value="inch">inch</option></select></div>
+            <h4 style="margin-top:10px;">寸法スタイル</h4>
+            <div class="row"><label for="setSizeMultiplier">寸法の大きさ</label><input type="range" id="setSizeMultiplier" min="0.2" max="3.0" step="0.1"><span class="val" id="setSizeMultiplierVal"></span></div>
+            <div class="row"><label for="setShowUnit">単位を表示</label><input type="checkbox" id="setShowUnit" style="width:auto;cursor:pointer;"></div>
+            <div class="row"><label for="setFontSize">文字サイズ(基準)</label><input type="range" id="setFontSize" min="5" max="32" step="1"><span class="val" id="setFontSizeVal"></span></div>
+            <div class="row"><label for="setArrowSize">矢印サイズ(基準)</label><input type="range" id="setArrowSize" min="2" max="20" step="1"><span class="val" id="setArrowSizeVal"></span></div>
+            <div class="row"><label for="setLineWidth">線の太さ</label><input type="range" id="setLineWidth" min="0.5" max="5" step="0.5"><span class="val" id="setLineWidthVal"></span></div>
+            <div class="row"><label for="setDecimals">小数桁数</label><input type="number" id="setDecimals" min="0" max="5" step="1"></div>
+            <div class="row"><label for="setTextColor">文字色</label><input type="color" id="setTextColor"></div>
+            <div class="row"><label for="setLineColor">線・矢印色</label><input type="color" id="setLineColor"></div>
+            <div class="row"><label for="setBgAlpha">文字背景の不透明度</label><input type="range" id="setBgAlpha" min="0" max="1" step="0.05"><span class="val" id="setBgAlphaVal"></span></div>
+            <button class="resetBtn" id="setReset">デフォルトに戻す</button>
+          </div>
+          <div id="main">
+            <div id="canvasWrap">
+              <canvas id="cadCanvas"></canvas>
+              <div id="coords">X: 0.00 Y: 0.00</div>
+              <div id="infoPanel" style="display:none;">
+                <h3 id="infoPanelTitle">Entity Info</h3>
+                <div id="infoPanelContent"></div>
+              </div>
+              <div id="drawMode"></div>
+              <div id="dropOverlay">DXFファイルをドロップしてください</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 下部情報カード群（横並び） -->
+      <div class="detail-info-section">
+      <div class="detail-info-row">
+
+        <!-- ファイル情報 -->
+        <div class="side-card">
+          <div class="side-card-header">
+            <i class="fa-solid fa-circle-info"></i> ファイル情報
+          </div>
+          <div class="side-card-body">
+            <div id="fileInfo">
+              <!-- JS で描画 -->
+            </div>
+          </div>
+        </div>
+
+        <!-- バージョン履歴 -->
+        <div class="side-card">
+          <div class="side-card-header">
+            <i class="fa-solid fa-clock-rotate-left"></i> バージョン履歴
+          </div>
+          <div class="side-card-body" style="padding:8px 16px;">
+            <div id="versionList">
+              <!-- JS で描画 -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 承認ワークフロー -->
+        <div class="side-card" id="approvalCard">
+          <div class="side-card-header">
+            <i class="fa-solid fa-circle-check"></i> 承認ワークフロー
+          </div>
+          <div class="side-card-body" id="approvalCardBody">
+            <!-- JSで描画 -->
+          </div>
+        </div>
+
+        <!-- AI要約 -->
+        <div class="side-card" id="aiDescCard" style="display:none;">
+          <div class="side-card-header">
+            <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--accent);"></i> AI要約
+          </div>
+          <div class="side-card-body">
+            <p id="aiDescText" style="font-size:12px;line-height:1.7;color:var(--text);margin:0;"></p>
+          </div>
+        </div>
+
+        <!-- ファイル変換 -->
+        <div class="side-card" id="convertCard" style="display:none;">
+          <div class="side-card-header">
+            <i class="fa-solid fa-rotate" style="color:var(--accent);"></i> ファイル変換
+          </div>
+          <div class="side-card-body">
+            <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">変換先フォーマットを選んでダウンロード</p>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+              <select id="convertTarget" class="form-input" style="flex:1;padding:6px 10px;font-size:12px;">
+              </select>
+              <select id="convertQuality" class="form-input" style="width:80px;padding:6px 8px;font-size:12px;display:none;">
+                <option value="0.95">高品質</option>
+                <option value="0.80" selected>標準</option>
+                <option value="0.60">軽量</option>
+              </select>
+            </div>
+            <!-- PDF→PNG ページ指定 -->
+            <div id="convertPageWrap" style="display:none;margin-bottom:10px;">
+              <label style="font-size:11px;color:var(--muted);">ページ範囲</label>
+              <div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+                <label style="font-size:12px;display:flex;align-items:center;gap:4px;">
+                  <input type="radio" name="pageRange" value="all" checked> 全ページ（ZIP）
+                </label>
+                <label style="font-size:12px;display:flex;align-items:center;gap:4px;">
+                  <input type="radio" name="pageRange" value="single"> ページ指定
+                </label>
+                <input type="number" id="convertPageNum" min="1" value="1"
+                  style="width:56px;padding:4px 6px;font-size:12px;border:1.5px solid var(--border);border-radius:4px;display:none;">
+              </div>
+            </div>
+            <!-- Excel シート選択 -->
+            <div id="convertSheetWrap" style="display:none;margin-bottom:10px;">
+              <label style="font-size:11px;color:var(--muted);">シート</label>
+              <select id="convertSheet" class="form-input" style="width:100%;padding:6px 10px;font-size:12px;margin-top:4px;">
+              </select>
+            </div>
+            <!-- PDF分割オプション -->
+            <div id="splitWrap" style="display:none;margin-bottom:10px;">
+              <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px;">分割方法</label>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="radio" name="splitMode" value="each" checked>
+                  <span>1ページずつ分割（ZIP）</span>
+                </label>
+                <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="radio" name="splitMode" value="range">
+                  <span>ページ範囲指定</span>
+                </label>
+              </div>
+              <!-- 範囲指定入力 -->
+              <div id="splitRangeWrap" style="display:none;margin-top:8px;">
+                <p style="font-size:11px;color:var(--muted);margin-bottom:4px;">
+                  範囲をカンマ区切りで入力（例: <code style="background:var(--bg);padding:1px 4px;border-radius:3px;">1-3, 5, 7-9</code>）
+                </p>
+                <p style="font-size:11px;color:var(--muted);margin-bottom:6px;">各範囲が1つのPDFになります</p>
+                <textarea id="splitRangeInput" class="form-input"
+                  placeholder="例: 1-3, 5, 7-9"
+                  style="width:100%;padding:6px 10px;font-size:12px;resize:none;min-height:56px;"></textarea>
+                <p id="splitRangePreview" style="font-size:11px;color:var(--accent);margin-top:4px;"></p>
+              </div>
+              <p id="splitPageCount" style="font-size:11px;color:var(--muted);margin-top:6px;"></p>
+            </div>
+            <div id="convertProgress" style="display:none;margin-bottom:8px;">
+              <div style="background:var(--border);border-radius:20px;height:6px;overflow:hidden;">
+                <div id="convertProgressBar" style="height:100%;background:var(--accent);border-radius:20px;width:0%;transition:width .3s;"></div>
+              </div>
+              <p id="convertProgressMsg" style="font-size:11px;color:var(--muted);margin-top:4px;"></p>
+            </div>
+            <button class="btn btn-accent btn-sm" id="convertBtn" style="width:100%;font-size:12px;">
+              <i class="fa-solid fa-rotate"></i> 変換してダウンロード
+            </button>
+          </div>
+        </div>
+
+        <!-- 類似ファイル -->
+        <div class="side-card" id="similarCard" style="display:none;">
+          <div class="side-card-header">
+            <i class="fa-solid fa-diagram-project" style="color:var(--accent);"></i> 類似ファイル
+          </div>
+          <div class="side-card-body" style="padding:8px 16px;" id="similarList"></div>
+        </div>
+
+        <!-- タグ & QR -->
+        <div style="display:flex;flex-direction:column;gap:12px;">
+
+          <!-- タグ -->
+          <div class="side-card">
+            <div class="side-card-header">
+              <i class="fa-solid fa-tags"></i> タグ
+            </div>
+            <div class="side-card-body">
+              <div class="tag-list" id="tagList">
+                <span style="font-size:13px;color:var(--muted);">タグなし</span>
+              </div>
+              <div id="tagAddArea" style="display:none;margin-top:10px;gap:6px;" class="flex-row">
+                <input type="text" id="tagInput" class="form-input" placeholder="タグを入力…" style="flex:1;padding:6px 10px;font-size:12px;">
+                <button class="btn btn-accent btn-sm" id="tagSubmitBtn">追加</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- QR -->
+          <div class="side-card">
+            <div class="side-card-header">
+              <i class="fa-solid fa-qrcode"></i> QRリンク
+            </div>
+            <div class="side-card-body" style="text-align:center;">
+              <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">スマホでスキャンして即表示</p>
+              <button class="btn btn-outline btn-sm" id="qrBtn2" style="width:100%;font-size:12px;">
+                <i class="fa-solid fa-qrcode"></i> 発行・表示
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /detail-info-row -->
+      </div><!-- /detail-info-section -->
+    </div><!-- /detail-left -->
+
+    <!-- 右：コメント＆関連ファイルパネル -->
+    <div class="detail-right">
+
+      <!-- タブヘッダー -->
+      <div class="right-panel-tabs">
+        <button class="right-panel-tab active" id="tabCommentBtn" data-tab="comment">
+          <i class="fa-solid fa-comments"></i> コメント
+          <span class="tab-badge" id="commentBadge"></span>
+        </button>
+        <button class="right-panel-tab" id="tabRelationBtn" data-tab="relation">
+          <i class="fa-solid fa-link"></i> 関連
+          <span class="tab-badge" id="relationBadge"></span>
+        </button>
+      </div>
+
+      <!-- コメントペイン -->
+      <div class="right-panel-pane active" id="paneComment">
+        <div class="comment-panel-list" id="commentList">
+          <!-- JS で描画 -->
+        </div>
+        <div class="comment-panel-input">
+          <textarea id="commentInput" placeholder="コメントを入力…（Ctrl+Enter で送信）"></textarea>
+          <button class="btn btn-accent btn-sm" id="commentSubmitBtn">
+            <i class="fa-solid fa-paper-plane"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 関連ファイルペイン -->
+      <div class="right-panel-pane" id="paneRelation">
+        <div class="relation-panel-body" id="relationList">
+          <!-- JS で描画 -->
+        </div>
+        <div class="relation-panel-footer">
+          <button class="btn btn-outline btn-sm" style="width:100%;" id="addRelationBtn">
+            <i class="fa-solid fa-plus"></i> 関連ファイルを追加
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /detail-right -->
+
+  </div><!-- /detail-body -->
+</div><!-- /detail-wrap -->
+
+<!-- QRコードモーダル -->
+<div class="modal-overlay hidden" id="qrModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-qrcode" style="color:var(--accent);"></i> QRコード</span>
+      <button class="modal-close" id="qrModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="qr-modal-inner">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;" id="qrFileName"></p>
+      <div class="qr-wrap" id="qrWrap" style="display:flex;flex-direction:column;align-items:center;gap:12px;"></div>
+      <p class="qr-url" id="qrUrl" style="font-size:11px;color:var(--muted);word-break:break-all;margin-top:8px;"></p>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
+        <button class="btn btn-outline btn-sm" id="qrDownloadBtn">
+          <i class="fa-solid fa-download"></i> 画像保存
+        </button>
+        <button class="btn btn-outline btn-sm" id="qrPrintBtn">
+          <i class="fa-solid fa-print"></i> 印刷
+        </button>
+        <button class="btn btn-accent btn-sm" id="qrCopyBtn">
+          <i class="fa-solid fa-copy"></i> URLコピー
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 関連ファイル追加モーダル -->
+<div class="modal-overlay hidden" id="relationModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-link" style="color:var(--accent);"></i> 関連ファイルを追加</span>
+      <button class="modal-close" id="relationModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="padding:0 20px 20px;">
+      <input type="text" class="relation-search-input" id="relationSearchInput" placeholder="ファイル名で検索…" autocomplete="off">
+      <div class="relation-search-results" id="relationSearchResults">
+        <p style="font-size:13px;color:var(--muted);text-align:center;padding:20px 0;">ファイル名を入力してください</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- スマホ ボトムナビ -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <a href="dashboard.html" class="bottom-nav-item">
+      <i class="fa-solid fa-house"></i><span>ホーム</span>
+    </a>
+    <div class="bottom-nav-item" id="bnLike">
+      <i class="fa-regular fa-heart"></i><span>いいね</span>
+    </div>
+    <div class="bottom-nav-item" id="bnDownload">
+      <i class="fa-solid fa-download"></i><span>DL</span>
+    </div>
+    <div class="bottom-nav-item" id="bnQr">
+      <i class="fa-solid fa-qrcode"></i><span>QR</span>
+    </div>
+  </div>
+</nav>
+
+<!-- 差し戻しコメントモーダル -->
+<div class="modal-overlay hidden" id="rejectModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-rotate-left" style="color:#C62828;"></i> 差し戻し</span>
+      <button class="modal-close" id="rejectModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="padding:4px 0 12px;">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">差し戻しの理由を入力してください（任意）</p>
+      <textarea id="rejectComment" rows="3" placeholder="例：寸法の記載が不足しています"
+        style="width:100%;padding:8px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;resize:vertical;box-sizing:border-box;"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="rejectCancelBtn">キャンセル</button>
+      <button class="btn" id="rejectSubmitBtn" style="background:#C62828;color:#fff;">
+        <i class="fa-solid fa-rotate-left"></i> 差し戻す
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- QRコード生成ライブラリ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<!-- ファイル変換ライブラリ -->
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<!-- SheetEye DXFビューア（埋め込み） -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="../../solid/assets/js/auth.js?v=6"></script>
+<script src="../assets/js/wn-api.js?v=7"></script>
+<script src="../assets/js/wn-sheeteye.js?v=1"></script>
+<script src="../assets/js/pages/wn-file-detail.js?v=14"></script>
+<script src="../assets/js/pwa.js?v=5"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 案J: Huge Initial — 巨大な頭文字Rをウォーターマークに、その上にテキスト -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 680" width="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap');
+    </style>
+  </defs>
+  <rect width="1920" height="680" fill="#fff"/>
+
+  <!-- 巨大ウォーターマーク "rB" -->
+  <text x="960" y="700" font-family="'Space Grotesk',sans-serif" font-size="900" font-weight="700" fill="#f4f4f4" text-anchor="middle" dominant-baseline="auto">r</text>
+
+  <!-- 上部細線 -->
+  <line x1="120" y1="80" x2="1800" y2="80" stroke="#e0e0e0" stroke-width="1"/>
+
+  <!-- ブランド小文字 -->
+  <text x="120" y="60" font-family="'JetBrains Mono',monospace" font-size="13" fill="#bbb" letter-spacing="4">ranoBlog</text>
+  <text x="1800" y="60" font-family="'JetBrains Mono',monospace" font-size="13" fill="#ccc" text-anchor="end" letter-spacing="3">2026</text>
+
+  <!-- メイン前面テキスト -->
+  <text x="120" y="310" font-family="'Space Grotesk',sans-serif" font-size="150" font-weight="700" fill="#0a0a0a" letter-spacing="-4">Observe.</text>
+  <text x="120" y="480" font-family="'Space Grotesk',sans-serif" font-size="150" font-weight="300" fill="#0a0a0a" letter-spacing="-4">Build. Share.</text>
+
+  <!-- 下部細線 + カテゴリ -->
+  <line x1="120" y1="560" x2="1800" y2="560" stroke="#e0e0e0" stroke-width="1"/>
+  <text x="120" y="610" font-family="'JetBrains Mono',monospace" font-size="13" fill="#ccc" letter-spacing="5">INVEST  ·  AI  ·  WEB  ·  STEEL  ·  CLAUDE CODE</text>
+</svg>

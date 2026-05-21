@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><title>Upload Test</title></head>
+<body>
+<h2>アップロードテスト</h2>
+<p id="status">待機中...</p>
+<input type="file" id="fileInput" accept=".pdf,.dxf">
+<br><br>
+<button onclick="runTest()">テスト実行</button>
+<pre id="log" style="background:#f5f5f5;padding:12px;margin-top:16px;white-space:pre-wrap;word-break:break-all;"></pre>
+
+<script>
+const API_BASE = 'http://127.0.0.1:8000/api';
+const TOKEN = localStorage.getItem('space_token');
+
+function log(msg) {
+  document.getElementById('log').textContent += msg + '\n';
+  console.log(msg);
+}
+
+async function runTest() {
+  document.getElementById('log').textContent = '';
+  const fileInput = document.getElementById('fileInput');
+
+  log('TOKEN: ' + (TOKEN ? TOKEN.slice(0,20)+'...' : 'なし（要ログイン）'));
+
+  // Step1: プロジェクト作成
+  log('\n--- Step1: プロジェクト作成 ---');
+  let projId;
+  try {
+    const res = await fetch(API_BASE + '/projects', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ' + TOKEN,
+      },
+      body: JSON.stringify({ title: 'テスト発注', deadline_requested: '2025-07-01', priority: 'normal' }),
+    });
+    const text = await res.text();
+    log('STATUS: ' + res.status);
+    log('BODY: ' + text);
+    if (!res.ok) { log('ERROR: プロジェクト作成失敗'); return; }
+    projId = JSON.parse(text).project.id;
+    log('PROJECT_ID: ' + projId);
+  } catch(e) {
+    log('EXCEPTION: ' + e.message);
+    return;
+  }
+
+  // Step2: ファイルアップロード（ファイルが選択されている場合）
+  if (fileInput.files.length > 0) {
+    log('\n--- Step2: ファイルアップロード ---');
+    const file = fileInput.files[0];
+    log('FILE: ' + file.name + ' (' + file.size + ' bytes, ' + file.type + ')');
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('file_type', 'drawing_pdf');
+
+    try {
+      const res = await fetch(API_BASE + '/projects/' + projId + '/files', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer ' + TOKEN,
+          // Content-Type は設定しない（FormDataの場合ブラウザが自動設定）
+        },
+        body: fd,
+      });
+      const text = await res.text();
+      log('STATUS: ' + res.status);
+      log('BODY: ' + text);
+    } catch(e) {
+      log('EXCEPTION: ' + e.message);
+    }
+  } else {
+    log('\n（ファイル未選択 - ファイルアップロードスキップ）');
+    log('SUCCESS: プロジェクトのみ作成完了');
+  }
+}
+</script>
+</body>
+</html>

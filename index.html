@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>じゃんけんアプリ</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 24px;
+      padding: 40px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2rem;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 32px;
+    }
+
+    .score-board {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .score-item {
+      background: #f0f0f5;
+      border-radius: 12px;
+      padding: 12px 24px;
+      min-width: 80px;
+    }
+
+    .score-item .label {
+      font-size: 0.75rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .score-item .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #333;
+    }
+
+    .battle-area {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 32px;
+      min-height: 120px;
+    }
+
+    .player-display {
+      text-align: center;
+    }
+
+    .player-display .name {
+      font-size: 0.8rem;
+      color: #888;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .hand-display {
+      font-size: 3.5rem;
+      width: 90px;
+      height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5fa;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+    }
+
+    .hand-display.shake {
+      animation: shake 0.4s ease;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateY(0); }
+      25% { transform: translateY(-12px); }
+      50% { transform: translateY(4px); }
+      75% { transform: translateY(-6px); }
+    }
+
+    .vs {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #bbb;
+    }
+
+    .result-text {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 32px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.3s;
+    }
+
+    .result-text.win { color: #22c55e; }
+    .result-text.lose { color: #ef4444; }
+    .result-text.draw { color: #f59e0b; }
+    .result-text.none { color: #ccc; }
+
+    .choice-label {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      width: 100px;
+      height: 100px;
+      border: 3px solid #e0e0e8;
+      border-radius: 20px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 2.5rem;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    .btn .btn-label {
+      font-size: 0.7rem;
+      color: #888;
+      font-family: inherit;
+    }
+
+    .btn:hover {
+      border-color: #764ba2;
+      transform: translateY(-4px);
+      box-shadow: 0 8px 20px rgba(118, 75, 162, 0.2);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn.selected {
+      border-color: #764ba2;
+      background: linear-gradient(135deg, #f3e8ff, #ede4ff);
+    }
+
+    .reset-btn {
+      background: none;
+      border: none;
+      color: #999;
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 8px 16px;
+      border-radius: 8px;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .reset-btn:hover {
+      background: #f0f0f5;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>じゃんけん</h1>
+    <p class="subtitle">手を選んでボタンを押そう!</p>
+
+    <div class="score-board">
+      <div class="score-item">
+        <div class="label">勝ち</div>
+        <div class="value" id="wins">0</div>
+      </div>
+      <div class="score-item">
+        <div class="label">負け</div>
+        <div class="value" id="losses">0</div>
+      </div>
+      <div class="score-item">
+        <div class="label">引分</div>
+        <div class="value" id="draws">0</div>
+      </div>
+    </div>
+
+    <div class="battle-area">
+      <div class="player-display">
+        <div class="name">あなた</div>
+        <div class="hand-display" id="player-hand">?</div>
+      </div>
+      <div class="vs">VS</div>
+      <div class="player-display">
+        <div class="name">コンピュータ</div>
+        <div class="hand-display" id="cpu-hand">?</div>
+      </div>
+    </div>
+
+    <div class="result-text none" id="result">手を選んでね</div>
+
+    <div class="choice-label">あなたの手を選んでください</div>
+    <div class="buttons">
+      <button class="btn" data-hand="rock" onclick="play('rock')">
+        ✊
+        <span class="btn-label">グー</span>
+      </button>
+      <button class="btn" data-hand="scissors" onclick="play('scissors')">
+        ✌️
+        <span class="btn-label">チョキ</span>
+      </button>
+      <button class="btn" data-hand="paper" onclick="play('paper')">
+        🖐️
+        <span class="btn-label">パー</span>
+      </button>
+    </div>
+
+    <button class="reset-btn" onclick="resetScore()">スコアリセット</button>
+  </div>
+
+  <script>
+    const hands = { rock: '✊', scissors: '✌️', paper: '🖐️' };
+    const names = { rock: 'グー', scissors: 'チョキ', paper: 'パー' };
+    let wins = 0, losses = 0, draws = 0;
+
+    function getResult(player, cpu) {
+      if (player === cpu) return 'draw';
+      if (
+        (player === 'rock' && cpu === 'scissors') ||
+        (player === 'scissors' && cpu === 'paper') ||
+        (player === 'paper' && cpu === 'rock')
+      ) return 'win';
+      return 'lose';
+    }
+
+    function play(playerChoice) {
+      const choices = ['rock', 'scissors', 'paper'];
+      const cpuChoice = choices[Math.floor(Math.random() * 3)];
+      const result = getResult(playerChoice, cpuChoice);
+
+      const playerHand = document.getElementById('player-hand');
+      const cpuHand = document.getElementById('cpu-hand');
+      const resultEl = document.getElementById('result');
+
+      // アニメーション
+      playerHand.classList.remove('shake');
+      cpuHand.classList.remove('shake');
+      void playerHand.offsetWidth; // reflow
+      playerHand.classList.add('shake');
+      cpuHand.classList.add('shake');
+
+      playerHand.textContent = hands[playerChoice];
+      cpuHand.textContent = hands[cpuChoice];
+
+      // ボタンのハイライト
+      document.querySelectorAll('.btn').forEach(b => b.classList.remove('selected'));
+      document.querySelector(`[data-hand="${playerChoice}"]`).classList.add('selected');
+
+      // 結果表示
+      resultEl.className = 'result-text ' + result;
+      if (result === 'win') {
+        resultEl.textContent = '🎉 あなたの勝ち!';
+        wins++;
+      } else if (result === 'lose') {
+        resultEl.textContent = '😢 あなたの負け...';
+        losses++;
+      } else {
+        resultEl.textContent = '🤝 あいこ!';
+        draws++;
+      }
+
+      document.getElementById('wins').textContent = wins;
+      document.getElementById('losses').textContent = losses;
+      document.getElementById('draws').textContent = draws;
+    }
+
+    function resetScore() {
+      wins = 0; losses = 0; draws = 0;
+      document.getElementById('wins').textContent = 0;
+      document.getElementById('losses').textContent = 0;
+      document.getElementById('draws').textContent = 0;
+      document.getElementById('player-hand').textContent = '?';
+      document.getElementById('cpu-hand').textContent = '?';
+      const resultEl = document.getElementById('result');
+      resultEl.textContent = '手を選んでね';
+      resultEl.className = 'result-text none';
+      document.querySelectorAll('.btn').forEach(b => b.classList.remove('selected'));
+    }
+  </script>
+</body>
+</html>

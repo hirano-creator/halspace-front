@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1E3A5F">
+  <title>ダッシュボード | What'sNo</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="apple-touch-icon" href="../assets/icons/icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/wn-app.css">
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <a href="dashboard.html" style="text-decoration:none;display:flex;flex-direction:column;gap:1px;">
+        <span class="sidebar-logo-title">What'sNo</span>
+        <span class="sidebar-logo-sub">by HaLSpace</span>
+      </a>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+      <a href="#" class="active" id="navAll"><i class="fa-solid fa-house"></i> ホーム</a>
+      <a href="#" id="navMine"><i class="fa-solid fa-user"></i> マイファイル</a>
+      <a href="#" id="navRecent"><i class="fa-solid fa-clock-rotate-left"></i> 最近のファイル</a>
+      <a href="#" id="navLiked"><i class="fa-solid fa-heart"></i> いいね済み</a>
+      <div class="sidebar-nav-label" style="margin-top:16px;">AI</div>
+      <a href="brain.html"><i class="fa-solid fa-circle-nodes"></i> Knowl</a>
+      <div class="sidebar-nav-label" style="margin-top:16px;">管理</div>
+      <a href="admin.html" id="adminLink" style="display:none;"><i class="fa-solid fa-gear"></i> 管理者設定</a>
+    </nav>
+    <!-- 現場用ボイス検索ボタン -->
+    <div class="sidebar-voice-area">
+      <button class="sidebar-voice-btn" id="sidebarVoiceBtn" title="音声で検索">
+        <span class="sidebar-voice-icon-wrap" id="sidebarVoiceIconWrap">
+          <i class="fa-solid fa-microphone" id="sidebarVoiceIcon"></i>
+        </span>
+        <span class="sidebar-voice-label" id="sidebarVoiceLabel">音声で検索</span>
+      </button>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div id="sidebarUser"></div>
+      <button id="pwaInstallBtn" class="btn-sidebar-logout" style="display:none;background:var(--accent);color:#fff;border-color:var(--accent);">
+        <i class="fa-solid fa-download"></i> アプリをインストール
+      </button>
+      <button class="btn-sidebar-logout" onclick="solidLogout()">
+        <i class="fa-solid fa-right-from-bracket"></i> アプリ選択に戻る
+      </button>
+    </div>
+  </aside>
+
+  <!-- メインコンテンツ -->
+  <div class="main-content">
+
+    <!-- トップバー -->
+    <div class="top-bar">
+
+      <!-- 左ゾーン: ハンバーガー・戻る・タイトル -->
+      <div class="top-bar-left">
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <button id="backBtn" class="top-bar-icon-btn" onclick="history.back()" title="戻る">
+          <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <span class="top-bar-title" id="topBarTitle">ホーム</span>
+      </div>
+
+      <!-- 中央ゾーン: 検索バー -->
+      <div class="top-bar-search">
+        <div class="search-bar" id="searchBar">
+          <i class="fa-solid fa-magnifying-glass" id="searchIcon"></i>
+          <input type="text" id="searchInput" placeholder="ファイル名・タグで検索…">
+          <button class="btn btn-ghost btn-sm" id="semanticClearBtn" title="AI検索をクリア"
+            style="display:none;padding:4px 8px;border-left:1px solid var(--border);border-radius:0;flex-shrink:0;color:var(--muted);">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+          <button class="voice-search-btn" id="voiceSearchBtn" title="音声で検索" style="display:none;">
+            <i class="fa-solid fa-microphone" id="voiceSearchIcon"></i>
+          </button>
+          <button class="btn btn-ghost btn-sm top-bar-ai-btn" id="semanticSearchBtn" title="AI自然言語検索">
+            <i class="fa-solid fa-circle-nodes" style="color:var(--accent);"></i>
+            <span class="top-bar-ai-label">AI</span>
+          </button>
+        </div>
+        <div id="semanticHint" style="display:none;font-size:11px;color:var(--accent);padding:2px 2px 0;">
+          <i class="fa-solid fa-circle-info"></i>
+          AI検索中 — ×ボタンで通常検索に戻ります
+        </div>
+      </div>
+
+      <!-- 右ゾーン: 通知・アップロード -->
+      <div class="top-bar-right">
+        <div class="notif-bell-wrap" id="notifWrap">
+          <button class="notif-bell-btn" id="notifBtn" title="通知">
+            <i class="fa-solid fa-bell"></i>
+            <span class="notif-badge" id="notifBadge" style="display:none;"></span>
+          </button>
+          <div class="notif-dropdown" id="notifDropdown">
+            <div class="notif-header">
+              <span class="notif-title">通知</span>
+              <button class="notif-read-all" id="notifReadAll">すべて既読</button>
+            </div>
+            <div class="notif-list" id="notifList">
+              <div class="notif-empty">通知はありません</div>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-accent" id="uploadBtn">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span class="upload-btn-text">アップロード</span>
+        </button>
+        <a href="admin.html" id="adminLink" class="btn btn-ghost btn-sm" style="display:none;">
+          <i class="fa-solid fa-gear"></i>
+        </a>
+      </div>
+
+    </div>
+
+    <div class="page-body">
+
+      <!-- Knowl メーターウィジェット -->
+      <div class="card dash-brain-widget" id="dashBrainWidget" style="margin-bottom:16px;padding:14px 20px;display:none;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <a href="brain.html" style="display:flex;align-items:center;gap:6px;text-decoration:none;flex-shrink:0;">
+            <span class="brain-meter-icon" style="font-size:16px;"><i class="fa-solid fa-circle-nodes"></i></span>
+            <span style="font-size:13px;font-weight:700;color:var(--primary);">Knowl</span>
+          </a>
+          <div style="flex:1;min-width:120px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <span id="dashBrainLabel" style="font-size:11px;color:var(--muted);">読み込み中…</span>
+              <span id="dashBrainRate" style="font-size:12px;font-weight:700;color:var(--accent);">—</span>
+            </div>
+            <div style="height:6px;background:var(--border);border-radius:4px;overflow:hidden;">
+              <div id="dashBrainBar" style="height:100%;width:0%;background:var(--accent);border-radius:4px;transition:width .6s;"></div>
+            </div>
+          </div>
+          <span id="dashBrainGap" style="display:none;font-size:11px;color:var(--orange,#f39c12);white-space:nowrap;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span id="dashBrainGapText"></span>の文書不足
+          </span>
+          <a href="brain.html" class="btn btn-ghost btn-sm" style="flex-shrink:0;font-size:12px;">
+            <i class="fa-solid fa-comment-dots"></i> 質問する
+          </a>
+        </div>
+      </div>
+
+      <!-- タグフィルター -->
+      <div class="card" style="margin-bottom:16px;padding:14px 20px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:700;color:var(--primary);flex-shrink:0;">
+            <i class="fa-solid fa-tag"></i> タグ
+          </span>
+          <div class="tag-list" id="tagFilterList" style="flex:1;">
+            <span style="font-size:12px;color:var(--muted);">読み込み中…</span>
+          </div>
+          <span id="tagAndBadge" style="display:none;flex-shrink:0;font-size:11px;font-weight:700;
+            color:var(--accent);background:rgba(99,91,255,.1);border-radius:20px;padding:2px 10px;white-space:nowrap;">
+            AND
+          </span>
+          <button id="tagClearBtn" style="display:none;flex-shrink:0;background:none;border:1px solid var(--border);
+            border-radius:6px;padding:3px 10px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap;">
+            <i class="fa-solid fa-xmark"></i> 全解除
+          </button>
+        </div>
+      </div>
+
+      <!-- ファイル一覧 -->
+      <div class="card" id="fileListCard" style="padding:0;overflow:hidden;">
+        <div class="card-header" style="padding:16px 20px 12px;border-bottom:1px solid var(--border);flex-wrap:nowrap;">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;">
+            <span class="card-title" id="areaTitle" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">すべてのファイル</span>
+            <span style="font-size:13px;color:var(--muted);flex-shrink:0;" id="fileCountLabel"></span>
+          </div>
+          <div class="filter-bar" style="margin:0;flex-shrink:0;flex-wrap:nowrap;">
+            <select class="form-select" id="sortFilter" style="width:auto;padding:6px 12px;font-size:13px;">
+              <option value="newest">新しい順</option>
+              <option value="oldest">古い順</option>
+              <option value="name">名前順</option>
+              <option value="size">サイズ順</option>
+            </select>
+            <div class="view-toggle">
+              <button class="view-toggle-btn active" id="viewGrid"><i class="fa-solid fa-grip"></i></button>
+              <button class="view-toggle-btn" id="viewList"><i class="fa-solid fa-list"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ローディング -->
+        <div id="loadingArea" style="padding:40px;text-align:center;color:var(--muted);display:none;">
+          <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+        </div>
+
+        <!-- 空状態 -->
+        <div id="emptyMsg" class="hidden" style="padding:48px;text-align:center;color:var(--muted);">
+          <i class="fa-solid fa-folder-open fa-3x" style="opacity:.3;margin-bottom:14px;display:block;"></i>
+          <p style="font-size:14px;">ファイルがありません</p>
+          <p style="font-size:13px;margin-top:6px;">アップロードボタンからファイルを追加してください</p>
+        </div>
+
+        <!-- グリッド表示 -->
+        <div id="gridArea" style="padding:20px;">
+          <div class="file-grid" id="fileGrid"></div>
+        </div>
+
+        <!-- リスト表示 -->
+        <div id="listArea" style="display:none;" class="file-list-view">
+          <div id="fileListRows"></div>
+        </div>
+      </div>
+
+    </div><!-- /page-body -->
+  </div><!-- /main-content -->
+</div><!-- /app-layout -->
+
+<!-- 全画面D&Dオーバーレイ -->
+<div class="drop-overlay" id="dropOverlay">
+  <div class="drop-overlay-inner">
+    <i class="fa-solid fa-cloud-arrow-up"></i>
+    <div class="drop-overlay-title">ここにドロップしてアップロード</div>
+    <div class="drop-overlay-sub">複数ファイル同時対応 · STP, STEP, STL, PDF, DXF, 画像, 動画 他</div>
+  </div>
+</div>
+
+<!-- アップロードモーダル -->
+<div class="modal-overlay hidden" id="uploadModal">
+  <div class="modal" style="max-width:540px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-cloud-arrow-up" style="color:var(--accent);"></i> ファイルをアップロード</span>
+      <button class="modal-close" id="uploadModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- ソース選択ボタン（capture属性: モバイルはカメラ起動、PCは通常選択） -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <button class="btn btn-outline btn-sm" id="pickFileBtn" style="flex:1;min-width:120px;">
+        <i class="fa-solid fa-folder-open"></i> ファイル選択
+      </button>
+      <button class="btn btn-outline btn-sm" id="takePhotoBtn" style="flex:1;min-width:120px;">
+        <i class="fa-solid fa-camera"></i> 写真を撮る
+      </button>
+      <button class="btn btn-outline btn-sm" id="takeVideoBtn" style="flex:1;min-width:120px;">
+        <i class="fa-solid fa-video"></i> 動画を撮る
+      </button>
+    </div>
+
+    <input type="file" id="inputFile"  accept="*/*"     multiple              style="display:none;">
+    <input type="file" id="inputPhoto" accept="image/*" capture="environment" style="display:none;">
+    <input type="file" id="inputVideo" accept="video/*" capture="environment" style="display:none;">
+
+    <div class="upload-zone" id="uploadZone">
+      <i class="fa-solid fa-cloud-arrow-up"></i>
+      <p class="upload-zone-text">クリックまたはドラッグ&ドロップ</p>
+      <p class="upload-zone-sub">PDF, DXF, STL, STP, STEP, 画像, 動画, Excel, ZIP など（最大500MB）</p>
+    </div>
+
+    <div class="upload-file-list" id="uploadFileList" style="margin-top:12px;"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="uploadCancelBtn">キャンセル</button>
+      <button class="btn btn-accent" id="uploadSubmitBtn" disabled>
+        <i class="fa-solid fa-cloud-arrow-up"></i> アップロード
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- スマホ ボトムナビ -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <div class="bottom-nav-item active" id="bnHome">
+      <i class="fa-solid fa-house"></i><span>ホーム</span>
+    </div>
+    <div class="bottom-nav-item" id="bnSearch">
+      <i class="fa-solid fa-magnifying-glass"></i><span>検索</span>
+    </div>
+    <div class="bottom-nav-item" id="bnUpload">
+      <i class="fa-solid fa-plus bottom-nav-upload"></i>
+    </div>
+    <div class="bottom-nav-item" id="bnLiked">
+      <i class="fa-solid fa-heart"></i><span>いいね</span>
+    </div>
+    <div class="bottom-nav-item" id="bnRecent">
+      <i class="fa-solid fa-clock-rotate-left"></i><span>最近</span>
+    </div>
+    <a class="bottom-nav-item" href="brain.html" style="text-decoration:none;color:inherit;" id="bnBrain">
+      <i class="fa-solid fa-circle-nodes"></i><span>頭脳</span>
+    </a>
+  </div>
+</nav>
+
+<!-- AIタグ提案モーダル -->
+<div class="modal-overlay hidden" id="aiTagModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fa-solid fa-circle-nodes" style="color:var(--accent);"></i>
+        AIタグ提案
+      </span>
+      <span style="font-size:12px;color:var(--muted);" id="aiTagStep"></span>
+    </div>
+    <div style="padding:4px 0 8px;">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;" id="aiTagFileName"></p>
+
+      <div style="margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">
+          <i class="fa-solid fa-circle-nodes" style="color:var(--accent);"></i> AIが提案するタグ
+          <span style="font-weight:400;color:var(--muted);">（クリックで選択/解除）</span>
+        </div>
+        <div class="tag-list" id="aiTagSuggested"></div>
+      </div>
+
+      <div id="aiTagSelectedWrap" style="display:none;margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">
+          選択中のタグ <span style="font-weight:400;color:var(--muted);">（×で削除）</span>
+        </div>
+        <div class="tag-list" id="aiTagSelected"></div>
+      </div>
+
+      <!-- 既存タグから選択 -->
+      <div id="aiTagExistingWrap" style="display:none;margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">
+          <i class="fa-solid fa-tags"></i> 既存タグから選択
+          <span style="font-weight:400;color:var(--muted);">（クリックで追加）</span>
+        </div>
+        <div class="tag-list" id="aiTagExistingList"></div>
+      </div>
+
+      <!-- 手動タグ入力 -->
+      <div style="margin-bottom:4px;">
+        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">
+          <i class="fa-solid fa-tag"></i> 新しいタグを追加
+        </div>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="aiTagManualInput" placeholder="タグ名を入力…"
+            style="flex:1;padding:7px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;outline:none;">
+          <button class="btn btn-outline btn-sm" id="aiTagManualAddBtn" style="flex-shrink:0;">
+            <i class="fa-solid fa-plus"></i> 追加
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="aiTagSkipBtn">スキップ</button>
+      <button class="btn btn-accent" id="aiTagApplyBtn">
+        <i class="fa-solid fa-check"></i> 選択したタグを保存
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- メール送信モーダル -->
+<div class="modal-overlay hidden" id="emailModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fa-solid fa-envelope" style="color:var(--accent);"></i>
+        ファイルをメールで共有
+      </span>
+      <button class="modal-close" id="emailModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div style="padding:4px 0 8px;">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;" id="emailModalFileName">
+        <i class="fa-solid fa-file" style="margin-right:4px;"></i>
+        <span id="emailModalFileNameText"></span>
+      </p>
+
+      <!-- メールアドレス入力 -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">
+          <i class="fa-solid fa-at"></i> 送信先メールアドレス
+          <span style="font-weight:400;color:var(--muted);">（最大10件）</span>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <input type="email" id="emailInput" placeholder="例: user@example.com"
+            style="flex:1;padding:8px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;outline:none;min-width:0;">
+          <button class="btn btn-outline btn-sm" id="emailAddBtn" style="flex-shrink:0;white-space:nowrap;">
+            <i class="fa-solid fa-plus"></i> 追加
+          </button>
+        </div>
+        <div id="emailChipList" style="display:flex;flex-wrap:wrap;gap:6px;min-height:24px;"></div>
+        <div id="emailInputError" style="display:none;font-size:11px;color:#E17055;margin-top:4px;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span id="emailInputErrorText"></span>
+        </div>
+      </div>
+
+      <!-- メッセージ（任意） -->
+      <div style="margin-bottom:4px;">
+        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">
+          <i class="fa-solid fa-comment"></i> メッセージ（任意）
+        </div>
+        <textarea id="emailMessage" rows="3" placeholder="受信者へのメッセージを入力…（500文字以内）"
+          style="width:100%;padding:8px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;outline:none;resize:vertical;box-sizing:border-box;font-family:inherit;"></textarea>
+        <div style="text-align:right;font-size:11px;color:var(--muted);margin-top:3px;">
+          <span id="emailMsgCount">0</span> / 500
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="emailCancelBtn">キャンセル</button>
+      <button class="btn btn-accent" id="emailSendBtn" disabled>
+        <i class="fa-solid fa-paper-plane"></i>
+        <span id="emailSendBtnText">送信</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.js"></script>
+<script src="../assets/js/wn-dxf-viewer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+<script src="../../solid/assets/js/auth.js?v=6"></script>
+<script src="../assets/js/wn-api.js?v=8"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=25"></script>
+
+<script>
+/* ── ボトムナビ ── */
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('bnHome').addEventListener('click', () => {
+    document.getElementById('navAll').click();
+    setBottomActive('bnHome');
+  });
+  document.getElementById('bnLiked').addEventListener('click', () => {
+    document.getElementById('navLiked').click();
+    setBottomActive('bnLiked');
+  });
+  document.getElementById('bnRecent').addEventListener('click', () => {
+    document.getElementById('navRecent').click();
+    setBottomActive('bnRecent');
+  });
+  document.getElementById('bnSearch').addEventListener('click', () => {
+    document.querySelector('#searchInput')?.focus();
+  });
+  document.getElementById('bnUpload').addEventListener('click', () => openUploadModal());
+});
+
+function setBottomActive(id) {
+  document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById(id)?.classList.add('active');
+}
+
+/* ── ハンバーガー ── */
+document.addEventListener('DOMContentLoaded', () => {
+  const toggle  = document.getElementById('menuToggle');
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  toggle.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+  });
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('open');
+  });
+});
+</script>
+<script src="../assets/js/pwa.js"></script>
+</body>
+</html>

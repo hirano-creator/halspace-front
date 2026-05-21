@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ファイルビューア | SOLID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <!-- Three.js r128 -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- occt-import-js（STEP/STP用 WASM） -->
+  <script src="https://cdn.jsdelivr.net/npm/occt-import-js@0.0.21/dist/occt-import-js.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f1a; --surface: #1a1a2e; --border: #2d2d44;
+      --text: #cdd6f4; --muted: #6c7086; --primary: #ff6b35;
+      --blue: #74b9ff; --accent: #00b894; --danger: #e17055;
+    }
+    html, body { height: 100%; background: var(--bg); color: var(--text);
+      font-family: 'Noto Sans JP', sans-serif; overflow: hidden; }
+
+    /* ── ヘッダー ── */
+    .viewer-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 16px; height: 52px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .viewer-header-logo {
+      font-family: 'Poppins', sans-serif; font-weight: 800;
+      font-size: 16px; color: var(--primary); letter-spacing: .04em;
+    }
+    .viewer-header-sep { width: 1px; height: 24px; background: var(--border); }
+    .viewer-header-icon { font-size: 18px; }
+    .viewer-header-name {
+      font-size: 14px; font-weight: 600; flex: 1;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .viewer-header-type {
+      font-size: 11px; color: var(--muted);
+      background: rgba(255,255,255,.06); padding: 3px 10px; border-radius: 20px;
+    }
+
+    /* ── ツールバー ── */
+    .viewer-toolbar {
+      display: none; align-items: center; gap: 8px;
+      padding: 6px 16px; background: rgba(0,0,0,.3);
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .viewer-toolbar.visible { display: flex; }
+    .tb-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
+      background: rgba(255,255,255,.06); color: var(--text);
+      font-size: 12px; cursor: pointer; transition: background .2s;
+    }
+    .tb-btn:hover { background: rgba(255,255,255,.12); }
+    .tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+    #dxfZoomInfo { font-size: 11px; color: var(--muted); }
+
+    /* ── コンテンツエリア ── */
+    .viewer-wrap {
+      display: flex; flex-direction: column;
+      height: 100vh;
+    }
+    #viewerContent {
+      flex: 1; overflow: hidden; position: relative;
+      background: #11111b;
+    }
+    #viewerContent canvas { display: block; width: 100% !important; height: 100% !important; }
+    #viewerContent iframe { width: 100%; height: 100%; border: none; }
+
+    /* ── ローディング ── */
+    .viewer-loading {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; color: var(--muted); font-size: 14px;
+    }
+    .viewer-loading i { font-size: 32px; animation: spin 1.2s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── エラー ── */
+    .viewer-error {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; color: var(--muted); font-size: 14px; text-align: center; padding: 32px;
+    }
+    .viewer-error i { font-size: 48px; color: var(--danger); }
+
+    /* ── 未対応 ── */
+    .viewer-unsupported {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; color: var(--muted); font-size: 14px; text-align: center; padding: 32px;
+    }
+    .viewer-unsupported i { font-size: 64px; color: var(--muted); }
+    .viewer-unsupported strong { font-size: 16px; color: var(--text); }
+  </style>
+</head>
+<body>
+<div class="viewer-wrap">
+
+  <!-- ヘッダー -->
+  <div class="viewer-header">
+    <span class="viewer-header-logo">SOLID</span>
+    <div class="viewer-header-sep"></div>
+    <span class="viewer-header-icon" id="viewerIcon"></span>
+    <span class="viewer-header-name" id="viewerFileName">読み込み中...</span>
+    <span class="viewer-header-type" id="viewerFileType"></span>
+  </div>
+
+  <!-- DXFツールバー -->
+  <div class="viewer-toolbar" id="dxfToolbar">
+    <button class="tb-btn" id="dxfFitBtn"><i class="fa-solid fa-expand"></i> 全体表示</button>
+    <button class="tb-btn" id="dxfZoomInBtn"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+    <button class="tb-btn" id="dxfZoomOutBtn"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+    <div class="tb-sep"></div>
+    <span id="dxfZoomInfo">ズーム: 100%</span>
+  </div>
+
+  <!-- 3Dツールバー -->
+  <div class="viewer-toolbar" id="threejsToolbar">
+    <button class="tb-btn" id="threejsReset"><i class="fa-solid fa-rotate-left"></i> 視点リセット</button>
+    <div class="tb-sep"></div>
+    <span style="font-size:11px;color:var(--muted);">
+      <i class="fa-solid fa-circle-info"></i> 左ドラッグ: 回転 / 右ドラッグ: 移動 / ホイール: ズーム
+    </span>
+  </div>
+
+  <!-- コンテンツ -->
+  <div id="viewerContent">
+    <div class="viewer-loading" id="initialLoading">
+      <i class="fa-solid fa-spinner"></i>
+      <span>読み込み中...</span>
+    </div>
+  </div>
+
+</div>
+
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/viewer.js"></script>
+<script>
+'use strict';
+
+const params   = new URLSearchParams(location.search);
+const fileId   = Number(params.get('file_id'));
+const fileName = params.get('file_name') || '';
+
+if (!fileId) {
+  document.getElementById('initialLoading').outerHTML =
+    '<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><strong>ファイルIDが指定されていません</strong></div>';
+} else {
+  // 認証チェック（未ログインならログイン画面へ）
+  const token = localStorage.getItem('space_token');
+  if (!token) {
+    location.href = '../../space/login.html';
+  }
+
+  // ヘッダー情報をURLパラメータから先行設定
+  const ext = fileName.split('.').pop().toLowerCase();
+  const is3d = ['stl','stp','step'].includes(ext);
+  document.title = fileName + ' | SOLID ビューア';
+  document.getElementById('viewerFileName').textContent = fileName;
+  document.getElementById('viewerFileType').textContent =
+    { pdf:'PDF図面', dxf:'DXF図面', dwg:'DWG図面',
+      stl:'3Dモデル (STL)', stp:'3Dモデル (STEP)', step:'3Dモデル (STEP)' }[ext] || ext.toUpperCase();
+  document.getElementById('viewerIcon').innerHTML =
+    ext === 'pdf'
+      ? '<i class="fa-solid fa-file-pdf" style="color:#e17055;"></i>'
+      : is3d
+        ? '<i class="fa-solid fa-cube" style="color:#00b894;"></i>'
+        : '<i class="fa-solid fa-file-lines" style="color:#74b9ff;"></i>';
+
+  // viewer.js の open() をファイルオブジェクト形式で呼び出す
+  document.addEventListener('DOMContentLoaded', () => {
+    // viewer.htmlにはモーダル要素がないため、open()が使うDOM要素をページ内に差し替え
+    // viewer.jsのopen()は #viewerModal, #viewerContent, #dxfToolbar, #threejsToolbar を参照するため
+    // ダミー要素を作って差し込む
+    const dummyModal = document.createElement('div');
+    dummyModal.id = 'viewerModal';
+    dummyModal.style.display = 'none';
+    document.body.appendChild(dummyModal);
+
+    const dummyFileName = document.createElement('span');
+    dummyFileName.id = 'viewerFileName2'; // 衝突回避
+    dummyFileName.style.display = 'none';
+    document.body.appendChild(dummyFileName);
+
+    // viewer.js の open() を使わず、内部エンジンを直接呼び出す
+    _openFile({ id: fileId, file_name: fileName });
+  });
+}
+
+async function _openFile(file) {
+  const content  = document.getElementById('viewerContent');
+  const dxfTb    = document.getElementById('dxfToolbar');
+  const threejsTb = document.getElementById('threejsToolbar');
+  const loading  = document.getElementById('initialLoading');
+
+  const ext = file.file_name.split('.').pop().toLowerCase();
+  const is3d = ['stl','stp','step'].includes(ext);
+
+  if (ext === 'pdf') {
+    await _openPdf(file, content, loading);
+  } else if (ext === 'dxf' || ext === 'dwg') {
+    await _openDxf(file, content, loading, dxfTb);
+  } else if (is3d) {
+    await _open3D(file, content, loading, threejsTb, ext);
+  } else {
+    loading.outerHTML = `
+      <div class="viewer-unsupported">
+        <i class="fa-solid fa-ban"></i>
+        <strong>プレビュー非対応</strong>
+        <span>この形式（.${ext}）はブラウザでのプレビューに対応していません。<br>ダウンロードしてご利用ください。</span>
+      </div>`;
+  }
+}
+
+/* ── PDF ── */
+async function _openPdf(file, content, loading) {
+  const url = `${API_BASE}/files/${file.id}/view`;
+  try {
+    const buf  = await _fetchFileBuffer(url);
+    const blob = new Blob([buf]);
+    loading.remove();
+    const blobUrl = URL.createObjectURL(blob);
+    const iframe = document.createElement('iframe');
+    iframe.src = blobUrl + '#toolbar=1&navpanes=0';
+    content.appendChild(iframe);
+  } catch (err) {
+    loading.outerHTML = `<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><span>PDFの読み込みに失敗しました: ${err.message}</span></div>`;
+  }
+}
+
+/* ── DXF ── */
+async function _openDxf(file, content, loading, toolbar) {
+  const url = `${API_BASE}/files/${file.id}/view`;
+  try {
+    const buf = await _fetchFileBuffer(url);
+    const dxfText = _decodeDxfBuf(buf);
+    loading.remove();
+    toolbar.classList.add('visible');
+
+    const entities = Viewer._parseDXF(dxfText);
+    const engine   = Viewer._createDxfEngine(content, entities);
+
+    document.getElementById('dxfFitBtn').onclick    = () => engine.fit();
+    document.getElementById('dxfZoomInBtn').onclick  = () => { engine.cam.zoom *= 1.3; engine.draw(); };
+    document.getElementById('dxfZoomOutBtn').onclick = () => { engine.cam.zoom /= 1.3; engine.draw(); };
+    engine.canvas.addEventListener('wheel', () => {
+      document.getElementById('dxfZoomInfo').textContent = `ズーム: ${Math.round(engine.cam.zoom * 100)}%`;
+    });
+  } catch (err) {
+    loading.outerHTML = `<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><span>DXFの読み込みに失敗しました: ${err.message}</span></div>`;
+  }
+}
+
+/* ── 3D ── */
+async function _open3D(file, content, loading, toolbar, ext) {
+  const THREE = window.THREE;
+  if (!THREE) {
+    loading.outerHTML = '<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><span>3Dライブラリの読み込みに失敗しました</span></div>';
+    return;
+  }
+  try {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    const w = content.clientWidth  || window.innerWidth;
+    const h = content.clientHeight || window.innerHeight - 52;
+    const camera = new THREE.PerspectiveCamera(45, w / h, 0.001, 100000);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    content.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const dir1 = new THREE.DirectionalLight(0xffffff, 0.8);
+    dir1.position.set(1, 2, 3); scene.add(dir1);
+    const dir2 = new THREE.DirectionalLight(0x88aaff, 0.4);
+    dir2.position.set(-2, -1, -2); scene.add(dir2);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+
+    const url    = `${API_BASE}/files/${file.id}/view`;
+    const buffer = await _fetchFileBuffer(url);
+
+    let geometry;
+    if (ext === 'stl') {
+      geometry = new THREE.STLLoader().parse(buffer);
+    } else {
+      if (typeof occtimportjs === 'undefined') throw new Error('STEPパーサーの読み込みに失敗しました');
+      loading.querySelector('span').textContent = 'STEPファイルを解析中...（初回は時間がかかる場合があります）';
+      const occt = await occtimportjs();
+      const result = occt.ReadStepFile(new Uint8Array(buffer), null);
+      geometry = Viewer._occtToGeometry ? Viewer._occtToGeometry(THREE, result) : _occtToGeometryLocal(THREE, result);
+    }
+
+    geometry.computeVertexNormals();
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({
+      color: 0x0984e3, specular: 0x3399ff, shininess: 50, side: THREE.DoubleSide,
+    }));
+    const wire = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+      color: 0x004080, wireframe: true, opacity: 0.08, transparent: true,
+    }));
+    scene.add(mesh); scene.add(wire);
+
+    const box    = new THREE.Box3().setFromObject(mesh);
+    const size   = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fitDist = maxDim * 1.8;
+
+    const grid = new THREE.GridHelper(maxDim * 3, 20, 0x334455, 0x223344);
+    grid.position.y = box.min.y; scene.add(grid);
+
+    camera.position.set(center.x, center.y + maxDim * 0.5, center.z + fitDist);
+    camera.lookAt(center);
+    controls.target.copy(center);
+    controls.update();
+
+    toolbar.classList.add('visible');
+    document.getElementById('threejsReset').onclick = () => {
+      camera.position.set(center.x, center.y + maxDim * 0.5, center.z + fitDist);
+      camera.lookAt(center);
+      controls.target.copy(center);
+      controls.update();
+    };
+
+    window.addEventListener('resize', () => {
+      const nw = content.clientWidth, nh = content.clientHeight;
+      camera.aspect = nw / nh;
+      camera.updateProjectionMatrix();
+      renderer.setSize(nw, nh);
+    });
+
+    loading.remove();
+
+    (function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    })();
+
+  } catch (err) {
+    loading.outerHTML = `<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><span>3Dファイルの読み込みに失敗しました: ${err.message}</span></div>`;
+  }
+}
+
+/* ── ヘルパー ── */
+/* APIエンドポイントにリクエストし、ArrayBufferを返す
+   - ローカルストレージ: ファイル本体を直接返す → そのまま .arrayBuffer()
+   - R2等外部ストレージ: { url: "..." } JSON → 署名付きURLにfetchしてarrayBuffer() */
+async function _fetchFileBuffer(apiUrl) {
+  const token = localStorage.getItem('space_token');
+  const r = await fetch(apiUrl, {
+    headers: { 'Accept': '*/*', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const ct = r.headers.get('Content-Type') || '';
+  if (ct.includes('application/json')) {
+    const data = await r.json();
+    if (!data.url) throw new Error('署名付きURLが取得できません');
+    const r2 = await fetch(data.url);
+    if (!r2.ok) throw new Error(`HTTP ${r2.status}`);
+    return r2.arrayBuffer();
+  }
+  return r.arrayBuffer();
+}
+
+function _decodeDxfBuf(buf) {
+  const bytes = new Uint8Array(buf);
+  if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) return new TextDecoder('utf-8').decode(buf);
+  const header = new TextDecoder('ascii', { fatal: false }).decode(bytes.slice(0, Math.min(bytes.length, 8192)));
+  if (/ANSI_932|shift.?jis|sjis/i.test(header)) return new TextDecoder('shift_jis').decode(buf);
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i];
+    if ((b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC)) {
+      try { return new TextDecoder('shift_jis').decode(buf); } catch { break; }
+    }
+  }
+  return new TextDecoder('utf-8').decode(buf);
+}
+
+function _occtToGeometryLocal(THREE, result) {
+  const positions = [], normals = [], indices = [];
+  let offset = 0;
+  for (const m of (result.meshes || [])) {
+    const pos = m.attributes?.position?.array || [];
+    const nor = m.attributes?.normal?.array   || [];
+    const idx = m.index?.array || [];
+    for (const v of pos) positions.push(v);
+    for (const n of nor) normals.push(n);
+    for (const i of idx) indices.push(i + offset);
+    offset += pos.length / 3;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  if (normals.length)  geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  if (indices.length)  geo.setIndex(indices);
+  return geo;
+}
+</script>
+</body>
+</html>

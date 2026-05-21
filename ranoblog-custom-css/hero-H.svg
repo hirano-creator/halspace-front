@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 案H: Notebook Lines — ノート罫線の上に手書き風テキスト -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 680" width="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;600&amp;family=JetBrains+Mono:wght@400&amp;display=swap');
+    </style>
+  </defs>
+  <rect width="1920" height="680" fill="#fafafa"/>
+
+  <!-- ノート罫線 -->
+  <line x1="0" y1="120" x2="1920" y2="120" stroke="#ececec" stroke-width="1"/>
+  <line x1="0" y1="200" x2="1920" y2="200" stroke="#ececec" stroke-width="1"/>
+  <line x1="0" y1="280" x2="1920" y2="280" stroke="#ececec" stroke-width="1"/>
+  <line x1="0" y1="360" x2="1920" y2="360" stroke="#ececec" stroke-width="1"/>
+  <line x1="0" y1="440" x2="1920" y2="440" stroke="#ececec" stroke-width="1"/>
+  <line x1="0" y1="520" x2="1920" y2="520" stroke="#ececec" stroke-width="1"/>
+  <line x1="0" y1="600" x2="1920" y2="600" stroke="#ececec" stroke-width="1"/>
+
+  <!-- 左の縦マージン線（ノート風） -->
+  <line x1="200" y1="0" x2="200" y2="680" stroke="#f0d0d0" stroke-width="1.5"/>
+
+  <!-- テキストを罫線上に配置 -->
+  <text x="240" y="195" font-family="'Space Grotesk',sans-serif" font-size="80" font-weight="600" fill="#0a0a0a" letter-spacing="-1">Observe.</text>
+  <text x="240" y="355" font-family="'Space Grotesk',sans-serif" font-size="80" font-weight="600" fill="#0a0a0a" letter-spacing="-1">Build.</text>
+  <text x="240" y="515" font-family="'Space Grotesk',sans-serif" font-size="80" font-weight="600" fill="#0a0a0a" letter-spacing="-1">Share.</text>
+
+  <!-- 右端メモ -->
+  <text x="1800" y="195" font-family="'JetBrains Mono',monospace" font-size="13" fill="#ccc" text-anchor="end" letter-spacing="3">INVEST · AI</text>
+  <text x="1800" y="355" font-family="'JetBrains Mono',monospace" font-size="13" fill="#ccc" text-anchor="end" letter-spacing="3">WEB · CLAUDE</text>
+  <text x="1800" y="515" font-family="'JetBrains Mono',monospace" font-size="13" fill="#ccc" text-anchor="end" letter-spacing="3">STEEL · BLOG</text>
+
+  <!-- 左メモ欄 -->
+  <text x="100" y="340" font-family="'JetBrains Mono',monospace" font-size="11" fill="#ddd" text-anchor="middle" letter-spacing="1">rB</text>
+  <text x="100" y="360" font-family="'JetBrains Mono',monospace" font-size="11" fill="#ddd" text-anchor="middle" letter-spacing="1">26</text>
+</svg>

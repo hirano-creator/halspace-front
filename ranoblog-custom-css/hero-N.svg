@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 案N: Center Contrast — 1語ずつ太/細を交互、中央1行ずつ -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap');
+    </style>
+  </defs>
+  <rect width="1200" height="700" fill="#fff"/>
+
+  <!-- 上部細線 -->
+  <line x1="100" y1="100" x2="1100" y2="100" stroke="#e8e8e8" stroke-width="1"/>
+
+  <!-- ブランド -->
+  <text x="600" y="75" font-family="'JetBrains Mono',monospace" font-size="12" fill="#ccc" text-anchor="middle" letter-spacing="6">ranoBlog</text>
+
+  <!-- 太/細コントラスト -->
+  <text x="600" y="255" font-family="'Space Grotesk',sans-serif" font-size="140" font-weight="700" fill="#0a0a0a" text-anchor="middle" letter-spacing="-4">Observe.</text>
+  <text x="600" y="385" font-family="'Space Grotesk',sans-serif" font-size="140" font-weight="300" fill="#c0c0c0" text-anchor="middle" letter-spacing="-4">Build.</text>
+  <text x="600" y="515" font-family="'Space Grotesk',sans-serif" font-size="140" font-weight="700" fill="#0a0a0a" text-anchor="middle" letter-spacing="-4">Share.</text>
+
+  <!-- 下部細線 -->
+  <line x1="100" y1="580" x2="1100" y2="580" stroke="#e8e8e8" stroke-width="1"/>
+
+  <!-- カテゴリ -->
+  <text x="600" y="645" font-family="'JetBrains Mono',monospace" font-size="12" fill="#ccc" text-anchor="middle" letter-spacing="5">INVEST · AI · WEB · STEEL · CLAUDE</text>
+</svg>

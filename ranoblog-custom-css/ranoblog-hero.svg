@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 720" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap');
+      .bg { fill: #ffffff; }
+      .ink { fill: #0a0a0a; }
+      .prompt { fill: #8a8a8a; }
+      .muted { fill: #8a8a8a; }
+      .hair { stroke: #d0d0d0; stroke-width: 1; fill: none; }
+      .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .cursor { fill: #0a0a0a; opacity: 0.7; }
+    </style>
+  </defs>
+
+  <!-- 背景 -->
+  <rect class="bg" width="1920" height="720"/>
+
+  <!-- 上部の細罫線 -->
+  <line class="hair" x1="6.25%" y1="80" x2="93.75%" y2="80"/>
+
+  <!-- メインテキスト 3行スタック（左寄せ・%指定で相対配置） -->
+
+  <!-- > Observe_ -->
+  <text class="mono prompt" x="6.25%" y="260" font-size="88" font-weight="700">&gt;</text>
+  <text class="mono ink" x="9.6%" y="260" font-size="88" font-weight="700">Observe</text>
+
+  <!-- > Build_ -->
+  <text class="mono prompt" x="6.25%" y="380" font-size="88" font-weight="700">&gt;</text>
+  <text class="mono ink" x="9.6%" y="380" font-size="88" font-weight="700">Build</text>
+
+  <!-- > Share_ -->
+  <text class="mono prompt" x="6.25%" y="500" font-size="88" font-weight="700">&gt;</text>
+  <text class="mono ink" x="9.6%" y="500" font-size="88" font-weight="700">Share</text>
+
+  <!-- 細罫線（メインとサブの間） -->
+  <line class="hair" x1="6.25%" y1="550" x2="45%" y2="550"/>
+
+  <!-- サブテキスト -->
+  <text class="mono muted" x="6.25%" y="590" font-size="16" font-weight="500" letter-spacing="6">INVESTMENT  /  AI  /  WEB  /  STEEL</text>
+
+  <!-- 下部の細罫線 -->
+  <line class="hair" x1="6.25%" y1="640" x2="93.75%" y2="640"/>
+
+  <!-- ブランド行 -->
+  <text class="mono muted" x="6.25%" y="680" font-size="14" font-weight="400">ranoBlog — observe, build, share</text>
+  <text class="mono muted" x="93.75%" y="680" font-size="14" font-weight="400" text-anchor="end">EST. 2026</text>
+</svg>

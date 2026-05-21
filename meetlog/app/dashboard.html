@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#7C3AED">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>MeetLog</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="apple-touch-icon" href="../assets/icons/icon.svg">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/ml-app.css">
+  <style>
+    /* ── スマホ検索バー（インライン展開） ── */
+    #mobileSearchBar {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 14px;
+      z-index: 200;
+      gap: 10px;
+      align-items: center;
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    }
+    #mobileSearchBar.show { display: flex; }
+    #mobileSearchBar input {
+      flex: 1;
+      border: 1.5px solid var(--border-md);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 15px;
+      outline: none;
+      background: var(--bg);
+      color: var(--text);
+    }
+    #mobileSearchBar input:focus {
+      border-color: var(--ml-purple);
+      background: var(--white);
+    }
+    #mobileSearchBar .close-search {
+      color: var(--muted);
+      font-size: 18px;
+      padding: 8px;
+      flex-shrink: 0;
+    }
+
+    /* ── スマホフィルターシート（下から出るモーダル） ── */
+    #filterSheet {
+      position: fixed;
+      inset: 0;
+      z-index: 400;
+      display: none;
+    }
+    #filterSheet.show { display: block; }
+    #filterSheetOverlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.35);
+      backdrop-filter: blur(2px);
+    }
+    #filterSheetPanel {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: var(--white);
+      border-radius: 20px 20px 0 0;
+      padding: 12px 20px calc(20px + env(safe-area-inset-bottom));
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    #filterSheetHandle {
+      width: 36px; height: 4px;
+      background: var(--border-md);
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+    .filter-sheet-title {
+      font-size: 15px; font-weight: 700;
+      margin-bottom: 16px; color: var(--text);
+    }
+    .filter-sheet-section { margin-bottom: 20px; }
+    .filter-sheet-label {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      letter-spacing: .06em; text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .filter-sheet-chips {
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .filter-sheet-date {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    .filter-sheet-date input {
+      padding: 10px 12px;
+      border: 1.5px solid var(--border-md);
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      background: var(--bg);
+      color: var(--text);
+      width: 100%;
+    }
+    .filter-sheet-date input:focus { border-color: var(--ml-purple); }
+    .filter-sheet-actions {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      margin-top: 8px;
+    }
+    .filter-sheet-actions .btn { justify-content: center; border-radius: 12px; min-height: 48px; }
+
+    /* ── 未読バッジ ── */
+    .nav-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--red);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 100px;
+      padding: 1px 5px;
+      line-height: 1.4;
+      min-width: 18px;
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-title">
+        <i class="fa-solid fa-clipboard-list" style="color:var(--ml-purple);margin-right:6px;"></i>MeetLog
+      </span>
+      <span class="sidebar-logo-sub">by HaLSpace</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="#" class="active" id="navAll">
+        <i class="fa-solid fa-house"></i> ホーム
+      </a>
+      <a href="#" id="navMine">
+        <i class="fa-solid fa-user"></i> 自分の議事録
+      </a>
+      <a href="#" id="navMyAction" style="position:relative;">
+        <i class="fa-solid fa-list-check"></i> マイアクション
+        <span id="navMyActionBadge" class="nav-badge" style="display:none;margin-left:auto;"></span>
+      </a>
+
+      <div class="sidebar-section-label" style="margin-top:8px;">
+        <span>管理</span>
+      </div>
+      <a href="templates.html" id="adminTemplateLink" style="display:none;">
+        <i class="fa-solid fa-layer-group"></i> テンプレート管理
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div id="sidebarUser"></div>
+      <button class="btn-sidebar-logout" onclick="solidLogout()">
+        <i class="fa-solid fa-grid-2" style="color:var(--ml-purple);"></i> アプリ選択に戻る
+      </button>
+    </div>
+  </aside>
+
+  <!-- メインコンテンツ -->
+  <div class="main-content">
+
+    <!-- トップバー -->
+    <div class="top-bar">
+      <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+      <span class="top-bar-title">MeetLog</span>
+      <div style="flex:1;max-width:420px;">
+        <div class="search-bar">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="searchInput" placeholder="議事録を検索…">
+        </div>
+      </div>
+      <div class="top-bar-right">
+        <a href="templates.html" id="adminLink" class="btn btn-ghost btn-sm" style="display:none;" title="テンプレート管理">
+          <i class="fa-solid fa-layer-group"></i>
+        </a>
+        <a href="edit.html" class="btn btn-accent">
+          <i class="fa-solid fa-pen"></i>
+          <span>New Note</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- ページ本文 -->
+    <div class="page-body">
+
+      <!-- 期限超過アラートバナー -->
+      <div id="overdueAlert" style="display:none;background:#FFF5F5;border:1px solid #FC8181;color:#C53030;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13.5px;font-weight:600;cursor:pointer;display:none;align-items:center;gap:8px;" onclick="document.getElementById('navMyAction').click();setBottomActive('bnMyAction');"></div>
+
+      <!-- フィルターチップ（PC） -->
+      <div class="filter-bar" id="filterBar">
+        <button class="filter-chip active" data-status="">すべて</button>
+        <button class="filter-chip" data-status="none">承認なし</button>
+        <button class="filter-chip" data-status="pending">申請中</button>
+        <button class="filter-chip" data-status="approved">承認済み</button>
+        <button class="filter-chip" data-status="rejected">差し戻し</button>
+        <input type="date" id="dateFrom" class="form-select" style="padding:6px 10px;font-size:12.5px;border-radius:100px;">
+        <input type="date" id="dateTo"   class="form-select" style="padding:6px 10px;font-size:12.5px;border-radius:100px;">
+        <button class="filter-chip" id="filterResetBtn"><i class="fa-solid fa-rotate-left"></i> リセット</button>
+      </div>
+
+      <!-- マイアクションパネル -->
+      <div id="myActionPanel" style="display:none;">
+        <div class="action-panel-wrap">
+          <div class="action-panel-header">
+            <span class="action-panel-title">
+              <i class="fa-solid fa-list-check" style="color:var(--ml-purple);margin-right:6px;"></i>マイアクション
+            </span>
+            <span id="myActionCount" style="font-size:12px;color:var(--muted);"></span>
+          </div>
+          <div id="myActionList" style="padding:16px 16px;display:flex;flex-direction:column;gap:8px;">
+            <div style="text-align:center;color:var(--muted);padding:20px;">
+              <i class="fa-solid fa-spinner fa-spin"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ローディング -->
+      <div id="loadingArea" style="text-align:center;padding:60px;color:var(--muted);">
+        <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+      </div>
+
+      <!-- 空状態 -->
+      <div id="emptyMsg" style="display:none;">
+        <div class="empty-state">
+          <i class="fa-solid fa-clipboard"></i>
+          <p style="font-weight:600;margin-bottom:6px;">議事録がありません</p>
+          <p style="font-size:13px;">右上の「New Note」から新しい議事録を作成できます</p>
+        </div>
+      </div>
+
+      <!-- 今後の議事録 -->
+      <div id="upcomingSection" style="display:none;">
+        <div class="section-title">Coming up</div>
+        <div class="minute-list-wrap" id="upcomingList"></div>
+      </div>
+
+      <!-- 今日の議事録 -->
+      <div id="todaySection" style="display:none;">
+        <div class="section-title">Today</div>
+        <div class="minute-list-wrap" id="todayList"></div>
+      </div>
+
+      <!-- 過去の議事録 -->
+      <div id="pastSection" style="display:none;">
+        <div class="section-title" id="pastTitle">過去の議事録</div>
+        <div class="minute-list-wrap" id="pastList"></div>
+      </div>
+
+    </div><!-- /page-body -->
+  </div><!-- /main-content -->
+</div><!-- /app-layout -->
+
+<!-- FAB（スマホのみ） -->
+<a href="edit.html" class="fab">
+  <i class="fa-solid fa-pen"></i> New Note
+</a>
+
+<!-- ボトムナビ -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <div class="bottom-nav-item active" id="bnHome">
+      <i class="fa-solid fa-house"></i>
+      <span>ホーム</span>
+    </div>
+    <div class="bottom-nav-item" id="bnMine">
+      <i class="fa-solid fa-user"></i>
+      <span>自分の</span>
+    </div>
+    <div class="bottom-nav-item" id="bnNew">
+      <div class="bottom-nav-upload">
+        <i class="fa-solid fa-pen"></i>
+      </div>
+    </div>
+    <div class="bottom-nav-item" id="bnMyAction" style="position:relative;">
+      <i class="fa-solid fa-list-check"></i>
+      <span>アクション</span>
+      <span id="bnMyActionBadge" class="nav-badge" style="display:none;position:absolute;top:6px;right:10px;"></span>
+    </div>
+    <div class="bottom-nav-item" id="bnSearch">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <span>検索</span>
+    </div>
+  </div>
+</nav>
+
+<!-- スマホ検索バー（トップ固定） -->
+<div id="mobileSearchBar">
+  <input type="text" id="mobileSearchInput" placeholder="議事録を検索…">
+  <button class="close-search" id="closeSearch"><i class="fa-solid fa-xmark"></i></button>
+</div>
+
+<!-- フィルターシート（スマホ） -->
+<div id="filterSheet">
+  <div id="filterSheetOverlay"></div>
+  <div id="filterSheetPanel">
+    <div id="filterSheetHandle"></div>
+    <div class="filter-sheet-title"><i class="fa-solid fa-sliders" style="color:var(--ml-purple);margin-right:6px;"></i>絞り込み</div>
+    <div class="filter-sheet-section">
+      <div class="filter-sheet-label">承認ステータス</div>
+      <div class="filter-sheet-chips" id="sheetStatusChips">
+        <button class="filter-chip active" data-sheet-status="">すべて</button>
+        <button class="filter-chip" data-sheet-status="none">承認なし</button>
+        <button class="filter-chip" data-sheet-status="pending">申請中</button>
+        <button class="filter-chip" data-sheet-status="approved">承認済み</button>
+        <button class="filter-chip" data-sheet-status="rejected">差し戻し</button>
+      </div>
+    </div>
+    <div class="filter-sheet-section">
+      <div class="filter-sheet-label">期間</div>
+      <div class="filter-sheet-date">
+        <input type="date" id="sheetDateFrom" placeholder="開始日">
+        <input type="date" id="sheetDateTo" placeholder="終了日">
+      </div>
+    </div>
+    <div class="filter-sheet-actions">
+      <button class="btn btn-outline" id="sheetResetBtn"><i class="fa-solid fa-rotate-left"></i> リセット</button>
+      <button class="btn btn-accent" id="sheetApplyBtn"><i class="fa-solid fa-check"></i> 適用</button>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="../../../solid/assets/js/auth.js?v=6"></script>
+<script src="../assets/js/ml-api.js?v=2"></script>
+<script src="../assets/js/pages/ml-dashboard.js?v=6"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  /* ── ハンバーガー ── */
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  document.getElementById('menuToggle').addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+  });
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('open');
+  });
+
+  /* ── ボトムナビ ── */
+  document.getElementById('bnHome').addEventListener('click', () => {
+    document.getElementById('navAll').click();
+    setBottomActive('bnHome');
+  });
+  document.getElementById('bnMine').addEventListener('click', () => {
+    document.getElementById('navMine').click();
+    setBottomActive('bnMine');
+  });
+  document.getElementById('bnMyAction').addEventListener('click', () => {
+    document.getElementById('navMyAction').click();
+    setBottomActive('bnMyAction');
+  });
+  document.getElementById('bnNew').addEventListener('click', () => location.href = 'edit.html');
+
+  /* ── スマホ検索 ── */
+  const mobileSearchBar   = document.getElementById('mobileSearchBar');
+  const mobileSearchInput = document.getElementById('mobileSearchInput');
+  document.getElementById('bnSearch').addEventListener('click', () => {
+    mobileSearchBar.classList.add('show');
+    mobileSearchInput.focus();
+  });
+  document.getElementById('closeSearch').addEventListener('click', () => {
+    mobileSearchBar.classList.remove('show');
+    mobileSearchInput.value = '';
+    document.getElementById('searchInput').value = '';
+    loadMinutes();
+  });
+  let mobileSearchTimer;
+  mobileSearchInput.addEventListener('input', () => {
+    clearTimeout(mobileSearchTimer);
+    mobileSearchTimer = setTimeout(() => {
+      document.getElementById('searchInput').value = mobileSearchInput.value;
+      loadMinutes();
+    }, 380);
+  });
+
+  /* ── スマホフィルターシート ── */
+  const filterSheet = document.getElementById('filterSheet');
+  document.getElementById('filterSheetOverlay').addEventListener('click', () => filterSheet.classList.remove('show'));
+
+  document.querySelectorAll('[data-sheet-status]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('[data-sheet-status]').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+    });
+  });
+
+  document.getElementById('sheetResetBtn').addEventListener('click', () => {
+    document.querySelectorAll('[data-sheet-status]').forEach(c => c.classList.remove('active'));
+    document.querySelector('[data-sheet-status=""]').classList.add('active');
+    document.getElementById('sheetDateFrom').value = '';
+    document.getElementById('sheetDateTo').value   = '';
+  });
+
+  document.getElementById('sheetApplyBtn').addEventListener('click', () => {
+    const status = document.querySelector('[data-sheet-status].active')?.dataset.sheetStatus ?? '';
+    const from   = document.getElementById('sheetDateFrom').value;
+    const to     = document.getElementById('sheetDateTo').value;
+    // PC側フィルターに同期
+    document.querySelectorAll('.filter-chip[data-status]').forEach(c => c.classList.remove('active'));
+    const target = document.querySelector(`.filter-chip[data-status="${status}"]`);
+    if (target) target.classList.add('active');
+    document.getElementById('dateFrom').value = from;
+    document.getElementById('dateTo').value   = to;
+    filterSheet.classList.remove('show');
+    loadMinutes();
+  });
+
+  /* フィルターアイコンをボトムナビの「ホーム」長押し または スワイプで呼び出す想定 */
+  /* → 代わりにページ本文の「絞り込み」チップをタップでシートを出す */
+  document.getElementById('filterBar').addEventListener('click', e => {
+    if (window.innerWidth < 768) {
+      /* スマホでフィルターチップをタップしたらシートを開く */
+      if (e.target.classList.contains('filter-chip') || e.target.closest('.filter-chip')) {
+        filterSheet.classList.add('show');
+      }
+    }
+  });
+});
+
+function setBottomActive(id) {
+  document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById(id)?.classList.add('active');
+}
+</script>
+</body>
+</html>

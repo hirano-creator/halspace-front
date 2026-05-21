@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理者画面 | What'sNo [デザイン確認用]</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/wn-app.css">
+  <style>
+    /* ── 管理者画面固有 ── */
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .admin-table th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .admin-table td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .admin-table tr:last-child td { border-bottom: none; }
+    .admin-table tr:hover td { background: rgba(33,150,243,.03); }
+
+    .user-avatar-sm {
+      width: 30px; height: 30px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #fff;
+      background: var(--accent); flex-shrink: 0;
+    }
+    .user-name-cell { display: flex; align-items: center; gap: 10px; }
+
+    .role-badge {
+      display: inline-block;
+      font-size: 11px; font-weight: 700;
+      padding: 3px 10px; border-radius: 20px;
+    }
+    .role-admin   { background: rgba(30,58,95,.12); color: var(--primary); }
+    .role-member  { background: rgba(33,150,243,.12); color: var(--accent-dk); }
+    .role-viewer  { background: rgba(84,110,122,.12); color: var(--muted); }
+    .role-guest   { background: rgba(243,156,18,.12);  color: #b7770d; }
+
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      display: inline-block; margin-right: 5px;
+    }
+    .status-dot.active   { background: var(--green); }
+    .status-dot.inactive { background: var(--muted); }
+
+    .tag-admin-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid var(--border);
+    }
+    .tag-admin-item:last-child { border-bottom: none; }
+    .tag-count {
+      margin-left: auto; font-size: 12px; color: var(--muted); flex-shrink: 0;
+    }
+
+    .permission-matrix th, .permission-matrix td {
+      text-align: center; padding: 10px 12px;
+    }
+    .permission-matrix th:first-child,
+    .permission-matrix td:first-child { text-align: left; }
+    .perm-check { color: var(--green); font-size: 16px; }
+    .perm-cross { color: var(--border); font-size: 16px; }
+
+    .audit-row td:first-child { white-space: nowrap; font-size: 12px; color: var(--muted); }
+    .audit-action {
+      display: inline-block; font-size: 11px; font-weight: 700;
+      padding: 2px 9px; border-radius: 20px;
+    }
+    .audit-upload   { background: rgba(33,150,243,.12); color: var(--accent-dk); }
+    .audit-download { background: rgba(0,184,148,.12);  color: #007a62; }
+    .audit-view     { background: rgba(84,110,122,.12); color: var(--muted); }
+    .audit-delete   { background: rgba(225,112,85,.12); color: var(--red); }
+    .audit-comment  { background: rgba(243,156,18,.12); color: #b7770d; }
+
+    .stat-row {
+      display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .stat-card {
+      flex: 1; min-width: 120px;
+      background: var(--bg); border-radius: var(--radius);
+      padding: 14px 18px; text-align: center;
+    }
+    .stat-card .stat-num {
+      font-size: 28px; font-weight: 900; color: var(--primary);
+      font-family: 'Poppins', sans-serif; line-height: 1.1;
+    }
+    .stat-card .stat-label { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .section-title { font-size: 15px; font-weight: 700; color: var(--primary); }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-title">What'sNo</span>
+      <span class="sidebar-logo-sub">by HaLSpace</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+      <a href="dashboard-preview.html"><i class="fa-solid fa-house"></i> ホーム</a>
+      <a href="dashboard-preview.html"><i class="fa-solid fa-user"></i> マイファイル</a>
+      <a href="dashboard-preview.html"><i class="fa-solid fa-clock-rotate-left"></i> 最近のファイル</a>
+      <a href="dashboard-preview.html"><i class="fa-solid fa-heart"></i> いいね済み</a>
+      <div class="sidebar-nav-label" style="margin-top:16px;">管理</div>
+      <a href="admin-preview.html" class="active"><i class="fa-solid fa-gear"></i> 管理者設定</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <div class="sidebar-avatar">山</div>
+        <div>
+          <span class="sidebar-user-name">山田 太郎</span>
+          <span class="sidebar-user-role">管理者</span>
+        </div>
+      </div>
+      <button class="btn-sidebar-logout">
+        <i class="fa-solid fa-right-from-bracket"></i> アプリ選択に戻る
+      </button>
+    </div>
+  </aside>
+
+  <!-- メインコンテンツ -->
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <span class="top-bar-title">管理者画面</span>
+      </div>
+    </div>
+
+    <div class="page-body">
+
+      <!-- タブ -->
+      <div class="tabs" style="margin-bottom:20px;">
+        <button class="tab-btn active" data-tab="users">
+          <i class="fa-solid fa-users"></i> ユーザー管理
+        </button>
+        <button class="tab-btn" data-tab="tags">
+          <i class="fa-solid fa-tags"></i> タグ管理
+        </button>
+        <button class="tab-btn" data-tab="permission">
+          <i class="fa-solid fa-lock"></i> アクセス権限
+        </button>
+        <button class="tab-btn" data-tab="audit">
+          <i class="fa-solid fa-scroll"></i> 監査ログ
+        </button>
+      </div>
+
+      <!-- ────────────────────────────
+           タブ1: ユーザー管理
+           ──────────────────────────── -->
+      <div class="tab-panel active" id="tab-users">
+
+        <!-- サマリー -->
+        <div class="stat-row">
+          <div class="stat-card">
+            <div class="stat-num">12</div>
+            <div class="stat-label">総ユーザー数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num">9</div>
+            <div class="stat-label">アクティブ</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num">2</div>
+            <div class="stat-label">管理者</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num">1</div>
+            <div class="stat-label">ゲスト</div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div class="section-title" style="margin:0;">メンバー一覧</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <div class="search-bar" style="max-width:220px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" placeholder="名前・メールで検索…">
+              </div>
+              <button class="btn btn-accent btn-sm" onclick="document.getElementById('inviteModal').classList.remove('hidden')">
+                <i class="fa-solid fa-user-plus"></i> 招待
+              </button>
+            </div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ユーザー</th>
+                  <th>ロール</th>
+                  <th>状態</th>
+                  <th>最終ログイン</th>
+                  <th>アップロード数</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="user-name-cell">
+                      <div class="user-avatar-sm">山</div>
+                      <div>
+                        <div style="font-weight:700;">山田 太郎</div>
+                        <div style="font-size:11px;color:var(--muted);">yamada@example.com</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="role-badge role-admin">管理者</span></td>
+                  <td><span class="status-dot active"></span>アクティブ</td>
+                  <td>今日 09:14</td>
+                  <td>47件</td>
+                  <td>
+                    <div style="display:flex;gap:6px;justify-content:flex-end;">
+                      <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-pen"></i></button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="user-name-cell">
+                      <div class="user-avatar-sm" style="background:var(--green);">鈴</div>
+                      <div>
+                        <div style="font-weight:700;">鈴木 一郎</div>
+                        <div style="font-size:11px;color:var(--muted);">suzuki@example.com</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="role-badge role-member">メンバー</span></td>
+                  <td><span class="status-dot active"></span>アクティブ</td>
+                  <td>今日 11:30</td>
+                  <td>23件</td>
+                  <td>
+                    <div style="display:flex;gap:6px;justify-content:flex-end;">
+                      <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-pen"></i></button>
+                      <button class="btn btn-ghost btn-sm" style="color:var(--red);"><i class="fa-solid fa-ban"></i></button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="user-name-cell">
+                      <div class="user-avatar-sm" style="background:var(--orange);">田</div>
+                      <div>
+                        <div style="font-weight:700;">田中 誠</div>
+                        <div style="font-size:11px;color:var(--muted);">tanaka@example.com</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="role-badge role-member">メンバー</span></td>
+                  <td><span class="status-dot active"></span>アクティブ</td>
+                  <td>昨日 17:02</td>
+                  <td>18件</td>
+                  <td>
+                    <div style="display:flex;gap:6px;justify-content:flex-end;">
+                      <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-pen"></i></button>
+                      <button class="btn btn-ghost btn-sm" style="color:var(--red);"><i class="fa-solid fa-ban"></i></button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="user-name-cell">
+                      <div class="user-avatar-sm" style="background:#8E44AD;">佐</div>
+                      <div>
+                        <div style="font-weight:700;">佐藤 花子</div>
+                        <div style="font-size:11px;color:var(--muted);">sato@example.com</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="role-badge role-viewer">閲覧のみ</span></td>
+                  <td><span class="status-dot active"></span>アクティブ</td>
+                  <td>2025/04/30</td>
+                  <td>0件</td>
+                  <td>
+                    <div style="display:flex;gap:6px;justify-content:flex-end;">
+                      <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-pen"></i></button>
+                      <button class="btn btn-ghost btn-sm" style="color:var(--red);"><i class="fa-solid fa-ban"></i></button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="user-name-cell">
+                      <div class="user-avatar-sm" style="background:var(--muted);">外</div>
+                      <div>
+                        <div style="font-weight:700;">外注 商事（株）</div>
+                        <div style="font-size:11px;color:var(--muted);">guest@gaichuu.co.jp</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="role-badge role-guest">ゲスト</span></td>
+                  <td><span class="status-dot inactive"></span>期限切れ</td>
+                  <td>2025/04/20</td>
+                  <td>0件</td>
+                  <td>
+                    <div style="display:flex;gap:6px;justify-content:flex-end;">
+                      <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-pen"></i></button>
+                      <button class="btn btn-ghost btn-sm" style="color:var(--red);"><i class="fa-solid fa-ban"></i></button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ────────────────────────────
+           タブ2: タグ管理
+           ──────────────────────────── -->
+      <div class="tab-panel" id="tab-tags">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="tag-grid-layout">
+
+          <!-- 既存タグ一覧 -->
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+              <div class="section-title" style="margin:0;">タグ一覧</div>
+              <span style="font-size:13px;color:var(--muted);">全18件</span>
+            </div>
+            <div style="padding:16px 20px;">
+              <div style="display:flex;gap:8px;margin-bottom:14px;">
+                <div class="search-bar" style="flex:1;">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input type="text" placeholder="タグ名で検索…">
+                </div>
+              </div>
+
+              <div class="tag-admin-item">
+                <span class="tag">設計</span>
+                <span style="font-size:12px;color:var(--muted);">手動</span>
+                <span class="tag-count">32件のファイル</span>
+                <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red);"><i class="fa-solid fa-trash"></i></button>
+              </div>
+              <div class="tag-admin-item">
+                <span class="tag">図面</span>
+                <span style="font-size:12px;color:var(--muted);">手動</span>
+                <span class="tag-count">28件のファイル</span>
+                <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red);"><i class="fa-solid fa-trash"></i></button>
+              </div>
+              <div class="tag-admin-item">
+                <span class="tag">品管</span>
+                <span style="font-size:12px;color:var(--muted);">手動</span>
+                <span class="tag-count">15件のファイル</span>
+                <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red);"><i class="fa-solid fa-trash"></i></button>
+              </div>
+              <div class="tag-admin-item">
+                <span class="tag">現場</span>
+                <span style="font-size:12px;color:var(--muted);">手動</span>
+                <span class="tag-count">12件のファイル</span>
+                <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red);"><i class="fa-solid fa-trash"></i></button>
+              </div>
+              <div class="tag-admin-item">
+                <span class="tag tag-ai">✦ 機械加工</span>
+                <span style="font-size:12px;color:var(--accent);">AI</span>
+                <span class="tag-count">9件のファイル</span>
+                <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red);"><i class="fa-solid fa-trash"></i></button>
+              </div>
+              <div class="tag-admin-item">
+                <span class="tag tag-ai">✦ 溶接</span>
+                <span style="font-size:12px;color:var(--accent);">AI</span>
+                <span class="tag-count">7件のファイル</span>
+                <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red);"><i class="fa-solid fa-trash"></i></button>
+              </div>
+              <div class="tag-admin-item">
+                <span class="tag">アルミ</span>
+                <span style="font-size:12px;color:var(--muted);">手動</span>
+                <span class="tag-count">6件のファイル</span>
+                <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red);"><i class="fa-solid fa-trash"></i></button>
+              </div>
+              <div class="tag-admin-item">
+                <span class="tag">ステンレス</span>
+                <span style="font-size:12px;color:var(--muted);">手動</span>
+                <span class="tag-count">5件のファイル</span>
+                <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red);"><i class="fa-solid fa-trash"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- タグ追加 & AI統計 -->
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div class="card">
+              <div class="card-header" style="margin-bottom:14px;">
+                <span class="card-title"><i class="fa-solid fa-plus"></i> 新規タグ追加</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">タグ名</label>
+                <input type="text" class="form-input" placeholder="例：組立図、検査記録…">
+              </div>
+              <div class="form-group">
+                <label class="form-label">種別</label>
+                <select class="form-select">
+                  <option>手動タグ</option>
+                  <option>AIタグ（自動付与候補）</option>
+                </select>
+              </div>
+              <button class="btn btn-accent" style="width:100%;margin-top:4px;">
+                <i class="fa-solid fa-plus"></i> タグを追加
+              </button>
+            </div>
+
+            <div class="card">
+              <div class="card-header" style="margin-bottom:14px;">
+                <span class="card-title"><i class="fa-solid fa-chart-bar"></i> タグ利用統計</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                  <span style="width:60px;color:var(--muted);">設計</span>
+                  <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+                    <div style="width:82%;height:100%;background:var(--accent);border-radius:4px;"></div>
+                  </div>
+                  <span style="width:30px;text-align:right;font-weight:700;">32</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                  <span style="width:60px;color:var(--muted);">図面</span>
+                  <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+                    <div style="width:72%;height:100%;background:var(--accent);border-radius:4px;"></div>
+                  </div>
+                  <span style="width:30px;text-align:right;font-weight:700;">28</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                  <span style="width:60px;color:var(--muted);">品管</span>
+                  <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+                    <div style="width:38%;height:100%;background:var(--accent);border-radius:4px;"></div>
+                  </div>
+                  <span style="width:30px;text-align:right;font-weight:700;">15</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                  <span style="width:60px;color:var(--muted);">現場</span>
+                  <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+                    <div style="width:31%;height:100%;background:var(--orange);border-radius:4px;"></div>
+                  </div>
+                  <span style="width:30px;text-align:right;font-weight:700;">12</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                  <span style="width:60px;color:var(--muted);font-size:11px;">機械加工</span>
+                  <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;">
+                    <div style="width:23%;height:100%;background:var(--green);border-radius:4px;"></div>
+                  </div>
+                  <span style="width:30px;text-align:right;font-weight:700;">9</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ────────────────────────────
+           タブ3: アクセス権限
+           ──────────────────────────── -->
+      <div class="tab-panel" id="tab-permission">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="tag-grid-layout">
+
+          <!-- ロール別権限マトリクス -->
+          <div class="card" style="padding:0;overflow:hidden;">
+            <div style="padding:16px 20px;border-bottom:1px solid var(--border);">
+              <div class="section-title" style="margin:0;">ロール別権限マトリクス</div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="admin-table permission-matrix">
+                <thead>
+                  <tr>
+                    <th>操作</th>
+                    <th>管理者</th>
+                    <th>メンバー</th>
+                    <th>閲覧のみ</th>
+                    <th>ゲスト</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>ファイル閲覧</td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                  </tr>
+                  <tr>
+                    <td>ダウンロード</td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                  </tr>
+                  <tr>
+                    <td>アップロード</td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                  </tr>
+                  <tr>
+                    <td>コメント投稿</td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                  </tr>
+                  <tr>
+                    <td>タグ追加</td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                  </tr>
+                  <tr>
+                    <td>ファイル削除</td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                  </tr>
+                  <tr>
+                    <td>QRコード発行</td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                  </tr>
+                  <tr>
+                    <td>ユーザー管理</td>
+                    <td><i class="fa-solid fa-check perm-check"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                    <td><i class="fa-solid fa-minus perm-cross"></i></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ゲストアクセス管理 -->
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div class="card">
+              <div class="card-header" style="margin-bottom:14px;">
+                <span class="card-title"><i class="fa-solid fa-link"></i> 外部共有リンク</span>
+                <button class="btn btn-accent btn-sm">
+                  <i class="fa-solid fa-plus"></i> 新規発行
+                </button>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:10px;">
+
+                <div style="background:var(--bg);border-radius:var(--radius);padding:12px 14px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                    <div>
+                      <div style="font-size:13px;font-weight:700;">外注商事（株）向け</div>
+                      <div style="font-size:11px;color:var(--muted);margin-top:2px;">アルミブラケット_図面_v3.pdf</div>
+                    </div>
+                    <span style="font-size:11px;background:rgba(225,112,85,.12);color:var(--red);font-weight:700;padding:2px 9px;border-radius:20px;">期限切れ</span>
+                  </div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:6px;">
+                    <i class="fa-solid fa-calendar" style="margin-right:4px;"></i>有効期限: 2025/04/20 ·
+                    <i class="fa-solid fa-eye" style="margin-left:6px;margin-right:4px;"></i>3回アクセス
+                  </div>
+                </div>
+
+                <div style="background:var(--bg);border-radius:var(--radius);padding:12px 14px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                    <div>
+                      <div style="font-size:13px;font-weight:700;">協力会社A向け</div>
+                      <div style="font-size:11px;color:var(--muted);margin-top:2px;">検査仕様書フォルダ（5件）</div>
+                    </div>
+                    <span style="font-size:11px;background:rgba(0,184,148,.12);color:var(--green);font-weight:700;padding:2px 9px;border-radius:20px;">有効</span>
+                  </div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:6px;">
+                    <i class="fa-solid fa-calendar" style="margin-right:4px;"></i>有効期限: 2025/05/31 ·
+                    <i class="fa-solid fa-eye" style="margin-left:6px;margin-right:4px;"></i>12回アクセス
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header" style="margin-bottom:14px;">
+                <span class="card-title"><i class="fa-solid fa-shield"></i> セキュリティ設定</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                  <div>
+                    <div style="font-size:13px;font-weight:700;">ダウンロード禁止ファイルの設定</div>
+                    <div style="font-size:12px;color:var(--muted);">特定ファイルをプレビューのみに制限</div>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" checked>
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                  <div>
+                    <div style="font-size:13px;font-weight:700;">印刷履歴の記録</div>
+                    <div style="font-size:12px;color:var(--muted);">誰がいつ印刷したかをログに残す</div>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" checked>
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                  <div>
+                    <div style="font-size:13px;font-weight:700;">廃版ファイルの警告表示</div>
+                    <div style="font-size:12px;color:var(--muted);">旧バージョンを開くと全画面で警告</div>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" checked>
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                  <div>
+                    <div style="font-size:13px;font-weight:700;">ゲストアクセスの許可</div>
+                    <div style="font-size:12px;color:var(--muted);">社外への期限付きリンク発行を許可</div>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ────────────────────────────
+           タブ4: 監査ログ
+           ──────────────────────────── -->
+      <div class="tab-panel" id="tab-audit">
+
+        <!-- フィルター -->
+        <div class="card" style="padding:14px 20px;margin-bottom:16px;">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <select class="form-select" style="width:auto;padding:7px 12px;font-size:13px;">
+              <option>すべての操作</option>
+              <option>アップロード</option>
+              <option>ダウンロード</option>
+              <option>閲覧</option>
+              <option>削除</option>
+              <option>コメント</option>
+            </select>
+            <select class="form-select" style="width:auto;padding:7px 12px;font-size:13px;">
+              <option>すべてのユーザー</option>
+              <option>山田 太郎</option>
+              <option>鈴木 一郎</option>
+              <option>田中 誠</option>
+            </select>
+            <select class="form-select" style="width:auto;padding:7px 12px;font-size:13px;">
+              <option>今日</option>
+              <option>今週</option>
+              <option>今月</option>
+              <option>カスタム…</option>
+            </select>
+            <div class="search-bar" style="flex:1;min-width:160px;">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" placeholder="ファイル名で検索…">
+            </div>
+            <button class="btn btn-outline btn-sm" style="flex-shrink:0;">
+              <i class="fa-solid fa-download"></i> CSVエクスポート
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>日時</th>
+                  <th>ユーザー</th>
+                  <th>操作</th>
+                  <th>対象ファイル</th>
+                  <th>IPアドレス</th>
+                  <th>デバイス</th>
+                </tr>
+              </thead>
+              <tbody class="audit-row">
+                <tr>
+                  <td>今日 11:42</td>
+                  <td>
+                    <div class="user-name-cell">
+                      <div class="user-avatar-sm" style="width:24px;height:24px;font-size:10px;background:var(--green);">鈴</div>
+                      鈴木 一郎
+                    </div>
+                  </td>
+                  <td><span class="audit-action audit-download">ダウンロード</span></td>
+                  <td style="font-size:12px;">アルミブラケット_図面_v3.pdf</td>
+                  <td style="font-size:12px;color:var(--muted);">192.168.1.52</td>
+                  <td style="font-size:12px;color:var(--muted);"><i class="fa-solid fa-desktop"></i> PC</td>
+                </tr>
+                <tr>
+                  <td>今日 11:30</td>
+                  <td>
+                    <div class="user-name-cell">
+                      <div class="user-avatar-sm" style="width:24px;height:24px;font-size:10px;background:var(--green);">鈴</div>
+                      鈴木 一郎
+                    </div>
+                  </td>
+                  <td><span class="audit-action audit-comment">コメント</span></td>
+                  <td style="font-size:12px;">アルミブラケット_図面_v3.pdf</td>
+                  <td style="font-size:12px;color:var(--muted);">192.168.1.52</td>
+                  <td style="font-size:12px;color:var(--muted);"><i class="fa-solid fa-desktop"></i> PC</td>
+                </tr>
+                <tr>
+                  <td>今日 09:14</td>
+                  <td>
+                    <div class="user-name-cell">
+                      <div class="user-avatar-sm" style="width:24px;height:24px;font-size:10px;">山</div>
+                      山田 太郎
+                    </div>
+                  </td>
+                  <td><span class="audit-action audit-upload">アップロード</span></td>
+                  <td style="font-size:12px;">アルミブラケット_図面_v3.pdf</td>
+                  <td style="font-size:12px;color:var(--muted);">192.168.1.10</td>
+                  <td style="font-size:12px;color:var(--muted);"><i class="fa-solid fa-desktop"></i> PC</td>
+                </tr>
+                <tr>
+                  <td>昨日 17:02</td>
+                  <td>
+                    <div class="user-name-cell">
+                      <div class="user-avatar-sm" style="width:24px;height:24px;font-size:10px;background:var(--orange);">田</div>
+                      田中 誠
+                    </div>
+                  </td>
+                  <td><span class="audit-action audit-view">閲覧</span></td>
+                  <td style="font-size:12px;">検査記録表_2025年4月.xlsx</td>
+                  <td style="font-size:12px;color:var(--muted);">192.168.1.33</td>
+                  <td style="font-size:12px;color:var(--muted);"><i class="fa-solid fa-mobile-screen"></i> スマホ</td>
+                </tr>
+                <tr>
+                  <td>昨日 14:55</td>
+                  <td>
+                    <div class="user-name-cell">
+                      <div class="user-avatar-sm" style="width:24px;height:24px;font-size:10px;background:var(--orange);">田</div>
+                      田中 誠
+                    </div>
+                  </td>
+                  <td><span class="audit-action audit-view">QRスキャン</span></td>
+                  <td style="font-size:12px;">部品_組立図.dxf</td>
+                  <td style="font-size:12px;color:var(--muted);">192.168.2.71</td>
+                  <td style="font-size:12px;color:var(--muted);"><i class="fa-solid fa-mobile-screen"></i> スマホ</td>
+                </tr>
+                <tr>
+                  <td>昨日 10:20</td>
+                  <td>
+                    <div class="user-name-cell">
+                      <div class="user-avatar-sm" style="width:24px;height:24px;font-size:10px;">山</div>
+                      山田 太郎
+                    </div>
+                  </td>
+                  <td><span class="audit-action audit-upload">アップロード</span></td>
+                  <td style="font-size:12px;">ステンレスシャフト.stp</td>
+                  <td style="font-size:12px;color:var(--muted);">192.168.1.10</td>
+                  <td style="font-size:12px;color:var(--muted);"><i class="fa-solid fa-desktop"></i> PC</td>
+                </tr>
+                <tr>
+                  <td>2025/04/30 16:10</td>
+                  <td>
+                    <div class="user-name-cell">
+                      <div class="user-avatar-sm" style="width:24px;height:24px;font-size:10px;background:var(--green);">鈴</div>
+                      鈴木 一郎
+                    </div>
+                  </td>
+                  <td><span class="audit-action audit-delete">削除</span></td>
+                  <td style="font-size:12px;color:var(--muted);">旧_ハウジング_v1.stl</td>
+                  <td style="font-size:12px;color:var(--muted);">192.168.1.52</td>
+                  <td style="font-size:12px;color:var(--muted);"><i class="fa-solid fa-desktop"></i> PC</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- ページネーション -->
+          <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--muted);">
+            <span>全 142件中 1〜7件を表示</span>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-ghost btn-sm" disabled><i class="fa-solid fa-chevron-left"></i></button>
+              <button class="btn btn-outline btn-sm" style="min-width:32px;">1</button>
+              <button class="btn btn-ghost btn-sm" style="min-width:32px;">2</button>
+              <button class="btn btn-ghost btn-sm" style="min-width:32px;">3</button>
+              <button class="btn btn-ghost btn-sm"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /page-body -->
+  </div><!-- /main-content -->
+</div><!-- /app-layout -->
+
+<!-- ユーザー招待モーダル -->
+<div class="modal-overlay hidden" id="inviteModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-user-plus" style="color:var(--accent);"></i> ユーザーを招待</span>
+      <button class="modal-close" id="inviteModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">メールアドレス</label>
+      <input type="email" class="form-input" placeholder="example@company.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">氏名</label>
+      <input type="text" class="form-input" placeholder="山田 太郎">
+    </div>
+    <div class="form-group">
+      <label class="form-label">ロール</label>
+      <select class="form-select">
+        <option>メンバー</option>
+        <option>管理者</option>
+        <option>閲覧のみ</option>
+        <option>ゲスト（期限付き）</option>
+      </select>
+    </div>
+    <div class="form-group" id="guestExpiry" style="display:none;">
+      <label class="form-label">アクセス期限</label>
+      <input type="date" class="form-input">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="inviteCancelBtn">キャンセル</button>
+      <button class="btn btn-accent">
+        <i class="fa-solid fa-paper-plane"></i> 招待メールを送信
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* ── タブ切替 ── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ── 招待モーダル ── */
+document.getElementById('inviteModalClose').addEventListener('click', () => {
+  document.getElementById('inviteModal').classList.add('hidden');
+});
+document.getElementById('inviteCancelBtn').addEventListener('click', () => {
+  document.getElementById('inviteModal').classList.add('hidden');
+});
+document.getElementById('inviteModal').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.add('hidden');
+});
+
+/* ゲスト選択時に期限欄を表示 */
+document.querySelector('#inviteModal select').addEventListener('change', function() {
+  document.getElementById('guestExpiry').style.display =
+    this.value.includes('ゲスト') ? 'block' : 'none';
+});
+
+/* ── トグルスイッチ ── */
+document.querySelectorAll('.toggle-switch input').forEach(chk => {
+  chk.addEventListener('change', function() {
+    showToast(this.checked ? '設定を有効にしました' : '設定を無効にしました', 'success');
+  });
+});
+
+/* ── ハンバーガーメニュー ── */
+const menuToggle = document.getElementById('menuToggle');
+const sidebar    = document.querySelector('.sidebar');
+const overlay    = document.getElementById('sidebarOverlay');
+menuToggle.addEventListener('click', () => {
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('open');
+});
+overlay.addEventListener('click', () => {
+  sidebar.classList.remove('open');
+  overlay.classList.remove('open');
+});
+
+/* ── トースト ── */
+function showToast(msg, type = 'info') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 2500);
+}
+</script>
+</body>
+</html>

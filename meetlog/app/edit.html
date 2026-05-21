@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#7C3AED">
+  <title>議事録エディタ | MeetLog</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/ml-app.css">
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+
+    .spinner { display:inline-block; animation: fa-spin 1s linear infinite; }
+
+    /* ── ページ全体 ── */
+    .edit-page {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── ヘッダー ── */
+    .edit-header {
+      height: 56px;
+      padding: 0 16px;
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+    .edit-title-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      font-family: inherit;
+      background: transparent;
+      min-width: 0;
+    }
+    .edit-title-input::placeholder { color: var(--muted); }
+
+    /* ── 2カラムボディ ── */
+    .edit-body {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 4fr 6fr;
+      min-height: 0;
+    }
+
+    /* ── 共通ペインスタイル ── */
+    .pane {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .pane-left {
+      border-right: 1px solid var(--border);
+      background: #FAFAFA;
+    }
+    .pane-right {
+      background: #fff;
+    }
+
+    .pane-head {
+      height: 44px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: inherit;
+    }
+    .pane-label {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pane-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .pane-left .pane-scroll {
+      display: flex;
+      flex-direction: column;
+      padding: 10px 12px 12px;
+    }
+
+    /* ── 会議情報フォーム ── */
+    /* 会議情報：1行横並び */
+    .meta-row-compact {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 6px;
+      flex-shrink: 0;
+    }
+    .form-input {
+      padding: 5px 8px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+      font-family: inherit;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .form-input:focus {
+      border-color: var(--ml-purple);
+      box-shadow: 0 0 0 2px var(--ml-purple-mid);
+    }
+    .form-input::placeholder { color: #bbb; }
+
+    /* ── 音声・AI整形ボタン行 ── */
+    .action-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+    .btn-voice-sm {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0 12px;
+      height: 30px;
+      border-radius: 6px;
+      background: var(--text);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      transition: background .15s;
+      white-space: nowrap;
+    }
+    .btn-voice-sm:hover { background: #333; }
+    .btn-voice-sm.listening {
+      background: var(--red);
+      animation: voicePulse 1.2s ease-in-out infinite;
+    }
+    @keyframes voicePulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,.4); }
+      50%      { box-shadow: 0 0 0 6px rgba(220,38,38,0); }
+    }
+    .btn-ai-sm {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      height: 30px;
+      border-radius: 6px;
+      background: var(--ml-purple);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      box-shadow: 0 1px 6px rgba(124,58,237,.25);
+      transition: background .15s;
+    }
+    .btn-ai-sm:hover { background: var(--ml-purple-dk); }
+    .btn-ai-sm:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* ── AI整形スタイルポップアップ ── */
+    .ai-format-wrap {
+      flex: 1;
+      position: relative;
+    }
+    #aiStylePopup {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1.5px solid var(--ml-purple);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(124,58,237,.18);
+      z-index: 300;
+      overflow: hidden;
+    }
+    #aiStylePopup.show { display: block; }
+    .style-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: background .12s;
+      border-bottom: 1px solid var(--border);
+    }
+    .style-option:last-child { border-bottom: none; }
+    .style-option:hover { background: var(--ml-purple-lt); }
+    .style-option-icon {
+      font-size: 16px;
+      width: 22px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .style-option-text { flex: 1; min-width: 0; }
+    .style-option-name {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .style-option-desc {
+      font-size: 10.5px;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+
+    .ai-status {
+      font-size: 11px;
+      color: var(--muted);
+      min-height: 14px;
+      margin-bottom: 4px;
+      flex-shrink: 0;
+    }
+
+    /* ── メモテキストエリア ── */
+    .memo-textarea {
+      width: 100%;
+      flex: 1;
+      resize: none;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13.5px;
+      font-family: 'Noto Sans JP', sans-serif;
+      line-height: 1.75;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      min-height: 0;
+      height: 100%;
+    }
+    .memo-textarea:focus {
+      border-color: var(--ml-purple);
+      box-shadow: 0 0 0 3px var(--ml-purple-mid);
+    }
+    .memo-textarea::placeholder { color: #bbb; }
+
+    /* ── アクションアイテム ── */
+    .actions-wrap {
+      border-top: 1px solid var(--border);
+      padding: 12px 16px 14px;
+      flex-shrink: 0;
+      background: #FAFAFA;
+    }
+    .actions-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .actions-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .action-list { display: flex; flex-direction: column; gap: 5px; }
+    .action-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .action-item:has(.action-check:checked) {
+      background: #F0FDF4;
+      border-color: #86EFAC;
+    }
+    .action-check {
+      width: 15px; height: 15px;
+      flex-shrink: 0;
+      cursor: pointer;
+      accent-color: var(--green);
+    }
+    .action-content-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      outline: none;
+      font-size: 13px;
+      color: var(--text);
+      font-family: inherit;
+      min-width: 0;
+    }
+    .action-item:has(.action-check:checked) .action-content-input {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+    .action-meta {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .action-assignee-input,
+    .action-due-input {
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 7px;
+      font-size: 11.5px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+      width: 76px;
+    }
+    .action-due-input.overdue { border-color: var(--red); color: var(--red); }
+    .action-del-btn {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color .15s;
+      flex-shrink: 0;
+    }
+    .action-del-btn:hover { color: var(--red); }
+    .btn-add-action {
+      margin-top: 8px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 6px;
+      border: 1.5px dashed var(--border-md);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color .15s, color .15s;
+    }
+    .btn-add-action:hover { border-color: var(--ml-purple); color: var(--ml-purple); }
+
+    /* ── 繰り越しバナー ── */
+    #carryoverBanner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      background: #FFF7ED;
+      border: 1.5px solid #FED7AA;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: #92400E;
+      flex-shrink: 0;
+    }
+    #carryoverBanner i { color: #F97316; font-size: 14px; flex-shrink: 0; }
+    #carryoverBanner .banner-text { flex: 1; font-weight: 600; }
+    #carryoverBanner .banner-sub { font-size: 11px; font-weight: 400; color: #C2410C; }
+    .btn-carryover {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      background: #F97316;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    .btn-carryover:hover { background: #EA580C; }
+    .btn-carryover-dismiss {
+      padding: 4px 8px;
+      background: transparent;
+      border: 1.5px solid #FED7AA;
+      color: #92400E;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: inherit;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    .btn-carryover-dismiss:hover { background: #FEF3C7; }
+
+    /* ── 繰り越しバッジ ── */
+    .action-carryover-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 6px;
+      background: #FFF7ED;
+      border: 1px solid #FED7AA;
+      color: #C2410C;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .action-item.is-carryover {
+      border-color: #FED7AA;
+      background: #FFFBF5;
+    }
+
+    /* ── 右ペイン：プレビュー ── */
+    .preview-area {
+      padding: 28px 32px 40px;
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 13.5px;
+      line-height: 1.85;
+      color: #1a1a1a;
+    }
+    .preview-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #ccc;
+      gap: 12px;
+      text-align: center;
+      font-size: 13px;
+    }
+    .preview-placeholder i { font-size: 36px; }
+
+    /* プレビュー内Markdownスタイル */
+    .preview-area strong { font-weight: 700; }
+    .preview-area p { margin: 0 0 10px; }
+    .preview-area ul { margin: 6px 0 14px; padding-left: 1.1em; list-style: none; }
+    .preview-area ul li { margin: 5px 0; }
+    .preview-area ul li::before { content: '・'; margin-left: -1.1em; margin-right: 0.05em; }
+    .preview-area ol { margin: 6px 0 14px; padding-left: 1.6em; }
+    .preview-area ol li { margin: 5px 0; }
+    .preview-area table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 12px 0;
+      font-size: 13px;
+    }
+    .preview-area th {
+      background: #F3F4F6;
+      font-weight: 700;
+      padding: 7px 12px;
+      border: 1px solid #D1D5DB;
+      text-align: left;
+    }
+    .preview-area td {
+      padding: 7px 12px;
+      border: 1px solid #D1D5DB;
+    }
+    .preview-area hr {
+      border: none;
+      border-top: 1px solid #E5E7EB;
+      margin: 16px 0;
+    }
+    /* h2：議題タイトル */
+    .preview-area h2 {
+      font-size: 1.1em;
+      font-weight: 900;
+      color: #111;
+      margin: 0 0 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #111;
+    }
+    /* h3：セクション見出し */
+    .preview-area h3 {
+      font-size: 0.92em;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin: 28px 0 10px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: #F3F4F6;
+    }
+    /* サマリー・決定・未決定・アクションを色分け */
+    .preview-area h3:has(+ *) { background: #F3F4F6; }
+
+    .preview-area .summary-block { background: #EFF6FF; border-left: 3px solid #3B82F6; padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 6px 0 14px; font-size: 13px; line-height: 1.8; }
+    .preview-area h1 { font-size: 1.1em; font-weight: 900; margin: 0 0 12px; }
+
+    /* ── プレビュー内画像 ── */
+    .preview-area img {
+      max-width: 100%;
+      border-radius: 6px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      display: block;
+      margin: 8px 0;
+      transition: border-color .15s;
+    }
+    .preview-area img.img-selected {
+      border-color: var(--ml-purple);
+      box-shadow: 0 0 0 3px var(--ml-purple-mid);
+    }
+
+    /* 画像リサイズツールチップ */
+    #imgResizePopup {
+      position: fixed;
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 6px 8px;
+      display: none;
+      gap: 4px;
+      align-items: center;
+      z-index: 9999;
+      box-shadow: 0 4px 20px rgba(0,0,0,.3);
+    }
+    #imgResizePopup.show { display: flex; }
+    .img-size-btn {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      color: #aaa;
+      background: transparent;
+      transition: background .12s, color .12s;
+      white-space: nowrap;
+    }
+    .img-size-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
+    .img-size-btn.active { background: var(--ml-purple); color: #fff; }
+    .img-size-sep { width: 1px; height: 16px; background: rgba(255,255,255,.15); flex-shrink: 0; }
+
+    /* ── フッター ── */
+    .edit-footer {
+      height: 56px;
+      background: #fff;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      flex-shrink: 0;
+      box-shadow: 0 -2px 10px rgba(0,0,0,.05);
+    }
+    /* 承認ボタン */
+    .footer-approval-btn {
+      border-radius: 8px;
+      padding: 8px 20px;
+      font-size: 13.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    /* 縦セパレーター */
+    .footer-sep {
+      flex: 1;
+    }
+    /* ツールボタン群 */
+    .footer-tools {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .footer-tool-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-sub);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .15s, color .15s;
+      min-width: 44px;
+      height: 44px;
+      white-space: nowrap;
+    }
+    .footer-tool-btn i { font-size: 15px; }
+    .footer-tool-btn:hover { background: var(--bg); color: var(--text); }
+    .footer-tool-danger { color: var(--red); }
+    .footer-tool-danger:hover { background: var(--red-lt); color: var(--red); }
+
+    /* ── 印刷 ── */
+    @media print {
+      /* 印刷時はUIを全て隠す */
+      .edit-header, .pane-left, .pane-head, .edit-footer,
+      .modal-overlay, .toast-container,
+      #editPreviewBtn, #clearPreviewBtn { display: none !important; }
+      html, body { overflow: visible !important; height: auto !important; }
+      .edit-page { height: auto !important; }
+      .edit-body { display: block !important; }
+      .pane-right { width: 100% !important; }
+      .pane-scroll { overflow: visible !important; }
+      /* 右ペインのプレビューのみ表示 */
+      .preview-area {
+        font-size: 12pt;
+        padding: 0 !important;
+        line-height: 1.75;
+      }
+      .preview-area h2 {
+        font-size: 14pt;
+        border-bottom: 2px solid #000;
+        padding-bottom: 6px;
+      }
+      .preview-area h3 {
+        font-size: 11pt;
+        background: #eee !important;
+        padding: 4px 8px;
+        border-radius: 4px;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .preview-area table { border-collapse: collapse; width: 100%; }
+      .preview-area th, .preview-area td { border: 1px solid #999; padding: 5px 8px; }
+      .preview-area th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      /* 改ページ制御 */
+      h2, h3 { page-break-after: avoid; }
+      table { page-break-inside: avoid; }
+    }
+
+    /* ══════════════════════════════════════
+       スマホ専用レスポンシブ（〜 767px）
+       ══════════════════════════════════════ */
+    @media (max-width: 767px) {
+      html, body {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      /* ── ヘッダー：コンパクト ── */
+      .edit-header {
+        height: 52px;
+        padding: 0 12px;
+      }
+
+      /* ── タブバー（スマホのみ表示） ── */
+      #mobileTabs {
+        display: flex;
+        background: #fff;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .mobile-tab {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 11px 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+        border-bottom: 2.5px solid transparent;
+        cursor: pointer;
+        transition: color .15s, border-color .15s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .mobile-tab.active {
+        color: var(--ml-purple);
+        border-bottom-color: var(--ml-purple);
+      }
+
+      /* ── 2カラム→1カラム切替 ── */
+      .edit-body {
+        display: block;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        position: relative;
+      }
+
+      /* 各ペインはタブで表示/非表示 */
+      .pane {
+        position: absolute;
+        inset: 0;
+        display: none;
+        overflow: hidden;
+      }
+      .pane.tab-active { display: flex; }
+      .pane-left { background: #FAFAFA; border-right: none; }
+      .pane-right { background: #fff; }
+
+      /* スクロール */
+      .pane-scroll {
+        -webkit-overflow-scrolling: touch;
+        padding: 10px 12px 16px;
+      }
+      .pane-right .pane-scroll {
+        padding: 16px 16px 24px;
+      }
+
+      /* フォーム項目をスマホで見やすく */
+      .meta-row-compact { gap: 8px; margin-bottom: 8px; }
+      .form-input {
+        padding: 9px 10px;
+        font-size: 14px;
+        border-radius: 8px;
+        min-height: 42px;
+      }
+
+      /* 音声・AI ボタンを大きく */
+      .action-row { gap: 8px; margin-bottom: 10px; }
+      .btn-voice-sm {
+        height: 46px;
+        padding: 0 16px;
+        font-size: 13.5px;
+        border-radius: 10px;
+      }
+      .btn-ai-sm {
+        height: 46px;
+        font-size: 13.5px;
+        border-radius: 10px;
+      }
+
+      /* メモテキストエリア */
+      .memo-textarea {
+        min-height: 200px;
+        font-size: 15px;
+        border-radius: 10px;
+        padding: 14px;
+      }
+
+      /* アクションアイテム：フォームを縦積み */
+      .action-meta {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        width: 100%;
+      }
+      .action-assignee-input,
+      .action-due-input {
+        width: 100%;
+        min-height: 38px;
+        font-size: 13px;
+      }
+      .actions-wrap { padding: 12px 12px 14px; }
+      .btn-add-action { padding: 10px; font-size: 13px; min-height: 44px; }
+
+      /* プレビュー */
+      .preview-area {
+        padding: 18px 16px 32px;
+        font-size: 14px;
+      }
+
+      /* ── フッター：スマホ ── */
+      .edit-footer {
+        height: auto;
+        padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+        gap: 0;
+      }
+      /* 承認ボタン：スマホでは少しコンパクトに */
+      .footer-approval-btn {
+        padding: 8px 14px;
+        font-size: 13px;
+      }
+      /* ツールボタン：スマホで少し小さく */
+      .footer-tool-btn {
+        min-width: 40px;
+        padding: 4px 6px;
+        font-size: 9.5px;
+        height: 42px;
+      }
+      .footer-tool-btn i { font-size: 14px; }
+
+      /* ペインヘッダーは非表示（タブが代替） */
+      .pane-head { display: none; }
+
+      /* 画像リサイズポップアップ：スマホ対応 */
+      #imgResizePopup { padding: 8px 10px; border-radius: 12px; }
+      .img-size-btn { padding: 8px 14px; font-size: 13px; min-height: 36px; }
+    }
+
+    /* ── タブバーはPCでは非表示 ── */
+    #mobileTabs { display: none; }
+
+    /* ══════════════════════════════════════
+       タブレット（768px〜1024px）
+       ══════════════════════════════════════ */
+    @media (min-width: 768px) and (max-width: 1024px) {
+      .edit-body { grid-template-columns: 1fr 1fr; }
+      .pane-scroll { padding: 12px 14px; }
+      .preview-area { padding: 20px 24px 36px; }
+    }
+  </style>
+</head>
+<body>
+<div class="edit-page">
+
+  <!-- ヘッダー -->
+  <header class="edit-header">
+    <button class="btn btn-ghost btn-sm" onclick="goBack()" title="戻る" style="padding:6px 10px;border-radius:8px;">
+      <i class="fa-solid fa-arrow-left"></i>
+    </button>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;">
+      <span style="font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="headerTitle">新規議事録</span>
+      <span id="autoSaveStatus" style="font-size:10px;color:var(--muted);"></span>
+    </div>
+    <button class="btn btn-accent" id="saveBtn" style="border-radius:8px;padding:7px 18px;font-size:13px;flex-shrink:0;">
+      <i class="fa-solid fa-floppy-disk"></i>
+      <span>保存</span>
+    </button>
+  </header>
+
+  <!-- スマホ用タブバー（CSS で PC では display:none） -->
+  <div id="mobileTabs">
+    <div class="mobile-tab active" id="tabMemo" onclick="switchMobileTab('memo')">
+      <i class="fa-solid fa-pen-to-square"></i> メモ
+    </div>
+    <div class="mobile-tab" id="tabPreview" onclick="switchMobileTab('preview')">
+      <i class="fa-solid fa-file-lines"></i> 議事録
+    </div>
+  </div>
+
+  <!-- 2カラムボディ -->
+  <div class="edit-body">
+
+    <!-- 左ペイン：入力 -->
+    <div class="pane pane-left tab-active" id="paneLeft">
+      <div class="pane-head">
+        <span class="pane-label"><i class="fa-solid fa-pen-to-square"></i> メモ入力</span>
+        <button id="clearMemoBtn" onclick="clearMemo()" style="display:none;
+          font-size:11.5px;font-weight:600;color:#666;background:#F3F4F6;
+          border:1.5px solid #D1D5DB;border-radius:6px;padding:3px 10px;cursor:pointer;
+          font-family:inherit;align-items:center;gap:5px;">
+          <i class="fa-solid fa-rotate-left"></i> クリア
+        </button>
+      </div>
+
+      <div class="pane-scroll">
+        <!-- 会議情報 -->
+        <div class="meta-row-compact">
+          <input type="text" id="titleInput" class="form-input" placeholder="議事録タイトルを入力…" maxlength="255" style="flex:1;min-width:0;font-size:13px;font-weight:700;">
+        </div>
+        <div class="meta-row-compact">
+          <input type="date" id="meetingDate" class="form-input" style="width:130px;flex-shrink:0;">
+          <input type="time" id="meetingTime" class="form-input" style="width:90px;flex-shrink:0;">
+          <input type="text" id="meetingLocation" class="form-input" placeholder="場所" style="flex:1;min-width:0;">
+        </div>
+        <div class="meta-row-compact">
+          <input type="text" id="attendeesInput" class="form-input" placeholder="参加者（田中, 佐藤）" style="flex:1;min-width:0;">
+          <input type="text" id="authorNameInput" class="form-input" placeholder="作成者" style="width:110px;flex-shrink:0;">
+        </div>
+
+        <!-- 音声・AI整形 -->
+        <div class="action-row">
+          <button class="btn-voice-sm" id="voiceBtn">
+            <i class="fa-solid fa-microphone"></i>
+            <span id="voiceBtnLabel">音声入力</span>
+          </button>
+          <div class="ai-format-wrap">
+            <button class="btn-ai-sm" id="aiFormatBtn" style="width:100%;">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span id="aiFormatBtnLabel">AI整形</span>
+              <i class="fa-solid fa-chevron-down" style="font-size:9px;margin-left:2px;opacity:.7;"></i>
+            </button>
+            <div id="aiStylePopup">
+              <div class="style-option" data-style="standard" onclick="selectAiStyle(this)">
+                <span class="style-option-icon">📋</span>
+                <div class="style-option-text">
+                  <div class="style-option-name">標準（バランス型）</div>
+                  <div class="style-option-desc">決定・未決定・協議・アクションを網羅</div>
+                </div>
+              </div>
+              <div class="style-option" data-style="bullet" onclick="selectAiStyle(this)">
+                <span class="style-option-icon">⚡</span>
+                <div class="style-option-text">
+                  <div class="style-option-name">箇条書き重視（スキャン型）</div>
+                  <div class="style-option-desc">30秒でスキャンできる超簡潔スタイル</div>
+                </div>
+              </div>
+              <div class="style-option" data-style="formal" onclick="selectAiStyle(this)">
+                <span class="style-option-icon">📝</span>
+                <div class="style-option-text">
+                  <div class="style-option-name">報告書形式（フォーマル）</div>
+                  <div class="style-option-desc">社内・対外提出に使える丁寧な敬体</div>
+                </div>
+              </div>
+              <div class="style-option" data-style="visual" onclick="selectAiStyle(this)">
+                <span class="style-option-icon">🏭</span>
+                <div class="style-option-text">
+                  <div class="style-option-name">現場向け（ビジュアル型）</div>
+                  <div class="style-option-desc">絵文字・表で現場作業者が一目で把握</div>
+                </div>
+              </div>
+              <div class="style-option" data-style="summary" onclick="selectAiStyle(this)">
+                <span class="style-option-icon">🎯</span>
+                <div class="style-option-text">
+                  <div class="style-option-name">要約型（3行サマリー）</div>
+                  <div class="style-option-desc">背景・決定・アクションのみ超コンパクト</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ai-status" id="aiStatus" style="flex-shrink:0;"></div>
+
+        <!-- メモ入力 -->
+        <textarea id="bodyInput" class="memo-textarea" style="flex:1;"
+          placeholder="走り書きメモや音声入力の内容をここに入力…
+AI整形ボタンを押すと右側に議事録が生成されます。"></textarea>
+      </div>
+
+      <!-- アクションアイテム -->
+      <div class="actions-wrap">
+        <div class="actions-head">
+          <span class="actions-title">
+            <i class="fa-solid fa-list-check" style="color:var(--ml-purple);"></i>
+            アクションアイテム
+          </span>
+          <button class="btn btn-ghost btn-sm" id="aiExtractBtn" style="font-size:11.5px;padding:3px 8px;border-radius:6px;">
+            <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--ml-purple);font-size:11px;"></i>
+            AIで抽出
+          </button>
+        </div>
+        <!-- 前回積み残しバナー（新規作成時のみ表示） -->
+        <div id="carryoverBanner" style="display:none;">
+          <i class="fa-solid fa-arrow-rotate-right"></i>
+          <div class="banner-text">
+            前回の積み残しがあります
+            <div class="banner-sub" id="carryoverBannerSub"></div>
+          </div>
+          <button class="btn-carryover" onclick="applyCarryover()">引き継ぐ</button>
+          <button class="btn-carryover-dismiss" onclick="dismissCarryover()">×</button>
+        </div>
+        <div class="action-list" id="actionList"></div>
+        <button class="btn-add-action" id="addActionBtn">
+          <i class="fa-solid fa-plus"></i> アクションを追加
+        </button>
+      </div>
+    </div>
+
+    <!-- 右ペイン：プレビュー -->
+    <div class="pane pane-right" id="paneRight">
+      <div class="pane-head">
+        <span class="pane-label"><i class="fa-solid fa-file-lines"></i> 議事録プレビュー</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <!-- 編集モード時のみ表示：画像挿入ボタン -->
+          <label id="insertImageBtn" style="display:none;
+            font-size:11.5px;font-weight:600;color:#059669;background:#ECFDF5;
+            border:1.5px solid #6EE7B7;border-radius:6px;padding:3px 10px;cursor:pointer;
+            font-family:inherit;align-items:center;gap:5px;" title="カーソル位置に画像を挿入">
+            <i class="fa-solid fa-image"></i> 画像挿入
+            <input type="file" id="insertImageInput" accept="image/*" style="display:none;" onchange="onInsertImageSelect(this)">
+          </label>
+          <button id="editPreviewBtn" onclick="togglePreviewEdit()" style="display:none;
+            font-size:11.5px;font-weight:600;color:var(--ml-purple);background:var(--ml-purple-lt);
+            border:1.5px solid var(--ml-purple);border-radius:6px;padding:3px 10px;cursor:pointer;
+            font-family:inherit;align-items:center;gap:5px;">
+            <i class="fa-solid fa-pen"></i> 編集
+          </button>
+          <button id="clearPreviewBtn" onclick="clearPreview()" style="display:none;
+            font-size:11.5px;font-weight:600;color:#666;background:#F3F4F6;
+            border:1.5px solid #D1D5DB;border-radius:6px;padding:3px 10px;cursor:pointer;
+            font-family:inherit;align-items:center;gap:5px;">
+            <i class="fa-solid fa-rotate-left"></i> クリア
+          </button>
+        </div>
+      </div>
+      <div class="pane-scroll" style="position:relative;">
+        <div class="preview-area" id="mdPreview">
+          <div class="preview-placeholder">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span>左側にメモを入力して<br>「AI整形」ボタンを押してください</span>
+          </div>
+        </div>
+        <textarea id="previewEditArea" style="display:none;width:100%;height:100%;
+          min-height:400px;border:none;outline:none;resize:none;font-size:13.5px;
+          font-family:'Noto Sans JP',sans-serif;line-height:1.8;color:var(--text);
+          background:#fff;padding:0;" placeholder="議事録を編集できます…"></textarea>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- フッター（保存後に表示） -->
+  <footer class="edit-footer" id="editFooter" style="display:none;">
+    <!-- 承認ボタン：左寄せ、適度な幅 -->
+    <button class="btn btn-outline footer-approval-btn" id="approvalBtn">
+      <i class="fa-solid fa-circle-check"></i>
+      <span id="approvalBtnLabel">承認申請</span>
+    </button>
+    <!-- セパレーター -->
+    <div class="footer-sep"></div>
+    <!-- ツールボタン群：右寄せ -->
+    <div class="footer-tools">
+      <button class="footer-tool-btn" id="printBtn" onclick="printMinute()" title="印刷">
+        <i class="fa-solid fa-print"></i>
+        <span>印刷</span>
+      </button>
+      <button class="footer-tool-btn" id="pdfBtn" onclick="exportPdf()" title="PDF保存">
+        <i class="fa-solid fa-file-pdf" style="color:#E53E3E;"></i>
+        <span>PDF</span>
+      </button>
+      <button class="footer-tool-btn" id="qrBtn" title="QRコード発行">
+        <i class="fa-solid fa-qrcode"></i>
+        <span>QR</span>
+      </button>
+      <button class="footer-tool-btn" id="emailBtn" onclick="openFollowUpEmailModal()" title="フォローメール">
+        <i class="fa-solid fa-envelope" style="color:var(--ml-purple);"></i>
+        <span>メール</span>
+      </button>
+      <button class="footer-tool-btn footer-tool-danger" id="deleteBtn" title="削除">
+        <i class="fa-solid fa-trash"></i>
+        <span>削除</span>
+      </button>
+    </div>
+  </footer>
+
+</div>
+
+<!-- QRモーダル -->
+<div class="modal-overlay hidden" id="qrModal">
+  <div class="modal" style="max-width:360px;text-align:center;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-qrcode"></i> QRコード</span>
+      <button class="modal-close" id="qrModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">このURLを配布または印刷してください。ログイン不要で閲覧できます。</p>
+    <div id="qrCodeArea" style="margin-bottom:12px;display:flex;justify-content:center;"></div>
+    <input type="text" id="qrUrlInput" readonly style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:12px;margin-bottom:10px;">
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="copyQrUrl()"><i class="fa-solid fa-copy"></i> URLをコピー</button>
+      <button class="btn btn-accent" onclick="window.print()"><i class="fa-solid fa-print"></i> 印刷</button>
+    </div>
+  </div>
+</div>
+
+<!-- フォローメールモーダル -->
+<div class="modal-overlay hidden" id="emailModal">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-envelope" style="color:var(--ml-purple);"></i> フォローアップメール生成</span>
+      <button class="modal-close" id="emailModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px;">議事録とアクションアイテムをもとにAIがフォローメールを生成します。</p>
+    <div id="emailLoadingArea" style="text-align:center;padding:24px;color:var(--muted);display:none;">
+      <i class="fa-solid fa-spinner fa-spin fa-lg"></i>
+      <p style="margin-top:8px;font-size:13px;">生成中…</p>
+    </div>
+    <textarea id="emailOutput" style="width:100%;min-height:280px;border:1.5px solid var(--border);border-radius:8px;
+      padding:12px;font-size:13px;font-family:'Noto Sans JP',sans-serif;line-height:1.8;
+      color:var(--text);background:var(--bg);outline:none;resize:vertical;display:none;"
+      placeholder="ここにメール文章が生成されます…"></textarea>
+    <div class="modal-footer" style="margin-top:12px;">
+      <button class="btn btn-accent" id="emailGenerateBtn" onclick="generateFollowUpEmail()">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> AIで生成
+      </button>
+      <button class="btn btn-outline" id="emailCopyBtn" onclick="copyEmailText()" style="display:none;">
+        <i class="fa-solid fa-copy"></i> コピー
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 画像リサイズポップアップ -->
+<div id="imgResizePopup">
+  <button class="img-size-btn" data-width="160" onclick="applyImgSize(160)">小</button>
+  <button class="img-size-btn" data-width="320" onclick="applyImgSize(320)">中</button>
+  <button class="img-size-btn" data-width="520" onclick="applyImgSize(520)">大</button>
+  <div class="img-size-sep"></div>
+  <button class="img-size-btn" data-width="0"   onclick="applyImgSize(0)">全幅</button>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* スマホ用タブ切替 */
+function switchMobileTab(tab) {
+  const paneLeft    = document.getElementById('paneLeft');
+  const paneRight   = document.getElementById('paneRight');
+  const tabMemo     = document.getElementById('tabMemo');
+  const tabPreview  = document.getElementById('tabPreview');
+  if (tab === 'memo') {
+    paneLeft.classList.add('tab-active');
+    paneRight.classList.remove('tab-active');
+    tabMemo.classList.add('active');
+    tabPreview.classList.remove('active');
+  } else {
+    paneRight.classList.add('tab-active');
+    paneLeft.classList.remove('tab-active');
+    tabPreview.classList.add('active');
+    tabMemo.classList.remove('active');
+  }
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="../../../solid/assets/js/auth.js?v=6"></script>
+<script src="../assets/js/ml-api.js?v=2"></script>
+<script src="../assets/js/pages/ml-edit.js?v=10"></script>
+</body>
+</html>

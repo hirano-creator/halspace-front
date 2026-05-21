@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1E3A5F">
+  <title>差分比較 | What'sNo</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/wn-app.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { background: var(--bg); }
+
+    .diff-wrap { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* トップバー */
+    .diff-topbar {
+      height: 52px; background: var(--white); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 16px; gap: 12px; flex-shrink: 0; z-index: 10;
+    }
+    .diff-topbar-back {
+      color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 6px;
+      text-decoration: none; white-space: nowrap;
+    }
+    .diff-topbar-back:hover { color: var(--primary); }
+    .diff-topbar-title { font-size: 14px; font-weight: 700; color: var(--primary); flex: 1; }
+
+    /* コントロールバー */
+    .diff-controls {
+      background: var(--white); border-bottom: 1px solid var(--border);
+      padding: 10px 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .diff-ver-badge {
+      padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;
+    }
+    .diff-ver-a { background: #FFEBEE; color: #C62828; }
+    .diff-ver-b { background: #E8F5E9; color: #2E7D32; }
+    .diff-mode-btn {
+      padding: 5px 12px; border: 1.5px solid var(--border); border-radius: 6px;
+      background: var(--white); font-size: 12px; cursor: pointer; transition: all .15s;
+    }
+    .diff-mode-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .diff-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+    .diff-legend {
+      display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--muted); margin-left: auto;
+    }
+    .diff-legend-dot {
+      width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
+    }
+
+    /* メインエリア */
+    .diff-body { flex: 1; overflow: hidden; position: relative; }
+
+    /* 並列モード */
+    .diff-side-by-side {
+      display: grid; grid-template-columns: 1fr 1fr; height: 100%;
+    }
+    .diff-panel {
+      overflow: auto; border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+    }
+    .diff-panel:last-child { border-right: none; }
+    .diff-panel-label {
+      position: sticky; top: 0; z-index: 5;
+      padding: 6px 14px; font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .diff-panel-label.old { background: rgba(198,40,40,.08); color: #C62828; }
+    .diff-panel-label.new { background: rgba(46,125,50,.08); color: #2E7D32; }
+    .diff-canvas-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 10px; padding: 10px;
+    }
+
+    /* オーバーレイモード */
+    .diff-overlay-wrap {
+      height: 100%; overflow: auto;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 10px; gap: 10px;
+    }
+    .diff-page-label {
+      font-size: 11px; color: var(--muted); align-self: flex-start; padding: 0 6px;
+    }
+
+    /* ローディング */
+    .diff-loading {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 14px;
+      background: var(--bg); z-index: 20;
+    }
+    .diff-spinner {
+      width: 40px; height: 40px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* DXF差分テーブル */
+    .diff-dxf-wrap {
+      height: 100%; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .diff-dxf-canvas-wrap {
+      flex: 1; overflow: auto; background: #1A1A2E; position: relative;
+    }
+    .diff-dxf-canvas-wrap canvas {
+      display: block;
+    }
+    .diff-dxf-stats {
+      background: var(--white); border-top: 1px solid var(--border);
+      padding: 8px 16px; display: flex; gap: 16px; font-size: 12px; flex-shrink: 0;
+    }
+    .diff-stat-add { color: #2E7D32; font-weight: 700; }
+    .diff-stat-del { color: #C62828; font-weight: 700; }
+    .diff-stat-same { color: var(--muted); }
+
+    /* エラー */
+    .diff-error {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px; color: var(--muted);
+      background: var(--bg);
+    }
+    .diff-error i { font-size: 48px; opacity: .4; }
+
+    /* スライダー（オーバーレイ用） */
+    .diff-opacity-wrap { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .diff-opacity-wrap input[type=range] { width: 100px; accent-color: var(--accent); }
+
+    @media (max-width: 640px) {
+      .diff-side-by-side { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="diff-wrap">
+
+  <!-- トップバー -->
+  <div class="diff-topbar">
+    <a href="#" class="diff-topbar-back" id="backBtn">
+      <i class="fa-solid fa-chevron-left"></i> 詳細に戻る
+    </a>
+    <div class="diff-topbar-title" id="diffTitle">差分比較</div>
+  </div>
+
+  <!-- コントロールバー -->
+  <div class="diff-controls">
+    <span class="diff-ver-badge diff-ver-a" id="badgeA">vOLD</span>
+    <i class="fa-solid fa-arrow-right" style="font-size:11px;color:var(--muted);"></i>
+    <span class="diff-ver-badge diff-ver-b" id="badgeB">vNEW</span>
+
+    <div class="diff-sep" id="modeSep"></div>
+    <div id="modeButtons">
+      <button class="diff-mode-btn active" data-mode="side">並列表示</button>
+      <button class="diff-mode-btn" data-mode="overlay">オーバーレイ</button>
+      <button class="diff-mode-btn" data-mode="diff">差分のみ</button>
+    </div>
+
+    <div class="diff-opacity-wrap" id="opacityWrap" style="display:none;">
+      <span>旧版の透明度:</span>
+      <input type="range" id="opacitySlider" min="0" max="100" value="40">
+      <span id="opacityVal">40%</span>
+    </div>
+
+    <div class="diff-legend" id="diffLegend" style="display:none;">
+      <div class="diff-legend-dot" style="background:rgba(198,40,40,.5);"></div><span>削除</span>
+      <div class="diff-legend-dot" style="background:rgba(46,125,50,.5);"></div><span>追加</span>
+    </div>
+  </div>
+
+  <!-- メインエリア -->
+  <div class="diff-body" id="diffBody"></div>
+
+  <!-- ローディング（diffBody の外に配置） -->
+  <div class="diff-loading" id="diffLoading">
+    <div class="diff-spinner"></div>
+    <span style="font-size:13px;color:var(--muted);" id="loadingMsg">ファイルを読み込んでいます…</span>
+  </div>
+
+</div>
+
+<!-- toast -->
+<div id="toastContainer" style="position:fixed;bottom:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:8px;"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.js"></script>
+<script src="../../solid/assets/js/auth.js"></script>
+<script src="../assets/js/wn-api.js"></script>
+<script src="../assets/js/wn-dxf-viewer.js"></script>
+<script>
+'use strict';
+
+const params = new URLSearchParams(location.search);
+const idA = params.get('a');  /* 旧版 */
+const idB = params.get('b');  /* 新版（現在） */
+
+let fileA = null, fileB = null;
+let urlA  = null, urlB  = null;
+let currentMode = 'side';
+let pdfPagesA = [], pdfPagesB = [];
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!idA || !idB) { showError('比較するファイルが指定されていません'); return; }
+  requireSpaceAuth();
+
+  document.getElementById('backBtn').href = `file-detail.html?id=${idB}`;
+
+  /* ファイル情報取得（AI要約生成をスキップして高速化） */
+  setLoadingMsg('ファイル情報を取得中…');
+  const fetchFile = async (id) => {
+    const res = await wnFetch(`/wn/files/${id}?skip_ai=1`);
+    if (!res || !res.ok) return null;
+    return (await res.json()).data ?? null;
+  };
+  [fileA, fileB] = await Promise.all([fetchFile(idA), fetchFile(idB)]);
+  if (!fileA || !fileB) { showError('ファイルが見つかりません'); return; }
+
+  document.getElementById('diffTitle').textContent = `差分比較: ${fileB.file_name}`;
+  document.getElementById('badgeA').textContent = `v${fileA.version} (旧)`;
+  document.getElementById('badgeB').textContent = `v${fileB.version} (新)`;
+
+  /* ファイルURLを取得 */
+  setLoadingMsg('ファイルを読み込み中…');
+  [urlA, urlB] = await Promise.all([wnGetViewUrl(idA), wnGetViewUrl(idB)]);
+  if (!urlA || !urlB) { showError('ファイルのURLを取得できませんでした'); return; }
+
+  const ext = fileB.file_name.split('.').pop().toLowerCase();
+
+  /* モードボタン（DXFはオーバーレイ非対応） */
+  if (ext === 'dxf') {
+    document.getElementById('modeButtons').innerHTML =
+      '<button class="diff-mode-btn active" data-mode="side">並列表示</button>' +
+      '<button class="diff-mode-btn" data-mode="diff">差分ハイライト</button>';
+    currentMode = 'side';
+  }
+
+  document.querySelectorAll('.diff-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.diff-mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentMode = btn.dataset.mode;
+      renderMode(ext);
+    });
+  });
+
+  document.getElementById('opacitySlider').addEventListener('input', e => {
+    document.getElementById('opacityVal').textContent = e.target.value + '%';
+    updateOverlayOpacity(parseInt(e.target.value));
+  });
+
+  await renderMode(ext);
+});
+
+/* ────────────────── モード描画 ────────────────── */
+async function renderMode(ext) {
+  const body = document.getElementById('diffBody');
+  const loading = document.getElementById('diffLoading');
+  loading.style.display = '';
+
+  if (ext === 'pdf') {
+    document.getElementById('opacityWrap').style.display = currentMode === 'overlay' ? '' : 'none';
+    document.getElementById('diffLegend').style.display  = currentMode === 'diff'    ? '' : 'none';
+    await renderPdfDiff(ext);
+  } else if (ext === 'dxf') {
+    document.getElementById('diffLegend').style.display  = currentMode === 'diff' ? '' : 'none';
+    await renderDxfDiff();
+  } else {
+    showError('このファイル形式の差分表示はサポートしていません（PDF・DXF のみ）');
+  }
+}
+
+/* ────────────────── PDF 差分 ────────────────── */
+async function renderPdfDiff() {
+  const body = document.getElementById('diffBody');
+  setLoadingMsg('PDFを読み込み中…');
+
+  try {
+    if (!pdfPagesA.length || !pdfPagesB.length) {
+      const [docA, docB] = await Promise.all([
+        pdfjsLib.getDocument(urlA).promise,
+        pdfjsLib.getDocument(urlB).promise,
+      ]);
+      pdfPagesA = await renderPdfToImages(docA, 'a');
+      pdfPagesB = await renderPdfToImages(docB, 'b');
+    }
+
+    const pageCount = Math.max(pdfPagesA.length, pdfPagesB.length);
+    hideLoading();
+
+    if (currentMode === 'side') {
+      body.innerHTML = `
+        <div class="diff-side-by-side">
+          <div class="diff-panel" id="panelA">
+            <div class="diff-panel-label old"><i class="fa-solid fa-circle" style="font-size:8px;"></i> v${fileA.version}（旧版）</div>
+            <div class="diff-canvas-wrap" id="canvasWrapA"></div>
+          </div>
+          <div class="diff-panel" id="panelB">
+            <div class="diff-panel-label new"><i class="fa-solid fa-circle" style="font-size:8px;"></i> v${fileB.version}（新版）</div>
+            <div class="diff-canvas-wrap" id="canvasWrapB"></div>
+          </div>
+        </div>`;
+      syncScroll('panelA', 'panelB');
+
+      for (let i = 0; i < pageCount; i++) {
+        if (pdfPagesA[i]) document.getElementById('canvasWrapA').appendChild(pdfPagesA[i].cloneNode(true));
+        if (pdfPagesB[i]) document.getElementById('canvasWrapB').appendChild(pdfPagesB[i].cloneNode(true));
+      }
+
+    } else if (currentMode === 'overlay') {
+      body.innerHTML = `<div class="diff-overlay-wrap" id="overlayWrap"></div>`;
+      const wrap = document.getElementById('overlayWrap');
+      const opacity = parseInt(document.getElementById('opacitySlider').value) / 100;
+
+      for (let i = 0; i < pageCount; i++) {
+        const label = document.createElement('div');
+        label.className = 'diff-page-label';
+        label.textContent = `ページ ${i + 1}`;
+        wrap.appendChild(label);
+
+        const container = document.createElement('div');
+        container.style.cssText = 'position:relative;display:inline-block;';
+        if (pdfPagesB[i]) {
+          const imgB = pdfPagesB[i].cloneNode(true);
+          imgB.style.cssText = 'display:block;border-radius:6px;';
+          container.appendChild(imgB);
+        }
+        if (pdfPagesA[i]) {
+          const imgA = pdfPagesA[i].cloneNode(true);
+          imgA.style.cssText = `position:absolute;inset:0;opacity:${opacity};mix-blend-mode:multiply;border-radius:6px;`;
+          imgA.dataset.overlay = 'true';
+          container.appendChild(imgA);
+        }
+        wrap.appendChild(container);
+      }
+
+    } else if (currentMode === 'diff') {
+      body.innerHTML = `<div class="diff-overlay-wrap" id="diffWrap"></div>`;
+      const wrap = document.getElementById('diffWrap');
+      setLoadingMsg('差分を計算中…');
+      document.getElementById('diffLoading').style.display = '';
+
+      for (let i = 0; i < pageCount; i++) {
+        const label = document.createElement('div');
+        label.className = 'diff-page-label';
+        label.textContent = `ページ ${i + 1}`;
+        wrap.appendChild(label);
+
+        const diffCanvas = computePixelDiff(pdfPagesA[i], pdfPagesB[i]);
+        diffCanvas.style.cssText = 'border-radius:6px;max-width:100%;';
+        wrap.appendChild(diffCanvas);
+      }
+      hideLoading();
+    }
+
+  } catch (err) {
+    console.error(err);
+    showError('PDFの読み込みに失敗しました: ' + err.message);
+  }
+}
+
+async function renderPdfToImages(doc, side) {
+  const pages = [];
+  const scale = 1.5;
+  for (let i = 1; i <= doc.numPages; i++) {
+    setLoadingMsg(`PDFをレンダリング中… (${side === 'a' ? '旧版' : '新版'} p.${i}/${doc.numPages})`);
+    const page = await doc.getPage(i);
+    const vp   = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width  = vp.width;
+    canvas.height = vp.height;
+    canvas.style.cssText = 'max-width:100%;border-radius:6px;background:#fff;';
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    pages.push(canvas);
+  }
+  return pages;
+}
+
+/* ピクセル差分 Canvas 生成 */
+function computePixelDiff(canvasA, canvasB) {
+  const w = Math.max(canvasA?.width  ?? 0, canvasB?.width  ?? 0) || 800;
+  const h = Math.max(canvasA?.height ?? 0, canvasB?.height ?? 0) || 1000;
+
+  const out    = document.createElement('canvas');
+  out.width    = w;
+  out.height   = h;
+  const ctx    = out.getContext('2d');
+
+  /* 背景を白 */
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+
+  /* 旧版を灰色でベース描画 */
+  if (canvasA) {
+    ctx.globalAlpha = 0.15;
+    ctx.drawImage(canvasA, 0, 0, w, h);
+  }
+  /* 新版を通常描画 */
+  if (canvasB) {
+    ctx.globalAlpha = 1;
+    ctx.drawImage(canvasB, 0, 0, w, h);
+  }
+
+  /* ピクセル差分計算 */
+  const ctxA   = canvasA ? (() => { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(canvasA, 0, 0, w, h); return c.getContext('2d'); })() : null;
+  const ctxB   = canvasB ? (() => { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(canvasB, 0, 0, w, h); return c.getContext('2d'); })() : null;
+  if (!ctxA || !ctxB) return out;
+
+  const dA     = ctxA.getImageData(0, 0, w, h).data;
+  const dB     = ctxB.getImageData(0, 0, w, h).data;
+  const result = ctx.getImageData(0, 0, w, h);
+  const rD     = result.data;
+
+  for (let i = 0; i < dA.length; i += 4) {
+    const dr = Math.abs(dA[i]   - dB[i]);
+    const dg = Math.abs(dA[i+1] - dB[i+1]);
+    const db = Math.abs(dA[i+2] - dB[i+2]);
+    const diff = (dr + dg + db) / 3;
+
+    if (diff > 15) {
+      const aIsDark = (dA[i] + dA[i+1] + dA[i+2]) < 600;
+      const bIsDark = (dB[i] + dB[i+1] + dB[i+2]) < 600;
+
+      if (aIsDark && !bIsDark) {
+        /* 削除（旧版にあった暗い部分）→ 赤 */
+        rD[i]   = 220; rD[i+1] = 50;  rD[i+2] = 50;  rD[i+3] = 200;
+      } else if (!aIsDark && bIsDark) {
+        /* 追加（新版にある暗い部分）→ 緑 */
+        rD[i]   = 50;  rD[i+1] = 180; rD[i+2] = 80;  rD[i+3] = 200;
+      }
+    }
+  }
+  ctx.putImageData(result, 0, 0);
+  return out;
+}
+
+function updateOverlayOpacity(pct) {
+  document.querySelectorAll('[data-overlay="true"]').forEach(el => {
+    el.style.opacity = pct / 100;
+  });
+}
+
+function syncScroll(idA, idB) {
+  const a = document.getElementById(idA);
+  const b = document.getElementById(idB);
+  if (!a || !b) return;
+  let locked = false;
+  const sync = (from, to) => () => {
+    if (locked) return;
+    locked = true;
+    to.scrollTop  = from.scrollTop;
+    to.scrollLeft = from.scrollLeft;
+    locked = false;
+  };
+  a.addEventListener('scroll', sync(a, b));
+  b.addEventListener('scroll', sync(b, a));
+}
+
+/* ────────────────── DXF 差分 ────────────────── */
+async function renderDxfDiff() {
+  setLoadingMsg('DXFを読み込み中…');
+  try {
+    const [textA, textB] = await Promise.all([
+      fetchDxfText(idA),
+      fetchDxfText(idB),
+    ]);
+    if (!textA || !textB) throw new Error('DXFテキストの取得失敗');
+
+    const parser = new DxfParser();
+    const dxfA   = parser.parseSync(textA);
+    const dxfB   = parser.parseSync(textB);
+
+    const entA = flatEntities(dxfA);
+    const entB = flatEntities(dxfB);
+
+    hideLoading();
+
+    if (currentMode === 'side') {
+      renderDxfSideBySide(textA, textB, entA, entB);
+    } else {
+      renderDxfHighlight(entA, entB);
+    }
+  } catch (err) {
+    console.error(err);
+    showError('DXFの解析に失敗しました: ' + err.message);
+  }
+}
+
+function flatEntities(dxf) {
+  const ents = [];
+  if (dxf?.entities) ents.push(...dxf.entities);
+  if (dxf?.blocks) {
+    Object.values(dxf.blocks).forEach(b => {
+      if (b.entities) ents.push(...b.entities);
+    });
+  }
+  return ents;
+}
+
+function entityKey(e) {
+  const pts = (e.vertices ?? []).map(v => `${v.x?.toFixed(2)},${v.y?.toFixed(2)}`).join('|');
+  return `${e.type}|${e.startPoint?.x?.toFixed(2)},${e.startPoint?.y?.toFixed(2)}|${e.endPoint?.x?.toFixed(2)},${e.endPoint?.y?.toFixed(2)}|${e.center?.x?.toFixed(2)},${e.center?.y?.toFixed(2)}|${e.radius?.toFixed(2)}|${pts}`;
+}
+
+function renderDxfSideBySide(textA, textB, entA, entB) {
+  const body = document.getElementById('diffBody');
+  const keysA = new Set(entA.map(entityKey));
+  const keysB = new Set(entB.map(entityKey));
+  const added   = entB.filter(e => !keysA.has(entityKey(e)));
+  const removed = entA.filter(e => !keysB.has(entityKey(e)));
+
+  body.innerHTML = `
+    <div class="diff-side-by-side">
+      <div class="diff-panel" id="panelA">
+        <div class="diff-panel-label old"><i class="fa-solid fa-circle" style="font-size:8px;"></i> v${fileA.version}（旧版）· 削除エンティティ: ${removed.length}</div>
+        <div id="dxfCanvasA" style="flex:1;"></div>
+      </div>
+      <div class="diff-panel" id="panelB">
+        <div class="diff-panel-label new"><i class="fa-solid fa-circle" style="font-size:8px;"></i> v${fileB.version}（新版）· 追加エンティティ: ${added.length}</div>
+        <div id="dxfCanvasB" style="flex:1;"></div>
+      </div>
+    </div>`;
+
+  if (typeof wnRenderDxf === 'function') {
+    wnRenderDxf(document.getElementById('dxfCanvasA'), textA);
+    wnRenderDxf(document.getElementById('dxfCanvasB'), textB);
+  }
+  syncScroll('panelA', 'panelB');
+}
+
+function renderDxfHighlight(entA, entB) {
+  const body = document.getElementById('diffBody');
+  const keysA = new Set(entA.map(entityKey));
+  const keysB = new Set(entB.map(entityKey));
+  const added   = entB.filter(e => !keysA.has(entityKey(e)));
+  const removed = entA.filter(e => !keysB.has(entityKey(e)));
+  const same    = entB.filter(e => keysA.has(entityKey(e)));
+
+  body.innerHTML = `
+    <div class="diff-dxf-wrap">
+      <div class="diff-dxf-canvas-wrap" id="dxfDiffCanvas"></div>
+      <div class="diff-dxf-stats">
+        <span class="diff-stat-add"><i class="fa-solid fa-plus"></i> 追加: ${added.length}</span>
+        <span class="diff-stat-del"><i class="fa-solid fa-minus"></i> 削除: ${removed.length}</span>
+        <span class="diff-stat-same">変更なし: ${same.length}</span>
+        <span style="color:var(--muted);margin-left:auto;font-size:11px;">
+          <i class="fa-solid fa-circle" style="color:#DC3545;"></i> 削除 &nbsp;
+          <i class="fa-solid fa-circle" style="color:#28A745;"></i> 追加 &nbsp;
+          <i class="fa-solid fa-circle" style="color:#546E7A;opacity:.4;"></i> 変更なし
+        </span>
+      </div>
+    </div>`;
+
+  drawDxfDiffCanvas(document.getElementById('dxfDiffCanvas'), added, removed, same);
+}
+
+function drawDxfDiffCanvas(container, added, removed, same) {
+  const allEnts = [...same, ...added, ...removed];
+  if (!allEnts.length) {
+    container.innerHTML = '<p style="color:rgba(255,255,255,.5);text-align:center;padding:40px;">差分がありません</p>';
+    return;
+  }
+
+  /* バウンディングボックス計算 */
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  allEnts.forEach(e => {
+    const pts = getEntityPoints(e);
+    pts.forEach(([x, y]) => {
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    });
+  });
+
+  const margin = 20;
+  const W = container.clientWidth  || 800;
+  const H = container.clientHeight || 600;
+  const scaleX = (W - margin * 2) / (maxX - minX || 1);
+  const scaleY = (H - margin * 2) / (maxY - minY || 1);
+  const scale  = Math.min(scaleX, scaleY);
+  const offX   = margin - minX * scale + ((W - margin * 2) - (maxX - minX) * scale) / 2;
+  const offY   = margin - minY * scale + ((H - margin * 2) - (maxY - minY) * scale) / 2;
+
+  const canvas  = document.createElement('canvas');
+  canvas.width  = W;
+  canvas.height = H;
+  container.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#1A1A2E';
+  ctx.fillRect(0, 0, W, H);
+
+  const toScreen = (x, y) => [x * scale + offX, H - (y * scale + offY)];
+
+  function drawEnts(ents, color, alpha) {
+    ctx.strokeStyle = color;
+    ctx.fillStyle   = color;
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth   = alpha < 1 ? 0.5 : 1.5;
+    ents.forEach(e => drawEntity(ctx, e, toScreen));
+  }
+
+  drawEnts(same,    '#8AAFC8', 0.25);
+  drawEnts(removed, '#DC3545', 1);
+  drawEnts(added,   '#28A745', 1);
+  ctx.globalAlpha = 1;
+}
+
+function getEntityPoints(e) {
+  const pts = [];
+  if (e.startPoint) pts.push([e.startPoint.x, e.startPoint.y]);
+  if (e.endPoint)   pts.push([e.endPoint.x, e.endPoint.y]);
+  if (e.center)     pts.push([e.center.x, e.center.y]);
+  if (e.vertices)   e.vertices.forEach(v => pts.push([v.x ?? 0, v.y ?? 0]));
+  if (e.position)   pts.push([e.position.x, e.position.y]);
+  return pts;
+}
+
+function drawEntity(ctx, e, toScreen) {
+  if (e.type === 'LINE') {
+    const [x1, y1] = toScreen(e.startPoint?.x ?? 0, e.startPoint?.y ?? 0);
+    const [x2, y2] = toScreen(e.endPoint?.x   ?? 0, e.endPoint?.y   ?? 0);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+
+  } else if (e.type === 'CIRCLE') {
+    const [cx, cy] = toScreen(e.center?.x ?? 0, e.center?.y ?? 0);
+    const r = (e.radius ?? 0) * Math.min(1, 1);
+    ctx.beginPath(); ctx.arc(cx, cy, Math.abs(r), 0, Math.PI * 2); ctx.stroke();
+
+  } else if (e.type === 'ARC') {
+    const [cx, cy] = toScreen(e.center?.x ?? 0, e.center?.y ?? 0);
+    const r   = (e.radius ?? 0);
+    const sa  = (e.startAngle ?? 0) * Math.PI / 180;
+    const ea  = (e.endAngle   ?? 0) * Math.PI / 180;
+    ctx.beginPath(); ctx.arc(cx, cy, Math.abs(r), -ea, -sa); ctx.stroke();
+
+  } else if (['LWPOLYLINE', 'POLYLINE'].includes(e.type)) {
+    const verts = e.vertices ?? [];
+    if (!verts.length) return;
+    ctx.beginPath();
+    const [sx, sy] = toScreen(verts[0].x ?? 0, verts[0].y ?? 0);
+    ctx.moveTo(sx, sy);
+    verts.slice(1).forEach(v => { const [x, y] = toScreen(v.x ?? 0, v.y ?? 0); ctx.lineTo(x, y); });
+    if (e.shape) ctx.closePath();
+    ctx.stroke();
+
+  } else if (e.type === 'TEXT' || e.type === 'MTEXT') {
+    const [tx, ty] = toScreen(e.startPoint?.x ?? e.position?.x ?? 0, e.startPoint?.y ?? e.position?.y ?? 0);
+    ctx.font = `${Math.max(8, (e.textHeight ?? 3) * 4)}px sans-serif`;
+    ctx.fillText(String(e.text ?? e.string ?? '').substring(0, 30), tx, ty);
+  }
+}
+
+async function fetchDxfText(fileId) {
+  const token = localStorage.getItem('space_token');
+  const url = WN_API_BASE + `/wn/files/${fileId}/public-view` + (token ? `?token=${encodeURIComponent(token)}` : '');
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return await res.text();
+  } catch { return null; }
+}
+
+/* ────────────────── ユーティリティ ────────────────── */
+function setLoadingMsg(msg) {
+  const el = document.getElementById('loadingMsg');
+  if (el) el.textContent = msg;
+  document.getElementById('diffLoading').style.display = '';
+}
+
+function hideLoading() {
+  document.getElementById('diffLoading').style.display = 'none';
+}
+
+function showError(msg) {
+  document.getElementById('diffLoading').style.display = 'none';
+  const body = document.getElementById('diffBody');
+  body.innerHTML = `
+    <div class="diff-error">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <p style="font-size:14px;">${msg}</p>
+      <a href="javascript:history.back()" class="btn btn-outline btn-sm">戻る</a>
+    </div>`;
+}
+
+function h(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+<script src="../assets/js/pwa.js"></script>
+</body>
+</html>

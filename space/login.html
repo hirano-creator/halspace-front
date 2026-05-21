@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ログイン | Space.app</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="assets/css/space.css">
+  <style>
+    /* ── 2カラムログインレイアウト ── */
+    .login-page {
+      min-height: 100vh;
+      display: flex;
+      background: #fff;
+      padding: 0;
+      align-items: stretch;
+      opacity: 0;
+      animation: pageIn .6s ease forwards;
+    }
+    @keyframes pageIn {
+      to { opacity: 1; }
+    }
+
+    /* ── 左パネル ── */
+    .login-brand {
+      flex: 0 0 40%;
+      background: linear-gradient(160deg, #1a1a2e, #0f3460, #1a1a2e, #16213e);
+      background-size: 400% 400%;
+      animation: gradShift 8s ease infinite;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 44px;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+    }
+    @keyframes gradShift {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* パーティクル canvas */
+    #brandCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .login-brand-name {
+      font-family: 'Poppins', sans-serif;
+      font-size: 40px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -1px;
+      line-height: 1;
+      position: relative;
+      z-index: 1;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: slideUp .7s .3s ease forwards;
+    }
+    .login-brand-name span { color: #FF6B35; }
+    .login-brand-tagline {
+      font-size: 14px;
+      color: rgba(255,255,255,.55);
+      margin-top: 12px;
+      font-weight: 400;
+      line-height: 1.6;
+      position: relative;
+      z-index: 1;
+      opacity: 0;
+      transform: translateY(16px);
+      animation: slideUp .7s .5s ease forwards;
+    }
+    .login-brand-footer {
+      font-size: 12px;
+      color: rgba(255,255,255,.3);
+      position: absolute;
+      bottom: 28px;
+      left: 0; right: 0;
+      text-align: center;
+      z-index: 1;
+    }
+
+    /* ── 右パネル ── */
+    .login-form-panel {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 32px;
+    }
+    .login-form-inner {
+      width: 100%;
+      max-width: 400px;
+      opacity: 0;
+      transform: translateX(24px);
+      animation: slideLeft .65s .2s ease forwards;
+    }
+    @keyframes slideUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideLeft {
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .login-form-title {
+      font-size: 15px;
+      color: #444;
+      margin-bottom: 28px;
+      line-height: 1.7;
+    }
+    .login-form-inner .form-group { margin-bottom: 18px; }
+    .login-form-inner .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 6px;
+    }
+    .login-form-inner .form-group input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 15px;
+      color: #333;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      font-family: inherit;
+    }
+    .login-form-inner .form-group input:focus {
+      border-color: #1a1a2e;
+      box-shadow: 0 0 0 3px rgba(26,26,46,.08);
+    }
+    .login-form-inner .form-group input::placeholder { color: #bbb; }
+
+    /* パスワード表示トグル */
+    .pw-wrap { position: relative; }
+    .pw-wrap input { padding-right: 46px; }
+    .pw-eye {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #bbb;
+      cursor: pointer;
+      font-size: 15px;
+      padding: 4px;
+      transition: color .15s;
+      background: none;
+      border: none;
+      line-height: 1;
+    }
+    .pw-eye:hover { color: #555; }
+
+    /* ログインボタン */
+    .btn-login {
+      width: 100%;
+      padding: 15px;
+      background: #1a1a2e;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 50px;
+      margin-top: 8px;
+      transition: background .2s, transform .15s, box-shadow .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-login:hover {
+      background: #0f3460;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(15,52,96,.35);
+    }
+    .btn-login:active {
+      transform: scale(.97);
+      box-shadow: none;
+    }
+    /* ローディング中 */
+    .btn-login.loading {
+      pointer-events: none;
+      background: #374151;
+    }
+    .btn-login .btn-spinner {
+      display: none;
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    .btn-login.loading .btn-text { display: none; }
+    .btn-login.loading .btn-spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* リップル */
+    .btn-ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255,255,255,.25);
+      transform: scale(0);
+      animation: ripple .5s linear;
+      pointer-events: none;
+    }
+    @keyframes ripple {
+      to { transform: scale(4); opacity: 0; }
+    }
+
+    .login-error {
+      display: none;
+      background: #fff5f5;
+      border: 1px solid #fed7d7;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #e53e3e;
+      margin-bottom: 16px;
+      align-items: center;
+      gap: 8px;
+    }
+    .login-error.show { display: flex; }
+
+    /* 開発用クイックログイン */
+    .dev-section {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid #eee;
+    }
+    .dev-section-label {
+      font-size: 11px;
+      color: #bbb;
+      text-align: center;
+      margin-bottom: 10px;
+      letter-spacing: .05em;
+    }
+    .quick-login-btn {
+      width: 100%;
+      padding: 10px 14px;
+      background: #f8f8f8;
+      border: 1px solid #e8e8e8;
+      border-radius: 8px;
+      color: #555;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background .2s, border-color .2s, transform .15s;
+      cursor: pointer;
+      font-family: inherit;
+      margin-bottom: 8px;
+    }
+    .quick-login-btn:last-child { margin-bottom: 0; }
+    .quick-login-btn:hover {
+      background: #f0f4ff;
+      border-color: #0f3460;
+      color: #0f3460;
+      transform: translateX(3px);
+    }
+
+    @media (max-width: 700px) {
+      .login-brand { display: none; }
+      .login-form-panel { padding: 40px 24px; }
+      .login-form-inner { max-width: 100%; }
+    }
+  </style>
+</head>
+<body class="login-page">
+
+  <!-- 左：ブランドパネル -->
+  <div class="login-brand">
+    <canvas id="brandCanvas"></canvas>
+    <div>
+      <div class="login-brand-name">Space<span>.</span>app</div>
+      <p class="login-brand-tagline">
+        HaLSpace のサービスポータル<br>
+        SOLID・What'sNo をここから
+      </p>
+    </div>
+    <div class="login-brand-footer">&copy; 2025 HaLSpace Inc.</div>
+  </div>
+
+  <!-- 右：フォームパネル -->
+  <div class="login-form-panel">
+    <div class="login-form-inner">
+
+      <p class="login-form-title">
+        ログインするには、メールアドレスと<br>パスワードを入力してください。
+      </p>
+
+      <div class="login-error" id="loginError">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span id="loginErrorMsg">メールアドレスまたはパスワードが正しくありません。</span>
+      </div>
+
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label for="email">メールアドレス</label>
+          <input type="email" id="email" name="email"
+                 placeholder="example@company.co.jp" autocomplete="email" required>
+        </div>
+        <div class="form-group">
+          <label for="password">パスワード</label>
+          <div class="pw-wrap">
+            <input type="password" id="password" name="password"
+                   placeholder="パスワードを入力" autocomplete="current-password" required>
+            <button type="button" class="pw-eye" id="pwToggle" tabindex="-1" aria-label="パスワードを表示">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="btn-login" id="loginBtn">
+          <span class="btn-text">ログイン</span>
+          <span class="btn-spinner"></span>
+        </button>
+      </form>
+
+      <!-- 開発用クイックログイン -->
+      <div class="dev-section">
+        <p class="dev-section-label">DEV — クイックログイン</p>
+        <button class="quick-login-btn" data-role="jp_client">
+          <i class="fa-solid fa-user"></i> 発注担当（日本）でログイン
+        </button>
+        <button class="quick-login-btn" data-role="id_modeler">
+          <i class="fa-solid fa-drafting-compass"></i> モデラー（インドネシア）でログイン
+        </button>
+        <button class="quick-login-btn" data-role="jp_admin">
+          <i class="fa-solid fa-gear"></i> 管理者でログイン
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="assets/js/space.js"></script>
+  <script>
+  /* ── パーティクル ── */
+  (function () {
+    const canvas = document.getElementById('brandCanvas');
+    const ctx = canvas.getContext('2d');
+    let W, H, particles;
+
+    function resize() {
+      W = canvas.width  = canvas.offsetWidth;
+      H = canvas.height = canvas.offsetHeight;
+    }
+
+    function mkParticle() {
+      return {
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.8 + 0.4,
+        vx: (Math.random() - 0.5) * 0.35,
+        vy: (Math.random() - 0.5) * 0.35,
+        alpha: Math.random() * 0.5 + 0.15,
+      };
+    }
+
+    function init() {
+      resize();
+      particles = Array.from({ length: 90 }, mkParticle);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0) p.x = W;
+        if (p.x > W) p.x = 0;
+        if (p.y < 0) p.y = H;
+        if (p.y > H) p.y = 0;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${p.alpha})`;
+        ctx.fill();
+      });
+
+      /* 近い粒子を線でつなぐ */
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 80) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(255,255,255,${0.08 * (1 - dist / 80)})`;
+            ctx.lineWidth = 0.6;
+            ctx.stroke();
+          }
+        }
+      }
+      requestAnimationFrame(draw);
+    }
+
+    window.addEventListener('resize', () => { resize(); });
+    init();
+    draw();
+  })();
+
+  /* ── パスワード表示トグル ── */
+  document.getElementById('pwToggle').addEventListener('click', function () {
+    const input = document.getElementById('password');
+    const icon  = this.querySelector('i');
+    const show  = input.type === 'password';
+    input.type  = show ? 'text' : 'password';
+    icon.className = show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+  });
+
+  /* ── ボタンリップル ── */
+  document.getElementById('loginBtn').addEventListener('mousedown', function (e) {
+    const btn = this;
+    const rect = btn.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height) * 2;
+    const x = e.clientX - rect.left - size / 2;
+    const y = e.clientY - rect.top  - size / 2;
+    const ripple = document.createElement('span');
+    ripple.className = 'btn-ripple';
+    ripple.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px`;
+    btn.appendChild(ripple);
+    ripple.addEventListener('animationend', () => ripple.remove());
+  });
+
+  </script>
+</body>
+</html>

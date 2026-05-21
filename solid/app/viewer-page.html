@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ファイルプレビュー | SOLID</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #11111b; color: #cdd6f4; font-family: 'Noto Sans JP', sans-serif;
+           display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+    #header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; background: rgba(0,0,0,.6); flex-shrink: 0;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .file-info { display: flex; align-items: center; gap: 10px; }
+    .file-name { font-weight: 700; font-size: 14px; }
+    .file-type { font-size: 11px; color: rgba(255,255,255,.45); }
+    #toolbar { display: none; align-items: center; gap: 6px; }
+    .tool-btn {
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+      color: #cdd6f4; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 13px;
+    }
+    .tool-btn:hover { background: rgba(255,255,255,.16); }
+    #content { flex: 1; overflow: hidden; position: relative; }
+    #content iframe { width: 100%; height: 100%; border: none; display: block; }
+    #dxfCanvas { display: block; }
+    #loading {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 12px; font-size: 14px;
+      color: rgba(255,255,255,.5);
+    }
+    #loading i { font-size: 28px; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading.hidden { display: none; }
+    #errWrap {
+      position: absolute; inset: 0; display: none;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; color: #e17055; font-size: 14px;
+    }
+    #errWrap.show { display: flex; }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div class="file-info">
+    <span id="fileIcon" style="font-size:18px;"></span>
+    <span id="fileName" class="file-name">読み込み中...</span>
+    <span id="fileType" class="file-type"></span>
+  </div>
+  <div id="toolbar">
+    <button class="tool-btn" id="btnZoomIn"  title="拡大"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+    <button class="tool-btn" id="btnZoomOut" title="縮小"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+    <button class="tool-btn" id="btnFit"     title="全体表示"><i class="fa-solid fa-expand"></i></button>
+  </div>
+</div>
+
+<div id="content">
+  <div id="loading"><i class="fa-solid fa-spinner"></i><span>読み込み中...</span></div>
+  <div id="errWrap">
+    <i class="fa-solid fa-circle-exclamation" style="font-size:36px;"></i>
+    <span id="errText"></span>
+  </div>
+</div>
+
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/viewer.js"></script>
+<script>
+'use strict';
+
+const _u = requireSpaceAuth();
+if (!_u) throw new Error('未認証');
+
+const params   = new URLSearchParams(location.search);
+const fileId   = Number(params.get('file_id'));
+const fileName = params.get('file_name') || 'ファイル';
+const ext      = fileName.split('.').pop().toLowerCase();
+
+document.getElementById('fileName').textContent = fileName;
+document.getElementById('fileType').textContent =
+  ({ pdf:'PDF図面', dxf:'DXF図面', dwg:'DWG図面' })[ext] || ext.toUpperCase();
+document.getElementById('fileIcon').innerHTML =
+  ext === 'pdf'
+    ? '<i class="fa-solid fa-file-pdf" style="color:#e17055;"></i>'
+    : '<i class="fa-solid fa-file-lines" style="color:#74b9ff;"></i>';
+document.title = fileName + ' | SOLID';
+
+const content  = document.getElementById('content');
+const loading  = document.getElementById('loading');
+const errWrap  = document.getElementById('errWrap');
+const toolbar  = document.getElementById('toolbar');
+
+function showError(msg) {
+  loading.classList.add('hidden');
+  errWrap.classList.add('show');
+  document.getElementById('errText').textContent = msg;
+}
+
+function fetchWithAuth(url) {
+  const token = localStorage.getItem('space_token');
+  return fetch(url, {
+    headers: { 'Accept': '*/*', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
+  });
+}
+
+function resolveFileUrl(apiUrl) {
+  return fetchWithAuth(apiUrl).then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const ct = r.headers.get('Content-Type') || '';
+    if (ct.includes('application/json')) {
+      return r.json().then(data => data.url);
+    }
+    return apiUrl;
+  });
+}
+
+if (!fileId) {
+  showError('ファイルIDが指定されていません。');
+
+} else if (ext === 'pdf') {
+  resolveFileUrl(API_BASE + '/files/' + fileId + '/view')
+    .then(realUrl => fetch(realUrl))
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+    .then(blob => {
+      loading.classList.add('hidden');
+      const blobUrl = URL.createObjectURL(blob);
+      const iframe = document.createElement('iframe');
+      iframe.src = blobUrl + '#toolbar=1&navpanes=0';
+      content.appendChild(iframe);
+    })
+    .catch(e => showError('PDFの読み込みに失敗しました: ' + e.message));
+
+} else if (ext === 'dxf' || ext === 'dwg') {
+  resolveFileUrl(API_BASE + '/files/' + fileId + '/view')
+    .then(realUrl => fetch(realUrl))
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+    .then(buf => {
+      const bytes = new Uint8Array(buf);
+      /* UTF-8 BOM */
+      if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+        return new TextDecoder('utf-8').decode(buf);
+      }
+      /* $DWGCODEPAGE をASCIIで読んで判定（ヘッダーは必ずASCII範囲） */
+      const header = new TextDecoder('ascii', { fatal: false })
+        .decode(bytes.slice(0, Math.min(bytes.length, 8192)));
+      if (/ANSI_932|shift.?jis|sjis/i.test(header)) {
+        return new TextDecoder('shift_jis').decode(buf);
+      }
+      /* 全バイト走査 */
+      for (let i = 0; i < bytes.length; i++) {
+        const b = bytes[i];
+        if ((b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC)) {
+          try { return new TextDecoder('shift_jis').decode(buf); } catch {}
+          break;
+        }
+      }
+      return new TextDecoder('utf-8').decode(buf);
+    })
+    .then(text => {
+      loading.classList.add('hidden');
+
+      /* viewer.jsから公開されたパーサーでエンティティを取得 */
+      const entities = Viewer._parseDXF(text);
+
+      /* Canvasを生成してDXFエンジン（内蔵レンダラー）で描画 */
+      const dxfEngine = Viewer._createDxfEngine(content, entities);
+
+      toolbar.style.display = 'flex';
+      document.getElementById('btnZoomIn') .onclick = () => dxfEngine.zoom(1.3);
+      document.getElementById('btnZoomOut').onclick = () => dxfEngine.zoom(0.77);
+      document.getElementById('btnFit')    .onclick = () => dxfEngine.fit();
+
+      window.addEventListener('resize', () => {
+        dxfEngine.resize(content.clientWidth, content.clientHeight);
+      });
+    })
+    .catch(e => showError('DXFの読み込みに失敗しました: ' + e.message));
+
+} else {
+  showError('このファイル形式はプレビューに対応していません（.' + ext + '）');
+}
+</script>
+</body>
+</html>

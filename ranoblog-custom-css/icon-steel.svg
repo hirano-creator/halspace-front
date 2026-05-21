@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 22 124 116" width="180" height="180" overflow="visible">
+  <g fill="none" stroke="#6b6b6b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 上フランジ -->
+    <rect x="26" y="30" width="108" height="16"/>
+    <!-- 下フランジ -->
+    <rect x="26" y="114" width="108" height="16"/>
+    <!-- ウェブ（中央の柱） -->
+    <rect x="66" y="46" width="28" height="68"/>
+    <!-- 内側厚み線 -->
+    <line x1="32" y1="36" x2="128" y2="36"/>
+    <line x1="32" y1="124" x2="128" y2="124"/>
+  </g>
+</svg>

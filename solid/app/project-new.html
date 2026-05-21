@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>新規発注 | SOLID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-title">SOLID</span>
+      <span class="sidebar-logo-sub">by HaLSpace</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+      <a href="dashboard.html"><i class="fa-solid fa-gauge"></i> ダッシュボード</a>
+      <a href="calendar.html"><i class="fa-solid fa-calendar-days"></i> 受注カレンダー</a>
+      <a href="project-new.html" class="active"><i class="fa-solid fa-plus-circle"></i> 新規発注</a>
+      <a href="admin.html" id="adminLink" style="display:none"><i class="fa-solid fa-gear"></i> 管理者画面</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div id="sidebarUser"></div>
+      <button class="btn-sidebar-logout" onclick="solidLogout()">
+        <i class="fa-solid fa-arrow-left"></i> アプリ選択に戻る
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <span class="top-bar-title">新規発注</span>
+      </div>
+      <div class="top-bar-right">
+        <a href="dashboard.html" class="btn btn-ghost btn-sm">
+          <i class="fa-solid fa-arrow-left"></i> 戻る
+        </a>
+      </div>
+    </div>
+
+    <div class="page-body" style="max-width:800px;">
+      <!-- ステップウィザード -->
+      <div class="step-wizard" id="stepWizard">
+        <div class="wizard-step active" id="wStep1">
+          <span class="wizard-num">1</span><span class="wizard-text"> 図面アップロード</span>
+        </div>
+        <div class="wizard-line" id="wLine1"></div>
+        <div class="wizard-step" id="wStep2">
+          <span class="wizard-num">2</span><span class="wizard-text"> 内容入力・確認</span>
+        </div>
+      </div>
+
+      <!-- Step 1: 図面アップロード -->
+      <div id="panel1" class="card">
+        <div class="card-header">
+          <span class="card-title"><i class="fa-solid fa-file-arrow-up text-blue"></i> 図面ファイルをアップロード</span>
+        </div>
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <p class="upload-zone-text">ここにファイルをドロップ、またはクリックして選択</p>
+          <p class="upload-zone-sub">対応形式: DXF, PDF（1ファイル最大500MB）</p>
+        </div>
+        <input type="file" id="fileInput" multiple accept=".dxf,.pdf" style="display:none">
+        <div class="upload-file-list" id="fileList"></div>
+        <div class="mt-24 flex" style="justify-content:flex-end;">
+          <button class="btn btn-primary" id="step1Next" disabled>
+            次へ <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: 内容入力・確認 -->
+      <div id="panel2" class="card" style="display:none;">
+        <div class="card-header">
+          <span class="card-title"><i class="fa-solid fa-pen-to-square text-blue"></i> 発注内容を入力</span>
+        </div>
+
+        <!-- タイトル -->
+        <div class="form-group">
+          <label class="form-label">タイトル <span class="req">*</span></label>
+          <input type="text" id="projTitle" class="form-input"
+                 placeholder="例：底抜きポンプ安全カバー" required>
+        </div>
+
+        <!-- 希望納期 + 優先度 -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">希望納期 <span class="req">*</span></label>
+            <input type="date" id="projDeadline" class="form-input">
+            <p class="form-hint">最短3営業日〜。複雑な形状の場合は余裕を持ってご設定ください。</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">優先度</label>
+            <select id="projPriority" class="form-select">
+              <option value="normal">通常</option>
+              <option value="high">高</option>
+              <option value="urgent">緊急</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 備考（仕上げ仕様・コメント） -->
+        <div class="form-group">
+          <label class="form-label">備考・仕上げ仕様</label>
+          <textarea id="projDesc" class="form-textarea" rows="4"
+                    placeholder="例：溶接部はグラインダー仕上げ、外面のみ錆止め塗装（赤錆止め）、板厚 t4.5 SS400 などの仕様や特記事項をご記入ください。"></textarea>
+          <p class="form-hint">仕上げ方法・塗装・公差・参考情報など、モデラーへの伝達事項を自由にご記入ください。</p>
+        </div>
+
+        <!-- 確認サマリー -->
+        <div style="background:var(--bg);border-radius:10px;padding:20px;margin-top:8px;" id="confirmSummary"></div>
+
+        <div class="mt-24 flex gap-12" style="justify-content:flex-end;">
+          <button class="btn btn-outline" id="step2Back">
+            <i class="fa-solid fa-arrow-left"></i> 戻る
+          </button>
+          <button class="btn btn-primary btn-lg" id="submitBtn">
+            <i class="fa-solid fa-paper-plane"></i> 発注を確定する
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/uploader.js"></script>
+<script src="../assets/js/pages/project-new.js"></script>
+</body>
+</html>

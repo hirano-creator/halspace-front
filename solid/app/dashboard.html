@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ダッシュボード | SOLID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-title">SOLID</span>
+      <span class="sidebar-logo-sub">by HaLSpace</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+      <a href="dashboard.html" class="active">
+        <i class="fa-solid fa-gauge"></i> ダッシュボード
+      </a>
+      <a href="calendar.html">
+        <i class="fa-solid fa-calendar-days"></i> 受注カレンダー
+      </a>
+      <a href="project-new.html">
+        <i class="fa-solid fa-plus-circle"></i> 新規発注
+      </a>
+      <div class="sidebar-nav-label" id="adminNav" style="display:none">管理</div>
+      <a href="admin.html" id="adminLink" style="display:none">
+        <i class="fa-solid fa-gear"></i> 管理者画面
+      </a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div id="sidebarUser"></div>
+      <button class="btn-sidebar-logout" onclick="solidLogout()">
+        <i class="fa-solid fa-arrow-left"></i> アプリ選択に戻る
+      </button>
+    </div>
+  </aside>
+
+  <!-- メインコンテンツ -->
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <span class="top-bar-title">ダッシュボード</span>
+        <span id="companyLabel" style="font-size:13px;color:var(--muted);"></span>
+      </div>
+      <div class="top-bar-right">
+        <!-- 管理者のみ：会社フィルタ -->
+        <select class="form-select" id="companyFilter" style="display:none; max-width:200px;">
+          <option value="">全会社</option>
+        </select>
+        <a href="project-new.html" class="btn btn-primary btn-sm btn-topbar-new">
+          <i class="fa-solid fa-plus"></i><span class="btn-label"> 新規発注</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- サマリーカード -->
+      <div class="summary-grid" id="summaryGrid">
+        <div class="summary-card" data-filter="in_progress" style="cursor:pointer;">
+          <div class="summary-icon" style="background:rgba(9,132,227,.1);">
+            <i class="fa-solid fa-spinner text-blue"></i>
+          </div>
+          <div>
+            <span class="summary-num" id="countProgress">—</span>
+            <span class="summary-label">進行中プロジェクト</span>
+          </div>
+        </div>
+        <div class="summary-card" data-filter="review_pending" style="cursor:pointer;">
+          <div class="summary-icon" style="background:rgba(255,107,53,.1);">
+            <i class="fa-solid fa-magnifying-glass-chart" style="color:var(--primary);"></i>
+          </div>
+          <div>
+            <span class="summary-num" id="countReview">—</span>
+            <span class="summary-label">検査待ち</span>
+          </div>
+        </div>
+        <div class="summary-card" data-filter="alert" style="cursor:pointer;">
+          <div class="summary-icon" style="background:rgba(225,112,85,.1);">
+            <i class="fa-solid fa-triangle-exclamation text-danger"></i>
+          </div>
+          <div>
+            <span class="summary-num" id="countAlert">—</span>
+            <span class="summary-label">期限3日以内</span>
+          </div>
+        </div>
+        <div class="summary-card" data-filter="delivered" style="cursor:pointer;">
+          <div class="summary-icon" style="background:rgba(0,184,148,.1);">
+            <i class="fa-solid fa-circle-check text-success"></i>
+          </div>
+          <div>
+            <span class="summary-num" id="countDelivered">—</span>
+            <span class="summary-label">今月納品完了</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- プロジェクト一覧 -->
+      <div class="card">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+          <span class="card-title">プロジェクト一覧</span>
+        </div>
+        <div class="filter-bar">
+          <select class="form-select" id="statusFilter">
+            <option value="">すべてのステータス</option>
+            <option value="submitted">提出済み</option>
+            <option value="in_progress">モデリング中</option>
+            <option value="review_pending">検査待ち</option>
+            <option value="revision_requested">修正依頼中</option>
+            <option value="approved">承認済み</option>
+            <option value="delivered">納品完了</option>
+            <option value="cancelled">キャンセル</option>
+          </select>
+          <select class="form-select" id="priorityFilter">
+            <option value="">すべての優先度</option>
+            <option value="urgent">緊急</option>
+            <option value="high">高</option>
+            <option value="normal">通常</option>
+            <option value="low">低</option>
+          </select>
+          <select class="form-select" id="modelerFilter" style="display:none;">
+            <option value="">すべての担当モデラー</option>
+          </select>
+          <input type="text" class="form-input" id="searchInput"
+                 placeholder="コード・タイトル検索...">
+        </div>
+        <div class="table-wrap">
+          <table id="projectTable">
+            <thead>
+              <tr>
+                <th style="white-space:nowrap;">依頼日</th>
+                <th style="white-space:nowrap;">プロジェクトコード</th>
+                <th>タイトル</th>
+                <th style="white-space:nowrap;">ステータス</th>
+                <th style="white-space:nowrap;">優先度</th>
+                <th style="white-space:nowrap;">希望納期</th>
+                <th style="white-space:nowrap;">回答納期</th>
+                <th id="modelerCol" style="white-space:nowrap;">担当モデラー</th>
+              </tr>
+            </thead>
+            <tbody id="projectBody"></tbody>
+          </table>
+        </div>
+        <div id="emptyMsg" style="display:none; text-align:center; padding:40px; color:var(--muted);">
+          <i class="fa-solid fa-inbox" style="font-size:32px; display:block; margin-bottom:8px;"></i>
+          プロジェクトが見つかりません
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- トースト -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/pages/dashboard.js"></script>
+</body>
+</html>

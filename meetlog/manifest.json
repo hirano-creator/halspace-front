@@ -1,0 +1,26 @@
+{
+  "name": "MeetLog",
+  "short_name": "MeetLog",
+  "description": "議事録・会議メモをAIで整形・構造化",
+  "start_url": "/meetlog/app/dashboard.html?source=pwa",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F5F3FF",
+  "theme_color": "#7C3AED",
+  "icons": [
+    {
+      "src": "/meetlog/assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/meetlog/assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "ja"
+}

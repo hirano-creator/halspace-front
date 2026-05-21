@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 案E: Split Left-Right — 左:黒背景に白文字 / 右:白背景に細テキスト -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 680" width="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap');
+    </style>
+  </defs>
+  <rect width="1920" height="680" fill="#fff"/>
+
+  <!-- 左パネル 黒 -->
+  <rect x="0" y="0" width="860" height="680" fill="#0a0a0a"/>
+
+  <!-- 左: メインテキスト -->
+  <text x="80" y="240" font-family="'Space Grotesk',sans-serif" font-size="110" font-weight="700" fill="#fff">Observe.</text>
+  <text x="80" y="370" font-family="'Space Grotesk',sans-serif" font-size="110" font-weight="700" fill="#fff">Build.</text>
+  <text x="80" y="500" font-family="'Space Grotesk',sans-serif" font-size="110" font-weight="700" fill="#fff">Share.</text>
+
+  <!-- 左下ブランド -->
+  <text x="80" y="640" font-family="'JetBrains Mono',monospace" font-size="13" fill="#555" letter-spacing="4">ranoBlog // 2026</text>
+
+  <!-- 右パネル: カテゴリ縦並び -->
+  <text x="940" y="180" font-family="'JetBrains Mono',monospace" font-size="13" fill="#bbb" letter-spacing="5">— TOPICS</text>
+  <line x1="940" y1="200" x2="1780" y2="200" stroke="#eee" stroke-width="1"/>
+
+  <text x="940" y="270" font-family="'Space Grotesk',sans-serif" font-size="52" font-weight="700" fill="#0a0a0a">投資 / Investment</text>
+  <line x1="940" y1="310" x2="1780" y2="310" stroke="#eee" stroke-width="1"/>
+
+  <text x="940" y="380" font-family="'Space Grotesk',sans-serif" font-size="52" font-weight="700" fill="#0a0a0a">AI / Claude</text>
+  <line x1="940" y1="420" x2="1780" y2="420" stroke="#eee" stroke-width="1"/>
+
+  <text x="940" y="490" font-family="'Space Grotesk',sans-serif" font-size="52" font-weight="700" fill="#0a0a0a">WEB / 鉄鋼</text>
+  <line x1="940" y1="530" x2="1780" y2="530" stroke="#eee" stroke-width="1"/>
+
+  <text x="940" y="620" font-family="'JetBrains Mono',monospace" font-size="12" fill="#ccc" letter-spacing="4">A QUIET MAKER'S JOURNAL</text>
+</svg>

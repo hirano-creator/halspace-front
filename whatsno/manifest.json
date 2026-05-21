@@ -1,0 +1,26 @@
+{
+  "name": "What'sNo",
+  "short_name": "What'sNo",
+  "description": "製造業向けクラウドストレージ",
+  "start_url": "/whatsno/app/dashboard.html?source=pwa",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F0F4F8",
+  "theme_color": "#1E3A5F",
+  "icons": [
+    {
+      "src": "/whatsno/assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/whatsno/assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "ja"
+}

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 案M: Center Cross — 十字の細線で4分割、中央にテキスト -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap');
+    </style>
+  </defs>
+  <rect width="1200" height="700" fill="#fff"/>
+
+  <!-- 十字線 -->
+  <line x1="600" y1="0" x2="600" y2="700" stroke="#f0f0f0" stroke-width="1"/>
+  <line x1="0" y1="350" x2="1200" y2="350" stroke="#f0f0f0" stroke-width="1"/>
+
+  <!-- 四隅のラベル -->
+  <text x="80" y="80" font-family="'JetBrains Mono',monospace" font-size="12" fill="#ddd" letter-spacing="3">INVEST</text>
+  <text x="1120" y="80" font-family="'JetBrains Mono',monospace" font-size="12" fill="#ddd" text-anchor="end" letter-spacing="3">AI</text>
+  <text x="80" y="660" font-family="'JetBrains Mono',monospace" font-size="12" fill="#ddd" letter-spacing="3">STEEL</text>
+  <text x="1120" y="660" font-family="'JetBrains Mono',monospace" font-size="12" fill="#ddd" text-anchor="end" letter-spacing="3">WEB</text>
+
+  <!-- 中央テキストブロック（細いボックスで囲む） -->
+  <rect x="180" y="160" width="840" height="380" fill="none" stroke="#e0e0e0" stroke-width="1"/>
+
+  <text x="600" y="290" font-family="'Space Grotesk',sans-serif" font-size="100" font-weight="700" fill="#0a0a0a" text-anchor="middle" letter-spacing="-3">Observe.</text>
+  <text x="600" y="390" font-family="'Space Grotesk',sans-serif" font-size="100" font-weight="300" fill="#0a0a0a" text-anchor="middle" letter-spacing="-3">Build.</text>
+  <text x="600" y="490" font-family="'Space Grotesk',sans-serif" font-size="100" font-weight="300" fill="#0a0a0a" text-anchor="middle" letter-spacing="-3">Share.</text>
+
+  <!-- 中央下ブランド -->
+  <text x="600" y="610" font-family="'JetBrains Mono',monospace" font-size="12" fill="#bbb" text-anchor="middle" letter-spacing="6">ranoBlog  //  2026</text>
+</svg>

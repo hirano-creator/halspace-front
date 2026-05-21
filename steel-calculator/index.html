@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>鋼材計算機</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="鋼材計算機">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { touch-action: manipulation; }
+
+:root {
+  --accent: #2563eb;
+  --bg: #f8f9fa;
+  --card: #fff;
+  --border: #e5e7eb;
+  --text: #1f2937;
+  --text-sub: #6b7280;
+  --btn-bg: #f3f4f6;
+  --btn-active: #e5e7eb;
+  --op-bg: #dbeafe;
+  --op-color: #2563eb;
+  --equal-bg: #2563eb;
+  --equal-color: #fff;
+  --danger: #ef4444;
+  --success: #10b981;
+}
+
+body {
+  font-family: -apple-system, 'Hiragino Sans', 'Meiryo', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  margin: 0 auto;
+  overflow: hidden;
+  height: 100dvh;
+}
+
+/* === Tabs === */
+.tabs {
+  display: flex;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.tab {
+  flex: 1;
+  padding: 14px 8px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-sub);
+  border: none;
+  background: none;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s;
+}
+
+.tab.active { color: var(--accent); }
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  width: 60%;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 3px 3px 0 0;
+}
+
+/* === Panels === */
+.panel {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.panel.active { display: flex; }
+
+/* ===================== */
+/* Calculator            */
+/* ===================== */
+.calc-display {
+  background: var(--card);
+  padding: 12px 20px;
+  text-align: right;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.calc-expression {
+  font-size: 15px;
+  color: var(--text-sub);
+  min-height: 20px;
+  word-break: break-all;
+}
+
+.calc-result {
+  font-size: 38px;
+  font-weight: 300;
+  color: var(--text);
+  min-height: 46px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* === Stored area (inline) === */
+.stored-area {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px 10px;
+  min-height: 0;
+}
+
+.stored-area-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #ccc;
+  font-size: 14px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.stored-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 4px 6px;
+}
+
+.stored-header-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-sub);
+}
+
+.stored-header-total {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.stored-header-clear {
+  font-size: 12px;
+  color: var(--danger);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.stored-item {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  touch-action: none;
+  transition: transform 0.15s, box-shadow 0.15s;
+  position: relative;
+}
+
+.stored-item.dragging {
+  opacity: 0.9;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  z-index: 10;
+  transform: scale(1.02);
+}
+
+.stored-item.drag-over {
+  border-color: var(--accent);
+  background: #f0f5ff;
+}
+
+.stored-item-grip {
+  color: #ccc;
+  font-size: 16px;
+  cursor: grab;
+  flex-shrink: 0;
+  padding: 0 2px;
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.stored-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.stored-item-type {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.3px;
+}
+
+.stored-item-value {
+  font-size: 17px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stored-item-detail {
+  font-size: 11px;
+  color: var(--text-sub);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stored-item-delete {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: #fef2f2;
+  color: var(--danger);
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stored-item-delete:active { background: #fee2e2; }
+
+/* Stored weight total bar */
+.stored-weight-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--card);
+  padding: 6px 14px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
+.stored-weight-bar.hidden { display: none; }
+
+.stored-weight-label { color: var(--text-sub); }
+
+.stored-weight-value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* === Calculator keys === */
+.calc-keys {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 10px 10px 14px;
+  flex-shrink: 0;
+}
+
+.calc-key {
+  border: none;
+  border-radius: 14px;
+  font-size: 30px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--btn-bg);
+  color: var(--text);
+  transition: background 0.1s;
+  padding: 0;
+  height: 72px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.calc-key:active { background: var(--btn-active); }
+
+.calc-key.op {
+  background: var(--op-bg);
+  color: var(--op-color);
+  font-size: 32px;
+}
+
+.calc-key.op:active { background: #bfdbfe; }
+
+.calc-key.equal {
+  background: var(--equal-bg);
+  color: var(--equal-color);
+  font-size: 34px;
+}
+
+.calc-key.equal:active { background: #1d4ed8; }
+
+.calc-key.fn {
+  background: var(--card);
+  color: var(--text-sub);
+  font-size: 22px;
+  border: 1px solid var(--border);
+}
+
+.calc-key.fn:active { background: var(--btn-bg); }
+
+.calc-key.store-btn {
+  background: var(--success);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.calc-key.store-btn:active { background: #059669; }
+
+/* ===================== */
+/* Steel Panel           */
+/* ===================== */
+.steel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.field-group { margin-bottom: 12px; }
+
+.field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-sub);
+  margin-bottom: 5px;
+}
+
+.field-select, .field-input {
+  width: 100%;
+  font-size: 16px;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--text);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.field-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='%236b7280'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+
+.field-select:focus, .field-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+
+.input-row { display: flex; gap: 10px; }
+.input-row .field-group { flex: 1; }
+
+.steel-result-card {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 14px;
+  margin-top: 6px;
+  border: 1.5px solid var(--border);
+  text-align: center;
+}
+
+.steel-result-label {
+  font-size: 13px;
+  color: var(--text-sub);
+  margin-bottom: 2px;
+}
+
+.steel-result-value {
+  font-size: 34px;
+  font-weight: 300;
+  color: var(--text);
+}
+
+.steel-result-unit {
+  font-size: 18px;
+  color: var(--text-sub);
+  margin-left: 4px;
+}
+
+.steel-result-detail {
+  font-size: 12px;
+  color: var(--text-sub);
+  margin-top: 6px;
+}
+
+.steel-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  padding-bottom: 8px;
+}
+
+.steel-btn {
+  flex: 1;
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.steel-btn.primary { background: var(--accent); color: #fff; }
+.steel-btn.primary:active { background: #1d4ed8; }
+.steel-btn.store { background: var(--success); color: #fff; }
+.steel-btn.store:active { background: #059669; }
+</style>
+</head>
+<body>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('calc')">計算機</button>
+  <button class="tab" onclick="switchTab('steel')">鋼材重量</button>
+</div>
+
+<!-- ====== Calculator ====== -->
+<div class="panel active" id="panelCalc">
+  <div class="calc-display">
+    <div class="calc-expression" id="calcExpr"></div>
+    <div class="calc-result" id="calcResult">0</div>
+  </div>
+
+  <!-- Stored items inline -->
+  <div class="stored-area" id="storedArea"></div>
+  <div class="stored-weight-bar hidden" id="storedWeightBar">
+    <span class="stored-weight-label">重量合計</span>
+    <span class="stored-weight-value" id="storedTotalWeight">0 kg</span>
+  </div>
+
+  <div class="calc-keys">
+    <button class="calc-key fn" onclick="calcAction('clear')">AC</button>
+    <button class="calc-key fn" onclick="calcAction('backspace')">&#9003;</button>
+    <button class="calc-key fn" onclick="calcAction('sqrt')">√</button>
+    <button class="calc-key op" onclick="calcAction('op','/')">÷</button>
+
+    <button class="calc-key" onclick="calcAction('num','7')">7</button>
+    <button class="calc-key" onclick="calcAction('num','8')">8</button>
+    <button class="calc-key" onclick="calcAction('num','9')">9</button>
+    <button class="calc-key op" onclick="calcAction('op','*')">×</button>
+
+    <button class="calc-key" onclick="calcAction('num','4')">4</button>
+    <button class="calc-key" onclick="calcAction('num','5')">5</button>
+    <button class="calc-key" onclick="calcAction('num','6')">6</button>
+    <button class="calc-key op" onclick="calcAction('op','-')">−</button>
+
+    <button class="calc-key" onclick="calcAction('num','1')">1</button>
+    <button class="calc-key" onclick="calcAction('num','2')">2</button>
+    <button class="calc-key" onclick="calcAction('num','3')">3</button>
+    <button class="calc-key op" onclick="calcAction('op','+')">+</button>
+
+    <button class="calc-key store-btn" onclick="storeCalcResult()">保管</button>
+    <button class="calc-key" onclick="calcAction('num','0')">0</button>
+    <button class="calc-key" onclick="calcAction('dot')">.</button>
+    <button class="calc-key equal" onclick="calcAction('equal')">=</button>
+  </div>
+</div>
+
+<!-- ====== Steel ====== -->
+<div class="panel" id="panelSteel">
+  <div class="steel-content">
+    <div class="field-group">
+      <div class="field-label">鋼材種類</div>
+      <select class="field-select" id="steelType" onchange="onSteelTypeChange()">
+        <option value="">選択してください</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label">サイズ</div>
+      <select class="field-select" id="steelSize" onchange="calcSteel()">
+        <option value="">先に種類を選択</option>
+      </select>
+    </div>
+    <div class="input-row">
+      <div class="field-group">
+        <div class="field-label">長さ (m)</div>
+        <input class="field-input" id="steelLength" type="number" inputmode="decimal" placeholder="例: 6.0" step="0.001" oninput="calcSteel()">
+      </div>
+      <div class="field-group">
+        <div class="field-label">本数</div>
+        <input class="field-input" id="steelQty" type="number" inputmode="numeric" placeholder="例: 10" value="1" min="1" oninput="calcSteel()">
+      </div>
+    </div>
+
+    <div class="steel-result-card" id="steelResultCard" style="display:none">
+      <div class="steel-result-label">合計重量</div>
+      <div>
+        <span class="steel-result-value" id="steelResultValue">0</span>
+        <span class="steel-result-unit">kg</span>
+      </div>
+      <div class="steel-result-detail" id="steelResultDetail"></div>
+    </div>
+
+    <div class="steel-actions">
+      <button class="steel-btn primary" onclick="resetSteel()">クリア</button>
+      <button class="steel-btn store" onclick="storeSteelResult()">保管</button>
+    </div>
+
+    <!-- Stored items on steel page too -->
+    <div style="margin-top: 8px;">
+      <div class="stored-area" id="storedAreaSteel"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// Steel Data - 単位重量 (kg/m)
+// =============================================
+const STEEL_DATA = {
+  'H形鋼': {
+    'H-100×50×5×7': 9.30,
+    'H-100×100×6×8': 16.9,
+    'H-125×60×6×8': 13.1,
+    'H-125×125×6.5×9': 23.6,
+    'H-150×75×5×7': 14.0,
+    'H-148×100×6×9': 20.7,
+    'H-150×150×7×10': 31.1,
+    'H-175×90×5×8': 18.0,
+    'H-175×175×7.5×11': 40.4,
+    'H-198×99×4.5×7': 17.8,
+    'H-200×100×5.5×8': 20.9,
+    'H-194×150×6×9': 29.9,
+    'H-200×200×8×12': 49.9,
+    'H-248×124×5×8': 25.1,
+    'H-250×125×6×9': 29.0,
+    'H-244×175×7×11': 43.6,
+    'H-250×250×9×14': 71.8,
+    'H-298×149×5.5×8': 32.0,
+    'H-300×150×6.5×9': 36.7,
+    'H-294×200×8×12': 55.8,
+    'H-300×300×10×15': 93.0,
+    'H-346×174×6×9': 41.2,
+    'H-350×175×7×11': 49.4,
+    'H-340×250×9×14': 78.1,
+    'H-350×350×12×19': 135,
+    'H-396×199×7×11': 56.1,
+    'H-400×200×8×13': 65.4,
+    'H-390×300×10×16': 105,
+    'H-400×400×13×21': 172,
+    'H-414×405×18×28': 232,
+    'H-428×407×20×35': 283,
+    'H-458×417×30×50': 415,
+    'H-498×432×45×70': 605,
+    'H-446×199×8×12': 65.1,
+    'H-450×200×9×14': 74.9,
+    'H-440×300×11×18': 121,
+    'H-496×199×9×14': 77.9,
+    'H-500×200×10×16': 88.2,
+    'H-482×300×11×15': 111,
+    'H-488×300×11×18': 125,
+    'H-596×199×10×15': 92.5,
+    'H-600×200×11×17': 103,
+    'H-582×300×12×17': 133,
+    'H-588×300×12×20': 147,
+    'H-594×302×14×23': 170,
+    'H-692×300×13×20': 163,
+    'H-700×300×13×24': 182,
+    'H-792×300×14×22': 188,
+    'H-800×300×14×26': 207,
+    'H-890×299×15×23': 210,
+    'H-900×300×16×28': 240,
+    'H-912×302×18×34': 283,
+    'H-918×303×19×37': 304,
+  },
+  '等辺山形鋼 (L)': {
+    'L-25×25×3': 1.12,
+    'L-30×30×3': 1.36,
+    'L-40×40×3': 1.83,
+    'L-40×40×5': 2.95,
+    'L-45×45×4': 2.74,
+    'L-45×45×5': 3.38,
+    'L-50×50×4': 3.06,
+    'L-50×50×5': 3.77,
+    'L-50×50×6': 4.43,
+    'L-60×60×4': 3.68,
+    'L-60×60×5': 4.55,
+    'L-65×65×5': 5.00,
+    'L-65×65×6': 5.91,
+    'L-65×65×8': 7.66,
+    'L-70×70×6': 6.38,
+    'L-75×75×6': 6.85,
+    'L-75×75×9': 9.96,
+    'L-75×75×12': 13.0,
+    'L-80×80×6': 7.32,
+    'L-90×90×6': 8.28,
+    'L-90×90×7': 9.59,
+    'L-90×90×10': 13.3,
+    'L-90×90×13': 17.0,
+    'L-100×100×7': 10.7,
+    'L-100×100×10': 14.9,
+    'L-100×100×13': 19.1,
+    'L-120×120×8': 14.7,
+    'L-130×130×9': 17.9,
+    'L-130×130×12': 23.4,
+    'L-130×130×15': 28.8,
+    'L-150×150×12': 27.3,
+    'L-150×150×15': 33.6,
+    'L-150×150×19': 41.9,
+    'L-175×175×12': 31.8,
+    'L-175×175×15': 39.4,
+    'L-200×200×15': 45.3,
+    'L-200×200×20': 59.7,
+    'L-200×200×25': 73.6,
+    'L-250×250×25': 93.7,
+    'L-250×250×35': 128,
+  },
+  '不等辺山形鋼 (L)': {
+    'L-90×75×9': 11.0,
+    'L-100×75×7': 9.32,
+    'L-100×75×10': 13.0,
+    'L-125×75×7': 10.7,
+    'L-125×75×10': 14.9,
+    'L-125×75×13': 19.1,
+    'L-125×90×10': 16.1,
+    'L-125×90×13': 20.6,
+    'L-150×90×9': 16.4,
+    'L-150×90×12': 21.5,
+    'L-150×100×9': 17.1,
+    'L-150×100×12': 22.4,
+    'L-150×100×15': 27.7,
+  },
+  '溝形鋼 (C)': {
+    'C-75×40×5×7': 6.92,
+    'C-100×50×5×7.5': 9.36,
+    'C-125×65×6×8': 13.4,
+    'C-150×75×6.5×10': 18.6,
+    'C-150×75×9×12.5': 24.0,
+    'C-180×75×7×10.5': 21.4,
+    'C-200×80×7.5×11': 24.6,
+    'C-200×90×8×13.5': 30.3,
+    'C-250×90×9×13': 34.6,
+    'C-250×90×11×14.5': 40.2,
+    'C-300×90×9×13': 38.1,
+    'C-300×90×10×15.5': 43.8,
+    'C-300×90×12×16': 48.6,
+    'C-380×100×10.5×16': 54.5,
+    'C-380×100×13×16.5': 62.0,
+    'C-380×100×13×20': 67.3,
+  },
+  '丸パイプ': {
+    '21.7×2.8 (15A)': 1.31,
+    '27.2×2.8 (20A)': 1.68,
+    '34.0×3.2 (25A)': 2.43,
+    '42.7×3.5 (32A)': 3.38,
+    '48.6×3.5 (40A)': 3.89,
+    '60.5×3.8 (50A)': 5.31,
+    '76.3×4.2 (65A)': 7.47,
+    '89.1×4.2 (80A)': 8.79,
+    '101.6×4.2 (90A)': 10.1,
+    '114.3×4.5 (100A)': 12.2,
+    '139.8×4.5 (125A)': 15.0,
+    '165.2×5.0 (150A)': 19.8,
+    '190.7×5.3 (175A)': 24.2,
+    '216.3×5.8 (200A)': 30.1,
+    '267.4×6.6 (250A)': 42.4,
+    '318.5×6.9 (300A)': 52.9,
+    '355.6×7.9 (350A)': 67.7,
+    '406.4×7.9 (400A)': 77.6,
+    '457.2×7.9 (450A)': 87.5,
+    '508.0×7.9 (500A)': 97.4,
+  },
+  '角パイプ (正方形)': {
+    '□-40×40×1.6': 1.88, '□-40×40×2.3': 2.62,
+    '□-50×50×1.6': 2.38, '□-50×50×2.3': 3.34, '□-50×50×3.2': 4.50,
+    '□-60×60×1.6': 2.88, '□-60×60×2.3': 4.06, '□-60×60×3.2': 5.50,
+    '□-75×75×1.6': 3.64, '□-75×75×2.3': 5.14, '□-75×75×3.2': 7.01, '□-75×75×4.5': 9.55,
+    '□-80×80×2.3': 5.50, '□-80×80×3.2': 7.51, '□-80×80×4.5': 10.3,
+    '□-90×90×2.3': 6.23, '□-90×90×3.2': 8.51,
+    '□-100×100×2.3': 6.95, '□-100×100×3.2': 9.52, '□-100×100×4.0': 11.7,
+    '□-100×100×4.5': 13.1, '□-100×100×6.0': 17.0, '□-100×100×9.0': 24.1, '□-100×100×12.0': 30.2,
+    '□-125×125×3.2': 12.0, '□-125×125×4.5': 16.6, '□-125×125×5.0': 18.3,
+    '□-125×125×6.0': 21.7, '□-125×125×9.0': 31.1, '□-125×125×12.0': 39.7,
+    '□-150×150×4.5': 20.1, '□-150×150×5.0': 22.3, '□-150×150×6.0': 26.4, '□-150×150×9.0': 38.2,
+    '□-175×175×4.5': 23.7, '□-175×175×5.0': 26.2, '□-175×175×6.0': 31.1,
+    '□-200×200×4.5': 27.2, '□-200×200×6.0': 35.8, '□-200×200×8.0': 46.9,
+    '□-200×200×9.0': 52.3, '□-200×200×12.0': 67.9,
+    '□-250×250×5.0': 38.0, '□-250×250×6.0': 45.2, '□-250×250×8.0': 59.5,
+    '□-250×250×9.0': 66.5, '□-250×250×12.0': 86.8,
+    '□-300×300×4.5': 41.3, '□-300×300×6.0': 54.7, '□-300×300×9.0': 80.6, '□-300×300×12.0': 106,
+    '□-350×350×9.0': 94.7, '□-350×350×12.0': 124,
+  },
+  '角パイプ (長方形)': {
+    '□-50×20×1.6': 1.63, '□-50×20×2.3': 2.25,
+    '□-50×30×1.6': 1.88, '□-50×30×2.3': 2.62,
+    '□-60×30×1.6': 2.13, '□-60×30×2.3': 2.98, '□-60×30×3.2': 3.99,
+    '□-75×20×1.6': 2.25, '□-75×20×2.3': 3.16,
+    '□-75×45×1.6': 2.88, '□-75×45×2.3': 4.06, '□-75×45×3.2': 5.50,
+    '□-80×40×1.6': 2.88, '□-80×40×2.3': 4.06, '□-80×40×3.2': 5.50,
+    '□-90×40×2.3': 4.60, '□-90×40×3.2': 6.25,
+    '□-100×20×1.6': 2.88, '□-100×20×2.3': 4.06,
+    '□-100×40×1.6': 3.4, '□-100×40×2.3': 4.8, '□-100×40×3.2': 6.3,
+    '□-100×50×1.6': 3.64, '□-100×50×2.3': 5.1, '□-100×50×3.2': 7.0, '□-100×50×4.5': 9.6,
+    '□-125×40×1.6': 4.0, '□-125×40×2.3': 5.7,
+    '□-125×75×2.3': 7.02, '□-125×75×3.2': 9.5, '□-125×75×4.0': 11.7,
+    '□-125×75×4.5': 13.1, '□-125×75×6.0': 17.0,
+    '□-150×75×3.2': 10.8, '□-150×80×4.5': 15.2, '□-150×80×6.0': 19.8,
+    '□-150×100×3.2': 12.0, '□-150×100×4.5': 16.6, '□-150×100×6.0': 21.7, '□-150×100×9.0': 31.1,
+    '□-200×100×4.5': 20.1, '□-200×100×6.0': 26.4, '□-200×100×9.0': 38.2,
+    '□-200×150×4.5': 23.7, '□-200×150×6.0': 31.1, '□-200×150×9.0': 45.3,
+    '□-250×150×6.0': 35.8, '□-250×150×8.0': 46.9, '□-250×150×9.0': 52.3, '□-250×150×12.0': 67.9,
+    '□-300×200×6.0': 45.2, '□-300×200×9.0': 66.5, '□-300×200×12.0': 86.8,
+    '□-350×150×6.0': 45.2, '□-350×150×9.0': 66.5, '□-350×150×12.0': 86.8,
+    '□-400×200×6.0': 54.7, '□-400×200×9.0': 80.6, '□-400×200×12.0': 106,
+  },
+  '平鋼 (FB)': {
+    'FB-25×4.5': 0.88, 'FB-32×4.5': 1.13, 'FB-38×4.5': 1.34, 'FB-44×4.5': 1.56,
+    'FB-50×4.5': 1.77, 'FB-65×4.5': 2.30, 'FB-75×4.5': 2.65, 'FB-90×4.5': 3.18,
+    'FB-100×4.5': 3.53, 'FB-125×4.5': 4.42, 'FB-150×4.5': 5.30,
+    'FB-25×6': 1.18, 'FB-32×6': 1.51, 'FB-38×6': 1.79, 'FB-44×6': 2.07,
+    'FB-50×6': 2.36, 'FB-65×6': 3.06, 'FB-75×6': 3.53, 'FB-90×6': 4.24,
+    'FB-100×6': 4.71, 'FB-125×6': 5.89, 'FB-150×6': 7.06, 'FB-180×6': 8.48,
+    'FB-200×6': 9.42, 'FB-230×6': 10.8, 'FB-250×6': 11.8, 'FB-280×6': 13.2, 'FB-300×6': 14.1,
+    'FB-25×8': 1.57, 'FB-32×8': 2.01, 'FB-38×8': 2.39, 'FB-44×8': 2.76,
+    'FB-50×8': 3.14, 'FB-65×8': 4.08, 'FB-75×8': 4.71, 'FB-90×8': 5.65,
+    'FB-100×8': 6.28, 'FB-125×8': 7.85, 'FB-150×8': 9.42, 'FB-180×8': 11.3,
+    'FB-200×8': 12.6, 'FB-230×8': 14.4, 'FB-250×8': 15.7, 'FB-280×8': 17.6,
+    'FB-300×8': 18.8, 'FB-350×8': 22.0, 'FB-400×8': 25.1,
+    'FB-25×9': 1.77, 'FB-32×9': 2.26, 'FB-38×9': 2.68, 'FB-44×9': 3.11,
+    'FB-50×9': 3.53, 'FB-65×9': 4.59, 'FB-75×9': 5.30, 'FB-90×9': 6.36,
+    'FB-100×9': 7.06, 'FB-125×9': 8.83, 'FB-150×9': 10.6, 'FB-180×9': 12.7,
+    'FB-200×9': 14.1, 'FB-230×9': 16.3, 'FB-250×9': 17.7, 'FB-280×9': 19.8,
+    'FB-300×9': 21.2, 'FB-350×9': 24.7, 'FB-400×9': 28.3,
+    'FB-38×12': 3.58, 'FB-44×12': 4.14, 'FB-50×12': 4.71, 'FB-65×12': 6.12,
+    'FB-75×12': 7.06, 'FB-90×12': 8.48, 'FB-100×12': 9.42, 'FB-125×12': 11.8,
+    'FB-150×12': 14.1, 'FB-200×12': 18.8, 'FB-230×12': 21.7, 'FB-250×12': 23.6,
+    'FB-300×12': 28.3, 'FB-350×12': 33.0, 'FB-400×12': 37.7,
+    'FB-32×16': 4.02, 'FB-38×16': 4.77, 'FB-44×16': 5.53, 'FB-50×16': 6.28,
+    'FB-65×16': 8.16, 'FB-75×16': 9.42, 'FB-90×16': 11.3, 'FB-100×16': 12.6,
+    'FB-125×16': 15.7, 'FB-150×16': 18.8, 'FB-180×16': 22.6, 'FB-200×16': 25.1,
+    'FB-230×16': 28.9, 'FB-250×16': 31.4, 'FB-280×16': 35.2, 'FB-300×16': 37.7,
+    'FB-350×16': 44.0, 'FB-400×16': 50.2, 'FB-450×16': 56.5, 'FB-500×16': 62.8,
+    'FB-38×19': 5.67, 'FB-44×19': 6.56, 'FB-50×19': 7.46, 'FB-65×19': 9.69,
+    'FB-75×19': 11.2, 'FB-90×19': 13.4, 'FB-100×19': 14.9, 'FB-125×19': 18.6,
+    'FB-150×19': 22.4, 'FB-180×19': 26.8, 'FB-200×19': 29.8, 'FB-230×19': 34.3,
+    'FB-250×19': 37.3, 'FB-280×19': 41.8, 'FB-300×19': 44.7, 'FB-350×19': 52.2,
+    'FB-400×19': 59.6, 'FB-450×19': 67.1, 'FB-500×19': 74.6,
+    'FB-50×22': 8.64, 'FB-75×22': 13.0, 'FB-90×22': 15.5, 'FB-100×22': 17.3,
+    'FB-125×22': 21.6, 'FB-150×22': 25.9, 'FB-180×22': 31.1, 'FB-200×22': 34.5,
+    'FB-230×22': 39.7, 'FB-250×22': 43.2, 'FB-280×22': 48.4, 'FB-300×22': 51.8,
+    'FB-350×22': 60.4, 'FB-400×22': 69.1, 'FB-450×22': 77.7, 'FB-500×22': 86.4,
+    'FB-75×25': 14.7, 'FB-90×25': 17.7, 'FB-100×25': 19.6, 'FB-125×25': 24.5,
+    'FB-150×25': 29.4, 'FB-180×25': 35.3, 'FB-200×25': 39.2, 'FB-230×25': 45.2,
+    'FB-250×25': 49.1, 'FB-280×25': 55.0, 'FB-300×25': 58.9, 'FB-350×25': 68.7,
+    'FB-400×25': 78.5, 'FB-450×25': 88.3, 'FB-500×25': 98.1,
+    'FB-75×28': 16.5, 'FB-90×28': 19.8, 'FB-100×28': 22.0, 'FB-125×28': 27.5,
+    'FB-150×28': 33.0, 'FB-180×28': 39.6, 'FB-200×28': 44.0, 'FB-230×28': 50.6,
+    'FB-250×28': 55.0, 'FB-280×28': 61.5, 'FB-300×28': 65.9, 'FB-350×28': 76.9,
+    'FB-400×28': 87.9, 'FB-450×28': 99.0, 'FB-500×28': 110,
+    'FB-100×32': 25.1, 'FB-125×32': 31.4, 'FB-150×32': 37.7, 'FB-230×32': 57.8,
+    'FB-250×32': 62.8, 'FB-300×32': 75.4, 'FB-350×32': 87.9, 'FB-400×32': 100,
+    'FB-450×32': 113, 'FB-500×32': 126,
+    'FB-75×36': 21.2, 'FB-90×36': 25.4, 'FB-100×36': 28.3, 'FB-125×36': 35.3,
+    'FB-150×36': 42.4, 'FB-180×36': 50.9, 'FB-200×36': 56.5, 'FB-230×36': 65.0,
+    'FB-250×36': 70.6, 'FB-280×36': 79.1, 'FB-300×36': 84.8, 'FB-350×36': 98.9,
+    'FB-400×36': 113, 'FB-450×36': 127, 'FB-500×36': 141,
+    'FB-100×40': 31.4, 'FB-125×40': 39.2, 'FB-150×40': 47.1, 'FB-180×40': 56.5,
+    'FB-200×40': 62.8, 'FB-230×40': 72.2, 'FB-250×40': 78.5, 'FB-280×40': 87.9,
+    'FB-300×40': 94.2, 'FB-350×40': 110, 'FB-400×40': 126, 'FB-450×40': 141, 'FB-500×40': 157,
+    'FB-75×45': 26.5, 'FB-90×45': 31.8, 'FB-100×45': 35.3, 'FB-125×45': 44.2,
+    'FB-150×45': 53.0, 'FB-180×45': 63.6, 'FB-200×45': 70.7, 'FB-230×45': 81.2,
+    'FB-250×45': 88.3, 'FB-280×45': 98.9, 'FB-300×45': 106, 'FB-350×45': 124,
+    'FB-400×45': 141, 'FB-450×45': 159,
+  },
+  '丸鋼': {
+    '丸 5.5mm': 0.187, '丸 6mm': 0.222, '丸 7mm': 0.302, '丸 8mm': 0.395,
+    '丸 9mm': 0.499, '丸 10mm': 0.617, '丸 11mm': 0.746, '丸 12mm': 0.888,
+    '丸 13mm': 1.04, '丸 14mm': 1.21, '丸 16mm': 1.58, '丸 18mm': 2.00,
+    '丸 19mm': 2.23, '丸 20mm': 2.47, '丸 22mm': 2.98, '丸 24mm': 3.55,
+    '丸 25mm': 3.85, '丸 27mm': 4.50, '丸 30mm': 5.55, '丸 32mm': 6.31,
+    '丸 33mm': 6.71, '丸 36mm': 7.99, '丸 38mm': 8.90, '丸 39mm': 9.38,
+    '丸 42mm': 10.9, '丸 45mm': 12.5, '丸 48mm': 14.2, '丸 50mm': 15.4,
+    '丸 52mm': 16.7, '丸 55mm': 18.7, '丸 60mm': 22.2, '丸 65mm': 26.1,
+    '丸 68mm': 28.5, '丸 70mm': 30.2, '丸 75mm': 34.7, '丸 80mm': 39.5,
+    '丸 85mm': 44.6, '丸 90mm': 49.9, '丸 95mm': 55.6, '丸 100mm': 61.7,
+    '丸 110mm': 74.6, '丸 120mm': 88.8, '丸 130mm': 104.2, '丸 140mm': 120.8,
+    '丸 150mm': 138.7, '丸 160mm': 157.9, '丸 180mm': 199.8, '丸 200mm': 246.6,
+  },
+  '角鋼': {
+    '角 4mm': 0.126, '角 5mm': 0.196, '角 6mm': 0.283, '角 7mm': 0.385,
+    '角 8mm': 0.502, '角 9mm': 0.636, '角 10mm': 0.785, '角 11mm': 0.950,
+    '角 12mm': 1.13, '角 13mm': 1.33, '角 14mm': 1.54, '角 15mm': 1.77,
+    '角 16mm': 2.01, '角 17mm': 2.27, '角 18mm': 2.54, '角 19mm': 2.83,
+    '角 20mm': 3.14, '角 21mm': 3.46, '角 22mm': 3.80, '角 23mm': 4.15,
+    '角 24mm': 4.52, '角 25mm': 4.91, '角 28mm': 6.15, '角 30mm': 7.07,
+    '角 32mm': 8.04, '角 34mm': 9.07, '角 36mm': 10.2, '角 38mm': 11.3,
+    '角 40mm': 12.6, '角 42mm': 13.8, '角 44mm': 15.2, '角 45mm': 15.9,
+    '角 48mm': 18.1, '角 50mm': 19.6, '角 55mm': 23.7, '角 60mm': 28.3,
+    '角 65mm': 33.2, '角 70mm': 38.5, '角 75mm': 44.2, '角 80mm': 50.2,
+    '角 85mm': 56.7, '角 90mm': 63.6, '角 95mm': 70.9, '角 100mm': 78.5,
+    '角 110mm': 95.0, '角 120mm': 113, '角 125mm': 122.7, '角 140mm': 153.9,
+    '角 150mm': 176.6, '角 160mm': 201.0, '角 170mm': 226.9, '角 180mm': 254.3,
+    '角 190mm': 283.4, '角 200mm': 314.0,
+  },
+};
+
+// =============================================
+// Tab Switching
+// =============================================
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', ['calc','steel'][i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(name === 'calc' ? 'panelCalc' : 'panelSteel').classList.add('active');
+  renderStored();
+}
+
+// =============================================
+// Calculator Logic
+// =============================================
+let calcDisplay = '0';
+let calcOperator = '';
+let calcPrev = '';
+let calcNewNumber = true;
+let calcExpression = '';
+
+function updateCalcDisplay() {
+  document.getElementById('calcResult').textContent = calcDisplay;
+  document.getElementById('calcExpr').textContent = calcExpression;
+}
+
+function formatNumber(n) {
+  if (isNaN(n) || !isFinite(n)) return 'エラー';
+  return parseFloat(n.toPrecision(12)).toString();
+}
+
+function calcAction(type, val) {
+  switch (type) {
+    case 'num':
+      if (calcNewNumber) {
+        calcDisplay = val;
+        calcNewNumber = false;
+      } else {
+        if (calcDisplay === '0' && val === '0') return;
+        calcDisplay = calcDisplay === '0' ? val : calcDisplay + val;
+      }
+      break;
+
+    case 'dot':
+      if (calcNewNumber) {
+        calcDisplay = '0.';
+        calcNewNumber = false;
+      } else if (!calcDisplay.includes('.')) {
+        calcDisplay += '.';
+      }
+      break;
+
+    case 'op':
+      if (calcOperator && !calcNewNumber) {
+        const result = evaluate(parseFloat(calcPrev), parseFloat(calcDisplay), calcOperator);
+        calcDisplay = formatNumber(result);
+      }
+      calcPrev = calcDisplay;
+      calcOperator = val;
+      calcNewNumber = true;
+      calcExpression = calcPrev + ' ' + dispOp(val);
+      break;
+
+    case 'equal':
+      if (calcOperator) {
+        const a = parseFloat(calcPrev);
+        const b = parseFloat(calcDisplay);
+        const result = evaluate(a, b, calcOperator);
+        calcExpression = calcPrev + ' ' + dispOp(calcOperator) + ' ' + calcDisplay + ' =';
+        calcDisplay = formatNumber(result);
+        calcOperator = '';
+        calcPrev = '';
+        calcNewNumber = true;
+      }
+      break;
+
+    case 'clear':
+      calcDisplay = '0';
+      calcOperator = '';
+      calcPrev = '';
+      calcNewNumber = true;
+      calcExpression = '';
+      break;
+
+    case 'backspace':
+      if (!calcNewNumber && calcDisplay.length > 1) {
+        calcDisplay = calcDisplay.slice(0, -1);
+      } else {
+        calcDisplay = '0';
+        calcNewNumber = true;
+      }
+      break;
+
+    case 'sqrt': {
+      const n = parseFloat(calcDisplay);
+      if (n < 0) {
+        calcExpression = '√(' + calcDisplay + ')';
+        calcDisplay = 'エラー';
+      } else {
+        calcExpression = '√(' + calcDisplay + ') =';
+        calcDisplay = formatNumber(Math.sqrt(n));
+      }
+      calcNewNumber = true;
+      break;
+    }
+  }
+  updateCalcDisplay();
+}
+
+function evaluate(a, b, op) {
+  switch (op) {
+    case '+': return a + b;
+    case '-': return a - b;
+    case '*': return a * b;
+    case '/': return b === 0 ? NaN : a / b;
+    default: return b;
+  }
+}
+
+function dispOp(op) {
+  return { '+': '+', '-': '−', '*': '×', '/': '÷' }[op] || op;
+}
+
+// =============================================
+// Steel Calculator
+// =============================================
+function initSteelTypes() {
+  const sel = document.getElementById('steelType');
+  Object.keys(STEEL_DATA).forEach(type => {
+    const opt = document.createElement('option');
+    opt.value = type;
+    opt.textContent = type;
+    sel.appendChild(opt);
+  });
+}
+
+function onSteelTypeChange() {
+  const type = document.getElementById('steelType').value;
+  const sel = document.getElementById('steelSize');
+  sel.innerHTML = '';
+  if (!type) {
+    sel.innerHTML = '<option value="">先に種類を選択</option>';
+    document.getElementById('steelResultCard').style.display = 'none';
+    return;
+  }
+  const sizes = STEEL_DATA[type];
+  const defOpt = document.createElement('option');
+  defOpt.value = '';
+  defOpt.textContent = 'サイズを選択';
+  sel.appendChild(defOpt);
+  Object.keys(sizes).forEach(size => {
+    const opt = document.createElement('option');
+    opt.value = size;
+    opt.textContent = size + '  (' + sizes[size] + ' kg/m)';
+    sel.appendChild(opt);
+  });
+  calcSteel();
+}
+
+function calcSteel() {
+  const type = document.getElementById('steelType').value;
+  const size = document.getElementById('steelSize').value;
+  const length = parseFloat(document.getElementById('steelLength').value) || 0;
+  const qty = parseInt(document.getElementById('steelQty').value) || 0;
+  if (!type || !size || !length || !qty) {
+    document.getElementById('steelResultCard').style.display = 'none';
+    return;
+  }
+  const unitWeight = STEEL_DATA[type][size];
+  const totalWeight = unitWeight * length * qty;
+  const oneWeight = unitWeight * length;
+  document.getElementById('steelResultCard').style.display = '';
+  document.getElementById('steelResultValue').textContent = totalWeight.toFixed(1);
+  document.getElementById('steelResultDetail').textContent =
+    unitWeight + ' kg/m × ' + length + ' m × ' + qty + ' 本' +
+    (qty > 1 ? '（1本あたり ' + oneWeight.toFixed(1) + ' kg）' : '');
+}
+
+function resetSteel() {
+  document.getElementById('steelType').value = '';
+  document.getElementById('steelSize').innerHTML = '<option value="">先に種類を選択</option>';
+  document.getElementById('steelLength').value = '';
+  document.getElementById('steelQty').value = '1';
+  document.getElementById('steelResultCard').style.display = 'none';
+}
+
+// =============================================
+// Stored Results
+// =============================================
+let storedItems = JSON.parse(localStorage.getItem('steelCalcStored') || '[]');
+
+function saveStored() {
+  localStorage.setItem('steelCalcStored', JSON.stringify(storedItems));
+}
+
+function storeCalcResult() {
+  const val = calcDisplay;
+  if (val === '0' && !calcExpression) return;
+  storedItems.push({
+    type: 'calc',
+    value: val,
+    detail: calcExpression || '',
+    timestamp: Date.now(),
+  });
+  saveStored();
+  renderStored();
+  const btn = document.querySelector('.store-btn');
+  btn.textContent = '済';
+  setTimeout(() => { btn.textContent = '保管'; }, 600);
+}
+
+function storeSteelResult() {
+  const type = document.getElementById('steelType').value;
+  const size = document.getElementById('steelSize').value;
+  const length = parseFloat(document.getElementById('steelLength').value) || 0;
+  const qty = parseInt(document.getElementById('steelQty').value) || 0;
+  if (!type || !size || !length || !qty) return;
+  const unitWeight = STEEL_DATA[type][size];
+  const totalWeight = unitWeight * length * qty;
+  storedItems.push({
+    type: 'steel',
+    value: totalWeight.toFixed(1) + ' kg',
+    detail: type + ' ' + size + ' / ' + length + 'm × ' + qty + '本',
+    weight: totalWeight,
+    timestamp: Date.now(),
+  });
+  saveStored();
+  renderStored();
+  const btn = document.querySelector('.steel-btn.store');
+  btn.textContent = '済';
+  setTimeout(() => { btn.textContent = '保管'; }, 600);
+}
+
+function deleteStored(index) {
+  storedItems.splice(index, 1);
+  saveStored();
+  renderStored();
+}
+
+function useStoredValue(index) {
+  const item = storedItems[index];
+  if (!item) return;
+  // Extract first number from value string (handles "471786", "123.4 kg", etc.)
+  const match = String(item.value).match(/-?[\d.]+/);
+  if (!match) return;
+  const num = match[0];
+
+  // Switch to calc tab if not visible
+  if (!document.getElementById('panelCalc').classList.contains('active')) {
+    switchTab('calc');
+  }
+
+  // If waiting for a new number (after op or equals), replace display
+  if (calcNewNumber) {
+    calcDisplay = num;
+    calcNewNumber = false;
+  } else {
+    // Replace current display with the stored value
+    calcDisplay = num;
+  }
+  updateCalcDisplay();
+
+  // Visual feedback on the tapped item
+  const items = document.querySelectorAll('.stored-item');
+  if (items[index]) {
+    items[index].style.transition = 'background 0.3s';
+    items[index].style.background = '#dbeafe';
+    setTimeout(() => { items[index].style.background = ''; }, 400);
+  }
+}
+
+function clearAllStored() {
+  if (!confirm('保管データをすべて削除しますか？')) return;
+  storedItems = [];
+  saveStored();
+  renderStored();
+}
+
+function escHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function renderStored() {
+  // Render into both containers
+  ['storedArea', 'storedAreaSteel'].forEach(containerId => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (storedItems.length === 0) {
+      container.innerHTML = '<div class="stored-area-empty">保管データなし</div>';
+      return;
+    }
+
+    let html = '<div class="stored-header">' +
+      '<span class="stored-header-title">保管 (' + storedItems.length + ')</span>' +
+      '<button class="stored-header-clear" onclick="clearAllStored()">すべて削除</button>' +
+      '</div>';
+
+    storedItems.forEach((item, i) => {
+      html += `<div class="stored-item" draggable="true" data-index="${i}">
+        <span class="stored-item-grip">⠿</span>
+        <div class="stored-item-info" onclick="useStoredValue(${i})">
+          <div class="stored-item-type">${item.type === 'steel' ? '鋼材' : '計算'}  <span style="color:#9ca3af;font-weight:400;">タップで入力</span></div>
+          <div class="stored-item-value">${escHtml(item.value)}</div>
+          <div class="stored-item-detail">${escHtml(item.detail)}</div>
+        </div>
+        <button class="stored-item-delete" onclick="deleteStored(${i})">✕</button>
+      </div>`;
+    });
+
+    container.innerHTML = html;
+    initDragAndDrop(container);
+  });
+
+  // Weight total bar
+  const bar = document.getElementById('storedWeightBar');
+  let totalWeight = 0;
+  let hasWeight = false;
+  storedItems.forEach(item => {
+    if (item.weight) { totalWeight += item.weight; hasWeight = true; }
+  });
+  if (hasWeight && storedItems.length > 0) {
+    bar.classList.remove('hidden');
+    document.getElementById('storedTotalWeight').textContent = totalWeight.toFixed(1) + ' kg';
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
+// =============================================
+// Drag & Drop (touch + mouse)
+// =============================================
+function initDragAndDrop(container) {
+  const items = container.querySelectorAll('.stored-item');
+  let dragIndex = null;
+
+  items.forEach(item => {
+    // --- Touch events ---
+    let touchStartY = 0;
+    let touchCurrentY = 0;
+    let isDragging = false;
+    let clone = null;
+    let startRect = null;
+
+    const grip = item.querySelector('.stored-item-grip');
+
+    grip.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      dragIndex = parseInt(item.dataset.index);
+      touchStartY = e.touches[0].clientY;
+      startRect = item.getBoundingClientRect();
+      isDragging = false;
+    }, { passive: false });
+
+    grip.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      touchCurrentY = e.touches[0].clientY;
+      const dy = touchCurrentY - touchStartY;
+
+      if (!isDragging && Math.abs(dy) > 8) {
+        isDragging = true;
+        clone = item.cloneNode(true);
+        clone.style.position = 'fixed';
+        clone.style.left = startRect.left + 'px';
+        clone.style.width = startRect.width + 'px';
+        clone.style.top = startRect.top + 'px';
+        clone.style.zIndex = '1000';
+        clone.style.boxShadow = '0 6px 20px rgba(0,0,0,0.2)';
+        clone.style.opacity = '0.95';
+        clone.style.pointerEvents = 'none';
+        clone.style.transition = 'none';
+        document.body.appendChild(clone);
+        item.style.opacity = '0.3';
+      }
+
+      if (isDragging && clone) {
+        clone.style.top = (startRect.top + dy) + 'px';
+
+        // Find drop target
+        const allItems = container.querySelectorAll('.stored-item');
+        allItems.forEach(el => el.classList.remove('drag-over'));
+        allItems.forEach(el => {
+          if (el === item) return;
+          const rect = el.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          if (touchCurrentY > rect.top && touchCurrentY < rect.bottom) {
+            el.classList.add('drag-over');
+          }
+        });
+      }
+    }, { passive: false });
+
+    grip.addEventListener('touchend', () => {
+      if (isDragging && clone) {
+        clone.remove();
+        item.style.opacity = '';
+
+        // Find target index
+        const allItems = container.querySelectorAll('.stored-item');
+        let targetIndex = dragIndex;
+        allItems.forEach(el => {
+          el.classList.remove('drag-over');
+          const rect = el.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          if (touchCurrentY > midY && parseInt(el.dataset.index) !== dragIndex) {
+            targetIndex = parseInt(el.dataset.index);
+          }
+        });
+
+        if (targetIndex !== dragIndex) {
+          const movedItem = storedItems.splice(dragIndex, 1)[0];
+          storedItems.splice(targetIndex, 0, movedItem);
+          saveStored();
+          renderStored();
+        }
+      }
+      isDragging = false;
+      clone = null;
+      dragIndex = null;
+    });
+
+    // --- Mouse drag events (desktop) ---
+    item.addEventListener('dragstart', (e) => {
+      dragIndex = parseInt(item.dataset.index);
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      container.querySelectorAll('.stored-item').forEach(el => el.classList.remove('drag-over'));
+      dragIndex = null;
+    });
+
+    item.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const idx = parseInt(item.dataset.index);
+      if (idx !== dragIndex) {
+        item.classList.add('drag-over');
+      }
+    });
+
+    item.addEventListener('dragleave', () => {
+      item.classList.remove('drag-over');
+    });
+
+    item.addEventListener('drop', (e) => {
+      e.preventDefault();
+      item.classList.remove('drag-over');
+      const targetIdx = parseInt(item.dataset.index);
+      if (dragIndex !== null && dragIndex !== targetIdx) {
+        const movedItem = storedItems.splice(dragIndex, 1)[0];
+        storedItems.splice(targetIdx, 0, movedItem);
+        saveStored();
+        renderStored();
+      }
+    });
+  });
+}
+
+// =============================================
+// Init
+// =============================================
+initSteelTypes();
+updateCalcDisplay();
+renderStored();
+</script>
+</body>
+</html>

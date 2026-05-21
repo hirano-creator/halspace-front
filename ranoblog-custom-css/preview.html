@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ja" class="no-js">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ranoBlog — Tech / Mono Grid プレビュー</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* Cocoonの最低限のレイアウトだけ再現（本番はCocoonが出力） */
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Noto Sans JP", sans-serif; }
+  #header-container { width: 100%; }
+  #header { max-width: 1120px; margin: 0 auto; padding: 20px; display: flex; align-items: center; justify-content: space-between; }
+  .logo-image img { height: 40px; }
+  #navi { border-top: 1px solid #eee; border-bottom: 1px solid #eee; }
+  #navi .navi-in { max-width: 1120px; margin: 0 auto; }
+  #navi ul.menu-pc { display: flex; list-style: none; margin: 0; padding: 0; justify-content: center; }
+  #navi li.menu-item > a { display: block; padding: 16px 24px; text-decoration: none; }
+  .wrap#main-wrap { max-width: 1120px; margin: 40px auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 300px; gap: 40px; }
+  #main { min-width: 0; }
+  .recommended { margin-bottom: 40px; }
+  .recommended .recommended-label { display: block; padding: 12px 20px; }
+  .recommended ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .recommended .navi-entry-card-link { display: block; text-decoration: none; }
+  .recommended .navi-entry-card-thumb img { width: 100%; height: 120px; object-fit: cover; display: block; }
+  .recommended .navi-entry-card-title { display: block; padding: 10px; font-size: 13px; }
+  #list.ect-vertical-card-2.ect-2-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .entry-card-wrap { display: block; text-decoration: none; color: inherit; }
+  .entry-card { position: relative; }
+  .entry-card-thumb img { width: 100%; height: 200px; object-fit: cover; display: block; }
+  .entry-card-content { padding: 16px 0; }
+  .entry-card-title { font-size: 18px; margin: 8px 0; line-height: 1.5; }
+  .entry-card-snippet { font-size: 13px; color: #666; }
+  .entry-category { position: absolute; top: 12px; left: 12px; padding: 4px 10px; font-size: 11px; }
+  #sidebar { }
+  .widget-sidebar-standard { margin-bottom: 32px; padding: 20px; }
+  .widget-sidebar-standard-title { font-size: 14px; margin: 0 0 16px; padding-bottom: 10px; }
+  .author-box { text-align: center; }
+  .author-thumb.circle-image img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; }
+  .popular-entry-cards { list-style: none; margin: 0; padding: 0; }
+  .popular-entry-card-wrap { display: flex; gap: 12px; margin-bottom: 14px; text-decoration: none; color: inherit; }
+  .popular-entry-card-thumb img { width: 80px; height: 60px; object-fit: cover; }
+  .popular-entry-card-title { font-size: 12px; line-height: 1.4; }
+  #footer.footer-container { margin-top: 60px; padding: 40px 20px; text-align: center; }
+  h1, h2, h3 { font-family: inherit; }
+  /* VK Blocksサンプル用 */
+  .vk_heading { margin: 40px 0 20px; }
+  .vk_heading_title { font-size: 22px; margin: 0; }
+  .vk_button { margin: 20px 0; }
+  .vk_button_link { display: inline-block; padding: 14px 32px; text-decoration: none; }
+  .vk_borderBox { padding: 20px; margin: 20px 0; }
+  .vk_borderBox_title_container { font-weight: bold; margin-bottom: 10px; }
+</style>
+</head>
+<body class="home blog ff-yu-gothic">
+
+<div id="header-container">
+  <header id="header">
+    <div class="logo-image">
+      <a href="#"><img src="https://via.placeholder.com/160x40/1a1a1a/ffffff?text=ranoBlog" alt="ranoBlog"></a>
+    </div>
+    <form class="search-form" role="search">
+      <input type="text" class="search-edit" placeholder="Search">
+      <button type="submit" class="search-submit">→</button>
+    </form>
+  </header>
+
+  <nav id="navi">
+    <div class="navi-in">
+      <ul class="menu-pc menu">
+        <li class="menu-item"><a href="#">HOME</a></li>
+        <li class="menu-item"><a href="#">ABOUT</a></li>
+        <li class="menu-item"><a href="#">BLOG</a></li>
+        <li class="menu-item"><a href="#">WORKS</a></li>
+        <li class="menu-item"><a href="#">CONTACT</a></li>
+      </ul>
+    </div>
+  </nav>
+</div>
+
+<div class="wrap" id="main-wrap">
+  <main id="main">
+
+    <section class="recommended">
+      <span class="recommended-label">おすすめ記事</span>
+      <ul>
+        <li><a class="navi-entry-card-link" href="#">
+          <figure class="navi-entry-card-thumb"><img src="https://picsum.photos/seed/a/400/240" alt=""></figure>
+          <span class="navi-entry-card-title">クリエイターのためのミニマル思考</span>
+        </a></li>
+        <li><a class="navi-entry-card-link" href="#">
+          <figure class="navi-entry-card-thumb"><img src="https://picsum.photos/seed/b/400/240" alt=""></figure>
+          <span class="navi-entry-card-title">白と黒だけで作る美しいデザイン</span>
+        </a></li>
+        <li><a class="navi-entry-card-link" href="#">
+          <figure class="navi-entry-card-thumb"><img src="https://picsum.photos/seed/c/400/240" alt=""></figure>
+          <span class="navi-entry-card-title">ブログ運営1年で気づいたこと</span>
+        </a></li>
+      </ul>
+    </section>
+
+    <div id="list" class="ect-vertical-card-2 ect-2-columns front-page-type-index">
+      <a class="entry-card-wrap a-wrap border-element cf" href="#">
+        <article class="entry-card e-card cf">
+          <figure class="entry-card-thumb card-thumb e-card-thumb">
+            <img src="https://picsum.photos/seed/1/600/400" alt="" class="entry-card-thumb-image">
+          </figure>
+          <div class="entry-card-content card-content e-card-content">
+            <span class="entry-category cat-label cat-label-claude">CLAUDE CODE</span>
+            <h2 class="entry-card-title card-title e-card-title">Claude Code で毎日の開発を劇的に変えた話</h2>
+            <div class="entry-card-snippet card-snippet e-card-snippet">ターミナルから直接使えるAIコーディングアシスタント。実際に1ヶ月使ってわかった便利な使い方を紹介。</div>
+          </div>
+        </article>
+      </a>
+      <a class="entry-card-wrap a-wrap border-element cf" href="#">
+        <article class="entry-card e-card cf">
+          <figure class="entry-card-thumb card-thumb e-card-thumb">
+            <img src="https://picsum.photos/seed/2/600/400" alt="" class="entry-card-thumb-image">
+          </figure>
+          <div class="entry-card-content card-content e-card-content">
+            <span class="entry-category cat-label cat-label-2">WRITING</span>
+            <h2 class="entry-card-title card-title e-card-title">読まれるブログ記事の構成テンプレート</h2>
+            <div class="entry-card-snippet card-snippet e-card-snippet">ブログクリエイターとして長く活動するための文章構成術をまとめました。</div>
+          </div>
+        </article>
+      </a>
+      <a class="entry-card-wrap a-wrap border-element cf" href="#">
+        <article class="entry-card e-card cf">
+          <figure class="entry-card-thumb card-thumb e-card-thumb">
+            <img src="https://picsum.photos/seed/3/600/400" alt="" class="entry-card-thumb-image">
+          </figure>
+          <div class="entry-card-content card-content e-card-content">
+            <span class="entry-category cat-label cat-label-3">LIFESTYLE</span>
+            <h2 class="entry-card-title card-title e-card-title">創作を続けるための朝のルーティン</h2>
+            <div class="entry-card-snippet card-snippet e-card-snippet">毎日コツコツと積み上げるための習慣化テクニック。</div>
+          </div>
+        </article>
+      </a>
+      <a class="entry-card-wrap a-wrap border-element cf" href="#">
+        <article class="entry-card e-card cf">
+          <figure class="entry-card-thumb card-thumb e-card-thumb">
+            <img src="https://picsum.photos/seed/4/600/400" alt="" class="entry-card-thumb-image">
+          </figure>
+          <div class="entry-card-content card-content e-card-content">
+            <span class="entry-category cat-label cat-label-4">TOOLS</span>
+            <h2 class="entry-card-title card-title e-card-title">ブロガーが本当に使っているツール10選</h2>
+            <div class="entry-card-snippet card-snippet e-card-snippet">執筆・画像編集・SEOまで、実戦で役立つツールだけを厳選。</div>
+          </div>
+        </article>
+      </a>
+    </div>
+
+    <!-- VK Blocksサンプル -->
+    <div class="vk_heading vk_heading_style_default">
+      <h2 class="vk_heading_title">VK Blocks サンプル</h2>
+    </div>
+    <div class="vk_borderBox">
+      <div class="vk_borderBox_title_container">ボーダーボックス</div>
+      <div class="vk_borderBox_content">モノクロ基調のクリエイター向けデザインに調整されたVK Blocks要素です。</div>
+    </div>
+    <div class="vk_button">
+      <a class="vk_button_link" href="#">もっと読む</a>
+    </div>
+
+    <!-- 記事ページ風サンプル (Claude Code記事想定) -->
+    <article class="article" style="margin-top:60px; padding-top:40px; border-top:1px solid #e5e5e5;">
+      <header class="article-header">
+        <h1 class="entry-title">Claude Code の基本コマンド</h1>
+      </header>
+      <p>Claude Code はターミナルから直接使えるAIコーディングアシスタント。インストールは <code>npm</code> 一発で完了します。</p>
+      <h2>インストール</h2>
+      <pre><code>$ npm install -g @anthropic-ai/claude-code
+$ claude --version
+claude-code 1.0.0</code></pre>
+      <h2>使い方</h2>
+      <p>プロジェクトのルートで <code>claude</code> を実行すれば対話的に使えます。</p>
+      <pre><code>$ cd my-project
+$ claude
+> このリポジトリの構成を教えて</code></pre>
+      <blockquote>コードを書くより、書かせる時代へ。</blockquote>
+    </article>
+
+  </main>
+
+  <aside id="sidebar" class="sidebar nwa">
+    <div class="widget-sidebar-standard">
+      <h3 class="widget-sidebar-standard-title">PROFILE</h3>
+      <div class="author-box">
+        <figure class="author-thumb circle-image">
+          <img src="https://picsum.photos/seed/author/200" alt="">
+        </figure>
+        <div class="author-name">rano</div>
+        <p class="author-description">ブログクリエイター。白と黒の美学を追求中。</p>
+      </div>
+    </div>
+    <div class="widget-sidebar-standard">
+      <h3 class="widget-sidebar-standard-title">POPULAR</h3>
+      <ul class="popular-entry-cards">
+        <li><a class="popular-entry-card-wrap" href="#">
+          <figure class="popular-entry-card-thumb"><img src="https://picsum.photos/seed/p1/200"></figure>
+          <div class="popular-entry-card-title">ミニマルデザインの極意</div>
+        </a></li>
+        <li><a class="popular-entry-card-wrap" href="#">
+          <figure class="popular-entry-card-thumb"><img src="https://picsum.photos/seed/p2/200"></figure>
+          <div class="popular-entry-card-title">白黒写真の撮り方入門</div>
+        </a></li>
+        <li><a class="popular-entry-card-wrap" href="#">
+          <figure class="popular-entry-card-thumb"><img src="https://picsum.photos/seed/p3/200"></figure>
+          <div class="popular-entry-card-title">ブログで食べていく方法</div>
+        </a></li>
+      </ul>
+    </div>
+  </aside>
+</div>
+
+<footer id="footer" class="footer-container">
+  <div class="footer-in">
+    <p class="copyright">&copy; 2026 ranoBlog. All rights reserved.</p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>おみくじアプリ</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    }
+
+    .container {
+      text-align: center;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 50px 40px;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 400px;
+      width: 90%;
+    }
+
+    h1 {
+      font-size: 2rem;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 30px;
+    }
+
+    .result-area {
+      width: 180px;
+      height: 180px;
+      margin: 0 auto 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 4px solid #ddd;
+      transition: all 0.4s ease;
+    }
+
+    .result-area.active {
+      border-color: var(--fortune-color, #667eea);
+      background: linear-gradient(135deg, #fff 0%, #f0f0ff 100%);
+      transform: scale(1.05);
+    }
+
+    .result-text {
+      font-size: 3.5rem;
+      font-weight: bold;
+      color: var(--fortune-color, #ccc);
+      transition: all 0.3s ease;
+    }
+
+    .result-text.placeholder {
+      font-size: 1.2rem;
+      color: #bbb;
+    }
+
+    .draw-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border: none;
+      padding: 16px 50px;
+      font-size: 1.2rem;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+      letter-spacing: 2px;
+    }
+
+    .draw-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+    }
+
+    .draw-btn:active {
+      transform: translateY(0);
+    }
+
+    .draw-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: rotate(0deg) scale(1.05); }
+      20% { transform: rotate(-8deg) scale(1.05); }
+      40% { transform: rotate(8deg) scale(1.05); }
+      60% { transform: rotate(-5deg) scale(1.05); }
+      80% { transform: rotate(5deg) scale(1.05); }
+    }
+
+    .result-area.shaking {
+      animation: shake 0.6s ease-in-out;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.5); opacity: 0; }
+      70% { transform: scale(1.2); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .result-text.pop {
+      animation: pop 0.4s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>おみくじ</h1>
+    <p class="subtitle">運勢を占いましょう</p>
+    <div class="result-area" id="resultArea">
+      <span class="result-text placeholder" id="resultText">？</span>
+    </div>
+    <button class="draw-btn" id="drawBtn">引く</button>
+  </div>
+
+  <script>
+    const fortunes = [
+      { text: "大吉", color: "#e74c3c" },
+      { text: "中吉", color: "#e67e22" },
+      { text: "小吉", color: "#f1c40f" },
+      { text: "吉",   color: "#2ecc71" },
+      { text: "末吉", color: "#3498db" },
+      { text: "凶",   color: "#8e44ad" },
+    ];
+
+    const resultArea = document.getElementById("resultArea");
+    const resultText = document.getElementById("resultText");
+    const drawBtn = document.getElementById("drawBtn");
+
+    drawBtn.addEventListener("click", () => {
+      drawBtn.disabled = true;
+
+      // シェイクアニメーション
+      resultArea.classList.remove("active");
+      resultArea.classList.add("shaking");
+      resultText.className = "result-text placeholder";
+      resultText.textContent = "...";
+      resultText.style.color = "#bbb";
+
+      setTimeout(() => {
+        resultArea.classList.remove("shaking");
+
+        const fortune = fortunes[Math.floor(Math.random() * fortunes.length)];
+
+        resultArea.classList.add("active");
+        resultArea.style.setProperty("--fortune-color", fortune.color);
+        resultText.className = "result-text pop";
+        resultText.textContent = fortune.text;
+        resultText.style.color = fortune.color;
+
+        drawBtn.disabled = false;
+      }, 800);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>コンテンツアイコン プレビュー</title>
+<style>
+  body { margin: 0; padding: 80px 60px; font-family: -apple-system, "Noto Sans JP", sans-serif; background: #fff; color: #333; }
+  .row {
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    gap: 80px;
+  }
+  .item {
+    text-align: center;
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  .item img {
+    width: 160px;
+    height: 160px;
+    display: block;
+    object-fit: contain;
+  }
+  .item span {
+    display: block;
+    margin-top: 22px;
+    font-size: 13px;
+    color: #6b6b6b;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-family: monospace;
+  }
+  h1 { text-align: center; font-weight: 400; font-size: 14px; color: #aaa; margin-bottom: 60px; letter-spacing: 0.2em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+  <h1>Content Icons — Preview</h1>
+  <div class="row">
+    <div class="item">
+      <img src="icon-investment.svg" alt="投資">
+      <span>投資</span>
+    </div>
+    <div class="item">
+      <img src="icon-ai.svg" alt="AI">
+      <span>AI</span>
+    </div>
+    <div class="item">
+      <img src="icon-web.svg" alt="WEB">
+      <span>WEB</span>
+    </div>
+    <div class="item">
+      <img src="icon-steel.svg" alt="鉄鋼">
+      <span>鉄鋼</span>
+    </div>
+  </div>
+</body>
+</html>

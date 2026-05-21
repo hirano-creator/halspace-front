@@ -1,0 +1,1210 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600&family=Noto+Sans+JP:wght@300;400;500;700&display=swap");
+
+/* ============================================================
+   ranoBlog — Tech / Mono Grid
+   白黒 × 細罫線 × Display+Mono × デベロッパー系クリエイター
+   Cocoon + VK Blocks 対応（CSS のみ / HTML 変更なし）
+
+   適用方法:
+   WordPress 管理画面 → 外観 → カスタマイズ → 追加CSS に全文貼付
+   Cocoon 設定 → キャッシュ削除 → Ctrl+F5 でリロード
+   ============================================================ */
+
+:root {
+  --bg: #ffffff;
+  --ink: #0a0a0a;
+  --line: #e5e5e5;
+  --muted: #8a8a8a;
+  --sub-bg: #f7f7f7;
+  --display: "Space Grotesk", "Inter", "Noto Sans JP", sans-serif;
+  --body: "Inter", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic Medium", sans-serif;
+  --mono: "JetBrains Mono", "Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ============================================================
+   1. ベース
+   ============================================================ */
+body,
+body.home,
+body.blog,
+body.page,
+body.single,
+body.archive,
+body.category,
+body.search,
+body.ff-yu-gothic {
+  background-color: var(--bg) !important;
+  color: var(--ink) !important;
+  font-family: var(--body) !important;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: 0.01em;
+  line-height: 1.75;
+}
+
+#container,
+#content,
+#main,
+.wrap,
+#body,
+#body-in {
+  background: transparent !important;
+}
+
+::selection {
+  background: var(--ink);
+  color: #fff;
+}
+
+a {
+  color: var(--ink) !important;
+  text-decoration: none;
+  transition: opacity 0.25s ease, border-color 0.25s ease;
+}
+
+a:hover {
+  opacity: 0.55 !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--display) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--ink) !important;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ============================================================
+   2. ヘッダー
+   ============================================================ */
+#header-container {
+  background: var(--bg) !important;
+  border-bottom: 1px solid var(--line) !important;
+  box-shadow: none !important;
+}
+
+#header {
+  padding: 24px 20px !important;
+  position: relative;
+}
+
+#header::after {
+  content: "// ver.2026";
+  position: absolute;
+  left: 20px;
+  bottom: 6px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+/* ヘッダー検索フォーム */
+#header .search-form,
+#header-container .search-form,
+.header-container .search-form {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+#header .search-form::before,
+#header-container .search-form::before,
+.header-container .search-form::before {
+  content: "⌕";
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--muted);
+  margin-right: 8px;
+  pointer-events: none;
+}
+
+#header .search-form input[type="text"],
+#header .search-form input[type="search"],
+#header .search-edit,
+#header-container .search-edit,
+.header-container .search-edit {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  font-family: var(--mono) !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.15em !important;
+  padding: 8px 4px !important;
+  color: var(--ink) !important;
+  width: 160px !important;
+  box-shadow: none !important;
+  transition: border-color 0.3s ease, width 0.3s ease;
+}
+
+#header .search-edit:focus,
+#header-container .search-edit:focus,
+.header-container .search-edit:focus {
+  border-bottom-color: var(--ink) !important;
+  outline: none !important;
+  width: 200px !important;
+}
+
+#header .search-edit::placeholder,
+#header-container .search-edit::placeholder {
+  color: var(--muted) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+#header .search-submit,
+#header-container .search-submit,
+.header-container .search-submit {
+  background: transparent !important;
+  border: none !important;
+  color: var(--muted) !important;
+  font-family: var(--mono) !important;
+  font-size: 10px !important;
+  padding: 6px 0 6px 8px !important;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+#header .search-submit:hover,
+#header-container .search-submit:hover {
+  color: var(--ink) !important;
+  background: transparent !important;
+}
+
+.logo-image img,
+.header-site-logo-image {
+  filter: grayscale(100%) contrast(1.1) !important;
+  max-height: 44px !important;
+}
+
+.site-name-text,
+.site-name-text-link {
+  font-family: var(--display) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+  color: var(--ink) !important;
+  font-size: 22px !important;
+}
+
+.tagline,
+.site-description {
+  font-family: var(--mono) !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.15em !important;
+  color: var(--muted) !important;
+}
+
+/* ============================================================
+   3. グローバルナビ
+   ============================================================ */
+#navi {
+  background: var(--bg) !important;
+  border-top: none !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+
+#navi .navi-in {
+  background: transparent !important;
+}
+
+#navi ul.menu-pc,
+#navi .menu-header {
+  justify-content: center !important;
+}
+
+#navi li.menu-item {
+  border-right: 1px solid var(--line) !important;
+}
+
+#navi li.menu-item:first-child {
+  border-left: 1px solid var(--line) !important;
+}
+
+#navi li.menu-item > a {
+  font-family: var(--mono) !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.18em !important;
+  padding: 20px 32px !important;
+  color: var(--ink) !important;
+  background: transparent !important;
+  position: relative;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+#navi li.menu-item > a::before {
+  content: "/ ";
+  color: var(--muted);
+  margin-right: 4px;
+}
+
+#navi li.menu-item > a:hover {
+  background: var(--ink) !important;
+  color: #fff !important;
+  opacity: 1 !important;
+}
+
+#navi li.menu-item > a:hover::before {
+  color: #fff;
+}
+
+/* ============================================================
+   4. おすすめ記事バー (.recommended)
+   ============================================================ */
+.recommended {
+  background: var(--bg) !important;
+  border-bottom: 1px solid var(--line) !important;
+  margin: 0 0 60px !important;
+  padding: 40px 0 !important;
+  position: relative;
+}
+
+.recommended::before {
+  content: "// featured";
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  margin-bottom: 20px;
+  padding-left: 20px;
+}
+
+.recommended .recommended-label,
+.recommended-label-text {
+  display: none !important;
+}
+
+.recommended .navi-entry-card-link,
+.recommended a {
+  background: var(--bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  transition: border-color 0.3s ease, transform 0.3s ease !important;
+}
+
+.recommended .navi-entry-card-link:hover {
+  border-color: var(--ink) !important;
+  transform: translateY(-2px);
+  opacity: 1 !important;
+}
+
+.recommended .navi-entry-card-thumb img {
+  filter: grayscale(100%) contrast(1.05) !important;
+  transition: filter 0.4s ease !important;
+}
+
+.recommended .navi-entry-card-link:hover .navi-entry-card-thumb img {
+  filter: grayscale(0%) contrast(1) !important;
+}
+
+.recommended .navi-entry-card-title {
+  font-family: var(--display) !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--ink) !important;
+  font-size: 13px !important;
+  padding: 14px !important;
+}
+
+/* ============================================================
+   5. 記事一覧カード (.entry-card-wrap)
+   ============================================================ */
+#list,
+.ect-vertical-card-2,
+.ect-2-columns,
+.front-page-type-index {
+  counter-reset: card;
+}
+
+.entry-card-wrap,
+.entry-card-wrap.a-wrap {
+  background: var(--bg) !important;
+  border: none !important;
+  border-top: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 24px 0 !important;
+  margin-bottom: 0 !important;
+  position: relative;
+  counter-increment: card;
+  transition: border-top-color 0.3s ease !important;
+}
+
+.entry-card-wrap:hover {
+  border-top-color: var(--ink) !important;
+  transform: none !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+}
+
+.entry-card-wrap::before {
+  content: counter(card, decimal-leading-zero);
+  position: absolute;
+  top: 28px;
+  right: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.entry-card {
+  background: transparent !important;
+  border: none !important;
+}
+
+.entry-card-thumb,
+.card-thumb {
+  overflow: hidden;
+  background: var(--sub-bg);
+}
+
+.entry-card-thumb img,
+.card-thumb img,
+.entry-card-thumb-image {
+  filter: grayscale(100%) contrast(1.05) !important;
+  transition: filter 0.5s ease, transform 0.5s ease !important;
+  border-radius: 0 !important;
+}
+
+.entry-card-wrap:hover .entry-card-thumb img,
+.entry-card-wrap:hover .card-thumb img {
+  filter: grayscale(0%) contrast(1) !important;
+  transform: scale(1.03);
+}
+
+.entry-card-content {
+  padding: 18px 0 6px !important;
+}
+
+.entry-card-title,
+.card-title,
+.e-card-title {
+  font-family: var(--display) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--ink) !important;
+  font-size: 19px !important;
+  line-height: 1.45 !important;
+  margin: 10px 0 !important;
+}
+
+.entry-card-snippet,
+.card-snippet,
+.e-card-snippet {
+  font-family: var(--body) !important;
+  font-size: 13px !important;
+  color: #555 !important;
+  line-height: 1.7 !important;
+  margin-top: 8px !important;
+}
+
+.entry-category,
+.cat-label,
+span[class*="cat-label-"] {
+  background: transparent !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--ink) !important;
+  border-radius: 0 !important;
+  font-family: var(--mono) !important;
+  font-size: 9px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.2em !important;
+  padding: 4px 10px !important;
+  position: absolute !important;
+  top: 12px !important;
+  left: 12px !important;
+  z-index: 2;
+}
+
+.entry-card-meta,
+.post-date,
+.post-update {
+  font-family: var(--mono) !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.15em !important;
+  color: var(--muted) !important;
+}
+
+/* ============================================================
+   6. サイドバー
+   ============================================================ */
+#sidebar,
+#sidebar.sidebar {
+  background: transparent !important;
+}
+
+.widget-sidebar,
+.widget-sidebar-standard {
+  background: var(--bg) !important;
+  border: none !important;
+  border-top: 1px solid var(--line) !important;
+  padding: 28px 0 !important;
+  margin-bottom: 0 !important;
+  box-shadow: none !important;
+}
+
+.widget-sidebar-standard-title,
+.widget-sidebar-title,
+#sidebar h3 {
+  font-family: var(--mono) !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.2em !important;
+  color: var(--ink) !important;
+  background: transparent !important;
+  padding: 0 0 12px !important;
+  margin-bottom: 20px !important;
+  border: none !important;
+  border-bottom: 1px solid var(--line) !important;
+  position: relative;
+}
+
+.widget-sidebar-standard-title::before,
+#sidebar h3::before {
+  content: "// ";
+  color: var(--muted);
+}
+
+.author-box {
+  text-align: center !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 10px 0 !important;
+}
+
+.author-thumb.circle-image img,
+.author-thumb img {
+  border-radius: 0 !important;
+  filter: grayscale(100%) contrast(1.1) !important;
+  border: 1px solid var(--ink);
+}
+
+.author-name {
+  font-family: var(--display) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  font-size: 18px !important;
+  margin: 14px 0 6px !important;
+}
+
+.author-description,
+.author-box p {
+  font-family: var(--body) !important;
+  font-size: 12px !important;
+  color: #555 !important;
+  line-height: 1.7 !important;
+}
+
+.popular-entry-cards {
+  list-style: none !important;
+  padding: 0 !important;
+}
+
+.popular-entry-card-wrap {
+  border: none !important;
+  border-top: 1px solid var(--line) !important;
+  background: transparent !important;
+  padding: 14px 0 !important;
+  margin: 0 !important;
+  transition: padding-left 0.3s ease;
+}
+
+.popular-entry-card-wrap:first-child {
+  border-top: none !important;
+}
+
+.popular-entry-card-wrap:hover {
+  padding-left: 8px !important;
+  opacity: 1 !important;
+}
+
+.popular-entry-card-thumb img {
+  filter: grayscale(100%) contrast(1.05) !important;
+  border-radius: 0 !important;
+}
+
+.popular-entry-card-title,
+.popular-entry-card-content {
+  font-family: var(--body) !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+  color: var(--ink) !important;
+}
+
+#sidebar .search-form input[type="text"],
+#sidebar .search-edit,
+#sidebar input[type="search"] {
+  background: var(--bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  font-family: var(--mono) !important;
+  font-size: 12px !important;
+  padding: 12px !important;
+}
+
+#sidebar .search-edit:focus,
+#sidebar input[type="search"]:focus {
+  border-color: var(--ink) !important;
+  outline: none !important;
+}
+
+/* ============================================================
+   7. 記事ページ (single)
+   ============================================================ */
+.article-header,
+.entry-header {
+  border-bottom: 1px solid var(--line) !important;
+  padding-bottom: 30px !important;
+  margin-bottom: 40px !important;
+}
+
+.entry-title,
+.article h1 {
+  font-family: var(--display) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+  font-size: 36px !important;
+  line-height: 1.25 !important;
+  color: var(--ink) !important;
+}
+
+.entry-title::before {
+  content: "— ";
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+.article h2 {
+  font-family: var(--display) !important;
+  font-size: 26px !important;
+  border: none !important;
+  border-top: 1px solid var(--line) !important;
+  padding: 40px 0 14px !important;
+  margin: 50px 0 20px !important;
+  background: transparent !important;
+}
+
+.article h2::before {
+  content: "// ";
+  font-family: var(--mono);
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.article h3 {
+  font-family: var(--display) !important;
+  font-size: 20px !important;
+  border: none !important;
+  border-left: 2px solid var(--ink) !important;
+  padding: 4px 0 4px 14px !important;
+  background: transparent !important;
+  margin: 36px 0 16px !important;
+}
+
+.article h4 {
+  font-family: var(--display) !important;
+  font-size: 16px !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 28px 0 12px !important;
+}
+
+.article p {
+  font-family: var(--body) !important;
+  font-size: 15px !important;
+  line-height: 1.95 !important;
+  color: #222 !important;
+  margin: 0 0 1.5em !important;
+}
+
+.article blockquote {
+  border: none !important;
+  border-left: 1px solid var(--ink) !important;
+  background: transparent !important;
+  padding: 8px 0 8px 24px !important;
+  margin: 28px 0 !important;
+  font-family: var(--body) !important;
+  font-style: italic;
+  color: #444 !important;
+}
+
+.article blockquote::before {
+  content: "> ";
+  font-family: var(--mono);
+  color: var(--muted);
+  font-style: normal;
+}
+
+.article code,
+.article pre {
+  font-family: var(--mono) !important;
+  background: #0a0a0a !important;
+  color: #f5f5f5 !important;
+  border: 1px solid var(--ink) !important;
+  border-radius: 0 !important;
+  font-size: 12px !important;
+}
+
+/* ターミナル風 pre ブロック — Claude Code 記事用 */
+.article pre {
+  padding: 44px 22px 22px !important;
+  line-height: 1.75 !important;
+  position: relative;
+  margin: 28px 0 !important;
+  overflow-x: auto;
+}
+
+.article pre::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+}
+
+.article pre::after {
+  content: "● ● ●";
+  position: absolute;
+  top: 6px;
+  left: 14px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 4px;
+  color: #555;
+}
+
+.article pre code {
+  background: transparent !important;
+  border: none !important;
+  color: #f5f5f5 !important;
+  padding: 0 !important;
+}
+
+/* インラインコードは反転させずインク色ベースに */
+.article p > code,
+.article li > code {
+  background: var(--sub-bg) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--line) !important;
+  padding: 2px 6px !important;
+}
+
+.article code {
+  padding: 2px 6px !important;
+}
+
+/* Claude Code カテゴリ — 黒反転で目立たせる */
+.entry-category[class*="claude"],
+.cat-label[class*="claude"],
+span[class*="cat-label-claude"] {
+  background: var(--ink) !important;
+  color: #fff !important;
+  border-color: var(--ink) !important;
+}
+
+.article ul,
+.article ol {
+  padding-left: 1.4em !important;
+}
+
+.article hr {
+  border: none !important;
+  border-top: 1px solid var(--line) !important;
+  margin: 40px 0 !important;
+}
+
+.article img {
+  filter: grayscale(100%) contrast(1.05);
+  transition: filter 0.4s ease;
+  border-radius: 0 !important;
+}
+
+.article img:hover {
+  filter: grayscale(0%) contrast(1);
+}
+
+.entry-categories-tags,
+.date-tags {
+  font-family: var(--mono) !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.15em !important;
+  color: var(--muted) !important;
+  border-top: 1px solid var(--line) !important;
+  border-bottom: 1px solid var(--line) !important;
+  padding: 14px 0 !important;
+  margin: 30px 0 !important;
+}
+
+/* ============================================================
+   8. ボタン
+   ============================================================ */
+.btn,
+button,
+input[type="submit"],
+.wp-block-button__link,
+a.btn {
+  background: var(--bg) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--ink) !important;
+  border-radius: 0 !important;
+  font-family: var(--mono) !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.2em !important;
+  padding: 14px 30px !important;
+  box-shadow: none !important;
+  transition: background 0.3s ease, color 0.3s ease !important;
+  cursor: pointer;
+}
+
+.btn:hover,
+button:hover,
+input[type="submit"]:hover,
+.wp-block-button__link:hover,
+a.btn:hover {
+  background: var(--ink) !important;
+  color: #fff !important;
+  opacity: 1 !important;
+}
+
+/* ============================================================
+   9. タグ・ブログカード
+   ============================================================ */
+.tag-link,
+.entry-tag a {
+  background: transparent !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  font-family: var(--mono) !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.15em !important;
+  padding: 4px 10px !important;
+  margin: 0 4px 4px 0 !important;
+}
+
+.tag-link:hover {
+  border-color: var(--ink) !important;
+  background: var(--ink) !important;
+  color: #fff !important;
+}
+
+.blogcard-wrap,
+.blogcard {
+  background: var(--bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transition: border-color 0.3s ease !important;
+}
+
+.blogcard-wrap:hover {
+  border-color: var(--ink) !important;
+}
+
+.blogcard-title {
+  font-family: var(--display) !important;
+  font-weight: 600 !important;
+  color: var(--ink) !important;
+}
+
+.blogcard-snippet {
+  font-family: var(--body) !important;
+  font-size: 12px !important;
+  color: #666 !important;
+}
+
+.blogcard-thumbnail img {
+  filter: grayscale(100%) contrast(1.05);
+  border-radius: 0 !important;
+}
+
+/* ============================================================
+   10. ページネーション
+   ============================================================ */
+.pagination,
+.pagination-next {
+  font-family: var(--mono) !important;
+  margin: 60px 0 !important;
+  border-top: 1px solid var(--line);
+  padding-top: 30px;
+}
+
+.pagination a,
+.pagination span,
+.page-numbers {
+  background: var(--bg) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  font-family: var(--mono) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.1em !important;
+  padding: 12px 18px !important;
+  margin: 0 4px !important;
+  transition: all 0.25s ease;
+}
+
+.pagination a:hover,
+.page-numbers:hover {
+  background: var(--ink) !important;
+  color: #fff !important;
+  border-color: var(--ink) !important;
+}
+
+.pagination .current,
+.page-numbers.current {
+  background: var(--ink) !important;
+  color: #fff !important;
+  border-color: var(--ink) !important;
+}
+
+/* ============================================================
+   11. フッター
+   ============================================================ */
+#footer,
+#footer.footer-container {
+  background: var(--bg) !important;
+  color: var(--ink) !important;
+  border-top: 1px solid var(--line) !important;
+  padding: 60px 20px 40px !important;
+  margin-top: 80px !important;
+  box-shadow: none !important;
+  position: relative;
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+#footer::before {
+  content: "$ ranoBlog --writing=claude-code --theme=mono _";
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+#footer a,
+#footer .copyright,
+.copyright {
+  color: var(--ink) !important;
+  font-family: var(--mono) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase;
+}
+
+#footer h3,
+.footer-widgets .widget-title {
+  font-family: var(--mono) !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.2em !important;
+  color: var(--ink) !important;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+}
+
+#footer h3::before {
+  content: "// ";
+  color: var(--muted);
+}
+
+/* ============================================================
+   12. モバイルメニュー
+   ============================================================ */
+#navi-menu-content,
+.menu-drawer {
+  background: var(--bg) !important;
+}
+
+#navi-menu-content li a,
+.menu-drawer li a {
+  font-family: var(--mono) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.15em !important;
+  font-size: 12px !important;
+  border-bottom: 1px solid var(--line) !important;
+  padding: 18px 20px !important;
+  color: var(--ink) !important;
+}
+
+.menu-button,
+.menu-button-in {
+  background: transparent !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--line);
+}
+
+/* ============================================================
+   13. パンくず・フォーム
+   ============================================================ */
+.breadcrumb,
+#breadcrumb {
+  font-family: var(--mono) !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.15em !important;
+  color: var(--muted) !important;
+  background: transparent !important;
+  padding: 14px 0 !important;
+  border-bottom: 1px solid var(--line);
+}
+
+.breadcrumb a {
+  color: var(--muted) !important;
+}
+
+.breadcrumb a:hover {
+  color: var(--ink) !important;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="url"],
+input[type="search"],
+textarea {
+  background: var(--bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  font-family: var(--mono) !important;
+  font-size: 12px !important;
+  padding: 12px !important;
+  color: var(--ink) !important;
+}
+
+input:focus,
+textarea:focus {
+  border-color: var(--ink) !important;
+  outline: none !important;
+}
+
+/* ============================================================
+   14. VK Blocks
+   ============================================================ */
+.vk_heading,
+.vk_heading_style_default {
+  border: none !important;
+  padding: 30px 0 14px !important;
+  margin: 40px 0 20px !important;
+  border-top: 1px solid var(--line) !important;
+}
+
+.vk_heading_title,
+.vk_heading .vk_heading_title {
+  font-family: var(--display) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--ink) !important;
+  font-size: 24px !important;
+}
+
+.vk_heading_title::before {
+  content: "// ";
+  font-family: var(--mono);
+  color: var(--muted);
+  font-size: 18px;
+}
+
+.vk_heading_subtext {
+  font-family: var(--mono) !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.2em !important;
+  color: var(--muted) !important;
+}
+
+.vk_button {
+  margin: 20px 0 !important;
+}
+
+.vk_button_link {
+  background: var(--bg) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--ink) !important;
+  border-radius: 0 !important;
+  font-family: var(--mono) !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.2em !important;
+  padding: 14px 32px !important;
+  box-shadow: none !important;
+  transition: background 0.3s ease, color 0.3s ease !important;
+}
+
+.vk_button_link:hover {
+  background: var(--ink) !important;
+  color: #fff !important;
+  opacity: 1 !important;
+}
+
+.vk_button_link::after {
+  content: " →";
+  font-family: var(--mono);
+}
+
+.vk_borderBox {
+  background: var(--bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  padding: 24px !important;
+  margin: 24px 0 !important;
+  box-shadow: none !important;
+}
+
+.vk_borderBox_title_container,
+.vk_borderBox_title {
+  font-family: var(--mono) !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.18em !important;
+  color: var(--ink) !important;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+}
+
+.vk_borderBox_title_container::before {
+  content: "// ";
+  color: var(--muted);
+}
+
+.vk_borderBox_content {
+  font-family: var(--body) !important;
+  font-size: 14px !important;
+  color: #333 !important;
+  line-height: 1.8;
+}
+
+.vk_icon-card,
+.vk_icon_card {
+  background: var(--bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  padding: 28px 20px !important;
+  text-align: center;
+  transition: border-color 0.3s ease, transform 0.3s ease;
+}
+
+.vk_icon-card:hover,
+.vk_icon_card:hover {
+  border-color: var(--ink) !important;
+  transform: translateY(-2px);
+}
+
+.vk_icon-card_title {
+  font-family: var(--display) !important;
+  font-weight: 600 !important;
+  color: var(--ink) !important;
+}
+
+.vk_prBlocks,
+.vk_prBlocks_item {
+  background: var(--bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+}
+
+.vk_prBlocks_item_title {
+  font-family: var(--display) !important;
+  color: var(--ink) !important;
+}
+
+.vk_balloon_content {
+  background: var(--sub-bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  font-family: var(--body) !important;
+  color: var(--ink) !important;
+}
+
+.vk_faq_item {
+  background: var(--bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  margin-bottom: 10px;
+}
+
+.vk_faq_item_title {
+  font-family: var(--display) !important;
+  color: var(--ink) !important;
+}
+
+/* ============================================================
+   15. レスポンシブ
+   ============================================================ */
+@media screen and (max-width: 1023px) {
+  #header::after {
+    display: none;
+  }
+
+  .entry-title,
+  .article h1 {
+    font-size: 26px !important;
+  }
+
+  .article h2 {
+    font-size: 20px !important;
+  }
+
+  .entry-card-title {
+    font-size: 16px !important;
+  }
+
+  #navi li.menu-item > a {
+    padding: 16px 18px !important;
+    font-size: 10px !important;
+  }
+
+  .recommended::before {
+    padding-left: 12px;
+  }
+
+  .entry-card-wrap::before {
+    top: 20px;
+    font-size: 9px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .entry-title,
+  .article h1 {
+    font-size: 22px !important;
+  }
+
+  #footer::before {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+  }
+}

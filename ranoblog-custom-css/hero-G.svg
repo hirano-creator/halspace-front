@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 案G: Dictionary Definition — 辞書の定義スタイル -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 680" width="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap');
+    </style>
+  </defs>
+  <rect width="1920" height="680" fill="#fff"/>
+
+  <!-- 上部細線 -->
+  <line x1="120" y1="90" x2="1800" y2="90" stroke="#e0e0e0" stroke-width="1"/>
+
+  <!-- 左列: メイン見出し語 -->
+  <text x="120" y="230" font-family="'Space Grotesk',sans-serif" font-size="120" font-weight="700" fill="#0a0a0a">ranoBlog</text>
+  <text x="120" y="290" font-family="'JetBrains Mono',monospace" font-size="16" fill="#aaa" letter-spacing="3">/ ˈranō blɒɡ /  n.</text>
+
+  <!-- 区切り -->
+  <line x1="120" y1="320" x2="840" y2="320" stroke="#e0e0e0" stroke-width="1"/>
+
+  <!-- 定義文 -->
+  <text x="120" y="380" font-family="'Space Grotesk',sans-serif" font-size="26" fill="#555">1.  A quiet space to <tspan font-weight="700" fill="#0a0a0a">observe</tspan> the world,</text>
+  <text x="120" y="430" font-family="'Space Grotesk',sans-serif" font-size="26" fill="#555">     <tspan font-weight="700" fill="#0a0a0a">build</tspan> things that matter,</text>
+  <text x="120" y="480" font-family="'Space Grotesk',sans-serif" font-size="26" fill="#555">     and <tspan font-weight="700" fill="#0a0a0a">share</tspan> what you learn.</text>
+
+  <!-- 右列: カテゴリ -->
+  <line x1="1000" y1="90" x2="1000" y2="590" stroke="#f0f0f0" stroke-width="1"/>
+  <text x="1060" y="180" font-family="'JetBrains Mono',monospace" font-size="12" fill="#ccc" letter-spacing="5">— TOPICS</text>
+  <text x="1060" y="260" font-family="'Space Grotesk',sans-serif" font-size="46" font-weight="700" fill="#0a0a0a">投資</text>
+  <text x="1060" y="340" font-family="'Space Grotesk',sans-serif" font-size="46" font-weight="700" fill="#0a0a0a">AI  /  Claude Code</text>
+  <text x="1060" y="420" font-family="'Space Grotesk',sans-serif" font-size="46" font-weight="700" fill="#0a0a0a">WEB</text>
+  <text x="1060" y="500" font-family="'Space Grotesk',sans-serif" font-size="46" font-weight="700" fill="#0a0a0a">鉄鋼</text>
+
+  <line x1="120" y1="590" x2="1800" y2="590" stroke="#e0e0e0" stroke-width="1"/>
+  <text x="1800" y="640" font-family="'JetBrains Mono',monospace" font-size="12" fill="#ccc" text-anchor="end" letter-spacing="3">EST. 2026</text>
+</svg>

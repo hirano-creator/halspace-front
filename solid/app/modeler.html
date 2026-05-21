@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>モデラー管理 | SOLID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-title">SOLID</span>
+      <span class="sidebar-logo-sub">by HaLSpace</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+      <a href="modeler.html" class="active"><i class="fa-solid fa-gauge"></i> 受注一覧</a>
+      <a href="calendar.html"><i class="fa-solid fa-calendar-days"></i> カレンダー</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div id="sidebarUser"></div>
+      <button class="btn-sidebar-logout" onclick="solidLogout()">
+        <i class="fa-solid fa-arrow-left"></i> アプリ選択に戻る
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <span class="top-bar-title">受注一覧（モデラー）</span>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- サマリーカード -->
+      <div class="summary-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
+        <div class="summary-card">
+          <div class="summary-icon" style="background:rgba(116,185,255,.15);">
+            <i class="fa-solid fa-inbox text-blue"></i>
+          </div>
+          <div>
+            <span class="summary-num" id="cntNew">—</span>
+            <span class="summary-label">新規受注</span>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-icon" style="background:rgba(9,132,227,.1);">
+            <i class="fa-solid fa-spinner text-blue"></i>
+          </div>
+          <div>
+            <span class="summary-num" id="cntProgress">—</span>
+            <span class="summary-label">モデリング中</span>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-icon" style="background:rgba(253,203,110,.2);">
+            <i class="fa-solid fa-rotate-left" style="color:#e17055;"></i>
+          </div>
+          <div>
+            <span class="summary-num" id="cntRevision">—</span>
+            <span class="summary-label">修正依頼中</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 案件テーブル -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">担当案件</span>
+        </div>
+        <div id="emptyMsg" style="display:none;padding:32px;text-align:center;color:var(--muted);">
+          <i class="fa-solid fa-inbox" style="font-size:32px;margin-bottom:12px;opacity:.3;"></i>
+          <p>担当案件がありません</p>
+        </div>
+        <div class="table-wrap">
+          <table id="modelerTable" style="display:none;">
+            <thead>
+              <tr>
+                <th>プロジェクトコード</th>
+                <th>タイトル</th>
+                <th>会社</th>
+                <th>ステータス</th>
+                <th>希望納期</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="modelerBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3Dアップロードモーダル -->
+<div class="modal-overlay hidden" id="uploadModal">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-cube text-blue"></i> 3Dデータをアップロード</span>
+      <button class="modal-close" id="uploadModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="padding:0 0 16px;">
+      <p id="uploadModalProject" style="font-size:13px;color:var(--muted);margin-bottom:16px;"></p>
+
+      <!-- ドロップゾーン -->
+      <div class="upload-zone" id="modalUploadZone" onclick="document.getElementById('modalFileInput').click()"
+           style="padding:24px;margin-bottom:12px;">
+        <i class="fa-solid fa-cube" style="font-size:28px;color:var(--blue);margin-bottom:8px;"></i>
+        <p class="upload-zone-text">3Dファイルをドロップ、またはクリックして選択</p>
+        <p class="upload-zone-sub">対応形式: STP, STEP, STL, OBJ, IGES, FBX（最大500MB）</p>
+      </div>
+      <input type="file" id="modalFileInput" accept=".stp,.step,.stl,.obj,.iges,.fbx" multiple style="display:none">
+
+      <div id="modalFileList" class="upload-file-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="uploadModalClose2">キャンセル</button>
+      <button class="btn btn-blue" id="uploadSubmitBtn" disabled>
+        <i class="fa-solid fa-upload"></i> アップロードして提出する
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/uploader.js"></script>
+<script src="../assets/js/pages/modeler.js"></script>
+</body>
+</html>

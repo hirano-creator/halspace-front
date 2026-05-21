@@ -1,0 +1,406 @@
+:root {
+  --primary:   #FF6B35;
+  --blue:      #0984E3;
+  --dark:      #2D3436;
+  --accent:    #00B894;
+  --purple:    #6C5CE7;
+  --white:     #FFFFFF;
+  --bg:        #F0F2F5;
+  --border:    #e5e7eb;
+  --text:      #2D3436;
+  --muted:     #636e72;
+  --shadow-md: 0 8px 30px rgba(0,0,0,.12);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,.18);
+  --radius:    12px;
+  --trans:     0.25s ease;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; }
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100%;
+}
+a { text-decoration: none; color: inherit; }
+ul { list-style: none; }
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+input { font-family: inherit; }
+
+/* ── ログイン画面 ── */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  padding: 24px;
+}
+.login-card {
+  background: var(--white);
+  border-radius: 20px;
+  padding: 48px 44px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-lg);
+}
+.login-logo {
+  text-align: center;
+  margin-bottom: 36px;
+}
+.login-logo-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--primary), #e17055);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: block;
+}
+.login-logo-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+  display: block;
+}
+.login-title {
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 28px;
+  color: var(--dark);
+}
+.form-group {
+  margin-bottom: 18px;
+}
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--dark);
+  margin-bottom: 6px;
+}
+.form-group input {
+  width: 100%;
+  padding: 13px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--trans), box-shadow var(--trans);
+}
+.form-group input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(255,107,53,.12);
+}
+.form-group input::placeholder { color: #b2bec3; }
+.btn-login {
+  width: 100%;
+  padding: 15px;
+  background: var(--primary);
+  color: var(--white);
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: var(--radius);
+  margin-top: 8px;
+  transition: all var(--trans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-login:hover {
+  background: #E55A2B;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(255,107,53,.35);
+}
+.login-error {
+  display: none;
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #e53e3e;
+  margin-bottom: 16px;
+  align-items: center;
+  gap: 8px;
+}
+.login-error.show { display: flex; }
+.login-footer {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 12px;
+  color: var(--muted);
+}
+/* 開発用クイックログインボタン */
+.quick-login-btn {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 8px;
+  color: rgba(30,30,40,.75);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background var(--trans), border-color var(--trans);
+}
+.quick-login-btn:hover {
+  background: rgba(255,107,53,.08);
+  border-color: rgba(255,107,53,.35);
+  color: var(--primary);
+}
+
+/* ── アプリ選択画面（Stripe風） ── */
+.apps-page {
+  min-height: 100vh;
+  background: #f6f9fc;
+}
+
+/* ヘッダー */
+.apps-header {
+  background: #fff;
+  border-bottom: 1px solid #e3e8ee;
+  padding: 0 40px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(16,24,40,.06);
+}
+.apps-header-logo {
+  font-family: 'Poppins', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: #010066;
+  letter-spacing: -.5px;
+}
+.apps-header-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.user-info {
+  text-align: right;
+}
+.user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1f36;
+  display: block;
+  line-height: 1.4;
+}
+.user-company {
+  font-size: 11px;
+  color: #6b7280;
+  display: block;
+}
+
+/* ヘッダーボタン */
+.btn-admin {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1.5px solid #635bff;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #635bff;
+  transition: all .18s ease;
+  text-decoration: none;
+}
+.btn-admin:hover {
+  background: #635bff;
+  color: #fff;
+}
+.btn-logout {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1.5px solid #e3e8ee;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  transition: all .18s ease;
+  background: #fff;
+}
+.btn-logout:hover {
+  border-color: #d1d5db;
+  color: #374151;
+  background: #f9fafb;
+}
+
+/* メインコンテンツ */
+.apps-body {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 52px 32px 80px;
+}
+
+/* ウェルカムセクション */
+.apps-welcome {
+  margin-bottom: 36px;
+  border-bottom: 1px solid #e3e8ee;
+  padding-bottom: 28px;
+}
+.apps-welcome h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1f36;
+  margin-bottom: 5px;
+  letter-spacing: -.3px;
+}
+.apps-welcome p {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+/* セクションラベル */
+.apps-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 12px;
+}
+
+/* 4列グリッド */
+.apps-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+/* カード */
+.app-card {
+  background: #fff;
+  border: 1px solid #e3e8ee;
+  border-radius: 12px;
+  padding: 24px 22px 22px;
+  cursor: pointer;
+  transition: box-shadow .2s ease, border-color .2s ease, transform .2s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(16,24,40,.06);
+}
+.app-card:hover:not(.locked) {
+  border-color: #c7d2fe;
+  box-shadow: 0 4px 20px rgba(99,91,255,.13), 0 1px 4px rgba(16,24,40,.06);
+  transform: translateY(-2px);
+}
+.app-card.locked {
+  opacity: .5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* カードアイコン */
+.app-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  flex-shrink: 0;
+}
+.app-icon-solid   { background: #eff6ff; color: #2563eb; }
+.app-icon-whatsno { background: #f3f0ff; color: #7c3aed; }
+.app-icon-meetlog { background: #fdf2f8; color: #db2777; }
+.app-icon-future  { background: #f9fafb; color: #9ca3af; }
+
+/* カードテキスト */
+.app-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1f36;
+  letter-spacing: -.2px;
+  line-height: 1.3;
+}
+.app-desc {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.65;
+  flex: 1;
+}
+
+/* ステータスバッジ */
+.app-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  align-self: flex-start;
+}
+.app-tag-active {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+.app-tag-soon {
+  background: #f9fafb;
+  color: #9ca3af;
+  border: 1px solid #e5e7eb;
+}
+
+/* ロックアイコン */
+.lock-icon {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 13px;
+  color: #d1d5db;
+}
+
+/* カード内アロー（利用中のみ） */
+.app-card:not(.locked)::after {
+  content: '\f061';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  position: absolute;
+  top: 22px;
+  right: 18px;
+  font-size: 11px;
+  color: #c7d2fe;
+  transition: color .2s ease, transform .2s ease;
+}
+.app-card:hover:not(.locked)::after {
+  color: #635bff;
+  transform: translateX(2px);
+}
+
+/* レスポンシブ */
+@media (max-width: 1024px) {
+  .apps-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .apps-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .apps-body { padding: 32px 16px 60px; }
+  .apps-header { padding: 0 16px; }
+  .login-card { padding: 36px 28px; }
+}
+@media (max-width: 480px) {
+  .apps-grid { grid-template-columns: 1fr; }
+}

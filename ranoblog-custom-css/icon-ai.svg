@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 20 120 120" width="180" height="180" overflow="visible">
+  <g fill="none" stroke="#6b6b6b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- チップ外形 -->
+    <rect x="38" y="38" width="84" height="84" rx="4"/>
+    <!-- 内側枠 -->
+    <rect x="52" y="52" width="56" height="56"/>
+    <!-- ピン 上 -->
+    <line x1="60" y1="38" x2="60" y2="26"/>
+    <line x1="80" y1="38" x2="80" y2="26"/>
+    <line x1="100" y1="38" x2="100" y2="26"/>
+    <!-- ピン 下 -->
+    <line x1="60" y1="122" x2="60" y2="134"/>
+    <line x1="80" y1="122" x2="80" y2="134"/>
+    <line x1="100" y1="122" x2="100" y2="134"/>
+    <!-- ピン 左 -->
+    <line x1="38" y1="60" x2="26" y2="60"/>
+    <line x1="38" y1="80" x2="26" y2="80"/>
+    <line x1="38" y1="100" x2="26" y2="100"/>
+    <!-- ピン 右 -->
+    <line x1="122" y1="60" x2="134" y2="60"/>
+    <line x1="122" y1="80" x2="134" y2="80"/>
+    <line x1="122" y1="100" x2="134" y2="100"/>
+  </g>
+  <text x="80" y="91" font-family="Arial, 'Helvetica Neue', sans-serif" font-size="28" font-weight="700" text-anchor="middle" fill="#6b6b6b" letter-spacing="1">AI</text>
+</svg>

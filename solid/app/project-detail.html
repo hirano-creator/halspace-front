@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>プロジェクト詳細 | SOLID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/app.css">
+  <!-- Three.js（3Dビューア用） r128: examples/js がグローバル THREE に追記される最後のバージョン -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- occt-import-js（STEP/STPビューア用 WASM） -->
+  <script src="https://cdn.jsdelivr.net/npm/occt-import-js@0.0.21/dist/occt-import-js.js"></script>
+</head>
+<body>
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-title">SOLID</span>
+      <span class="sidebar-logo-sub">by HaLSpace</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+      <a href="dashboard.html"><i class="fa-solid fa-gauge"></i> ダッシュボード</a>
+      <a href="calendar.html"><i class="fa-solid fa-calendar-days"></i> 受注カレンダー</a>
+      <a href="project-new.html"><i class="fa-solid fa-plus-circle"></i> 新規発注</a>
+      <a href="admin.html" id="adminLink" style="display:none"><i class="fa-solid fa-gear"></i> 管理者画面</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div id="sidebarUser"></div>
+      <button class="btn-sidebar-logout" onclick="solidLogout()">
+        <i class="fa-solid fa-arrow-left"></i> アプリ選択に戻る
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <span class="top-bar-title" id="topBarTitle">プロジェクト詳細</span>
+      </div>
+      <div class="top-bar-right">
+        <a href="dashboard.html" class="btn btn-ghost btn-sm">
+          <i class="fa-solid fa-arrow-left"></i> 一覧に戻る
+        </a>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- ステータスタイムライン -->
+      <div class="card mb-16">
+        <div class="timeline" id="timeline"></div>
+        <!-- 管理者検査アクションバー（review_pending × 管理者のみ） -->
+        <div id="adminReviewBar" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
+          <div class="flex gap-12 flex-wrap" style="align-items:center;">
+            <button class="btn btn-success btn-sm" id="adminPublishBtn" disabled style="opacity:0.5;">
+              <i class="fa-solid fa-check-circle"></i> 検査完了・発注者へ公開
+            </button>
+            <span style="color:var(--muted);font-size:13px;align-self:center;">
+              各ファイルに <strong>OK</strong> / <strong>修正依頼</strong> を設定してから公開してください。
+            </span>
+          </div>
+        </div>
+        <!-- 発注者確認アクションバー（approved × 発注者のみ） -->
+        <div id="clientReviewBar" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
+          <div class="flex gap-12 flex-wrap" style="align-items:center;">
+            <button class="btn btn-success btn-sm" id="clientApproveBtn">
+              <i class="fa-solid fa-thumbs-up"></i> 納品を承認する
+            </button>
+            <span style="color:var(--muted);font-size:13px;align-self:center;">
+              3Dデータをご確認のうえ納品を承認してください。
+            </span>
+          </div>
+        </div>
+        <!-- モデラー用アクションバー -->
+        <div id="modelerActionBar" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
+          <div class="flex gap-12 flex-wrap" style="align-items:center;">
+            <button class="btn btn-primary btn-sm" id="startModelingBtn" style="display:none;">
+              <i class="fa-solid fa-play"></i> モデリング開始
+            </button>
+            <button class="btn btn-success btn-sm" id="submitModelBtn" style="display:none;">
+              <i class="fa-solid fa-paper-plane"></i> 完成・提出（検査依頼）
+            </button>
+            <button class="btn btn-outline btn-sm" id="resumeModelingBtn" style="display:none;">
+              <i class="fa-solid fa-rotate-left"></i> モデリング再開
+            </button>
+          </div>
+        </div>
+        <!-- キャンセルバー（発注者・管理者のみ、完了・キャンセル済み以外） -->
+        <div id="cancelBar" style="display:none;border-top:1px solid var(--border);padding-top:14px;margin-top:4px;">
+          <div class="flex gap-12 flex-wrap" style="align-items:center;">
+            <button class="btn btn-sm" id="cancelBtn"
+              style="background:rgba(231,76,60,.15);color:#e74c3c;border:1px solid rgba(231,76,60,.35);">
+              <i class="fa-solid fa-ban"></i> この発注をキャンセルする
+            </button>
+            <span style="color:var(--muted);font-size:12px;">
+              キャンセルすると元に戻せません。
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2カラムレイアウト -->
+      <div class="detail-layout">
+
+        <!-- 左カラム -->
+        <div style="display:flex;flex-direction:column;gap:20px;">
+
+          <!-- 3Dモデル・制作データ（最上部） -->
+          <div class="card" id="modelFileCard">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-cube" style="color:var(--accent)"></i> 3Dモデル・制作データ</span>
+              <!-- モデラー用アップロードボタン -->
+              <button class="btn btn-blue btn-sm" id="uploadModelBtn" style="display:none;"
+                      onclick="document.getElementById('modelFileInput').click()">
+                <i class="fa-solid fa-upload"></i> 3Dデータをアップロード
+              </button>
+              <input type="file" id="modelFileInput" accept=".stp,.step,.stl,.obj,.iges,.fbx,.dxf" multiple style="display:none">
+            </div>
+            <!-- 発注者には approved 以降のみ表示される旨のメッセージ -->
+            <div id="modelFileLockedMsg" style="display:none;padding:20px 0;text-align:center;color:var(--muted);font-size:13px;">
+              <i class="fa-solid fa-lock" style="font-size:20px;margin-bottom:8px;display:block;"></i>
+              承認後に3Dデータが公開されます
+            </div>
+            <div id="modelFileArea"></div>
+          </div>
+
+          <!-- プロジェクト情報 -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">プロジェクト情報</span>
+              <span id="statusBadge" class="badge"></span>
+            </div>
+            <table id="infoTable" style="font-size:14px;width:100%;border-collapse:collapse;">
+            </table>
+          </div>
+
+          <!-- 希望納期・納期回答 -->
+          <div class="card" id="deadlineCard">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-calendar-check text-blue"></i> 希望納期・納期確認</span>
+            </div>
+            <div id="deadlinePanel"></div>
+          </div>
+
+          <!-- 図面・参考資料 -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-file-lines text-blue"></i> 図面・参考資料</span>
+            </div>
+            <div id="drawingFileArea"></div>
+          </div>
+
+          <!-- 修正依頼ファイル -->
+          <div class="card" id="revisionFileCard" style="display:none;">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-rotate-left" style="color:var(--warning)"></i> 修正依頼ファイル</span>
+            </div>
+            <div id="revisionFileArea"></div>
+          </div>
+
+        </div>
+
+        <!-- 右カラム: チャットルーム -->
+        <div class="card chat-card" style="position:sticky;top:80px;">
+          <div class="card-header" style="padding-bottom:0;border-bottom:none;">
+            <span class="card-title"><i class="fa-solid fa-comments text-blue"></i> コメント・連絡</span>
+          </div>
+          <!-- チャンネルタブ -->
+          <div class="chat-tabs" id="chatTabs">
+            <button class="chat-tab active" data-ch="client">
+              <i class="fa-solid fa-user"></i> お客様連絡
+            </button>
+            <button class="chat-tab" data-ch="modeler" id="modelerTab">
+              <i class="fa-solid fa-drafting-compass"></i> 制作チーム
+            </button>
+          </div>
+          <!-- メッセージリスト -->
+          <div class="chat-messages" id="chatMessages"></div>
+          <!-- 入力エリア -->
+          <div class="chat-input-area">
+            <!-- 画像プレビュー -->
+            <div id="imagePreviewArea" style="display:none;padding:8px 0 4px;"></div>
+            <div class="chat-input-row">
+              <textarea class="chat-textarea" id="commentInput" rows="2"
+                        placeholder="メッセージを入力..."></textarea>
+              <div class="chat-input-actions">
+                <label class="chat-img-btn" title="画像を添付" for="chatImageInput">
+                  <i class="fa-solid fa-image"></i>
+                </label>
+                <input type="file" id="chatImageInput" accept="image/*" multiple style="display:none">
+                <button class="btn btn-primary btn-sm" id="commentSubmit" style="white-space:nowrap;">
+                  <i class="fa-solid fa-paper-plane"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ファイルビューアモーダル -->
+<div class="modal-overlay hidden" id="viewerModal" style="align-items:stretch;padding:0;">
+  <div id="viewerBox" style="
+    display:flex;flex-direction:column;width:100%;height:100%;
+    background:var(--dark);position:relative;">
+    <!-- ヘッダー -->
+    <div style="
+      display:flex;align-items:center;justify-content:space-between;
+      padding:12px 20px;background:rgba(0,0,0,.5);flex-shrink:0;gap:12px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="viewerIcon" style="font-size:18px;"></span>
+        <span id="viewerFileName" style="font-weight:700;font-size:14px;color:#fff;"></span>
+        <span id="viewerFileType" style="font-size:11px;color:rgba(255,255,255,.5);"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <!-- DXFツールバー（DXF時のみ表示） -->
+        <div id="dxfToolbar" style="display:none;gap:6px;align-items:center;">
+          <button class="viewer-tool-btn" id="dxfZoomIn"  title="拡大"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+          <button class="viewer-tool-btn" id="dxfZoomOut" title="縮小"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+          <button class="viewer-tool-btn" id="dxfFit"     title="全体表示"><i class="fa-solid fa-expand"></i></button>
+        </div>
+        <!-- 3Dツールバー（STL/STP時のみ表示） -->
+        <div id="threejsToolbar" style="display:none;gap:6px;align-items:center;">
+          <button class="viewer-tool-btn" id="threejsReset" title="視点リセット"><i class="fa-solid fa-arrows-rotate"></i></button>
+        </div>
+        <button class="viewer-tool-btn" id="viewerClose" title="閉じる">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+    <!-- コンテンツ -->
+    <div id="viewerContent" style="flex:1;overflow:hidden;position:relative;"></div>
+  </div>
+</div>
+
+<!-- 修正依頼モーダル -->
+<div class="modal-overlay hidden" id="revisionModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">修正依頼の内容</span>
+      <button class="modal-close" id="revisionModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">修正内容 <span class="req">*</span></label>
+      <textarea id="revisionNote" class="form-textarea" rows="4"
+                placeholder="修正してほしい箇所・理由を具体的にご記入ください。"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">参考ファイル添付（任意）</label>
+      <div id="revisionFilePreview" style="margin-bottom:6px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+      <label class="btn btn-outline btn-sm" for="revisionFileInput" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+        <i class="fa-solid fa-paperclip"></i> ファイルを選択
+      </label>
+      <input type="file" id="revisionFileInput" multiple style="display:none">
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">添付ファイルは「修正依頼ファイル」欄に分類されます</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="revisionModalClose2">キャンセル</button>
+      <button class="btn btn-warning" id="revisionSubmit" style="background:var(--warning);color:var(--dark);">
+        <i class="fa-solid fa-rotate-left"></i> 修正依頼を送る
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 完成・提出モーダル -->
+<div class="modal-overlay hidden" id="submitModelModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-paper-plane" style="color:var(--accent);margin-right:6px;"></i>完成・提出（検査依頼）</span>
+      <button class="modal-close" id="submitModelModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <!-- 既存ファイルから選択 -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--dark);">
+        提出するファイルを選択
+      </div>
+      <div id="submitFileCheckList" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;"></div>
+    </div>
+    <!-- 新規アップロード追加 -->
+    <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:4px;">
+      <label class="btn btn-outline btn-sm" for="submitNewFileInput" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+        <i class="fa-solid fa-plus"></i> 新しいファイルを追加
+      </label>
+      <input type="file" id="submitNewFileInput" accept=".stp,.step,.stl,.obj,.iges,.fbx,.dxf,.pdf" multiple style="display:none">
+      <div id="submitNewFilePreview" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="submitModelModalClose2">キャンセル</button>
+      <button class="btn btn-success" id="submitModelConfirmBtn">
+        <i class="fa-solid fa-paper-plane"></i> 提出する
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- キャンセル確認モーダル -->
+<div class="modal-overlay hidden" id="cancelModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" style="color:#e74c3c;">
+        <i class="fa-solid fa-ban" style="margin-right:6px;"></i>発注のキャンセル
+      </span>
+      <button class="modal-close" id="cancelModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      この発注をキャンセルします。キャンセル後は元に戻せません。
+    </p>
+    <div class="form-group">
+      <label class="form-label">キャンセル理由（任意）</label>
+      <textarea id="cancelNote" class="form-textarea" rows="3"
+                placeholder="キャンセルの理由があればご記入ください。"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="cancelModalClose2">閉じる</button>
+      <button class="btn" id="cancelSubmit"
+        style="background:#e74c3c;color:#fff;border-color:#e74c3c;">
+        <i class="fa-solid fa-ban"></i> キャンセルする
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 画像拡大ライトボックス -->
+<div id="imgLightbox" class="hidden">
+  <img id="imgLightboxImg" src="" alt="">
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/uploader.js"></script>
+<script src="../assets/js/viewer.js"></script>
+<script src="../assets/js/pages/project-detail.js"></script>
+</body>
+</html>

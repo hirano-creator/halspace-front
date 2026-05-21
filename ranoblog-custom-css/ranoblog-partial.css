@@ -1,0 +1,53 @@
+/* ============================================================
+   ranoBlog — 部分的モノトーン化 (軽量版)
+   既存レイアウトは一切壊さず、色味だけ白黒クリエイター風に
+   適用: 外観 → カスタマイズ → 追加CSS に貼付
+   ============================================================ */
+
+/* 1. サイト内の画像を全部グレースケール化（ホバーで原色に戻る） */
+img {
+  filter: grayscale(100%) contrast(1.05);
+  transition: filter 0.4s ease;
+}
+a:hover img,
+.entry-card-wrap:hover img {
+  filter: grayscale(0%) contrast(1);
+}
+
+/* 2. ロゴはグレースケールのまま固定（ホバーでも変化させない） */
+.logo-image img,
+.header-site-logo-image {
+  filter: grayscale(100%) contrast(1.1) !important;
+}
+
+/* 3. リンク色を黒に統一（Cocoon標準の青を無効化） */
+a,
+.entry-card-wrap,
+.entry-card-title,
+.article a {
+  color: #1a1a1a !important;
+}
+a:hover {
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+/* 4. カテゴリラベルを黒反転 + Mono風大文字 */
+.entry-category,
+.cat-label,
+span[class*="cat-label-"] {
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+  border-radius: 0 !important;
+  font-family: "JetBrains Mono", "Space Mono", ui-monospace, monospace !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.15em !important;
+  padding: 4px 10px !important;
+}
+
+/* 5. 選択色も黒基調に */
+::selection {
+  background: #1a1a1a;
+  color: #ffffff;
+}

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>かんたん電話</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+    background: #f5f5f5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    text-align: center;
+    padding: 16px;
+    background: #fff;
+    color: #333;
+    border-bottom: 2px solid #ddd;
+    font-size: 28px;
+    font-weight: bold;
+    letter-spacing: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  header button {
+    background: none;
+    border: 2px solid #333;
+    color: #333;
+    font-size: 18px;
+    padding: 6px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .button-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    overflow-y: auto;
+  }
+
+  .call-btn {
+    flex: 0 0 auto;
+    height: 120px;
+    border: none;
+    border-radius: 16px;
+    font-size: 32px;
+    font-weight: bold;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: transform 0.1s, box-shadow 0.1s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .call-btn:active {
+    transform: scale(0.97);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+
+  .call-btn .name { font-size: 36px; }
+  .call-btn .phone { font-size: 20px; opacity: 0.85; }
+  .call-btn .hint {
+    font-size: 14px;
+    opacity: 0.7;
+    position: absolute;
+    bottom: 8px;
+  }
+
+  .call-btn.confirming {
+    animation: pulse 0.8s infinite alternate;
+  }
+
+  @keyframes pulse {
+    from { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
+    to   { box-shadow: 0 0 0 12px rgba(255,255,255,0); }
+  }
+
+  .call-btn.empty {
+    background: #ddd !important;
+    opacity: 0.7;
+    color: #888;
+    font-size: 48px;
+  }
+
+  /* 色パレット */
+  .color-red    { background: #e74c3c; }
+  .color-blue   { background: #2980b9; }
+  .color-green  { background: #27ae60; }
+  .color-orange { background: #e67e22; }
+  .color-purple { background: #8e44ad; }
+  .color-teal   { background: #16a085; }
+
+  /* 編集モーダル */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+
+  .modal {
+    background: #fff;
+    border-radius: 20px;
+    padding: 32px 24px;
+    width: 90%;
+    max-width: 400px;
+  }
+
+  .modal h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .modal label {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 6px;
+    margin-top: 16px;
+  }
+
+  .modal input[type="text"],
+  .modal input[type="tel"] {
+    width: 100%;
+    font-size: 22px;
+    padding: 12px;
+    border: 2px solid #ccc;
+    border-radius: 10px;
+  }
+
+  .color-picker {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  .color-picker .swatch {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 4px solid transparent;
+    cursor: pointer;
+  }
+  .color-picker .swatch.selected {
+    border-color: #333;
+    box-shadow: 0 0 0 3px #fff, 0 0 0 5px #333;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .modal-actions button {
+    flex: 1;
+    font-size: 20px;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+
+  .btn-save { background: #27ae60; color: #fff; }
+  .btn-cancel { background: #bbb; color: #fff; }
+  .btn-delete { background: #e74c3c; color: #fff; }
+
+  .status-bar {
+    text-align: center;
+    padding: 10px;
+    color: #666;
+    font-size: 16px;
+    background: #fff;
+    border-top: 2px solid #ddd;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span>📞 かんたん電話</span>
+  <button id="editModeBtn" onclick="toggleEditMode()">編集</button>
+</header>
+
+<div class="button-list" id="buttonList"></div>
+
+<div class="status-bar" id="statusBar">ボタンを押すと名前を読み上げます</div>
+
+<!-- 編集モーダル -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2 id="modalTitle">連絡先を登録</h2>
+    <label>名前</label>
+    <input type="text" id="inputName" placeholder="例：お母さん">
+    <label>フリガナ（読み上げ用）</label>
+    <input type="text" id="inputKana" placeholder="例：おかあさん">
+    <label>電話番号</label>
+    <input type="tel" id="inputPhone" placeholder="例：090-1234-5678">
+    <label>ボタンの色</label>
+    <div class="color-picker" id="colorPicker"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
+      <button class="btn-delete" id="deleteBtn" onclick="deleteContact()">削除</button>
+      <button class="btn-save" onclick="saveContact()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS = [
+  { key: 'red',    hex: '#e74c3c' },
+  { key: 'blue',   hex: '#2980b9' },
+  { key: 'green',  hex: '#27ae60' },
+  { key: 'orange', hex: '#e67e22' },
+  { key: 'purple', hex: '#8e44ad' },
+  { key: 'teal',   hex: '#16a085' },
+];
+
+let contacts = JSON.parse(localStorage.getItem('easyCallContacts') || '[]');
+let editMode = false;
+let editingIndex = -1;
+let confirmIndex = -1;
+let confirmTimer = null;
+
+function save() {
+  localStorage.setItem('easyCallContacts', JSON.stringify(contacts));
+}
+
+function speak(text) {
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ja-JP';
+  u.rate = 0.9;
+  u.pitch = 1;
+  speechSynthesis.speak(u);
+}
+
+function setStatus(msg) {
+  document.getElementById('statusBar').textContent = msg;
+}
+
+function render() {
+  const list = document.getElementById('buttonList');
+  list.innerHTML = '';
+
+  contacts.forEach((c, i) => {
+    if (!c || !c.name) return;
+    const btn = document.createElement('button');
+    btn.className = `call-btn color-${c.color || 'blue'}`;
+    btn.innerHTML = `
+      <span class="name">${escapeHtml(c.name)}</span>
+      <span class="phone">${escapeHtml(c.phone)}</span>
+      ${confirmIndex === i ? '<span class="hint">もう一度押すと電話します</span>' : ''}
+    `;
+    if (confirmIndex === i) btn.classList.add('confirming');
+
+    btn.addEventListener('click', () => {
+      if (editMode) {
+        openModal(i);
+      } else {
+        handleCall(i);
+      }
+    });
+    list.appendChild(btn);
+  });
+
+  // 追加ボタン（常に末尾に表示）
+  const addBtn = document.createElement('button');
+  addBtn.className = 'call-btn empty';
+  addBtn.textContent = '＋ 追加';
+  addBtn.addEventListener('click', () => openModal(contacts.length));
+  list.appendChild(addBtn);
+}
+
+function handleCall(index) {
+  const c = contacts[index];
+  if (!c) return;
+
+  if (confirmIndex === index) {
+    // 2回目：電話を掛ける
+    clearTimeout(confirmTimer);
+    confirmIndex = -1;
+    speak(`${c.kana || c.name}に電話します`);
+    setStatus(`${c.name} に電話をかけています...`);
+    render();
+    setTimeout(() => {
+      window.location.href = `tel:${c.phone.replace(/[-\s]/g, '')}`;
+    }, 500);
+  } else {
+    // 1回目：名前を読み上げ
+    clearTimeout(confirmTimer);
+    confirmIndex = index;
+    speak(c.kana || c.name);
+    setStatus(`「${c.name}」— もう一度押すと電話します`);
+    render();
+    confirmTimer = setTimeout(() => {
+      confirmIndex = -1;
+      setStatus('ボタンを押すと名前を読み上げます');
+      render();
+    }, 5000);
+  }
+}
+
+function toggleEditMode() {
+  editMode = !editMode;
+  const btn = document.getElementById('editModeBtn');
+  btn.textContent = editMode ? '完了' : '編集';
+  btn.style.background = editMode ? '#e74c3c' : 'none';
+  btn.style.color = editMode ? '#fff' : '#333';
+  btn.style.borderColor = editMode ? '#e74c3c' : '#333';
+  setStatus(editMode ? '編集するボタンを押してください' : 'ボタンを押すと名前を読み上げます');
+  confirmIndex = -1;
+  clearTimeout(confirmTimer);
+  render();
+}
+
+function openModal(index) {
+  editingIndex = index;
+  const c = contacts[index];
+  document.getElementById('inputName').value = c ? c.name || '' : '';
+  document.getElementById('inputKana').value = c ? c.kana || '' : '';
+  document.getElementById('inputPhone').value = c ? c.phone || '' : '';
+  document.getElementById('modalTitle').textContent = c && c.name ? '連絡先を編集' : '連絡先を登録';
+  document.getElementById('deleteBtn').style.display = (c && c.name) ? '' : 'none';
+
+  // 色選択
+  const picker = document.getElementById('colorPicker');
+  picker.innerHTML = '';
+  const selectedColor = (c && c.color) || 'blue';
+  COLORS.forEach(col => {
+    const swatch = document.createElement('div');
+    swatch.className = `swatch${col.key === selectedColor ? ' selected' : ''}`;
+    swatch.style.background = col.hex;
+    swatch.addEventListener('click', () => {
+      picker.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+      swatch.classList.add('selected');
+    });
+    picker.appendChild(swatch);
+  });
+
+  document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+  editingIndex = -1;
+}
+
+function getSelectedColor() {
+  const selected = document.querySelector('#colorPicker .swatch.selected');
+  if (!selected) return 'blue';
+  const hex = selected.style.background;
+  const found = COLORS.find(c => {
+    // rgb比較を避けるためインデックスで
+    const idx = Array.from(document.querySelectorAll('#colorPicker .swatch')).indexOf(selected);
+    return COLORS[idx] === c;
+  });
+  return found ? found.key : 'blue';
+}
+
+function saveContact() {
+  const name = document.getElementById('inputName').value.trim();
+  const kana = document.getElementById('inputKana').value.trim();
+  const phone = document.getElementById('inputPhone').value.trim();
+  if (!name) { alert('名前を入力してください'); return; }
+  if (!phone) { alert('電話番号を入力してください'); return; }
+
+  const color = getSelectedColor();
+
+  while (contacts.length <= editingIndex) contacts.push(null);
+  contacts[editingIndex] = { name, kana, phone, color };
+  save();
+  closeModal();
+  render();
+}
+
+function deleteContact() {
+  if (!confirm('この連絡先を削除しますか？')) return;
+  contacts.splice(editingIndex, 1);
+  save();
+  closeModal();
+  render();
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// 初期描画
+render();
+</script>
+</body>
+</html>

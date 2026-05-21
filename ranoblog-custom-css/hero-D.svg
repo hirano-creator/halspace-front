@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 案D: Center Minimal — 中央1行、余白たっぷり、ギャラリー風 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 680" width="100%" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;600&amp;family=JetBrains+Mono:wght@400&amp;display=swap');
+    </style>
+  </defs>
+  <rect width="1920" height="680" fill="#fff"/>
+
+  <!-- 極細上下線 -->
+  <line x1="200" y1="120" x2="1720" y2="120" stroke="#e8e8e8" stroke-width="1"/>
+  <line x1="200" y1="560" x2="1720" y2="560" stroke="#e8e8e8" stroke-width="1"/>
+
+  <!-- 中央メインテキスト -->
+  <text x="960" y="320" font-family="'Space Grotesk',sans-serif" font-size="110" font-weight="600" fill="#0a0a0a" text-anchor="middle" letter-spacing="-2">Observe. Build. Share.</text>
+
+  <!-- 細サブライン -->
+  <line x1="760" y1="360" x2="1160" y2="360" stroke="#ddd" stroke-width="1"/>
+
+  <!-- ブランド -->
+  <text x="960" y="400" font-family="'JetBrains Mono',monospace" font-size="18" fill="#bbb" text-anchor="middle" letter-spacing="8">ranoBlog</text>
+
+  <!-- カテゴリ -->
+  <text x="960" y="510" font-family="'JetBrains Mono',monospace" font-size="12" fill="#ccc" text-anchor="middle" letter-spacing="6">INVEST  ·  AI  ·  WEB  ·  STEEL  ·  CLAUDE</text>
+</svg>

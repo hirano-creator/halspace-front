@@ -1,0 +1,3133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工場レイアウト FloorPlan</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', 'Yu Gothic UI', 'Meiryo', sans-serif;
+  background: #1e1e2e; color: #cdd6f4; overflow: hidden; height: 100vh;
+  display: flex; flex-direction: column;
+}
+
+/* ===== Toolbar ===== */
+#toolbar {
+  display: flex; align-items: center; gap: 4px;
+  background: #181825; padding: 6px 10px; border-bottom: 1px solid #313244;
+  flex-shrink: 0; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin; scrollbar-color: #45475a #181825; white-space: nowrap;
+}
+#toolbar::-webkit-scrollbar { height: 6px; }
+#toolbar::-webkit-scrollbar-track { background: #181825; }
+#toolbar::-webkit-scrollbar-thumb { background: #45475a; border-radius: 3px; }
+#toolbar button, #toolbar label {
+  background: #313244; color: #cdd6f4; border: 1px solid #45475a;
+  border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 12px;
+  display: inline-flex; align-items: center; gap: 4px; transition: all .15s;
+  height: 30px; flex-shrink: 0; white-space: nowrap;
+}
+#toolbar button:hover, #toolbar label:hover { background: #45475a; border-color: #585b70; }
+#toolbar button.active { background: #89b4fa; color: #1e1e2e; border-color: #89b4fa; }
+#toolbar button.active:hover { background: #74c7ec; border-color: #74c7ec; }
+#toolbar button:disabled { opacity: .35; cursor: not-allowed; }
+#toolbar .group { display: inline-flex; align-items: center; flex-shrink: 0; }
+#toolbar .group > button { border-radius: 0; margin: 0; }
+#toolbar .group > button + button { border-left: none; }
+#toolbar .group > :first-child { border-top-left-radius: 5px; border-bottom-left-radius: 5px; }
+#toolbar .group > :last-child { border-top-right-radius: 5px; border-bottom-right-radius: 5px; }
+#toolbar .sep { width: 1px; height: 22px; background: #313244; margin: 0 4px; flex-shrink: 0; }
+#toolbar .spacer { flex: 1; min-width: 8px; }
+#toolbar .brand { color: #89b4fa; font-weight: 600; font-size: 13px; padding: 0 10px 0 2px; letter-spacing: .3px; flex-shrink: 0; }
+
+/* Layout open dropdown */
+#layoutDropdown {
+  position: relative; display: inline-flex;
+}
+#layoutMenu {
+  position: absolute; top: 34px; left: 0; min-width: 220px; z-index: 200;
+  background: #181825; border: 1px solid #45475a; border-radius: 7px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5); display: none; overflow: hidden;
+}
+#layoutMenu.open { display: block; }
+#layoutMenu .lm-item {
+  padding: 8px 14px; font-size: 12px; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+}
+#layoutMenu .lm-item:hover { background: #313244; }
+#layoutMenu .lm-item .lm-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#layoutMenu .lm-item .lm-date { color: #6c7086; font-size: 11px; margin-left: 8px; }
+#layoutMenu .lm-empty { padding: 12px 14px; font-size: 12px; color: #6c7086; }
+
+/* ===== Main Area ===== */
+#main { display: flex; flex: 1; overflow: hidden; }
+
+/* ===== Sidebar ===== */
+#sidebar {
+  width: 220px; min-width: 220px; background: #181825;
+  border-right: 1px solid #313244; display: flex; flex-direction: column;
+  overflow: hidden; transition: width .2s;
+}
+#sidebar.collapsed { width: 0; min-width: 0; }
+#sidebarInner { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 0; }
+#sidebarInner::-webkit-scrollbar { width: 5px; }
+#sidebarInner::-webkit-scrollbar-thumb { background: #45475a; border-radius: 3px; }
+#searchWrap { padding: 8px 10px 4px; }
+#searchInput {
+  width: 100%; background: #313244; color: #cdd6f4;
+  border: 1px solid #45475a; border-radius: 5px; padding: 5px 8px;
+  font-size: 12px;
+}
+#searchInput::placeholder { color: #6c7086; }
+#searchInput:focus { outline: none; border-color: #89b4fa; }
+
+.cat-section details { border-bottom: 1px solid #1e1e2e; }
+.cat-section summary {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; font-size: 11px; font-weight: 600;
+  cursor: pointer; user-select: none; letter-spacing: .5px;
+  color: #a6adc8; list-style: none;
+}
+.cat-section summary::before { content: '▸'; transition: transform .15s; font-size: 9px; }
+details[open] > summary::before { transform: rotate(90deg); }
+.cat-section summary .cat-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+.cat-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 10px 5px 22px; font-size: 11.5px;
+  cursor: grab; user-select: none; transition: background .1s;
+}
+.cat-item:hover { background: #313244; }
+.cat-item:active { cursor: grabbing; }
+.cat-item .ci-swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+.cat-item .ci-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-item .ci-size { color: #6c7086; font-size: 10px; flex-shrink: 0; }
+.cat-item.hidden { display: none; }
+
+/* ===== Sidebar header / view toggle ===== */
+#sidebarTopBar {
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px 8px 4px; border-bottom: 1px solid #313244; flex-shrink: 0;
+}
+#sidebarTopBar .view-btn {
+  background: #313244; border: 1px solid #45475a; border-radius: 4px;
+  color: #a6adc8; cursor: pointer; font-size: 13px; width: 24px; height: 24px;
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: all .12s;
+}
+#sidebarTopBar .view-btn.active { background: #89b4fa; color: #1e1e2e; border-color: #89b4fa; }
+#sidebarTopBar .view-btn:hover:not(.active) { background: #45475a; }
+#searchWrap { flex: 1; }
+
+/* ===== Icon grid cards ===== */
+.cat-grid { padding: 6px 6px 2px; }
+.cat-grid-header {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; letter-spacing: .6px;
+  color: #a6adc8; padding: 6px 2px 4px; text-transform: uppercase;
+}
+.cat-grid-header .cat-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.cat-grid-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px; }
+.cat-card {
+  background: #252535; border: 1px solid #45475a; border-radius: 7px;
+  cursor: grab; user-select: none; transition: all .12s;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 5px 4px 4px; overflow: hidden;
+}
+.cat-card:hover { background: #313244; border-color: #89b4fa; }
+.cat-card:active { cursor: grabbing; }
+.cat-card canvas { border-radius: 4px; display: block; }
+.cat-card-label {
+  font-size: 9.5px; color: #cdd6f4; text-align: center;
+  margin-top: 3px; line-height: 1.25; width: 100%;
+  overflow: hidden; display: -webkit-box;
+  -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
+}
+.cat-card-size { font-size: 8px; color: #6c7086; text-align: center; margin-top: 1px; }
+.cat-card.hidden { display: none; }
+
+/* ===== Canvas Wrap ===== */
+#canvasWrap { flex: 1; position: relative; background: #11111b; overflow: hidden; }
+canvas { display: block; cursor: default; }
+
+/* ===== Coords HUD ===== */
+#coords {
+  position: absolute; bottom: 8px; left: 8px;
+  background: rgba(24,24,37,.85); padding: 4px 10px;
+  border-radius: 4px; font-size: 11px; font-family: 'Consolas', monospace;
+  pointer-events: none; color: #a6adc8;
+}
+
+/* ===== Properties Panel ===== */
+#propsPanel {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: rgba(24,24,37,.95); border-top: 1px solid #313244;
+  padding: 6px 12px; display: none; align-items: center; gap: 12px;
+  font-size: 12px; flex-wrap: wrap;
+}
+#propsPanel.visible { display: flex; }
+#propsPanel label { color: #a6adc8; }
+#propsPanel input[type=text], #propsPanel input[type=number] {
+  background: #313244; color: #cdd6f4; border: 1px solid #45475a;
+  border-radius: 4px; padding: 3px 6px; font-size: 12px;
+}
+#propsPanel input[type=text]:focus, #propsPanel input[type=number]:focus {
+  outline: none; border-color: #89b4fa;
+}
+#propsInput { width: 60px; }
+#propsDims { color: #f9e2af; font-family: 'Consolas', monospace; }
+#propsRot { color: #a6e3a1; font-family: 'Consolas', monospace; }
+#propsNote { width: 140px; }
+.props-del { background: rgba(243,139,168,.15) !important; color: #f38ba8 !important; border-color: rgba(243,139,168,.3) !important; }
+.props-del:hover { background: rgba(243,139,168,.3) !important; }
+
+/* ===== Overlap warning ===== */
+#overlapWarn {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  background: rgba(243,139,168,.15); color: #f38ba8;
+  border: 1px solid rgba(243,139,168,.4); border-radius: 5px;
+  padding: 4px 14px; font-size: 12px; pointer-events: none; display: none;
+}
+
+/* ===== Modal base ===== */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  display: none; align-items: center; justify-content: center; z-index: 300;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: #181825; border: 1px solid #45475a; border-radius: 10px;
+  padding: 20px 24px; min-width: 320px; max-width: 480px; width: 90%;
+  box-shadow: 0 16px 48px rgba(0,0,0,.6);
+}
+.modal h3 { color: #89b4fa; font-size: 14px; margin-bottom: 16px; }
+.modal .row { display: flex; align-items: center; justify-content: space-between; margin: 10px 0; gap: 10px; }
+.modal .row label { color: #a6adc8; font-size: 12px; flex: 1; }
+.modal .row input, .modal .row select {
+  background: #313244; color: #cdd6f4; border: 1px solid #45475a;
+  border-radius: 5px; padding: 5px 8px; font-size: 12px; width: 140px;
+}
+.modal .row input:focus, .modal .row select:focus { outline: none; border-color: #89b4fa; }
+.modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.modal .actions button {
+  background: #313244; color: #cdd6f4; border: 1px solid #45475a;
+  border-radius: 5px; padding: 6px 16px; font-size: 12px; cursor: pointer;
+}
+.modal .actions button:hover { background: #45475a; }
+.modal .actions button.primary { background: #89b4fa; color: #1e1e2e; border-color: #89b4fa; }
+.modal .actions button.primary:hover { background: #74c7ec; }
+.modal .actions button.danger { background: rgba(243,139,168,.15); color: #f38ba8; border-color: rgba(243,139,168,.3); }
+.modal .actions button.danger:hover { background: rgba(243,139,168,.3); }
+
+/* ===== Layout Manager ===== */
+#lmList { max-height: 280px; overflow-y: auto; margin: 10px 0; }
+#lmList::-webkit-scrollbar { width: 5px; }
+#lmList::-webkit-scrollbar-thumb { background: #45475a; border-radius: 3px; }
+.lm-entry {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 5px; margin: 2px 0;
+}
+.lm-entry:hover { background: #313244; }
+.lm-entry .le-name { flex: 1; font-size: 12px; cursor: pointer; }
+.lm-entry .le-date { color: #6c7086; font-size: 11px; }
+.lm-entry button { background: none; border: none; color: #6c7086; cursor: pointer; font-size: 12px; padding: 2px 5px; border-radius: 3px; }
+.lm-entry button:hover { color: #f38ba8; background: rgba(243,139,168,.1); }
+.lm-entry .le-load { color: #89b4fa; }
+.lm-entry .le-load:hover { color: #74c7ec; background: rgba(137,180,250,.1); }
+
+/* ===== Settings ===== */
+#settingsPanel {
+  position: absolute; top: 42px; right: 8px; z-index: 200;
+  background: #181825; border: 1px solid #45475a; border-radius: 8px;
+  padding: 12px 14px; min-width: 260px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  display: none; font-size: 12px;
+}
+#settingsPanel.open { display: block; }
+#settingsPanel h4 { color: #89b4fa; font-size: 12px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #313244; }
+#settingsPanel .row { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; gap: 10px; }
+#settingsPanel .row label { color: #a6adc8; flex: 1; }
+#settingsPanel .row input, #settingsPanel .row select {
+  background: #313244; color: #cdd6f4; border: 1px solid #45475a;
+  border-radius: 4px; padding: 3px 6px; font-size: 12px;
+}
+#settingsPanel .row input[type=password] { width: 140px; }
+#settingsPanel .row select { padding: 3px 4px; }
+#settingsPanel .row input:focus, #settingsPanel .row select:focus { outline: none; border-color: #89b4fa; }
+
+/* ===== Import Wizard ===== */
+#importModal { max-width: 540px; }
+#importSteps { display: flex; gap: 4px; margin-bottom: 16px; }
+.imp-step {
+  flex: 1; height: 3px; border-radius: 2px; background: #313244; transition: background .3s;
+}
+.imp-step.done { background: #a6e3a1; }
+.imp-step.active { background: #89b4fa; }
+#importDropZone {
+  border: 2px dashed #45475a; border-radius: 8px; padding: 32px 20px;
+  text-align: center; cursor: pointer; transition: all .2s;
+}
+#importDropZone:hover, #importDropZone.dragover { border-color: #89b4fa; background: rgba(137,180,250,.05); }
+#importDropZone p { color: #6c7086; font-size: 13px; margin-top: 6px; }
+#importDropZone .dz-icon { font-size: 32px; }
+#importProgress { display: none; }
+#confBar { height: 8px; border-radius: 4px; background: #313244; margin: 8px 0; }
+#confFill { height: 100%; border-radius: 4px; transition: width .4s, background .4s; }
+#importResults { max-height: 200px; overflow-y: auto; }
+#importResults::-webkit-scrollbar { width: 4px; }
+#importResults::-webkit-scrollbar-thumb { background: #45475a; }
+.ir-row { display: flex; gap: 6px; align-items: center; padding: 4px 0; border-bottom: 1px solid #313244; }
+.ir-row label { color: #a6adc8; font-size: 11px; width: 60px; flex-shrink: 0; }
+.ir-row input { background: #313244; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 2px 5px; font-size: 11px; width: 60px; }
+.ir-row .ir-name { flex: 1; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#importApplyOpts { margin: 10px 0; }
+#importApplyOpts label { display: flex; align-items: center; gap: 6px; font-size: 12px; margin: 4px 0; cursor: pointer; }
+
+/* ===== Toast ===== */
+#toast {
+  position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
+  background: #313244; color: #cdd6f4; padding: 7px 18px; border-radius: 20px;
+  font-size: 12px; pointer-events: none; opacity: 0; transition: opacity .3s;
+  z-index: 999; border: 1px solid #45475a;
+}
+#toast.show { opacity: 1; }
+
+/* ===== 3D Canvas ===== */
+#canvas3d {
+  display: none; position: absolute; inset: 0; width: 100%; height: 100%;
+}
+#view3dHint {
+  position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+  background: rgba(24,24,37,.8); color: #a6adc8; padding: 4px 12px;
+  border-radius: 12px; font-size: 11px; pointer-events: none;
+  display: none;
+}
+/* Editable dims in propsPanel */
+.props-dim-input {
+  width: 70px; background: #313244; color: #f9e2af; border: 1px solid #45475a;
+  border-radius: 4px; padding: 2px 5px; font-size: 12px; font-family: 'Consolas', monospace;
+}
+.props-dim-input:focus { outline: none; border-color: #89b4fa; }
+
+/* ===== Factory Draw Indicator ===== */
+#factoryDrawIndicator {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  background: rgba(249,226,175,.95); color: #1e1e2e;
+  padding: 6px 18px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  display: none; z-index: 10; pointer-events: none; white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+/* Vertex handle on polygon */
+.factory-vertex { cursor: move; }
+/* Dim label bg */
+#factoryDrawTool {
+  display: flex; gap: 4px; align-items: center; flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+
+<!-- Toolbar -->
+<div id="toolbar">
+  <span class="brand">🏭 工場レイアウト FloorPlan</span>
+
+  <button id="btnNew" title="新規レイアウト">＋ 新規</button>
+  <div class="group" id="layoutDropdown">
+    <button id="btnOpen" title="保存済みレイアウトを開く">📂 開く ▾</button>
+    <div id="layoutMenu"></div>
+  </div>
+  <button id="btnSave" title="保存 (Ctrl+S)">💾 保存</button>
+  <button id="btnManage" title="レイアウト管理">管理</button>
+
+  <div class="sep"></div>
+
+  <div class="group">
+    <button id="btnUndo" title="元に戻す (Ctrl+Z)" disabled>↩</button>
+    <button id="btnRedo" title="やり直し (Ctrl+Y)" disabled>↪</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <button id="btnFit" title="全体表示 (F)">⊞ 全体</button>
+  <button id="btnToggleSidebar" title="サイドバー切替">☰</button>
+
+  <div class="sep"></div>
+
+  <div class="group" id="factoryDrawTool">
+    <button id="btnFactoryDraw" title="工場外形を線で描く (L)">✏ 間取りを描く</button>
+    <button id="btnFactoryClear" title="工場形状をリセット">✕ リセット</button>
+    <button id="btnFactoryDims" class="active" title="寸法表示切替 (D)">📐 寸法</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="group">
+    <button id="btnGrid" class="active" title="グリッド表示 (G)">グリッド</button>
+    <button id="btnSnap" class="active" title="スナップ (S)">スナップ</button>
+    <button id="btnSafetyZone" title="安全ゾーン (Z)">安全ゾーン</button>
+  </div>
+
+  <div class="sep"></div>
+
+  <button id="btn3D" title="3D表示切替 (3)">🧊 3D表示</button>
+
+  <div class="sep"></div>
+
+  <button id="btnImport" title="Excel/PDFから読み込み">📥 インポート</button>
+
+  <div class="sep"></div>
+
+  <div class="group">
+    <button id="btnPng" title="PNG出力">🖼 PNG</button>
+    <button id="btnPdf" title="PDF出力">📄 PDF</button>
+  </div>
+
+  <div class="spacer"></div>
+  <button id="btnSettings" title="設定">⚙</button>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div id="sidebarTopBar">
+      <div id="searchWrap">
+        <input id="searchInput" type="search" placeholder="設備を検索...">
+      </div>
+      <button class="view-btn active" id="btnViewList" title="リスト表示">☰</button>
+      <button class="view-btn" id="btnViewGrid" title="アイコン表示">⊞</button>
+    </div>
+    <div id="sidebarInner"></div>
+  </div>
+
+  <!-- Canvas -->
+  <div id="canvasWrap">
+    <canvas id="canvas"></canvas>
+    <canvas id="canvas3d"></canvas>
+    <div id="view3dHint">マウスドラッグ: 回転　ホイール: ズーム　右ドラッグ: パン</div>
+    <div id="factoryDrawIndicator">✏ 間取り描画中 — クリック:点を追加　Shift:45°スナップ　ダブルクリック/Enter:完了　Esc:キャンセル</div>
+    <div id="coords">X: 0mm  Y: 0mm  Zoom: 1.00x</div>
+    <div id="overlapWarn"></div>
+    <div id="propsPanel">
+      <label>ラベル: <input id="propsInput" type="text" maxlength="10" placeholder="P-01"></label>
+      <label>W: <input id="propsW" type="number" class="props-dim-input" min="1" max="99999" placeholder="mm"></label>
+      <label>D: <input id="propsD" type="number" class="props-dim-input" min="1" max="99999" placeholder="mm"></label>
+      <label>H: <input id="propsH" type="number" class="props-dim-input" min="1" max="99999" placeholder="mm"></label>
+      <span id="propsRot" style="color:#a6e3a1;font-family:Consolas;font-size:12px;"></span>
+      <label>メモ: <input id="propsNote" type="text" placeholder="備考..."></label>
+      <button id="propsRotBtn" title="90°回転 (R)">↻ 回転</button>
+      <button id="propsDelBtn" class="props-del" title="削除 (Delete)">🗑 削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Panel -->
+<div id="settingsPanel">
+  <h4>表示設定</h4>
+  <div class="row"><label>グリッド間隔</label>
+    <select id="setGridStep">
+      <option value="500">500mm</option>
+      <option value="1000" selected>1000mm</option>
+      <option value="2000">2000mm</option>
+      <option value="5000">5000mm</option>
+    </select>
+  </div>
+  <div class="row"><label>スナップ間隔</label>
+    <select id="setSnapStep">
+      <option value="100">100mm</option>
+      <option value="250">250mm</option>
+      <option value="500" selected>500mm</option>
+      <option value="1000">1000mm</option>
+    </select>
+  </div>
+  <h4 style="margin-top:10px;">工場サイズ変更</h4>
+  <div class="row"><label>幅 (m)</label><input id="setRoomW" type="number" min="1" max="500" step="1" value="30"></div>
+  <div class="row"><label>奥行 (m)</label><input id="setRoomD" type="number" min="1" max="500" step="1" value="20"></div>
+  <div class="row"><button id="setApplyRoom" style="width:100%;padding:6px;">適用</button></div>
+  <h4 style="margin-top:10px;">AI解析（オプション）</h4>
+  <div class="row"><label>Claude APIキー</label><input id="setApiKey" type="password" placeholder="sk-ant-..."></div>
+  <div class="row" style="font-size:10px;color:#6c7086;">設定するとインポート時にAI解析が使えます</div>
+</div>
+
+<!-- New Layout Modal -->
+<div class="modal-bg" id="newModal">
+  <div class="modal">
+    <h3>新規レイアウト作成</h3>
+    <div class="row"><label>レイアウト名</label><input id="nlName" type="text" value="新規レイアウト" style="width:180px;"></div>
+    <div class="row"><label>工場の幅 (m)</label><input id="nlW" type="number" value="30" min="1" max="500"></div>
+    <div class="row"><label>工場の奥行 (m)</label><input id="nlD" type="number" value="20" min="1" max="500"></div>
+    <div class="row"><label>グリッド間隔</label>
+      <select id="nlGrid">
+        <option value="500">500mm</option>
+        <option value="1000" selected>1m</option>
+        <option value="2000">2m</option>
+        <option value="5000">5m</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button id="nlCancel">キャンセル</button>
+      <button id="nlCreate" class="primary">作成</button>
+    </div>
+  </div>
+</div>
+
+<!-- Layout Manager Modal -->
+<div class="modal-bg" id="manageModal">
+  <div class="modal" style="max-width:500px;">
+    <h3>レイアウト管理</h3>
+    <div id="lmList"></div>
+    <div class="actions"><button id="lmClose">閉じる</button></div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-bg" id="importModalBg">
+  <div class="modal" id="importModal">
+    <h3>📥 ファイルインポート</h3>
+    <div id="importSteps">
+      <div class="imp-step active" id="is0"></div>
+      <div class="imp-step" id="is1"></div>
+      <div class="imp-step" id="is2"></div>
+      <div class="imp-step" id="is3"></div>
+    </div>
+
+    <!-- Step 0: file select -->
+    <div id="impStep0">
+      <div id="importDropZone">
+        <div class="dz-icon">📂</div>
+        <p>Excel (.xlsx) または PDF をドロップ<br>またはクリックして選択</p>
+        <input id="importFileInput" type="file" accept=".xlsx,.xls,.pdf" style="display:none;">
+      </div>
+    </div>
+
+    <!-- Step 1: parsing -->
+    <div id="impStep1" style="display:none;text-align:center;padding:20px 0;">
+      <div id="impStatus" style="color:#a6adc8;font-size:13px;margin-bottom:10px;">解析中...</div>
+      <div id="confBar"><div id="confFill" style="width:0%;background:#89b4fa;"></div></div>
+      <div id="confLabel" style="color:#6c7086;font-size:11px;"></div>
+      <button id="btnAiAnalyze" style="display:none;margin-top:10px;" class="">AIで解析</button>
+    </div>
+
+    <!-- Step 2: review -->
+    <div id="impStep2" style="display:none;">
+      <div style="font-size:12px;color:#a6adc8;margin-bottom:8px;">検出結果を確認・編集してください</div>
+      <div class="row"><label style="font-size:12px;">工場幅 (mm)</label><input id="impRoomW" type="number" style="width:100px;background:#313244;color:#cdd6f4;border:1px solid #45475a;border-radius:4px;padding:3px 6px;font-size:12px;"></div>
+      <div class="row"><label style="font-size:12px;">工場奥行 (mm)</label><input id="impRoomD" type="number" style="width:100px;background:#313244;color:#cdd6f4;border:1px solid #45475a;border-radius:4px;padding:3px 6px;font-size:12px;"></div>
+      <div style="font-size:11px;color:#6c7086;margin:8px 0 4px;">設備リスト（編集可）</div>
+      <div id="importResults"></div>
+    </div>
+
+    <!-- Step 3: apply -->
+    <div id="impStep3" style="display:none;">
+      <div id="importApplyOpts">
+        <label><input type="checkbox" id="impApplyRoom" checked> 工場サイズを設定</label>
+        <label><input type="checkbox" id="impAutoPlace" checked> 設備を自動配置</label>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:12px;">
+      <button id="impBack" style="display:none;">◀ 戻る</button>
+      <button id="impCancel">キャンセル</button>
+      <button id="impNext" class="primary">次へ ▶</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+// ============================================================
+//  Equipment Catalog
+// ============================================================
+const CATALOG = [
+  // ── プレス機 ──────────────────────────────────────────
+  { id: 'press_ec_45',    cat: 'press',    nameJa: 'エキセンプレス 45t',       w: 1400, d: 1200, h: 2800, color: '#4a9eff', sz: 800  },
+  { id: 'press_ec_100',   cat: 'press',    nameJa: 'エキセンプレス 100t',      w: 2000, d: 1800, h: 3200, color: '#4a9eff', sz: 1000 },
+  { id: 'press_ec_200',   cat: 'press',    nameJa: 'エキセンプレス 200t',      w: 2600, d: 2200, h: 3800, color: '#4a9eff', sz: 1200 },
+  { id: 'press_hy_50',    cat: 'press',    nameJa: '油圧プレス 50t',           w: 1200, d: 1400, h: 2500, color: '#2563eb', sz: 800  },
+  { id: 'press_hy_200',   cat: 'press',    nameJa: '油圧プレス 200t',          w: 2000, d: 2400, h: 3600, color: '#2563eb', sz: 1000 },
+  { id: 'press_transfer', cat: 'press',    nameJa: 'トランスファープレス',      w: 8000, d: 3000, h: 4000, color: '#1d4ed8', sz: 1500 },
+  // ── レーザー・プラズマ切断機 ───────────────────────────
+  { id: 'laser_sm',       cat: 'laser',    nameJa: 'レーザー 1.5kW (1.5×3m)', w: 4500, d: 2000, h: 1800, color: '#f97316', sz: 1000 },
+  { id: 'laser_md',       cat: 'laser',    nameJa: 'レーザー 4kW (2×4m)',      w: 5500, d: 2800, h: 1900, color: '#f97316', sz: 1200 },
+  { id: 'laser_lg',       cat: 'laser',    nameJa: 'レーザー 6kW (2×6m)',      w: 7500, d: 3000, h: 2000, color: '#ea580c', sz: 1500 },
+  { id: 'plasma_sm',      cat: 'laser',    nameJa: 'プラズマ (1.5×3m)',        w: 4000, d: 2000, h: 1600, color: '#fb923c', sz: 1200 },
+  { id: 'plasma_lg',      cat: 'laser',    nameJa: 'プラズマ (2×4m)',          w: 5500, d: 2500, h: 1700, color: '#fb923c', sz: 1500 },
+  // ── 溶接機・ロボット ──────────────────────────────────
+  { id: 'weld_co2',       cat: 'weld',     nameJa: 'CO₂半自動溶接機',          w: 600,  d: 600,  h: 1200, color: '#a855f7', sz: 1500 },
+  { id: 'weld_tig',       cat: 'weld',     nameJa: 'TIG溶接機',                w: 500,  d: 500,  h: 1100, color: '#9333ea', sz: 1500 },
+  { id: 'weld_mig',       cat: 'weld',     nameJa: 'MIG溶接機',                w: 550,  d: 550,  h: 1100, color: '#9333ea', sz: 1500 },
+  { id: 'weld_rob_s',     cat: 'weld',     nameJa: '溶接ロボット シングル',    w: 3000, d: 2500, h: 2200, color: '#7c3aed', sz: 2000 },
+  { id: 'weld_rob_t',     cat: 'weld',     nameJa: '溶接ロボット タンデム',    w: 6000, d: 3000, h: 2200, color: '#6d28d9', sz: 2000 },
+  { id: 'weld_table',     cat: 'weld',     nameJa: '溶接作業台',               w: 2000, d: 800,  h: 900,  color: '#c4b5fd', sz: 800  },
+  // ── ベンダー・シャー・その他 ──────────────────────────
+  { id: 'bender_1m',      cat: 'bender',   nameJa: 'ベンダー 1m',              w: 1400, d: 1200, h: 2400, color: '#10b981', sz: 2000 },
+  { id: 'bender_2m',      cat: 'bender',   nameJa: 'ベンダー 2m',              w: 2500, d: 1300, h: 2600, color: '#10b981', sz: 2500 },
+  { id: 'bender_3m',      cat: 'bender',   nameJa: 'ベンダー 3m',              w: 3800, d: 1400, h: 2700, color: '#059669', sz: 3500 },
+  { id: 'bender_4m',      cat: 'bender',   nameJa: 'ベンダー 4m',              w: 5000, d: 1500, h: 2800, color: '#059669', sz: 4500 },
+  { id: 'shear_1m',       cat: 'bender',   nameJa: 'シャー 1m',                w: 1500, d: 1000, h: 1800, color: '#34d399', sz: 1000 },
+  { id: 'shear_2m',       cat: 'bender',   nameJa: 'シャー 2m',                w: 2800, d: 1200, h: 1900, color: '#34d399', sz: 1200 },
+  { id: 'shear_3m',       cat: 'bender',   nameJa: 'シャー 3m',                w: 3800, d: 1300, h: 2000, color: '#6ee7b7', sz: 1500 },
+  // ── マシニング・ボール盤・バリ取り機 ──────────────────
+  { id: 'mc_vmc',         cat: 'machining',nameJa: '立型マシニングセンタ',     w: 2000, d: 2200, h: 2800, color: '#f59e0b', sz: 800  },
+  { id: 'mc_hmc',         cat: 'machining',nameJa: '横型マシニングセンタ',     w: 2500, d: 3000, h: 2900, color: '#d97706', sz: 1000 },
+  { id: 'drill_col',      cat: 'machining',nameJa: 'コラムボール盤',            w: 600,  d: 700,  h: 2000, color: '#fbbf24', sz: 600  },
+  { id: 'drill_rad',      cat: 'machining',nameJa: 'ラジアルボール盤',          w: 1200, d: 1400, h: 2400, color: '#fbbf24', sz: 800  },
+  { id: 'deburr_belt',    cat: 'machining',nameJa: 'ベルト研磨機',             w: 1200, d: 800,  h: 1400, color: '#fcd34d', sz: 600  },
+  { id: 'deburr_brush',   cat: 'machining',nameJa: 'ブラシバリ取り機',          w: 1400, d: 900,  h: 1600, color: '#fde68a', sz: 800  },
+  { id: 'deburr_robot',   cat: 'machining',nameJa: 'バリ取りロボット',          w: 2500, d: 2000, h: 2000, color: '#b45309', sz: 1500 },
+  // ── 構造物・その他 ────────────────────────────────────
+  { id: 'pillar',         cat: 'struct',   nameJa: '柱',                       w: 400,  d: 400,  h: 4000, color: '#6b7280', sz: 0    },
+  { id: 'partition',      cat: 'struct',   nameJa: '間仕切り',                 w: 3000, d: 100,  h: 2500, color: '#374151', sz: 0    },
+  { id: 'conveyor_1m',    cat: 'struct',   nameJa: 'コンベア 1m',              w: 1000, d: 600,  h: 1200, color: '#94a3b8', sz: 0    },
+  { id: 'conveyor_3m',    cat: 'struct',   nameJa: 'コンベア 3m',              w: 3000, d: 600,  h: 1200, color: '#94a3b8', sz: 0    },
+  { id: 'pallet_rack',    cat: 'struct',   nameJa: 'パレットラック',            w: 2700, d: 1100, h: 2400, color: '#9ca3af', sz: 0    },
+  { id: 'work_table',     cat: 'struct',   nameJa: '作業台',                   w: 1800, d: 800,  h: 900,  color: '#d1d5db', sz: 0    },
+  { id: 'forklift_path',  cat: 'struct',   nameJa: '通路マーカー',             w: 3000, d: 3000, h: 100,  color: '#4b5563', sz: 0    },
+];
+
+const CAT_META = {
+  press:     { label: 'プレス機',            color: '#4a9eff' },
+  laser:     { label: 'レーザー・プラズマ',  color: '#f97316' },
+  weld:      { label: '溶接機・ロボット',    color: '#a855f7' },
+  bender:    { label: 'ベンダー・シャー',    color: '#10b981' },
+  machining: { label: 'マシニング・バリ取り',color: '#f59e0b' },
+  struct:    { label: '構造物・その他',      color: '#9ca3af' },
+};
+
+function getCatalog(id) { return CATALOG.find(c => c.id === id); }
+
+// ============================================================
+//  Layout State
+// ============================================================
+let currentLayout = null;
+let selectedId = null;
+let hoverId = null;
+let overlapping = new Set();
+let isDragging = false;
+let dragOffX = 0, dragOffY = 0;
+let isPanning = false;
+let panSX = 0, panSY = 0, panCX = 0, panCY = 0;
+let showGrid = true;
+let showSafetyZone = false;
+let showFactoryDims = true;
+let snapEnabled = true;
+let snapStep = 500;
+let gridStep = 1000;
+let autoSaveTimer = null;
+
+// Factory outline drawing
+const factoryDraw = { active: false, points: [], preview: null, shiftSnap: false };
+// Vertex drag
+let vertexDrag = { active: false, idx: -1 };
+
+// ============================================================
+//  Camera
+// ============================================================
+let cam = { x: 0, y: 0, zoom: 0.015 };
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvasWrap');
+
+function worldToScreen(wx, wy) {
+  return {
+    x: (wx - cam.x) * cam.zoom + canvas.width / 2,
+    y: -(wy - cam.y) * cam.zoom + canvas.height / 2
+  };
+}
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx - canvas.width / 2) / cam.zoom + cam.x,
+    y: -(sy - canvas.height / 2) / cam.zoom + cam.y
+  };
+}
+function snapWorld(v) {
+  if (!snapEnabled) return v;
+  return Math.round(v / snapStep) * snapStep;
+}
+
+// ============================================================
+//  Undo / Redo
+// ============================================================
+let undoStack = [];
+let redoStack = [];
+
+function saveUndoState() {
+  if (!currentLayout) return;
+  undoStack.push(JSON.stringify(currentLayout.equipment));
+  if (undoStack.length > 50) undoStack.shift();
+  redoStack = [];
+  updateUndoButtons();
+}
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(JSON.stringify(currentLayout.equipment));
+  currentLayout.equipment = JSON.parse(undoStack.pop());
+  selectedId = null; updateUndoButtons(); checkOverlaps(); render(); updatePropsPanel();
+}
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(JSON.stringify(currentLayout.equipment));
+  currentLayout.equipment = JSON.parse(redoStack.pop());
+  selectedId = null; updateUndoButtons(); checkOverlaps(); render(); updatePropsPanel();
+}
+function updateUndoButtons() {
+  document.getElementById('btnUndo').disabled = undoStack.length === 0;
+  document.getElementById('btnRedo').disabled = redoStack.length === 0;
+}
+
+// ============================================================
+//  Resize
+// ============================================================
+function resize() {
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  render();
+}
+window.addEventListener('resize', resize);
+
+// ============================================================
+//  Rendering
+// ============================================================
+function render(targetCtx) {
+  const c = targetCtx || ctx;
+  const W = canvas.width, H = canvas.height;
+  c.clearRect(0, 0, W, H);
+  c.fillStyle = '#11111b';
+  c.fillRect(0, 0, W, H);
+
+  if (showGrid) drawGrid(c);
+  if (currentLayout) {
+    drawRoom(c);
+    const eq = currentLayout.equipment;
+    for (const inst of eq) {
+      drawEquipment(inst, c, inst.id === selectedId, inst.id === hoverId);
+    }
+    drawScaleBar(c);
+  }
+}
+
+function drawGrid(c) {
+  const sizes = [100, 500, 1000, 2000, 5000, 10000, 50000];
+  let gs = 1000;
+  for (const s of sizes) { if (s * cam.zoom >= 18) { gs = s; break; } }
+
+  const tl = screenToWorld(0, canvas.height);
+  const br = screenToWorld(canvas.width, 0);
+  const startX = Math.floor(tl.x / gs) * gs;
+  const startY = Math.floor(tl.y / gs) * gs;
+
+  c.strokeStyle = 'rgba(69,71,90,.4)';
+  c.lineWidth = 0.5;
+  c.setLineDash([]);
+  c.beginPath();
+  for (let x = startX; x <= br.x + gs; x += gs) {
+    const s = worldToScreen(x, 0);
+    c.moveTo(s.x, 0); c.lineTo(s.x, canvas.height);
+  }
+  for (let y = startY; y <= br.y + gs; y += gs) {
+    const s = worldToScreen(0, y);
+    c.moveTo(0, s.y); c.lineTo(canvas.width, s.y);
+  }
+  c.stroke();
+
+  // major grid
+  if (gridStep > gs) {
+    const gm = gridStep;
+    const smx = Math.floor(tl.x / gm) * gm;
+    const smy = Math.floor(tl.y / gm) * gm;
+    c.strokeStyle = 'rgba(69,71,90,.8)';
+    c.lineWidth = 0.8;
+    c.beginPath();
+    for (let x = smx; x <= br.x + gm; x += gm) {
+      const s = worldToScreen(x, 0); c.moveTo(s.x, 0); c.lineTo(s.x, canvas.height);
+    }
+    for (let y = smy; y <= br.y + gm; y += gm) {
+      const s = worldToScreen(0, y); c.moveTo(0, s.y); c.lineTo(canvas.width, s.y);
+    }
+    c.stroke();
+  }
+}
+
+function drawRoom(c) {
+  if (!currentLayout) return;
+  const r = currentLayout.room;
+  const poly = r.polygon;
+
+  if (poly && poly.length >= 3) {
+    // ── Polygon room ──────────────────────────────────
+    const pts = poly.map(p => worldToScreen(p.x, p.y));
+
+    // Subtle fill
+    c.beginPath();
+    c.moveTo(pts[0].x, pts[0].y);
+    pts.slice(1).forEach(p => c.lineTo(p.x, p.y));
+    c.closePath();
+    c.fillStyle = 'rgba(137,180,250,0.04)';
+    c.fill();
+
+    // Walls
+    c.strokeStyle = 'rgba(137,180,250,.8)';
+    c.lineWidth = 2.5;
+    c.setLineDash([]);
+    c.beginPath();
+    c.moveTo(pts[0].x, pts[0].y);
+    pts.slice(1).forEach(p => c.lineTo(p.x, p.y));
+    c.closePath();
+    c.stroke();
+
+    // Vertex handles (small squares)
+    if (!is3D) {
+      poly.forEach((p, i) => {
+        const s = worldToScreen(p.x, p.y);
+        c.fillStyle = i === 0 ? '#f9e2af' : '#89b4fa';
+        c.strokeStyle = '#181825';
+        c.lineWidth = 1;
+        c.setLineDash([]);
+        c.fillRect(s.x - 5, s.y - 5, 10, 10);
+        c.strokeRect(s.x - 5, s.y - 5, 10, 10);
+      });
+    }
+
+    // Dimension lines
+    if (showFactoryDims) drawFactoryDimensions(c, poly);
+
+    // Factory draw preview on top
+    if (factoryDraw.active) drawFactoryPreview(c);
+  } else {
+    // ── Rectangle room (default) ──────────────────────
+    const tl = worldToScreen(0, r.d);
+    const br = worldToScreen(r.w, 0);
+    const pw = br.x - tl.x, ph = br.y - tl.y;
+
+    // Fill
+    c.fillStyle = 'rgba(137,180,250,0.04)';
+    c.fillRect(tl.x, tl.y, pw, ph);
+
+    c.strokeStyle = 'rgba(137,180,250,.6)';
+    c.lineWidth = 2;
+    c.setLineDash([]);
+    c.strokeRect(tl.x, tl.y, pw, ph);
+
+    // Dims on rect edges
+    if (showFactoryDims) {
+      const rectPoly = [
+        { x: 0, y: 0 }, { x: r.w, y: 0 },
+        { x: r.w, y: r.d }, { x: 0, y: r.d }
+      ];
+      drawFactoryDimensions(c, rectPoly);
+    }
+
+    // Factory draw preview
+    if (factoryDraw.active) drawFactoryPreview(c);
+  }
+}
+
+// ── Dimension lines for factory outline ───────────────────────
+function polylineCentroid(poly) {
+  const cx = poly.reduce((s, p) => s + p.x, 0) / poly.length;
+  const cy = poly.reduce((s, p) => s + p.y, 0) / poly.length;
+  return { x: cx, y: cy };
+}
+
+function drawFactoryDimensions(c, poly) {
+  if (cam.zoom < 0.002) return;  // too small to show
+  const n = poly.length;
+  const centroid = polylineCentroid(poly);
+  // Auto offset: 5% of smaller room dimension, min 400mm
+  const r = currentLayout.room;
+  const dimOff = Math.max(400, Math.min(r.w, r.d) * 0.05);
+
+  c.save();
+  for (let i = 0; i < n; i++) {
+    const p1 = poly[i], p2 = poly[(i + 1) % n];
+    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 50) continue;  // skip tiny edges
+
+    // Edge midpoint
+    const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+
+    // Unit perpendicular
+    let nx = -dy / len, ny = dx / len;
+
+    // Outward direction (away from centroid)
+    const toMidX = mx - centroid.x, toMidY = my - centroid.y;
+    if (nx * toMidX + ny * toMidY < 0) { nx = -nx; ny = -ny; }
+
+    // World offset points
+    const o1 = { x: p1.x + nx * dimOff, y: p1.y + ny * dimOff };
+    const o2 = { x: p2.x + nx * dimOff, y: p2.y + ny * dimOff };
+
+    const s1 = worldToScreen(p1.x, p1.y);
+    const s2 = worldToScreen(p2.x, p2.y);
+    const so1 = worldToScreen(o1.x, o1.y);
+    const so2 = worldToScreen(o2.x, o2.y);
+    const som = { x: (so1.x + so2.x) / 2, y: (so1.y + so2.y) / 2 };
+
+    const dimColor = '#89b4fa';
+    c.strokeStyle = dimColor;
+    c.fillStyle = dimColor;
+    c.lineWidth = 1;
+    c.setLineDash([3, 3]);
+
+    // Extension lines
+    c.beginPath();
+    c.moveTo(s1.x, s1.y); c.lineTo(so1.x, so1.y);
+    c.moveTo(s2.x, s2.y); c.lineTo(so2.x, so2.y);
+    c.stroke();
+
+    // Dimension line (solid)
+    c.setLineDash([]);
+    c.beginPath();
+    c.moveTo(so1.x, so1.y); c.lineTo(so2.x, so2.y);
+    c.stroke();
+
+    // Arrows
+    const arrAngle = Math.atan2(so2.y - so1.y, so2.x - so1.x);
+    drawDimArrow2D(c, so1.x, so1.y, arrAngle, dimColor);
+    drawDimArrow2D(c, so2.x, so2.y, arrAngle + Math.PI, dimColor);
+
+    // Label (with white BG)
+    const labelText = len >= 1000
+      ? `${(len / 1000).toFixed(len % 1000 === 0 ? 0 : 2)}m`
+      : `${Math.round(len)}mm`;
+
+    c.font = `bold ${Math.max(9, Math.min(13, 11))}px Consolas, monospace`;
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    const tw = c.measureText(labelText).width + 8;
+    c.fillStyle = 'rgba(24,24,37,0.85)';
+    c.fillRect(som.x - tw / 2, som.y - 9, tw, 18);
+    c.fillStyle = dimColor;
+    c.fillText(labelText, som.x, som.y);
+  }
+  c.restore();
+}
+
+function drawDimArrow2D(c, x, y, angle, color) {
+  const aw = 7, ah = 4;
+  c.save();
+  c.translate(x, y);
+  c.rotate(angle);
+  c.fillStyle = color || '#89b4fa';
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.lineTo(-aw, -ah / 2);
+  c.lineTo(-aw, ah / 2);
+  c.closePath();
+  c.fill();
+  c.restore();
+}
+
+// ── Factory draw preview ─────────────────────────────────────
+function drawFactoryPreview(c) {
+  const pts = factoryDraw.points;
+  if (pts.length === 0 && !factoryDraw.preview) return;
+
+  const CLOSE_PX = 14;  // px within first point → snap-to-close
+  const first = pts[0];
+
+  c.save();
+  c.setLineDash([]);
+  c.strokeStyle = '#f9e2af';
+  c.lineWidth = 2;
+
+  // Draw committed edges
+  if (pts.length > 0) {
+    c.beginPath();
+    const s0 = worldToScreen(pts[0].x, pts[0].y);
+    c.moveTo(s0.x, s0.y);
+    for (let i = 1; i < pts.length; i++) {
+      const s = worldToScreen(pts[i].x, pts[i].y);
+      c.lineTo(s.x, s.y);
+    }
+    // Preview segment to cursor
+    if (factoryDraw.preview) {
+      const sp = worldToScreen(factoryDraw.preview.x, factoryDraw.preview.y);
+      c.lineTo(sp.x, sp.y);
+    }
+    c.stroke();
+  }
+
+  // Closing dashed line (preview → first point)
+  if (pts.length >= 2 && factoryDraw.preview) {
+    const sf = worldToScreen(first.x, first.y);
+    const sp = worldToScreen(factoryDraw.preview.x, factoryDraw.preview.y);
+    const distPx = Math.hypot(sp.x - sf.x, sp.y - sf.y);
+    c.setLineDash([5, 5]);
+    c.strokeStyle = 'rgba(249,226,175,0.4)';
+    c.beginPath();
+    c.moveTo(sp.x, sp.y); c.lineTo(sf.x, sf.y);
+    c.stroke();
+    c.setLineDash([]);
+
+    // Snap circle near first point
+    if (distPx < CLOSE_PX * 2) {
+      c.strokeStyle = '#a6e3a1';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(sf.x, sf.y, CLOSE_PX, 0, Math.PI * 2);
+      c.stroke();
+    }
+  }
+
+  // Vertex dots
+  pts.forEach((p, i) => {
+    const s = worldToScreen(p.x, p.y);
+    c.fillStyle = i === 0 ? '#f9e2af' : '#89b4fa';
+    c.beginPath();
+    c.arc(s.x, s.y, i === 0 ? 6 : 4, 0, Math.PI * 2);
+    c.fill();
+  });
+
+  // Live dimension of current segment
+  if (pts.length > 0 && factoryDraw.preview) {
+    const last = pts[pts.length - 1];
+    const prev = factoryDraw.preview;
+    const segLen = Math.sqrt((prev.x - last.x) ** 2 + (prev.y - last.y) ** 2);
+    if (segLen > 10) {
+      const smid = worldToScreen((last.x + prev.x) / 2, (last.y + prev.y) / 2);
+      const txt = segLen >= 1000
+        ? `${(segLen / 1000).toFixed(2)}m`
+        : `${Math.round(segLen)}mm`;
+      c.font = 'bold 12px Consolas, monospace';
+      c.textAlign = 'center'; c.textBaseline = 'bottom';
+      c.fillStyle = 'rgba(24,24,37,0.8)';
+      const tw2 = c.measureText(txt).width + 8;
+      c.fillRect(smid.x - tw2 / 2, smid.y - 22, tw2, 16);
+      c.fillStyle = '#f9e2af';
+      c.fillText(txt, smid.x, smid.y - 6);
+    }
+  }
+
+  // Cumulative length label
+  if (pts.length >= 2) {
+    let total = 0;
+    for (let i = 1; i < pts.length; i++) {
+      total += Math.sqrt((pts[i].x - pts[i-1].x)**2 + (pts[i].y - pts[i-1].y)**2);
+    }
+    const firstS = worldToScreen(pts[0].x, pts[0].y);
+    c.font = '10px Consolas, monospace';
+    c.textAlign = 'left'; c.textBaseline = 'bottom';
+    c.fillStyle = '#a6adc8';
+    c.fillText(`計 ${pts.length}点 / 累計:${(total/1000).toFixed(1)}m`, firstS.x + 8, firstS.y - 6);
+  }
+
+  c.restore();
+}
+
+// ── Factory draw operations ───────────────────────────────────
+function startFactoryDraw() {
+  factoryDraw.active = true;
+  factoryDraw.points = [];
+  factoryDraw.preview = null;
+  selectedId = null;
+  updatePropsPanel();
+  canvas.style.cursor = 'crosshair';
+  document.getElementById('factoryDrawIndicator').style.display = 'block';
+  document.getElementById('btnFactoryDraw').classList.add('active');
+  render();
+}
+
+function finishFactoryDraw() {
+  if (factoryDraw.points.length < 3) {
+    showToast('3点以上必要です');
+    return;
+  }
+  const poly = [...factoryDraw.points];
+  saveUndoState();
+  currentLayout.room.polygon = poly;
+  // Update w/d bounding box
+  const xs = poly.map(p => p.x), ys = poly.map(p => p.y);
+  currentLayout.room.w = Math.max(...xs) - Math.min(...xs);
+  currentLayout.room.d = Math.max(...ys) - Math.min(...ys);
+
+  cancelFactoryDrawMode();
+  checkOverlaps(); fitAll(); render();
+  triggerAutoSave();
+  showToast(`工場形状を確定しました（${poly.length}頂点）`);
+}
+
+function cancelFactoryDrawMode() {
+  factoryDraw.active = false;
+  factoryDraw.points = [];
+  factoryDraw.preview = null;
+  canvas.style.cursor = 'default';
+  document.getElementById('factoryDrawIndicator').style.display = 'none';
+  document.getElementById('btnFactoryDraw').classList.remove('active');
+  render();
+}
+
+function clearFactoryPolygon() {
+  if (!currentLayout) return;
+  if (currentLayout.room.polygon) {
+    if (!confirm('工場形状をリセットして矩形に戻しますか？')) return;
+    saveUndoState();
+    delete currentLayout.room.polygon;
+    triggerAutoSave(); render();
+    showToast('工場形状をリセットしました');
+  }
+}
+
+// Hit test vertex (returns index or -1)
+function hitTestVertex(wx, wy) {
+  if (!currentLayout) return -1;
+  const poly = currentLayout.room.polygon;
+  if (!poly) return -1;
+  const thresh = 8 / cam.zoom;
+  for (let i = 0; i < poly.length; i++) {
+    if (Math.abs(poly[i].x - wx) < thresh && Math.abs(poly[i].y - wy) < thresh) return i;
+  }
+  return -1;
+}
+
+// Shift-snap to nearest 45°
+function snapAngle45(from, wx, wy) {
+  const dx = wx - from.x, dy = wy - from.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1) return { x: wx, y: wy };
+  const angle = Math.atan2(dy, dx);
+  const step = Math.PI / 4;
+  const snapped = Math.round(angle / step) * step;
+  return { x: from.x + len * Math.cos(snapped), y: from.y + len * Math.sin(snapped) };
+}
+
+// Category-specific 2D icons (drawn as canvas shapes)
+const CAT_ICONS = {
+  press:     (c, pw, ph) => {
+    // Upside-down T (press column)
+    const cx = pw * 0.3, cy = -ph * 0.15;
+    c.beginPath();
+    c.moveTo(cx - pw * 0.08, cy - ph * 0.28);
+    c.lineTo(cx - pw * 0.08, cy);
+    c.lineTo(cx + pw * 0.08, cy);
+    c.lineTo(cx + pw * 0.08, cy - ph * 0.28);
+    c.closePath();
+    c.fill();
+    // Ram arrow
+    c.beginPath();
+    c.moveTo(cx, cy + ph * 0.02);
+    c.lineTo(cx - pw * 0.06, cy + ph * 0.14);
+    c.lineTo(cx + pw * 0.06, cy + ph * 0.14);
+    c.closePath();
+    c.fill();
+  },
+  laser:     (c, pw, ph) => {
+    // Zigzag lightning bolt
+    c.beginPath();
+    const bx = pw * 0.28, by = -ph * 0.22;
+    c.moveTo(bx + pw * 0.04, by);
+    c.lineTo(bx - pw * 0.02, by + ph * 0.13);
+    c.lineTo(bx + pw * 0.03, by + ph * 0.13);
+    c.lineTo(bx - pw * 0.04, by + ph * 0.3);
+    c.lineWidth = Math.max(1, pw * 0.025);
+    c.stroke();
+  },
+  weld:      (c, pw, ph) => {
+    // Wavy arc (weld bead)
+    c.beginPath();
+    const wx = pw * 0.25, wy = ph * 0.05;
+    c.arc(wx, wy, ph * 0.1, 0, Math.PI, true);
+    c.arc(wx + ph * 0.15, wy, ph * 0.1, Math.PI, 0, true);
+    c.arc(wx + ph * 0.3, wy, ph * 0.1, 0, Math.PI, true);
+    c.lineWidth = Math.max(1.5, pw * 0.025);
+    c.stroke();
+  },
+  bender:    (c, pw, ph) => {
+    // L-shape bend symbol
+    c.beginPath();
+    c.moveTo(pw * 0.22, -ph * 0.22);
+    c.lineTo(pw * 0.22, ph * 0.06);
+    c.lineTo(pw * 0.38, ph * 0.06);
+    c.lineWidth = Math.max(2, pw * 0.035);
+    c.stroke();
+  },
+  machining: (c, pw, ph) => {
+    // Circle with cross (spindle view)
+    const r = Math.min(pw, ph) * 0.13;
+    const mx = pw * 0.28, my = -ph * 0.08;
+    c.beginPath(); c.arc(mx, my, r, 0, Math.PI * 2); c.stroke();
+    c.beginPath();
+    c.moveTo(mx - r, my); c.lineTo(mx + r, my);
+    c.moveTo(mx, my - r); c.lineTo(mx, my + r);
+    c.lineWidth = Math.max(1, pw * 0.02);
+    c.stroke();
+  },
+  struct:    null,
+};
+
+function drawEquipment(inst, c, selected, hovered) {
+  const cat = getCatalog(inst.catalogId);
+  if (!cat) return;
+
+  const isRot = (inst.rotation % 180 !== 0);
+  const iw = isRot ? inst.d : inst.w;
+  const id = isRot ? inst.w : inst.d;
+  const sp = worldToScreen(inst.x, inst.y);
+  const pw = iw * cam.zoom;
+  const ph = id * cam.zoom;
+
+  c.save();
+  c.translate(sp.x, sp.y);
+
+  // Safety zone
+  if (showSafetyZone && cat.sz > 0) {
+    const sz = cat.sz * cam.zoom;
+    c.setLineDash([4, 4]);
+    c.strokeStyle = cat.color + '55';
+    c.lineWidth = 1;
+    c.strokeRect(-pw / 2 - sz, -ph / 2 - sz, pw + sz * 2, ph + sz * 2);
+    c.setLineDash([]);
+  }
+
+  // Drop shadow
+  c.shadowColor = 'rgba(0,0,0,0.35)';
+  c.shadowBlur = selected ? 10 : 5;
+  c.shadowOffsetX = 2; c.shadowOffsetY = 2;
+
+  // Rounded rect fill with gradient
+  const r2 = Math.min(pw, ph) * 0.09;
+  const isOver = overlapping.has(inst.id);
+  const grad = c.createLinearGradient(-pw / 2, -ph / 2, -pw / 2, ph / 2);
+  const alpha = selected ? 'ee' : hovered ? 'cc' : 'aa';
+  grad.addColorStop(0, cat.color + 'ff');
+  grad.addColorStop(1, cat.color + '88');
+  c.fillStyle = grad;
+  c.beginPath();
+  if (c.roundRect) {
+    c.roundRect(-pw / 2, -ph / 2, pw, ph, r2);
+  } else {
+    c.rect(-pw / 2, -ph / 2, pw, ph);
+  }
+  c.fill();
+
+  // Reset shadow
+  c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetX = 0; c.shadowOffsetY = 0;
+
+  // Border
+  c.strokeStyle = isOver ? '#f38ba8' : (selected ? '#f9e2af' : 'rgba(255,255,255,0.6)');
+  c.lineWidth = selected ? 2.5 : (hovered ? 1.8 : 1);
+  c.setLineDash([]);
+  c.beginPath();
+  if (c.roundRect) {
+    c.roundRect(-pw / 2, -ph / 2, pw, ph, r2);
+  } else {
+    c.rect(-pw / 2, -ph / 2, pw, ph);
+  }
+  c.stroke();
+
+  // Top highlight strip
+  if (ph > 12) {
+    c.fillStyle = 'rgba(255,255,255,0.2)';
+    c.beginPath();
+    if (c.roundRect) {
+      c.roundRect(-pw / 2, -ph / 2, pw, Math.min(ph * 0.22, 8), [r2, r2, 0, 0]);
+    } else {
+      c.rect(-pw / 2, -ph / 2, pw, Math.min(ph * 0.22, 8));
+    }
+    c.fill();
+  }
+
+  // Category icon
+  if (pw > 32 && ph > 24 && cat.cat !== 'struct') {
+    const iconFn = CAT_ICONS[cat.cat];
+    if (iconFn) {
+      c.save();
+      c.fillStyle = 'rgba(255,255,255,0.5)';
+      c.strokeStyle = 'rgba(255,255,255,0.5)';
+      c.setLineDash([]);
+      iconFn(c, pw, ph);
+      c.restore();
+    }
+  }
+
+  // Label text
+  if (pw > 28 && ph > 16) {
+    c.fillStyle = '#fff';
+    c.textShadow = '1px 1px 2px rgba(0,0,0,0.5)';
+    const fs = Math.min(13, Math.max(7, ph * 0.22));
+    c.font = `bold ${fs}px 'Segoe UI', sans-serif`;
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    const textY = (pw > 40 && ph > 32) ? ph * 0.14 : 0;
+    c.fillText(inst.label, -pw * 0.1, textY);
+    if (ph > 28 && pw > 40) {
+      const fss = Math.min(10, fs * 0.8);
+      c.font = `${fss}px 'Segoe UI', sans-serif`;
+      c.fillStyle = 'rgba(255,255,255,0.8)';
+      const iw2 = isRot ? inst.d : inst.w;
+      const id2 = isRot ? inst.w : inst.d;
+      c.fillText(`${iw2}×${id2}`, -pw * 0.1, textY + fss + 2);
+    }
+  }
+
+  // Dimension lines when selected
+  if (selected && pw > 40) {
+    drawInstDimLines(c, pw, ph, iw, id);
+  }
+
+  c.restore();
+}
+
+function drawInstDimLines(c, pw, ph, iw, id) {
+  const off = 10, aw = 5;
+  c.strokeStyle = '#f9e2af';
+  c.fillStyle = '#f9e2af';
+  c.lineWidth = 1;
+  c.font = '10px Consolas, monospace';
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+
+  // Width line
+  const wy = ph / 2 + off;
+  c.beginPath();
+  c.moveTo(-pw / 2, wy); c.lineTo(pw / 2, wy); c.stroke();
+  c.beginPath();
+  c.moveTo(-pw / 2 - aw, wy); c.lineTo(-pw / 2 + aw * 2, wy - aw / 2); c.lineTo(-pw / 2 + aw * 2, wy + aw / 2); c.closePath(); c.fill();
+  c.beginPath();
+  c.moveTo(pw / 2 + aw, wy); c.lineTo(pw / 2 - aw * 2, wy - aw / 2); c.lineTo(pw / 2 - aw * 2, wy + aw / 2); c.closePath(); c.fill();
+  c.fillText(iw + 'mm', 0, wy - 8);
+
+  // Depth line
+  const dx = pw / 2 + off;
+  c.beginPath();
+  c.moveTo(dx, -ph / 2); c.lineTo(dx, ph / 2); c.stroke();
+  c.save(); c.translate(dx + 8, 0); c.rotate(-Math.PI / 2);
+  c.fillText(id + 'mm', 0, 0); c.restore();
+}
+
+function drawScaleBar(c) {
+  const niceSteps = [500, 1000, 2000, 5000, 10000, 20000, 50000];
+  let chosen = 1000;
+  for (const s of niceSteps) { if (s * cam.zoom >= 60) { chosen = s; break; } }
+  const px = chosen * cam.zoom;
+  const x = canvas.width - 20, y = canvas.height - 22;
+
+  c.strokeStyle = '#cdd6f4';
+  c.lineWidth = 2;
+  c.setLineDash([]);
+  c.beginPath();
+  c.moveTo(x - px, y); c.lineTo(x, y);
+  c.moveTo(x - px, y - 5); c.lineTo(x - px, y + 5);
+  c.moveTo(x, y - 5); c.lineTo(x, y + 5);
+  c.stroke();
+
+  const label = chosen >= 1000 ? `${(chosen / 1000).toFixed(0)}m` : `${chosen}mm`;
+  c.fillStyle = '#cdd6f4';
+  c.font = '10px Consolas, monospace';
+  c.textAlign = 'center'; c.textBaseline = 'top';
+  c.fillText(label, x - px / 2, y + 6);
+}
+
+// ============================================================
+//  Fit All
+// ============================================================
+function fitAll() {
+  if (!currentLayout) return;
+  const r = currentLayout.room;
+  const margin = 0.1;
+  cam.x = r.w / 2;
+  cam.y = r.d / 2;
+  cam.zoom = Math.min(canvas.width * (1 - margin) / r.w, canvas.height * (1 - margin) / r.d);
+  render();
+}
+
+// ============================================================
+//  Hit Test
+// ============================================================
+function hitTestEquipment(wx, wy) {
+  if (!currentLayout) return null;
+  const eq = currentLayout.equipment;
+  for (let i = eq.length - 1; i >= 0; i--) {
+    const inst = eq[i];
+    const isRot = (inst.rotation % 180 !== 0);
+    const hw = (isRot ? inst.d : inst.w) / 2;
+    const hh = (isRot ? inst.w : inst.d) / 2;
+    if (wx >= inst.x - hw && wx <= inst.x + hw && wy >= inst.y - hh && wy <= inst.y + hh) {
+      return inst.id;
+    }
+  }
+  return null;
+}
+
+// ============================================================
+//  Overlap Detection
+// ============================================================
+function checkOverlaps() {
+  overlapping = new Set();
+  if (!currentLayout) return;
+  const eq = currentLayout.equipment;
+  for (let i = 0; i < eq.length; i++) {
+    for (let j = i + 1; j < eq.length; j++) {
+      if (aabbOverlap(eq[i], eq[j])) {
+        overlapping.add(eq[i].id);
+        overlapping.add(eq[j].id);
+      }
+    }
+  }
+  const warn = document.getElementById('overlapWarn');
+  if (overlapping.size > 0) {
+    warn.textContent = `⚠ ${overlapping.size}台が重複しています`;
+    warn.style.display = 'block';
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
+function aabbOverlap(a, b) {
+  const isRA = a.rotation % 180 !== 0, isRB = b.rotation % 180 !== 0;
+  const aW = (isRA ? a.d : a.w) / 2, aH = (isRA ? a.w : a.d) / 2;
+  const bW = (isRB ? b.d : b.w) / 2, bH = (isRB ? b.w : b.d) / 2;
+  return Math.abs(a.x - b.x) < aW + bW && Math.abs(a.y - b.y) < aH + bH;
+}
+
+// ============================================================
+//  Equipment Operations
+// ============================================================
+function generateId() {
+  return 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function placeEquipment(catalogId, wx, wy) {
+  const cat = getCatalog(catalogId);
+  if (!cat || !currentLayout) return null;
+  saveUndoState();
+  const label = autoLabel(cat);
+  const inst = { id: generateId(), catalogId, x: wx, y: wy, w: cat.w, d: cat.d, rotation: 0, label, note: '' };
+  currentLayout.equipment.push(inst);
+  selectedId = inst.id;
+  checkOverlaps(); render(); updatePropsPanel();
+  triggerAutoSave();
+  return inst;
+}
+
+function autoLabel(cat) {
+  if (!currentLayout) return 'X-01';
+  const prefix = { press:'P', laser:'L', weld:'W', bender:'B', machining:'M', struct:'S' }[cat.cat] || 'X';
+  const existing = currentLayout.equipment.filter(e => {
+    const c = getCatalog(e.catalogId);
+    return c && c.cat === cat.cat;
+  });
+  return prefix + '-' + String(existing.length + 1).padStart(2, '0');
+}
+
+function deleteSelected() {
+  if (!selectedId || !currentLayout) return;
+  saveUndoState();
+  currentLayout.equipment = currentLayout.equipment.filter(e => e.id !== selectedId);
+  selectedId = null;
+  checkOverlaps(); render(); updatePropsPanel();
+  triggerAutoSave();
+}
+
+function rotateSelected() {
+  if (!selectedId || !currentLayout) return;
+  saveUndoState();
+  const inst = currentLayout.equipment.find(e => e.id === selectedId);
+  if (!inst) return;
+  inst.rotation = (inst.rotation + 90) % 360;
+  checkOverlaps(); render(); updatePropsPanel();
+  triggerAutoSave();
+}
+
+function getSelected() {
+  if (!selectedId || !currentLayout) return null;
+  return currentLayout.equipment.find(e => e.id === selectedId) || null;
+}
+
+// ============================================================
+//  Properties Panel
+// ============================================================
+function updatePropsPanel() {
+  const panel = document.getElementById('propsPanel');
+  const inst = getSelected();
+  if (!inst) { panel.classList.remove('visible'); return; }
+  panel.classList.add('visible');
+  document.getElementById('propsInput').value = inst.label;
+  const isRot = inst.rotation % 180 !== 0;
+  document.getElementById('propsW').value = isRot ? inst.d : inst.w;
+  document.getElementById('propsD').value = isRot ? inst.w : inst.d;
+  const cat = getCatalog(inst.catalogId);
+  document.getElementById('propsH').value = inst.h !== undefined ? inst.h : (cat ? cat.h : 2000);
+  document.getElementById('propsRot').textContent = `${inst.rotation}°`;
+  document.getElementById('propsNote').value = inst.note || '';
+}
+
+document.getElementById('propsInput').addEventListener('input', e => {
+  const inst = getSelected();
+  if (inst) { inst.label = e.target.value; render(); triggerAutoSave(); }
+});
+document.getElementById('propsW').addEventListener('change', e => {
+  const inst = getSelected();
+  if (!inst) return;
+  const v = Math.max(1, parseInt(e.target.value) || 1);
+  const isRot = inst.rotation % 180 !== 0;
+  if (isRot) inst.d = v; else inst.w = v;
+  saveUndoState(); checkOverlaps(); render(); triggerAutoSave();
+});
+document.getElementById('propsD').addEventListener('change', e => {
+  const inst = getSelected();
+  if (!inst) return;
+  const v = Math.max(1, parseInt(e.target.value) || 1);
+  const isRot = inst.rotation % 180 !== 0;
+  if (isRot) inst.w = v; else inst.d = v;
+  saveUndoState(); checkOverlaps(); render(); triggerAutoSave();
+});
+document.getElementById('propsH').addEventListener('change', e => {
+  const inst = getSelected();
+  if (!inst) return;
+  inst.h = Math.max(1, parseInt(e.target.value) || 1);
+  triggerAutoSave();
+  if (is3D) updateScene3D();
+});
+document.getElementById('propsNote').addEventListener('input', e => {
+  const inst = getSelected();
+  if (inst) { inst.note = e.target.value; triggerAutoSave(); }
+});
+document.getElementById('propsRotBtn').addEventListener('click', rotateSelected);
+document.getElementById('propsDelBtn').addEventListener('click', deleteSelected);
+
+// ============================================================
+//  Sidebar Build
+// ============================================================
+// Draw a mini icon card canvas for a catalog item
+// ── Isometric icon helpers ─────────────────────────────────────
+function _hexMix(hex, t) {
+  const h = hex.replace('#', '');
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+  return [r, g, b];
+}
+function hexLighten(hex, t) {
+  const [r, g, b] = _hexMix(hex, t);
+  return '#' + [r, g, b].map(v => Math.round(Math.min(255, v + (255 - v) * t)).toString(16).padStart(2, '0')).join('');
+}
+function hexDarken(hex, t) {
+  const [r, g, b] = _hexMix(hex, t);
+  return '#' + [r, g, b].map(v => Math.round(Math.max(0, v * (1 - t))).toString(16).padStart(2, '0')).join('');
+}
+
+// Draw isometric catalog card icon (Kenney style)
+function drawCardIcon(cv, cat) {
+  const cw = cv.width, ch = cv.height;
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cw, ch);
+
+  // Background with grid dots
+  ctx.fillStyle = '#0f0f1a';
+  ctx.fillRect(0, 0, cw, ch);
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  for (let gx = 6; gx < cw; gx += 9)
+    for (let gy = 6; gy < ch; gy += 9)
+      ctx.fillRect(gx, gy, 1, 1);
+
+  const C30 = Math.sqrt(3) / 2;   // cos 30°
+  const S30 = 0.5;                 // sin 30°
+
+  // Display height: cap at max(w,d) to avoid absurd columns
+  const rawH = cat.h || Math.min(cat.w, cat.d) * 0.7;
+  const dispH = Math.min(rawH, Math.max(cat.w, cat.d));
+
+  // Height multiplier accounts for secondary elements above the main box
+  const hMult = cat.cat === 'press' ? 2.0
+              : cat.cat === 'laser' ? 1.9
+              : cat.cat === 'machining' ? 1.5
+              : (cat.cat === 'weld' && cat.id.includes('robot')) ? 1.8
+              : 1.0;
+
+  const pad = 4;
+  const isoW = (cat.w + cat.d) * C30;
+  const isoH = (cat.w + cat.d) * S30 + dispH * hMult;
+  const scale = Math.min((cw - pad * 2) / isoW, (ch - pad * 2) / isoH) * 0.90;
+  const sw = cat.w * scale;
+  const sd = cat.d * scale;
+  const sh = dispH * scale;
+
+  // Center the iso bounding box
+  const ox = cw / 2 + (sd - sw) * C30 / 2;
+  const oy = ch / 2 + (sh - (sw + sd) * S30) / 2;
+
+  const iso = (x, y, z) => [ox + (x - y) * C30, oy + (x + y) * S30 - z];
+
+  const face = (pts, fill, edgeAlpha = 0.22) => {
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = `rgba(0,0,0,${edgeAlpha})`;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  };
+
+  const box = (x0, y0, z0, bw, bd, bh, col) => {
+    // Painter's order: left → right → top
+    face([iso(x0, y0, z0), iso(x0, y0 + bd, z0), iso(x0, y0 + bd, z0 + bh), iso(x0, y0, z0 + bh)], hexDarken(col, 0.30));
+    face([iso(x0, y0, z0), iso(x0 + bw, y0, z0), iso(x0 + bw, y0, z0 + bh), iso(x0, y0, z0 + bh)], hexDarken(col, 0.12));
+    face([iso(x0, y0, z0 + bh), iso(x0 + bw, y0, z0 + bh), iso(x0 + bw, y0 + bd, z0 + bh), iso(x0, y0 + bd, z0 + bh)], hexLighten(col, 0.20));
+  };
+
+  const c = cat.color;
+
+  // ── Main box ──────────────────────────────────────────────────
+  box(0, 0, 0, sw, sd, sh, c);
+
+  // ── Category-specific secondary elements ───────────────────
+  if (cat.cat === 'press') {
+    // Frame arch: two side columns + top crossbeam
+    const colW = sw * 0.14, colD = sd * 0.14, colH = sh * 0.9;
+    const beamH = sh * 0.12;
+    const colY = sd * 0.55;
+    box(sw * 0.08,          colY, sh, colW, colD, colH, hexDarken(c, 0.05));
+    box(sw * 0.78,          colY, sh, colW, colD, colH, hexDarken(c, 0.05));
+    box(sw * 0.08, colY, sh + colH - beamH, sw * 0.84, colD, beamH, hexLighten(c, 0.30));
+    // Ram (small block descending inside arch)
+    box(sw * 0.30, colY + colD * 0.2, sh + colH * 0.20, sw * 0.40, colD * 0.6, sh * 0.20, hexLighten(c, 0.50));
+
+  } else if (cat.cat === 'laser') {
+    // Gantry: two pillars + beam spanning full width
+    const pW = sw * 0.06, pD = sd * 0.10, pH = sh * 0.85;
+    const bH = sh * 0.09;
+    const pY = sd * 0.08;
+    box(0,       pY, sh, pW, pD, pH, c);
+    box(sw - pW, pY, sh, pW, pD, pH, c);
+    box(0,       pY, sh + pH - bH, sw, pD, bH, hexLighten(c, 0.35));
+    // Laser head: small block on beam
+    const hW = sw * 0.12;
+    box((sw - hW) / 2, pY - sd * 0.02, sh + pH - bH, hW, pD * 1.4, bH * 2.0, hexLighten(c, 0.55));
+
+  } else if (cat.cat === 'weld' && cat.id.includes('robot')) {
+    // Robot base + vertical arm + horizontal reach
+    const bW = sw * 0.28, bD = sd * 0.28, bH = sh * 0.22;
+    const bx = (sw - bW) / 2, by = (sd - bD) / 2;
+    box(bx, by, sh, bW, bD, bH, hexDarken(c, 0.05));
+    const aW = sw * 0.09, aD = sd * 0.09, aH = sh * 0.80;
+    box(bx + (bW - aW) / 2, by + (bD - aD) / 2, sh + bH, aW, aD, aH, hexLighten(c, 0.18));
+    // Horizontal arm
+    const rW = sw * 0.38, rD = sd * 0.07, rH = sh * 0.09;
+    box(bx + bW / 2, by + (bD - rD) / 2, sh + bH + aH - rH, rW, rD, rH, hexLighten(c, 0.30));
+
+  } else if (cat.cat === 'machining') {
+    // Spindle head box
+    const hW = sw * 0.30, hD = sd * 0.30, hH = sh * 0.38;
+    box((sw - hW) / 2, (sd - hD) / 2, sh, hW, hD, hH, hexLighten(c, 0.15));
+    // Spindle cylinder (approximated as thin box)
+    const sW = sw * 0.10, sD = sd * 0.10, sH = sh * 0.24;
+    box((sw - sW) / 2, (sd - sD) / 2, sh + hH, sW, sD, sH, hexLighten(c, 0.45));
+
+  } else if (cat.cat === 'bender') {
+    // Back fence / stop (tall thin slab at back)
+    const fW = sw, fD = sd * 0.10, fH = sh * 0.55;
+    box(0, sd * 0.88, sh, fW, fD, fH, hexLighten(c, 0.18));
+
+  } else if (cat.id.includes('conveyor')) {
+    // Arrow chevrons on top face
+    ctx.save();
+    const tp = iso(0, 0, sh), tr = iso(sw, 0, sh);
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1.2;
+    const steps = 3;
+    for (let i = 0; i < steps; i++) {
+      const t0 = (i + 0.5) / steps, t1 = (i + 0.1) / steps, t2 = (i + 0.9) / steps;
+      const mx = (tp[0] + (tr[0] - tp[0]) * t0), my = (tp[1] + (tr[1] - tp[1]) * t0);
+      ctx.beginPath();
+      ctx.moveTo(mx - 3, my - 2); ctx.lineTo(mx, my + 1); ctx.lineTo(mx + 3, my - 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+let sidebarView = 'list'; // 'list' | 'grid'
+
+function makeDraggableItem(el, cat) {
+  el.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('catalogId', cat.id);
+    e.dataTransfer.effectAllowed = 'copy';
+  });
+  el.addEventListener('dblclick', () => {
+    if (!currentLayout) return;
+    const r = currentLayout.room;
+    placeEquipment(cat.id, snapWorld(r.w / 2), snapWorld(r.d / 2));
+    showToast(`${cat.nameJa} を配置しました`);
+  });
+}
+
+function buildSidebar() {
+  const inner = document.getElementById('sidebarInner');
+  inner.innerHTML = '';
+
+  if (sidebarView === 'grid') {
+    // ── Icon grid view ─────────────────────────────────────────
+    const wrap = document.createElement('div');
+    wrap.className = 'cat-grid';
+    for (const [catKey, catInfo] of Object.entries(CAT_META)) {
+      const items = CATALOG.filter(c => c.cat === catKey);
+      if (items.length === 0) continue;
+      const hdr = document.createElement('div');
+      hdr.className = 'cat-grid-header';
+      hdr.innerHTML = `<span class="cat-dot" style="background:${catInfo.color}"></span>${catInfo.label}`;
+      wrap.appendChild(hdr);
+      const row = document.createElement('div');
+      row.className = 'cat-grid-row';
+      for (const cat of items) {
+        const card = document.createElement('div');
+        card.className = 'cat-card';
+        card.dataset.catalogId = cat.id;
+        card.draggable = true;
+        card.title = cat.nameJa;
+
+        // Mini canvas icon (88×58 fits 2-col in 220px sidebar)
+        const cv = document.createElement('canvas');
+        cv.width = 88; cv.height = 58;
+        cv.style.width = '88px'; cv.style.height = '58px';
+        drawCardIcon(cv, cat);
+        card.appendChild(cv);
+
+        // Label
+        const lbl = document.createElement('div');
+        lbl.className = 'cat-card-label';
+        lbl.textContent = cat.nameJa;
+        card.appendChild(lbl);
+
+        // Size
+        const wm = cat.w >= 1000 ? (cat.w / 1000).toFixed(1) + 'm' : cat.w + 'mm';
+        const dm = cat.d >= 1000 ? (cat.d / 1000).toFixed(1) + 'm' : cat.d + 'mm';
+        const sz = document.createElement('div');
+        sz.className = 'cat-card-size';
+        sz.textContent = `${wm}×${dm}`;
+        card.appendChild(sz);
+
+        makeDraggableItem(card, cat);
+        row.appendChild(card);
+      }
+      wrap.appendChild(row);
+    }
+    inner.appendChild(wrap);
+  } else {
+    // ── List view (original) ───────────────────────────────────
+    for (const [catKey, catInfo] of Object.entries(CAT_META)) {
+      const items = CATALOG.filter(c => c.cat === catKey);
+      const section = document.createElement('div');
+      section.className = 'cat-section';
+      const details = document.createElement('details');
+      details.open = catKey !== 'struct';
+      const summary = document.createElement('summary');
+      summary.innerHTML = `<span class="cat-dot" style="background:${catInfo.color}"></span>${catInfo.label}`;
+      details.appendChild(summary);
+      for (const cat of items) {
+        const div = document.createElement('div');
+        div.className = 'cat-item';
+        div.dataset.catalogId = cat.id;
+        div.draggable = true;
+        const wm = cat.w >= 1000 ? (cat.w / 1000).toFixed(1) + 'm' : cat.w + 'mm';
+        const dm = cat.d >= 1000 ? (cat.d / 1000).toFixed(1) + 'm' : cat.d + 'mm';
+        div.innerHTML = `
+          <span class="ci-swatch" style="background:${cat.color}"></span>
+          <span class="ci-name" title="${cat.nameJa}">${cat.nameJa}</span>
+          <span class="ci-size">${wm}×${dm}</span>`;
+        makeDraggableItem(div, cat);
+        details.appendChild(div);
+      }
+      section.appendChild(details);
+      inner.appendChild(section);
+    }
+  }
+}
+
+// View toggle
+document.getElementById('btnViewList').addEventListener('click', () => {
+  sidebarView = 'list';
+  document.getElementById('btnViewList').classList.add('active');
+  document.getElementById('btnViewGrid').classList.remove('active');
+  buildSidebar();
+  applySearch();
+});
+document.getElementById('btnViewGrid').addEventListener('click', () => {
+  sidebarView = 'grid';
+  document.getElementById('btnViewGrid').classList.add('active');
+  document.getElementById('btnViewList').classList.remove('active');
+  buildSidebar();
+  applySearch();
+});
+
+// Search
+function applySearch() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (sidebarView === 'grid') {
+    document.querySelectorAll('.cat-card').forEach(el => {
+      const name = el.title.toLowerCase();
+      el.classList.toggle('hidden', q.length > 0 && !name.includes(q));
+    });
+  } else {
+    document.querySelectorAll('.cat-item').forEach(el => {
+      const name = el.querySelector('.ci-name').textContent.toLowerCase();
+      el.classList.toggle('hidden', q.length > 0 && !name.includes(q));
+    });
+    if (q.length > 0) {
+      document.querySelectorAll('.cat-section details').forEach(d => { d.open = true; });
+    }
+  }
+}
+document.getElementById('searchInput').addEventListener('input', applySearch);
+
+// ============================================================
+//  Canvas Events
+// ============================================================
+canvas.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+canvas.addEventListener('drop', e => {
+  e.preventDefault();
+  const catalogId = e.dataTransfer.getData('catalogId');
+  if (!catalogId || !currentLayout) return;
+  const rect = canvas.getBoundingClientRect();
+  const w = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+  placeEquipment(catalogId, snapWorld(w.x), snapWorld(w.y));
+});
+
+canvas.addEventListener('mousedown', e => {
+  // Middle or Ctrl+left → pan
+  if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
+    isPanning = true;
+    panSX = e.clientX; panSY = e.clientY;
+    panCX = cam.x; panCY = cam.y;
+    canvas.style.cursor = 'grabbing';
+    return;
+  }
+  if (e.button === 0) {
+    const w = screenToWorld(e.offsetX, e.offsetY);
+
+    // ── Factory draw mode ──────────────────────────────────────
+    if (factoryDraw.active) {
+      let wx = w.x, wy = w.y;
+      // Snap to first point to close polygon
+      if (factoryDraw.points.length >= 3) {
+        const fp = factoryDraw.points[0];
+        const closeThresh = 12 / cam.zoom;
+        if (Math.hypot(wx - fp.x, wy - fp.y) < closeThresh) {
+          finishFactoryDraw();
+          return;
+        }
+      }
+      // Shift: 45° angle snap from last point
+      if (e.shiftKey && factoryDraw.points.length > 0) {
+        const snapped = snapAngle45(factoryDraw.points[factoryDraw.points.length - 1], wx, wy);
+        wx = snapWorld(snapped.x); wy = snapWorld(snapped.y);
+      } else {
+        wx = snapWorld(wx); wy = snapWorld(wy);
+      }
+      factoryDraw.points.push({ x: wx, y: wy });
+      render();
+      return;
+    }
+
+    // ── Vertex drag (polygon already exists) ───────────────────
+    const poly = currentLayout && currentLayout.room.polygon;
+    if (poly) {
+      const vi = hitTestVertex(w.x, w.y);
+      if (vi !== -1) {
+        vertexDrag.active = true;
+        vertexDrag.idx = vi;
+        canvas.style.cursor = 'move';
+        return;
+      }
+    }
+
+    const hitId = hitTestEquipment(w.x, w.y);
+    if (hitId) {
+      if (selectedId !== hitId) { selectedId = hitId; updatePropsPanel(); render(); }
+      const inst = currentLayout.equipment.find(e2 => e2.id === hitId);
+      if (inst) {
+        isDragging = true;
+        dragOffX = w.x - inst.x;
+        dragOffY = w.y - inst.y;
+        canvas.style.cursor = 'move';
+      }
+    } else {
+      selectedId = null;
+      updatePropsPanel(); render();
+      isPanning = true;
+      panSX = e.clientX; panSY = e.clientY;
+      panCX = cam.x; panCY = cam.y;
+      canvas.style.cursor = 'grabbing';
+    }
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const w = screenToWorld(e.offsetX, e.offsetY);
+  document.getElementById('coords').textContent =
+    `X: ${Math.round(w.x)}mm  Y: ${Math.round(w.y)}mm  Zoom: ${cam.zoom.toFixed(4)}x`;
+
+  // ── Factory draw: live preview ─────────────────────────────
+  if (factoryDraw.active) {
+    let wx = w.x, wy = w.y;
+    if (e.shiftKey && factoryDraw.points.length > 0) {
+      const snapped = snapAngle45(factoryDraw.points[factoryDraw.points.length - 1], wx, wy);
+      wx = snapWorld(snapped.x); wy = snapWorld(snapped.y);
+    } else {
+      wx = snapWorld(wx); wy = snapWorld(wy);
+    }
+    factoryDraw.preview = { x: wx, y: wy };
+    factoryDraw.shiftSnap = e.shiftKey && factoryDraw.points.length > 0;
+    render();
+    return;
+  }
+
+  // ── Vertex drag ────────────────────────────────────────────
+  if (vertexDrag.active && currentLayout && currentLayout.room.polygon) {
+    const poly = currentLayout.room.polygon;
+    let wx = snapWorld(w.x), wy = snapWorld(w.y);
+    if (e.shiftKey && vertexDrag.idx > 0) {
+      const prev = poly[vertexDrag.idx - 1];
+      const sn = snapAngle45(prev, wx, wy);
+      wx = snapWorld(sn.x); wy = snapWorld(sn.y);
+    }
+    poly[vertexDrag.idx] = { x: wx, y: wy };
+    const xs = poly.map(p => p.x), ys = poly.map(p => p.y);
+    currentLayout.room.w = Math.max(...xs) - Math.min(...xs);
+    currentLayout.room.d = Math.max(...ys) - Math.min(...ys);
+    render();
+    return;
+  }
+
+  if (isDragging && selectedId && currentLayout) {
+    const inst = currentLayout.equipment.find(e2 => e2.id === selectedId);
+    if (inst) {
+      inst.x = snapWorld(w.x - dragOffX);
+      inst.y = snapWorld(w.y - dragOffY);
+      render(); updatePropsPanel();
+    }
+    return;
+  }
+  if (isPanning) {
+    cam.x = panCX - (e.clientX - panSX) / cam.zoom;
+    cam.y = panCY + (e.clientY - panSY) / cam.zoom;
+    render(); return;
+  }
+
+  // Cursor hint: vertex near mouse
+  const poly2 = currentLayout && currentLayout.room.polygon;
+  if (poly2 && hitTestVertex(w.x, w.y) !== -1) {
+    canvas.style.cursor = 'move';
+    return;
+  }
+
+  // Hover
+  const hid = hitTestEquipment(w.x, w.y);
+  if (hid !== hoverId) {
+    hoverId = hid;
+    canvas.style.cursor = hid ? 'pointer' : 'default';
+    render();
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (vertexDrag.active) {
+    saveUndoState();
+    checkOverlaps(); render();
+    triggerAutoSave();
+    vertexDrag.active = false; vertexDrag.idx = -1;
+    canvas.style.cursor = 'default';
+    return;
+  }
+  if (isDragging) {
+    saveUndoState();
+    checkOverlaps(); render();
+    triggerAutoSave();
+  }
+  isDragging = false; isPanning = false;
+  canvas.style.cursor = hoverId ? 'pointer' : 'default';
+});
+
+canvas.addEventListener('dblclick', e => {
+  if (factoryDraw.active) {
+    finishFactoryDraw();
+  }
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const w = screenToWorld(e.offsetX, e.offsetY);
+  const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  cam.zoom = Math.max(0.0005, Math.min(10, cam.zoom * factor));
+  const nw = screenToWorld(e.offsetX, e.offsetY);
+  cam.x -= nw.x - w.x;
+  cam.y -= nw.y - w.y;
+  render();
+}, { passive: false });
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// Touch pan
+let touch1 = null, touch2 = null, touchCam = null, touchDist0 = 0, touchCam0 = null;
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    const t = e.touches[0];
+    touch1 = { x: t.clientX, y: t.clientY };
+    touchCam = { ...cam };
+  } else if (e.touches.length === 2) {
+    const t1 = e.touches[0], t2 = e.touches[1];
+    touchDist0 = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    touchCam0 = { ...cam };
+    isDragging = false;
+  }
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length === 1 && touch1 && touchCam) {
+    const t = e.touches[0];
+    cam.x = touchCam.x - (t.clientX - touch1.x) / cam.zoom;
+    cam.y = touchCam.y + (t.clientY - touch1.y) / cam.zoom;
+    render();
+  } else if (e.touches.length === 2 && touchCam0) {
+    const t1 = e.touches[0], t2 = e.touches[1];
+    const d = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    cam.zoom = Math.max(0.0005, Math.min(10, touchCam0.zoom * d / touchDist0));
+    render();
+  }
+}, { passive: false });
+canvas.addEventListener('touchend', () => { touch1 = null; touchCam = null; });
+
+// ============================================================
+//  Persistence
+// ============================================================
+function getLayoutIndex() {
+  try { return JSON.parse(localStorage.getItem('fl_index') || '[]'); } catch { return []; }
+}
+function saveLayoutIndex(idx) { localStorage.setItem('fl_index', JSON.stringify(idx)); }
+
+function saveLayout(layout) {
+  if (!layout) return;
+  layout.updatedAt = new Date().toISOString();
+  layout.savedCam = { ...cam };
+  try {
+    localStorage.setItem('fl_' + layout.id, JSON.stringify(layout));
+    const idx = getLayoutIndex();
+    const pos = idx.findIndex(e => e.id === layout.id);
+    const meta = { id: layout.id, name: layout.name, updatedAt: layout.updatedAt };
+    if (pos >= 0) idx[pos] = meta; else idx.push(meta);
+    saveLayoutIndex(idx);
+    undoStack = []; redoStack = [];
+    updateUndoButtons();
+    showToast(`「${layout.name}」を保存しました`);
+  } catch (err) {
+    if (err.name === 'QuotaExceededError') alert('ストレージが満杯です。古いレイアウトを削除してください。');
+    else throw err;
+  }
+}
+
+function loadLayout(id) {
+  try {
+    const data = localStorage.getItem('fl_' + id);
+    if (!data) return;
+    currentLayout = JSON.parse(data);
+    if (currentLayout.savedCam) cam = { ...currentLayout.savedCam };
+    selectedId = null; undoStack = []; redoStack = [];
+    updateUndoButtons(); checkOverlaps(); render(); updatePropsPanel();
+    // Sync settings
+    document.getElementById('setRoomW').value = (currentLayout.room.w / 1000).toFixed(0);
+    document.getElementById('setRoomD').value = (currentLayout.room.d / 1000).toFixed(0);
+  } catch (e) { console.error(e); }
+}
+
+function newLayout(name, roomW, roomD, gs) {
+  currentLayout = {
+    version: 1,
+    id: 'layout_' + Date.now(),
+    name,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    room: { w: roomW, d: roomD, gridStep: gs },
+    equipment: []
+  };
+  gridStep = gs;
+  selectedId = null; undoStack = []; redoStack = [];
+  updateUndoButtons(); cam = { x: roomW / 2, y: roomD / 2, zoom: 0.015 };
+  fitAll(); checkOverlaps(); render(); updatePropsPanel();
+}
+
+function deleteLayout(id) {
+  localStorage.removeItem('fl_' + id);
+  const idx = getLayoutIndex().filter(e => e.id !== id);
+  saveLayoutIndex(idx);
+  if (currentLayout && currentLayout.id === id) { currentLayout = null; render(); }
+}
+
+function loadLastLayout() {
+  const idx = getLayoutIndex();
+  if (idx.length === 0) {
+    newLayout('新規レイアウト', 30000, 20000, 1000);
+    return;
+  }
+  const last = idx[idx.length - 1];
+  loadLayout(last.id);
+  if (!currentLayout) fitAll();
+}
+
+function triggerAutoSave() {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => { if (currentLayout) saveLayout(currentLayout); }, 2000);
+}
+
+// ============================================================
+//  Open Menu
+// ============================================================
+function buildOpenMenu() {
+  const menu = document.getElementById('layoutMenu');
+  const idx = getLayoutIndex();
+  menu.innerHTML = '';
+  if (idx.length === 0) {
+    menu.innerHTML = '<div class="lm-empty">保存済みレイアウトなし</div>';
+  } else {
+    for (const meta of [...idx].reverse()) {
+      const div = document.createElement('div');
+      div.className = 'lm-item';
+      const d = new Date(meta.updatedAt);
+      div.innerHTML = `<span class="lm-name">${meta.name}</span><span class="lm-date">${d.toLocaleDateString('ja-JP')}</span>`;
+      div.addEventListener('click', () => {
+        loadLayout(meta.id);
+        menu.classList.remove('open');
+      });
+      menu.appendChild(div);
+    }
+  }
+}
+
+document.getElementById('btnOpen').addEventListener('click', e => {
+  e.stopPropagation();
+  buildOpenMenu();
+  document.getElementById('layoutMenu').classList.toggle('open');
+});
+document.addEventListener('click', () => document.getElementById('layoutMenu').classList.remove('open'));
+
+// ============================================================
+//  Layout Manager
+// ============================================================
+function buildLayoutManager() {
+  const list = document.getElementById('lmList');
+  const idx = getLayoutIndex();
+  list.innerHTML = '';
+  if (idx.length === 0) {
+    list.innerHTML = '<div style="color:#6c7086;font-size:12px;padding:8px;">保存済みレイアウトなし</div>';
+    return;
+  }
+  for (const meta of [...idx].reverse()) {
+    const div = document.createElement('div');
+    div.className = 'lm-entry';
+    const d = new Date(meta.updatedAt);
+    div.innerHTML = `
+      <span class="le-name">${meta.name}</span>
+      <span class="le-date">${d.toLocaleDateString('ja-JP')}</span>
+      <button class="le-load" title="開く">開く</button>
+      <button class="le-del" title="削除">🗑</button>`;
+    div.querySelector('.le-load').addEventListener('click', () => {
+      loadLayout(meta.id); document.getElementById('manageModal').classList.remove('open');
+    });
+    div.querySelector('.le-del').addEventListener('click', () => {
+      if (confirm(`「${meta.name}」を削除しますか？`)) {
+        deleteLayout(meta.id); buildLayoutManager();
+      }
+    });
+    list.appendChild(div);
+  }
+}
+
+document.getElementById('btnManage').addEventListener('click', () => {
+  buildLayoutManager();
+  document.getElementById('manageModal').classList.add('open');
+});
+document.getElementById('lmClose').addEventListener('click', () => document.getElementById('manageModal').classList.remove('open'));
+
+// ============================================================
+//  New Layout Modal
+// ============================================================
+document.getElementById('btnNew').addEventListener('click', () => {
+  document.getElementById('newModal').classList.add('open');
+});
+document.getElementById('nlCancel').addEventListener('click', () => document.getElementById('newModal').classList.remove('open'));
+document.getElementById('nlCreate').addEventListener('click', () => {
+  const name = document.getElementById('nlName').value.trim() || '新規レイアウト';
+  const w = Math.max(1, parseFloat(document.getElementById('nlW').value) || 30) * 1000;
+  const d = Math.max(1, parseFloat(document.getElementById('nlD').value) || 20) * 1000;
+  const gs = parseInt(document.getElementById('nlGrid').value) || 1000;
+  newLayout(name, w, d, gs);
+  document.getElementById('newModal').classList.remove('open');
+});
+
+// ============================================================
+//  Save / Settings
+// ============================================================
+document.getElementById('btnSave').addEventListener('click', () => { if (currentLayout) saveLayout(currentLayout); });
+
+document.getElementById('btnSettings').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('settingsPanel').classList.toggle('open');
+  const key = localStorage.getItem('fl_apikey') || '';
+  document.getElementById('setApiKey').value = key;
+  if (currentLayout) {
+    document.getElementById('setRoomW').value = (currentLayout.room.w / 1000).toFixed(0);
+    document.getElementById('setRoomD').value = (currentLayout.room.d / 1000).toFixed(0);
+  }
+});
+document.addEventListener('click', e => {
+  if (!document.getElementById('settingsPanel').contains(e.target) && e.target.id !== 'btnSettings') {
+    document.getElementById('settingsPanel').classList.remove('open');
+  }
+});
+
+document.getElementById('setGridStep').addEventListener('change', e => {
+  gridStep = parseInt(e.target.value); render();
+});
+document.getElementById('setSnapStep').addEventListener('change', e => {
+  snapStep = parseInt(e.target.value);
+});
+document.getElementById('setApplyRoom').addEventListener('click', () => {
+  if (!currentLayout) return;
+  const w = parseFloat(document.getElementById('setRoomW').value) * 1000;
+  const d = parseFloat(document.getElementById('setRoomD').value) * 1000;
+  if (w > 0 && d > 0) {
+    currentLayout.room.w = w; currentLayout.room.d = d;
+    fitAll(); triggerAutoSave();
+    showToast('工場サイズを変更しました');
+  }
+});
+document.getElementById('setApiKey').addEventListener('change', e => {
+  localStorage.setItem('fl_apikey', e.target.value.trim());
+});
+
+// ============================================================
+//  Toggle Buttons
+// ============================================================
+document.getElementById('btnGrid').addEventListener('click', function() {
+  showGrid = !showGrid; this.classList.toggle('active', showGrid); render();
+});
+document.getElementById('btnSnap').addEventListener('click', function() {
+  snapEnabled = !snapEnabled; this.classList.toggle('active', snapEnabled);
+});
+document.getElementById('btnSafetyZone').addEventListener('click', function() {
+  showSafetyZone = !showSafetyZone; this.classList.toggle('active', showSafetyZone); render();
+});
+document.getElementById('btnFit').addEventListener('click', fitAll);
+document.getElementById('btnToggleSidebar').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+  setTimeout(() => { resize(); }, 220);
+});
+document.getElementById('btnUndo').addEventListener('click', undo);
+document.getElementById('btnRedo').addEventListener('click', redo);
+
+// Factory draw buttons
+document.getElementById('btnFactoryDraw').addEventListener('click', () => {
+  if (factoryDraw.active) {
+    cancelFactoryDrawMode();
+  } else {
+    if (!currentLayout) { showToast('先にレイアウトを作成してください'); return; }
+    startFactoryDraw();
+  }
+});
+document.getElementById('btnFactoryClear').addEventListener('click', clearFactoryPolygon);
+document.getElementById('btnFactoryDims').addEventListener('click', function() {
+  this.classList.toggle('active');
+  showFactoryDims = this.classList.contains('active');
+  render();
+});
+
+// ============================================================
+//  Export — PNG
+// ============================================================
+document.getElementById('btnPng').addEventListener('click', () => {
+  if (!currentLayout) return;
+  const scale = 2;
+  const oc = document.createElement('canvas');
+  oc.width = canvas.width * scale;
+  oc.height = canvas.height * scale;
+  const octx = oc.getContext('2d');
+  octx.scale(scale, scale);
+
+  // Override ctx globally temporarily
+  const origCtx = window._exportCtx;
+  const savedW = canvas.width, savedH = canvas.height;
+
+  // White background
+  octx.fillStyle = '#ffffff';
+  octx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Re-render entities using the same worldToScreen (canvas dims unchanged)
+  const origFill = ctx.fillStyle;
+  renderForExport(octx);
+
+  const a = document.createElement('a');
+  a.download = `${currentLayout.name}_${dateStamp()}.png`;
+  a.href = oc.toDataURL('image/png');
+  a.click();
+});
+
+function renderForExport(c) {
+  const origBg = '#ffffff';
+  c.fillStyle = origBg; c.fillRect(0, 0, canvas.width, canvas.height);
+  if (showGrid) drawGrid(c);
+  if (currentLayout) {
+    drawRoom(c);
+    for (const inst of currentLayout.equipment) drawEquipment(inst, c, inst.id === selectedId, false);
+    drawScaleBar(c);
+    // Title block
+    const name = currentLayout.name;
+    const r = currentLayout.room;
+    const wm = (r.w / 1000).toFixed(0), dm = (r.d / 1000).toFixed(0);
+    c.fillStyle = '#333';
+    c.font = 'bold 14px Segoe UI, sans-serif';
+    c.textAlign = 'right'; c.textBaseline = 'bottom';
+    c.fillText(`${name}  |  ${wm}m×${dm}m  |  ${new Date().toLocaleDateString('ja-JP')}`, canvas.width - 10, canvas.height - 6);
+  }
+}
+
+// ============================================================
+//  Export — PDF
+// ============================================================
+document.getElementById('btnPdf').addEventListener('click', () => {
+  if (!currentLayout) return;
+  const oc = document.createElement('canvas');
+  oc.width = canvas.width * 2;
+  oc.height = canvas.height * 2;
+  const octx = oc.getContext('2d');
+  octx.scale(2, 2);
+  renderForExport(octx);
+  const dataURL = oc.toDataURL('image/jpeg', 0.92);
+  const name = currentLayout.name;
+  const r = currentLayout.room;
+  const wm = (r.w / 1000).toFixed(0), dm = (r.d / 1000).toFixed(0);
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head>
+    <meta charset="UTF-8"><title>${name}</title>
+    <style>
+      @page{size:A3 landscape;margin:8mm}
+      body{margin:0;font-family:'Segoe UI',sans-serif}
+      h2{font-size:12pt;margin:0 0 4mm}
+      img{width:100%;height:auto}
+      .meta{font-size:9pt;color:#666;margin-top:3mm}
+    </style></head><body>
+    <h2>工場レイアウト — ${name}</h2>
+    <img src="${dataURL}">
+    <div class="meta">工場サイズ: ${wm}m × ${dm}m　|　作成日: ${new Date().toLocaleDateString('ja-JP')}</div>
+    <script>window.onload=()=>{window.print();}<\/script>
+    </body></html>`);
+  win.document.close();
+});
+
+// ============================================================
+//  Keyboard Shortcuts
+// ============================================================
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const k = e.key.toLowerCase();
+  if (e.ctrlKey) {
+    if (k === 's') { e.preventDefault(); if (currentLayout) saveLayout(currentLayout); }
+    if (k === 'z') { e.preventDefault(); undo(); }
+    if (k === 'y') { e.preventDefault(); redo(); }
+    return;
+  }
+  if (k === 'f') fitAll();
+  if (k === 'g') document.getElementById('btnGrid').click();
+  if (k === 's') document.getElementById('btnSnap').click();
+  if (k === 'z') document.getElementById('btnSafetyZone').click();
+  if (k === 'r') rotateSelected();
+  if (k === '3') toggle3D();
+  if (k === 'delete' || k === 'backspace') deleteSelected();
+  if (k === 'escape') {
+    if (factoryDraw.active) { cancelFactoryDrawMode(); return; }
+    selectedId = null; updatePropsPanel(); render();
+  }
+  if (k === 'l') document.getElementById('btnFactoryDraw').click();
+  if (k === 'd') document.getElementById('btnFactoryDims').click();
+  if (k === 'enter') { if (factoryDraw.active) { e.preventDefault(); finishFactoryDraw(); } }
+  if (k === '+' || k === '=') { cam.zoom = Math.min(10, cam.zoom * 1.2); render(); }
+  if (k === '-') { cam.zoom = Math.max(0.0005, cam.zoom / 1.2); render(); }
+});
+
+// ============================================================
+//  Utilities
+// ============================================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function dateStamp() {
+  return new Date().toISOString().slice(0, 10).replace(/-/g, '');
+}
+function parseJpNum(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const s = String(v).replace(/,/g, '').replace(/\s/g, '');
+  const n = parseFloat(s);
+  if (isNaN(n)) return null;
+  if (s.endsWith('m') && !s.endsWith('mm')) return n * 1000;
+  return n;
+}
+
+// ============================================================
+//  Import Module — CDN Lazy Loader
+// ============================================================
+const CDN_URLS = {
+  xlsx: 'https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js',
+  tesseract: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
+};
+const _libCache = {};
+function ensureLib(name) {
+  if (_libCache[name]) return _libCache[name];
+  _libCache[name] = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = CDN_URLS[name];
+    s.onload = res; s.onerror = () => rej(new Error(`CDN load failed: ${name}`));
+    document.head.appendChild(s);
+  });
+  return _libCache[name];
+}
+// PDF.js uses ESM
+async function ensurePdfjs() {
+  if (window.pdfjsLib) return;
+  const { default: pdfjsLib } = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs').catch(() => ({}));
+  if (!pdfjsLib) throw new Error('PDF.js CDN load failed');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+  window.pdfjsLib = pdfjsLib;
+}
+
+// ── Dimension regex patterns ────────────────────────────────
+const DIM_PATTERNS = [
+  /[Ww]\s*([\d,]+)\s*[×xX×]\s*[Dd]\s*([\d,]+)/g,
+  /([\d,]{3,})\s*[×xX×]\s*([\d,]{3,})/g,
+  /幅\s*([\d,]+)\s*(?:mm)?\s*(?:[×xX]|奥行)\s*([\d,]+)/g,
+  /外寸[^\d]{0,6}([\d,]+)[^\d]{1,6}([\d,]+)/g,
+];
+function extractDimensions(text) {
+  const results = [];
+  for (const pat of DIM_PATTERNS) {
+    pat.lastIndex = 0;
+    let m;
+    while ((m = pat.exec(text)) !== null) {
+      const w = parseJpNum(m[1]), d = parseJpNum(m[2]);
+      if (w && d && w > 500 && w < 500000 && d > 500 && d < 500000) {
+        // Deduplicate
+        if (!results.some(r => Math.abs(r.w - w) < 10 && Math.abs(r.d - d) < 10)) {
+          results.push({ w, d });
+        }
+      }
+    }
+  }
+  return results;
+}
+
+// ── Excel Parser (SheetJS) ──────────────────────────────────
+async function parseExcel(file) {
+  await ensureLib('xlsx');
+  const buf = await file.arrayBuffer();
+  const wb = window.XLSX.read(buf, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+  const HEADER_PATTERNS = {
+    name: /機械名|設備名|品名|名称|機器名/,
+    w:    /^幅$|^W$|Wm{0,2}$|横寸|横幅/i,
+    d:    /^奥行|^D$|Dm{0,2}$|深さ|奥行き/i,
+    qty:  /台数|数量|個数|数$/,
+  };
+  let headerRow = -1, colMap = { name: -1, w: -1, d: -1, qty: -1 };
+  for (let r = 0; r < Math.min(15, rows.length); r++) {
+    const matches = { name: -1, w: -1, d: -1, qty: -1 };
+    rows[r].forEach((cell, c) => {
+      const s = String(cell).trim();
+      for (const [k, pat] of Object.entries(HEADER_PATTERNS)) {
+        if (pat.test(s) && matches[k] === -1) matches[k] = c;
+      }
+    });
+    const found = Object.values(matches).filter(v => v >= 0).length;
+    if (found >= 2) { headerRow = r; colMap = matches; break; }
+  }
+
+  if (headerRow < 0) {
+    // Fallback: look for dimension-like content in all text
+    const allText = rows.flat().join(' ');
+    const dims = extractDimensions(allText);
+    return { type: 'fallback', dims, equipment: [], confidence: 30 };
+  }
+
+  const equipment = [];
+  for (let r = headerRow + 1; r < rows.length; r++) {
+    const row = rows[r];
+    const name = colMap.name >= 0 ? String(row[colMap.name] || '').trim() : '';
+    if (!name) continue;
+    const w = parseJpNum(colMap.w >= 0 ? row[colMap.w] : '');
+    const d = parseJpNum(colMap.d >= 0 ? row[colMap.d] : '');
+    const qty = Math.max(1, parseInt(colMap.qty >= 0 ? row[colMap.qty] : 1) || 1);
+    if (w || d) equipment.push({ name, w_mm: w || 1000, d_mm: d || 1000, quantity: qty });
+  }
+
+  return { type: 'list-excel', equipment, dims: [], confidence: equipment.length > 0 ? 88 : 40 };
+}
+
+// ── PDF Text Parser (PDF.js) ────────────────────────────────
+async function parsePdfText(file) {
+  await ensurePdfjs();
+  const buf = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+  let allText = '';
+  const numPages = Math.min(pdf.numPages, 3);
+  for (let p = 1; p <= numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    allText += content.items.map(i => i.str).join(' ') + '\n';
+  }
+  const dims = extractDimensions(allText);
+  const hasText = allText.replace(/\s/g, '').length > 30;
+  return { type: 'pdf-text', dims, equipment: [], confidence: dims.length > 0 ? 75 : (hasText ? 40 : 15), rawText: allText, needsOcr: !hasText };
+}
+
+// ── OCR via Tesseract.js ────────────────────────────────────
+async function parsePdfOcr(file, onProgress) {
+  await ensurePdfjs();
+  await ensureLib('tesseract');
+  const buf = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({ scale: 2.0 });
+  const oc = document.createElement('canvas');
+  oc.width = viewport.width; oc.height = viewport.height;
+  const octx = oc.getContext('2d');
+  await page.render({ canvasContext: octx, viewport }).promise;
+
+  onProgress('OCR解析中...');
+  const worker = await window.Tesseract.createWorker(['jpn', 'eng'], 1, {
+    logger: m => { if (m.progress) onProgress(`OCR: ${Math.round(m.progress * 100)}%`); }
+  });
+  const { data } = await worker.recognize(oc);
+  await worker.terminate();
+
+  const dims = extractDimensions(data.text);
+  return { type: 'pdf-ocr', dims, equipment: [], confidence: dims.length > 0 ? 60 : 25, rawText: data.text };
+}
+
+// ── Claude API Analyzer ────────────────────────────────────
+async function analyzeWithClaude(imageBase64, mimeType) {
+  const key = localStorage.getItem('fl_apikey') || '';
+  if (!key) return null;
+  const prompt = `この工場レイアウト図から情報を抽出してJSON形式で返してください。
+必ずこのスキーマに従ってください:
+{"roomW_mm":数値,"roomD_mm":数値,"equipment":[{"name":"文字列","w_mm":数値,"d_mm":数値,"quantity":数値}],"confidence":0-100}
+- 単位はすべてミリメートルに換算
+- 読み取れない値はnull
+- equipmentは最大20件まで
+- JSONのみ返す`;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
+            { type: 'text', text: prompt }
+          ]
+        }]
+      })
+    });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '{}';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    return jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+  } catch (e) {
+    console.error('Claude API error:', e);
+    return null;
+  }
+}
+
+// ── Import Wizard State ────────────────────────────────────
+let impStep = 0;
+let impFile = null;
+let impResult = null;  // { type, dims, equipment, confidence }
+let impImageBase64 = null;
+
+function setImpStep(n) {
+  impStep = n;
+  for (let i = 0; i < 4; i++) {
+    document.getElementById(`is${i}`).className =
+      'imp-step' + (i < n ? ' done' : i === n ? ' active' : '');
+  }
+  ['impStep0','impStep1','impStep2','impStep3'].forEach((id, i) => {
+    document.getElementById(id).style.display = i === n ? '' : 'none';
+  });
+  document.getElementById('impBack').style.display = n > 0 && n < 3 ? '' : 'none';
+  document.getElementById('impNext').textContent = n === 3 ? '適用' : '次へ ▶';
+  document.getElementById('impNext').disabled = false;
+}
+
+function updateConfBar(pct, label, color) {
+  const fill = document.getElementById('confFill');
+  fill.style.width = pct + '%';
+  fill.style.background = color || (pct >= 80 ? '#a6e3a1' : pct >= 50 ? '#f9e2af' : '#f38ba8');
+  document.getElementById('confLabel').textContent = label || `信頼度: ${pct}%`;
+}
+
+async function runImportParse() {
+  if (!impFile) return;
+  setImpStep(1);
+  document.getElementById('impStatus').textContent = '解析中...';
+  updateConfBar(10, '準備中...');
+  document.getElementById('btnAiAnalyze').style.display = 'none';
+
+  try {
+    const ext = impFile.name.split('.').pop().toLowerCase();
+    if (ext === 'xlsx' || ext === 'xls') {
+      document.getElementById('impStatus').textContent = 'Excel を解析中...';
+      updateConfBar(40, 'SheetJS解析中...');
+      impResult = await parseExcel(impFile);
+    } else if (ext === 'pdf') {
+      document.getElementById('impStatus').textContent = 'PDF テキストを抽出中...';
+      updateConfBar(30, 'PDF.js抽出中...');
+      impResult = await parsePdfText(impFile);
+      if (impResult.needsOcr || impResult.confidence < 30) {
+        document.getElementById('impStatus').textContent = 'OCR解析中...';
+        impResult = await parsePdfOcr(impFile, msg => {
+          document.getElementById('impStatus').textContent = msg;
+        });
+        // Generate preview image for Claude AI
+        await generatePdfPreview();
+      } else {
+        await generatePdfPreview();
+      }
+    }
+
+    updateConfBar(impResult.confidence, `信頼度: ${impResult.confidence}%`);
+    const apiKey = localStorage.getItem('fl_apikey') || '';
+    if (impResult.confidence < 80 && apiKey && impImageBase64) {
+      document.getElementById('btnAiAnalyze').style.display = 'inline-block';
+    }
+    document.getElementById('impStatus').textContent = '解析完了';
+    setTimeout(() => buildImpReview(), 600);
+  } catch (e) {
+    document.getElementById('impStatus').textContent = 'エラー: ' + e.message;
+    updateConfBar(0, 'エラーが発生しました', '#f38ba8');
+  }
+}
+
+async function generatePdfPreview() {
+  if (!impFile || !impFile.name.toLowerCase().endsWith('.pdf')) return;
+  try {
+    await ensurePdfjs();
+    const buf = await impFile.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 1.5 });
+    const oc = document.createElement('canvas');
+    oc.width = Math.min(viewport.width, 800);
+    oc.height = viewport.height * (oc.width / viewport.width);
+    const vp2 = page.getViewport({ scale: oc.width / viewport.width * 1.5 });
+    await page.render({ canvasContext: oc.getContext('2d'), viewport: vp2 }).promise;
+    impImageBase64 = oc.toDataURL('image/jpeg', 0.85).split(',')[1];
+  } catch (e) { impImageBase64 = null; }
+}
+
+function buildImpReview() {
+  if (!impResult) return;
+  // Room dims
+  const dims = impResult.dims || [];
+  const eq = impResult.equipment || [];
+  const firstDim = dims[0] || {};
+  document.getElementById('impRoomW').value = firstDim.w || '';
+  document.getElementById('impRoomD').value = firstDim.d || '';
+
+  // Equipment list
+  const resultsDiv = document.getElementById('importResults');
+  resultsDiv.innerHTML = '';
+  if (eq.length === 0) {
+    resultsDiv.innerHTML = '<div style="color:#6c7086;font-size:11px;padding:6px;">設備リストが検出されませんでした</div>';
+  } else {
+    for (let i = 0; i < eq.length; i++) {
+      const item = eq[i];
+      const row = document.createElement('div');
+      row.className = 'ir-row';
+      row.innerHTML = `
+        <span class="ir-name" title="${item.name}">${item.name}</span>
+        <label>W</label><input type="number" class="ir-w" data-idx="${i}" value="${item.w_mm || ''}" min="1">
+        <label>D</label><input type="number" class="ir-d" data-idx="${i}" value="${item.d_mm || ''}" min="1">
+        <label>×</label><input type="number" class="ir-q" data-idx="${i}" value="${item.quantity || 1}" min="1" style="width:44px;">`;
+      row.querySelectorAll('input').forEach(inp => {
+        inp.addEventListener('change', () => {
+          const idx = parseInt(inp.dataset.idx);
+          if (inp.classList.contains('ir-w')) eq[idx].w_mm = parseFloat(inp.value) || eq[idx].w_mm;
+          if (inp.classList.contains('ir-d')) eq[idx].d_mm = parseFloat(inp.value) || eq[idx].d_mm;
+          if (inp.classList.contains('ir-q')) eq[idx].quantity = parseInt(inp.value) || 1;
+        });
+      });
+      resultsDiv.appendChild(row);
+    }
+  }
+  setImpStep(2);
+}
+
+document.getElementById('btnAiAnalyze').addEventListener('click', async () => {
+  if (!impImageBase64) return;
+  document.getElementById('impStatus').textContent = 'Claude AIで解析中...';
+  updateConfBar(50, 'AI解析中...');
+  document.getElementById('btnAiAnalyze').disabled = true;
+  const result = await analyzeWithClaude(impImageBase64, 'image/jpeg');
+  if (result) {
+    if (result.roomW_mm) impResult.dims = [{ w: result.roomW_mm, d: result.roomD_mm }];
+    if (result.equipment) impResult.equipment = result.equipment.map(e => ({
+      name: e.name || '設備', w_mm: e.w_mm || 1000, d_mm: e.d_mm || 1000, quantity: e.quantity || 1
+    }));
+    impResult.confidence = result.confidence || 80;
+    updateConfBar(impResult.confidence, `AI解析完了: 信頼度 ${impResult.confidence}%`);
+    setTimeout(() => buildImpReview(), 600);
+  } else {
+    document.getElementById('impStatus').textContent = 'AI解析失敗（APIキーを確認してください）';
+    updateConfBar(0, 'AI解析失敗', '#f38ba8');
+    document.getElementById('btnAiAnalyze').disabled = false;
+  }
+});
+
+function applyImportResult() {
+  if (!impResult || !currentLayout) return;
+  const applyRoom = document.getElementById('impApplyRoom').checked;
+  const autoPlace = document.getElementById('impAutoPlace').checked;
+
+  if (applyRoom) {
+    const w = parseFloat(document.getElementById('impRoomW').value);
+    const d = parseFloat(document.getElementById('impRoomD').value);
+    if (w > 0 && d > 0) { currentLayout.room.w = w; currentLayout.room.d = d; }
+  }
+
+  if (autoPlace && impResult.equipment && impResult.equipment.length > 0) {
+    saveUndoState();
+    const r = currentLayout.room;
+    const MARGIN = Math.min(r.w, r.d) * 0.05;
+    const GAP = 500;
+    let cx = MARGIN, cy = r.d - MARGIN, rowH = 0;
+
+    for (const item of impResult.equipment) {
+      const iw = item.w_mm || 1000, id = item.d_mm || 1000;
+      const qty = item.quantity || 1;
+      const matchedCat = CATALOG.find(c => {
+        const n = c.nameJa.replace(/[　 ]/g, '').toLowerCase();
+        const q = item.name.replace(/[　 ]/g, '').toLowerCase();
+        return n.includes(q.slice(0, 3)) || q.includes(n.slice(0, 3));
+      });
+
+      for (let q = 0; q < qty; q++) {
+        const x = cx + iw / 2;
+        const y = cy - id / 2;
+        const inst = {
+          id: generateId(),
+          catalogId: matchedCat ? matchedCat.id : 'work_table',
+          x: snapWorld(x),
+          y: snapWorld(y),
+          w: iw, d: id,
+          rotation: 0,
+          label: (matchedCat ? (CAT_META[matchedCat.cat] ? { press:'P',laser:'L',weld:'W',bender:'B',machining:'M',struct:'S' }[matchedCat.cat] : 'X') : 'X') + '-' + String(currentLayout.equipment.length + 1).padStart(2, '0'),
+          note: item.name
+        };
+        currentLayout.equipment.push(inst);
+        cx += iw + GAP;
+        rowH = Math.max(rowH, id);
+        if (cx + iw > r.w - MARGIN) {
+          cx = MARGIN; cy -= rowH + GAP; rowH = 0;
+        }
+      }
+    }
+    checkOverlaps();
+  }
+
+  fitAll(); render(); triggerAutoSave();
+  showToast('インポートが完了しました');
+  document.getElementById('importModalBg').classList.remove('open');
+}
+
+// Import Modal Events
+document.getElementById('btnImport').addEventListener('click', () => {
+  impStep = 0; impFile = null; impResult = null; impImageBase64 = null;
+  document.getElementById('importFileInput').value = '';
+  setImpStep(0);
+  document.getElementById('importModalBg').classList.add('open');
+});
+
+document.getElementById('importDropZone').addEventListener('click', () => {
+  document.getElementById('importFileInput').click();
+});
+document.getElementById('importDropZone').addEventListener('dragover', e => {
+  e.preventDefault(); document.getElementById('importDropZone').classList.add('dragover');
+});
+document.getElementById('importDropZone').addEventListener('dragleave', () => {
+  document.getElementById('importDropZone').classList.remove('dragover');
+});
+document.getElementById('importDropZone').addEventListener('drop', e => {
+  e.preventDefault();
+  document.getElementById('importDropZone').classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) { impFile = f; setImpStep(1); runImportParse(); }
+});
+document.getElementById('importFileInput').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) { impFile = f; setImpStep(1); runImportParse(); }
+});
+
+document.getElementById('impNext').addEventListener('click', () => {
+  if (impStep === 0) {
+    document.getElementById('importFileInput').click();
+  } else if (impStep === 1) {
+    buildImpReview();
+  } else if (impStep === 2) {
+    setImpStep(3);
+  } else if (impStep === 3) {
+    applyImportResult();
+  }
+});
+document.getElementById('impBack').addEventListener('click', () => {
+  if (impStep > 0) setImpStep(impStep - 1);
+});
+document.getElementById('impCancel').addEventListener('click', () => {
+  document.getElementById('importModalBg').classList.remove('open');
+});
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('click', e => { if (e.target === bg) bg.classList.remove('open'); });
+});
+
+// ============================================================
+//  3D View (Three.js — lazy loaded)
+// ============================================================
+let is3D = false;
+let three = null;   // { THREE, scene, renderer, camera, controls }
+
+document.getElementById('btn3D').addEventListener('click', toggle3D);
+
+async function toggle3D() {
+  is3D = !is3D;
+  const c2 = document.getElementById('canvas');
+  const c3 = document.getElementById('canvas3d');
+  const btn = document.getElementById('btn3D');
+  const hint = document.getElementById('view3dHint');
+  const sidebar = document.getElementById('sidebar');
+  if (is3D) {
+    c2.style.display = 'none'; c3.style.display = 'block';
+    hint.style.display = 'block';
+    btn.classList.add('active'); btn.textContent = '✏ 2D編集';
+    document.getElementById('propsPanel').classList.remove('visible');
+    sidebar.classList.add('collapsed');
+    await init3D();
+    updateScene3D();
+    animate3D();
+  } else {
+    c2.style.display = 'block'; c3.style.display = 'none';
+    hint.style.display = 'none';
+    btn.classList.remove('active'); btn.textContent = '🧊 3D表示';
+    sidebar.classList.remove('collapsed');
+    setTimeout(resize, 220);
+    render();
+  }
+}
+
+async function init3D() {
+  if (three) return;   // already initialized
+
+  // Load Three.js modules via ESM
+  const [threeModule, controlsModule] = await Promise.all([
+    import('https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js'),
+    import('https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/controls/OrbitControls.js'),
+  ]);
+  const THREE = threeModule;
+  const { OrbitControls } = controlsModule;
+
+  const canvas3d = document.getElementById('canvas3d');
+  canvas3d.width = canvas3d.clientWidth;
+  canvas3d.height = canvas3d.clientHeight;
+
+  // Renderer
+  const renderer = new THREE.WebGLRenderer({ canvas: canvas3d, antialias: true });
+  renderer.setSize(canvas3d.clientWidth, canvas3d.clientHeight, false);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.setClearColor(0x1e1e2e);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+  // Isometric orthographic camera
+  const aspect = canvas3d.clientWidth / canvas3d.clientHeight;
+  const frustum = 30;
+  const camera = new THREE.OrthographicCamera(
+    -frustum * aspect, frustum * aspect, frustum, -frustum, -500, 500
+  );
+  camera.position.set(60, 80, 60);
+  camera.lookAt(0, 0, 0);
+
+  // Controls
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.screenSpacePanning = true;
+  controls.mouseButtons = {
+    LEFT: THREE.MOUSE.ROTATE,
+    MIDDLE: THREE.MOUSE.DOLLY,
+    RIGHT: THREE.MOUSE.PAN,
+  };
+
+  // Scene
+  const scene = new THREE.Scene();
+
+  // Lighting
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const sun = new THREE.DirectionalLight(0xfff8e8, 1.0);
+  sun.position.set(40, 60, 30); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.near = 0.1; sun.shadow.camera.far = 500;
+  sun.shadow.camera.left = sun.shadow.camera.bottom = -150;
+  sun.shadow.camera.right = sun.shadow.camera.top = 150;
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0xe8f0ff, 0.3);
+  fill.position.set(-30, 20, -20);
+  scene.add(fill);
+
+  three = { THREE, renderer, camera, controls, scene };
+
+  window.addEventListener('resize', on3DResize);
+}
+
+function on3DResize() {
+  if (!is3D || !three) return;
+  const { THREE, renderer, camera } = three;
+  const c3 = document.getElementById('canvas3d');
+  renderer.setSize(c3.clientWidth, c3.clientHeight, false);
+  const aspect = c3.clientWidth / c3.clientHeight;
+  const frustum = 30;
+  camera.left = -frustum * aspect; camera.right = frustum * aspect;
+  camera.updateProjectionMatrix();
+}
+
+function hexToThreeColor(hex) {
+  const { THREE } = three;
+  return new THREE.Color(hex);
+}
+
+// Toon gradient texture (3-step)
+function makeToonGradient(THREE) {
+  const data = new Uint8Array([40, 130, 210]);
+  const tex = new THREE.DataTexture(data, 3, 1, THREE.RedFormat);
+  tex.magFilter = tex.minFilter = THREE.NearestFilter;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function updateScene3D() {
+  if (!three || !currentLayout) return;
+  const { THREE, scene } = three;
+
+  // Remove previous equipment/floor objects
+  const old = [];
+  scene.traverse(o => { if (o.userData.managed) old.push(o); });
+  old.forEach(o => scene.remove(o));
+
+  const S = 1 / 1000;   // mm → Three.js units (1 = 1m)
+  const r = currentLayout.room;
+  const rW = r.w * S, rD = r.d * S;
+
+  // Floor
+  const floorGeo = new THREE.PlaneGeometry(rW, rD);
+  const floorMat = new THREE.MeshLambertMaterial({ color: 0xf0f0f0 });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(rW / 2, 0, rD / 2);
+  floor.receiveShadow = true;
+  floor.userData.managed = true;
+  scene.add(floor);
+
+  // Floor grid
+  const grid = new THREE.GridHelper(Math.max(rW, rD) * 1.1, 20, 0xcccccc, 0xdddddd);
+  grid.position.set(rW / 2, 0.005, rD / 2);
+  grid.userData.managed = true;
+  scene.add(grid);
+
+  // Room walls (thin planes)
+  const wallMat = new THREE.MeshLambertMaterial({ color: 0xaaaacc, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+  const wallH = 0.5;
+  [[rW / 2, wallH / 2, 0, rW, wallH], [rW / 2, wallH / 2, rD, rW, wallH],
+   [0, wallH / 2, rD / 2, wallH, rD], [rW, wallH / 2, rD / 2, wallH, rD]].forEach(([x, y, z, w, d2]) => {
+    const wg = new THREE.BoxGeometry(w, wallH, 0.03);
+    if (w < 0.1) { /* skip */ return; }
+    const wm = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, 0.03), wallMat);
+    wm.position.set(x, y, z);
+    wm.userData.managed = true;
+    scene.add(wm);
+  });
+
+  const toonGrad = makeToonGradient(THREE);
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0x111111 });
+
+  function addBox3D(group, x, y, z, w, h, d2, color) {
+    const geo = new THREE.BoxGeometry(w, h, d2);
+    const mat = new THREE.MeshToonMaterial({ color: hexToThreeColor(color), gradientMap: toonGrad });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y + h / 2, z);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    group.add(mesh);
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat);
+    edges.position.copy(mesh.position);
+    group.add(edges);
+  }
+  function addCyl3D(group, x, y, z, r2, h, color) {
+    const geo = new THREE.CylinderGeometry(r2, r2 * 1.05, h, 10);
+    const mat = new THREE.MeshToonMaterial({ color: hexToThreeColor(color), gradientMap: toonGrad });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y + h / 2, z);
+    mesh.castShadow = true;
+    group.add(mesh);
+  }
+
+  function lighten(hex, t) {
+    const c = hexToThreeColor(hex).lerp(new three.THREE.Color(0xffffff), t);
+    return '#' + c.getHexString();
+  }
+  function darken(hex, t) {
+    const c = hexToThreeColor(hex).multiplyScalar(1 - t);
+    return '#' + c.getHexString();
+  }
+
+  for (const inst of currentLayout.equipment) {
+    const cat = getCatalog(inst.catalogId);
+    if (!cat) continue;
+
+    const isRot = inst.rotation % 180 !== 0;
+    const fw = (isRot ? inst.d : inst.w) * S;
+    const fd = (isRot ? inst.w : inst.d) * S;
+    const fh = (inst.h !== undefined ? inst.h : cat.h) * S;
+    const clr = cat.color;
+    const clrD = darken(clr, 0.3);
+    const clrL = lighten(clr, 0.4);
+
+    const group = new THREE.Group();
+    // World: x=right, y=up, z=into screen (Three.js x=right, y=up, z=toward viewer)
+    // Layout x → Three.js x, Layout y → Three.js -z (Y-up to Z-up)
+    group.position.set(inst.x * S, 0, (r.d - inst.y) * S);
+    group.userData.managed = true;
+
+    switch (cat.cat) {
+      case 'press': {
+        // Base
+        addBox3D(group, 0, 0, 0, fw, fh * 0.35, fd, clr);
+        // Two columns
+        const cw = fw * 0.12, ch = fh * 0.55;
+        addBox3D(group, -fw * 0.32, fh * 0.35, 0, cw, ch, fd * 0.28, clrD);
+        addBox3D(group,  fw * 0.32, fh * 0.35, 0, cw, ch, fd * 0.28, clrD);
+        // Crossbeam
+        addBox3D(group, 0, fh * 0.35 + ch, 0, fw * 0.7, fh * 0.07, fd * 0.22, clrD);
+        // Ram
+        addCyl3D(group, 0, fh * 0.35, 0, fw * 0.07, ch * 0.4, clrL);
+        break;
+      }
+      case 'laser': {
+        // Table body
+        addBox3D(group, 0, 0, 0, fw, fh * 0.3, fd, clr);
+        // Left & right rails
+        const rh = fh * 0.55;
+        addBox3D(group, -fw * 0.47, fh * 0.3, 0, fw * 0.05, rh, fd * 0.06, clrD);
+        addBox3D(group,  fw * 0.47, fh * 0.3, 0, fw * 0.05, rh, fd * 0.06, clrD);
+        // Gantry
+        addBox3D(group, 0, fh * 0.3 + rh * 0.9, -fd * 0.3, fw, fh * 0.06, fd * 0.06, clrL);
+        // Laser head
+        addCyl3D(group, 0, fh * 0.3 + rh * 0.55, -fd * 0.3, fw * 0.035, rh * 0.4, clrL);
+        break;
+      }
+      case 'weld': {
+        if (cat.id.includes('rob')) {
+          // Welding robot: base platform + turret + arm
+          addBox3D(group, 0, 0, 0, fw * 0.5, fh * 0.18, fd * 0.5, clrD);
+          addCyl3D(group, 0, fh * 0.18, 0, fw * 0.1, fh * 0.35, clr);
+          // Upper arm
+          addBox3D(group, fw * 0.12, fh * 0.53 + fh * 0.04, 0, fw * 0.35, fh * 0.07, fd * 0.06, clrL);
+          addCyl3D(group, fw * 0.25, fh * 0.6, 0, fw * 0.05, fh * 0.2, clrD);
+        } else {
+          // Small welder box
+          addBox3D(group, 0, 0, 0, fw, fh * 0.6, fd, clr);
+          addBox3D(group, 0, fh * 0.6, 0, fw * 0.7, fh * 0.25, fd * 0.5, clrL);
+        }
+        break;
+      }
+      case 'bender': {
+        // Side cheeks
+        addBox3D(group, -fw * 0.46, 0, 0, fw * 0.07, fh * 0.75, fd, clrD);
+        addBox3D(group,  fw * 0.46, 0, 0, fw * 0.07, fh * 0.75, fd, clrD);
+        // Body between cheeks
+        addBox3D(group, 0, 0, 0, fw * 0.86, fh * 0.5, fd, clr);
+        // Top beam (bending blade)
+        addBox3D(group, 0, fh * 0.5, fd * 0.3, fw * 0.86, fh * 0.1, fd * 0.08, clrL);
+        // Upper ram
+        addBox3D(group, 0, fh * 0.6, fd * 0.3, fw * 0.86, fh * 0.18, fd * 0.1, clrD);
+        break;
+      }
+      case 'machining': {
+        // Main body
+        addBox3D(group, 0, 0, 0, fw, fh * 0.45, fd, clr);
+        // Column on right back
+        addBox3D(group, fw * 0.28, fh * 0.45, -fd * 0.25, fw * 0.18, fh * 0.45, fd * 0.35, clrD);
+        // Spindle head
+        addBox3D(group, fw * 0.28, fh * 0.9, fd * 0.05, fw * 0.22, fh * 0.08, fd * 0.35, clrL);
+        addCyl3D(group, fw * 0.28, fh * 0.45, fd * 0.05, fw * 0.05, fh * 0.47, clrL);
+        break;
+      }
+      default: {
+        // Generic box
+        addBox3D(group, 0, 0, 0, fw, fh, fd, clr);
+        break;
+      }
+    }
+
+    // Label sprite (floating text)
+    if (fw > 0.5) {
+      const canvas2 = document.createElement('canvas');
+      canvas2.width = 256; canvas2.height = 64;
+      const ctx2 = canvas2.getContext('2d');
+      ctx2.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx2.roundRect(4, 4, 248, 56, 8); ctx2.fill();
+      ctx2.fillStyle = '#ffffff';
+      ctx2.font = 'bold 28px Segoe UI, sans-serif';
+      ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle';
+      ctx2.fillText(inst.label, 128, 32);
+      const tex = new THREE.CanvasTexture(canvas2);
+      const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.9 });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.scale.set(fw * 0.8, fw * 0.2, 1);
+      sprite.position.set(0, fh + 0.2, 0);
+      group.add(sprite);
+    }
+
+    scene.add(group);
+  }
+
+  // Re-center camera
+  const cx = rW / 2, cz = rD / 2;
+  three.controls.target.set(cx, 0, cz);
+  three.camera.position.set(cx + rW * 0.8, Math.max(rW, rD) * 0.7, cz + rD * 0.8);
+  three.camera.lookAt(cx, 0, cz);
+  three.controls.update();
+}
+
+let animId3D = null;
+function animate3D() {
+  if (!is3D) return;
+  animId3D = requestAnimationFrame(animate3D);
+  three.controls.update();
+  three.renderer.render(three.scene, three.camera);
+}
+
+// ============================================================
+//  Init
+// ============================================================
+resize();
+buildSidebar();
+loadLastLayout();
+</script>
+</body>
+</html>

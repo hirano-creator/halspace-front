@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#1E3A5F"/>
+  <text x="256" y="310" font-family="Arial,sans-serif" font-weight="900" font-size="200" fill="#2196F3" text-anchor="middle">W</text>
+  <text x="256" y="400" font-family="Arial,sans-serif" font-weight="700" font-size="68" fill="rgba(255,255,255,0.7)" text-anchor="middle">What'sNo</text>
+</svg>

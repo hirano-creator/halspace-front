@@ -1,0 +1,2120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TORIAI">
+  <meta name="theme-color" content="#2B3A4E">
+  <title>TORIAI｜鋼材歩留まり計算</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%232B3A4E'/%3E%3Ctext x='256' y='380' font-family='Arial,Helvetica,sans-serif' font-weight='bold' font-size='360' fill='white' text-anchor='middle'%3ET%3C/text%3E%3C/svg%3E">
+  <link rel="apple-touch-icon" id="apple-icon">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      min-height: 100vh;
+    }
+    header {
+      background: linear-gradient(135deg, #1a365d, #2b6cb0);
+      color: #fff;
+      padding: 20px 24px;
+      text-align: center;
+    }
+    header h1 { font-size: 1.4rem; }
+    header p { font-size: 0.8rem; opacity: 0.8; margin-top: 4px; }
+    .app {
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 0 16px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .card h2 {
+      font-size: 1rem;
+      color: #1a365d;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    /* 設定エリア */
+    .settings-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: end;
+    }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #666;
+    }
+    .field select, .field input {
+      padding: 8px 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      background: #fff;
+      transition: border-color 0.2s;
+    }
+    .field select:focus, .field input:focus {
+      outline: none;
+      border-color: #2b6cb0;
+    }
+    .field input[type="number"] { width: 100px; }
+
+    /* 部品テーブル */
+    .parts-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .parts-table th {
+      text-align: left;
+      padding: 8px;
+      background: #f7fafc;
+      color: #666;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .parts-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: middle;
+    }
+    .parts-table input {
+      padding: 6px 8px;
+      border: 2px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+    .parts-table input:focus {
+      outline: none;
+      border-color: #2b6cb0;
+    }
+    .parts-table .col-name { width: 30%; }
+    .parts-table .col-len { width: 25%; }
+    .parts-table .col-qty { width: 15%; }
+    .parts-table .col-sub { width: 20%; }
+    .parts-table .col-del { width: 10%; text-align: center; }
+
+    .subtotal { color: #666; font-weight: 600; }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-family: inherit;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-add {
+      background: #ebf4ff;
+      color: #2b6cb0;
+    }
+    .btn-add:hover { background: #bee3f8; }
+    .btn-calc {
+      background: linear-gradient(135deg, #2b6cb0, #1a365d);
+      color: #fff;
+      padding: 10px 32px;
+      font-size: 1rem;
+    }
+    .btn-calc:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-suggest {
+      background: linear-gradient(135deg, #38a169, #276749);
+      color: #fff;
+      padding: 10px 32px;
+      font-size: 1rem;
+    }
+    .btn-suggest:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-del {
+      background: none;
+      border: none;
+      color: #e53e3e;
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .btn-del:hover { background: #fff5f5; }
+    .btn-clear {
+      background: #f7fafc;
+      color: #888;
+    }
+    .btn-clear:hover { background: #edf2f7; color: #333; }
+
+    .calc-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 16px;
+      margin-bottom: 24px;
+    }
+
+    /* 結果 */
+    .result-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-box {
+      background: #f7fafc;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-box .stat-label {
+      font-size: 0.7rem;
+      color: #888;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-box .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1a365d;
+      margin-top: 4px;
+    }
+    .stat-box.highlight {
+      background: linear-gradient(135deg, #ebf8ff, #e6fffa);
+    }
+    .stat-box.highlight .stat-value { color: #2b6cb0; }
+    .stat-box.warn .stat-value { color: #dd6b20; }
+
+    /* 母材バー */
+    .bar-section h3 {
+      font-size: 0.85rem;
+      color: #555;
+      margin-bottom: 10px;
+    }
+    .bar-item {
+      margin-bottom: 12px;
+    }
+    .bar-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    .bar-visual {
+      height: 32px;
+      background: #edf2f7;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      position: relative;
+    }
+    .bar-piece {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: #fff;
+      overflow: hidden;
+      white-space: nowrap;
+      min-width: 2px;
+      border-right: 1px solid rgba(255,255,255,0.4);
+    }
+    .bar-waste {
+      height: 100%;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      color: #a0aec0;
+    }
+
+    .bar-loss {
+      height: 100%;
+      background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 3px, #cbd5e0 3px, #cbd5e0 6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      color: #888;
+      min-width: 2px;
+    }
+    .colors-0 { background: #3182ce; }
+    .colors-1 { background: #38a169; }
+    .colors-2 { background: #d69e2e; }
+    .colors-3 { background: #e53e3e; }
+    .colors-4 { background: #805ad5; }
+    .colors-5 { background: #dd6b20; }
+    .colors-6 { background: #319795; }
+    .colors-7 { background: #d53f8c; }
+
+    .btn-apply {
+      padding: 4px 12px;
+      background: #ebf4ff;
+      color: #2b6cb0;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .btn-apply:hover { background: #bee3f8; }
+    #suggestBody td { padding: 10px 8px; text-align: center; }
+    #suggestBody tr.best { background: #f0fff4; }
+    #suggestBody .best-badge {
+      display: inline-block;
+      background: #38a169;
+      color: #fff;
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 4px;
+      font-weight: 600;
+    }
+
+    #result-area { display: none; }
+
+    .stock-checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .stock-check {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      background: #f7fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .stock-check:has(input:checked) {
+      border-color: #2b6cb0;
+      background: #ebf4ff;
+    }
+    .stock-check input { cursor: pointer; }
+    .mix-summary {
+      background: #f0fff4;
+      border: 2px solid #c6f6d5;
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .mix-stocks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 12px 0;
+    }
+    .mix-stock-card {
+      background: #fff;
+      border: 2px solid #c6f6d5;
+      border-radius: 10px;
+      padding: 16px 24px;
+      text-align: center;
+      min-width: 120px;
+      flex: 1;
+    }
+    .mix-stock-card .stock-size {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1a365d;
+    }
+    .mix-stock-card .stock-multiply {
+      font-size: 1.1rem;
+      color: #888;
+      margin: 4px 0;
+    }
+    .mix-stock-card .stock-count {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #2b6cb0;
+    }
+    .mix-total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 2px solid #c6f6d5;
+      margin-top: 12px;
+      padding-top: 12px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #1a365d;
+    }
+
+    .kerf-note {
+      font-size: 0.7rem;
+      color: #999;
+      margin-top: 4px;
+    }
+    #unitWeight {
+      background: #f7fafc;
+      font-weight: 700;
+      color: #1a365d;
+    }
+    #unitWeight:not([readonly]) {
+      background: #fff;
+    }
+    .cost-compare {
+      background: #fffbeb;
+      border: 2px solid #fbbf24;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .cost-compare h3 {
+      font-size: 0.85rem;
+      color: #92400e;
+      margin-bottom: 10px;
+    }
+    .cost-compare-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 0.85rem;
+    }
+    .cost-compare-row.current { color: #666; }
+    .cost-compare-row.suggest { color: #1a365d; font-weight: 600; }
+    .cost-compare-diff {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 2px solid #fbbf24;
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    .cost-compare-diff.saving { color: #16a34a; }
+    .cost-compare-diff.loss { color: #dc2626; }
+
+    /* タブレット */
+    @media (max-width: 768px) {
+      .app { padding: 0 12px; }
+      .card { padding: 16px; }
+      .settings-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .field select, .field input { width: 100%; }
+      .field input[type="number"] { width: 100%; }
+      .result-summary { grid-template-columns: repeat(3, 1fr); }
+      .stat-box .stat-value { font-size: 1.2rem; }
+      .mix-stocks { gap: 8px; }
+      .mix-stock-card { padding: 12px 16px; min-width: 100px; }
+      .mix-stock-card .stock-size { font-size: 1.1rem; }
+      .mix-stock-card .stock-count { font-size: 1.2rem; }
+      #suggestTable { font-size: 0.75rem; }
+      #suggestTable th, #suggestTable td { padding: 6px 4px; }
+    }
+
+    /* スマホ */
+    @media (max-width: 500px) {
+      header { padding: 16px; }
+      header h1 { font-size: 1.2rem; }
+      .app { margin: 12px auto; padding: 0 8px; }
+      .card { padding: 14px; margin-bottom: 12px; border-radius: 10px; }
+      .card h2 { font-size: 0.9rem; }
+
+      /* 設定: 1列 */
+      .settings-row {
+        grid-template-columns: 1fr;
+      }
+
+      /* 部品テーブル: カード型 */
+      .parts-table thead { display: none; }
+      .parts-table, .parts-table tbody, .parts-table tr, .parts-table td {
+        display: block;
+        width: 100%;
+      }
+      .parts-table tr {
+        background: #f7fafc;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        position: relative;
+      }
+      .parts-table td {
+        padding: 4px 0;
+        border: none;
+      }
+      .parts-table td::before {
+        content: attr(data-label);
+        font-size: 0.7rem;
+        color: #888;
+        font-weight: 600;
+        display: block;
+        margin-bottom: 2px;
+      }
+      .parts-table td:last-child {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: auto;
+      }
+      .parts-table td:last-child::before { display: none; }
+
+      /* ボタン */
+      .calc-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .btn-calc, .btn-suggest {
+        padding: 12px 16px;
+        font-size: 0.95rem;
+        text-align: center;
+      }
+
+      /* 結果 */
+      .result-summary {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+      .stat-box { padding: 12px 8px; }
+      .stat-box .stat-value { font-size: 1.1rem; }
+      .stat-box .stat-label { font-size: 0.65rem; }
+
+      /* 取り合い図 */
+      .bar-header { flex-direction: column; gap: 2px; }
+      .bar-piece { font-size: 0.55rem; }
+
+      /* 提案チェックボックス */
+      .stock-checks { gap: 6px; }
+      .stock-check { padding: 5px 10px; font-size: 0.8rem; }
+
+      /* 提案テーブル：横スクロール */
+      #suggestTable { display: block; overflow-x: auto; white-space: nowrap; }
+      #suggestTable thead, #suggestTable tbody { display: table; width: 100%; }
+      #suggestTable th, #suggestTable td { padding: 6px 4px; font-size: 0.7rem; }
+
+      /* 組み合わせカード */
+      .mix-stocks { flex-direction: column; gap: 8px; }
+      .mix-stocks > div[style*="align-items"] { display: none !important; }
+      .mix-stock-card {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 12px;
+        flex-direction: row;
+      }
+      .mix-stock-card .stock-size { font-size: 1.1rem; }
+      .mix-stock-card .stock-multiply { margin: 0; font-size: 1rem; }
+      .mix-stock-card .stock-count { font-size: 1.2rem; }
+      .mix-total-row { flex-direction: column; gap: 4px; text-align: center; font-size: 0.85rem; }
+
+      /* コスト比較 */
+      .cost-compare { padding: 12px; }
+      .cost-compare-row { font-size: 0.8rem; }
+      .cost-compare-diff { font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TORIAI <span style="font-size:0.55em;font-weight:normal;opacity:0.8;">- 鋼材歩留まり計算 -</span></h1>
+    <p>アングル / チャンネル / H鋼 / 丸パイプ / 角パイプ 等</p>
+  </header>
+
+  <div class="app">
+    <!-- 設定 -->
+    <div class="card">
+      <h2>基本設定</h2>
+      <div class="settings-row">
+        <div class="field">
+          <label>鋼材種類</label>
+          <select id="materialType" onchange="onMaterialChange()">
+            <option value="angle">アングル（L形鋼）</option>
+            <option value="unequalangle">アングル（不等辺L形鋼）</option>
+            <option value="channel">チャンネル (溝形鋼)</option>
+            <option value="hbeam">H鋼</option>
+            <option value="roundpipe">丸パイプ</option>
+            <option value="squarepipe">角パイプ（STKR/正方形）</option>
+            <option value="rectpipe">角パイプ（STKR/長方形）</option>
+            <option value="flatbar">フラットバー</option>
+            <option value="roundbar">丸鋼</option>
+            <option value="squarebar">角鋼</option>
+            <option value="other">その他</option>
+          </select>
+        </div>
+        <div class="field" id="sizeField">
+          <label>サイズ</label>
+          <select id="materialSize" onchange="onSizeChange()"></select>
+        </div>
+        <div class="field" id="unitWeightField">
+          <label>単重 (kg/m)</label>
+          <input type="number" id="unitWeight" step="0.01" min="0" value="" readonly>
+        </div>
+        <div class="field">
+          <label>母材定尺 (mm)</label>
+          <select id="stockLength">
+            <option value="4000">4,000 mm (4m)</option>
+            <option value="5000">5,000 mm (5m)</option>
+            <option value="5500" selected>5,500 mm (5.5m)</option>
+            <option value="6000">6,000 mm (6m)</option>
+            <option value="7000">7,000 mm (7m)</option>
+            <option value="7500">7,500 mm (7.5m)</option>
+            <option value="8000">8,000 mm (8m)</option>
+            <option value="9000">9,000 mm (9m)</option>
+            <option value="10000">10,000 mm (10m)</option>
+            <option value="12000">12,000 mm (12m)</option>
+            <option value="custom">カスタム</option>
+          </select>
+        </div>
+        <div class="field" id="customLengthField" style="display:none;">
+          <label>カスタム長さ (mm)</label>
+          <input type="number" id="customLength" placeholder="例: 6500" min="1">
+        </div>
+        <div class="field">
+          <label>切断機</label>
+          <select id="cutMachine" onchange="onCutMachineChange()">
+            <option value="band" selected>バンドソー</option>
+            <option value="laser">レーザー</option>
+            <option value="custom">手動設定</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>切断しろ (mm)</label>
+          <input type="number" id="kerfWidth" value="3" min="0" max="20">
+        </div>
+        <div class="field">
+          <label>必要ロス 前 (mm)</label>
+          <input type="number" id="lossFront" value="10" min="0" max="500" placeholder="0">
+        </div>
+        <div class="field">
+          <label>必要ロス 後 (mm)</label>
+          <input type="number" id="lossBack" value="50" min="0" max="500" placeholder="0">
+        </div>
+        <div class="field">
+          <label>鋼材単価 (円/kg)</label>
+          <input type="number" id="steelPrice" placeholder="例: 150" min="0" step="1">
+        </div>
+      </div>
+      <div class="kerf-note">※ 切断しろ: 各カット間のロス / 必要ロス(前)(後): 母材の両端から使えない領域</div>
+    </div>
+
+    <!-- 部品リスト -->
+    <div class="card">
+      <h2>部品リスト</h2>
+      <table class="parts-table">
+        <thead>
+          <tr>
+            <th class="col-name">部品名</th>
+            <th class="col-len">長さ (mm)</th>
+            <th class="col-qty">本数</th>
+            <th class="col-sub">小計 (mm)</th>
+            <th class="col-del"></th>
+          </tr>
+        </thead>
+        <tbody id="partsBody"></tbody>
+      </table>
+      <div class="btn-row">
+        <button class="btn btn-add" onclick="addRow()">+ 部品追加</button>
+        <button class="btn btn-clear" onclick="clearAll()">全削除</button>
+      </div>
+    </div>
+
+    <!-- 計算ボタン -->
+    <div class="calc-row">
+      <button class="btn btn-calc" onclick="calculate()">計算する</button>
+      <button class="btn btn-suggest" onclick="suggest()">最適定尺を提案</button>
+      <button class="btn btn-clear" onclick="resetAll()">リセット</button>
+    </div>
+
+    <!-- 提案結果 -->
+    <div id="suggest-area" style="display:none;">
+      <div class="card">
+        <h2>定尺サイズ提案</h2>
+        <p style="font-size:0.8rem;color:#666;margin-bottom:12px;">候補の定尺を選択してください（複数選択で組み合わせ最適化）</p>
+        <div id="stockCandidates" class="stock-checks"></div>
+        <div class="btn-row" style="margin-top:12px;">
+          <button class="btn btn-clear" onclick="toggleAllStocks();" id="toggleAllBtn">全て外す</button>
+          <button class="btn btn-suggest" onclick="runSuggest()">提案を実行</button>
+        </div>
+        <div id="suggest-result" style="display:none;margin-top:16px;">
+          <h3 style="font-size:0.9rem;color:#1a365d;margin-bottom:8px;">単一定尺の比較</h3>
+          <table class="parts-table" id="suggestTable">
+            <thead>
+              <tr>
+                <th>定尺</th>
+                <th>必要本数</th>
+                <th>歩留まり率</th>
+                <th>総端材</th>
+                <th id="suggestCostHeader" style="display:none;">鋼材費</th>
+                <th id="suggestDiffHeader" style="display:none;">差額</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="suggestBody"></tbody>
+          </table>
+          <div id="mixResult" style="display:none;margin-top:20px;">
+            <h3 style="font-size:0.9rem;color:#1a365d;margin-bottom:8px;">複数定尺の組み合わせ提案</h3>
+            <div id="mixDetail"></div>
+            <div class="btn-row" style="margin-top:8px;">
+              <button class="btn btn-apply" onclick="applyMix()" style="padding:8px 20px;">この組み合わせで計算</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 結果 -->
+    <div id="result-area">
+      <div class="card">
+        <h2>計算結果</h2>
+        <div class="result-summary">
+          <div class="stat-box">
+            <div class="stat-label">母材サイズ</div>
+            <div class="stat-value" id="stockSize">-</div>
+          </div>
+          <div class="stat-box highlight">
+            <div class="stat-label">必要母材本数</div>
+            <div class="stat-value" id="totalBars">-</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">総部品数</div>
+            <div class="stat-value" id="totalParts">-</div>
+          </div>
+          <div class="stat-box highlight">
+            <div class="stat-label">歩留まり率</div>
+            <div class="stat-value" id="yieldRate">-</div>
+          </div>
+          <div class="stat-box warn">
+            <div class="stat-label">総端材</div>
+            <div class="stat-value" id="totalWaste">-</div>
+          </div>
+          <div class="stat-box" id="weightBox" style="display:none;">
+            <div class="stat-label">総重量</div>
+            <div class="stat-value" id="totalWeight">-</div>
+          </div>
+          <div class="stat-box highlight" id="costBox" style="display:none;">
+            <div class="stat-label">鋼材費</div>
+            <div class="stat-value" id="totalCost">-</div>
+          </div>
+        </div>
+
+        <!-- 差額比較 -->
+        <div id="costCompare" style="display:none;" class="cost-compare"></div>
+
+        <div class="bar-section" id="barSection"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let rowId = 0;
+
+    // 鋼材サイズデータベース { label, kg_m }
+    const STEEL_DB = {
+      angle: [
+        { label: 'L-25×25×3', kg: 1.12 },
+        { label: 'L-30×30×3', kg: 1.36 },
+        { label: 'L-40×40×3', kg: 1.83 },
+        { label: 'L-40×40×5', kg: 2.95 },
+        { label: 'L-45×45×4', kg: 2.74 },
+        { label: 'L-45×45×5', kg: 3.38 },
+        { label: 'L-50×50×4', kg: 3.06 },
+        { label: 'L-50×50×5', kg: 3.77 },
+        { label: 'L-50×50×6', kg: 4.43 },
+        { label: 'L-60×60×4', kg: 3.68 },
+        { label: 'L-60×60×5', kg: 4.55 },
+        { label: 'L-65×65×5', kg: 5.00 },
+        { label: 'L-65×65×6', kg: 5.91 },
+        { label: 'L-65×65×8', kg: 7.66 },
+        { label: 'L-70×70×6', kg: 6.38 },
+        { label: 'L-75×75×6', kg: 6.85 },
+        { label: 'L-75×75×9', kg: 9.96 },
+        { label: 'L-75×75×12', kg: 13.0 },
+        { label: 'L-80×80×6', kg: 7.32 },
+        { label: 'L-90×90×6', kg: 8.28 },
+        { label: 'L-90×90×7', kg: 9.59 },
+        { label: 'L-90×90×10', kg: 13.3 },
+        { label: 'L-90×90×13', kg: 17.0 },
+        { label: 'L-100×100×7', kg: 10.7 },
+        { label: 'L-100×100×10', kg: 14.9 },
+        { label: 'L-100×100×13', kg: 19.1 },
+        { label: 'L-120×120×8', kg: 14.7 },
+        { label: 'L-130×130×9', kg: 17.9 },
+        { label: 'L-130×130×12', kg: 23.4 },
+        { label: 'L-130×130×15', kg: 28.8 },
+        { label: 'L-150×150×12', kg: 27.3 },
+        { label: 'L-150×150×15', kg: 33.6 },
+        { label: 'L-150×150×19', kg: 41.9 },
+        { label: 'L-175×175×12', kg: 31.8 },
+        { label: 'L-175×175×15', kg: 39.4 },
+        { label: 'L-200×200×15', kg: 45.3 },
+        { label: 'L-200×200×20', kg: 59.7 },
+        { label: 'L-200×200×25', kg: 73.6 },
+        { label: 'L-250×250×25', kg: 93.7 },
+        { label: 'L-250×250×35', kg: 128 },
+      ],
+      unequalangle: [
+        { label: 'L-90×75×9', kg: 11.0 },
+        { label: 'L-100×75×7', kg: 9.32 },
+        { label: 'L-100×75×10', kg: 13.0 },
+        { label: 'L-125×75×7', kg: 10.7 },
+        { label: 'L-125×75×10', kg: 14.9 },
+        { label: 'L-125×75×13', kg: 19.1 },
+        { label: 'L-125×90×10', kg: 16.1 },
+        { label: 'L-125×90×13', kg: 20.6 },
+        { label: 'L-150×90×9', kg: 16.4 },
+        { label: 'L-150×90×12', kg: 21.5 },
+        { label: 'L-150×100×9', kg: 17.1 },
+        { label: 'L-150×100×12', kg: 22.4 },
+        { label: 'L-150×100×15', kg: 27.7 },
+      ],
+      channel: [
+        { label: 'C-75×40×5×7', kg: 6.92 },
+        { label: 'C-100×50×5×7.5', kg: 9.36 },
+        { label: 'C-125×65×6×8', kg: 13.4 },
+        { label: 'C-150×75×6.5×10', kg: 18.6 },
+        { label: 'C-150×75×9×12.5', kg: 24.0 },
+        { label: 'C-180×75×7×10.5', kg: 21.4 },
+        { label: 'C-200×80×7.5×11', kg: 24.6 },
+        { label: 'C-200×90×8×13.5', kg: 30.3 },
+        { label: 'C-250×90×9×13', kg: 34.6 },
+        { label: 'C-250×90×11×14.5', kg: 40.2 },
+        { label: 'C-300×90×9×13', kg: 38.1 },
+        { label: 'C-300×90×10×15.5', kg: 43.8 },
+        { label: 'C-300×90×12×16', kg: 48.6 },
+        { label: 'C-380×100×10.5×16', kg: 54.5 },
+        { label: 'C-380×100×13×16.5', kg: 62.0 },
+        { label: 'C-380×100×13×20', kg: 67.3 },
+      ],
+      hbeam: [
+        { label: 'H-100×50×5×7', kg: 9.30 },
+        { label: 'H-100×100×6×8', kg: 16.9 },
+        { label: 'H-125×60×6×8', kg: 13.1 },
+        { label: 'H-125×125×6.5×9', kg: 23.6 },
+        { label: 'H-150×75×5×7', kg: 14.0 },
+        { label: 'H-148×100×6×9', kg: 20.7 },
+        { label: 'H-150×150×7×10', kg: 31.1 },
+        { label: 'H-175×90×5×8', kg: 18.0 },
+        { label: 'H-175×175×7.5×11', kg: 40.4 },
+        { label: 'H-198×99×4.5×7', kg: 17.8 },
+        { label: 'H-200×100×5.5×8', kg: 20.9 },
+        { label: 'H-194×150×6×9', kg: 29.9 },
+        { label: 'H-200×200×8×12', kg: 49.9 },
+        { label: 'H-248×124×5×8', kg: 25.1 },
+        { label: 'H-250×125×6×9', kg: 29.0 },
+        { label: 'H-244×175×7×11', kg: 43.6 },
+        { label: 'H-250×250×9×14', kg: 71.8 },
+        { label: 'H-298×149×5.5×8', kg: 32.0 },
+        { label: 'H-300×150×6.5×9', kg: 36.7 },
+        { label: 'H-294×200×8×12', kg: 55.8 },
+        { label: 'H-300×300×10×15', kg: 93.0 },
+        { label: 'H-346×174×6×9', kg: 41.2 },
+        { label: 'H-350×175×7×11', kg: 49.4 },
+        { label: 'H-340×250×9×14', kg: 78.1 },
+        { label: 'H-350×350×12×19', kg: 135 },
+        { label: 'H-396×199×7×11', kg: 56.1 },
+        { label: 'H-400×200×8×13', kg: 65.4 },
+        { label: 'H-390×300×10×16', kg: 105 },
+        { label: 'H-400×400×13×21', kg: 172 },
+        { label: 'H-414×405×18×28', kg: 232 },
+        { label: 'H-428×407×20×35', kg: 283 },
+        { label: 'H-458×417×30×50', kg: 415 },
+        { label: 'H-498×432×45×70', kg: 605 },
+        { label: 'H-446×199×8×12', kg: 65.1 },
+        { label: 'H-450×200×9×14', kg: 74.9 },
+        { label: 'H-440×300×11×18', kg: 121 },
+        { label: 'H-496×199×9×14', kg: 77.9 },
+        { label: 'H-500×200×10×16', kg: 88.2 },
+        { label: 'H-482×300×11×15', kg: 111 },
+        { label: 'H-488×300×11×18', kg: 125 },
+        { label: 'H-596×199×10×15', kg: 92.5 },
+        { label: 'H-600×200×11×17', kg: 103 },
+        { label: 'H-582×300×12×17', kg: 133 },
+        { label: 'H-588×300×12×20', kg: 147 },
+        { label: 'H-594×302×14×23', kg: 170 },
+        { label: 'H-692×300×13×20', kg: 163 },
+        { label: 'H-700×300×13×24', kg: 182 },
+        { label: 'H-792×300×14×22', kg: 188 },
+        { label: 'H-800×300×14×26', kg: 207 },
+        { label: 'H-890×299×15×23', kg: 210 },
+        { label: 'H-900×300×16×28', kg: 240 },
+        { label: 'H-912×302×18×34', kg: 283 },
+        { label: 'H-918×303×19×37', kg: 304 },
+      ],
+      roundpipe: [
+        { label: '21.7×2.8 (15A)', kg: 1.31 },
+        { label: '27.2×2.8 (20A)', kg: 1.68 },
+        { label: '34.0×3.2 (25A)', kg: 2.43 },
+        { label: '42.7×3.5 (32A)', kg: 3.38 },
+        { label: '48.6×3.5 (40A)', kg: 3.89 },
+        { label: '60.5×3.8 (50A)', kg: 5.31 },
+        { label: '76.3×4.2 (65A)', kg: 7.47 },
+        { label: '89.1×4.2 (80A)', kg: 8.79 },
+        { label: '101.6×4.2 (90A)', kg: 10.1 },
+        { label: '114.3×4.5 (100A)', kg: 12.2 },
+        { label: '139.8×4.5 (125A)', kg: 15.0 },
+        { label: '165.2×5.0 (150A)', kg: 19.8 },
+        { label: '190.7×5.3 (175A)', kg: 24.2 },
+        { label: '216.3×5.8 (200A)', kg: 30.1 },
+        { label: '267.4×6.6 (250A)', kg: 42.4 },
+        { label: '318.5×6.9 (300A)', kg: 52.9 },
+        { label: '355.6×7.9 (350A)', kg: 67.7 },
+        { label: '406.4×7.9 (400A)', kg: 77.6 },
+        { label: '457.2×7.9 (450A)', kg: 87.5 },
+        { label: '508.0×7.9 (500A)', kg: 97.4 },
+      ],
+      squarepipe: [
+        { label: '□-40×40×1.6', kg: 1.88 },
+        { label: '□-40×40×2.3', kg: 2.62 },
+        { label: '□-50×50×1.6', kg: 2.38 },
+        { label: '□-50×50×2.3', kg: 3.34 },
+        { label: '□-50×50×3.2', kg: 4.50 },
+        { label: '□-60×60×1.6', kg: 2.88 },
+        { label: '□-60×60×2.3', kg: 4.06 },
+        { label: '□-60×60×3.2', kg: 5.50 },
+        { label: '□-75×75×1.6', kg: 3.64 },
+        { label: '□-75×75×2.3', kg: 5.14 },
+        { label: '□-75×75×3.2', kg: 7.01 },
+        { label: '□-75×75×4.5', kg: 9.55 },
+        { label: '□-80×80×2.3', kg: 5.50 },
+        { label: '□-80×80×3.2', kg: 7.51 },
+        { label: '□-80×80×4.5', kg: 10.3 },
+        { label: '□-90×90×2.3', kg: 6.23 },
+        { label: '□-90×90×3.2', kg: 8.51 },
+        { label: '□-100×100×2.3', kg: 6.95 },
+        { label: '□-100×100×3.2', kg: 9.52 },
+        { label: '□-100×100×4.0', kg: 11.7 },
+        { label: '□-100×100×4.5', kg: 13.1 },
+        { label: '□-100×100×6.0', kg: 17.0 },
+        { label: '□-100×100×9.0', kg: 24.1 },
+        { label: '□-100×100×12.0', kg: 30.2 },
+        { label: '□-125×125×3.2', kg: 12.0 },
+        { label: '□-125×125×4.5', kg: 16.6 },
+        { label: '□-125×125×5.0', kg: 18.3 },
+        { label: '□-125×125×6.0', kg: 21.7 },
+        { label: '□-125×125×9.0', kg: 31.1 },
+        { label: '□-125×125×12.0', kg: 39.7 },
+        { label: '□-150×150×4.5', kg: 20.1 },
+        { label: '□-150×150×5.0', kg: 22.3 },
+        { label: '□-150×150×6.0', kg: 26.4 },
+        { label: '□-150×150×9.0', kg: 38.2 },
+        { label: '□-175×175×4.5', kg: 23.7 },
+        { label: '□-175×175×5.0', kg: 26.2 },
+        { label: '□-175×175×6.0', kg: 31.1 },
+        { label: '□-200×200×4.5', kg: 27.2 },
+        { label: '□-200×200×6.0', kg: 35.8 },
+        { label: '□-200×200×8.0', kg: 46.9 },
+        { label: '□-200×200×9.0', kg: 52.3 },
+        { label: '□-200×200×12.0', kg: 67.9 },
+        { label: '□-250×250×5.0', kg: 38.0 },
+        { label: '□-250×250×6.0', kg: 45.2 },
+        { label: '□-250×250×8.0', kg: 59.5 },
+        { label: '□-250×250×9.0', kg: 66.5 },
+        { label: '□-250×250×12.0', kg: 86.8 },
+        { label: '□-300×300×4.5', kg: 41.3 },
+        { label: '□-300×300×6.0', kg: 54.7 },
+        { label: '□-300×300×9.0', kg: 80.6 },
+        { label: '□-300×300×12.0', kg: 106 },
+        { label: '□-350×350×9.0', kg: 94.7 },
+        { label: '□-350×350×12.0', kg: 124 },
+      ],
+      rectpipe: [
+        { label: '□-50×20×1.6', kg: 1.63 },
+        { label: '□-50×20×2.3', kg: 2.25 },
+        { label: '□-50×30×1.6', kg: 1.88 },
+        { label: '□-50×30×2.3', kg: 2.62 },
+        { label: '□-60×30×1.6', kg: 2.13 },
+        { label: '□-60×30×2.3', kg: 2.98 },
+        { label: '□-60×30×3.2', kg: 3.99 },
+        { label: '□-75×20×1.6', kg: 2.25 },
+        { label: '□-75×20×2.3', kg: 3.16 },
+        { label: '□-75×45×1.6', kg: 2.88 },
+        { label: '□-75×45×2.3', kg: 4.06 },
+        { label: '□-75×45×3.2', kg: 5.50 },
+        { label: '□-80×40×1.6', kg: 2.88 },
+        { label: '□-80×40×2.3', kg: 4.06 },
+        { label: '□-80×40×3.2', kg: 5.50 },
+        { label: '□-90×40×2.3', kg: 4.60 },
+        { label: '□-90×40×3.2', kg: 6.25 },
+        { label: '□-100×20×1.6', kg: 2.88 },
+        { label: '□-100×20×2.3', kg: 4.06 },
+        { label: '□-100×40×1.6', kg: 3.4 },
+        { label: '□-100×40×2.3', kg: 4.8 },
+        { label: '□-100×40×3.2', kg: 6.3 },
+        { label: '□-100×50×1.6', kg: 3.64 },
+        { label: '□-100×50×2.3', kg: 5.1 },
+        { label: '□-100×50×3.2', kg: 7.0 },
+        { label: '□-100×50×4.5', kg: 9.6 },
+        { label: '□-125×40×1.6', kg: 4.0 },
+        { label: '□-125×40×2.3', kg: 5.7 },
+        { label: '□-125×75×2.3', kg: 7.02 },
+        { label: '□-125×75×3.2', kg: 9.5 },
+        { label: '□-125×75×4.0', kg: 11.7 },
+        { label: '□-125×75×4.5', kg: 13.1 },
+        { label: '□-125×75×6.0', kg: 17.0 },
+        { label: '□-150×75×3.2', kg: 10.8 },
+        { label: '□-150×80×4.5', kg: 15.2 },
+        { label: '□-150×80×6.0', kg: 19.8 },
+        { label: '□-150×100×3.2', kg: 12.0 },
+        { label: '□-150×100×4.5', kg: 16.6 },
+        { label: '□-150×100×6.0', kg: 21.7 },
+        { label: '□-150×100×9.0', kg: 31.1 },
+        { label: '□-200×100×4.5', kg: 20.1 },
+        { label: '□-200×100×6.0', kg: 26.4 },
+        { label: '□-200×100×9.0', kg: 38.2 },
+        { label: '□-200×150×4.5', kg: 23.7 },
+        { label: '□-200×150×6.0', kg: 31.1 },
+        { label: '□-200×150×9.0', kg: 45.3 },
+        { label: '□-250×150×6.0', kg: 35.8 },
+        { label: '□-250×150×8.0', kg: 46.9 },
+        { label: '□-250×150×9.0', kg: 52.3 },
+        { label: '□-250×150×12.0', kg: 67.9 },
+        { label: '□-300×200×6.0', kg: 45.2 },
+        { label: '□-300×200×9.0', kg: 66.5 },
+        { label: '□-300×200×12.0', kg: 86.8 },
+        { label: '□-350×150×6.0', kg: 45.2 },
+        { label: '□-350×150×9.0', kg: 66.5 },
+        { label: '□-350×150×12.0', kg: 86.8 },
+        { label: '□-400×200×6.0', kg: 54.7 },
+        { label: '□-400×200×9.0', kg: 80.6 },
+        { label: '□-400×200×12.0', kg: 106 },
+      ],
+      flatbar: [
+        { label: 'FB-25×4.5', kg: 0.88 },
+        { label: 'FB-32×4.5', kg: 1.13 },
+        { label: 'FB-38×4.5', kg: 1.34 },
+        { label: 'FB-44×4.5', kg: 1.56 },
+        { label: 'FB-50×4.5', kg: 1.77 },
+        { label: 'FB-65×4.5', kg: 2.30 },
+        { label: 'FB-75×4.5', kg: 2.65 },
+        { label: 'FB-90×4.5', kg: 3.18 },
+        { label: 'FB-100×4.5', kg: 3.53 },
+        { label: 'FB-125×4.5', kg: 4.42 },
+        { label: 'FB-150×4.5', kg: 5.30 },
+        { label: 'FB-25×6', kg: 1.18 },
+        { label: 'FB-32×6', kg: 1.51 },
+        { label: 'FB-38×6', kg: 1.79 },
+        { label: 'FB-44×6', kg: 2.07 },
+        { label: 'FB-50×6', kg: 2.36 },
+        { label: 'FB-65×6', kg: 3.06 },
+        { label: 'FB-75×6', kg: 3.53 },
+        { label: 'FB-90×6', kg: 4.24 },
+        { label: 'FB-100×6', kg: 4.71 },
+        { label: 'FB-125×6', kg: 5.89 },
+        { label: 'FB-150×6', kg: 7.06 },
+        { label: 'FB-180×6', kg: 8.48 },
+        { label: 'FB-200×6', kg: 9.42 },
+        { label: 'FB-230×6', kg: 10.8 },
+        { label: 'FB-250×6', kg: 11.8 },
+        { label: 'FB-280×6', kg: 13.2 },
+        { label: 'FB-300×6', kg: 14.1 },
+        { label: 'FB-25×8', kg: 1.57 },
+        { label: 'FB-32×8', kg: 2.01 },
+        { label: 'FB-38×8', kg: 2.39 },
+        { label: 'FB-44×8', kg: 2.76 },
+        { label: 'FB-50×8', kg: 3.14 },
+        { label: 'FB-65×8', kg: 4.08 },
+        { label: 'FB-75×8', kg: 4.71 },
+        { label: 'FB-90×8', kg: 5.65 },
+        { label: 'FB-100×8', kg: 6.28 },
+        { label: 'FB-125×8', kg: 7.85 },
+        { label: 'FB-150×8', kg: 9.42 },
+        { label: 'FB-180×8', kg: 11.3 },
+        { label: 'FB-200×8', kg: 12.6 },
+        { label: 'FB-230×8', kg: 14.4 },
+        { label: 'FB-250×8', kg: 15.7 },
+        { label: 'FB-280×8', kg: 17.6 },
+        { label: 'FB-300×8', kg: 18.8 },
+        { label: 'FB-350×8', kg: 22.0 },
+        { label: 'FB-400×8', kg: 25.1 },
+        { label: 'FB-25×9', kg: 1.77 },
+        { label: 'FB-32×9', kg: 2.26 },
+        { label: 'FB-38×9', kg: 2.68 },
+        { label: 'FB-44×9', kg: 3.11 },
+        { label: 'FB-50×9', kg: 3.53 },
+        { label: 'FB-65×9', kg: 4.59 },
+        { label: 'FB-75×9', kg: 5.30 },
+        { label: 'FB-90×9', kg: 6.36 },
+        { label: 'FB-100×9', kg: 7.06 },
+        { label: 'FB-125×9', kg: 8.83 },
+        { label: 'FB-150×9', kg: 10.6 },
+        { label: 'FB-180×9', kg: 12.7 },
+        { label: 'FB-200×9', kg: 14.1 },
+        { label: 'FB-230×9', kg: 16.3 },
+        { label: 'FB-250×9', kg: 17.7 },
+        { label: 'FB-280×9', kg: 19.8 },
+        { label: 'FB-300×9', kg: 21.2 },
+        { label: 'FB-350×9', kg: 24.7 },
+        { label: 'FB-400×9', kg: 28.3 },
+        { label: 'FB-38×12', kg: 3.58 },
+        { label: 'FB-44×12', kg: 4.14 },
+        { label: 'FB-50×12', kg: 4.71 },
+        { label: 'FB-65×12', kg: 6.12 },
+        { label: 'FB-75×12', kg: 7.06 },
+        { label: 'FB-90×12', kg: 8.48 },
+        { label: 'FB-100×12', kg: 9.42 },
+        { label: 'FB-125×12', kg: 11.8 },
+        { label: 'FB-150×12', kg: 14.1 },
+        { label: 'FB-200×12', kg: 18.8 },
+        { label: 'FB-230×12', kg: 21.7 },
+        { label: 'FB-250×12', kg: 23.6 },
+        { label: 'FB-300×12', kg: 28.3 },
+        { label: 'FB-350×12', kg: 33.0 },
+        { label: 'FB-400×12', kg: 37.7 },
+        { label: 'FB-32×16', kg: 4.02 },
+        { label: 'FB-38×16', kg: 4.77 },
+        { label: 'FB-44×16', kg: 5.53 },
+        { label: 'FB-50×16', kg: 6.28 },
+        { label: 'FB-65×16', kg: 8.16 },
+        { label: 'FB-75×16', kg: 9.42 },
+        { label: 'FB-90×16', kg: 11.3 },
+        { label: 'FB-100×16', kg: 12.6 },
+        { label: 'FB-125×16', kg: 15.7 },
+        { label: 'FB-150×16', kg: 18.8 },
+        { label: 'FB-180×16', kg: 22.6 },
+        { label: 'FB-200×16', kg: 25.1 },
+        { label: 'FB-230×16', kg: 28.9 },
+        { label: 'FB-250×16', kg: 31.4 },
+        { label: 'FB-280×16', kg: 35.2 },
+        { label: 'FB-300×16', kg: 37.7 },
+        { label: 'FB-350×16', kg: 44.0 },
+        { label: 'FB-400×16', kg: 50.2 },
+        { label: 'FB-450×16', kg: 56.5 },
+        { label: 'FB-500×16', kg: 62.8 },
+        { label: 'FB-38×19', kg: 5.67 },
+        { label: 'FB-44×19', kg: 6.56 },
+        { label: 'FB-50×19', kg: 7.46 },
+        { label: 'FB-65×19', kg: 9.69 },
+        { label: 'FB-75×19', kg: 11.2 },
+        { label: 'FB-90×19', kg: 13.4 },
+        { label: 'FB-100×19', kg: 14.9 },
+        { label: 'FB-125×19', kg: 18.6 },
+        { label: 'FB-150×19', kg: 22.4 },
+        { label: 'FB-180×19', kg: 26.8 },
+        { label: 'FB-200×19', kg: 29.8 },
+        { label: 'FB-230×19', kg: 34.3 },
+        { label: 'FB-250×19', kg: 37.3 },
+        { label: 'FB-280×19', kg: 41.8 },
+        { label: 'FB-300×19', kg: 44.7 },
+        { label: 'FB-350×19', kg: 52.2 },
+        { label: 'FB-400×19', kg: 59.6 },
+        { label: 'FB-450×19', kg: 67.1 },
+        { label: 'FB-500×19', kg: 74.6 },
+        { label: 'FB-50×22', kg: 8.64 },
+        { label: 'FB-75×22', kg: 13.0 },
+        { label: 'FB-90×22', kg: 15.5 },
+        { label: 'FB-100×22', kg: 17.3 },
+        { label: 'FB-125×22', kg: 21.6 },
+        { label: 'FB-150×22', kg: 25.9 },
+        { label: 'FB-180×22', kg: 31.1 },
+        { label: 'FB-200×22', kg: 34.5 },
+        { label: 'FB-230×22', kg: 39.7 },
+        { label: 'FB-250×22', kg: 43.2 },
+        { label: 'FB-280×22', kg: 48.4 },
+        { label: 'FB-300×22', kg: 51.8 },
+        { label: 'FB-350×22', kg: 60.4 },
+        { label: 'FB-400×22', kg: 69.1 },
+        { label: 'FB-450×22', kg: 77.7 },
+        { label: 'FB-500×22', kg: 86.4 },
+        { label: 'FB-75×25', kg: 14.7 },
+        { label: 'FB-90×25', kg: 17.7 },
+        { label: 'FB-100×25', kg: 19.6 },
+        { label: 'FB-125×25', kg: 24.5 },
+        { label: 'FB-150×25', kg: 29.4 },
+        { label: 'FB-180×25', kg: 35.3 },
+        { label: 'FB-200×25', kg: 39.2 },
+        { label: 'FB-230×25', kg: 45.2 },
+        { label: 'FB-250×25', kg: 49.1 },
+        { label: 'FB-280×25', kg: 55.0 },
+        { label: 'FB-300×25', kg: 58.9 },
+        { label: 'FB-350×25', kg: 68.7 },
+        { label: 'FB-400×25', kg: 78.5 },
+        { label: 'FB-450×25', kg: 88.3 },
+        { label: 'FB-500×25', kg: 98.1 },
+        { label: 'FB-75×28', kg: 16.5 },
+        { label: 'FB-90×28', kg: 19.8 },
+        { label: 'FB-100×28', kg: 22.0 },
+        { label: 'FB-125×28', kg: 27.5 },
+        { label: 'FB-150×28', kg: 33.0 },
+        { label: 'FB-180×28', kg: 39.6 },
+        { label: 'FB-200×28', kg: 44.0 },
+        { label: 'FB-230×28', kg: 50.6 },
+        { label: 'FB-250×28', kg: 55.0 },
+        { label: 'FB-280×28', kg: 61.5 },
+        { label: 'FB-300×28', kg: 65.9 },
+        { label: 'FB-350×28', kg: 76.9 },
+        { label: 'FB-400×28', kg: 87.9 },
+        { label: 'FB-450×28', kg: 99.0 },
+        { label: 'FB-500×28', kg: 110 },
+        { label: 'FB-100×32', kg: 25.1 },
+        { label: 'FB-125×32', kg: 31.4 },
+        { label: 'FB-150×32', kg: 37.7 },
+        { label: 'FB-230×32', kg: 57.8 },
+        { label: 'FB-250×32', kg: 62.8 },
+        { label: 'FB-300×32', kg: 75.4 },
+        { label: 'FB-350×32', kg: 87.9 },
+        { label: 'FB-400×32', kg: 100 },
+        { label: 'FB-450×32', kg: 113 },
+        { label: 'FB-500×32', kg: 126 },
+        { label: 'FB-75×36', kg: 21.2 },
+        { label: 'FB-90×36', kg: 25.4 },
+        { label: 'FB-100×36', kg: 28.3 },
+        { label: 'FB-125×36', kg: 35.3 },
+        { label: 'FB-150×36', kg: 42.4 },
+        { label: 'FB-180×36', kg: 50.9 },
+        { label: 'FB-200×36', kg: 56.5 },
+        { label: 'FB-230×36', kg: 65.0 },
+        { label: 'FB-250×36', kg: 70.6 },
+        { label: 'FB-280×36', kg: 79.1 },
+        { label: 'FB-300×36', kg: 84.8 },
+        { label: 'FB-350×36', kg: 98.9 },
+        { label: 'FB-400×36', kg: 113 },
+        { label: 'FB-450×36', kg: 127 },
+        { label: 'FB-500×36', kg: 141 },
+        { label: 'FB-100×40', kg: 31.4 },
+        { label: 'FB-125×40', kg: 39.2 },
+        { label: 'FB-150×40', kg: 47.1 },
+        { label: 'FB-180×40', kg: 56.5 },
+        { label: 'FB-200×40', kg: 62.8 },
+        { label: 'FB-230×40', kg: 72.2 },
+        { label: 'FB-250×40', kg: 78.5 },
+        { label: 'FB-280×40', kg: 87.9 },
+        { label: 'FB-300×40', kg: 94.2 },
+        { label: 'FB-350×40', kg: 110 },
+        { label: 'FB-400×40', kg: 126 },
+        { label: 'FB-450×40', kg: 141 },
+        { label: 'FB-500×40', kg: 157 },
+        { label: 'FB-75×45', kg: 26.5 },
+        { label: 'FB-90×45', kg: 31.8 },
+        { label: 'FB-100×45', kg: 35.3 },
+        { label: 'FB-125×45', kg: 44.2 },
+        { label: 'FB-150×45', kg: 53.0 },
+        { label: 'FB-180×45', kg: 63.6 },
+        { label: 'FB-200×45', kg: 70.7 },
+        { label: 'FB-230×45', kg: 81.2 },
+        { label: 'FB-250×45', kg: 88.3 },
+        { label: 'FB-280×45', kg: 98.9 },
+        { label: 'FB-300×45', kg: 106 },
+        { label: 'FB-350×45', kg: 124 },
+        { label: 'FB-400×45', kg: 141 },
+        { label: 'FB-450×45', kg: 159 },
+      ],
+      roundbar: [
+        { label: '丸 5.5mm', kg: 0.187 },
+        { label: '丸 6mm', kg: 0.222 },
+        { label: '丸 7mm', kg: 0.302 },
+        { label: '丸 8mm', kg: 0.395 },
+        { label: '丸 9mm', kg: 0.499 },
+        { label: '丸 10mm', kg: 0.617 },
+        { label: '丸 11mm', kg: 0.746 },
+        { label: '丸 12mm', kg: 0.888 },
+        { label: '丸 13mm', kg: 1.04 },
+        { label: '丸 14mm', kg: 1.21 },
+        { label: '丸 16mm', kg: 1.58 },
+        { label: '丸 18mm', kg: 2.00 },
+        { label: '丸 19mm', kg: 2.23 },
+        { label: '丸 20mm', kg: 2.47 },
+        { label: '丸 22mm', kg: 2.98 },
+        { label: '丸 24mm', kg: 3.55 },
+        { label: '丸 25mm', kg: 3.85 },
+        { label: '丸 27mm', kg: 4.50 },
+        { label: '丸 30mm', kg: 5.55 },
+        { label: '丸 32mm', kg: 6.31 },
+        { label: '丸 33mm', kg: 6.71 },
+        { label: '丸 36mm', kg: 7.99 },
+        { label: '丸 38mm', kg: 8.90 },
+        { label: '丸 39mm', kg: 9.38 },
+        { label: '丸 42mm', kg: 10.9 },
+        { label: '丸 45mm', kg: 12.5 },
+        { label: '丸 48mm', kg: 14.2 },
+        { label: '丸 50mm', kg: 15.4 },
+        { label: '丸 52mm', kg: 16.7 },
+        { label: '丸 55mm', kg: 18.7 },
+        { label: '丸 60mm', kg: 22.2 },
+        { label: '丸 65mm', kg: 26.1 },
+        { label: '丸 68mm', kg: 28.5 },
+        { label: '丸 70mm', kg: 30.2 },
+        { label: '丸 75mm', kg: 34.7 },
+        { label: '丸 80mm', kg: 39.5 },
+        { label: '丸 85mm', kg: 44.6 },
+        { label: '丸 90mm', kg: 49.9 },
+        { label: '丸 95mm', kg: 55.6 },
+        { label: '丸 100mm', kg: 61.7 },
+        { label: '丸 110mm', kg: 74.6 },
+        { label: '丸 120mm', kg: 88.8 },
+        { label: '丸 130mm', kg: 104.2 },
+        { label: '丸 140mm', kg: 120.8 },
+        { label: '丸 150mm', kg: 138.7 },
+        { label: '丸 160mm', kg: 157.9 },
+        { label: '丸 180mm', kg: 199.8 },
+        { label: '丸 200mm', kg: 246.6 },
+      ],
+      squarebar: [
+        { label: '角 4mm', kg: 0.126 },
+        { label: '角 5mm', kg: 0.196 },
+        { label: '角 6mm', kg: 0.283 },
+        { label: '角 7mm', kg: 0.385 },
+        { label: '角 8mm', kg: 0.502 },
+        { label: '角 9mm', kg: 0.636 },
+        { label: '角 10mm', kg: 0.785 },
+        { label: '角 11mm', kg: 0.950 },
+        { label: '角 12mm', kg: 1.13 },
+        { label: '角 13mm', kg: 1.33 },
+        { label: '角 14mm', kg: 1.54 },
+        { label: '角 15mm', kg: 1.77 },
+        { label: '角 16mm', kg: 2.01 },
+        { label: '角 17mm', kg: 2.27 },
+        { label: '角 18mm', kg: 2.54 },
+        { label: '角 19mm', kg: 2.83 },
+        { label: '角 20mm', kg: 3.14 },
+        { label: '角 21mm', kg: 3.46 },
+        { label: '角 22mm', kg: 3.80 },
+        { label: '角 23mm', kg: 4.15 },
+        { label: '角 24mm', kg: 4.52 },
+        { label: '角 25mm', kg: 4.91 },
+        { label: '角 28mm', kg: 6.15 },
+        { label: '角 30mm', kg: 7.07 },
+        { label: '角 32mm', kg: 8.04 },
+        { label: '角 34mm', kg: 9.07 },
+        { label: '角 36mm', kg: 10.2 },
+        { label: '角 38mm', kg: 11.3 },
+        { label: '角 40mm', kg: 12.6 },
+        { label: '角 42mm', kg: 13.8 },
+        { label: '角 44mm', kg: 15.2 },
+        { label: '角 45mm', kg: 15.9 },
+        { label: '角 48mm', kg: 18.1 },
+        { label: '角 50mm', kg: 19.6 },
+        { label: '角 55mm', kg: 23.7 },
+        { label: '角 60mm', kg: 28.3 },
+        { label: '角 65mm', kg: 33.2 },
+        { label: '角 70mm', kg: 38.5 },
+        { label: '角 75mm', kg: 44.2 },
+        { label: '角 80mm', kg: 50.2 },
+        { label: '角 85mm', kg: 56.7 },
+        { label: '角 90mm', kg: 63.6 },
+        { label: '角 95mm', kg: 70.9 },
+        { label: '角 100mm', kg: 78.5 },
+        { label: '角 110mm', kg: 95.0 },
+        { label: '角 120mm', kg: 113 },
+        { label: '角 125mm', kg: 122.7 },
+        { label: '角 140mm', kg: 153.9 },
+        { label: '角 150mm', kg: 176.6 },
+        { label: '角 160mm', kg: 201.0 },
+        { label: '角 170mm', kg: 226.9 },
+        { label: '角 180mm', kg: 254.3 },
+        { label: '角 190mm', kg: 283.4 },
+        { label: '角 200mm', kg: 314.0 },
+      ],
+      other: []
+    };
+
+    // 初期行
+    document.addEventListener('DOMContentLoaded', () => {
+      onMaterialChange();
+      onCutMachineChange();
+      addRow(); addRow(); addRow();
+    });
+
+    function onCutMachineChange() {
+      const machine = document.getElementById('cutMachine').value;
+      const kerfInput = document.getElementById('kerfWidth');
+      const frontInput = document.getElementById('lossFront');
+      const backInput = document.getElementById('lossBack');
+      if (machine === 'band') {
+        kerfInput.value = 3;
+        frontInput.value = 10;
+        backInput.value = 50;
+      } else if (machine === 'laser') {
+        kerfInput.value = 3;
+        frontInput.value = 10;
+        backInput.value = 218;
+      }
+      // 'custom' は何もしない（手動設定）
+    }
+
+    function onMaterialChange() {
+      const type = document.getElementById('materialType').value;
+      const sizeSelect = document.getElementById('materialSize');
+      const sizes = STEEL_DB[type] || [];
+
+      sizeSelect.innerHTML = '';
+      if (sizes.length === 0) {
+        sizeSelect.innerHTML = '<option value="">サイズなし</option>';
+        document.getElementById('unitWeight').value = '';
+        document.getElementById('unitWeight').readOnly = false;
+        document.getElementById('unitWeight').placeholder = '手入力';
+      } else {
+        sizes.forEach((s, i) => {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = s.label;
+          sizeSelect.appendChild(opt);
+        });
+        onSizeChange();
+      }
+    }
+
+    function onSizeChange() {
+      const type = document.getElementById('materialType').value;
+      const idx = document.getElementById('materialSize').value;
+      const sizes = STEEL_DB[type] || [];
+      const weightInput = document.getElementById('unitWeight');
+      if (sizes.length > 0 && idx !== '') {
+        weightInput.value = sizes[idx].kg;
+        weightInput.readOnly = true;
+      } else {
+        weightInput.value = '';
+        weightInput.readOnly = false;
+        weightInput.placeholder = '手入力';
+      }
+    }
+
+    // カスタム長さ表示切替
+    document.getElementById('stockLength').addEventListener('change', function() {
+      document.getElementById('customLengthField').style.display =
+        this.value === 'custom' ? '' : 'none';
+    });
+
+    function addRow() {
+      const id = rowId++;
+      const tr = document.createElement('tr');
+      tr.id = 'row-' + id;
+      tr.innerHTML = `
+        <td data-label="部品名"><input type="text" placeholder="部品名 (任意)" data-field="name"></td>
+        <td data-label="長さ (mm)"><input type="number" placeholder="長さ" min="1" data-field="length" oninput="updateSubtotal(${id})"></td>
+        <td data-label="本数"><input type="number" placeholder="本数" min="1" value="1" data-field="qty" oninput="updateSubtotal(${id})"></td>
+        <td data-label="小計" class="subtotal" id="sub-${id}">-</td>
+        <td style="text-align:center"><button class="btn-del" onclick="delRow(${id})" title="削除">&times;</button></td>
+      `;
+      document.getElementById('partsBody').appendChild(tr);
+    }
+
+    function delRow(id) {
+      const row = document.getElementById('row-' + id);
+      if (row) row.remove();
+    }
+
+    function clearAll() {
+      document.getElementById('partsBody').innerHTML = '';
+      document.getElementById('result-area').style.display = 'none';
+      addRow();
+    }
+
+    function resetAll() {
+      // 部品リスト
+      document.getElementById('partsBody').innerHTML = '';
+      addRow(); addRow(); addRow();
+      // 結果・提案を非表示
+      document.getElementById('result-area').style.display = 'none';
+      document.getElementById('suggest-area').style.display = 'none';
+      lastCalcCost = null;
+      lastMixResult = null;
+    }
+
+    function updateSubtotal(id) {
+      const row = document.getElementById('row-' + id);
+      if (!row) return;
+      const len = parseFloat(row.querySelector('[data-field="length"]').value) || 0;
+      const qty = parseInt(row.querySelector('[data-field="qty"]').value) || 0;
+      const sub = document.getElementById('sub-' + id);
+      sub.textContent = (len > 0 && qty > 0) ? (len * qty).toLocaleString() + ' mm' : '-';
+    }
+
+    function getStockLength() {
+      const sel = document.getElementById('stockLength');
+      if (sel.value === 'custom') {
+        return parseFloat(document.getElementById('customLength').value) || 0;
+      }
+      return parseFloat(sel.value);
+    }
+
+    let lastCalcCost = null; // 通常計算時の金額を保持
+
+    function getUnitWeight() {
+      return parseFloat(document.getElementById('unitWeight').value) || 0;
+    }
+
+    function getSteelPrice() {
+      return parseFloat(document.getElementById('steelPrice').value) || 0;
+    }
+
+    function formatYen(val) {
+      return '¥' + Math.round(val).toLocaleString();
+    }
+
+    function showWeight(totalLengthMm, isMix) {
+      const uw = getUnitWeight();
+      const price = getSteelPrice();
+      const weightBox = document.getElementById('weightBox');
+      const costBox = document.getElementById('costBox');
+      const compareBox = document.getElementById('costCompare');
+
+      if (uw > 0) {
+        const totalKg = uw * (totalLengthMm / 1000);
+        document.getElementById('totalWeight').textContent =
+          totalKg >= 1000 ? (totalKg / 1000).toFixed(2) + ' t' : totalKg.toFixed(1) + ' kg';
+        weightBox.style.display = '';
+
+        if (price > 0) {
+          const cost = totalKg * price;
+          document.getElementById('totalCost').textContent = formatYen(cost);
+          costBox.style.display = '';
+
+          if (!isMix) {
+            // 通常計算 → 基準金額を保存、差額非表示
+            lastCalcCost = cost;
+            compareBox.style.display = 'none';
+          } else {
+            // 提案結果 → 差額表示
+            if (lastCalcCost !== null && lastCalcCost !== cost) {
+              const diff = lastCalcCost - cost;
+              const isSaving = diff > 0;
+              compareBox.innerHTML = `
+                <h3>通常計算との差額比較</h3>
+                <div class="cost-compare-row current">
+                  <span>通常計算 (単一定尺)</span>
+                  <span>${formatYen(lastCalcCost)}</span>
+                </div>
+                <div class="cost-compare-row suggest">
+                  <span>組み合わせ提案</span>
+                  <span>${formatYen(cost)}</span>
+                </div>
+                <div class="cost-compare-diff ${isSaving ? 'saving' : 'loss'}">
+                  ${isSaving ? '▼ ' + formatYen(diff) + ' コスト削減' : '▲ ' + formatYen(-diff) + ' コスト増加'}
+                </div>
+              `;
+              compareBox.style.display = '';
+            } else {
+              compareBox.style.display = 'none';
+            }
+          }
+        } else {
+          costBox.style.display = 'none';
+          compareBox.style.display = 'none';
+        }
+      } else {
+        weightBox.style.display = 'none';
+        costBox.style.display = 'none';
+        compareBox.style.display = 'none';
+      }
+    }
+
+    function getParts() {
+      const rows = document.querySelectorAll('#partsBody tr');
+      const parts = [];
+      rows.forEach(row => {
+        const name = row.querySelector('[data-field="name"]').value || '部品';
+        const len = parseFloat(row.querySelector('[data-field="length"]').value);
+        const qty = parseInt(row.querySelector('[data-field="qty"]').value);
+        if (len > 0 && qty > 0) {
+          for (let i = 0; i < qty; i++) {
+            parts.push({ name, length: len });
+          }
+        }
+      });
+      return parts;
+    }
+
+    function getLossFront() {
+      return parseFloat(document.getElementById('lossFront').value) || 0;
+    }
+    function getLossBack() {
+      return parseFloat(document.getElementById('lossBack').value) || 0;
+    }
+
+    // FFD (First Fit Decreasing) アルゴリズム
+    // effectiveLen = stockLen - lossFront - lossBack（実際に使える長さ）
+    function solvFFD(parts, stockLen, kerf, lossFront, lossBack) {
+      const effectiveLen = stockLen - lossFront - lossBack;
+      const sorted = [...parts].sort((a, b) => b.length - a.length);
+      const bins = []; // 各母材: { pieces: [], used: 0 }
+
+      for (const part of sorted) {
+        const needed = part.length;
+        let placed = false;
+
+        for (const bin of bins) {
+          const extra = bin.pieces.length > 0 ? kerf : 0;
+          if (bin.used + extra + needed <= effectiveLen) {
+            bin.pieces.push(part);
+            bin.used += extra + needed;
+            placed = true;
+            break;
+          }
+        }
+
+        if (!placed) {
+          bins.push({ pieces: [part], used: needed });
+        }
+      }
+      return bins;
+    }
+
+    function calculate() {
+      const stockLen = getStockLength();
+      const kerf = parseFloat(document.getElementById('kerfWidth').value) || 0;
+      const lossFront = getLossFront();
+      const lossBack = getLossBack();
+      const parts = getParts();
+      const effectiveLen = stockLen - lossFront - lossBack;
+
+      if (stockLen <= 0) { alert('母材の定尺を設定してください。'); return; }
+      if (effectiveLen <= 0) { alert('ロスが大きすぎます。母材の有効長が0以下です。'); return; }
+      if (parts.length === 0) { alert('部品を1つ以上入力してください。'); return; }
+
+      // 有効長より長い部品チェック
+      const over = parts.find(p => p.length > effectiveLen);
+      if (over) {
+        alert(`部品「${over.name}」(${over.length}mm) が母材有効長 (${effectiveLen}mm) を超えています。`);
+        return;
+      }
+
+      const bins = solvFFD(parts, stockLen, kerf, lossFront, lossBack);
+
+      // 統計
+      const totalBars = bins.length;
+      const totalStock = totalBars * stockLen;
+      const totalEffective = totalBars * effectiveLen;
+      const partsUsed = bins.reduce((s, b) => s + b.used, 0);
+      const totalWaste = totalEffective - partsUsed;
+      const yieldRate = (partsUsed / totalStock * 100);
+
+      document.getElementById('stockSize').textContent = (stockLen / 1000).toFixed(1) + 'm';
+      document.getElementById('totalBars').textContent = totalBars + ' 本';
+      document.getElementById('totalParts').textContent = parts.length + ' 本';
+      document.getElementById('yieldRate').textContent = yieldRate.toFixed(1) + '%';
+      document.getElementById('totalWaste').textContent = totalWaste.toLocaleString() + ' mm';
+      showWeight(totalBars * stockLen, false);
+      document.getElementById('result-area').style.display = 'block';
+
+      // バー描画 - 同じパターンをグループ化
+      const section = document.getElementById('barSection');
+      section.innerHTML = '<h3>取り合い図 (配置詳細)</h3>';
+
+      // 各母材のパターンをキー化してグループ化
+      function binKey(bin) {
+        return bin.pieces.map(p => p.name + ':' + p.length).join('|');
+      }
+
+      const groups = [];
+      const keyMap = {};
+      bins.forEach(bin => {
+        const key = binKey(bin);
+        if (key in keyMap) {
+          groups[keyMap[key]].count++;
+        } else {
+          keyMap[key] = groups.length;
+          groups.push({ bin, count: 1 });
+        }
+      });
+
+      groups.forEach((group, gi) => {
+        const bin = group.bin;
+        const count = group.count;
+        const item = document.createElement('div');
+        item.className = 'bar-item';
+
+        const waste = effectiveLen - bin.used;
+        const wastePercent = (waste / stockLen * 100).toFixed(1);
+
+        const countLabel = count > 1 ? ` x${count} 本` : '';
+
+        item.innerHTML = `
+          <div class="bar-header">
+            <span>パターン ${gi + 1}${countLabel}</span>
+            <span>使用: ${bin.used.toLocaleString()} mm / 端材: ${waste.toLocaleString()} mm (${wastePercent}%)</span>
+          </div>
+        `;
+
+        const barVisual = document.createElement('div');
+        barVisual.className = 'bar-visual';
+
+        // 前ロス
+        if (lossFront > 0) {
+          const div = document.createElement('div');
+          div.className = 'bar-loss';
+          div.style.width = (lossFront / stockLen * 100) + '%';
+          div.title = '前ロス: ' + lossFront + 'mm';
+          barVisual.appendChild(div);
+        }
+
+        bin.pieces.forEach((piece, j) => {
+          const pct = (piece.length / stockLen * 100);
+          const div = document.createElement('div');
+          div.className = 'bar-piece colors-' + (j % 8);
+          div.style.width = pct + '%';
+          div.textContent = piece.name + ' ' + piece.length;
+          div.title = piece.name + ': ' + piece.length + 'mm';
+          barVisual.appendChild(div);
+        });
+
+        if (waste > 0) {
+          const wasteDiv = document.createElement('div');
+          wasteDiv.className = 'bar-waste';
+          wasteDiv.textContent = waste > stockLen * 0.03 ? waste.toLocaleString() : '';
+          barVisual.appendChild(wasteDiv);
+        }
+
+        // 後ロス
+        if (lossBack > 0) {
+          const div = document.createElement('div');
+          div.className = 'bar-loss';
+          div.style.width = (lossBack / stockLen * 100) + '%';
+          div.title = '後ロス: ' + lossBack + 'mm';
+          barVisual.appendChild(div);
+        }
+
+        item.appendChild(barVisual);
+        section.appendChild(item);
+      });
+
+      // スクロール
+      document.getElementById('result-area').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    const ALL_STOCKS = [4000, 5000, 5500, 6000, 7000, 7500, 8000, 9000, 10000, 12000];
+    let lastMixResult = null;
+
+    function suggest() {
+      const parts = getParts();
+      if (parts.length === 0) { alert('部品を1つ以上入力してください。'); return; }
+
+      const maxPart = Math.max(...parts.map(p => p.length));
+      const lossFront = getLossFront();
+      const lossBack = getLossBack();
+
+      // チェックボックス生成
+      const container = document.getElementById('stockCandidates');
+      container.innerHTML = '';
+      ALL_STOCKS.forEach(len => {
+        const disabled = (len - lossFront - lossBack) < maxPart;
+        const label = document.createElement('label');
+        label.className = 'stock-check';
+        if (disabled) label.style.opacity = '0.4';
+        label.innerHTML = `
+          <input type="checkbox" value="${len}" ${disabled ? 'disabled' : 'checked'}>
+          ${(len / 1000).toFixed(1)}m
+        `;
+        container.appendChild(label);
+      });
+
+      document.getElementById('suggest-result').style.display = 'none';
+      document.getElementById('suggest-area').style.display = 'block';
+      document.getElementById('suggest-area').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function toggleAllStocks() {
+      const boxes = document.querySelectorAll('#stockCandidates input:not(:disabled)');
+      const anyChecked = [...boxes].some(el => el.checked);
+      boxes.forEach(el => el.checked = !anyChecked);
+      document.getElementById('toggleAllBtn').textContent = anyChecked ? '全て選択' : '全て外す';
+    }
+
+    // 複数定尺を混合するFFD（最適化版）
+    // 新しいbinを作る際に、各候補定尺で残り部品をどれだけ詰められるかシミュレーションし
+    // 最も歩留まりが高い定尺を選択する
+    function solveMixedFFD(parts, stockLengths, kerf, lossFront, lossBack) {
+      const sorted = [...parts].sort((a, b) => b.length - a.length);
+      const sortedStocks = [...stockLengths].sort((a, b) => a - b);
+      const bins = [];
+      const placed = new Array(sorted.length).fill(false);
+
+      for (let i = 0; i < sorted.length; i++) {
+        if (placed[i]) continue;
+        const part = sorted[i];
+        const needed = part.length;
+
+        // 既存binに入るか（残り最小 = ベストフィット）
+        let bestBin = null;
+        let bestRemain = Infinity;
+        for (const bin of bins) {
+          const effLen = bin.stockLen - lossFront - lossBack;
+          const extra = bin.pieces.length > 0 ? kerf : 0;
+          const remain = effLen - (bin.used + extra + needed);
+          if (remain >= 0 && remain < bestRemain) {
+            bestRemain = remain;
+            bestBin = bin;
+          }
+        }
+
+        if (bestBin) {
+          const extra = bestBin.pieces.length > 0 ? kerf : 0;
+          bestBin.pieces.push(part);
+          bestBin.used += extra + needed;
+          placed[i] = true;
+          continue;
+        }
+
+        // 新しいbinが必要 → 各候補定尺でシミュレーション
+        let bestStock = null;
+        let bestRate = -1;
+        let bestFillPieces = null;
+
+        for (const stockLen of sortedStocks) {
+          const effLen = stockLen - lossFront - lossBack;
+          if (effLen < needed) continue;
+
+          // このbinに入れられる未配置部品をシミュレーション
+          const simPieces = [{ idx: i, part }];
+          let simUsed = needed;
+
+          for (let j = i + 1; j < sorted.length; j++) {
+            if (placed[j]) continue;
+            const extra = simPieces.length > 0 ? kerf : 0;
+            if (simUsed + extra + sorted[j].length <= effLen) {
+              simPieces.push({ idx: j, part: sorted[j] });
+              simUsed += extra + sorted[j].length;
+            }
+          }
+
+          const rate = simUsed / stockLen;
+          if (rate > bestRate) {
+            bestRate = rate;
+            bestStock = stockLen;
+            bestFillPieces = simPieces;
+          }
+        }
+
+        if (bestStock && bestFillPieces) {
+          const newBin = { stockLen: bestStock, pieces: [], used: 0 };
+          bestFillPieces.forEach(fp => {
+            const extra = newBin.pieces.length > 0 ? kerf : 0;
+            newBin.pieces.push(fp.part);
+            newBin.used += extra + fp.part.length;
+            placed[fp.idx] = true;
+          });
+          bins.push(newBin);
+        }
+      }
+      return bins;
+    }
+
+    function runSuggest() {
+      const kerf = parseFloat(document.getElementById('kerfWidth').value) || 0;
+      const lossFront = getLossFront();
+      const lossBack = getLossBack();
+      const parts = getParts();
+      if (parts.length === 0) { alert('部品を1つ以上入力してください。'); return; }
+
+      const checked = [...document.querySelectorAll('#stockCandidates input:checked')]
+        .map(el => parseInt(el.value));
+
+      if (checked.length === 0) { alert('定尺を1つ以上選択してください。'); return; }
+
+      const uw = getUnitWeight();
+      const price = getSteelPrice();
+      const showCost = uw > 0 && price > 0;
+
+      // 単一定尺の比較
+      const singleResults = checked.map(stockLen => {
+        const bins = solvFFD(parts, stockLen, kerf, lossFront, lossBack);
+        const totalUsed = bins.reduce((s, b) => s + b.used, 0);
+        const totalStock = bins.length * stockLen;
+        const waste = bins.length * (stockLen - lossFront - lossBack) - totalUsed;
+        const yieldRate = (totalUsed / totalStock * 100);
+        const cost = showCost ? uw * (totalStock / 1000) * price : 0;
+        return { stockLen, bars: bins.length, yieldRate, waste, cost };
+      });
+
+      const bestYield = Math.max(...singleResults.map(r => r.yieldRate));
+
+      // 現在の設定でのコストを算出（差額表示用）
+      let currentCost = null;
+      if (showCost && lastCalcCost !== null) {
+        currentCost = lastCalcCost;
+      }
+      const showDiff = showCost && currentCost !== null;
+
+      document.getElementById('suggestCostHeader').style.display = showCost ? '' : 'none';
+      document.getElementById('suggestDiffHeader').style.display = showDiff ? '' : 'none';
+
+      const tbody = document.getElementById('suggestBody');
+      tbody.innerHTML = '';
+      singleResults.forEach(r => {
+        const isBest = r.yieldRate === bestYield;
+        const tr = document.createElement('tr');
+        if (isBest) tr.className = 'best';
+        const costCell = showCost ? `<td style="font-weight:600">${formatYen(r.cost)}</td>` : '';
+        let diffCell = '';
+        if (showDiff) {
+          const diff = currentCost - r.cost;
+          if (Math.abs(diff) < 1) {
+            diffCell = '<td style="color:#888;">¥0</td>';
+          } else if (diff > 0) {
+            diffCell = `<td style="color:#16a34a;font-weight:700;">▼ ${formatYen(diff)}</td>`;
+          } else {
+            diffCell = `<td style="color:#dc2626;font-weight:700;">▲ ${formatYen(-diff)}</td>`;
+          }
+        }
+        tr.innerHTML = `
+          <td>${(r.stockLen / 1000).toFixed(1)}m (${r.stockLen.toLocaleString()}mm)${isBest ? '<span class="best-badge">推奨</span>' : ''}</td>
+          <td>${r.bars} 本</td>
+          <td style="font-weight:700">${r.yieldRate.toFixed(1)}%</td>
+          <td>${r.waste.toLocaleString()} mm</td>
+          ${costCell}
+          ${diffCell}
+          <td><button class="btn-apply" onclick="applyStock(${r.stockLen})">適用</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // 現在設定中の定尺での歩留まりを基準にする
+      const currentStock = getStockLength();
+      let currentYield = 0;
+      if (currentStock > 0) {
+        const currentBins = solvFFD(parts, currentStock, kerf, lossFront, lossBack);
+        const currentUsed = currentBins.reduce((s, b) => s + b.used, 0);
+        currentYield = (currentUsed / (currentBins.length * currentStock) * 100);
+      }
+      const baseline = Math.max(bestYield, currentYield);
+
+      // 複数定尺の組み合わせ（2つ以上選択時）
+      const mixArea = document.getElementById('mixResult');
+      if (checked.length >= 2) {
+        const mixBins = solveMixedFFD(parts, checked, kerf, lossFront, lossBack);
+        const totalUsed = mixBins.reduce((s, b) => s + b.used, 0);
+        const totalStock = mixBins.reduce((s, b) => s + b.stockLen, 0);
+        const totalEffective = mixBins.reduce((s, b) => s + b.stockLen - lossFront - lossBack, 0);
+        const totalWaste = totalEffective - totalUsed;
+        const mixYield = (totalUsed / totalStock * 100);
+
+        // 単一定尺・現在設定より良い場合のみ表示
+        if (mixYield > baseline) {
+          const countByLen = {};
+          mixBins.forEach(b => {
+            countByLen[b.stockLen] = (countByLen[b.stockLen] || 0) + 1;
+          });
+
+          lastMixResult = mixBins;
+
+          let html = '<div class="mix-summary">';
+          html += '<div style="font-size:0.75rem;color:#888;margin-bottom:4px;font-weight:600;">必要母材</div>';
+          html += '<div class="mix-stocks">';
+          const lenKeys = Object.keys(countByLen).sort((a, b) => a - b);
+          lenKeys.forEach((len, i) => {
+            if (i > 0) html += '<div style="display:flex;align-items:center;font-size:1.2rem;color:#aaa;font-weight:700;">+</div>';
+            html += `<div class="mix-stock-card">
+              <div class="stock-size">${(len / 1000).toFixed(1)}m</div>
+              <div class="stock-multiply">&times;</div>
+              <div class="stock-count">${countByLen[len]} 本</div>
+            </div>`;
+          });
+          html += '</div>';
+          const mixCost = showCost ? uw * (totalStock / 1000) * price : 0;
+          html += `<div class="mix-total-row">
+            <span>合計 ${mixBins.length} 本 / 歩留まり ${mixYield.toFixed(1)}%</span>
+            <span>端材 ${totalWaste.toLocaleString()} mm</span>
+          </div>`;
+          if (showCost) {
+            const bestSingleCost = Math.min(...singleResults.map(r => r.cost));
+            html += `<div class="mix-total-row" style="border-top:none;padding-top:4px;">
+              <span>鋼材費</span>
+              <span style="font-size:1.1rem;">${formatYen(mixCost)}</span>
+            </div>`;
+            if (lastCalcCost !== null) {
+              const diff = lastCalcCost - mixCost;
+              if (diff > 0) {
+                html += `<div style="margin-top:8px;font-size:0.9rem;color:#16a34a;font-weight:700;">通常計算より ${formatYen(diff)} コスト削減</div>`;
+              }
+            }
+          }
+          html += `<div style="margin-top:8px;font-size:0.8rem;color:#38a169;font-weight:600;">単一定尺 (${bestYield.toFixed(1)}%) より歩留まりが +${(mixYield - bestYield).toFixed(1)}% 向上</div>`;
+          html += '</div>';
+
+          document.getElementById('mixDetail').innerHTML = html;
+          mixArea.style.display = 'block';
+        } else {
+          document.getElementById('mixDetail').innerHTML =
+            '<div style="padding:12px;background:#f7fafc;border-radius:8px;font-size:0.85rem;color:#888;">組み合わせても単一定尺より歩留まりが向上しないため、提案はありません。</div>';
+          mixArea.style.display = 'block';
+          lastMixResult = null;
+        }
+      } else {
+        mixArea.style.display = 'none';
+        lastMixResult = null;
+      }
+
+      document.getElementById('suggest-result').style.display = 'block';
+    }
+
+    function applyStock(len) {
+      const sel = document.getElementById('stockLength');
+      const option = sel.querySelector(`option[value="${len}"]`);
+      if (option) {
+        sel.value = len;
+        document.getElementById('customLengthField').style.display = 'none';
+      } else {
+        sel.value = 'custom';
+        document.getElementById('customLength').value = len;
+        document.getElementById('customLengthField').style.display = '';
+      }
+      document.getElementById('suggest-area').style.display = 'none';
+      calculate();
+    }
+
+    function applyMix() {
+      if (!lastMixResult) return;
+      document.getElementById('suggest-area').style.display = 'none';
+      // 組み合わせ結果を直接表示
+      renderMixedResult(lastMixResult);
+    }
+
+    function renderMixedResult(bins) {
+      const parts = getParts();
+      const lossFront = getLossFront();
+      const lossBack = getLossBack();
+      const totalUsed = bins.reduce((s, b) => s + b.used, 0);
+      const totalStock = bins.reduce((s, b) => s + b.stockLen, 0);
+      const totalEffective = bins.reduce((s, b) => s + b.stockLen - lossFront - lossBack, 0);
+      const totalWaste = totalEffective - totalUsed;
+      const yieldRate = (totalUsed / totalStock * 100);
+
+      // 混合の場合は各サイズを表示
+      const countByLen = {};
+      bins.forEach(b => { countByLen[b.stockLen] = (countByLen[b.stockLen] || 0) + 1; });
+      const sizeText = Object.keys(countByLen).sort((a,b) => a - b)
+        .map(l => (l / 1000).toFixed(1) + 'm').join(' + ');
+      document.getElementById('stockSize').textContent = sizeText;
+      document.getElementById('totalBars').textContent = bins.length + ' 本';
+      document.getElementById('totalParts').textContent = parts.length + ' 本';
+      document.getElementById('yieldRate').textContent = yieldRate.toFixed(1) + '%';
+      document.getElementById('totalWaste').textContent = totalWaste.toLocaleString() + ' mm';
+      showWeight(totalStock, true);
+      document.getElementById('result-area').style.display = 'block';
+
+      const section = document.getElementById('barSection');
+      section.innerHTML = '<h3>取り合い図 (配置詳細 - 複数定尺)</h3>';
+
+      // グループ化
+      function binKey(bin) {
+        return bin.stockLen + ':' + bin.pieces.map(p => p.name + ':' + p.length).join('|');
+      }
+      const groups = [];
+      const keyMap = {};
+      bins.forEach(bin => {
+        const key = binKey(bin);
+        if (key in keyMap) {
+          groups[keyMap[key]].count++;
+        } else {
+          keyMap[key] = groups.length;
+          groups.push({ bin, count: 1 });
+        }
+      });
+
+      groups.forEach((group, gi) => {
+        const bin = group.bin;
+        const count = group.count;
+        const effLen = bin.stockLen - lossFront - lossBack;
+        const item = document.createElement('div');
+        item.className = 'bar-item';
+
+        const waste = effLen - bin.used;
+        const wastePercent = (waste / bin.stockLen * 100).toFixed(1);
+        const countLabel = count > 1 ? ` x${count} 本` : '';
+        const lenLabel = (bin.stockLen / 1000).toFixed(1) + 'm';
+
+        item.innerHTML = `
+          <div class="bar-header">
+            <span>パターン ${gi + 1}${countLabel} [${lenLabel}]</span>
+            <span>使用: ${bin.used.toLocaleString()} mm / 端材: ${waste.toLocaleString()} mm (${wastePercent}%)</span>
+          </div>
+        `;
+
+        const barVisual = document.createElement('div');
+        barVisual.className = 'bar-visual';
+
+        if (lossFront > 0) {
+          const div = document.createElement('div');
+          div.className = 'bar-loss';
+          div.style.width = (lossFront / bin.stockLen * 100) + '%';
+          div.title = '前ロス: ' + lossFront + 'mm';
+          barVisual.appendChild(div);
+        }
+
+        bin.pieces.forEach((piece, j) => {
+          const pct = (piece.length / bin.stockLen * 100);
+          const div = document.createElement('div');
+          div.className = 'bar-piece colors-' + (j % 8);
+          div.style.width = pct + '%';
+          div.textContent = piece.name + ' ' + piece.length;
+          div.title = piece.name + ': ' + piece.length + 'mm';
+          barVisual.appendChild(div);
+        });
+
+        if (waste > 0) {
+          const wasteDiv = document.createElement('div');
+          wasteDiv.className = 'bar-waste';
+          wasteDiv.textContent = waste > bin.stockLen * 0.03 ? waste.toLocaleString() : '';
+          barVisual.appendChild(wasteDiv);
+        }
+
+        if (lossBack > 0) {
+          const div = document.createElement('div');
+          div.className = 'bar-loss';
+          div.style.width = (lossBack / bin.stockLen * 100) + '%';
+          div.title = '後ロス: ' + lossBack + 'mm';
+          barVisual.appendChild(div);
+        }
+
+        item.appendChild(barVisual);
+        section.appendChild(item);
+      });
+
+      document.getElementById('result-area').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    /* Apple Touch Icon 生成 */
+    (function(){
+      var c = document.createElement('canvas');
+      c.width = 180; c.height = 180;
+      var ctx = c.getContext('2d');
+      var r = 32;
+      ctx.beginPath();
+      ctx.moveTo(r, 0);
+      ctx.lineTo(180 - r, 0);
+      ctx.quadraticCurveTo(180, 0, 180, r);
+      ctx.lineTo(180, 180 - r);
+      ctx.quadraticCurveTo(180, 180, 180 - r, 180);
+      ctx.lineTo(r, 180);
+      ctx.quadraticCurveTo(0, 180, 0, 180 - r);
+      ctx.lineTo(0, r);
+      ctx.quadraticCurveTo(0, 0, r, 0);
+      ctx.closePath();
+      ctx.fillStyle = '#2B3A4E';
+      ctx.fill();
+      ctx.font = 'bold 128px Arial, Helvetica, sans-serif';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('T', 90, 96);
+      var link = document.getElementById('apple-icon');
+      if(link) link.href = c.toDataURL('image/png');
+    })();
+  </script>
+</body>
+</html>
