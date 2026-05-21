@@ -1,5 +1,10 @@
 'use strict';
 
+/* ===== API ベースURL（ローカル開発 vs 本番自動切替） ===== */
+const SPACE_API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://127.0.0.1:8000/api'
+  : 'https://halspace-api-production.up.railway.app/api';
+
 /* ===== モックユーザーデータ（⑨でAPI接続に置き換える） =====
    URLパラメータ ?role=jp_admin / id_modeler で切り替え可能   */
 const MOCK_USERS = {
@@ -85,7 +90,7 @@ if (loginForm) {
     const resetBtn = () => btn.classList.remove('loading');
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/auth/login', {
+      const res = await fetch(`${SPACE_API}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -116,7 +121,7 @@ if (loginForm) {
         location.href = 'apps.html';
         return;
       }
-      errMsg.textContent = 'サーバーに接続できません。Laragonが起動しているか確認してください。';
+      errMsg.textContent = 'サーバーに接続できません。しばらく経ってから再度お試しください。';
       err.classList.add('show');
       resetBtn();
     }
@@ -142,7 +147,7 @@ if (loginForm) {
       };
 
       try {
-        const res = await fetch('http://127.0.0.1:8000/api/auth/login', {
+        const res = await fetch(`${SPACE_API}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify(creds),
