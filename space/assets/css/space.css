@@ -398,10 +398,61 @@ input { font-family: inherit; }
 }
 .app-card:hover:not(.locked)::after { color: #635bff; transform: translateX(3px); }
 
-/* レスポンシブ */
-@media (max-width: 768px) {
-  .apps-body  { padding: 28px 16px 60px; }
-  .apps-header { padding: 0 16px; }
-  .app-card { flex: 0 0 190px; }
-  .login-card { padding: 36px 28px; }
+/* ══════════════════════════════════════════
+   レスポンシブ
+══════════════════════════════════════════ */
+
+/* タブレット（〜1023px） */
+@media (max-width: 1023px) {
+  .apps-body { padding: 40px 32px 72px; }
+  .apps-arrow-left  { left: -44px; }
+  .apps-arrow-right { right: -44px; }
+  .app-card { flex: 0 0 200px; }
+}
+
+/* スマホ（〜767px） */
+@media (max-width: 767px) {
+  /* ヘッダー */
+  .apps-header { padding: 0 16px; height: 52px; }
+
+  /* ユーザー名・会社名を非表示 */
+  .user-info { display: none; }
+
+  /* ボタンをアイコンのみに（font-size:0でテキスト消し、アイコンはリセット） */
+  .btn-admin, .btn-logout {
+    padding: 7px 10px;
+    font-size: 0;
+    gap: 0;
+  }
+  .btn-admin i, .btn-logout i { font-size: 14px; }
+
+  /* ボディ */
+  .apps-body { padding: 24px 16px 56px; }
+
+  /* ウェルカム */
+  .apps-welcome { margin-bottom: 24px; padding-bottom: 18px; }
+  .apps-welcome h1 { font-size: 18px; }
+
+  /* 矢印非表示（タッチスクロール使用） */
+  .apps-arrow { display: none; }
+
+  /* カード */
+  .app-card { flex: 0 0 180px; padding: 18px 16px 16px; }
+  .app-icon  { width: 40px; height: 40px; font-size: 17px; border-radius: 10px; }
+  .app-name  { font-size: 13px; }
+  .app-desc  { font-size: 11px; }
+
+  /* ログイン */
+  .login-card { padding: 32px 22px; }
+  .login-logo-title { font-size: 30px; }
+}
+
+/* 極小（〜400px） */
+@media (max-width: 400px) {
+  .apps-welcome h1 { font-size: 16px; }
+  .apps-welcome p  { font-size: 12px; }
+  .app-card { flex: 0 0 160px; padding: 16px 14px; gap: 8px; }
+  .app-icon  { width: 36px; height: 36px; font-size: 15px; }
+  .app-name  { font-size: 12px; }
+  .login-card { padding: 28px 18px; }
 }
