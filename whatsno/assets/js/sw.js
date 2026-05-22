@@ -1,7 +1,7 @@
 'use strict';
 /* What'sNo Service Worker */
 
-const CACHE_NAME = 'whatsno-v1';
+const CACHE_NAME = 'whatsno-v2';
 const SHELL_URLS = [
   '/whatsno/app/dashboard.html',
   '/whatsno/app/file-detail.html',
@@ -36,26 +36,17 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  /* API リクエスト → ネットワーク優先（失敗時にキャッシュがあれば返す） */
-  if (url.hostname.includes('solid-api') || url.pathname.startsWith('/api/')) {
+  /* GET以外（POST/PATCH/DELETE等）はService Worker不介入 → ネットワーク直通 */
+  if (event.request.method !== 'GET') return;
+
+  /* 外部API・CDN → ネットワーク直通（クロスオリジンのGETのみキャッシュ） */
+  if (url.hostname !== self.location.hostname) {
     event.respondWith(
-      fetch(event.request.clone()).then(res => {
-        if (res.ok && event.request.method === 'GET') {
+      caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
+        if (res.ok) {
           const cloned = res.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, cloned));
         }
-        return res;
-      }).catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
-  /* 外部CDN（フォント・アイコン）→ キャッシュ優先 */
-  if (url.hostname !== location.hostname) {
-    event.respondWith(
-      caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
-        const cloned = res.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, cloned));
         return res;
       }))
     );
@@ -72,7 +63,6 @@ self.addEventListener('fetch', event => {
       return res;
     }).catch(() => caches.match(event.request).then(cached => {
       if (cached) return cached;
-      /* オフライン時にHTML要求が来た場合はダッシュボードを返す */
       if (event.request.destination === 'document') {
         return caches.match('/whatsno/app/dashboard.html');
       }
