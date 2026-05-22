@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ALL APPS | Space by HaLSpace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="assets/css/space.css">
+  <style>
+    /* ── ALL APPS ページ固有スタイル ── */
+    .all-header {
+      background: rgba(255,255,255,.85);
+      -webkit-backdrop-filter: blur(20px);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      padding: 0 40px;
+      height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .all-header-left {
+      display: flex; align-items: center; gap: 16px;
+    }
+    .all-header-logo {
+      font-family: 'Poppins', sans-serif;
+      font-size: 19px; font-weight: 800;
+      color: #010066; letter-spacing: -.5px;
+      text-decoration: none;
+    }
+    .all-header-sep {
+      width: 1px; height: 18px;
+      background: rgba(0,0,0,.12);
+    }
+    .all-header-title {
+      font-family: 'Poppins', sans-serif;
+      font-size: 13px; font-weight: 700;
+      color: #8e8e93; letter-spacing: .05em;
+    }
+    .all-back {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 12px; font-weight: 600;
+      color: #2563eb; text-decoration: none;
+      padding: 5px 12px;
+      background: rgba(37,99,235,.07);
+      border-radius: 8px;
+      transition: background .18s;
+    }
+    .all-back:hover { background: rgba(37,99,235,.14); }
+
+    .all-body {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 52px 40px 80px;
+    }
+    .all-page-title {
+      margin-bottom: 36px;
+    }
+    .all-page-title h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 28px; font-weight: 800;
+      color: #1c1c1e; letter-spacing: -.03em;
+      margin-bottom: 4px;
+    }
+    .all-page-title p { font-size: 13px; color: #8e8e93; }
+
+    /* カテゴリセクション */
+    .all-section { margin-bottom: 48px; }
+    .all-section-label {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: .6px; text-transform: uppercase;
+      color: #aeaeb2; margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+
+    /* グリッド */
+    .all-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    /* カード */
+    .all-card {
+      background: rgba(255,255,255,.95);
+      border: 1px solid rgba(0,0,0,.06);
+      border-radius: 16px;
+      padding: 22px 20px 20px;
+      display: flex; gap: 16px; align-items: flex-start;
+      cursor: pointer;
+      text-decoration: none; color: inherit;
+      box-shadow: 0 2px 8px rgba(0,0,0,.05);
+      transition: box-shadow .22s ease, transform .22s ease, border-color .22s ease;
+      position: relative;
+    }
+    .all-card:hover:not(.all-card-locked) {
+      box-shadow: 0 8px 28px rgba(0,0,0,.11);
+      transform: translateY(-2px);
+      border-color: rgba(0,0,0,.09);
+    }
+    .all-card-locked {
+      opacity: .4;
+      cursor: default;
+    }
+
+    .all-card-icon {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 21px; flex-shrink: 0;
+    }
+    .icon-solid   { background: linear-gradient(135deg,#dbeafe,#eff6ff); color: #2563eb; }
+    .icon-whatsno { background: linear-gradient(135deg,#ede9fe,#f3f0ff); color: #7c3aed; }
+    .icon-meetlog { background: linear-gradient(135deg,#fce7f3,#fdf2f8); color: #db2777; }
+    .icon-future  { background: rgba(0,0,0,.04); color: #c7c7cc; }
+
+    .all-card-body { flex: 1; min-width: 0; }
+    .all-card-name {
+      font-size: 14px; font-weight: 700;
+      color: #1c1c1e; letter-spacing: -.1px;
+      margin-bottom: 5px;
+    }
+    .all-card-desc {
+      font-size: 12px; color: #8e8e93;
+      line-height: 1.6;
+    }
+    .all-card-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10.5px; font-weight: 600;
+      padding: 2px 9px; border-radius: 20px;
+      margin-top: 10px;
+    }
+    .tag-active { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    .tag-soon   { background: rgba(0,0,0,.04); color: #aeaeb2; border: 1px solid rgba(0,0,0,.07); }
+
+    .all-card-arrow {
+      position: absolute; top: 18px; right: 16px;
+      font-size: 10px; color: #c7d2fe;
+      transition: color .2s, transform .2s;
+    }
+    .all-card:hover:not(.all-card-locked) .all-card-arrow {
+      color: #635bff; transform: translateX(3px);
+    }
+
+    @media (max-width: 768px) {
+      .all-grid { grid-template-columns: 1fr 1fr; }
+      .all-body  { padding: 32px 16px 60px; }
+      .all-header { padding: 0 16px; }
+    }
+    @media (max-width: 480px) {
+      .all-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="apps-page">
+
+  <header class="all-header">
+    <div class="all-header-left">
+      <a class="all-header-logo" href="apps.html">Space.app</a>
+      <div class="all-header-sep"></div>
+      <span class="all-header-title">ALL APPS</span>
+    </div>
+    <a class="all-back" href="apps.html">
+      <i class="fa-solid fa-arrow-left"></i> 戻る
+    </a>
+  </header>
+
+  <main class="all-body">
+    <div class="all-page-title">
+      <h1>All Apps</h1>
+      <p>HaLSpace が提供するすべてのサービス一覧です。</p>
+    </div>
+
+    <!-- 利用中 -->
+    <div class="all-section">
+      <div class="all-section-label">利用中</div>
+      <div class="all-grid" id="activeGrid"></div>
+    </div>
+
+    <!-- 近日公開 -->
+    <div class="all-section">
+      <div class="all-section-label">近日公開</div>
+      <div class="all-grid" id="futureGrid"></div>
+    </div>
+  </main>
+
+  <script src="assets/js/space.js"></script>
+  <script>
+  (function () {
+    const user = getAuth();
+    if (!user) { location.href = 'login.html'; return; }
+
+    const activeGrid = document.getElementById('activeGrid');
+    const futureGrid = document.getElementById('futureGrid');
+
+    APP_CATALOG.forEach(app => {
+      const isActive = user.apps.includes(app.id) && app.id !== 'future';
+      const isFuture = app.id === 'future';
+      const target = isFuture ? futureGrid : activeGrid;
+
+      const card = document.createElement(isActive ? 'a' : 'div');
+      if (isActive && app.url) card.href = app.url;
+      card.className = `all-card${isFuture ? ' all-card-locked' : ''}`;
+
+      const iconClass = {
+        solid: 'icon-solid', whatsno: 'icon-whatsno',
+        meetlog: 'icon-meetlog', future: 'icon-future'
+      }[app.id] ?? 'icon-future';
+
+      card.innerHTML = `
+        <div class="all-card-icon ${iconClass}">
+          <i class="${app.icon}"></i>
+        </div>
+        <div class="all-card-body">
+          <div class="all-card-name">${app.name}</div>
+          <div class="all-card-desc">${app.desc}</div>
+          <span class="all-card-tag ${isActive ? 'tag-active' : 'tag-soon'}">
+            ${isActive
+              ? '<i class="fa-solid fa-circle-check"></i> 利用中'
+              : '<i class="fa-regular fa-clock"></i> 近日公開'}
+          </span>
+        </div>
+        ${isActive ? '<i class="fa-solid fa-arrow-right all-card-arrow"></i>' : ''}
+      `;
+      target.appendChild(card);
+    });
+  })();
+  </script>
+</body>
+</html>

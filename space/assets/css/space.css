@@ -249,12 +249,27 @@ input { font-family: inherit; }
 }
 .apps-welcome p { font-size: 13px; color: #8e8e93; }
 
-/* セクションラベル */
+/* セクションヘッダー（ラベル + ALL APPSリンク） */
+.apps-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
 .apps-section-label {
   font-size: 11px; font-weight: 700;
   letter-spacing: .6px; text-transform: uppercase;
-  color: #aeaeb2; margin-bottom: 14px;
+  color: #aeaeb2;
 }
+.apps-all-link {
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px; font-weight: 700;
+  color: #2563eb; letter-spacing: .03em;
+  display: flex; align-items: center; gap: 5px;
+  text-decoration: none;
+  transition: gap .2s ease, opacity .2s ease;
+}
+.apps-all-link:hover { opacity: .75; gap: 8px; }
 
 /* 横スクロール外枠 */
 .apps-scroll-wrap {
