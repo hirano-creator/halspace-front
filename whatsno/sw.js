@@ -1,7 +1,7 @@
 'use strict';
 /* What'sNo Service Worker — /whatsno/sw.js */
 
-const CACHE_NAME = 'whatsno-v2';
+const CACHE_NAME = 'whatsno-v3';
 const SHELL_URLS = [
   '/whatsno/app/dashboard.html',
   '/whatsno/app/file-detail.html',
@@ -34,15 +34,10 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  /* API → ネットワーク優先（キャッシュしない） */
-  if (url.hostname.includes('solid-api') || url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    );
-    return;
-  }
+  /* GET以外（POST/PATCH/DELETE等）はService Worker不介入 → ネットワーク直通 */
+  if (event.request.method !== 'GET') return;
 
-  /* CDNリソース → キャッシュ優先 */
+  /* 外部API・CDN → キャッシュ優先（GETのみ） */
   if (url.hostname !== self.location.hostname) {
     event.respondWith(
       caches.match(event.request).then(cached => {
