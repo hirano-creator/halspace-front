@@ -1133,6 +1133,7 @@ async function doUpload() {
   submitBtn.textContent = 'アップロード中…';
 
   const uploadedFiles = [];
+  let failCount = 0;
 
   for (let i = 0; i < uploadQueue.length; i++) {
     const file = uploadQueue[i];
@@ -1145,8 +1146,10 @@ async function doUpload() {
       });
       document.getElementById(`qitem-${i}`)?.style.setProperty('background', 'rgba(0,184,148,.08)');
       if (result?.data?.id) uploadedFiles.push(result.data);
-    } catch {
-      wnShowToast(`${file.name} のアップロードに失敗しました`, 'danger');
+    } catch (err) {
+      failCount++;
+      document.getElementById(`qitem-${i}`)?.style.setProperty('background', 'rgba(231,76,60,.08)');
+      wnShowToast(`${file.name} のアップロードに失敗しました: ${err.message}`, 'danger');
     }
   }
 
@@ -1156,7 +1159,7 @@ async function doUpload() {
   // アップロード成功ファイルのAIタグ提案モーダルを表示
   if (uploadedFiles.length > 0) {
     showAiTagModal(uploadedFiles);
-  } else {
+  } else if (failCount === 0) {
     wnShowToast('アップロードが完了しました', 'success');
   }
 }

@@ -64,8 +64,17 @@ async function wnUploadFile(file, { onProgress } = {}) {
         location.href = '../../../space/login.html';
         return;
       }
-      try { resolve(JSON.parse(xhr.responseText)); }
-      catch { reject(new Error('レスポンスの解析に失敗しました')); }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch { reject(new Error('レスポンスの解析に失敗しました')); }
+      } else {
+        try {
+          const err = JSON.parse(xhr.responseText);
+          reject(new Error(err.message || `アップロードエラー (${xhr.status})`));
+        } catch {
+          reject(new Error(`アップロードエラー (${xhr.status})`));
+        }
+      }
     };
     xhr.onerror = () => reject(new Error('ネットワークエラー'));
     xhr.send(fd);
