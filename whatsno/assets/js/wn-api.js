@@ -50,35 +50,30 @@ async function wnUploadFile(file, { onProgress } = {}) {
   const fd = new FormData();
   fd.append('file', file);
 
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', WN_API_BASE + '/wn/files');
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    xhr.setRequestHeader('Accept', 'application/json');
-    xhr.upload.onprogress = e => {
-      if (e.lengthComputable && onProgress) onProgress(Math.round(e.loaded / e.total * 100));
-    };
-    xhr.onload = () => {
-      if (xhr.status === 401) {
-        localStorage.removeItem('space_token');
-        location.href = '../../../space/login.html';
-        return;
-      }
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try { resolve(JSON.parse(xhr.responseText)); }
-        catch { reject(new Error('レスポンスの解析に失敗しました')); }
-      } else {
-        try {
-          const err = JSON.parse(xhr.responseText);
-          reject(new Error(err.message || `アップロードエラー (${xhr.status})`));
-        } catch {
-          reject(new Error(`アップロードエラー (${xhr.status})`));
-        }
-      }
-    };
-    xhr.onerror = () => reject(new Error('ネットワークエラー'));
-    xhr.send(fd);
+  if (onProgress) onProgress(10);
+
+  const res = await fetch(WN_API_BASE + '/wn/files', {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    body: fd,
   });
+
+  if (onProgress) onProgress(100);
+
+  if (res.status === 401) {
+    localStorage.removeItem('space_token');
+    location.href = '../../../space/login.html';
+    throw new Error('認証エラー');
+  }
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || `アップロードエラー (${res.status})`);
+  }
+  return data;
 }
 
 /* ファイル削除 */
