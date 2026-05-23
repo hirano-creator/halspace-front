@@ -1094,6 +1094,28 @@ function copyEmailText() {
 }
 
 /* ────────────────────────────
+   プレビューモーダル
+──────────────────────────── */
+async function openPreviewModal() {
+  const preview = document.getElementById('mdPreview');
+  const hasContent = preview && !preview.querySelector('.preview-placeholder') && preview.dataset.markdown;
+  if (!hasContent) {
+    mlShowToast('プレビューがありません。AI整形を実行してください。', 'warning');
+    return;
+  }
+  const content = document.getElementById('previewModalContent');
+  content.innerHTML = await parseMarkdownWithImages(preview.dataset.markdown);
+  content.querySelectorAll('h3').forEach(h => {
+    const t = h.textContent;
+    if      (t.includes('✅'))       { h.style.background = '#DCFCE7'; h.style.color = '#15803D'; }
+    else if (t.includes('⚠️'))      { h.style.background = '#FEF9C3'; h.style.color = '#92400E'; }
+    else if (t.includes('📌'))       { h.style.background = '#EDE9FE'; h.style.color = '#6D28D9'; }
+    else if (t.includes('サマリー')) { h.style.background = '#DBEAFE'; h.style.color = '#1D4ED8'; }
+  });
+  document.getElementById('previewFullModal').classList.remove('hidden');
+}
+
+/* ────────────────────────────
    削除
 ──────────────────────────── */
 async function deleteMinute() {
@@ -1166,6 +1188,10 @@ function initEvents() {
   });
   document.getElementById('emailModalClose').addEventListener('click', () => {
     document.getElementById('emailModal').classList.add('hidden');
+  });
+  document.getElementById('previewModalBtn').addEventListener('click', openPreviewModal);
+  document.getElementById('previewFullModalClose').addEventListener('click', () => {
+    document.getElementById('previewFullModal').classList.add('hidden');
   });
 
   document.getElementById('titleInput').addEventListener('input', () => { markDirty(); syncHeaderTitle(); });
