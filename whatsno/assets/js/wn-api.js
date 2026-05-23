@@ -48,15 +48,19 @@ async function wnGetFile(id) {
 async function wnUploadFile(file, { onProgress } = {}) {
   const token = localStorage.getItem('space_token');
 
-  // ファイルをArrayBuffer経由でBlobに変換（iOS Safariの参照無効化対策）
+  // ファイルをArrayBuffer経由でBlobに変換（iOS Safari参照無効化対策）
   const buffer = await file.arrayBuffer();
   const blob = new Blob([buffer], { type: file.type || 'application/octet-stream' });
   const fd = new FormData();
   fd.append('file', blob, file.name);
 
+  // 本番環境では同一オリジンのプロキシ経由でアップロード（iOS Safari CORS回避）
+  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  const uploadUrl = isLocal ? WN_API_BASE + '/wn/files' : '/api/wn-upload';
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', WN_API_BASE + '/wn/files');
+    xhr.open('POST', uploadUrl);
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.setRequestHeader('Accept', 'application/json');
     xhr.upload.onprogress = e => {
