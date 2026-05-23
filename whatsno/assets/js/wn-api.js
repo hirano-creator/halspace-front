@@ -47,10 +47,15 @@ async function wnGetFile(id) {
 /* ファイルアップロード（XHR・進捗コールバック付き） */
 async function wnUploadFile(file, { onProgress } = {}) {
   const token = localStorage.getItem('space_token');
-  const fd = new FormData();
-  fd.append('file', file);
 
-  if (onProgress) onProgress(10);
+  // iOS Safari対策: ファイルをArrayBufferとして先読みしてからBlobに変換
+  if (onProgress) onProgress(5);
+  const buffer = await file.arrayBuffer();
+  const blob = new Blob([buffer], { type: file.type || 'application/octet-stream' });
+  const fd = new FormData();
+  fd.append('file', blob, file.name);
+
+  if (onProgress) onProgress(20);
 
   const res = await fetch(WN_API_BASE + '/wn/files', {
     method: 'POST',
