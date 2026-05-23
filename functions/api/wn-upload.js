@@ -1,23 +1,35 @@
 // Cloudflare Pages Function — What'sNo アップロードプロキシ
 // iOS Safari の CORS 制約を回避するため、同一オリジン経由で Railway に転送する
-// formData を再エンコードせず request.body をストリームで直接転送する
+// multipart を使わずバイナリストリームで送ることで PHP の upload_max_filesize を迂回する
 
 const RAILWAY_API = 'https://halspace-api-production.up.railway.app/api';
 
 export async function onRequestPost(context) {
   const { request } = context;
+  const authHeader = request.headers.get('Authorization') || '';
 
-  const authHeader  = request.headers.get('Authorization') || '';
-  const contentType = request.headers.get('Content-Type')  || '';
+  // multipart から File オブジェクトを取り出してバイナリストリームで送信
+  const formData = await request.formData();
+  const file     = formData.get('file');
+
+  if (!file || typeof file.arrayBuffer !== 'function') {
+    return new Response(JSON.stringify({ message: 'ファイルが見つかりません' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const buffer = await file.arrayBuffer();
 
   const res = await fetch(`${RAILWAY_API}/wn/files`, {
     method:  'POST',
     headers: {
       'Authorization': authHeader,
       'Accept':        'application/json',
-      'Content-Type':  contentType,   // multipart/form-data; boundary=... をそのまま転送
+      'Content-Type':  file.type || 'application/octet-stream',
+      'X-File-Name':   encodeURIComponent(file.name),
     },
-    body: request.body,               // バイナリをそのままストリーム転送（再エンコードなし）
+    body: buffer,  // multipart ではなく raw バイナリで送信
   });
 
   const body = await res.text();
