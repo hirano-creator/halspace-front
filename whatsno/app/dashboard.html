@@ -125,28 +125,28 @@
     <div class="page-body">
 
       <!-- Knowl メーターウィジェット -->
-      <div class="card dash-brain-widget" id="dashBrainWidget" style="margin-bottom:16px;padding:14px 20px;display:none;">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <a href="brain.html" style="display:flex;align-items:center;gap:6px;text-decoration:none;flex-shrink:0;">
-            <span class="brain-meter-icon" style="font-size:16px;"><i class="fa-solid fa-circle-nodes"></i></span>
-            <span style="font-size:13px;font-weight:700;color:var(--primary);">Knowl</span>
+      <div class="brain-widget" id="dashBrainWidget">
+        <!-- 行1: アイコン＋名前 / メーターバー / パーセント / ボタン -->
+        <div class="brain-widget-row1">
+          <a href="brain.html" class="brain-widget-logo">
+            <i class="fa-solid fa-circle-nodes"></i>
+            <span>Knowl</span>
           </a>
-          <div style="flex:1;min-width:120px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-              <span id="dashBrainLabel" style="font-size:11px;color:var(--muted);">読み込み中…</span>
-              <span id="dashBrainRate" style="font-size:12px;font-weight:700;color:var(--accent);">—</span>
-            </div>
-            <div style="height:6px;background:var(--border);border-radius:4px;overflow:hidden;">
-              <div id="dashBrainBar" style="height:100%;width:0%;background:var(--accent);border-radius:4px;transition:width .6s;"></div>
+          <div class="brain-widget-meter">
+            <span id="dashBrainLabel" class="brain-widget-label">読み込み中…</span>
+            <div class="brain-widget-bar-bg">
+              <div id="dashBrainBar" class="brain-widget-bar-fill"></div>
             </div>
           </div>
-          <span id="dashBrainGap" style="display:none;font-size:11px;color:var(--orange,#f39c12);white-space:nowrap;">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            <span id="dashBrainGapText"></span>の文書不足
-          </span>
-          <a href="brain.html" class="btn btn-ghost btn-sm" style="flex-shrink:0;font-size:12px;">
-            <i class="fa-solid fa-comment-dots"></i> 質問する
+          <span id="dashBrainRate" class="brain-widget-rate">—</span>
+          <a href="brain.html" class="btn btn-ghost btn-sm brain-widget-btn">
+            <i class="fa-solid fa-comment-dots"></i><span class="brain-widget-btn-text"> 質問する</span>
           </a>
+        </div>
+        <!-- 行2: ギャップ警告（表示時のみ） -->
+        <div id="dashBrainGap" class="brain-widget-gap">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span id="dashBrainGapText"></span>の文書不足
         </div>
       </div>
 

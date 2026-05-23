@@ -39,7 +39,7 @@ async function loadBrainMeter() {
     const data = await wnBrainMeter();
     const widget = document.getElementById('dashBrainWidget');
     if (!widget) return;
-    widget.style.display = '';
+    widget.style.display = 'block';
     const rate = data.fill_rate ?? 0;
     document.getElementById('dashBrainRate').textContent = rate + '%';
     document.getElementById('dashBrainBar').style.width = rate + '%';
@@ -47,7 +47,7 @@ async function loadBrainMeter() {
       `学習済み ${data.indexed_files ?? 0} 件 / 全 ${data.total_files ?? 0} 件`;
     if (data.gap_tags && data.gap_tags.length > 0) {
       document.getElementById('dashBrainGapText').textContent = data.gap_tags.join('・');
-      document.getElementById('dashBrainGap').style.display = '';
+      document.getElementById('dashBrainGap').style.display = 'block';
     }
   } catch {
     // メーター取得失敗は無視（サイレント）
