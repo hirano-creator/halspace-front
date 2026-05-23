@@ -502,10 +502,16 @@
       font-size: 0.92em;
       font-weight: 700;
       color: #1a1a1a;
-      margin: 28px 0 10px;
+      margin: 52px 0 10px;
       padding: 6px 12px;
       border-radius: 6px;
       background: #F3F4F6;
+    }
+    /* ページ先頭のh3は上スペーサー不要 */
+    .preview-area > h3:first-child,
+    .preview-area h1 + h3,
+    .preview-area h2 + h3 {
+      margin-top: 20px;
     }
     /* サマリー・決定・未決定・アクションを色分け */
     .preview-area h3:has(+ *) { background: #F3F4F6; }
