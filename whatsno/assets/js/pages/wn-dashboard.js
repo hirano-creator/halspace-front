@@ -14,6 +14,10 @@ let semanticMode = false;   // AI自然言語検索モード中かどうか
    初期化
    ──────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
+  /* モバイルでカードを全幅に強制（CSS/SWキャッシュ回避） */
+  applyMobileLayout();
+  window.addEventListener('resize', applyMobileLayout);
+
   currentUser = requireSpaceAuth();
   if (!currentUser) return;
 
@@ -33,6 +37,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   initEmailModal();
   loadBrainMeter();
 });
+
+function applyMobileLayout() {
+  const isMobile = window.innerWidth <= 767;
+
+  /* page-body の左右padding をゼロに */
+  const pageBody = document.querySelector('.page-body');
+  if (pageBody) {
+    pageBody.style.paddingLeft  = isMobile ? '0' : '';
+    pageBody.style.paddingRight = isMobile ? '0' : '';
+    if (isMobile) pageBody.style.paddingBottom = '72px';
+  }
+
+  /* fileListCard を全幅に（角丸・左右ボーダー・マージン除去） */
+  const fileListCard = document.getElementById('fileListCard');
+  if (fileListCard) {
+    fileListCard.style.borderRadius = isMobile ? '0' : '';
+    fileListCard.style.borderLeft   = isMobile ? 'none' : '';
+    fileListCard.style.borderRight  = isMobile ? 'none' : '';
+    fileListCard.style.marginLeft   = isMobile ? '0' : '';
+    fileListCard.style.marginRight  = isMobile ? '0' : '';
+    fileListCard.style.width        = isMobile ? '100%' : '';
+    fileListCard.style.boxSizing    = isMobile ? 'border-box' : '';
+  }
+
+  /* fileGrid の左右padding をゼロに */
+  const fileGrid = document.getElementById('fileGrid');
+  if (fileGrid) {
+    fileGrid.style.paddingLeft  = isMobile ? '6px' : '';
+    fileGrid.style.paddingRight = isMobile ? '6px' : '';
+  }
+}
 
 async function loadBrainMeter() {
   try {
