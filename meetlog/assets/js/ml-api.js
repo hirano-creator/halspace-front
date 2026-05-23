@@ -17,7 +17,11 @@ async function mlFetch(path, options = {}) {
   };
   const res = await fetch(ML_API_BASE + path, { ...options, headers });
   if (res.status === 401) {
-    if (token && token.startsWith('mock-token')) return null;
+    if (token && token.startsWith('mock-token')) {
+      mlShowToast('テスト用ログインでは本番APIを使用できません。メール・パスワードでログインしてください。', 'danger');
+      setTimeout(() => { location.href = '../../../space/login.html'; }, 2500);
+      return null;
+    }
     localStorage.removeItem('space_token');
     localStorage.removeItem('space_user');
     location.href = '../../../space/login.html';
@@ -230,7 +234,11 @@ async function mlUploadAttachment(minuteId, file) {
     body: formData,
   });
   if (res.status === 401) {
-    if (token && token.startsWith('mock-token')) return null;
+    if (token && token.startsWith('mock-token')) {
+      mlShowToast('テスト用ログインでは本番APIを使用できません。メール・パスワードでログインしてください。', 'danger');
+      setTimeout(() => { location.href = '../../../space/login.html'; }, 2500);
+      return null;
+    }
     localStorage.removeItem('space_token');
     localStorage.removeItem('space_user');
     location.href = '../../../space/login.html';
