@@ -20,7 +20,9 @@
     .edit-page {
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      height: 100vh;          /* fallback */
+      height: 100dvh;         /* dynamic: アドレスバー・タスクバー分を動的に除外 */
+      height: var(--app-height, 100dvh); /* JS補正値（非対応ブラウザ用） */
     }
 
     /* ── ヘッダー ── */
@@ -1146,6 +1148,15 @@ AI整形ボタンを押すと右側に議事録が生成されます。"></texta
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
+/* ビューポート高さを CSS 変数で管理（100vh のアドレスバー問題回避） */
+function updateAppHeight() {
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  document.documentElement.style.setProperty('--app-height', h + 'px');
+}
+updateAppHeight();
+window.addEventListener('resize', updateAppHeight);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', updateAppHeight);
+
 /* スマホ用タブ切替 */
 function switchMobileTab(tab) {
   const paneLeft    = document.getElementById('paneLeft');
