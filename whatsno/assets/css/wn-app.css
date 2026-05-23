@@ -1604,8 +1604,17 @@ tbody tr:last-child { border-bottom: none; }
    スマホ横 / タブレット縦  〜 767px
    ============================== */
 @media (max-width: 767px) {
-  .page-body { padding: 10px 4px; padding-bottom: 72px; }
+  /* page-body は左右パディングなし */
+  .page-body { padding: 8px 0; padding-bottom: 72px; }
   .card { padding: 12px; }
+
+  /* Knowl・タグ等のカードは左右8px内側に */
+  .brain-widget,
+  .page-body > .card:not(#fileListCard) { margin-left: 8px; margin-right: 8px; }
+
+  /* ファイル一覧カードは画面端まで広げる */
+  #fileListCard { border-radius: 0; border-left: none; border-right: none; }
+  #fileListCard .file-grid { padding: 6px; }
 
   /* サマリー */
   .summary-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
@@ -1675,7 +1684,6 @@ tbody tr:last-child { border-bottom: none; }
   .top-bar-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
 
   /* グリッド2列固定 */
-  .page-body { padding-left: 4px; padding-right: 4px; }
   .file-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .file-card-thumb { height: 160px; }
   .file-card-name  { font-size: 11px; }
@@ -1691,8 +1699,8 @@ tbody tr:last-child { border-bottom: none; }
   .search-bar { padding: 5px 10px; gap: 6px; }
   .search-bar input { font-size: 13px; }
 
-  /* ページ余白 */
-  .page-body { padding: 8px 4px; padding-bottom: 68px; }
+  /* ページ余白（左右0を維持） */
+  .page-body { padding-top: 6px; padding-bottom: 68px; }
 
   /* サイドバーボイスボタン縮小 */
   .sidebar-voice-btn { padding: 10px 8px; }
