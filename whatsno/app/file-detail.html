@@ -422,16 +422,46 @@
     /* QRモーダル */
     .qr-modal-inner { text-align: center; }
 
-    /* レスポンシブ */
+    /* ── モバイル Google Drive スタイル ── */
     @media (max-width: 768px) {
-      .detail-body { flex-direction: column; }
+      /* ページ全体をスクロール可能に */
+      .detail-wrap { height: auto; min-height: 100svh; overflow: visible; }
+      .detail-body  { flex-direction: column; overflow: visible; flex: none; }
+      .detail-left  { overflow-y: visible; flex: none; }
+
+      /* プレビューをほぼ全画面に */
+      .preview-area {
+        height: calc(100svh - 52px - 60px);
+        min-height: 300px;
+        max-height: none;
+      }
+
+      /* ファイル情報のパディング調整 */
+      .detail-info-section { padding: 12px; }
+
+      /* トップバーをミニマルに */
+      .detail-topbar { padding: 0 10px; gap: 6px; }
+      .btn-label { display: none; }
+      #previewBtn { display: none !important; }
+      #deleteBtn  { display: none !important; }
+      .detail-topbar-actions .btn { padding: 6px 8px; font-size: 13px; }
+
+      /* 右パネル（コメント・関連）*/
       .detail-right {
         width: 100%;
         border-left: none;
         border-top: 1px solid var(--border);
-        min-height: 300px;
+        min-height: auto;
+        flex: none;
+        overflow: visible;
+        padding-bottom: 72px;
       }
-      .preview-area { height: 60vw; min-height: 280px; }
+      .right-panel-pane.active {
+        flex: none;
+        overflow: visible;
+        min-height: 280px;
+      }
+      .comment-panel-list { overflow-y: visible; max-height: none; }
     }
   </style>
 </head>
