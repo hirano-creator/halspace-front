@@ -242,7 +242,7 @@
     /* ── メモテキストエリア ── */
     .memo-textarea {
       width: 100%;
-      flex: 1;
+      flex: 1 1 140px;
       resize: none;
       border: 1.5px solid var(--border);
       border-radius: 8px;
@@ -254,8 +254,7 @@
       background: #fff;
       outline: none;
       transition: border-color .15s, box-shadow .15s;
-      min-height: 0;
-      height: 100%;
+      min-height: 140px;
     }
     .memo-textarea:focus {
       border-color: var(--ml-purple);
@@ -269,6 +268,8 @@
       padding: 12px 16px 14px;
       flex-shrink: 0;
       background: #FAFAFA;
+      max-height: 38vh;
+      overflow-y: auto;
     }
     .actions-head {
       display: flex;
@@ -572,6 +573,22 @@
     .img-size-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
     .img-size-btn.active { background: var(--ml-purple); color: #fff; }
     .img-size-sep { width: 1px; height: 16px; background: rgba(255,255,255,.15); flex-shrink: 0; }
+
+    /* ── 縦方向レスポンシブ（低解像度ディスプレイ対応） ── */
+    @media (max-height: 700px) {
+      .edit-header { height: 48px; }
+      .pane-head   { height: 38px; }
+      .actions-wrap { max-height: 28vh; padding: 8px 12px 10px; }
+      .memo-textarea { min-height: 100px; font-size: 13px; }
+      .meta-row-compact { margin-bottom: 4px; }
+      .action-row { margin-bottom: 6px; }
+    }
+    @media (max-height: 600px) {
+      .edit-header { height: 44px; }
+      .pane-head   { height: 34px; }
+      .actions-wrap { max-height: 22vh; }
+      .memo-textarea { min-height: 80px; }
+    }
 
     /* ── フッター ── */
     .edit-footer {
@@ -960,7 +977,7 @@
         <div class="ai-status" id="aiStatus" style="flex-shrink:0;"></div>
 
         <!-- メモ入力 -->
-        <textarea id="bodyInput" class="memo-textarea" style="flex:1;"
+        <textarea id="bodyInput" class="memo-textarea"
           placeholder="走り書きメモや音声入力の内容をここに入力…
 AI整形ボタンを押すと右側に議事録が生成されます。"></textarea>
       </div>
