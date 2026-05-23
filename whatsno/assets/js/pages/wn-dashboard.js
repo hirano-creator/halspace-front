@@ -61,11 +61,11 @@ function applyMobileLayout() {
     fileListCard.style.boxSizing    = isMobile ? 'border-box' : '';
   }
 
-  /* fileGrid の左右padding をゼロに */
-  const fileGrid = document.getElementById('fileGrid');
-  if (fileGrid) {
-    fileGrid.style.paddingLeft  = isMobile ? '6px' : '';
-    fileGrid.style.paddingRight = isMobile ? '6px' : '';
+  /* gridArea の左右padding を縮小（本当の原因） */
+  const gridArea = document.getElementById('gridArea');
+  if (gridArea) {
+    gridArea.style.paddingLeft  = isMobile ? '8px' : '';
+    gridArea.style.paddingRight = isMobile ? '8px' : '';
   }
 }
 

@@ -484,20 +484,26 @@ document.addEventListener('DOMContentLoaded', () => {
 /* モバイルでfileListCardを全幅に強制（SW/外部JSキャッシュ回避） */
 (function(){
   function fix(){
-    if(window.innerWidth > 767) return;
+    var mobile = window.innerWidth <= 767;
     var pb = document.querySelector('.page-body');
     if(pb){
-      pb.style.setProperty('padding-left','0','important');
-      pb.style.setProperty('padding-right','0','important');
+      pb.style.setProperty('padding-left', mobile ? '0' : '','important');
+      pb.style.setProperty('padding-right', mobile ? '0' : '','important');
     }
     var fc = document.getElementById('fileListCard');
     if(fc){
-      fc.style.setProperty('border-radius','0','important');
-      fc.style.setProperty('border-left','none','important');
-      fc.style.setProperty('border-right','none','important');
-      fc.style.setProperty('margin-left','0','important');
-      fc.style.setProperty('margin-right','0','important');
-      fc.style.setProperty('width','100%','important');
+      fc.style.setProperty('border-radius', mobile ? '0' : '','important');
+      fc.style.setProperty('border-left',   mobile ? 'none' : '','important');
+      fc.style.setProperty('border-right',  mobile ? 'none' : '','important');
+      fc.style.setProperty('margin-left',   mobile ? '0' : '','important');
+      fc.style.setProperty('margin-right',  mobile ? '0' : '','important');
+      fc.style.setProperty('width',         mobile ? '100%' : '','important');
+    }
+    /* ← ここが本当の原因: gridAreaのpadding左右を縮小 */
+    var ga = document.getElementById('gridArea');
+    if(ga){
+      ga.style.setProperty('padding-left',  mobile ? '8px' : '20px','important');
+      ga.style.setProperty('padding-right', mobile ? '8px' : '20px','important');
     }
   }
   if(document.readyState==='loading'){
