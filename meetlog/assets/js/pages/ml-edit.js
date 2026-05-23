@@ -1094,25 +1094,159 @@ function copyEmailText() {
 }
 
 /* ────────────────────────────
-   プレビューモーダル
+   プレビューモーダル（A4ページ分割・横並び表示）
 ──────────────────────────── */
 async function openPreviewModal() {
   const preview = document.getElementById('mdPreview');
-  const hasContent = preview && !preview.querySelector('.preview-placeholder') && preview.dataset.markdown;
-  if (!hasContent) {
+  if (!preview || preview.querySelector('.preview-placeholder') || !preview.dataset.markdown) {
     mlShowToast('プレビューがありません。AI整形を実行してください。', 'warning');
     return;
   }
-  const content = document.getElementById('previewModalContent');
-  content.innerHTML = await parseMarkdownWithImages(preview.dataset.markdown);
-  content.querySelectorAll('h3').forEach(h => {
-    const t = h.textContent;
-    if      (t.includes('✅'))       { h.style.background = '#DCFCE7'; h.style.color = '#15803D'; }
-    else if (t.includes('⚠️'))      { h.style.background = '#FEF9C3'; h.style.color = '#92400E'; }
-    else if (t.includes('📌'))       { h.style.background = '#EDE9FE'; h.style.color = '#6D28D9'; }
-    else if (t.includes('サマリー')) { h.style.background = '#DBEAFE'; h.style.color = '#1D4ED8'; }
-  });
-  document.getElementById('previewFullModal').classList.remove('hidden');
+
+  const modal = document.getElementById('previewFullModal');
+  const area  = document.getElementById('previewPagesArea');
+  const info  = document.getElementById('previewPageInfo');
+
+  // ローディング表示
+  area.innerHTML = `<div style="color:#94a3b8;text-align:center;">
+    <i class="fa-solid fa-spinner fa-spin" style="font-size:2rem;"></i>
+    <p style="margin-top:14px;font-size:13px;">ページを生成中…</p>
+  </div>`;
+  info.textContent = '';
+  modal.classList.remove('hidden');
+
+  try {
+    // ── ヘルパーdiv に print 用コンテンツを注入 ──────────────
+    const helper = document.getElementById('printPreviewHelper');
+    helper.innerHTML = await parseMarkdownWithImages(preview.dataset.markdown);
+
+    // h3 カラー（絵文字ベース）を適用
+    helper.querySelectorAll('h3').forEach(h => {
+      const t = h.textContent;
+      if      (t.includes('✅'))       { h.style.background = '#DCFCE7'; h.style.color = '#15803D'; }
+      else if (t.includes('⚠️'))      { h.style.background = '#FEF9C3'; h.style.color = '#92400E'; }
+      else if (t.includes('📌'))       { h.style.background = '#EDE9FE'; h.style.color = '#6D28D9'; }
+      else if (t.includes('サマリー')) { h.style.background = '#DBEAFE'; h.style.color = '#1D4ED8'; }
+    });
+
+    // アクションアイテムを付加
+    if (actions.length) {
+      const rows = actions.map(a => {
+        const done  = a.is_done ? '☑' : '☐';
+        const name  = escHtml(a.assignee_name || '—');
+        const due   = a.due_date || '—';
+        const cont  = escHtml(a.content || '');
+        const style = a.is_done ? 'text-decoration:line-through;color:#999;' : '';
+        return `<tr>
+          <td style="width:1.5em;text-align:center;">${done}</td>
+          <td style="${style}">${cont}</td>
+          <td style="width:6em;text-align:center;">${name}</td>
+          <td style="width:7em;text-align:center;">${due}</td>
+        </tr>`;
+      }).join('');
+      const actDiv = document.createElement('div');
+      actDiv.style.cssText = 'margin-top:28px;border-top:2px solid #111;padding-top:16px;';
+      actDiv.innerHTML = `
+        <h3 style="font-size:10.5pt;background:#e8e8f4;padding:4px 10px;margin:0 0 12px;border-radius:4px;">📌 アクションアイテム</h3>
+        <table style="border-collapse:collapse;width:100%;font-size:10pt;">
+          <thead><tr>
+            <th style="border:1px solid #aaa;padding:4px 8px;background:#f5f5f5;"></th>
+            <th style="border:1px solid #aaa;padding:4px 8px;background:#f5f5f5;">内容</th>
+            <th style="border:1px solid #aaa;padding:4px 8px;background:#f5f5f5;width:6em;">担当者</th>
+            <th style="border:1px solid #aaa;padding:4px 8px;background:#f5f5f5;width:7em;">期日</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+      helper.appendChild(actDiv);
+    }
+
+    // 画像の読み込み待ち
+    await Promise.all([...helper.querySelectorAll('img')].map(img =>
+      img.complete ? Promise.resolve()
+                   : new Promise(r => { img.onload = r; img.onerror = r; })
+    ));
+
+    // ── html2canvas でレンダリング ──────────────────────────
+    const canvas = await html2canvas(helper, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      width: 794,
+      windowWidth: 1200,
+    });
+
+    // ── A4 ページ分割 ────────────────────────────────────────
+    // 210mm:297mm = canvas幅 : ページ高さ
+    const PAGE_W = canvas.width;                          // 794×2 = 1588px
+    const PAGE_H = Math.round(PAGE_W * 297 / 210);       // ≈ 2246px
+    const numPages = Math.ceil(canvas.height / PAGE_H);
+
+    // ── 表示サイズ計算（画面に収まるようスケール） ──────────
+    const headerH  = 52;                                  // モーダルヘッダー高さ
+    const padding  = 72;                                  // 上下パディング
+    const availH   = window.innerHeight - headerH - padding;
+    const availW   = window.innerWidth  - 56 - (numPages - 1) * 28; // 余白 + gap
+    const perPageW = numPages >= 2 ? availW / 2 : availW;
+
+    // 高さ・幅の両制約でスケール決定
+    const scaleH = availH  / (PAGE_H / 2);   // /2 は canvas scale=2 の分
+    const scaleW = perPageW / (PAGE_W / 2);
+    const s = Math.min(scaleH, scaleW, 1);
+
+    const dispW = Math.round(PAGE_W / 2 * s);
+    const dispH = Math.round(PAGE_H / 2 * s);
+
+    // ── ページ画像を生成・配置 ──────────────────────────────
+    area.innerHTML = '';
+
+    for (let i = 0; i < numPages; i++) {
+      const srcY = i * PAGE_H;
+      const srcH = Math.min(PAGE_H, canvas.height - srcY);
+
+      const slice = document.createElement('canvas');
+      slice.width  = PAGE_W;
+      slice.height = PAGE_H;
+      const ctx = slice.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, PAGE_W, PAGE_H);
+      ctx.drawImage(canvas, 0, srcY, PAGE_W, srcH, 0, 0, PAGE_W, srcH);
+
+      const img = document.createElement('img');
+      img.src  = slice.toDataURL('image/jpeg', 0.92);
+      img.alt  = `ページ ${i + 1}`;
+      img.style.cssText = `width:${dispW}px;height:${dispH}px;display:block;`;
+
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:10px;';
+
+      const card = document.createElement('div');
+      card.style.cssText = `
+        box-shadow: 0 6px 40px rgba(0,0,0,.6);
+        border-radius: 2px;
+        overflow: hidden;
+        flex-shrink: 0;
+      `;
+      card.appendChild(img);
+
+      const pageNum = document.createElement('div');
+      pageNum.style.cssText = 'color:#64748b;font-size:11px;font-weight:600;letter-spacing:.05em;';
+      pageNum.textContent = `${i + 1}`;
+
+      wrap.appendChild(card);
+      wrap.appendChild(pageNum);
+      area.appendChild(wrap);
+    }
+
+    info.textContent = `${numPages} ページ`;
+
+  } catch (e) {
+    console.error('Preview render error:', e);
+    area.innerHTML = `<div style="color:#94a3b8;text-align:center;padding:60px 0;">
+      <i class="fa-solid fa-circle-exclamation" style="font-size:2rem;color:#f87171;"></i>
+      <p style="margin-top:16px;font-size:13px;">プレビューの生成に失敗しました</p>
+    </div>`;
+  }
 }
 
 /* ────────────────────────────
