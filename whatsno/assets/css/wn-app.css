@@ -1528,7 +1528,7 @@ tbody tr:last-child { border-bottom: none; }
    スマホ横 / タブレット縦  〜 767px
    ============================== */
 @media (max-width: 767px) {
-  .page-body { padding: 10px; padding-bottom: 72px; }
+  .page-body { padding: 10px 4px; padding-bottom: 72px; }
   .card { padding: 12px; }
 
   /* サマリー */
@@ -1596,6 +1596,7 @@ tbody tr:last-child { border-bottom: none; }
   .top-bar-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
 
   /* グリッド2列固定 */
+  .page-body { padding-left: 4px; padding-right: 4px; }
   .file-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .file-card-thumb { height: 160px; }
   .file-card-name  { font-size: 11px; }
