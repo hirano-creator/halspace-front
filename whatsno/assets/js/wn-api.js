@@ -48,37 +48,43 @@ async function wnGetFile(id) {
 async function wnUploadFile(file, { onProgress } = {}) {
   const token = localStorage.getItem('space_token');
 
-  // iOS Safari対策: ファイルをArrayBufferとして先読みしてからBlobに変換
-  if (onProgress) onProgress(5);
+  // ファイルをArrayBuffer経由でBlobに変換（iOS Safariの参照無効化対策）
   const buffer = await file.arrayBuffer();
   const blob = new Blob([buffer], { type: file.type || 'application/octet-stream' });
   const fd = new FormData();
   fd.append('file', blob, file.name);
 
-  if (onProgress) onProgress(20);
-
-  const res = await fetch(WN_API_BASE + '/wn/files', {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    },
-    body: fd,
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', WN_API_BASE + '/wn/files');
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round(e.loaded / e.total * 100));
+    };
+    xhr.onload = () => {
+      if (xhr.status === 401) {
+        localStorage.removeItem('space_token');
+        location.href = '../../../space/login.html';
+        return;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch { reject(new Error('レスポンスの解析に失敗しました')); }
+      } else {
+        try {
+          const err = JSON.parse(xhr.responseText);
+          reject(new Error(err.message || `アップロードエラー (${xhr.status})`));
+        } catch {
+          reject(new Error(`アップロードエラー (${xhr.status})`));
+        }
+      }
+    };
+    xhr.onerror = () => reject(new Error(`ネットワークエラー (XHR)`));
+    xhr.ontimeout = () => reject(new Error('タイムアウト'));
+    xhr.timeout = 120000;
+    xhr.send(fd);
   });
-
-  if (onProgress) onProgress(100);
-
-  if (res.status === 401) {
-    localStorage.removeItem('space_token');
-    location.href = '../../../space/login.html';
-    throw new Error('認証エラー');
-  }
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || `アップロードエラー (${res.status})`);
-  }
-  return data;
 }
 
 /* ファイル削除 */
