@@ -287,14 +287,11 @@
     <div class="bottom-nav-item active" id="bnHome">
       <i class="fa-solid fa-house"></i><span>ホーム</span>
     </div>
-    <div class="bottom-nav-item" id="bnSearch">
-      <i class="fa-solid fa-magnifying-glass"></i><span>検索</span>
+    <div class="bottom-nav-item" id="bnLiked">
+      <i class="fa-solid fa-heart"></i><span>いいね</span>
     </div>
     <div class="bottom-nav-item" id="bnUpload">
       <i class="fa-solid fa-plus bottom-nav-upload"></i>
-    </div>
-    <div class="bottom-nav-item" id="bnLiked">
-      <i class="fa-solid fa-heart"></i><span>いいね</span>
     </div>
     <div class="bottom-nav-item" id="bnRecent">
       <i class="fa-solid fa-clock-rotate-left"></i><span>最近</span>
@@ -452,9 +449,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('bnRecent').addEventListener('click', () => {
     document.getElementById('navRecent').click();
     setBottomActive('bnRecent');
-  });
-  document.getElementById('bnSearch').addEventListener('click', () => {
-    document.querySelector('#searchInput')?.focus();
   });
   document.getElementById('bnUpload').addEventListener('click', () => openUploadModal());
 });

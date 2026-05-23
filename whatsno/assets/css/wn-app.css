@@ -1487,14 +1487,14 @@ tbody tr:last-child { border-bottom: none; }
   background: var(--accent);
   color: var(--white) !important;
   border-radius: 50%;
-  width: 48px; height: 48px;
+  width: 60px; height: 60px;
   margin: auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(33,150,243,.4);
-  font-size: 22px !important;
-  transform: translateY(-12px);
+  box-shadow: 0 4px 20px rgba(33,150,243,.5);
+  font-size: 26px !important;
+  transform: translateY(-16px);
 }
 
 /* =====================
