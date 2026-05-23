@@ -926,12 +926,13 @@ function printMinute() {
   h1.print-title { display: none; }
   h2 { font-size: 14pt; font-weight: 900; margin: 0 0 12px; padding-bottom: 6px; border-bottom: 2px solid #111; }
   h3 {
-    font-size: 10pt; font-weight: 700; margin: 14px 0 5px;
+    font-size: 10pt; font-weight: 700; margin: 36pt 0 6pt;
     padding: 4px 10px; border-radius: 4px;
     background: #eee;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
-  h3:has-text('✅'), h3 { }
+  h2 + h3, h1 + h3 { margin-top: 12pt; }
+  h4 { font-size: 10pt; font-weight: 700; margin: 18pt 0 4pt; border-bottom: 0.5pt solid #bbb; padding-bottom: 2pt; }
   p { margin: 0 0 5px; }
   ul { list-style: none; padding-left: 1em; margin: 4px 0 10px; }
   ul li::before { content: '・'; margin-left: -1em; }
