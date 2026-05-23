@@ -1167,13 +1167,22 @@ async function openPreviewModal() {
     ));
 
     // ── html2canvas でレンダリング ──────────────────────────
+    // onclone: クローン内だけ viewport に移動して可視化
+    // （visibility:hidden / left:-9999px のままでは白紙になるため）
     const canvas = await html2canvas(helper, {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
       width: 794,
-      windowWidth: 1200,
+      windowWidth: 794,
+      onclone: (clonedDoc) => {
+        const h = clonedDoc.getElementById('printPreviewHelper');
+        h.style.position  = 'fixed';
+        h.style.left      = '0';
+        h.style.top       = '0';
+        h.style.visibility = 'visible';
+      },
     });
 
     // ── A4 ページ分割 ────────────────────────────────────────
