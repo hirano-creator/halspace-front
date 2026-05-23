@@ -502,8 +502,8 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ← ここが本当の原因: gridAreaのpadding左右を縮小 */
     var ga = document.getElementById('gridArea');
     if(ga){
-      ga.style.setProperty('padding-left',  mobile ? '8px' : '20px','important');
-      ga.style.setProperty('padding-right', mobile ? '8px' : '20px','important');
+      ga.style.setProperty('padding-left',  mobile ? '6px' : '20px','important');
+      ga.style.setProperty('padding-right', mobile ? '6px' : '20px','important');
     }
   }
   if(document.readyState==='loading'){

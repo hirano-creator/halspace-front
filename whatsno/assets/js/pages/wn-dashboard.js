@@ -64,8 +64,8 @@ function applyMobileLayout() {
   /* gridArea の左右padding を縮小（本当の原因） */
   const gridArea = document.getElementById('gridArea');
   if (gridArea) {
-    gridArea.style.paddingLeft  = isMobile ? '8px' : '';
-    gridArea.style.paddingRight = isMobile ? '8px' : '';
+    gridArea.style.paddingLeft  = isMobile ? '6px' : '';
+    gridArea.style.paddingRight = isMobile ? '6px' : '';
   }
 }
 
