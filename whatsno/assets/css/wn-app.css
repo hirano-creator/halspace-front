@@ -1539,7 +1539,7 @@ tbody tr:last-child { border-bottom: none; }
 
   /* グリッド */
   .file-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
-  .file-card-thumb { height: 200px; }
+  .file-card-thumb { height: 190px; }
 
   /* ボトムナビ表示 */
   .bottom-nav { display: block; }
@@ -1597,7 +1597,7 @@ tbody tr:last-child { border-bottom: none; }
 
   /* グリッド2列固定 */
   .file-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
-  .file-card-thumb { height: 180px; }
+  .file-card-thumb { height: 170px; }
   .file-card-name  { font-size: 11px; }
   .file-card-body  { padding: 6px 8px 8px; }
 
