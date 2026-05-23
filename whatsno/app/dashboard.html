@@ -493,11 +493,12 @@ document.addEventListener('DOMContentLoaded', () => {
       fc.style.setProperty('margin-right',  mobile ? '0' : '','important');
       fc.style.setProperty('width',         mobile ? '100%' : '','important');
     }
-    /* ← ここが本当の原因: gridAreaのpadding左右を縮小 */
+    /* gridAreaのpadding調整 */
     var ga = document.getElementById('gridArea');
     if(ga){
-      ga.style.setProperty('padding-left',  mobile ? '6px' : '20px','important');
-      ga.style.setProperty('padding-right', mobile ? '6px' : '20px','important');
+      ga.style.setProperty('padding-left',  mobile ? '6px'  : '20px','important');
+      ga.style.setProperty('padding-right', mobile ? '6px'  : '20px','important');
+      ga.style.setProperty('padding-top',   mobile ? '10px' : '20px','important');
     }
   }
   if(document.readyState==='loading'){
