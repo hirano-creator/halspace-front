@@ -310,6 +310,61 @@
     }
     .stamp-label-edit:focus { border-color: var(--accent); }
     .stamp-item-hint { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+    /* ══════════════════════════════════════════
+       モバイル対応 (≤767px)
+       キャンバス全幅 + ツールバーを下部パネルに移動
+    ══════════════════════════════════════════ */
+    @media (max-width: 767px) {
+      /* ── トップバー: コンパクト化 ── */
+      .topbar { padding: 0 8px; gap: 5px; height: 48px; }
+      .topbar-title { font-size: 12px; max-width: 70px; }
+      .topbar-btn { padding: 5px 8px; font-size: 12px; gap: 3px; }
+      #saveBtnLabel { display: none; }         /* 保存ボタンのテキスト非表示 */
+      #clearBtn .clear-label { display: none;} /* クリアテキスト非表示 */
+
+      /* ── キャンバスエリア: 全幅 ── */
+      .canvas-area {
+        top: 48px;
+        right: 0;
+        bottom: 260px;
+        padding: 10px;
+      }
+
+      /* ── ツールバー: 下部固定パネル ── */
+      .toolbar {
+        top: auto;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 260px;
+        border-left: none;
+        border-top: 2px solid var(--border);
+        padding: 10px 14px 16px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* ── ツール・カラーボタン: コンパクト ── */
+      .tool-btn   { width: 34px; height: 34px; font-size: 14px; }
+      .tool-row   { gap: 5px; }
+      .tool-color-btn { width: 26px; height: 26px; }
+      .tool-color-row { gap: 7px; }
+      .tool-size-select { height: 36px; }
+
+      /* ── スタンプアイテム: 縦並びを2列にしてコンパクト ── */
+      .stamp-palette { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+      /* ── ゴミ箱ゾーン: ツールバーの上に表示 ── */
+      #trashZone.visible { bottom: 268px; }
+
+      /* ── トースト: ツールバーの上に表示 ── */
+      #toastContainer { bottom: 268px; right: 12px; }
+
+      /* ── zoom/pageNavの余白調整 ── */
+      .zoom-btn { height: 32px; font-size: 12px; }
+    }
   </style>
 </head>
 <body>
