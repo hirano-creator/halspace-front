@@ -277,9 +277,12 @@
     }
 
     @media (max-width: 700px) {
-      /* html/bodyの余白も同色に */
+      /* html/bodyにも同じグラデーションを固定適用 */
       html, body {
-        background: #1a1a2e;
+        background: linear-gradient(160deg, #1a1a2e, #0f3460, #1a1a2e, #16213e);
+        background-size: 400% 400%;
+        background-attachment: fixed;
+        animation: gradShift 8s ease infinite;
       }
 
       /* ページ全体をブランド背景に */
