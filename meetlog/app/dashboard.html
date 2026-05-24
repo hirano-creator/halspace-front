@@ -171,7 +171,7 @@
 
     <!-- トップバー -->
     <div class="top-bar">
-      <button class="menu-toggle" id="menuToggle" onclick="mlToggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+      <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
       <span class="top-bar-title">MeetLog</span>
       <div style="flex:1;max-width:420px;">
         <div class="search-bar">
@@ -338,21 +338,7 @@
 <script src="../assets/js/pages/ml-dashboard.js?v=6"></script>
 
 <script>
-function mlToggleSidebar() {
-  const sidebar = document.querySelector('.sidebar');
-  const overlay = document.getElementById('sidebarOverlay');
-  sidebar.classList.toggle('open');
-  overlay.classList.toggle('open');
-}
-
 document.addEventListener('DOMContentLoaded', () => {
-
-  /* ── ハンバーガー ── */
-  const overlay = document.getElementById('sidebarOverlay');
-  overlay.addEventListener('click', () => {
-    document.querySelector('.sidebar').classList.remove('open');
-    overlay.classList.remove('open');
-  });
 
   /* ── ボトムナビ ── */
   document.getElementById('bnHome').addEventListener('click', () => {
