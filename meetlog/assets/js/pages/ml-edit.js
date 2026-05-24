@@ -488,7 +488,8 @@ function dismissCarryover() {
    AIアクション抽出
 ──────────────────────────── */
 async function doAiExtractActions() {
-  if (!minuteId) {
+  const mid = currentMinute?.id || minuteId;
+  if (!mid) {
     mlShowToast('先に議事録を保存してからAI抽出を実行してください', 'warning');
     return;
   }
@@ -496,7 +497,7 @@ async function doAiExtractActions() {
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner spinner"></i> 抽出中…';
 
-  const extracted = await mlAiExtractActions(minuteId);
+  const extracted = await mlAiExtractActions(mid);
   if (extracted && extracted.length) {
     const newActions = extracted.map(a => ({ ...a, is_done: false, _saved: false }));
     actions = [...actions, ...newActions];
