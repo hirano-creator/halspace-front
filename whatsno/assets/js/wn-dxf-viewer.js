@@ -189,7 +189,7 @@ function wnDxfThumbnail(canvas, dxfText) {
   const w = canvas.width  || 300;
   const h = canvas.height || 150;
 
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, preserveDrawingBuffer: true });
   renderer.setSize(w, h);
   renderer.setClearColor(0xE8F0FE, 1);
 
