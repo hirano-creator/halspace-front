@@ -76,7 +76,7 @@
 
       <!-- 左ゾーン: ハンバーガー・戻る・タイトル -->
       <div class="top-bar-left">
-        <button class="menu-toggle" id="menuToggle" onclick="var s=document.querySelector('.sidebar'),o=document.getElementById('sidebarOverlay');if(s)s.classList.toggle('open');if(o)o.classList.toggle('open');"><i class="fa-solid fa-bars"></i></button>
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
         <button id="backBtn" class="top-bar-icon-btn" onclick="history.back()" title="戻る">
           <i class="fa-solid fa-arrow-left"></i>
         </button>
@@ -426,7 +426,7 @@
   </div>
 </div>
 
-<div class="sidebar-overlay" id="sidebarOverlay" onclick="var s=document.querySelector('.sidebar');if(s)s.classList.remove('open');this.classList.remove('open');"></div>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
