@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a1a2e">
   <title>ログイン | Space.app</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -277,12 +278,13 @@
     }
 
     @media (max-width: 700px) {
-      /* html/bodyにも同じグラデーションを固定適用 */
-      html, body {
-        background: linear-gradient(160deg, #1a1a2e, #0f3460, #1a1a2e, #16213e);
-        background-size: 400% 400%;
-        background-attachment: fixed;
-        animation: gradShift 8s ease infinite;
+      /* セーフエリア（上下余白）をグラデーション端色に統一 */
+      html {
+        background: #1a1a2e;
+        min-height: 100%;
+      }
+      body {
+        background: transparent;
       }
 
       /* ページ全体をブランド背景に */
