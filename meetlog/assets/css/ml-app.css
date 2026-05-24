@@ -489,10 +489,19 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   transition: border-color var(--trans), box-shadow var(--trans);
   width: 100%;
   min-height: 44px;
+  box-sizing: border-box;
 }
 .form-input:focus {
   border-color: var(--ml-purple);
   box-shadow: 0 0 0 3px var(--ml-purple-mid);
+}
+/* iOS Safari: date/time input が min-height を無視して縮むのを防ぐ */
+input[type="date"].form-input,
+input[type="time"].form-input {
+  height: 44px;
+  line-height: 44px;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 /* =====================================================
