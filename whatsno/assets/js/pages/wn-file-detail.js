@@ -405,31 +405,54 @@ async function loadPdfPreview(attempt) {
   } catch (e) {
     console.error(`PDF preview error (attempt ${attempt}):`, e);
 
-    if (attempt < MAX_ATTEMPTS) {
-      /* 自動リトライ: 2秒・4秒と間隔を空ける */
+    /* ファイル固有エラー（リトライ不要） */
+    const isFileError = ['PasswordException', 'InvalidPDFException', 'MissingPDFException'].includes(e.name);
+
+    if (!isFileError && attempt < MAX_ATTEMPTS) {
+      /* ネットワーク系エラー: 自動リトライ */
       const waitSec = attempt * 2;
       hintEl().textContent = `読み込みに失敗しました。${waitSec}秒後に再試行します… (${attempt}/${MAX_ATTEMPTS})`;
       setTimeout(() => loadPdfPreview(attempt + 1), waitSec * 1000);
     } else {
-      /* 全試行失敗 → ユーザー操作を促す */
+      /* エラー種別に応じたメッセージ */
+      let icon      = 'fa-triangle-exclamation';
+      let iconColor = '#F57C00';
+      let title     = 'PDFを読み込めませんでした';
+      let desc      = 'ネットワーク状況をご確認のうえ再試行してください';
+      let showRetry = true;
+
+      if (e.name === 'PasswordException') {
+        icon      = 'fa-lock';
+        iconColor = '#546E7A';
+        title     = 'パスワードで保護されたPDFです';
+        desc      = 'ダウンロードしてPDFビューアで開き、パスワードを入力してください';
+        showRetry = false;
+      } else if (e.name === 'InvalidPDFException') {
+        icon      = 'fa-file-circle-xmark';
+        iconColor = '#E17055';
+        title     = 'PDFファイルが破損しているか、非対応の形式です';
+        desc      = 'ダウンロードしてPDFビューアで直接ご確認ください';
+        showRetry = false;
+      }
+
       placeholder.innerHTML = `
         <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:28px 20px;text-align:center;">
-          <i class="fa-solid fa-triangle-exclamation" style="font-size:36px;color:#F57C00;"></i>
+          <i class="fa-solid ${icon}" style="font-size:36px;color:${iconColor};"></i>
           <div>
-            <p style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;">PDFを読み込めませんでした</p>
-            <p style="font-size:12px;color:var(--muted);">ネットワーク状況をご確認のうえ再試行してください</p>
+            <p style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;">${title}</p>
+            <p style="font-size:12px;color:var(--muted);">${desc}</p>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
-            <button id="pdfRetryManualBtn" class="btn btn-accent btn-sm">
+            ${showRetry ? `<button id="pdfRetryManualBtn" class="btn btn-accent btn-sm">
               <i class="fa-solid fa-rotate-right"></i> 再試行
-            </button>
+            </button>` : ''}
             <button id="pdfFallbackDownloadBtn" class="btn btn-ghost btn-sm">
               <i class="fa-solid fa-download"></i> ダウンロードして確認
             </button>
           </div>
           <p id="previewHint" style="font-size:11px;color:var(--muted);"></p>
         </div>`;
-      document.getElementById('pdfRetryManualBtn').addEventListener('click', () => {
+      document.getElementById('pdfRetryManualBtn')?.addEventListener('click', () => {
         placeholder.style.display = '';
         placeholder.innerHTML = `
           <i class="fa-regular fa-file-pdf" style="font-size:48px;color:#ccc;margin-bottom:8px;"></i>
