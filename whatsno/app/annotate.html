@@ -1240,7 +1240,8 @@ function onUpDoc(e) {
     textDragRect = null;
     redrawAnnotations(); /* プレビュー消す */
     /* 範囲が小さすぎる場合は最小サイズを保証 */
-    showInlineTextarea(rx, ry, Math.max(rw, 80), Math.max(rh, fontSize * 1.6));
+    const defaultW = Math.min(annotCanvas.width - rx, 280);
+    showInlineTextarea(rx, ry, Math.max(rw, defaultW), Math.max(rh, fontSize * 1.6));
     return;
   }
 
