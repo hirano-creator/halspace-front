@@ -2162,6 +2162,10 @@ tbody tr:last-child { border-bottom: none; }
     padding: 8px 12px 0;
     height: calc(100svh - 56px - 60px);
     gap: 8px;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
   }
 
   /* メーターカードをコンパクトに */
