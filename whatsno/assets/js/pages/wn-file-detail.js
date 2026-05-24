@@ -269,53 +269,7 @@ function renderPreview() {
     showImg(wnPublicViewUrl(fileId));
   } else if (ext === 'pdf' || mime === 'application/pdf') {
     document.getElementById('previewHint').textContent = 'PDF読み込み中…';
-    (async () => {
-      try {
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-        // URLではなくバッファで渡す（認証ヘッダー付きfetchで確実に取得）
-        const hintEl = document.getElementById('previewHint');
-        const buffer = await wnFetchFileBuffer(fileId, {
-          onProgress: pct => { hintEl.textContent = `PDF読み込み中… ${pct}%`; },
-        });
-        if (!buffer) throw new Error('ファイル取得失敗');
-        hintEl.textContent = 'PDF描画中…';
-
-        const pdfDoc = await pdfjsLib.getDocument({ data: buffer }).promise;
-        const page   = await pdfDoc.getPage(1);
-
-        const container = document.getElementById('pdfContainer');
-        const canvas    = document.getElementById('pdfCanvas');
-        const ctx       = canvas.getContext('2d');
-
-        const area  = document.getElementById('previewArea');
-        const areaW = area.clientWidth  - 24;
-        const areaH = area.clientHeight - 24;
-        const dpr   = window.devicePixelRatio || 1;
-        const baseVP  = page.getViewport({ scale: 1 });
-        const scale   = Math.min(areaW / baseVP.width, areaH / baseVP.height);
-        const viewport = page.getViewport({ scale: scale * dpr });
-
-        canvas.width  = viewport.width;
-        canvas.height = viewport.height;
-        canvas.style.width  = (viewport.width  / dpr) + 'px';
-        canvas.style.height = (viewport.height / dpr) + 'px';
-
-        await page.render({ canvasContext: ctx, viewport }).promise;
-
-        document.getElementById('previewPlaceholder').style.display = 'none';
-        document.getElementById('previewHint').textContent = '';
-        container.style.display = 'flex';
-
-        if (pdfDoc.numPages > 1) {
-          renderPdfNav(pdfDoc, page, canvas, ctx, area, 1);
-        }
-      } catch(e) {
-        console.error('PDF preview error:', e);
-        document.getElementById('previewHint').textContent = 'PDFの読み込みに失敗しました';
-      }
-    })();
+    loadPdfPreview(1);
   } else if (mime.startsWith('video/') || ['mp4','mov','avi'].includes(ext)) {
     document.getElementById('previewHint').textContent = '';
     wnGetViewUrl(fileId).then(url => {
@@ -395,6 +349,96 @@ function renderPdfNav(pdfDoc, _page, canvas, ctx, area, currentPageNum) {
 
   nav.querySelector('#pdfPrev').addEventListener('click', () => goTo(cur - 1));
   nav.querySelector('#pdfNext').addEventListener('click', () => goTo(cur + 1));
+}
+
+/* ────────────────────────────────
+   PDF プレビュー（自動リトライ付き）
+   ──────────────────────────────── */
+async function loadPdfPreview(attempt) {
+  const MAX_ATTEMPTS = 3;
+  const placeholder = document.getElementById('previewPlaceholder');
+
+  /* previewHint は再試行ごとに再取得（innerHTML 置換後も正しく参照） */
+  const hintEl = () => document.getElementById('previewHint');
+
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    if (attempt > 1) {
+      hintEl().textContent = `PDF読み込み中… (再試行 ${attempt}/${MAX_ATTEMPTS})`;
+    }
+
+    const buffer = await wnFetchFileBuffer(fileId, {
+      onProgress: pct => { hintEl().textContent = `PDF読み込み中… ${pct}%`; },
+    });
+    if (!buffer) throw new Error('ファイルの取得に失敗しました');
+
+    hintEl().textContent = 'PDF描画中…';
+    const pdfDoc   = await pdfjsLib.getDocument({ data: buffer }).promise;
+    const page     = await pdfDoc.getPage(1);
+    const container = document.getElementById('pdfContainer');
+    const canvas    = document.getElementById('pdfCanvas');
+    const ctx       = canvas.getContext('2d');
+    const area      = document.getElementById('previewArea');
+    const areaW     = area.clientWidth  - 24;
+    const areaH     = area.clientHeight - 24;
+    const dpr       = window.devicePixelRatio || 1;
+    const baseVP    = page.getViewport({ scale: 1 });
+    const scale     = Math.min(areaW / baseVP.width, areaH / baseVP.height);
+    const viewport  = page.getViewport({ scale: scale * dpr });
+
+    canvas.width  = viewport.width;
+    canvas.height = viewport.height;
+    canvas.style.width  = (viewport.width  / dpr) + 'px';
+    canvas.style.height = (viewport.height / dpr) + 'px';
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    placeholder.style.display = 'none';
+    hintEl().textContent = '';
+    container.style.display = 'flex';
+
+    if (pdfDoc.numPages > 1) {
+      renderPdfNav(pdfDoc, page, canvas, ctx, area, 1);
+    }
+  } catch (e) {
+    console.error(`PDF preview error (attempt ${attempt}):`, e);
+
+    if (attempt < MAX_ATTEMPTS) {
+      /* 自動リトライ: 2秒・4秒と間隔を空ける */
+      const waitSec = attempt * 2;
+      hintEl().textContent = `読み込みに失敗しました。${waitSec}秒後に再試行します… (${attempt}/${MAX_ATTEMPTS})`;
+      setTimeout(() => loadPdfPreview(attempt + 1), waitSec * 1000);
+    } else {
+      /* 全試行失敗 → ユーザー操作を促す */
+      placeholder.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:28px 20px;text-align:center;">
+          <i class="fa-solid fa-triangle-exclamation" style="font-size:36px;color:#F57C00;"></i>
+          <div>
+            <p style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;">PDFを読み込めませんでした</p>
+            <p style="font-size:12px;color:var(--muted);">ネットワーク状況をご確認のうえ再試行してください</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+            <button id="pdfRetryManualBtn" class="btn btn-accent btn-sm">
+              <i class="fa-solid fa-rotate-right"></i> 再試行
+            </button>
+            <button id="pdfFallbackDownloadBtn" class="btn btn-ghost btn-sm">
+              <i class="fa-solid fa-download"></i> ダウンロードして確認
+            </button>
+          </div>
+          <p id="previewHint" style="font-size:11px;color:var(--muted);"></p>
+        </div>`;
+      document.getElementById('pdfRetryManualBtn').addEventListener('click', () => {
+        placeholder.style.display = '';
+        placeholder.innerHTML = `
+          <i class="fa-regular fa-file-pdf" style="font-size:48px;color:#ccc;margin-bottom:8px;"></i>
+          <p id="previewHint">PDF読み込み中…</p>`;
+        loadPdfPreview(1);
+      });
+      document.getElementById('pdfFallbackDownloadBtn').addEventListener('click', () => wnDownload(fileId));
+    }
+  }
 }
 
 function renderInfo() {
