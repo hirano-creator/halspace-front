@@ -108,6 +108,10 @@
 
       <!-- 右ゾーン: 通知・アップロード -->
       <div class="top-bar-right">
+        <!-- モバイル専用：アプリ一覧に戻る -->
+        <a href="../../space/apps.html" class="top-bar-icon-btn mobile-only" title="アプリ一覧" style="text-decoration:none;display:none;">
+          <i class="fa-solid fa-grid-2" style="font-size:16px;"></i>
+        </a>
         <div class="notif-bell-wrap" id="notifWrap">
           <button class="notif-bell-btn" id="notifBtn" title="通知">
             <i class="fa-solid fa-bell"></i>
@@ -458,20 +462,31 @@ function setBottomActive(id) {
   document.getElementById(id)?.classList.add('active');
 }
 
-/* ── ハンバーガー ── */
-document.addEventListener('DOMContentLoaded', () => {
-  const toggle  = document.getElementById('menuToggle');
-  const sidebar = document.querySelector('.sidebar');
-  const overlay = document.getElementById('sidebarOverlay');
-  toggle.addEventListener('click', () => {
-    sidebar.classList.toggle('open');
-    overlay.classList.toggle('open');
-  });
-  overlay.addEventListener('click', () => {
-    sidebar.classList.remove('open');
-    overlay.classList.remove('open');
-  });
-});
+/* ── ハンバーガー（即時実行・nullチェック付き） ── */
+(function setupHamburger() {
+  function init() {
+    const toggle  = document.getElementById('menuToggle');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    if (!toggle || !sidebar || !overlay) return;
+    toggle.addEventListener('click', function() {
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('open');
+    });
+    overlay.addEventListener('click', function() {
+      sidebar.classList.remove('open');
+      overlay.classList.remove('open');
+    });
+    /* モバイルでアプリ一覧ボタンを表示 */
+    const appsBtn = document.querySelector('.mobile-only');
+    if (appsBtn && window.innerWidth <= 1023) appsBtn.style.display = 'flex';
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
 </script>
 <script src="../assets/js/pwa.js"></script>
 <script>
