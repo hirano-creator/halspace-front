@@ -283,84 +283,116 @@
         background: linear-gradient(160deg, #1a1a2e, #0f3460, #1a1a2e, #16213e);
         background-size: 400% 400%;
         animation: gradShift 8s ease infinite, pageIn .6s ease forwards;
-        position: relative;
+        min-height: 100svh;
       }
 
-      /* パーティクルcanvasをページ全体に広げる */
-      #brandCanvas {
-        position: fixed;
-        width: 100vw; height: 100vh;
-        z-index: 0;
-      }
+      /* パーティクルcanvasをページ全体に */
+      #brandCanvas { position: fixed; width: 100vw; height: 100vh; z-index: 0; }
 
-      /* ブランドエリア：ロゴのみ、背景なし */
+      /* ロゴエリア */
       .login-brand {
         flex: 0 0 auto;
         background: none;
-        padding: 56px 24px 20px;
+        padding: 60px 24px 16px;
         animation: none;
         z-index: 1;
       }
-      .login-brand-name { font-size: 36px; }
-      .login-brand-tagline { font-size: 13px; margin-top: 8px; }
+      .login-brand-name { font-size: 38px; }
+      .login-brand-tagline { font-size: 12px; margin-top: 10px; opacity: .7; }
       .login-brand-footer { display: none; }
 
-      /* フォームエリア：背景透明 */
+      /* フォームエリア */
       .login-form-panel {
         background: transparent;
-        padding: 16px 24px 48px;
+        padding: 24px 28px 52px;
         z-index: 1;
         position: relative;
       }
       .login-form-inner { max-width: 100%; }
 
-      /* フォームのテキストを白系に */
-      .login-form-title { color: rgba(255,255,255,.7); }
-      .login-form-inner .form-group label { color: rgba(255,255,255,.85); }
+      /* 説明文 */
+      .login-form-title {
+        font-size: 13px;
+        color: rgba(255,255,255,.5);
+        margin-bottom: 24px;
+      }
 
-      /* 入力フィールド：半透明ダーク */
+      /* ラベル */
+      .login-form-inner .form-group { margin-bottom: 16px; }
+      .login-form-inner .form-group label {
+        font-size: 11px;
+        letter-spacing: .06em;
+        color: rgba(255,255,255,.5);
+        text-transform: uppercase;
+      }
+
+      /* 入力フィールド：フロスト感 */
       .login-form-inner .form-group input {
-        background: rgba(255,255,255,.1);
-        border-color: rgba(255,255,255,.2);
+        background: rgba(255,255,255,.07);
+        border: 1px solid rgba(255,255,255,.18);
         color: #fff;
+        padding: 14px 16px;
+        border-radius: 12px;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
       }
-      .login-form-inner .form-group input::placeholder { color: rgba(255,255,255,.35); }
+      .login-form-inner .form-group input::placeholder {
+        color: rgba(255,255,255,.25);
+      }
       .login-form-inner .form-group input:focus {
-        border-color: rgba(255,255,255,.6);
-        box-shadow: 0 0 0 3px rgba(255,255,255,.1);
+        border-color: rgba(255,107,53,.7);
+        box-shadow: 0 0 0 3px rgba(255,107,53,.15);
+        background: rgba(255,255,255,.1);
       }
-      .pw-eye { color: rgba(255,255,255,.4); }
-      .pw-eye:hover { color: rgba(255,255,255,.8); }
+
+      /* オートフィル上書き（黄色を消す） */
+      .login-form-inner .form-group input:-webkit-autofill,
+      .login-form-inner .form-group input:-webkit-autofill:focus {
+        -webkit-box-shadow: 0 0 0 1000px #1a3060 inset !important;
+        -webkit-text-fill-color: #fff !important;
+        caret-color: #fff;
+        border-color: rgba(255,255,255,.18) !important;
+      }
+
+      /* パスワード目アイコン */
+      .pw-eye { color: rgba(255,255,255,.3); }
+      .pw-eye:hover { color: rgba(255,255,255,.7); }
 
       /* ログインボタン */
       .btn-login {
-        background: #FF6B35;
-        box-shadow: 0 4px 20px rgba(255,107,53,.4);
+        background: linear-gradient(135deg, #FF6B35, #e8451a);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(255,107,53,.35);
+        margin-top: 20px;
+        letter-spacing: .04em;
       }
       .btn-login:hover {
-        background: #e85a24;
+        background: linear-gradient(135deg, #ff7d4d, #FF6B35);
+        transform: translateY(-1px);
         box-shadow: 0 8px 28px rgba(255,107,53,.5);
       }
 
       /* エラー */
       .login-error {
-        background: rgba(255,255,255,.1);
-        border-color: rgba(229,62,62,.5);
+        background: rgba(229,62,62,.15);
+        border-color: rgba(229,62,62,.4);
         color: #fca5a5;
       }
 
       /* クイックログイン */
-      .dev-section { border-top-color: rgba(255,255,255,.15); }
-      .dev-section-label { color: rgba(255,255,255,.3); }
+      .dev-section { margin-top: 28px; border-top-color: rgba(255,255,255,.1); }
+      .dev-section-label { color: rgba(255,255,255,.25); }
       .quick-login-btn {
-        background: rgba(255,255,255,.08);
-        border-color: rgba(255,255,255,.15);
-        color: rgba(255,255,255,.7);
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 10px;
+        color: rgba(255,255,255,.6);
       }
       .quick-login-btn:hover {
-        background: rgba(255,255,255,.15);
-        border-color: rgba(255,255,255,.4);
+        background: rgba(255,255,255,.12);
+        border-color: rgba(255,255,255,.3);
         color: #fff;
+        transform: none;
       }
     }
   </style>
