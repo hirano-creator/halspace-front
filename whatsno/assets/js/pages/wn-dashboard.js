@@ -298,7 +298,7 @@ async function loadOneThumbnail(f) {
       if (typeof pdfjsLib === 'undefined') return;
       const pdf      = await pdfjsLib.getDocument(directUrl).promise;
       const page     = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 0.5 });
+      const viewport = page.getViewport({ scale: 1.5 });
       const canvas   = document.createElement('canvas');
       canvas.width   = viewport.width;
       canvas.height  = viewport.height;

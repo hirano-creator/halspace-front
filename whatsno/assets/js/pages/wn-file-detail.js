@@ -334,7 +334,7 @@ function renderPdfNav(pdfDoc, _page, canvas, ctx, area, currentPageNum) {
     const pg = await pdfDoc.getPage(cur);
     const areaW = area.clientWidth  - 24;
     const areaH = area.clientHeight - 24;
-    const dpr   = window.devicePixelRatio || 1;
+    const dpr   = Math.max(window.devicePixelRatio || 1, 2);
     const baseVP = pg.getViewport({ scale: 1 });
     const scale  = Math.min(areaW / baseVP.width, areaH / baseVP.height);
     const vp = pg.getViewport({ scale: scale * dpr });
@@ -383,7 +383,7 @@ async function loadPdfPreview(attempt) {
     const area      = document.getElementById('previewArea');
     const areaW     = area.clientWidth  - 24;
     const areaH     = area.clientHeight - 24;
-    const dpr       = window.devicePixelRatio || 1;
+    const dpr       = Math.max(window.devicePixelRatio || 1, 2);
     const baseVP    = page.getViewport({ scale: 1 });
     const scale     = Math.min(areaW / baseVP.width, areaH / baseVP.height);
     const viewport  = page.getViewport({ scale: scale * dpr });
