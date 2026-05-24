@@ -135,10 +135,12 @@
     }
     .tool-color-btn.active { border-color: var(--text) !important; }
     .tool-size-select {
-      width: 100%; height: 32px; padding: 0 8px;
+      width: 100%; height: 40px; padding: 0 10px;
       border: 1.5px solid var(--border);
-      border-radius: var(--radius); font-size: 12px;
+      border-radius: var(--radius); font-size: 14px;
       background: var(--white); cursor: pointer; color: var(--text);
+      -webkit-appearance: none; appearance: none;
+      min-height: 40px; box-sizing: border-box;
     }
     .tool-size-select:focus { outline: none; border-color: var(--accent); }
     input[type="number"].tool-size-select { cursor: text; }
@@ -351,7 +353,7 @@
       .tool-row   { gap: 5px; }
       .tool-color-btn { width: 26px; height: 26px; }
       .tool-color-row { gap: 7px; }
-      .tool-size-select { height: 36px; }
+      .tool-size-select { height: 44px; min-height: 44px; font-size: 15px; padding: 0 12px; }
 
       /* ── スタンプアイテム: 縦並びを2列にしてコンパクト ── */
       .stamp-palette { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
