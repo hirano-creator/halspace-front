@@ -277,22 +277,91 @@
     }
 
     @media (max-width: 700px) {
-      .login-page { flex-direction: column; }
+      /* ページ全体をブランド背景に */
+      .login-page {
+        flex-direction: column;
+        background: linear-gradient(160deg, #1a1a2e, #0f3460, #1a1a2e, #16213e);
+        background-size: 400% 400%;
+        animation: gradShift 8s ease infinite, pageIn .6s ease forwards;
+        position: relative;
+      }
 
-      /* ロゴエリアをコンパクトな上部バナーに */
+      /* パーティクルcanvasをページ全体に広げる */
+      #brandCanvas {
+        position: fixed;
+        width: 100vw; height: 100vh;
+        z-index: 0;
+      }
+
+      /* ブランドエリア：ロゴのみ、背景なし */
       .login-brand {
         flex: 0 0 auto;
-        min-height: 200px;
-        padding: 36px 24px 32px;
-        justify-content: center;
+        background: none;
+        padding: 56px 24px 20px;
+        animation: none;
+        z-index: 1;
       }
-      .login-brand-name { font-size: 34px; }
-      .login-brand-tagline { font-size: 13px; margin-top: 10px; }
+      .login-brand-name { font-size: 36px; }
+      .login-brand-tagline { font-size: 13px; margin-top: 8px; }
       .login-brand-footer { display: none; }
 
-      /* フォームエリア */
-      .login-form-panel { padding: 32px 24px 48px; }
+      /* フォームエリア：背景透明 */
+      .login-form-panel {
+        background: transparent;
+        padding: 16px 24px 48px;
+        z-index: 1;
+        position: relative;
+      }
       .login-form-inner { max-width: 100%; }
+
+      /* フォームのテキストを白系に */
+      .login-form-title { color: rgba(255,255,255,.7); }
+      .login-form-inner .form-group label { color: rgba(255,255,255,.85); }
+
+      /* 入力フィールド：半透明ダーク */
+      .login-form-inner .form-group input {
+        background: rgba(255,255,255,.1);
+        border-color: rgba(255,255,255,.2);
+        color: #fff;
+      }
+      .login-form-inner .form-group input::placeholder { color: rgba(255,255,255,.35); }
+      .login-form-inner .form-group input:focus {
+        border-color: rgba(255,255,255,.6);
+        box-shadow: 0 0 0 3px rgba(255,255,255,.1);
+      }
+      .pw-eye { color: rgba(255,255,255,.4); }
+      .pw-eye:hover { color: rgba(255,255,255,.8); }
+
+      /* ログインボタン */
+      .btn-login {
+        background: #FF6B35;
+        box-shadow: 0 4px 20px rgba(255,107,53,.4);
+      }
+      .btn-login:hover {
+        background: #e85a24;
+        box-shadow: 0 8px 28px rgba(255,107,53,.5);
+      }
+
+      /* エラー */
+      .login-error {
+        background: rgba(255,255,255,.1);
+        border-color: rgba(229,62,62,.5);
+        color: #fca5a5;
+      }
+
+      /* クイックログイン */
+      .dev-section { border-top-color: rgba(255,255,255,.15); }
+      .dev-section-label { color: rgba(255,255,255,.3); }
+      .quick-login-btn {
+        background: rgba(255,255,255,.08);
+        border-color: rgba(255,255,255,.15);
+        color: rgba(255,255,255,.7);
+      }
+      .quick-login-btn:hover {
+        background: rgba(255,255,255,.15);
+        border-color: rgba(255,255,255,.4);
+        color: #fff;
+      }
     }
   </style>
 </head>
