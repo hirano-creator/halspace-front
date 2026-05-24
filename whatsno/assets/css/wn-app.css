@@ -2157,11 +2157,37 @@ tbody tr:last-child { border-bottom: none; }
 
 /* スマホ対応 */
 @media (max-width: 768px) {
+  /* レイアウト：ボトムナビ分を引く */
   .brain-layout {
-    padding: 12px 12px 0;
-    height: calc(100vh - 56px - 60px);
+    padding: 8px 12px 0;
+    height: calc(100svh - 56px - 60px);
+    gap: 8px;
   }
+
+  /* メーターカードをコンパクトに */
+  .brain-meter-card { padding: 10px 14px; }
+  .brain-meter-header { margin-bottom: 6px; gap: 8px; }
+  .brain-meter-icon { font-size: 18px; }
+  .brain-meter-title { font-size: 13px; }
+  .brain-meter-rate { font-size: 18px; }
+  .brain-meter-bar-wrap { height: 5px; margin-bottom: 5px; }
+  .brain-meter-meta { font-size: 11px; gap: 8px; }
+
+  /* 空状態をコンパクトに */
+  .brain-empty { padding: 12px 0; gap: 8px; }
+  .brain-empty-icon { font-size: 36px; }
+  .brain-empty-title { font-size: 14px; }
+  .brain-empty-sub { font-size: 12px; }
+  .brain-example-list { max-width: 100%; gap: 6px; }
+  .brain-example-btn { padding: 10px 14px; font-size: 13px; text-align: left; }
+
+  /* 入力エリア下部ヒントを非表示 */
+  .brain-input-hint { display: none; }
+
+  /* チャットバブル */
   .brain-bubble-user,
   .brain-bubble-ai { max-width: 92%; }
+
+  /* 履歴パネル */
   .brain-history-panel { width: 100%; }
 }
