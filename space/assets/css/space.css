@@ -436,11 +436,14 @@ input { font-family: inherit; }
   /* 矢印非表示（タッチスクロール使用） */
   .apps-arrow { display: none; }
 
-  /* カード */
-  .app-card { flex: 0 0 180px; padding: 18px 16px 16px; }
+  /* カード: 画面幅の約72%にして次カードが右端にのぞく */
+  .app-card { flex: 0 0 72vw; max-width: 280px; padding: 18px 16px 16px; }
   .app-icon  { width: 40px; height: 40px; font-size: 17px; border-radius: 10px; }
   .app-name  { font-size: 13px; }
   .app-desc  { font-size: 11px; }
+
+  /* 右端に余白を設けて「まだ続く」感を演出 */
+  .apps-grid { padding-right: 40px; }
 
   /* ログイン */
   .login-card { padding: 32px 22px; }
