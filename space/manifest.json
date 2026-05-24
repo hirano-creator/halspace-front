@@ -1,0 +1,26 @@
+{
+  "name": "Space",
+  "short_name": "Space",
+  "description": "HaLSpace ポータル",
+  "start_url": "/space/apps.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1e3a8a",
+  "theme_color": "#1e3a8a",
+  "icons": [
+    {
+      "src": "/space/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/space/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business"],
+  "lang": "ja"
+}
