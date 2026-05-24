@@ -1548,8 +1548,9 @@ tbody tr:last-child { border-bottom: none; }
     transform: translateX(-260px);
     transition: transform .25s ease;
     z-index: 300;
+    pointer-events: none;
   }
-  .sidebar.open { transform: translateX(0); }
+  .sidebar.open { transform: translateX(0); pointer-events: auto; }
 
   /* オーバーレイ */
   .sidebar-overlay {

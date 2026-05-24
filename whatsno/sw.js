@@ -7,7 +7,7 @@ const SHELL_URLS = [
   '/whatsno/app/file-detail.html',
   '/whatsno/app/admin.html',
   '/whatsno/app/diff.html',
-  '/whatsno/assets/css/wn-app.css?v=20260523',
+  '/whatsno/assets/css/wn-app.css?v=20260524',
   '/whatsno/assets/js/wn-api.js',
   '/whatsno/assets/js/pages/wn-dashboard.js',
   '/whatsno/assets/js/pages/wn-file-detail.js',
