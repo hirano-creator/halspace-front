@@ -76,7 +76,7 @@
 
       <!-- 左ゾーン: ハンバーガー・戻る・タイトル -->
       <div class="top-bar-left">
-        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <button class="menu-toggle" id="menuToggle" onclick="var s=document.querySelector('.sidebar'),o=document.getElementById('sidebarOverlay');if(s)s.classList.toggle('open');if(o)o.classList.toggle('open');"><i class="fa-solid fa-bars"></i></button>
         <button id="backBtn" class="top-bar-icon-btn" onclick="history.back()" title="戻る">
           <i class="fa-solid fa-arrow-left"></i>
         </button>
@@ -426,7 +426,7 @@
   </div>
 </div>
 
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="var s=document.querySelector('.sidebar');if(s)s.classList.remove('open');this.classList.remove('open');"></div>
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -462,29 +462,16 @@ function setBottomActive(id) {
   document.getElementById(id)?.classList.add('active');
 }
 
-/* ── ハンバーガー（即時実行・nullチェック付き） ── */
-(function setupHamburger() {
-  function init() {
-    const toggle  = document.getElementById('menuToggle');
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    if (!toggle || !sidebar || !overlay) return;
-    toggle.addEventListener('click', function() {
-      sidebar.classList.toggle('open');
-      overlay.classList.toggle('open');
-    });
-    overlay.addEventListener('click', function() {
-      sidebar.classList.remove('open');
-      overlay.classList.remove('open');
-    });
-    /* モバイルでアプリ一覧ボタンを表示 */
+/* ── モバイルでアプリ一覧ボタンを表示 ── */
+(function() {
+  function showAppsBtn() {
     const appsBtn = document.querySelector('.mobile-only');
     if (appsBtn && window.innerWidth <= 1023) appsBtn.style.display = 'flex';
   }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', showAppsBtn);
   } else {
-    init();
+    showAppsBtn();
   }
 })();
 </script>
