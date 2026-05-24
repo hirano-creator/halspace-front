@@ -2045,28 +2045,71 @@ async function buildAnnotatedPdf() {
       cw = vp.width; ch = vp.height;
     }
 
-    /* アノテーションを正しいサイズの一時Canvasに描画してPNG化 */
-    const page = pages[pageNum - 1];
+    /* アノテーションを視覚サイズの一時Canvasに描画 */
+    const page     = pages[pageNum - 1];
     const { width: pW, height: pH } = page.getSize();
+    const rotAngle = page.getRotation?.()?.angle ?? 0;
 
-    const tmpCanvas = document.createElement('canvas');
-    tmpCanvas.width  = cw;
-    tmpCanvas.height = ch;
-    const tmpCtx = tmpCanvas.getContext('2d');
-
-    tmpCtx.save();
+    const annCanvas = document.createElement('canvas');
+    annCanvas.width  = cw;
+    annCanvas.height = ch;
+    const annCtxTmp = annCanvas.getContext('2d');
+    annCtxTmp.save();
     annots.forEach(a => {
-      tmpCtx.strokeStyle = a.color;
-      tmpCtx.fillStyle   = a.color;
-      tmpCtx.lineWidth   = a.size ?? 2;
-      tmpCtx.lineCap = tmpCtx.lineJoin = 'round';
-      drawAnnotationToCtx(tmpCtx, a);
+      annCtxTmp.strokeStyle = a.color;
+      annCtxTmp.fillStyle   = a.color;
+      annCtxTmp.lineWidth   = a.size ?? 2;
+      annCtxTmp.lineCap = annCtxTmp.lineJoin = 'round';
+      drawAnnotationToCtx(annCtxTmp, a);
     });
-    tmpCtx.restore();
+    annCtxTmp.restore();
 
-    const pngBytes = await new Promise(r => tmpCanvas.toBlob(b => b.arrayBuffer().then(r), 'image/png'));
+    /* ページ回転を考慮してPDF内部座標系へ変換
+     * pdf-lib は Rotate 属性を drawImage で考慮しないため、
+     * 視覚空間（PDF.js が描画したキャンバス座標）を内部座標系に変換する。
+     *
+     * Rotate=90 (CCW): 内部→視覚の対応
+     *   内部LEFT→視覚BOTTOM, 内部RIGHT→視覚TOP,
+     *   内部BOTTOM→視覚RIGHT, 内部TOP→視覚LEFT
+     * 変換: visual(cx,cy) → internal(ch-cy, cx)
+     * canvas transform: setTransform(0, 1, -1, 0, ch, 0)
+     *
+     * Rotate=270 (CW): visual(cx,cy) → internal(cy, cw-cx)
+     * canvas transform: setTransform(0, -1, 1, 0, 0, cw)
+     *
+     * Rotate=180: visual(cx,cy) → internal(cw-cx, ch-cy)
+     * canvas transform: setTransform(-1, 0, 0, -1, cw, ch)
+     */
+    let embedCanvas, embedW, embedH;
+    if (rotAngle === 90) {
+      embedCanvas = document.createElement('canvas');
+      embedCanvas.width = ch; embedCanvas.height = cw;
+      const ec = embedCanvas.getContext('2d');
+      ec.setTransform(0, 1, -1, 0, ch, 0);
+      ec.drawImage(annCanvas, 0, 0);
+      embedW = pH; embedH = pW;
+    } else if (rotAngle === 270) {
+      embedCanvas = document.createElement('canvas');
+      embedCanvas.width = ch; embedCanvas.height = cw;
+      const ec = embedCanvas.getContext('2d');
+      ec.setTransform(0, -1, 1, 0, 0, cw);
+      ec.drawImage(annCanvas, 0, 0);
+      embedW = pH; embedH = pW;
+    } else if (rotAngle === 180) {
+      embedCanvas = document.createElement('canvas');
+      embedCanvas.width = cw; embedCanvas.height = ch;
+      const ec = embedCanvas.getContext('2d');
+      ec.setTransform(-1, 0, 0, -1, cw, ch);
+      ec.drawImage(annCanvas, 0, 0);
+      embedW = pW; embedH = pH;
+    } else {
+      embedCanvas = annCanvas;
+      embedW = pW; embedH = pH;
+    }
+
+    const pngBytes = await new Promise(r => embedCanvas.toBlob(b => b.arrayBuffer().then(r), 'image/png'));
     const pngImg   = await pdfLibDoc.embedPng(pngBytes);
-    page.drawImage(pngImg, { x: 0, y: 0, width: pW, height: pH });
+    page.drawImage(pngImg, { x: 0, y: 0, width: embedW, height: embedH });
   }
 
   const bytes = await pdfLibDoc.save();
