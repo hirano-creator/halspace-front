@@ -277,8 +277,21 @@
     }
 
     @media (max-width: 700px) {
-      .login-brand { display: none; }
-      .login-form-panel { padding: 40px 24px; }
+      .login-page { flex-direction: column; }
+
+      /* ロゴエリアをコンパクトな上部バナーに */
+      .login-brand {
+        flex: 0 0 auto;
+        min-height: 200px;
+        padding: 36px 24px 32px;
+        justify-content: center;
+      }
+      .login-brand-name { font-size: 34px; }
+      .login-brand-tagline { font-size: 13px; margin-top: 10px; }
+      .login-brand-footer { display: none; }
+
+      /* フォームエリア */
+      .login-form-panel { padding: 32px 24px 48px; }
       .login-form-inner { max-width: 100%; }
     }
   </style>
