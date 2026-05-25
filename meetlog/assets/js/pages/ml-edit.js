@@ -868,14 +868,13 @@ async function insertImageToEditor(file) {
 }
 
 /* ────────────────────────────
-   印刷（プレビューと同一コンテンツ生成）
+   共通：印刷コンテンツ生成
 ──────────────────────────── */
-async function printMinute() {
+async function buildPrintContent() {
   const preview = document.getElementById('mdPreview');
   const hasAiContent = preview && !preview.querySelector('.preview-placeholder') && preview.dataset.markdown;
   const title = document.getElementById('titleInput').value || '（無題）';
 
-  // openPreviewModal と同じロジックでコンテンツを組み立てる
   let bodyHtml;
   if (hasAiContent) {
     const helper = document.getElementById('printPreviewHelper');
@@ -892,7 +891,6 @@ async function printMinute() {
     bodyHtml = marked.parse(document.getElementById('bodyInput').value || '');
   }
 
-  // アクションアイテム（openPreviewModal と同じ構造）
   let actHtml = '';
   if (actions.length) {
     const rows = actions.map(a => {
@@ -912,58 +910,83 @@ async function printMinute() {
       <h3 style="font-size:10.5pt;background:#e8e8f4 !important;padding:4px 10px;margin:0 0 8px;border-radius:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">📌 アクションアイテム</h3>
       <table style="border-collapse:collapse;width:100%;font-size:10pt;">
         <thead><tr>
-          <th style="border:1px solid #aaa;padding:4px 8px;background:#e8e8f4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></th>
-          <th style="border:1px solid #aaa;padding:4px 8px;background:#e8e8f4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;">内容</th>
-          <th style="border:1px solid #aaa;padding:4px 8px;background:#e8e8f4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;width:6em;">担当者</th>
-          <th style="border:1px solid #aaa;padding:4px 8px;background:#e8e8f4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;width:7em;">期日</th>
+          <th style="border:1px solid #aaa;padding:5px 8px;background:#e8e8f4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></th>
+          <th style="border:1px solid #aaa;padding:5px 8px;background:#e8e8f4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;">内容</th>
+          <th style="border:1px solid #aaa;padding:5px 8px;background:#e8e8f4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;width:6em;">担当者</th>
+          <th style="border:1px solid #aaa;padding:5px 8px;background:#e8e8f4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;width:7em;">期日</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
   }
 
-  // #printPreviewHelper と完全一致するCSS
-  const html = `<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<title>${escHtml(title)}</title>
+  return { title, bodyHtml, actHtml };
+}
+
+/* ────────────────────────────
+   共通：印刷HTML文書を生成
+   forPrint=true  → @page margin制御（新規ウィンドウ印刷用）
+   forPrint=false → body padding制御（iframe表示用・見た目が一致）
+──────────────────────────── */
+function buildPrintHtml(title, bodyHtml, actHtml, forPrint = false) {
+  const bodyPad  = forPrint ? 'padding:0;'          : 'padding:20px 65px;';
+  const pageRule = forPrint ? '@page{size:A4;margin:20px 65px;}' : '@page{size:A4;margin:0;}';
+  const autoprint = forPrint
+    ? `<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/script>`
+    : '';
+  return `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><title>${escHtml(title)}</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif; font-size: 10.5pt; line-height: 1.8; color: #111; }
-  h1 { font-size: 1.1em; font-weight: 900; margin: 0 0 16px; }
-  h2 { font-size: 14pt; font-weight: 900; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 2px solid #111; }
-  h3 { font-size: 10.5pt; font-weight: 700; margin: 20px 0 8px; padding: 4px 10px; border-radius: 4px; background: #eee; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  h2 + h3, h1 + h3 { margin-top: 12px; }
-  h4 { font-size: 10pt; font-weight: 700; margin: 16px 0 6px; border-bottom: 0.5pt solid #bbb; padding-bottom: 2pt; }
-  p { margin: 0 0 8px; }
-  strong { font-weight: 700; }
-  ul { list-style: none; padding-left: 1em; margin: 4px 0 12px; }
-  ul li::before { content: '・'; margin-left: -1em; }
-  ol { padding-left: 1.5em; margin: 4px 0 12px; }
-  li { margin: 4px 0; }
-  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 10pt; }
-  th { background: #eee; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: 700; padding: 5px 8px; border: 1px solid #aaa; text-align: left; }
-  td { padding: 5px 8px; border: 1px solid #aaa; }
-  img { max-width: 100%; display: block; margin: 8px 0; }
-  hr { border: none; border-top: 1px solid #ddd; margin: 12px 0; }
-  .print-footer { margin-top: 32px; font-size: 8.5pt; color: #bbb; text-align: right; border-top: 1px solid #eee; padding-top: 6px; }
-  @page { size: A4; margin: 20px 65px; }
-  @media print { h2, h3 { page-break-after: avoid; } table { page-break-inside: avoid; } }
-</style>
-</head>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans JP','Hiragino Kaku Gothic Pro','Meiryo',sans-serif;font-size:10.5pt;line-height:1.8;color:#111;${bodyPad}}
+h1{font-size:1.1em;font-weight:900;margin:0 0 16px;}
+h2{font-size:14pt;font-weight:900;margin:28px 0 12px;padding-bottom:6px;border-bottom:2px solid #111;}
+h3{font-size:10.5pt;font-weight:700;margin:20px 0 8px;padding:4px 10px;border-radius:4px;background:#eee;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+h2+h3,h1+h3{margin-top:12px;}
+h4{font-size:10pt;font-weight:700;margin:16px 0 6px;border-bottom:.5pt solid #bbb;padding-bottom:2pt;}
+p{margin:0 0 8px;}
+strong{font-weight:700;}
+ul{list-style:none;padding-left:1em;margin:4px 0 12px;}
+ul li::before{content:'・';margin-left:-1em;}
+ol{padding-left:1.5em;margin:4px 0 12px;}
+li{margin:4px 0;}
+table{border-collapse:collapse;width:100%;margin:10px 0;font-size:10pt;}
+th{background:#eee;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-weight:700;padding:5px 8px;border:1px solid #aaa;text-align:left;}
+td{padding:5px 8px;border:1px solid #aaa;}
+img{max-width:100%;display:block;margin:8px 0;}
+hr{border:none;border-top:1px solid #ddd;margin:12px 0;}
+.print-footer{margin-top:32px;font-size:8.5pt;color:#bbb;text-align:right;border-top:1px solid #eee;padding-top:6px;}
+${pageRule}
+@media print{h2,h3{page-break-after:avoid;}table{page-break-inside:avoid;}}
+</style></head>
 <body>
 ${bodyHtml}
 ${actHtml}
 <div class="print-footer">MeetLog by HaLSpace　／　印刷日: ${new Date().toLocaleDateString('ja-JP')}</div>
-<script>window.onload = function(){ window.print(); window.onafterprint = function(){ window.close(); }; }<\/script>
-</body>
-</html>`;
+${autoprint}
+</body></html>`;
+}
 
+/* ────────────────────────────
+   印刷
+──────────────────────────── */
+async function printMinute() {
+  const { title, bodyHtml, actHtml } = await buildPrintContent();
+  const html = buildPrintHtml(title, bodyHtml, actHtml, true);
   const w = window.open('', '_blank', 'width=900,height=700');
   w.document.write(html);
   w.document.close();
+}
+
+/* プレビューモーダル内の印刷ボタン用 */
+function previewPrint() {
+  const iframe = document.getElementById('previewIframe');
+  if (iframe && iframe.contentWindow) {
+    iframe.contentWindow.print();
+  } else {
+    printMinute();
+  }
 }
 
 /* ────────────────────────────
@@ -1094,7 +1117,7 @@ function copyEmailText() {
 }
 
 /* ────────────────────────────
-   プレビューモーダル（A4ページ分割・横並び表示）
+   プレビューモーダル（印刷と同一HTMLをiframeで表示）
 ──────────────────────────── */
 async function openPreviewModal() {
   const preview = document.getElementById('mdPreview');
@@ -1105,153 +1128,44 @@ async function openPreviewModal() {
 
   const modal = document.getElementById('previewFullModal');
   const area  = document.getElementById('previewPagesArea');
-  const info  = document.getElementById('previewPageInfo');
 
-  // ローディング表示
-  area.innerHTML = `<div style="color:#94a3b8;text-align:center;">
+  area.innerHTML = `<div style="color:#94a3b8;text-align:center;margin:auto;">
     <i class="fa-solid fa-spinner fa-spin" style="font-size:2rem;"></i>
-    <p style="margin-top:14px;font-size:13px;">ページを生成中…</p>
+    <p style="margin-top:14px;font-size:13px;">読み込み中…</p>
   </div>`;
-  info.textContent = '';
   modal.classList.remove('hidden');
 
   try {
-    // ── ヘルパーdiv に print 用コンテンツを注入 ──────────────
-    const helper = document.getElementById('printPreviewHelper');
-    helper.innerHTML = await parseMarkdownWithImages(preview.dataset.markdown);
+    const { title, bodyHtml, actHtml } = await buildPrintContent();
+    // forPrint=false: body padding で余白を表現（iframeで見た目通りに表示）
+    const html = buildPrintHtml(title, bodyHtml, actHtml, false);
 
-    // h3 カラー（絵文字ベース）を適用
-    helper.querySelectorAll('h3').forEach(h => {
-      const t = h.textContent;
-      if      (t.includes('✅'))       { h.style.background = '#DCFCE7'; h.style.color = '#15803D'; }
-      else if (t.includes('⚠️'))      { h.style.background = '#FEF9C3'; h.style.color = '#92400E'; }
-      else if (t.includes('📌'))       { h.style.background = '#EDE9FE'; h.style.color = '#6D28D9'; }
-      else if (t.includes('サマリー')) { h.style.background = '#DBEAFE'; h.style.color = '#1D4ED8'; }
-    });
-
-    // アクションアイテムを付加
-    if (actions.length) {
-      const rows = actions.map(a => {
-        const done  = a.is_done ? '☑' : '☐';
-        const name  = escHtml(a.assignee_name || '—');
-        const due   = a.due_date || '—';
-        const cont  = escHtml(a.content || '');
-        const style = a.is_done ? 'text-decoration:line-through;color:#999;' : '';
-        return `<tr>
-          <td style="width:1.5em;text-align:center;">${done}</td>
-          <td style="${style}">${cont}</td>
-          <td style="width:6em;text-align:center;">${name}</td>
-          <td style="width:7em;text-align:center;">${due}</td>
-        </tr>`;
-      }).join('');
-      const actDiv = document.createElement('div');
-      actDiv.style.cssText = 'margin-top:28px;border-top:2px solid #111;padding-top:16px;';
-      actDiv.innerHTML = `
-        <h3 style="font-size:10.5pt;background:#e8e8f4;padding:4px 10px;margin:0 0 12px;border-radius:4px;">📌 アクションアイテム</h3>
-        <table style="border-collapse:collapse;width:100%;font-size:10pt;">
-          <thead><tr>
-            <th style="border:1px solid #aaa;padding:4px 8px;background:#f5f5f5;"></th>
-            <th style="border:1px solid #aaa;padding:4px 8px;background:#f5f5f5;">内容</th>
-            <th style="border:1px solid #aaa;padding:4px 8px;background:#f5f5f5;width:6em;">担当者</th>
-            <th style="border:1px solid #aaa;padding:4px 8px;background:#f5f5f5;width:7em;">期日</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>`;
-      helper.appendChild(actDiv);
-    }
-
-    // 画像の読み込み待ち
-    await Promise.all([...helper.querySelectorAll('img')].map(img =>
-      img.complete ? Promise.resolve()
-                   : new Promise(r => { img.onload = r; img.onerror = r; })
-    ));
-
-    // ── html2canvas でレンダリング ──────────────────────────
-    // onclone: クローン内だけ viewport に移動して可視化
-    // （visibility:hidden / left:-9999px のままでは白紙になるため）
-    const canvas = await html2canvas(helper, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff',
-      width: 794,
-      windowWidth: 794,
-      onclone: (clonedDoc) => {
-        const h = clonedDoc.getElementById('printPreviewHelper');
-        h.style.position  = 'fixed';
-        h.style.left      = '0';
-        h.style.top       = '0';
-        h.style.visibility = 'visible';
-      },
-    });
-
-    // ── A4 ページ分割 ────────────────────────────────────────
-    // 210mm:297mm = canvas幅 : ページ高さ
-    const PAGE_W = canvas.width;                          // 794×2 = 1588px
-    const PAGE_H = Math.round(PAGE_W * 297 / 210);       // ≈ 2246px
-    const numPages = Math.ceil(canvas.height / PAGE_H);
-
-    // ── 表示サイズ計算（画面に収まるようスケール） ──────────
-    const headerH  = 52;                                  // モーダルヘッダー高さ
-    const padding  = 72;                                  // 上下パディング
-    const availH   = window.innerHeight - headerH - padding;
-    const availW   = window.innerWidth  - 56 - (numPages - 1) * 28; // 余白 + gap
-    const perPageW = numPages >= 2 ? availW / 2 : availW;
-
-    // 高さ・幅の両制約でスケール決定
-    const scaleH = availH  / (PAGE_H / 2);   // /2 は canvas scale=2 の分
-    const scaleW = perPageW / (PAGE_W / 2);
-    const s = Math.min(scaleH, scaleW, 1);
-
-    const dispW = Math.round(PAGE_W / 2 * s);
-    const dispH = Math.round(PAGE_H / 2 * s);
-
-    // ── ページ画像を生成・配置 ──────────────────────────────
     area.innerHTML = '';
+    area.style.cssText = 'flex:1;overflow:auto;background:#3a3a4a;display:flex;align-items:flex-start;justify-content:center;padding:24px;min-height:0;';
 
-    for (let i = 0; i < numPages; i++) {
-      const srcY = i * PAGE_H;
-      const srcH = Math.min(PAGE_H, canvas.height - srcY);
+    const iframe = document.createElement('iframe');
+    iframe.id = 'previewIframe';
+    iframe.style.cssText = 'width:794px;border:none;box-shadow:0 4px 32px rgba(0,0,0,.7);background:#fff;display:block;flex-shrink:0;';
+    iframe.scrolling = 'no';
+    area.appendChild(iframe);
 
-      const slice = document.createElement('canvas');
-      slice.width  = PAGE_W;
-      slice.height = PAGE_H;
-      const ctx = slice.getContext('2d');
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, PAGE_W, PAGE_H);
-      ctx.drawImage(canvas, 0, srcY, PAGE_W, srcH, 0, 0, PAGE_W, srcH);
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
 
-      const img = document.createElement('img');
-      img.src  = slice.toDataURL('image/jpeg', 0.92);
-      img.alt  = `ページ ${i + 1}`;
-      img.style.cssText = `width:${dispW}px;height:${dispH}px;display:block;`;
-
-      const wrap = document.createElement('div');
-      wrap.style.cssText = 'flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:10px;';
-
-      const card = document.createElement('div');
-      card.style.cssText = `
-        box-shadow: 0 6px 40px rgba(0,0,0,.6);
-        border-radius: 2px;
-        overflow: hidden;
-        flex-shrink: 0;
-      `;
-      card.appendChild(img);
-
-      const pageNum = document.createElement('div');
-      pageNum.style.cssText = 'color:#64748b;font-size:11px;font-weight:600;letter-spacing:.05em;';
-      pageNum.textContent = `${i + 1}`;
-
-      wrap.appendChild(card);
-      wrap.appendChild(pageNum);
-      area.appendChild(wrap);
-    }
-
-    info.textContent = `${numPages} ページ`;
+    // コンテンツ高さに合わせてiframe高さを自動設定
+    const adjustHeight = () => {
+      try {
+        const h = iframe.contentDocument.body.scrollHeight;
+        if (h > 0) iframe.style.height = h + 'px';
+      } catch (_) {}
+    };
+    iframe.addEventListener('load', adjustHeight);
+    setTimeout(adjustHeight, 400);
 
   } catch (e) {
-    console.error('Preview render error:', e);
-    area.innerHTML = `<div style="color:#94a3b8;text-align:center;padding:60px 0;">
+    console.error('Preview error:', e);
+    area.innerHTML = `<div style="color:#94a3b8;text-align:center;padding:60px 0;margin:auto;">
       <i class="fa-solid fa-circle-exclamation" style="font-size:2rem;color:#f87171;"></i>
       <p style="margin-top:16px;font-size:13px;">プレビューの生成に失敗しました</p>
     </div>`;
