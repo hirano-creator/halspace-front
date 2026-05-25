@@ -639,6 +639,15 @@ function initActions() {
 
   document.getElementById('downloadBtn').addEventListener('click', () => wnDownload(fileId));
 
+  document.getElementById('printBtn')?.addEventListener('click', async () => {
+    const url = await wnGetViewUrl(fileId);
+    if (!url) { wnShowToast('ファイルを取得できませんでした', 'danger'); return; }
+    const w = window.open(url, '_blank');
+    if (!w) { wnShowToast('ポップアップを許可してください', 'danger'); return; }
+    /* PDF/画像のロード完了を待ってから印刷ダイアログを開く */
+    setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 1500);
+  });
+
   document.getElementById('annotateBtn')?.addEventListener('click', () => {
     location.href = `annotate.html?id=${fileId}&from=file-detail.html`;
   });
