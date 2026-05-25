@@ -2111,17 +2111,19 @@ async function buildAnnotatedPdf() {
      */
     let embedCanvas, embedW, embedH;
     if (rotAngle === 90) {
-      embedCanvas = document.createElement('canvas');
-      embedCanvas.width = ch; embedCanvas.height = cw;
-      const ec = embedCanvas.getContext('2d');
-      ec.setTransform(0, 1, -1, 0, ch, 0);
-      ec.drawImage(annCanvas, 0, 0);
-      embedW = pH; embedH = pW;
-    } else if (rotAngle === 270) {
+      /* CW 90°: canvas(ax,ay) → internal(ay, cw-ax) → embed(ay, cw-ax) */
       embedCanvas = document.createElement('canvas');
       embedCanvas.width = ch; embedCanvas.height = cw;
       const ec = embedCanvas.getContext('2d');
       ec.setTransform(0, -1, 1, 0, 0, cw);
+      ec.drawImage(annCanvas, 0, 0);
+      embedW = pH; embedH = pW;
+    } else if (rotAngle === 270) {
+      /* CW 270°: canvas(ax,ay) → internal(ch-ay, ax) → embed(ch-ay, ax) */
+      embedCanvas = document.createElement('canvas');
+      embedCanvas.width = ch; embedCanvas.height = cw;
+      const ec = embedCanvas.getContext('2d');
+      ec.setTransform(0, 1, -1, 0, ch, 0);
       ec.drawImage(annCanvas, 0, 0);
       embedW = pH; embedH = pW;
     } else if (rotAngle === 180) {
