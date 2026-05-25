@@ -868,47 +868,61 @@ async function insertImageToEditor(file) {
 }
 
 /* ────────────────────────────
-   印刷
+   印刷（プレビューと同一コンテンツ生成）
 ──────────────────────────── */
-function printMinute() {
+async function printMinute() {
   const preview = document.getElementById('mdPreview');
   const hasAiContent = preview && !preview.querySelector('.preview-placeholder') && preview.dataset.markdown;
-
-  // 議事録本文HTML
-  const bodyHtml = hasAiContent
-    ? preview.innerHTML
-    : marked.parse(document.getElementById('bodyInput').value || '');
-
-  // タイトルのみ取得（メタ情報はAI整形済み本文に既に含まれている）
   const title = document.getElementById('titleInput').value || '（無題）';
 
-  // アクションアイテムHTML
+  // openPreviewModal と同じロジックでコンテンツを組み立てる
+  let bodyHtml;
+  if (hasAiContent) {
+    const helper = document.getElementById('printPreviewHelper');
+    helper.innerHTML = await parseMarkdownWithImages(preview.dataset.markdown);
+    helper.querySelectorAll('h3').forEach(h => {
+      const t = h.textContent;
+      if      (t.includes('✅'))       { h.style.background = '#DCFCE7'; h.style.color = '#15803D'; }
+      else if (t.includes('⚠️'))      { h.style.background = '#FEF9C3'; h.style.color = '#92400E'; }
+      else if (t.includes('📌'))       { h.style.background = '#EDE9FE'; h.style.color = '#6D28D9'; }
+      else if (t.includes('サマリー')) { h.style.background = '#DBEAFE'; h.style.color = '#1D4ED8'; }
+    });
+    bodyHtml = helper.innerHTML;
+  } else {
+    bodyHtml = marked.parse(document.getElementById('bodyInput').value || '');
+  }
+
+  // アクションアイテム（openPreviewModal と同じ構造）
   let actHtml = '';
   if (actions.length) {
     const rows = actions.map(a => {
-      const done   = a.is_done ? '☑' : '☐';
-      const name   = escHtml(a.assignee_name || '—');
-      const due    = a.due_date || '—';
-      const cont   = escHtml(a.content || '');
-      const style  = a.is_done ? 'text-decoration:line-through;color:#999;' : '';
-      return `<tr><td style="width:1.5em;text-align:center;">${done}</td>
+      const done  = a.is_done ? '☑' : '☐';
+      const name  = escHtml(a.assignee_name || '—');
+      const due   = a.due_date || '—';
+      const cont  = escHtml(a.content || '');
+      const style = a.is_done ? 'text-decoration:line-through;color:#999;' : '';
+      return `<tr>
+        <td style="width:1.5em;text-align:center;">${done}</td>
         <td style="${style}">${cont}</td>
         <td style="width:6em;text-align:center;">${name}</td>
-        <td style="width:7em;text-align:center;">${due}</td></tr>`;
+        <td style="width:7em;text-align:center;">${due}</td>
+      </tr>`;
     }).join('');
-    actHtml = `
-      <div class="print-section">
-        <h3 class="print-section-title">📌 アクションアイテム</h3>
-        <table class="print-action-table">
-          <thead><tr><th></th><th>内容</th><th>担当者</th><th>期日</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
+    actHtml = `<div style="margin-top:28px;border-top:2px solid #111;padding-top:16px;">
+      <h3 style="font-size:10.5pt;background:#e8e8f4 !important;padding:4px 10px;margin:0 0 8px;border-radius:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">📌 アクションアイテム</h3>
+      <table style="border-collapse:collapse;width:100%;font-size:10pt;">
+        <thead><tr>
+          <th style="border:1px solid #aaa;padding:4px 8px;background:#e8e8f4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></th>
+          <th style="border:1px solid #aaa;padding:4px 8px;background:#e8e8f4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;">内容</th>
+          <th style="border:1px solid #aaa;padding:4px 8px;background:#e8e8f4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;width:6em;">担当者</th>
+          <th style="border:1px solid #aaa;padding:4px 8px;background:#e8e8f4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;width:7em;">期日</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
   }
 
-  // 添付画像はプレビューHTMLに既に展開済みなので個別処理不要
-  const printImagesHtml = '';
-
+  // #printPreviewHelper と完全一致するCSS
   const html = `<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -917,26 +931,14 @@ function printMinute() {
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif;
-    font-size: 10.5pt;
-    line-height: 1.8;
-    color: #111;
-    padding: 14mm 17mm;
-    box-sizing: border-box;
-  }
-  h1.print-title { display: none; }
+  body { font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif; font-size: 10.5pt; line-height: 1.8; color: #111; }
   h1 { font-size: 1.1em; font-weight: 900; margin: 0 0 16px; }
   h2 { font-size: 14pt; font-weight: 900; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 2px solid #111; }
-  h3 {
-    font-size: 10.5pt; font-weight: 700; margin: 20px 0 8px;
-    padding: 4px 10px; border-radius: 4px;
-    background: #eee;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact;
-  }
+  h3 { font-size: 10.5pt; font-weight: 700; margin: 20px 0 8px; padding: 4px 10px; border-radius: 4px; background: #eee; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   h2 + h3, h1 + h3 { margin-top: 12px; }
   h4 { font-size: 10pt; font-weight: 700; margin: 16px 0 6px; border-bottom: 0.5pt solid #bbb; padding-bottom: 2pt; }
   p { margin: 0 0 8px; }
+  strong { font-weight: 700; }
   ul { list-style: none; padding-left: 1em; margin: 4px 0 12px; }
   ul li::before { content: '・'; margin-left: -1em; }
   ol { padding-left: 1.5em; margin: 4px 0 12px; }
@@ -944,21 +946,16 @@ function printMinute() {
   table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 10pt; }
   th { background: #eee; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: 700; padding: 5px 8px; border: 1px solid #aaa; text-align: left; }
   td { padding: 5px 8px; border: 1px solid #aaa; }
+  img { max-width: 100%; display: block; margin: 8px 0; }
   hr { border: none; border-top: 1px solid #ddd; margin: 12px 0; }
-  strong { font-weight: 700; }
-  .print-section { margin-top: 28px; border-top: 2px solid #111; padding-top: 16px; }
-  .print-section-title { font-size: 10.5pt !important; background: #e8e8f4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0 0 8px !important; }
-  .print-action-table th { background: #e8e8f4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .print-footer { margin-top: 32px; font-size: 8.5pt; color: #bbb; text-align: right; border-top: 1px solid #eee; padding-top: 6px; }
-  @page { size: A4; margin: 14mm 17mm; }
-  @media print { body { padding: 0; } h2, h3 { page-break-after: avoid; } table { page-break-inside: avoid; } }
+  @page { size: A4; margin: 20px 65px; }
+  @media print { h2, h3 { page-break-after: avoid; } table { page-break-inside: avoid; } }
 </style>
 </head>
 <body>
-<h1 class="print-title">${escHtml(title)}</h1>
 ${bodyHtml}
 ${actHtml}
-${printImagesHtml}
 <div class="print-footer">MeetLog by HaLSpace　／　印刷日: ${new Date().toLocaleDateString('ja-JP')}</div>
 <script>window.onload = function(){ window.print(); window.onafterprint = function(){ window.close(); }; }<\/script>
 </body>
