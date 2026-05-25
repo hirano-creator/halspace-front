@@ -1243,7 +1243,7 @@ function initEvents() {
   document.getElementById('emailModalClose').addEventListener('click', () => {
     document.getElementById('emailModal').classList.add('hidden');
   });
-  document.getElementById('previewModalBtn').addEventListener('click', openPreviewModal);
+  // previewModalBtn は onclick="printMinute()" で制御
   document.getElementById('previewFullModalClose').addEventListener('click', () => {
     document.getElementById('previewFullModal').classList.add('hidden');
   });
