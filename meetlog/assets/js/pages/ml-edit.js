@@ -925,10 +925,15 @@ async function buildPrintContent() {
 
 /* ────────────────────────────
    共通：印刷HTML文書を生成
-   body padding で余白を管理し @page margin:0 に統一
-   → 画面表示（プレビュー）と印刷出力が同じレイアウトになる
+   autoprint=false → プレビュー iframe 用（body padding で画面表示）
+   autoprint=true  → 印刷ウィンドウ用（@page margin で全ページに余白）
 ──────────────────────────── */
 function buildPrintHtml(title, bodyHtml, actHtml, autoprint = false) {
+  // 画面表示用：body padding で余白を表現
+  // 印刷用：@page margin で全ページの上下余白を保証
+  const screenCss = autoprint
+    ? 'padding:0;'
+    : 'padding:20px 65px;';
   const autoprintScript = autoprint
     ? `<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/script>`
     : '';
@@ -937,7 +942,7 @@ function buildPrintHtml(title, bodyHtml, actHtml, autoprint = false) {
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Noto Sans JP','Hiragino Kaku Gothic Pro','Meiryo',sans-serif;font-size:10.5pt;line-height:1.8;color:#111;padding:20px 65px;}
+body{font-family:'Noto Sans JP','Hiragino Kaku Gothic Pro','Meiryo',sans-serif;font-size:10.5pt;line-height:1.8;color:#111;${screenCss}}
 h1{font-size:1.1em;font-weight:900;margin:0 0 16px;}
 h2{font-size:14pt;font-weight:900;margin:28px 0 12px;padding-bottom:6px;border-bottom:2px solid #111;}
 h3{font-size:10.5pt;font-weight:700;margin:20px 0 8px;padding:4px 10px;border-radius:4px;background:#eee;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -955,8 +960,8 @@ td{padding:5px 8px;border:1px solid #aaa;}
 img{max-width:100%;display:block;margin:8px 0;}
 hr{border:none;border-top:1px solid #ddd;margin:12px 0;}
 .print-footer{margin-top:32px;font-size:8.5pt;color:#bbb;text-align:right;border-top:1px solid #eee;padding-top:6px;}
-@page{size:A4;margin:0;}
-@media print{h2,h3{page-break-after:avoid;}table{page-break-inside:avoid;}}
+@page{size:A4;margin:20px 65px;}
+@media print{body{padding:0;}h2,h3{page-break-after:avoid;}table{page-break-inside:avoid;}}
 </style></head>
 <body>
 ${bodyHtml}
@@ -967,24 +972,19 @@ ${autoprintScript}
 }
 
 /* ────────────────────────────
-   印刷
+   印刷（常に新規ウィンドウ + @page margin で全ページ余白を保証）
 ──────────────────────────── */
 async function printMinute() {
   const { title, bodyHtml, actHtml } = await buildPrintContent();
-  const html = buildPrintHtml(title, bodyHtml, actHtml, true); // autoprint=true
+  const html = buildPrintHtml(title, bodyHtml, actHtml, true);
   const w = window.open('', '_blank', 'width=900,height=700');
   w.document.write(html);
   w.document.close();
 }
 
-/* プレビューモーダル内の印刷ボタン用 */
+/* プレビューモーダル内の印刷ボタン：printMinute() に統一 */
 function previewPrint() {
-  const iframe = document.getElementById('previewIframe');
-  if (iframe && iframe.contentWindow) {
-    iframe.contentWindow.print();
-  } else {
-    printMinute();
-  }
+  printMinute();
 }
 
 /* ────────────────────────────
