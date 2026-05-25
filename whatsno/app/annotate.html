@@ -645,6 +645,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setLoading(false);
   initCanvas();
+  /* 保存後リロード時のトースト */
+  if (params.get('saved')) {
+    showToast('保存しました（注釈が焼き込まれたPDFを表示中）', 'success');
+    window.history.replaceState(null, '', location.pathname + '?id=' + fileId + '&from=' + encodeURIComponent(fromPage));
+  }
 });
 
 /* ────── PDF 読み込み ────── */
@@ -1972,19 +1977,8 @@ async function saveAsNewVersion() {
       fileData = res.data;
       window.history.replaceState(null, '', `?id=${fileId}&from=${encodeURIComponent(fromPage)}`);
       document.getElementById('topTitle').textContent = `注釈編集：${fileData.file_name}`;
-      /* 注釈を一旦クリア（焼き込み済みなので次回保存で二重にならないよう） */
-      annotations = [];
-      Object.keys(pageAnnotations).forEach(k => { pageAnnotations[k] = []; });
-      Object.keys(pageSizes).forEach(k => { delete pageSizes[k]; });
-      /* 保存済みファイルを再ロードして注釈が焼き込まれたPDFを表示 */
-      pdfDoc = await pdfjsLib.getDocument(wnPublicViewUrl(fileId)).promise;
-      totalPages = pdfDoc.numPages;
-      await renderPdfPage(currentPage);
-      showToastWithAction(
-        '新バージョンとして保存しました',
-        'ファイル詳細へ',
-        () => { location.href = fromPage + '?id=' + fileId; }
-      );
+      /* 保存済みファイル（注釈焼き込み済み）で同ページを再ロード */
+      location.replace(location.pathname + '?id=' + fileId + '&from=' + encodeURIComponent(fromPage) + '&saved=1');
     } else {
       showToast('保存に失敗しました', 'danger');
     }
@@ -2028,21 +2022,9 @@ async function saveOverwrite() {
     const res  = await wnUploadFile(file);
 
     if (res?.data) {
-      fileId   = String(res.data.id);
-      fileData = res.data;
-      window.history.replaceState(null, '', `?id=${fileId}&from=${encodeURIComponent(fromPage)}`);
-      annotations = [];
-      Object.keys(pageAnnotations).forEach(k => { pageAnnotations[k] = []; });
-      Object.keys(pageSizes).forEach(k => { delete pageSizes[k]; });
-      /* 保存済みファイルを再ロードして注釈が焼き込まれたPDFを表示 */
-      pdfDoc = await pdfjsLib.getDocument(wnPublicViewUrl(fileId)).promise;
-      totalPages = pdfDoc.numPages;
-      await renderPdfPage(currentPage);
-      showToastWithAction(
-        '上書き保存しました',
-        'ファイル詳細へ',
-        () => { location.href = fromPage + '?id=' + fileId; }
-      );
+      fileId = String(res.data.id);
+      /* 保存済みファイル（注釈焼き込み済み）で同ページを再ロード */
+      location.replace(location.pathname + '?id=' + fileId + '&from=' + encodeURIComponent(fromPage) + '&saved=1');
     } else {
       showToast('保存に失敗しました', 'danger');
     }
