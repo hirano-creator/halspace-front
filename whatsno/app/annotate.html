@@ -1976,7 +1976,10 @@ async function saveAsNewVersion() {
       annotations = [];
       Object.keys(pageAnnotations).forEach(k => { pageAnnotations[k] = []; });
       Object.keys(pageSizes).forEach(k => { delete pageSizes[k]; });
-      redrawAnnotations();
+      /* 保存済みファイルを再ロードして注釈が焼き込まれたPDFを表示 */
+      pdfDoc = await pdfjsLib.getDocument(wnPublicViewUrl(fileId)).promise;
+      totalPages = pdfDoc.numPages;
+      await renderPdfPage(currentPage);
       showToastWithAction(
         '新バージョンとして保存しました',
         'ファイル詳細へ',
@@ -2031,7 +2034,10 @@ async function saveOverwrite() {
       annotations = [];
       Object.keys(pageAnnotations).forEach(k => { pageAnnotations[k] = []; });
       Object.keys(pageSizes).forEach(k => { delete pageSizes[k]; });
-      redrawAnnotations();
+      /* 保存済みファイルを再ロードして注釈が焼き込まれたPDFを表示 */
+      pdfDoc = await pdfjsLib.getDocument(wnPublicViewUrl(fileId)).promise;
+      totalPages = pdfDoc.numPages;
+      await renderPdfPage(currentPage);
       showToastWithAction(
         '上書き保存しました',
         'ファイル詳細へ',
@@ -2122,7 +2128,9 @@ async function buildAnnotatedPdf() {
           x: Math.min(...px), y: Math.min(...py),
           width:  Math.max(...px) - Math.min(...px),
           height: Math.max(...py) - Math.min(...py),
-          borderColor: col, borderWidth: lw,
+          color: undefined,         /* 塗りつぶしなし */
+          opacity: 0,
+          borderColor: col, borderWidth: lw, borderOpacity: 1,
         });
 
       } else if (a.type === 'ellipse') {
@@ -2134,7 +2142,9 @@ async function buildAnnotatedPdf() {
           x: cx, y: cy,
           xScale: (Math.max(...px)-Math.min(...px))/2,
           yScale: (Math.max(...py)-Math.min(...py))/2,
-          borderColor: col, borderWidth: lw,
+          color: undefined,         /* 塗りつぶしなし */
+          opacity: 0,
+          borderColor: col, borderWidth: lw, borderOpacity: 1,
         });
 
       } else if (a.type === 'text' || a.type === 'stamp') {
