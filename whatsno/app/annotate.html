@@ -541,7 +541,7 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 const params   = new URLSearchParams(location.search);
-const fileId   = params.get('id');
+let   fileId   = params.get('id');
 const fromPage = params.get('from') || 'file-detail.html';
 
 let currentUser = null;
@@ -1939,6 +1939,9 @@ function initTopActions() {
 
 /* ────── 保存（新バージョン） ────── */
 async function saveAsNewVersion() {
+  /* テキスト入力中なら先に確定（blur発火タイミングの差異を吸収） */
+  if (inlineTA.style.display !== 'none') commitInlineText();
+
   if (!annotations.length && !Object.values(pageAnnotations).some(p => p.length)) {
     showToast('注釈がありません', 'danger'); return;
   }
@@ -1964,8 +1967,21 @@ async function saveAsNewVersion() {
     const res  = await wnUploadFile(file);
 
     if (res?.data) {
-      showToast('新バージョンとして保存しました', 'success');
-      setTimeout(() => location.href = fromPage + '?id=' + res.data.id, 1500);
+      /* 保存後は新ファイルのIDに更新してページ遷移せず継続編集可能にする */
+      fileId   = String(res.data.id);
+      fileData = res.data;
+      history.replaceState(null, '', `?id=${fileId}&from=${encodeURIComponent(fromPage)}`);
+      document.getElementById('topTitle').textContent = `注釈編集：${fileData.file_name}`;
+      /* 注釈を一旦クリア（焼き込み済みなので次回保存で二重にならないよう） */
+      annotations = [];
+      Object.keys(pageAnnotations).forEach(k => { pageAnnotations[k] = []; });
+      Object.keys(pageSizes).forEach(k => { delete pageSizes[k]; });
+      redrawAnnotations();
+      showToastWithAction(
+        '新バージョンとして保存しました',
+        'ファイル詳細へ',
+        () => { location.href = fromPage + '?id=' + fileId; }
+      );
     } else {
       showToast('保存に失敗しました', 'danger');
     }
@@ -1981,6 +1997,9 @@ async function saveAsNewVersion() {
 
 /* ────── 保存（上書き） ────── */
 async function saveOverwrite() {
+  /* テキスト入力中なら先に確定 */
+  if (inlineTA.style.display !== 'none') commitInlineText();
+
   if (!annotations.length && !Object.values(pageAnnotations).some(p => p.length)) {
     showToast('注釈がありません', 'danger'); return;
   }
@@ -2006,8 +2025,18 @@ async function saveOverwrite() {
     const res  = await wnUploadFile(file);
 
     if (res?.data) {
-      showToast('上書き保存しました', 'success');
-      setTimeout(() => location.href = fromPage + '?id=' + res.data.id, 1500);
+      fileId   = String(res.data.id);
+      fileData = res.data;
+      history.replaceState(null, '', `?id=${fileId}&from=${encodeURIComponent(fromPage)}`);
+      annotations = [];
+      Object.keys(pageAnnotations).forEach(k => { pageAnnotations[k] = []; });
+      Object.keys(pageSizes).forEach(k => { delete pageSizes[k]; });
+      redrawAnnotations();
+      showToastWithAction(
+        '上書き保存しました',
+        'ファイル詳細へ',
+        () => { location.href = fromPage + '?id=' + fileId; }
+      );
     } else {
       showToast('保存に失敗しました', 'danger');
     }
@@ -2196,6 +2225,24 @@ function showToast(msg, type = '') {
   c.appendChild(t);
   requestAnimationFrame(() => t.classList.add('show'));
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+function showToastWithAction(msg, actionLabel, onAction) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast toast-success';
+  t.style.cssText = 'display:flex;align-items:center;gap:12px;min-width:240px;';
+  const span = document.createElement('span');
+  span.textContent = msg;
+  const btn = document.createElement('button');
+  btn.textContent = actionLabel;
+  btn.style.cssText = 'background:rgba(255,255,255,.25);border:none;color:#fff;padding:3px 10px;border-radius:4px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0;';
+  btn.addEventListener('click', () => { t.remove(); onAction(); });
+  t.appendChild(span);
+  t.appendChild(btn);
+  c.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 6000);
 }
 </script>
 </body>
