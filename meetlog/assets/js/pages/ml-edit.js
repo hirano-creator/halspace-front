@@ -922,34 +922,36 @@ function printMinute() {
     font-size: 10.5pt;
     line-height: 1.8;
     color: #111;
-    padding: 20mm 18mm;
+    padding: 14mm 17mm;
+    box-sizing: border-box;
   }
   h1.print-title { display: none; }
-  h2 { font-size: 14pt; font-weight: 900; margin: 0 0 12px; padding-bottom: 6px; border-bottom: 2px solid #111; }
+  h1 { font-size: 1.1em; font-weight: 900; margin: 0 0 16px; }
+  h2 { font-size: 14pt; font-weight: 900; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 2px solid #111; }
   h3 {
-    font-size: 10pt; font-weight: 700; margin: 36pt 0 6pt;
+    font-size: 10.5pt; font-weight: 700; margin: 20px 0 8px;
     padding: 4px 10px; border-radius: 4px;
     background: #eee;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
-  h2 + h3, h1 + h3 { margin-top: 12pt; }
-  h4 { font-size: 10pt; font-weight: 700; margin: 18pt 0 4pt; border-bottom: 0.5pt solid #bbb; padding-bottom: 2pt; }
-  p { margin: 0 0 5px; }
-  ul { list-style: none; padding-left: 1em; margin: 4px 0 10px; }
+  h2 + h3, h1 + h3 { margin-top: 12px; }
+  h4 { font-size: 10pt; font-weight: 700; margin: 16px 0 6px; border-bottom: 0.5pt solid #bbb; padding-bottom: 2pt; }
+  p { margin: 0 0 8px; }
+  ul { list-style: none; padding-left: 1em; margin: 4px 0 12px; }
   ul li::before { content: '・'; margin-left: -1em; }
-  ol { padding-left: 1.5em; margin: 4px 0 10px; }
-  li { margin: 3px 0; }
+  ol { padding-left: 1.5em; margin: 4px 0 12px; }
+  li { margin: 4px 0; }
   table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 10pt; }
   th { background: #eee; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: 700; padding: 5px 8px; border: 1px solid #aaa; text-align: left; }
   td { padding: 5px 8px; border: 1px solid #aaa; }
   hr { border: none; border-top: 1px solid #ddd; margin: 12px 0; }
   strong { font-weight: 700; }
-  .print-section { margin-top: 24px; }
-  .print-section-title { background: #e8e8f4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .print-action-table th { background: #e8e8f4 !important; }
+  .print-section { margin-top: 28px; border-top: 2px solid #111; padding-top: 16px; }
+  .print-section-title { font-size: 10.5pt !important; background: #e8e8f4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0 0 8px !important; }
+  .print-action-table th { background: #e8e8f4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .print-footer { margin-top: 32px; font-size: 8.5pt; color: #bbb; text-align: right; border-top: 1px solid #eee; padding-top: 6px; }
-  @page { margin: 0; }
-  @media print { body { padding: 15mm 14mm; } h2, h3 { page-break-after: avoid; } table { page-break-inside: avoid; } }
+  @page { size: A4; margin: 14mm 17mm; }
+  @media print { body { padding: 0; } h2, h3 { page-break-after: avoid; } table { page-break-inside: avoid; } }
 </style>
 </head>
 <body>

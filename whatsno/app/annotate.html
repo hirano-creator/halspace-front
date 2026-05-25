@@ -1970,7 +1970,7 @@ async function saveAsNewVersion() {
       /* 保存後は新ファイルのIDに更新してページ遷移せず継続編集可能にする */
       fileId   = String(res.data.id);
       fileData = res.data;
-      history.replaceState(null, '', `?id=${fileId}&from=${encodeURIComponent(fromPage)}`);
+      window.history.replaceState(null, '', `?id=${fileId}&from=${encodeURIComponent(fromPage)}`);
       document.getElementById('topTitle').textContent = `注釈編集：${fileData.file_name}`;
       /* 注釈を一旦クリア（焼き込み済みなので次回保存で二重にならないよう） */
       annotations = [];
@@ -2027,7 +2027,7 @@ async function saveOverwrite() {
     if (res?.data) {
       fileId   = String(res.data.id);
       fileData = res.data;
-      history.replaceState(null, '', `?id=${fileId}&from=${encodeURIComponent(fromPage)}`);
+      window.history.replaceState(null, '', `?id=${fileId}&from=${encodeURIComponent(fromPage)}`);
       annotations = [];
       Object.keys(pageAnnotations).forEach(k => { pageAnnotations[k] = []; });
       Object.keys(pageSizes).forEach(k => { delete pageSizes[k]; });
