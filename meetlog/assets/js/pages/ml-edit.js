@@ -933,7 +933,7 @@ function buildPrintHtml(title, bodyHtml, actHtml, autoprint = false) {
   // 印刷用：@page margin で全ページの上下余白を保証
   const screenCss = autoprint
     ? 'padding:0;'
-    : 'padding:20px 65px;';
+    : 'padding:50px 65px;';
   const autoprintScript = autoprint
     ? `<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/script>`
     : '';
@@ -960,7 +960,7 @@ td{padding:5px 8px;border:1px solid #aaa;}
 img{max-width:100%;display:block;margin:8px 0;}
 hr{border:none;border-top:1px solid #ddd;margin:12px 0;}
 .print-footer{margin-top:32px;font-size:8.5pt;color:#bbb;text-align:right;border-top:1px solid #eee;padding-top:6px;}
-@page{size:A4;margin:20px 65px;}
+@page{size:A4;margin:50px 65px;}
 @media print{body{padding:0;}h2,h3{page-break-after:avoid;}table{page-break-inside:avoid;}}
 </style></head>
 <body>
