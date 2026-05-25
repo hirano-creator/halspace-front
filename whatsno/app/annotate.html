@@ -1499,27 +1499,27 @@ function roundRectPath(ctx, x, y, w, h, r) {
 
 function drawStamp(ctx, a) {
   const def = STAMP_DEFS.find(d => d.id === a.stampId);
-  if (!def) return;
+  console.log('[drawStamp] called', { stampId: a.stampId, x: a.x, y: a.y, size: a.size, hasDef: !!def, canvasW: ctx.canvas.width, canvasH: ctx.canvas.height });
+  if (!def) { console.warn('[drawStamp] def not found'); return; }
   const label = a.customLabel != null && a.customLabel !== '' ? a.customLabel : def.label;
   const w  = (a.size ?? 90);
   const h  = Math.round(w * 0.52);
   const lw = Math.max(w * 0.05, 2);
   ctx.save();
-  ctx.translate(a.x, a.y);
   ctx.strokeStyle = def.color;
   ctx.fillStyle   = def.color;
   ctx.lineWidth   = lw;
-  ctx.globalAlpha = 0.85;
-  roundRectPath(ctx, -w/2, -h/2, w, h, 4);
+  /* 角丸ボーダー（不透明） */
+  roundRectPath(ctx, a.x - w/2, a.y - h/2, w, h, 4);
   ctx.stroke();
-  /* テキスト */
+  /* テキスト（テキスト注釈と同じパターンで描画） */
   const fs = Math.max(h * 0.46, 8);
-  ctx.font = `900 ${fs}px 'Noto Sans JP', sans-serif`;
+  ctx.font = `bold ${fs}px 'Noto Sans JP', sans-serif`;
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(label, 0, 0);
-  ctx.globalAlpha = 1;
+  ctx.fillText(label, a.x, a.y);
   ctx.restore();
+  console.log('[drawStamp] drew stamp box at', { x: a.x - w/2, y: a.y - h/2, w, h, color: def.color });
 }
 
 function getBoundingBox(a) {
@@ -2087,65 +2087,154 @@ async function saveOverwrite() {
 }
 
 /* PDF に注釈を焼き込む
- * — 注釈なしページ: 元PDFページをそのままコピー（品質劣化なし）
- *   注釈ありページ: PDF.js で高解像度レンダリング → アノテーション合成 → PNG埋め込み
- *   ※ pdf-lib の再エンコードによる既存コンテンツ（画像・スタンプ等）の劣化を回避
+ * ライン/矢印/矩形/楕円 → pdf-lib ベクター描画（鮮明、スケール不問）
+ * テキスト/スタンプ     → バウンディングボックスサイズの小キャンバスに描いて PNG 埋め込み
+ * 座標変換: pdfjsLib.Util.inverseTransform で canvas座標 → PDF内部座標
  */
 async function buildAnnotatedPdf() {
+  /* 選択ハンドル・ホバー枠が PDF に焼き込まれないよう状態をクリアして再描画 */
+  selectedIdx    = -1;
+  hoverIdx       = -1;
+  editingTextIdx = -1;
+  if (typeof inlineTA !== 'undefined' && inlineTA?.style) inlineTA.style.display = 'none';
+  redrawAnnotations();
+
+  /* 全ページのアノテーションを保存してから処理 */
   savePageAnnotations();
 
-  const RENDER_SCALE = 2.0; // 144DPI相当（テキストの鮮明さのため）
+  const srcBytes  = await fetch(wnPublicViewUrl(fileId)).then(r => r.arrayBuffer());
+  const pdfLibDoc = await PDFLib.PDFDocument.load(srcBytes);
+  const pages     = pdfLibDoc.getPages();
 
-  const srcBytes = await fetch(wnPublicViewUrl(fileId)).then(r => r.arrayBuffer());
-  const origDoc  = await PDFLib.PDFDocument.load(srcBytes);
-  const newDoc   = await PDFLib.PDFDocument.create();
+  /* 注釈レイヤーを Canvas に描き、回転考慮して PNG として PDF ページに焼き込む共通ロジック */
+  async function bakeOnPage(page, sourceCanvas) {
+    const { width: pW, height: pH } = page.getSize();
+    const rotAngle = page.getRotation?.()?.angle ?? 0;
+    const aw = sourceCanvas.width, ah = sourceCanvas.height;
+    let embedCanvas, embedW, embedH;
+    if (rotAngle === 90) {
+      embedCanvas = document.createElement('canvas');
+      embedCanvas.width = ah; embedCanvas.height = aw;
+      const ec = embedCanvas.getContext('2d');
+      ec.setTransform(0, -1, 1, 0, 0, aw);
+      ec.drawImage(sourceCanvas, 0, 0);
+      embedW = pW; embedH = pH;
+    } else if (rotAngle === 270) {
+      embedCanvas = document.createElement('canvas');
+      embedCanvas.width = ah; embedCanvas.height = aw;
+      const ec = embedCanvas.getContext('2d');
+      ec.setTransform(0, 1, -1, 0, ah, 0);
+      ec.drawImage(sourceCanvas, 0, 0);
+      embedW = pW; embedH = pH;
+    } else if (rotAngle === 180) {
+      embedCanvas = document.createElement('canvas');
+      embedCanvas.width = aw; embedCanvas.height = ah;
+      const ec = embedCanvas.getContext('2d');
+      ec.setTransform(-1, 0, 0, -1, aw, ah);
+      ec.drawImage(sourceCanvas, 0, 0);
+      embedW = pW; embedH = pH;
+    } else {
+      embedCanvas = sourceCanvas;
+      embedW = pW; embedH = pH;
+    }
+    const pngBytes = await new Promise(r => embedCanvas.toBlob(b => b.arrayBuffer().then(r), 'image/png'));
+    const pngImg   = await pdfLibDoc.embedPng(pngBytes);
+    page.drawImage(pngImg, { x: 0, y: 0, width: embedW, height: embedH });
+  }
+
+  /* 任意の注釈配列を一時Canvas (cw×ch) に描いて返す（エディタの redrawAnnotations と同じロジック） */
+  function drawAnnotationsToCanvas(annots, cw, ch) {
+    const tmp = document.createElement('canvas');
+    tmp.width  = Math.max(1, Math.round(cw));
+    tmp.height = Math.max(1, Math.round(ch));
+    const tctx = tmp.getContext('2d');
+    annots.forEach(a => {
+      tctx.save();
+      tctx.strokeStyle = a.color || '#000';
+      tctx.fillStyle   = a.color || '#000';
+      tctx.lineWidth   = a.size ?? 2;
+      tctx.lineCap = tctx.lineJoin = 'round';
+      if (a.type === 'pen') {
+        tctx.beginPath();
+        a.path.forEach((p, i) => i === 0 ? tctx.moveTo(p.x, p.y) : tctx.lineTo(p.x, p.y));
+        tctx.stroke();
+      } else if (a.type === 'line') {
+        tctx.beginPath(); tctx.moveTo(a.x1, a.y1); tctx.lineTo(a.x2, a.y2); tctx.stroke();
+      } else if (a.type === 'arrow') {
+        drawArrow(tctx, a.x1, a.y1, a.x2, a.y2, a.color, a.size);
+      } else if (a.type === 'rect') {
+        tctx.strokeRect(a.x1, a.y1, a.x2 - a.x1, a.y2 - a.y1);
+      } else if (a.type === 'ellipse') {
+        const cx = (a.x1 + a.x2) / 2, cy = (a.y1 + a.y2) / 2;
+        const rx = Math.abs(a.x2 - a.x1) / 2, ry = Math.abs(a.y2 - a.y1) / 2;
+        tctx.beginPath(); tctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); tctx.stroke();
+      } else if (a.type === 'text') {
+        const fs = a.fontSize ?? 50;
+        const al = a.align ?? 'left';
+        tctx.font = `${fs}px 'Noto Sans JP', sans-serif`;
+        tctx.fillStyle = a.color;
+        tctx.textAlign = al;
+        const baseX = al === 'center' ? a.x + (a.w ?? 0) / 2
+                    : al === 'right'  ? a.x + (a.w ?? 0)
+                    : a.x;
+        const lineH = fs * 1.4;
+        let li = 0;
+        (a.text || '').split('\n').forEach(paragraph => {
+          if (a.w) {
+            let line = '';
+            for (const ch of paragraph) {
+              const test = line + ch;
+              if (tctx.measureText(test).width > a.w && line.length > 0) {
+                tctx.fillText(line, baseX, a.y + li * lineH);
+                line = ch; li++;
+              } else { line = test; }
+            }
+            if (line) { tctx.fillText(line, baseX, a.y + li * lineH); li++; }
+          } else {
+            tctx.fillText(paragraph, baseX, a.y + li * lineH); li++;
+          }
+        });
+      } else if (a.type === 'stamp') {
+        drawStamp(tctx, a);
+      }
+      tctx.restore();
+    });
+    return tmp;
+  }
+
+  console.log('[buildAnnotatedPdf] start, totalPages=', totalPages);
+  console.log('[buildAnnotatedPdf] annotations=', annotations.length, 'pageAnnotations=', JSON.parse(JSON.stringify(pageAnnotations)));
 
   for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
     const annots = pageAnnotations[pageNum] || [];
+    if (!annots.length) continue;
 
-    if (!annots.length) {
-      /* 注釈なし: 元ページをそのままコピーして品質を保つ */
-      const [pg] = await newDoc.copyPages(origDoc, [pageNum - 1]);
-      newDoc.addPage(pg);
-      continue;
+    const page = pages[pageNum - 1];
+    const { width: pW, height: pH } = page.getSize();
+    const rotAngle = page.getRotation?.()?.angle ?? 0;
+
+    const stampCount = annots.filter(a => a.type === 'stamp').length;
+    console.log(`[buildAnnotatedPdf] page ${pageNum}: total=${annots.length}, stamp=${stampCount}, rot=${rotAngle}, pW=${pW}, pH=${pH}`);
+
+    let cw, ch;
+    if (pageSizes[pageNum]) {
+      cw = pageSizes[pageNum].w;
+      ch = pageSizes[pageNum].h;
+    } else {
+      const pdfPage = await pdfDoc.getPage(pageNum);
+      const vp = pdfPage.getViewport({ scale: pdfScale });
+      cw = vp.width; ch = vp.height;
     }
 
-    /* 注釈あり: PDF.js で RENDER_SCALE レンダリング → アノテーション合成 */
-    const pdfJsPage = await pdfDoc.getPage(pageNum);
-    const vp1       = pdfJsPage.getViewport({ scale: 1 });          // ページサイズ（PDFポイント）取得用
-    const vp        = pdfJsPage.getViewport({ scale: RENDER_SCALE });
-
-    const merged    = document.createElement('canvas');
-    merged.width    = Math.round(vp.width);
-    merged.height   = Math.round(vp.height);
-    const mc        = merged.getContext('2d');
-
-    /* PDFページをレンダリング（回転含む正確な表示） */
-    await pdfJsPage.render({ canvasContext: mc, viewport: vp }).promise;
-
-    /* アノテーションを描画（pdfScale 座標系 → RENDER_SCALE 座標系に変換） */
-    const sf = RENDER_SCALE / pdfScale;
-    mc.save();
-    mc.scale(sf, sf);
-    annots.forEach(a => {
-      mc.strokeStyle = a.color;
-      mc.fillStyle   = a.color;
-      mc.lineWidth   = a.size ?? 2;
-      mc.lineCap = mc.lineJoin = 'round';
-      drawAnnotationToCtx(mc, a);
-    });
-    mc.restore();
-
-    /* PNG化して新ページに埋め込み */
-    const pngBytes = await new Promise(r => merged.toBlob(b => b.arrayBuffer().then(r), 'image/png'));
-    const pngImg   = await newDoc.embedPng(pngBytes);
-
-    /* PDF.js の scale=1 viewport サイズ = 視覚的なページサイズ（Rotate考慮済み） */
-    const newPage  = newDoc.addPage([vp1.width, vp1.height]);
-    newPage.drawImage(pngImg, { x: 0, y: 0, width: vp1.width, height: vp1.height });
+    /* 全注釈（スタンプ含む）を単一Canvasに描画 → 既存の bakeOnPage で焼き込む */
+    const sourceCanvas = drawAnnotationsToCanvas(annots, cw, ch);
+    console.log(`[buildAnnotatedPdf] page ${pageNum}: sourceCanvas=${sourceCanvas.width}x${sourceCanvas.height}`);
+    await bakeOnPage(page, sourceCanvas);
   }
 
-  const bytes = await newDoc.save();
+  console.log('[buildAnnotatedPdf] saving PDF...');
+  const bytes = await pdfLibDoc.save();
+  console.log('[buildAnnotatedPdf] saved bytes=', bytes.length);
   return new Blob([bytes], { type: 'application/pdf' });
 }
 
@@ -2211,6 +2300,8 @@ function drawAnnotationToCtx(ctx, a) {
       }
     });
     ctx.textAlign = 'left';
+  } else if (a.type === 'stamp') {
+    drawStamp(ctx, a);
   }
 }
 
