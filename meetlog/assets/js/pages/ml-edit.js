@@ -925,13 +925,11 @@ async function buildPrintContent() {
 
 /* ────────────────────────────
    共通：印刷HTML文書を生成
-   forPrint=true  → @page margin制御（新規ウィンドウ印刷用）
-   forPrint=false → body padding制御（iframe表示用・見た目が一致）
+   body padding で余白を管理し @page margin:0 に統一
+   → 画面表示（プレビュー）と印刷出力が同じレイアウトになる
 ──────────────────────────── */
-function buildPrintHtml(title, bodyHtml, actHtml, forPrint = false) {
-  const bodyPad  = forPrint ? 'padding:0;'          : 'padding:20px 65px;';
-  const pageRule = forPrint ? '@page{size:A4;margin:20px 65px;}' : '@page{size:A4;margin:0;}';
-  const autoprint = forPrint
+function buildPrintHtml(title, bodyHtml, actHtml, autoprint = false) {
+  const autoprintScript = autoprint
     ? `<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/script>`
     : '';
   return `<!DOCTYPE html>
@@ -939,7 +937,7 @@ function buildPrintHtml(title, bodyHtml, actHtml, forPrint = false) {
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Noto Sans JP','Hiragino Kaku Gothic Pro','Meiryo',sans-serif;font-size:10.5pt;line-height:1.8;color:#111;${bodyPad}}
+body{font-family:'Noto Sans JP','Hiragino Kaku Gothic Pro','Meiryo',sans-serif;font-size:10.5pt;line-height:1.8;color:#111;padding:20px 65px;}
 h1{font-size:1.1em;font-weight:900;margin:0 0 16px;}
 h2{font-size:14pt;font-weight:900;margin:28px 0 12px;padding-bottom:6px;border-bottom:2px solid #111;}
 h3{font-size:10.5pt;font-weight:700;margin:20px 0 8px;padding:4px 10px;border-radius:4px;background:#eee;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -957,14 +955,14 @@ td{padding:5px 8px;border:1px solid #aaa;}
 img{max-width:100%;display:block;margin:8px 0;}
 hr{border:none;border-top:1px solid #ddd;margin:12px 0;}
 .print-footer{margin-top:32px;font-size:8.5pt;color:#bbb;text-align:right;border-top:1px solid #eee;padding-top:6px;}
-${pageRule}
+@page{size:A4;margin:0;}
 @media print{h2,h3{page-break-after:avoid;}table{page-break-inside:avoid;}}
 </style></head>
 <body>
 ${bodyHtml}
 ${actHtml}
 <div class="print-footer">MeetLog by HaLSpace　／　印刷日: ${new Date().toLocaleDateString('ja-JP')}</div>
-${autoprint}
+${autoprintScript}
 </body></html>`;
 }
 
@@ -973,7 +971,7 @@ ${autoprint}
 ──────────────────────────── */
 async function printMinute() {
   const { title, bodyHtml, actHtml } = await buildPrintContent();
-  const html = buildPrintHtml(title, bodyHtml, actHtml, true);
+  const html = buildPrintHtml(title, bodyHtml, actHtml, true); // autoprint=true
   const w = window.open('', '_blank', 'width=900,height=700');
   w.document.write(html);
   w.document.close();
@@ -1137,8 +1135,7 @@ async function openPreviewModal() {
 
   try {
     const { title, bodyHtml, actHtml } = await buildPrintContent();
-    // forPrint=false: body padding で余白を表現（iframeで見た目通りに表示）
-    const html = buildPrintHtml(title, bodyHtml, actHtml, false);
+    const html = buildPrintHtml(title, bodyHtml, actHtml, false); // autoprint=false
 
     area.innerHTML = '';
     area.style.cssText = 'flex:1;overflow:auto;background:#3a3a4a;display:flex;align-items:flex-start;justify-content:center;padding:24px;min-height:0;';
