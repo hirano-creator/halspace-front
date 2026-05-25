@@ -2050,97 +2050,123 @@ async function saveOverwrite() {
   }
 }
 
-/* PDF に注釈を焼き込む */
+/* PDF に注釈を焼き込む
+ * — PDF.js の viewport.transform を逆変換してcanvas座標→PDF内部座標を得る。
+ *   回転行列の手動計算は行わず、pdf-lib ベクター描画プリミティブで直接描画。
+ *   text/stamp のみ小さいcanvasに描いてPNGとして正確な位置に埋め込む。
+ */
 async function buildAnnotatedPdf() {
-  /* 全ページのアノテーションを保存してから処理 */
   savePageAnnotations();
 
-  const srcBytes = await fetch(wnPublicViewUrl(fileId)).then(r => r.arrayBuffer());
+  const srcBytes  = await fetch(wnPublicViewUrl(fileId)).then(r => r.arrayBuffer());
   const pdfLibDoc = await PDFLib.PDFDocument.load(srcBytes);
   const pages     = pdfLibDoc.getPages();
+
+  /* hex → PDFLib.rgb */
+  const hexToRgb = hex => {
+    try {
+      const h = (hex || '#000000').replace('#', '').padEnd(6, '0');
+      return PDFLib.rgb(parseInt(h.slice(0,2),16)/255, parseInt(h.slice(2,4),16)/255, parseInt(h.slice(4,6),16)/255);
+    } catch { return PDFLib.rgb(0,0,0); }
+  };
+
+  const LC_ROUND = PDFLib.LineCapStyle?.Round ?? 1;
 
   for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
     const annots = pageAnnotations[pageNum] || [];
     if (!annots.length) continue;
 
-    /* このページの描画サイズを取得（保存済みサイズ優先、なければ実際にレンダリングして取得） */
-    let cw, ch;
-    if (pageSizes[pageNum]) {
-      cw = pageSizes[pageNum].w;
-      ch = pageSizes[pageNum].h;
-    } else {
-      const pdfPage = await pdfDoc.getPage(pageNum);
-      const vp = pdfPage.getViewport({ scale: pdfScale });
-      cw = vp.width; ch = vp.height;
+    /* PDF.jsのviewportから逆変換行列を取得（canvas座標 → PDF内部座標） */
+    const pdfJsPage = await pdfDoc.getPage(pageNum);
+    const viewport  = pdfJsPage.getViewport({ scale: pdfScale });
+    const invT      = pdfjsLib.Util.inverseTransform(viewport.transform);
+    const toPdf     = (cx, cy) => pdfjsLib.Util.applyTransform([cx, cy], invT);
+    const thick     = sz => Math.max((sz ?? 2) / pdfScale, 0.5);
+
+    const page = pages[pageNum - 1];
+
+    for (const a of annots) {
+      const col = hexToRgb(a.color);
+      const lw  = thick(a.size);
+
+      if (a.type === 'pen') {
+        const pts = a.path.map(p => toPdf(p.x, p.y));
+        for (let i = 1; i < pts.length; i++) {
+          page.drawLine({
+            start: { x: pts[i-1][0], y: pts[i-1][1] },
+            end:   { x: pts[i][0],   y: pts[i][1] },
+            thickness: lw, color: col, lineCap: LC_ROUND,
+          });
+        }
+
+      } else if (a.type === 'line') {
+        const [x1,y1] = toPdf(a.x1, a.y1);
+        const [x2,y2] = toPdf(a.x2, a.y2);
+        page.drawLine({ start:{x:x1,y:y1}, end:{x:x2,y:y2}, thickness:lw, color:col, lineCap:LC_ROUND });
+
+      } else if (a.type === 'arrow') {
+        const [x1,y1] = toPdf(a.x1, a.y1);
+        const [x2,y2] = toPdf(a.x2, a.y2);
+        page.drawLine({ start:{x:x1,y:y1}, end:{x:x2,y:y2}, thickness:lw, color:col, lineCap:LC_ROUND });
+        /* PDF座標系（y-up）での矢頭 — invT済みのPDF座標でatan2するため回転に依存しない */
+        const ang  = Math.atan2(y2-y1, x2-x1);
+        const head = Math.max((a.size??2)*4, 12) / pdfScale;
+        page.drawLine({ start:{x:x2,y:y2}, end:{x: x2-head*Math.cos(ang-Math.PI/7), y: y2-head*Math.sin(ang-Math.PI/7)}, thickness:lw, color:col, lineCap:LC_ROUND });
+        page.drawLine({ start:{x:x2,y:y2}, end:{x: x2-head*Math.cos(ang+Math.PI/7), y: y2-head*Math.sin(ang+Math.PI/7)}, thickness:lw, color:col, lineCap:LC_ROUND });
+
+      } else if (a.type === 'rect') {
+        /* 4コーナーをPDF座標に変換してバウンディングボックスを取得 */
+        const cs = [[a.x1,a.y1],[a.x2,a.y1],[a.x2,a.y2],[a.x1,a.y2]].map(([x,y]) => toPdf(x,y));
+        const px = cs.map(c=>c[0]), py = cs.map(c=>c[1]);
+        page.drawRectangle({
+          x: Math.min(...px), y: Math.min(...py),
+          width:  Math.max(...px) - Math.min(...px),
+          height: Math.max(...py) - Math.min(...py),
+          borderColor: col, borderWidth: lw,
+        });
+
+      } else if (a.type === 'ellipse') {
+        const cs = [[a.x1,a.y1],[a.x2,a.y1],[a.x2,a.y2],[a.x1,a.y2]].map(([x,y]) => toPdf(x,y));
+        const px = cs.map(c=>c[0]), py = cs.map(c=>c[1]);
+        const cx = (Math.min(...px)+Math.max(...px))/2;
+        const cy = (Math.min(...py)+Math.max(...py))/2;
+        page.drawEllipse({
+          x: cx, y: cy,
+          xScale: (Math.max(...px)-Math.min(...px))/2,
+          yScale: (Math.max(...py)-Math.min(...py))/2,
+          borderColor: col, borderWidth: lw,
+        });
+
+      } else if (a.type === 'text' || a.type === 'stamp') {
+        /* テキスト・スタンプ: バウンディングボックスをcanvasに描画してPNGとして正確な位置に埋め込む */
+        const bb  = getBoundingBox(a);
+        const pad = 4;
+        const tw  = Math.max(Math.ceil(bb.w) + pad*2, 1);
+        const th  = Math.max(Math.ceil(bb.h) + pad*2, 1);
+        const tmp = document.createElement('canvas');
+        tmp.width = tw; tmp.height = th;
+        const tc  = tmp.getContext('2d');
+        tc.translate(-bb.x + pad, -bb.y + pad);
+        tc.strokeStyle = a.color; tc.fillStyle = a.color;
+        tc.lineWidth   = a.size ?? 2;
+        tc.lineCap = tc.lineJoin = 'round';
+        drawAnnotationToCtx(tc, a);
+
+        const pngBytes = await new Promise(r => tmp.toBlob(b => b.arrayBuffer().then(r), 'image/png'));
+        const pngImg   = await pdfLibDoc.embedPng(pngBytes);
+
+        /* BBの4コーナーをPDF座標に変換して配置位置・サイズを算出 */
+        const corners = [
+          [bb.x - pad,        bb.y - pad       ],
+          [bb.x + bb.w + pad, bb.y - pad       ],
+          [bb.x + bb.w + pad, bb.y + bb.h + pad],
+          [bb.x - pad,        bb.y + bb.h + pad],
+        ].map(([x,y]) => toPdf(x,y));
+        const ipx = corners.map(c=>c[0]), ipy = corners.map(c=>c[1]);
+        const ix = Math.min(...ipx), iy = Math.min(...ipy);
+        page.drawImage(pngImg, { x:ix, y:iy, width:Math.max(...ipx)-ix, height:Math.max(...ipy)-iy });
+      }
     }
-
-    /* アノテーションを視覚サイズの一時Canvasに描画 */
-    const page     = pages[pageNum - 1];
-    const { width: pW, height: pH } = page.getSize();
-    const rotAngle = page.getRotation?.()?.angle ?? 0;
-
-    const annCanvas = document.createElement('canvas');
-    annCanvas.width  = cw;
-    annCanvas.height = ch;
-    const annCtxTmp = annCanvas.getContext('2d');
-    annCtxTmp.save();
-    annots.forEach(a => {
-      annCtxTmp.strokeStyle = a.color;
-      annCtxTmp.fillStyle   = a.color;
-      annCtxTmp.lineWidth   = a.size ?? 2;
-      annCtxTmp.lineCap = annCtxTmp.lineJoin = 'round';
-      drawAnnotationToCtx(annCtxTmp, a);
-    });
-    annCtxTmp.restore();
-
-    /* ページ回転を考慮してPDF内部座標系へ変換
-     * pdf-lib は Rotate 属性を drawImage で考慮しないため、
-     * 視覚空間（PDF.js が描画したキャンバス座標）を内部座標系に変換する。
-     *
-     * Rotate=90 (CCW): 内部→視覚の対応
-     *   内部LEFT→視覚BOTTOM, 内部RIGHT→視覚TOP,
-     *   内部BOTTOM→視覚RIGHT, 内部TOP→視覚LEFT
-     * 変換: visual(cx,cy) → internal(ch-cy, cx)
-     * canvas transform: setTransform(0, 1, -1, 0, ch, 0)
-     *
-     * Rotate=270 (CW): visual(cx,cy) → internal(cy, cw-cx)
-     * canvas transform: setTransform(0, -1, 1, 0, 0, cw)
-     *
-     * Rotate=180: visual(cx,cy) → internal(cw-cx, ch-cy)
-     * canvas transform: setTransform(-1, 0, 0, -1, cw, ch)
-     */
-    let embedCanvas, embedW, embedH;
-    if (rotAngle === 90) {
-      /* CW 90°: canvas(ax,ay)→internal(ay*pW/ch, ax*pH/cw) embed(ch×cw)→drawImage(pW,pH) */
-      embedCanvas = document.createElement('canvas');
-      embedCanvas.width = ch; embedCanvas.height = cw;
-      const ec = embedCanvas.getContext('2d');
-      ec.setTransform(0, -1, 1, 0, 0, cw);
-      ec.drawImage(annCanvas, 0, 0);
-      embedW = pW; embedH = pH;
-    } else if (rotAngle === 270) {
-      /* CW 270°: canvas(ax,ay)→internal((ch-ay)*pW/ch,(cw-ax)*pH/cw) embed(ch×cw)→drawImage(pW,pH) */
-      embedCanvas = document.createElement('canvas');
-      embedCanvas.width = ch; embedCanvas.height = cw;
-      const ec = embedCanvas.getContext('2d');
-      ec.setTransform(0, 1, -1, 0, ch, 0);
-      ec.drawImage(annCanvas, 0, 0);
-      embedW = pW; embedH = pH;
-    } else if (rotAngle === 180) {
-      embedCanvas = document.createElement('canvas');
-      embedCanvas.width = cw; embedCanvas.height = ch;
-      const ec = embedCanvas.getContext('2d');
-      ec.setTransform(-1, 0, 0, -1, cw, ch);
-      ec.drawImage(annCanvas, 0, 0);
-      embedW = pW; embedH = pH;
-    } else {
-      embedCanvas = annCanvas;
-      embedW = pW; embedH = pH;
-    }
-
-    const pngBytes = await new Promise(r => embedCanvas.toBlob(b => b.arrayBuffer().then(r), 'image/png'));
-    const pngImg   = await pdfLibDoc.embedPng(pngBytes);
-    page.drawImage(pngImg, { x: 0, y: 0, width: embedW, height: embedH });
   }
 
   const bytes = await pdfLibDoc.save();
