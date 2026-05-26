@@ -1122,8 +1122,8 @@ function closeUploadModal() {
 
 function addToQueue(files) {
   files.forEach(f => {
-    if (f.size > 500 * 1024 * 1024) {
-      wnShowToast(`${f.name} は500MBを超えています`, 'danger');
+    if (f.size > 100 * 1024 * 1024) {
+      wnShowToast(`${f.name} は100MBを超えています`, 'danger');
       return;
     }
     uploadQueue.push(f);
