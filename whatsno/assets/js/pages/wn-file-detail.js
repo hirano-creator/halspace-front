@@ -400,8 +400,16 @@ async function loadPdfPreview(attempt) {
     const canvas    = document.getElementById('pdfCanvas');
     const ctx       = canvas.getContext('2d');
     const area      = document.getElementById('previewArea');
-    const areaW     = area.clientWidth  - 24;
-    const areaH     = area.clientHeight - 24;
+
+    /* 寸法測定前に container を表示して、parent の高さを正しく確定させる */
+    placeholder.style.display = 'none';
+    container.style.display = 'flex';
+
+    /* ブラウザに 1 フレーム描画させてから測定（モバイルで height: auto の親が確定するように） */
+    await new Promise(r => requestAnimationFrame(r));
+
+    const areaW     = Math.max(area.clientWidth  - 24, 100);
+    const areaH     = Math.max(area.clientHeight - 24, 100);
     const dpr       = Math.max(window.devicePixelRatio || 1, 2);
     const baseVP    = page.getViewport({ scale: 1 });
     const scale     = Math.min(areaW / baseVP.width, areaH / baseVP.height);
@@ -414,9 +422,7 @@ async function loadPdfPreview(attempt) {
 
     await page.render({ canvasContext: ctx, viewport }).promise;
 
-    placeholder.style.display = 'none';
     hintEl().textContent = '';
-    container.style.display = 'flex';
 
     if (pdfDoc.numPages > 1) {
       renderPdfNav(pdfDoc, page, canvas, ctx, area, 1);

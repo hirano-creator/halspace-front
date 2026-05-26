@@ -682,8 +682,12 @@ async function loadPdf() {
   // 1ページ目のサイズからスケールを計算
   const firstPage  = await pdfDoc.getPage(1);
   const baseVP     = firstPage.getViewport({ scale: 1 });
-  const areaW      = window.innerWidth  - 300 - 32;  // toolbar幅(300) + padding(16*2)
-  const areaH      = window.innerHeight - 52  - 32;  // topbar高さ(52) + padding(16*2)
+
+  /* canvasArea の実寸を使う（モバイルでは toolbar が下部に来るためレイアウトが異なる） */
+  const canvasArea = document.getElementById('canvasArea');
+  const padding    = 32;
+  const areaW = Math.max(canvasArea.clientWidth  - padding, 100);
+  const areaH = Math.max(canvasArea.clientHeight - padding, 100);
 
   // fitScale: ページ全体がエリアに収まる最大スケール（幅・高さ両方考慮）
   fitScale    = Math.min(areaW / baseVP.width, areaH / baseVP.height);
