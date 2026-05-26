@@ -2143,12 +2143,15 @@ async function buildAnnotatedPdf() {
     page.drawImage(pngImg, { x: 0, y: 0, width: embedW, height: embedH });
   }
 
-  /* 任意の注釈配列を一時Canvas (cw×ch) に描いて返す（エディタの redrawAnnotations と同じロジック） */
-  function drawAnnotationsToCanvas(annots, cw, ch) {
+  /* 任意の注釈配列を一時Canvas (cw×ch) に描いて返す
+     scaleFactor で内部解像度を上げて高画質化（モバイルでも一定品質を保証） */
+  function drawAnnotationsToCanvas(annots, cw, ch, scaleFactor = 1) {
     const tmp = document.createElement('canvas');
-    tmp.width  = Math.max(1, Math.round(cw));
-    tmp.height = Math.max(1, Math.round(ch));
+    tmp.width  = Math.max(1, Math.round(cw * scaleFactor));
+    tmp.height = Math.max(1, Math.round(ch * scaleFactor));
     const tctx = tmp.getContext('2d');
+    /* 描画コマンドは元の座標で書けるよう、最初に scale を適用 */
+    if (scaleFactor !== 1) tctx.scale(scaleFactor, scaleFactor);
     annots.forEach(a => {
       tctx.save();
       tctx.strokeStyle = a.color || '#000';
@@ -2203,11 +2206,18 @@ async function buildAnnotatedPdf() {
     return tmp;
   }
 
+  /* 注釈レイヤーの目標解像度: PDF寸法 × TARGET_SCALE（144DPI相当）
+     表示時の pdfScale に依存せず、常に高解像度で書き出す */
+  const TARGET_SCALE = 2;
+  const MAX_DIM = 4096;  /* モバイルメモリ対策の上限 */
+
   for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
     const annots = pageAnnotations[pageNum] || [];
     if (!annots.length) continue;
 
     const page = pages[pageNum - 1];
+    const { width: pW, height: pH } = page.getSize();
+    const rotAngle = page.getRotation?.()?.angle ?? 0;
 
     let cw, ch;
     if (pageSizes[pageNum]) {
@@ -2219,8 +2229,15 @@ async function buildAnnotatedPdf() {
       cw = vp.width; ch = vp.height;
     }
 
-    /* 全注釈（スタンプ含む）を単一Canvasに描画 → bakeOnPage で焼き込む */
-    const sourceCanvas = drawAnnotationsToCanvas(annots, cw, ch);
+    /* 表示用canvas (cw×ch) → 出力解像度を視覚的なPDF寸法基準で算出
+       回転PDF: 視覚的な幅 = pH（内部高さ）、視覚的な高さ = pW（内部幅） */
+    const visualW = (rotAngle === 90 || rotAngle === 270) ? pH : pW;
+    let targetW = visualW * TARGET_SCALE;
+    if (targetW > MAX_DIM) targetW = MAX_DIM;
+    const scaleFactor = Math.max(targetW / cw, 1);  /* 1未満にはしない（縮小しない） */
+
+    /* 全注釈（スタンプ含む）を高解像度Canvasに描画 → bakeOnPage で焼き込む */
+    const sourceCanvas = drawAnnotationsToCanvas(annots, cw, ch, scaleFactor);
     await bakeOnPage(page, sourceCanvas);
   }
 
