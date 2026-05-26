@@ -412,13 +412,25 @@ async function loadPdfPreview(attempt) {
     const areaH     = Math.max(area.clientHeight - 24, 100);
     const dpr       = Math.max(window.devicePixelRatio || 1, 2);
     const baseVP    = page.getViewport({ scale: 1 });
-    const scale     = Math.min(areaW / baseVP.width, areaH / baseVP.height);
-    const viewport  = page.getViewport({ scale: scale * dpr });
+    /* 表示用スケール（エリアにフィット） */
+    const fitScale  = Math.min(areaW / baseVP.width, areaH / baseVP.height);
+
+    /* レンダリング用スケール：最低でも PDF 等倍解像度を確保（モバイルで小さくならないように）
+       MAX_CANVAS_DIM で上限を設けてメモリ枯渇を防止 */
+    const MIN_RENDER_SCALE = 1.5;   /* PDF寸法の1.5倍以上で描画 */
+    const MAX_CANVAS_DIM   = 4096;
+    let renderScale = Math.max(fitScale * dpr, MIN_RENDER_SCALE);
+    const maxBaseDim = Math.max(baseVP.width, baseVP.height);
+    if (maxBaseDim * renderScale > MAX_CANVAS_DIM) {
+      renderScale = MAX_CANVAS_DIM / maxBaseDim;
+    }
+    const viewport = page.getViewport({ scale: renderScale });
 
     canvas.width  = viewport.width;
     canvas.height = viewport.height;
-    canvas.style.width  = (viewport.width  / dpr) + 'px';
-    canvas.style.height = (viewport.height / dpr) + 'px';
+    /* CSS表示サイズはエリアにフィット */
+    canvas.style.width  = (baseVP.width  * fitScale) + 'px';
+    canvas.style.height = (baseVP.height * fitScale) + 'px';
 
     await page.render({ canvasContext: ctx, viewport }).promise;
 
