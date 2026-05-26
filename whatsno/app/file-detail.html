@@ -429,11 +429,24 @@
       .detail-body  { flex-direction: column; overflow: visible; flex: none; }
       .detail-left  { overflow-y: visible; flex: none; }
 
-      /* プレビューをほぼ全画面に */
+      /* プレビューエリア：画像は内容に合わせて自動高、PDF/iframeは全画面 */
       .preview-area {
-        height: calc(100svh - 52px - 60px);
-        min-height: 300px;
+        height: auto;
+        min-height: 60vh;
         max-height: none;
+      }
+      .preview-area img {
+        width: 100%;
+        height: auto;
+        max-width: 100%;
+        max-height: none;
+        object-fit: contain;
+        display: block;
+      }
+      #pdfContainer,
+      #previewFrame {
+        height: calc(100svh - 52px - 60px) !important;
+        min-height: 60vh;
       }
 
       /* ファイル情報のパディング調整 */
@@ -442,8 +455,11 @@
       /* トップバーをミニマルに */
       .detail-topbar { padding: 0 10px; gap: 6px; }
       .btn-label { display: none; }
-      #previewBtn { display: none !important; }
-      #deleteBtn  { display: none !important; }
+      #previewBtn      { display: none !important; }
+      #deleteBtn       { display: none !important; }
+      #addTagBtn       { display: none !important; }
+      #qrBtn           { display: none !important; }
+      #approvalActions { display: none !important; }
       .detail-topbar-actions .btn { padding: 6px 8px; font-size: 13px; }
 
       /* 右パネル（コメント・関連）*/
