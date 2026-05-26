@@ -429,11 +429,16 @@
       .detail-body  { flex-direction: column; overflow: visible; flex: none; }
       .detail-left  { overflow-y: visible; flex: none; }
 
-      /* プレビューエリア：画像は内容に合わせて自動高、PDF/iframeは全画面 */
+      /* プレビューエリア：画像は内容に合わせて自動高（上下の黒帯なし）、PDF/iframeは全画面 */
       .preview-area {
         height: auto;
-        min-height: 60vh;
+        min-height: 200px;
         max-height: none;
+      }
+      /* 画像が含まれる場合は min-height を解除（画像の高さぴったり） */
+      .preview-area:has(img) {
+        min-height: 0;
+        background: transparent;
       }
       .preview-area img {
         width: 100%;
