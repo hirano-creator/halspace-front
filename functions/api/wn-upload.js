@@ -8,6 +8,10 @@ export async function onRequestPost(context) {
   const { request } = context;
   const authHeader = request.headers.get('Authorization') || '';
 
+  // クエリパラメータ ?overwrite=<id> があれば上書きエンドポイントに転送
+  const url = new URL(request.url);
+  const overwriteId = url.searchParams.get('overwrite');
+
   // multipart から File オブジェクトを取り出してバイナリストリームで送信
   const formData = await request.formData();
   const file     = formData.get('file');
@@ -21,7 +25,11 @@ export async function onRequestPost(context) {
 
   const buffer = await file.arrayBuffer();
 
-  const res = await fetch(`${RAILWAY_API}/wn/files`, {
+  const targetUrl = overwriteId
+    ? `${RAILWAY_API}/wn/files/${overwriteId}/overwrite`
+    : `${RAILWAY_API}/wn/files`;
+
+  const res = await fetch(targetUrl, {
     method:  'POST',
     headers: {
       'Authorization': authHeader,

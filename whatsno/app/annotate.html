@@ -2063,12 +2063,11 @@ async function saveOverwrite() {
       blob = await buildAnnotatedImage();
     }
 
-    // 元のファイル名そのままで保存
+    // 既存ファイルを直接上書き（新バージョンを作らない）
     const file = new File([blob], fileData.file_name, { type: blob.type });
-    const res  = await wnUploadFile(file);
+    const res  = await wnOverwriteFile(fileId, file);
 
     if (res?.data) {
-      fileId = String(res.data.id);
       /* 保存済みファイル（注釈焼き込み済み）で同ページを再ロード */
       location.replace(location.pathname + '?id=' + fileId + '&from=' + encodeURIComponent(fromPage) + '&saved=1');
     } else {

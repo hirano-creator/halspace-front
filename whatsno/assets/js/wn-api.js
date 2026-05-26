@@ -91,6 +91,47 @@ async function wnUploadFile(file, { onProgress } = {}) {
   });
 }
 
+/* 既存ファイルの内容を上書き（新バージョンを作らない） */
+async function wnOverwriteFile(id, file) {
+  const token = localStorage.getItem('space_token');
+  const buffer = await file.arrayBuffer();
+  const blob = new Blob([buffer], { type: file.type || 'application/octet-stream' });
+  const fd = new FormData();
+  fd.append('file', blob, file.name);
+
+  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  const url = isLocal ? WN_API_BASE + `/wn/files/${id}/overwrite` : `/api/wn-upload?overwrite=${id}`;
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.onload = () => {
+      if (xhr.status === 401) {
+        localStorage.removeItem('space_token');
+        location.href = '../../../space/login.html';
+        return;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch { reject(new Error('レスポンスの解析に失敗しました')); }
+      } else {
+        try {
+          const err = JSON.parse(xhr.responseText);
+          reject(new Error(err.message || `上書きエラー (${xhr.status})`));
+        } catch {
+          reject(new Error(`上書きエラー (${xhr.status})`));
+        }
+      }
+    };
+    xhr.onerror = () => reject(new Error('ネットワークエラー (XHR)'));
+    xhr.ontimeout = () => reject(new Error('タイムアウト'));
+    xhr.timeout = 120000;
+    xhr.send(fd);
+  });
+}
+
 /* ファイル削除 */
 async function wnDeleteFile(id) {
   const res = await wnFetch(`/wn/files/${id}`, { method: 'DELETE' });
