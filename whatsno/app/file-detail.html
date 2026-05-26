@@ -424,7 +424,8 @@
 
     /* ── モバイル Google Drive スタイル ── */
     @media (max-width: 768px) {
-      /* ページ全体をスクロール可能に */
+      /* ページ全体をスクロール可能に（wn-app.css の html,body{height:100%} を解除） */
+      html, body { height: auto !important; overflow-y: auto !important; }
       .detail-wrap { height: auto; min-height: 100svh; overflow: visible; }
       .detail-body  { flex-direction: column; overflow: visible; flex: none; }
       .detail-left  { overflow-y: visible; flex: none; }
