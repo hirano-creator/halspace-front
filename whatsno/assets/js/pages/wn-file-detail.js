@@ -254,10 +254,18 @@ function renderPreview() {
     (async () => {
       try {
         if (typeof heic2any === 'undefined') throw new Error('heic2any未読み込み');
+        /* キャッシュに変換済み JPEG があれば即表示 */
+        const cached = await (window.WnPreviewCache?.get(fileId, fileData.updated_at) ?? null);
+        if (cached) {
+          showImg(URL.createObjectURL(cached));
+          return;
+        }
         const buffer = await wnFetchFileBuffer(fileId);
         if (!buffer) throw new Error('ファイル取得失敗');
         let blob = await heic2any({ blob: new Blob([buffer], { type: 'image/heic' }), toType: 'image/jpeg', quality: 0.85 });
         if (Array.isArray(blob)) blob = blob[0];
+        /* 変換済み JPEG をキャッシュ保存（次回は変換不要） */
+        window.WnPreviewCache?.set(fileId, fileData.updated_at, blob).catch(() => {});
         showImg(URL.createObjectURL(blob));
       } catch(e) {
         console.error('HEIC preview error:', e);
@@ -369,10 +377,21 @@ async function loadPdfPreview(attempt) {
       hintEl().textContent = `PDF読み込み中… (再試行 ${attempt}/${MAX_ATTEMPTS})`;
     }
 
-    const buffer = await wnFetchFileBuffer(fileId, {
-      onProgress: pct => { hintEl().textContent = `PDF読み込み中… ${pct}%`; },
-    });
-    if (!buffer) throw new Error('ファイルの取得に失敗しました');
+    /* IndexedDB キャッシュ確認 */
+    let buffer = null;
+    const cachedBlob = await (window.WnPreviewCache?.get(fileId, fileData.updated_at) ?? null);
+    if (cachedBlob) {
+      hintEl().textContent = 'キャッシュから読み込み中…';
+      buffer = await cachedBlob.arrayBuffer();
+    } else {
+      buffer = await wnFetchFileBuffer(fileId, {
+        onProgress: pct => { hintEl().textContent = `PDF読み込み中… ${pct}%`; },
+      });
+      if (!buffer) throw new Error('ファイルの取得に失敗しました');
+      /* バックグラウンドでキャッシュ保存（描画を待たせない） */
+      window.WnPreviewCache?.set(fileId, fileData.updated_at, new Blob([buffer], { type: 'application/pdf' }))
+        .catch(() => {});
+    }
 
     hintEl().textContent = 'PDF描画中…';
     const pdfDoc   = await pdfjsLib.getDocument({ data: buffer }).promise;
