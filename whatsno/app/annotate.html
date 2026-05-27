@@ -2206,10 +2206,12 @@ async function buildAnnotatedPdf() {
     return tmp;
   }
 
-  /* 注釈レイヤーの目標解像度: PDF寸法 × TARGET_SCALE（144DPI相当）
-     表示時の pdfScale に依存せず、常に高解像度で書き出す */
-  const TARGET_SCALE = 2;
-  const MAX_DIM = 4096;  /* モバイルメモリ対策の上限 */
+  /* 注釈レイヤーの目標解像度: PDF寸法 × TARGET_SCALE（288DPI相当）
+     表示時の pdfScale に依存せず、常に高解像度で書き出す。
+     端末別に MAX_DIM を分け、PCではより高解像度、モバイルではメモリ制約を考慮 */
+  const TARGET_SCALE = 4;
+  const isMobileUA = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+  const MAX_DIM = isMobileUA ? 4096 : 8192;
 
   for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
     const annots = pageAnnotations[pageNum] || [];
