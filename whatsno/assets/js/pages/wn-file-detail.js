@@ -250,7 +250,11 @@ function renderPreview() {
     img.onerror = () => { document.getElementById('previewHint').textContent = 'プレビューを読み込めませんでした'; };
   };
 
-  if (['heic', 'heif'].includes(ext) || mime === 'image/heic' || mime === 'image/heif') {
+  /* ファイル種別判定: 拡張子を最優先。DB の mime_type が誤登録されているケースに耐える */
+  if (ext === 'pdf' || mime === 'application/pdf') {
+    document.getElementById('previewHint').textContent = 'PDF読み込み中…';
+    loadPdfPreview(1);
+  } else if (['heic', 'heif'].includes(ext) || mime === 'image/heic' || mime === 'image/heif') {
     document.getElementById('previewHint').textContent = 'HEICを変換中…';
     (async () => {
       try {
@@ -273,12 +277,9 @@ function renderPreview() {
         document.getElementById('previewHint').textContent = 'HEICのプレビューに失敗しました: ' + e.message;
       }
     })();
-  } else if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','svg'].includes(ext)) {
+  } else if (['png','jpg','jpeg','gif','webp','svg'].includes(ext) || mime.startsWith('image/')) {
     document.getElementById('previewHint').textContent = 'プレビュー読み込み中…';
     showImg(wnPublicViewUrl(fileId));
-  } else if (ext === 'pdf' || mime === 'application/pdf') {
-    document.getElementById('previewHint').textContent = 'PDF読み込み中…';
-    loadPdfPreview(1);
   } else if (mime.startsWith('video/') || ['mp4','mov','avi'].includes(ext)) {
     document.getElementById('previewHint').textContent = '';
     wnGetViewUrl(fileId).then(url => {
