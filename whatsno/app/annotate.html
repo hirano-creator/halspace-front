@@ -297,6 +297,30 @@
     /* ── キーボードヒント ── */
     .topbar-btn[disabled] { opacity: .4; cursor: default; pointer-events: none; }
 
+    /* ── 署名セクション ── */
+    .signature-block { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+    .signature-input {
+      width: 100%; padding: 7px 10px;
+      border: 1.5px solid var(--border); border-radius: 6px;
+      font-size: 12.5px; color: var(--text);
+      background: #fff; outline: none;
+      font-family: inherit; box-sizing: border-box;
+    }
+    .signature-input:focus { border-color: var(--accent); }
+    .signature-drop-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 8px;
+      border: 1.5px dashed var(--border); cursor: grab;
+      background: #fafafa; transition: border-color .2s, background .2s, transform .15s;
+      user-select: none; margin-top: 2px;
+    }
+    .signature-drop-item:hover { border-color: var(--accent); background: #f0f4f8; transform: translateX(2px); }
+    .signature-drop-item.dragging-active { opacity: .4; }
+    .signature-drop-item i { font-size: 18px; color: var(--accent); flex-shrink: 0; }
+    .signature-drop-info { flex: 1; min-width: 0; }
+    .signature-drop-title { font-size: 12px; font-weight: 700; color: var(--text); }
+    .signature-drop-hint  { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
     /* ── スタンプパレット ── */
     .stamp-palette { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
     .stamp-item {
@@ -521,6 +545,22 @@
     </div>
   </div>
 
+  <!-- 署名セクション（年月日 / 会社名 / 名前 を3行テキストとして貼り付け） -->
+  <div class="tool-sep"></div>
+  <div class="tool-section-label">署名</div>
+  <div class="signature-block">
+    <input type="text" id="sigDate"    class="signature-input" placeholder="例: 2026/05/29" maxlength="40">
+    <input type="text" id="sigCompany" class="signature-input" placeholder="会社名" maxlength="80">
+    <input type="text" id="sigName"    class="signature-input" placeholder="名前" maxlength="40">
+    <div class="signature-drop-item" id="signatureDragItem" draggable="true" title="ドラッグして貼り付け">
+      <i class="fa-solid fa-signature"></i>
+      <div class="signature-drop-info">
+        <div class="signature-drop-title">ドラッグして貼り付け</div>
+        <div class="signature-drop-hint">3行のテキストとして配置</div>
+      </div>
+    </div>
+  </div>
+
   <!-- スタンプパレット -->
   <div class="tool-sep"></div>
   <div class="tool-section-label">スタンプ</div>
@@ -618,7 +658,8 @@ const STAMP_DEFS = [
   { id: 'review',   label: '要確認',   customLabel: null, color: '#F57F17' },
   { id: 'return',   label: '差し戻し', customLabel: null, color: '#E17055' },
 ];
-let dragStampId = null;
+let dragStampId   = null;
+let dragSignature = false;
 
 const baseCanvas  = document.getElementById('baseCanvas');
 const annotCanvas = document.getElementById('annotCanvas');
@@ -1009,6 +1050,38 @@ function initStampPalette() {
       redrawAnnotations();
     }
   });
+
+  /* 署名: localStorage から復元 + 入力時に保存 + ドラッグハンドラ */
+  const sigDate    = document.getElementById('sigDate');
+  const sigCompany = document.getElementById('sigCompany');
+  const sigName    = document.getElementById('sigName');
+  const sigDrop    = document.getElementById('signatureDragItem');
+  if (sigDate && sigCompany && sigName && sigDrop) {
+    sigDate.value    = localStorage.getItem('wn_sig_date')    || '';
+    sigCompany.value = localStorage.getItem('wn_sig_company') || '';
+    sigName.value    = localStorage.getItem('wn_sig_name')    || '';
+    /* 年月日の placeholder を今日の日付に */
+    sigDate.placeholder = `例: ${new Date().getFullYear()}/${String(new Date().getMonth()+1).padStart(2,'0')}/${String(new Date().getDate()).padStart(2,'0')}`;
+
+    sigDate.addEventListener('input',    () => localStorage.setItem('wn_sig_date',    sigDate.value));
+    sigCompany.addEventListener('input', () => localStorage.setItem('wn_sig_company', sigCompany.value));
+    sigName.addEventListener('input',    () => localStorage.setItem('wn_sig_name',    sigName.value));
+    /* 入力欄でのドラッグ操作はテキスト選択のみ */
+    [sigDate, sigCompany, sigName].forEach(el => {
+      el.draggable = false;
+      el.addEventListener('mousedown', e => e.stopPropagation());
+    });
+
+    sigDrop.addEventListener('dragstart', e => {
+      dragSignature = true;
+      e.dataTransfer.effectAllowed = 'copy';
+      sigDrop.classList.add('dragging-active');
+    });
+    sigDrop.addEventListener('dragend', () => {
+      sigDrop.classList.remove('dragging-active');
+      dragSignature = false;
+    });
+  }
 }
 
 function toolCursor(t) {
@@ -1057,27 +1130,54 @@ function initCanvas() {
   annotCanvas.addEventListener('touchmove',  e => { e.preventDefault(); onMoveDoc(touchToMouse(e)); }, { passive: false });
   annotCanvas.addEventListener('touchend',   e => { e.preventDefault(); onUpDoc(touchToMouse(e)); }, { passive: false });
 
-  /* スタンプのドラッグ&ドロップ（canvasArea と annotCanvas 両方で受け付ける） */
-  function onStampDrop(e) {
-    if (!dragStampId) return;
-    e.preventDefault();
-    const { x, y } = canvasXY(e);
-    const def = STAMP_DEFS.find(d => d.id === dragStampId);
-    pushHistory();
-    annotations.push({ type: 'stamp', stampId: dragStampId, x, y, size: 90, customLabel: def?.customLabel || null });
-    dragStampId = null;
-    redrawAnnotations();
-    showToast('スタンプを貼り付けました', 'success');
+  /* スタンプ・署名のドラッグ&ドロップ（canvasArea と annotCanvas 両方で受け付ける） */
+  function onItemDrop(e) {
+    if (dragStampId) {
+      e.preventDefault();
+      const { x, y } = canvasXY(e);
+      const def = STAMP_DEFS.find(d => d.id === dragStampId);
+      pushHistory();
+      annotations.push({ type: 'stamp', stampId: dragStampId, x, y, size: 90, customLabel: def?.customLabel || null });
+      dragStampId = null;
+      redrawAnnotations();
+      showToast('スタンプを貼り付けました', 'success');
+      return;
+    }
+    if (dragSignature) {
+      e.preventDefault();
+      const { x, y } = canvasXY(e);
+      const date    = document.getElementById('sigDate').value.trim();
+      const company = document.getElementById('sigCompany').value.trim();
+      const name    = document.getElementById('sigName').value.trim();
+      const lines   = [date, company, name].filter(s => s.length > 0);
+      if (!lines.length) {
+        dragSignature = false;
+        showToast('署名の項目を入力してください', 'danger');
+        return;
+      }
+      pushHistory();
+      annotations.push({
+        type: 'text',
+        x, y,
+        text: lines.join('\n'),
+        fontSize: fontSize,
+        color: strokeColor,
+        align: 'left',
+      });
+      dragSignature = false;
+      redrawAnnotations();
+      showToast('署名を貼り付けました', 'success');
+    }
   }
-  function onStampDragOver(e) {
-    if (!dragStampId) return;
+  function onItemDragOver(e) {
+    if (!dragStampId && !dragSignature) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
   }
-  annotCanvas.addEventListener('dragover', onStampDragOver);
-  annotCanvas.addEventListener('drop',     onStampDrop);
-  document.getElementById('canvasArea').addEventListener('dragover', onStampDragOver);
-  document.getElementById('canvasArea').addEventListener('drop',     onStampDrop);
+  annotCanvas.addEventListener('dragover', onItemDragOver);
+  annotCanvas.addEventListener('drop',     onItemDrop);
+  document.getElementById('canvasArea').addEventListener('dragover', onItemDragOver);
+  document.getElementById('canvasArea').addEventListener('drop',     onItemDrop);
 }
 
 function touchToMouse(e) {
