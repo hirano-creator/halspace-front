@@ -238,6 +238,7 @@ function renderPreview() {
 
   const ext  = fileData.file_name.split('.').pop().toLowerCase();
   const mime = fileData.mime_type ?? '';
+  console.log('[renderPreview] fileId=' + fileId, 'name=' + fileData.file_name, 'ext=' + ext, 'mime=' + mime, 'size=' + fileData.file_size);
 
   const showImg = (src) => {
     const img = document.createElement('img');
@@ -1531,7 +1532,7 @@ function renderRelations() {
   list.innerHTML = relationsCache.map(r => `
     <a href="file-detail.html?id=${r.id}" class="relation-item" data-id="${r.id}">
       <div class="relation-item-icon">
-        <i class="${wnFileIcon(r.mime_type)}"></i>
+        <i class="${wnFileIconClass(r.mime_type)}"></i>
       </div>
       <div class="relation-item-body">
         <div class="relation-item-name" title="${h(r.file_name)}">${h(r.file_name)}</div>
@@ -1589,7 +1590,7 @@ function renderRelationSuggestions() {
     ${suggestionsCache.map(s => `
       <div class="relation-suggest-item" data-id="${s.id}">
         <div class="relation-item-icon" style="width:28px;height:28px;font-size:12px;">
-          <i class="${wnFileIcon(s.mime_type)}"></i>
+          <i class="${wnFileIconClass(s.mime_type)}"></i>
         </div>
         <div class="relation-suggest-body">
           <div class="relation-suggest-name" title="${h(s.file_name)}">${h(s.file_name)}</div>
@@ -1658,7 +1659,7 @@ async function searchRelationCandidates(query) {
 
   results.innerHTML = filtered.slice(0, 20).map(f => `
     <div class="relation-search-row" data-id="${f.id}">
-      <i class="${wnFileIcon(f.mime_type)}" style="color:var(--accent);width:16px;text-align:center;flex-shrink:0;"></i>
+      <i class="${wnFileIconClass(f.mime_type)}" style="color:var(--accent);width:16px;text-align:center;flex-shrink:0;"></i>
       <span class="relation-search-row-name" title="${h(f.file_name)}">${h(f.file_name)}</span>
       <span class="relation-search-row-meta">v${f.version}</span>
     </div>
@@ -1722,7 +1723,8 @@ async function loadSheetEyeEmbed(fileId, fileName) {
   }
 }
 
-function wnFileIcon(mimeType) {
+/* MIME から FontAwesome クラス文字列を返す（wn-api.js の wnFileIcon を上書きしないよう別名にする） */
+function wnFileIconClass(mimeType) {
   if (!mimeType) return 'fa-solid fa-file';
   if (mimeType.startsWith('image/')) return 'fa-solid fa-file-image';
   if (mimeType === 'application/pdf') return 'fa-solid fa-file-pdf';

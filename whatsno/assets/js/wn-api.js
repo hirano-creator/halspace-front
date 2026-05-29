@@ -285,36 +285,47 @@ async function wnFetchDxfText(fileId) {
 
 /* ファイルを ArrayBuffer で取得（R2 署名付きURL or ローカルプロキシ両対応）
    onProgress(pct) を渡すと 0〜100 のダウンロード進捗を通知する */
-async function wnFetchFileBuffer(fileId, { onProgress } = {}) {
-  const urlRes = await wnFetch(`/wn/files/${fileId}/view`);
-  if (!urlRes || !urlRes.ok) return null;
-  const { url } = await urlRes.json();
-  if (!url) return null;
+async function wnFetchFileBuffer(fileId, { onProgress, timeoutMs = 120000 } = {}) {
+  /* AbortController で各 fetch にタイムアウトを設ける（既定 120 秒） */
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(new Error('タイムアウト（' + Math.round(timeoutMs/1000) + '秒）')), timeoutMs);
+  try {
+    const urlRes = await wnFetch(`/wn/files/${fileId}/view`, { signal: ctl.signal });
+    if (!urlRes || !urlRes.ok) {
+      throw new Error('署名URL取得に失敗 (status=' + (urlRes?.status ?? 'no response') + ')');
+    }
+    const { url } = await urlRes.json();
+    if (!url) throw new Error('署名URLが空です');
 
-  const res = await fetch(url);
-  if (!res.ok) return null;
+    const res = await fetch(url, { signal: ctl.signal });
+    if (!res.ok) throw new Error('ファイル取得に失敗 (status=' + res.status + ')');
 
-  // Content-Length があれば進捗通知、なければそのまま
-  const contentLength = res.headers.get('Content-Length');
-  if (!onProgress || !contentLength) return res.arrayBuffer();
+    const contentLength = res.headers.get('Content-Length');
+    if (!onProgress || !contentLength) return await res.arrayBuffer();
 
-  const total  = parseInt(contentLength, 10);
-  const reader = res.body.getReader();
-  const chunks = [];
-  let received = 0;
+    const total  = parseInt(contentLength, 10);
+    const reader = res.body.getReader();
+    const chunks = [];
+    let received = 0;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    received += value.length;
-    onProgress(Math.round(received / total * 100));
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      onProgress(Math.round(received / total * 100));
+    }
+
+    const merged = new Uint8Array(received);
+    let offset = 0;
+    for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.length; }
+    return merged.buffer;
+  } catch (e) {
+    console.error('[wnFetchFileBuffer] fileId=' + fileId, e);
+    return null;
+  } finally {
+    clearTimeout(timer);
   }
-
-  const merged = new Uint8Array(received);
-  let offset = 0;
-  for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.length; }
-  return merged.buffer;
 }
 
 /* Office Online Viewer 用パブリックプロキシURL */
