@@ -277,12 +277,7 @@
       <i class="fa-solid fa-user"></i>
       <span>自分の</span>
     </div>
-    <div class="bottom-nav-item" id="bnNew">
-      <div class="bottom-nav-upload">
-        <i class="fa-solid fa-pen"></i>
-      </div>
-    </div>
-    <div class="bottom-nav-item" id="bnMyAction" style="position:relative;">
+<div class="bottom-nav-item" id="bnMyAction" style="position:relative;">
       <i class="fa-solid fa-list-check"></i>
       <span>アクション</span>
       <span id="bnMyActionBadge" class="nav-badge" style="display:none;position:absolute;top:6px;right:10px;"></span>
@@ -353,9 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('navMyAction').click();
     setBottomActive('bnMyAction');
   });
-  document.getElementById('bnNew').addEventListener('click', () => location.href = 'edit.html');
-
-  /* ── スマホ検索 ── */
+/* ── スマホ検索 ── */
   const mobileSearchBar   = document.getElementById('mobileSearchBar');
   const mobileSearchInput = document.getElementById('mobileSearchInput');
   document.getElementById('bnSearch').addEventListener('click', () => {
