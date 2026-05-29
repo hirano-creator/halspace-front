@@ -821,7 +821,7 @@ input[type="time"].form-input {
    ===================================================== */
 .toast-container {
   position: fixed;
-  bottom: calc(var(--bottom-nav-h) + 12px);
+  bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 12px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
@@ -862,7 +862,7 @@ input[type="time"].form-input {
    ===================================================== */
 .fab {
   position: fixed;
-  bottom: calc(var(--bottom-nav-h) + 16px);
+  bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 16px);
   right: 20px;
   height: 52px;
   padding: 0 22px;
@@ -888,18 +888,20 @@ input[type="time"].form-input {
   display: none;
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  height: var(--bottom-nav-h);
-  background: rgba(255,255,255,.95);
+  background: #ffffff;
   border-top: 1px solid var(--border);
   z-index: 300;
-  padding-bottom: env(safe-area-inset-bottom);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+}
+.bottom-nav::after {
+  content: '';
+  display: block;
+  height: env(safe-area-inset-bottom);
+  background: #ffffff;
 }
 .bottom-nav-inner {
   display: flex;
   align-items: stretch;
-  height: 100%;
+  height: var(--bottom-nav-h);
 }
 .bottom-nav-item {
   flex: 1;
@@ -983,7 +985,7 @@ input[type="time"].form-input {
 
   /* ページ余白 */
   .page-body {
-    padding: 14px 14px calc(var(--bottom-nav-h) + 20px);
+    padding: 14px 14px calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 20px);
   }
 
   /* フィルターバー: 横スクロール */
@@ -1012,7 +1014,7 @@ input[type="time"].form-input {
   .modal { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
 
   /* トースト: ボトムナビの上 */
-  .toast-container { bottom: calc(var(--bottom-nav-h) + 10px); }
+  .toast-container { bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 10px); }
 
   /* セクションタイトル */
   .section-title { font-size: 12px; }
