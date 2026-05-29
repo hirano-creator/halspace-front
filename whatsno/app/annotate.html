@@ -753,11 +753,35 @@ async function loadPdf() {
 
 async function renderPdfPage(num) {
   setLoading(true, `${num}ページ目を読み込み中…`);
-  const page     = await pdfDoc.getPage(num);
-  const viewport = page.getViewport({ scale: pdfScale });
-  resizeCanvases(viewport.width, viewport.height);
-  pageSizes[num] = { w: viewport.width, h: viewport.height };
-  await page.render({ canvasContext: basCtx, viewport }).promise;
+  const page = await pdfDoc.getPage(num);
+
+  /* 表示用ビューポート（注釈座標と一致するサイズ） */
+  const displayVP = page.getViewport({ scale: pdfScale });
+
+  /* レンダリング用スケール：file-detail.html と同等。表示時に小さくならないよう
+     最低でも PDF 寸法の 1.5 倍で描画 + DPR 補正。MAX_CANVAS_DIM で上限。 */
+  const dpr = Math.max(window.devicePixelRatio || 1, 2);
+  const MIN_RENDER_SCALE = 1.5;
+  const MAX_CANVAS_DIM   = 4096;
+  const baseVP1   = page.getViewport({ scale: 1 });
+  let renderScale = Math.max(pdfScale * dpr, MIN_RENDER_SCALE);
+  const maxBaseDim = Math.max(baseVP1.width, baseVP1.height);
+  if (maxBaseDim * renderScale > MAX_CANVAS_DIM) {
+    renderScale = MAX_CANVAS_DIM / maxBaseDim;
+  }
+  const renderVP = page.getViewport({ scale: renderScale });
+
+  /* annotCanvas は表示サイズに合わせる（注釈座標の互換性維持） */
+  annotCanvas.width  = displayVP.width;
+  annotCanvas.height = displayVP.height;
+  /* baseCanvas は高解像度で内部レンダリング、CSS で表示サイズに縮小 */
+  baseCanvas.width  = renderVP.width;
+  baseCanvas.height = renderVP.height;
+  baseCanvas.style.width  = displayVP.width  + 'px';
+  baseCanvas.style.height = displayVP.height + 'px';
+
+  pageSizes[num] = { w: displayVP.width, h: displayVP.height };
+  await page.render({ canvasContext: basCtx, viewport: renderVP }).promise;
   redrawAnnotations();
   setLoading(false);
 }
@@ -925,6 +949,9 @@ async function loadHeic() {
 function resizeCanvases(w, h) {
   baseCanvas.width  = annotCanvas.width  = w;
   baseCanvas.height = annotCanvas.height = h;
+  /* PDF レンダリング時に設定された CSS サイズをクリア（画像/HEIC で同サイズで使うため） */
+  baseCanvas.style.width  = '';
+  baseCanvas.style.height = '';
 }
 
 /* ────── ツール初期化 ────── */
