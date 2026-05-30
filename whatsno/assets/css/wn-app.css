@@ -1251,8 +1251,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   transition: all var(--trans);
   border: 1.5px solid transparent;
 }
-.like-btn:hover { color: #E53935; background: rgba(229,57,53,.06); border-color: rgba(229,57,53,.2); }
-.like-btn.liked  { color: #E53935; background: rgba(229,57,53,.08); border-color: rgba(229,57,53,.25); }
+.like-btn:hover { color: #E53935; background: rgba(229,57,53,.06); }
+.like-btn.liked  { color: #E53935; background: rgba(229,57,53,.08); }
 .like-btn i { font-size: 14px; }
 
 /* =====================
