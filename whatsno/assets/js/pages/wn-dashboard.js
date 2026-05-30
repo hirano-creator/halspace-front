@@ -6,7 +6,11 @@ let allFiles     = [];
 let allTags      = [];
 let selectedTags = [];
 let navView      = 'all';   // 'all' | 'mine' | 'recent' | 'liked'
-let layoutView   = 'grid';  // 'grid' | 'list'
+const LAYOUT_VIEW_STORAGE_KEY = 'wn_layout_view';
+let layoutView   = (() => {
+  const saved = localStorage.getItem(LAYOUT_VIEW_STORAGE_KEY);
+  return saved === 'list' ? 'list' : 'grid';   // 'grid' | 'list'
+})();
 let uploadQueue  = [];
 let semanticMode = false;   // AI自然言語検索モード中かどうか
 
@@ -971,24 +975,29 @@ function initNav() {
 }
 
 /* ────────────────────────────────
-   グリッド / リスト切替
+   グリッド / リスト切替 — 選択は localStorage に永続化
    ──────────────────────────────── */
+function applyLayoutView(view, { loadComments = false } = {}) {
+  layoutView = view === 'list' ? 'list' : 'grid';
+  localStorage.setItem(LAYOUT_VIEW_STORAGE_KEY, layoutView);
+
+  const isList = layoutView === 'list';
+  document.getElementById('viewGrid')?.classList.toggle('active', !isList);
+  document.getElementById('viewList')?.classList.toggle('active',  isList);
+  const gridArea = document.getElementById('gridArea');
+  const listArea = document.getElementById('listArea');
+  if (gridArea) gridArea.style.display = isList ? 'none'  : 'block';
+  if (listArea) listArea.style.display = isList ? 'block' : 'none';
+
+  if (isList && loadComments) loadRowComments();
+}
+
 function initViewToggle() {
-  document.getElementById('viewGrid').addEventListener('click', () => {
-    layoutView = 'grid';
-    document.getElementById('viewGrid').classList.add('active');
-    document.getElementById('viewList').classList.remove('active');
-    document.getElementById('gridArea').style.display = 'block';
-    document.getElementById('listArea').style.display = 'none';
-  });
-  document.getElementById('viewList').addEventListener('click', () => {
-    layoutView = 'list';
-    document.getElementById('viewList').classList.add('active');
-    document.getElementById('viewGrid').classList.remove('active');
-    document.getElementById('gridArea').style.display = 'none';
-    document.getElementById('listArea').style.display = 'block';
-    loadRowComments();
-  });
+  // 起動時に保存されたビューを適用（HTMLのデフォルトは grid なので、 list の時だけスワップ）
+  applyLayoutView(layoutView);
+
+  document.getElementById('viewGrid').addEventListener('click', () => applyLayoutView('grid'));
+  document.getElementById('viewList').addEventListener('click', () => applyLayoutView('list', { loadComments: true }));
 }
 
 /* ────────────────────────────────
