@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a2540">
+<title>Space ファイル一覧 — B案モック</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root{
+  --primary:#0a2540;
+  --primary-md:#1a3a5c;
+  --accent:#635bff;
+  --accent-dk:#4f46e5;
+  --red:#ed4956;
+  --bg:#f6f9fc;
+  --bg-card:#ffffff;
+  --border:#e3e8ef;
+  --text:#0a2540;
+  --muted:#697386;
+  --soft:#eef2ff;
+  --warning:#d68b00;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Inter','Noto Sans JP',-apple-system,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  -webkit-text-size-adjust:100%;
+  padding-bottom:calc(72px + env(safe-area-inset-bottom));
+}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;border:0;background:transparent;cursor:pointer;color:inherit}
+img{display:block;max-width:100%}
+
+/* ========== APP TOP ========== */
+.app-top{
+  position:sticky;top:0;z-index:30;
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;
+  background:#fff;
+  border-bottom:1px solid var(--border);
+}
+.app-top .ham{font-size:18px;color:var(--primary);padding:6px;margin:-6px}
+.app-top .brand{font-weight:700;font-size:15px;color:var(--primary);flex-shrink:0}
+.app-top .search{
+  flex:1;background:#f1f4f9;border-radius:999px;
+  padding:8px 12px;font-size:12.5px;color:#9aa3b2;
+  display:flex;align-items:center;gap:8px;min-width:0;
+}
+.app-top .search input{
+  border:0;background:transparent;outline:0;flex:1;font-size:12.5px;color:var(--text);
+  min-width:0;
+}
+.app-top .search input::placeholder{color:#9aa3b2}
+.app-top .bell{color:var(--muted);font-size:17px;padding:6px;margin:-6px;position:relative}
+.app-top .bell::after{
+  content:"";position:absolute;top:4px;right:4px;
+  width:8px;height:8px;background:var(--red);border-radius:50%;border:2px solid #fff;
+}
+.app-top .upload{
+  width:34px;height:34px;border-radius:10px;background:var(--accent);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;
+  box-shadow:0 4px 10px rgba(99,91,255,.3);
+}
+
+/* ========== KNOWL CARD ========== */
+.knowl{
+  margin:10px 12px;padding:12px 14px;
+  border:1px solid var(--border);border-radius:14px;background:#fff;
+}
+.knowl .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.knowl .top .l{display:flex;align-items:center;gap:8px;color:var(--primary);font-weight:700;font-size:13px}
+.knowl .top .l i{color:var(--accent)}
+.knowl .top .l .progress{color:var(--muted);font-weight:500;font-size:12px}
+.knowl .top .r{
+  color:var(--accent);font-weight:700;font-size:12px;
+  display:flex;align-items:center;gap:5px;
+  background:var(--soft);padding:5px 10px;border-radius:999px;
+}
+.knowl .bar{height:5px;background:#eef2ff;border-radius:99px;margin-top:10px;overflow:hidden}
+.knowl .bar i{display:block;height:100%;width:0%;background:var(--accent);border-radius:99px}
+.knowl .alert{
+  font-size:12px;color:var(--warning);margin-top:8px;
+  display:flex;align-items:center;gap:6px;
+}
+
+/* ========== SECTION HEAD ========== */
+.section-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:14px 16px 10px;
+}
+.section-head .title-wrap{display:flex;align-items:baseline;gap:6px;min-width:0}
+.section-head .title{font-weight:700;font-size:15px;color:var(--primary)}
+.section-head .count{font-size:12px;color:var(--muted)}
+.section-head .right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.section-head .sort{
+  height:34px;display:flex;align-items:center;gap:6px;
+  border:1px solid var(--border);border-radius:8px;background:#fff;
+  padding:0 12px;font-size:12.5px;color:var(--text);
+}
+.section-head .toggle{
+  height:34px;border:1px solid var(--border);border-radius:8px;overflow:hidden;display:flex;
+}
+.section-head .toggle button{
+  padding:0 11px;font-size:13px;color:var(--muted);background:#fff;height:100%;
+}
+.section-head .toggle button.active{background:var(--primary);color:#fff}
+
+/* ========== FEED ========== */
+.feed{padding:0 0 16px}
+.post{background:#fff;margin-bottom:10px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+
+/* MEDIA */
+.media{
+  position:relative;
+  background:#f1f4f9;
+  width:100%;
+  aspect-ratio:5/4;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+}
+.media.square{aspect-ratio:1/1}
+.media.tall{aspect-ratio:4/5}
+
+/* TAG chip over image */
+.ig-tag{
+  position:absolute;top:12px;left:12px;
+  background:rgba(10,37,64,.78);color:#fff;backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  font-size:11px;font-weight:700;padding:5px 9px;border-radius:999px;
+  display:flex;align-items:center;gap:5px;
+}
+.ig-tag.green{background:rgba(31,128,72,.85)}
+.ig-tag.amber{background:rgba(214,139,0,.85)}
+.ig-tag.violet{background:rgba(99,91,255,.85)}
+
+/* SIZE chip bottom-right */
+.ig-size{
+  position:absolute;bottom:10px;right:10px;
+  background:rgba(0,0,0,.55);color:#fff;backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;
+  display:flex;align-items:center;gap:4px;
+}
+.ig-size i{font-size:9px;opacity:.8}
+
+/* multi-page indicator */
+.ig-pages{
+  position:absolute;top:12px;right:12px;
+  background:rgba(0,0,0,.55);color:#fff;backdrop-filter:blur(4px);
+  font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;
+  display:flex;align-items:center;gap:4px;
+}
+
+/* THUMB visuals */
+.pdf-thumb{
+  width:74%;aspect-ratio:1/1.32;background:#fff;border-radius:6px;
+  box-shadow:0 6px 18px rgba(10,37,64,.14);
+  position:relative;overflow:hidden;
+  background-image:
+    linear-gradient(#dde4ee, #dde4ee),
+    linear-gradient(#eef2f7,#eef2f7),
+    linear-gradient(#eef2f7,#eef2f7),
+    linear-gradient(#eef2f7,#eef2f7),
+    linear-gradient(#eef2f7,#eef2f7),
+    linear-gradient(#eef2f7,#eef2f7);
+  background-repeat:no-repeat;
+  background-size:
+    62% 8px,
+    78% 6px, 70% 6px, 86% 6px, 74% 6px, 50% 6px;
+  background-position:
+    16px 16px,
+    16px 36px, 16px 48px, 16px 60px, 16px 72px, 16px 84px;
+}
+.pdf-thumb::after{
+  content:"";position:absolute;left:16px;right:16px;top:110px;bottom:16px;
+  background:
+    repeating-linear-gradient(180deg, #eef2f7 0 6px, transparent 6px 12px);
+}
+.pdf-thumb::before{
+  content:"PDF";position:absolute;top:8px;right:8px;
+  background:var(--red);color:#fff;font-size:9.5px;font-weight:800;
+  padding:2px 6px;border-radius:4px;letter-spacing:.04em;
+}
+.drawing-thumb{
+  width:88%;height:88%;background:#fff;border:1px solid #d6dee8;border-radius:4px;
+  position:relative;
+}
+.drawing-thumb::before,.drawing-thumb::after{
+  content:"";position:absolute;inset:6%;
+  background:
+    /* outer rect */
+    linear-gradient(#0a2540,#0a2540) top/100% 1px no-repeat,
+    linear-gradient(#0a2540,#0a2540) bottom/100% 1px no-repeat,
+    linear-gradient(#0a2540,#0a2540) left/1px 100% no-repeat,
+    linear-gradient(#0a2540,#0a2540) right/1px 100% no-repeat,
+    /* inner rect */
+    linear-gradient(#0a2540,#0a2540) 20% 30%/40% 1px no-repeat,
+    linear-gradient(#0a2540,#0a2540) 20% 70%/40% 1px no-repeat,
+    linear-gradient(#0a2540,#0a2540) 20% 30%/1px 40% no-repeat,
+    linear-gradient(#0a2540,#0a2540) 60% 30%/1px 40% no-repeat,
+    /* dim measure */
+    linear-gradient(#9aa3b2,#9aa3b2) 12% 92%/76% 1px no-repeat;
+  opacity:.55;
+}
+.drawing-thumb::after{
+  background:
+    linear-gradient(#0a2540,#0a2540) 75% 14%/16% 1px no-repeat,
+    linear-gradient(#0a2540,#0a2540) 75% 14%/1px 14% no-repeat,
+    linear-gradient(#0a2540,#0a2540) 91% 14%/1px 14% no-repeat;
+  opacity:.45;
+}
+.photo-thumb{
+  width:100%;height:100%;
+  background:
+    radial-gradient(circle at 30% 35%, rgba(255,210,160,.5) 0 18%, transparent 19%),
+    radial-gradient(circle at 70% 65%, rgba(120,170,255,.45) 0 24%, transparent 25%),
+    linear-gradient(135deg,#3a4a6b 0%, #18233a 100%);
+  position:relative;
+}
+.photo-thumb::after{
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(255,255,255,.15), transparent 60%);
+}
+.photo-thumb .who{
+  position:absolute;left:14px;bottom:12px;color:#fff;font-size:11px;
+  text-shadow:0 1px 3px rgba(0,0,0,.5);
+  display:flex;align-items:center;gap:6px;
+}
+.video-thumb{
+  width:100%;height:100%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,.18), transparent 55%),
+    linear-gradient(140deg,#1a3a5c 0%, #0a2540 70%);
+  display:flex;align-items:center;justify-content:center;
+}
+.video-thumb .play{
+  width:62px;height:62px;border-radius:50%;
+  background:rgba(255,255,255,.92);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;font-size:22px;padding-left:4px;
+  box-shadow:0 10px 24px rgba(0,0,0,.3);
+}
+.video-thumb .dur{
+  position:absolute;right:10px;bottom:10px;color:#fff;font-size:11px;
+  background:rgba(0,0,0,.6);padding:3px 7px;border-radius:5px;font-weight:600;
+}
+.stl-thumb{
+  width:100%;height:100%;
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(255,255,255,.18), transparent 60%),
+    linear-gradient(160deg,#2a3a5c 0%, #0a2540 100%);
+  display:flex;align-items:center;justify-content:center;
+}
+.stl-thumb i{font-size:64px;color:#fff;opacity:.85}
+.dxf-thumb{
+  width:100%;height:100%;background:#fafdff;
+  background-image:
+    linear-gradient(#e3e8ef 1px, transparent 1px),
+    linear-gradient(90deg,#e3e8ef 1px, transparent 1px);
+  background-size:24px 24px;
+  display:flex;align-items:center;justify-content:center;position:relative;
+}
+.dxf-thumb i{font-size:72px;color:var(--accent);opacity:.75}
+
+/* === ACTION ROW === */
+.ig-actions{
+  display:flex;align-items:center;
+  padding:8px 14px 2px;gap:14px;
+}
+.ig-actions .left{display:flex;gap:14px;font-size:21px;color:var(--primary)}
+.ig-actions .left button{padding:4px;margin:-4px;display:flex;align-items:center}
+.ig-actions .left .liked{color:var(--red)}
+.ig-actions .right{margin-left:auto;font-size:20px;color:var(--primary)}
+.ig-actions .right button{padding:4px;margin:-4px}
+
+/* === META LINE === */
+.ig-meta-line{
+  display:flex;align-items:center;gap:10px;
+  padding:0 14px 6px;font-size:11.5px;color:var(--muted);
+  flex-wrap:wrap;
+}
+.ig-meta-line span i{margin-right:4px;color:var(--muted)}
+.ig-meta-line .sep{opacity:.45}
+.ig-meta-line .liked-c i{color:var(--red)}
+
+/* === CAPTION === */
+.ig-caption{
+  padding:2px 14px 6px;font-size:13.5px;line-height:1.55;color:var(--text);
+}
+.ig-caption b{font-weight:700;color:var(--primary);display:block;margin-bottom:2px;font-size:14.5px}
+.ig-caption .desc{color:var(--text)}
+.ig-caption .more{color:var(--muted);font-size:13px;cursor:pointer;margin-left:2px}
+
+/* === CHIPS === */
+.ig-chips{
+  padding:6px 14px 0;display:flex;flex-wrap:wrap;gap:6px;
+}
+.ig-chips span{
+  font-size:11px;font-weight:700;color:var(--accent);background:var(--soft);
+  padding:4px 10px;border-radius:999px;
+}
+
+/* === COMMENT PREVIEW === */
+.ig-comments{
+  padding:8px 14px 4px;font-size:12.5px;color:var(--text);line-height:1.65;
+}
+.ig-comments .row{display:flex;gap:6px}
+.ig-comments .row b{color:var(--primary);font-weight:700}
+.ig-comments .more{color:var(--muted);font-size:12px;margin-top:3px}
+
+/* === DATE === */
+.ig-date{
+  padding:0 14px 12px;font-size:11px;color:var(--muted);
+  letter-spacing:.02em;
+}
+
+/* === COMMENT INPUT === */
+.ig-input{
+  padding:8px 14px 12px;
+  display:flex;align-items:center;gap:10px;
+  border-top:1px solid #f1f4f9;
+}
+.ig-input .avatar{
+  width:26px;height:26px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#635bff,#22c1c3);
+}
+.ig-input input{
+  border:0;outline:0;flex:1;font-size:13px;color:var(--text);background:transparent;min-width:0;
+}
+.ig-input input::placeholder{color:#9aa3b2}
+.ig-input .send{color:var(--accent);font-weight:700;font-size:13px;flex-shrink:0}
+
+/* === BOTTOM NAV (fixed) === */
+.bottom-nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;
+  display:flex;align-items:center;justify-content:space-around;
+  padding:8px 16px calc(8px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--border);background:#fff;
+}
+.bottom-nav a{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  font-size:10px;color:var(--muted);flex:1;
+}
+.bottom-nav a.active{color:var(--accent)}
+.bottom-nav a i{font-size:18px}
+.bottom-nav .fab{
+  width:60px;height:60px;border-radius:50%;
+  background:var(--accent);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:24px;
+  box-shadow:0 10px 22px rgba(99,91,255,.45);
+  transform:translateY(-14px);
+}
+
+/* === BANNER === */
+.preview-banner{
+  background:#0a2540;color:#fff;padding:10px 14px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  font-size:11.5px;
+}
+.preview-banner b{color:#a0b4ff;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px}
+
+</style>
+</head>
+<body>
+
+<div class="preview-banner">
+  <span><b>PREVIEW</b> · B案: 業務寄りハイブリッド</span>
+  <span style="opacity:.7">v0.1 mock</span>
+</div>
+
+<!-- ===== APP TOP ===== -->
+<header class="app-top">
+  <button class="ham"><i class="fa-solid fa-bars"></i></button>
+  <div class="brand">ホーム</div>
+  <div class="search">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input placeholder="ファイル：">
+    <i class="fa-solid fa-microphone" style="color:#9aa3b2"></i>
+    <i class="fa-solid fa-diagram-project" style="color:var(--accent)"></i>
+  </div>
+  <button class="bell"><i class="fa-regular fa-bell"></i></button>
+  <button class="upload"><i class="fa-solid fa-cloud-arrow-up"></i></button>
+</header>
+
+<!-- ===== KNOWL CARD ===== -->
+<section class="knowl">
+  <div class="top">
+    <div class="l">
+      <i class="fa-solid fa-diagram-project"></i>
+      <span>Knowl</span>
+      <span class="progress">学習済み 0 件 / 全 27 件</span>
+    </div>
+    <div class="r"><i class="fa-regular fa-comment"></i> 質問する</div>
+  </div>
+  <div class="bar"><i style="width:0%"></i></div>
+  <div class="alert">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    製造・検査・品管の文書不足
+  </div>
+</section>
+
+<!-- ===== SECTION HEAD ===== -->
+<div class="section-head">
+  <div class="title-wrap">
+    <span class="title">すべてのファイル</span>
+    <span class="count">（22件）</span>
+  </div>
+  <div class="right">
+    <button class="sort">新しい順 <i class="fa-solid fa-chevron-down" style="font-size:10px"></i></button>
+    <div class="toggle">
+      <button><i class="fa-solid fa-grip"></i></button>
+      <button class="active"><i class="fa-solid fa-list"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FEED ===== -->
+<main class="feed">
+
+  <!-- ============ POST 1: PDF (溶接) ============ -->
+  <article class="post">
+    <div class="media">
+      <span class="ig-tag"><i class="fa-solid fa-tag" style="font-size:9px"></i> 溶接</span>
+      <div class="pdf-thumb"></div>
+      <span class="ig-size"><i class="fa-solid fa-file"></i> 631.7 KB</span>
+    </div>
+    <div class="ig-actions">
+      <div class="left">
+        <button><i class="fa-regular fa-heart"></i></button>
+        <button><i class="fa-regular fa-comment"></i></button>
+        <button><i class="fa-regular fa-paper-plane"></i></button>
+        <button><i class="fa-solid fa-download" style="font-size:19px"></i></button>
+      </div>
+      <div class="right"><button><i class="fa-regular fa-bookmark"></i></button></div>
+    </div>
+    <div class="ig-meta-line">
+      <span class="liked-c"><i class="fa-regular fa-heart"></i>12</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-eye"></i>28</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-comment"></i>22</span>
+      <span style="margin-left:auto"><i class="fa-regular fa-clock"></i>2026/05/30</span>
+    </div>
+    <div class="ig-caption">
+      <b>fl.php.pdf</b>
+      <span class="desc">このファイルは、溶接工程に関する情報を含むPDF文書です。溶接の種類、適用基準、検査項目について…</span><span class="more">続きを読む</span>
+    </div>
+    <div class="ig-chips"><span>溶接</span><span>工程表</span><span>2026Q2</span></div>
+    <div class="ig-comments">
+      <div class="row"><b>tanaka</b> 寸法の追記版あります？</div>
+      <div class="more">他に21件のコメント</div>
+    </div>
+    <div class="ig-input">
+      <div class="avatar"></div>
+      <input placeholder="コメントを追加…">
+      <span class="send">投稿</span>
+    </div>
+  </article>
+
+  <!-- ============ POST 2: 図面 PDF ============ -->
+  <article class="post">
+    <div class="media">
+      <span class="ig-tag violet"><i class="fa-solid fa-tag" style="font-size:9px"></i> 図面</span>
+      <div class="drawing-thumb"></div>
+      <span class="ig-pages"><i class="fa-regular fa-file-lines"></i> 3p</span>
+      <span class="ig-size"><i class="fa-solid fa-file"></i> 128.9 KB</span>
+    </div>
+    <div class="ig-actions">
+      <div class="left">
+        <button><i class="fa-solid fa-heart liked"></i></button>
+        <button><i class="fa-regular fa-comment"></i></button>
+        <button><i class="fa-regular fa-paper-plane"></i></button>
+        <button><i class="fa-solid fa-download" style="font-size:19px"></i></button>
+      </div>
+      <div class="right"><button><i class="fa-solid fa-bookmark" style="color:var(--accent)"></i></button></div>
+    </div>
+    <div class="ig-meta-line">
+      <span class="liked-c"><i class="fa-solid fa-heart" style="color:var(--red)"></i>3</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-eye"></i>14</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-comment"></i>0</span>
+      <span style="margin-left:auto"><i class="fa-regular fa-clock"></i>2026/05/30</span>
+    </div>
+    <div class="ig-caption">
+      <b>UTSK3243-02A__A1200.pdf</b>
+      <span class="desc">製品コード「UTSK3243-02A」関連の図面。組立・部品・公差の3シートを収録。</span><span class="more">続きを読む</span>
+    </div>
+    <div class="ig-chips"><span>図面</span><span>UTSK3243</span><span>A1200</span></div>
+    <div class="ig-comments">
+      <div class="row" style="color:var(--muted)">最初のコメントを書く</div>
+    </div>
+  </article>
+
+  <!-- ============ POST 3: 写真 (現場) ============ -->
+  <article class="post">
+    <div class="media square">
+      <span class="ig-tag green"><i class="fa-solid fa-camera" style="font-size:9px"></i> 現場写真</span>
+      <div class="photo-thumb">
+        <div class="who"><i class="fa-solid fa-location-dot"></i>本社工場 #2</div>
+      </div>
+      <span class="ig-size"><i class="fa-solid fa-image"></i> 2.4 MB</span>
+    </div>
+    <div class="ig-actions">
+      <div class="left">
+        <button><i class="fa-solid fa-heart liked"></i></button>
+        <button><i class="fa-regular fa-comment"></i></button>
+        <button><i class="fa-regular fa-paper-plane"></i></button>
+        <button><i class="fa-solid fa-download" style="font-size:19px"></i></button>
+      </div>
+      <div class="right"><button><i class="fa-regular fa-bookmark"></i></button></div>
+    </div>
+    <div class="ig-meta-line">
+      <span class="liked-c"><i class="fa-solid fa-heart" style="color:var(--red)"></i>7</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-eye"></i>41</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-comment"></i>5</span>
+      <span style="margin-left:auto"><i class="fa-regular fa-clock"></i>2026/05/29</span>
+    </div>
+    <div class="ig-caption">
+      <b>IMG_4521.jpeg</b>
+      <span class="desc">アングル材の切断作業中の現場写真。バリ取り前。</span>
+    </div>
+    <div class="ig-chips"><span>現場</span><span>切断</span><span>本社工場</span></div>
+    <div class="ig-comments">
+      <div class="row"><b>yamada</b> 端面のバリ、規定値超えてないか確認お願いします</div>
+      <div class="row"><b>sato</b> 計測しました、0.3mm でOKです 👌</div>
+      <div class="more">他に3件のコメント</div>
+    </div>
+  </article>
+
+  <!-- ============ POST 4: 動画 ============ -->
+  <article class="post">
+    <div class="media">
+      <span class="ig-tag amber"><i class="fa-solid fa-video" style="font-size:9px"></i> 動画</span>
+      <div class="video-thumb">
+        <div class="play"><i class="fa-solid fa-play"></i></div>
+      </div>
+      <span class="dur" style="position:absolute;right:10px;bottom:10px;color:#fff;font-size:11px;background:rgba(0,0,0,.6);padding:3px 7px;border-radius:5px;font-weight:600">0:42</span>
+    </div>
+    <div class="ig-actions">
+      <div class="left">
+        <button><i class="fa-regular fa-heart"></i></button>
+        <button><i class="fa-regular fa-comment"></i></button>
+        <button><i class="fa-regular fa-paper-plane"></i></button>
+        <button><i class="fa-solid fa-download" style="font-size:19px"></i></button>
+      </div>
+      <div class="right"><button><i class="fa-regular fa-bookmark"></i></button></div>
+    </div>
+    <div class="ig-meta-line">
+      <span class="liked-c"><i class="fa-regular fa-heart"></i>5</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-eye"></i>33</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-comment"></i>2</span>
+      <span style="margin-left:auto"><i class="fa-regular fa-clock"></i>2026/05/28</span>
+    </div>
+    <div class="ig-caption">
+      <b>溶接実演_TIG_3mm.mp4</b>
+      <span class="desc">SUS304 3mm 板の TIG 溶接実演動画。ピッチ確認用。</span>
+    </div>
+    <div class="ig-chips"><span>溶接</span><span>TIG</span><span>SUS304</span></div>
+    <div class="ig-comments">
+      <div class="row"><b>tanaka</b> 角度の付け方が参考になります</div>
+    </div>
+  </article>
+
+  <!-- ============ POST 5: STL ============ -->
+  <article class="post">
+    <div class="media">
+      <span class="ig-tag violet"><i class="fa-solid fa-cube" style="font-size:9px"></i> 3Dモデル</span>
+      <div class="stl-thumb"><i class="fa-solid fa-cubes"></i></div>
+      <span class="ig-size"><i class="fa-solid fa-cube"></i> STL · 4.1 MB</span>
+    </div>
+    <div class="ig-actions">
+      <div class="left">
+        <button><i class="fa-regular fa-heart"></i></button>
+        <button><i class="fa-regular fa-comment"></i></button>
+        <button><i class="fa-regular fa-paper-plane"></i></button>
+        <button><i class="fa-solid fa-download" style="font-size:19px"></i></button>
+      </div>
+      <div class="right"><button><i class="fa-regular fa-bookmark"></i></button></div>
+    </div>
+    <div class="ig-meta-line">
+      <span class="liked-c"><i class="fa-regular fa-heart"></i>1</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-eye"></i>6</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-comment"></i>0</span>
+      <span style="margin-left:auto"><i class="fa-regular fa-clock"></i>2026/05/27</span>
+    </div>
+    <div class="ig-caption">
+      <b>bracket_v3.stl</b>
+      <span class="desc">取付ブラケット試作 v3。重量見直し済み。</span>
+    </div>
+    <div class="ig-chips"><span>ブラケット</span><span>試作</span><span>v3</span></div>
+    <div class="ig-comments">
+      <div class="row" style="color:var(--muted)">最初のコメントを書く</div>
+    </div>
+  </article>
+
+  <!-- ============ POST 6: 異形棒鋼 PDF ============ -->
+  <article class="post">
+    <div class="media">
+      <span class="ig-tag violet"><i class="fa-solid fa-tag" style="font-size:9px"></i> 図面</span>
+      <div class="drawing-thumb"></div>
+      <span class="ig-size"><i class="fa-solid fa-file"></i> 771.4 KB</span>
+    </div>
+    <div class="ig-actions">
+      <div class="left">
+        <button><i class="fa-regular fa-heart"></i></button>
+        <button><i class="fa-regular fa-comment"></i></button>
+        <button><i class="fa-regular fa-paper-plane"></i></button>
+        <button><i class="fa-solid fa-download" style="font-size:19px"></i></button>
+      </div>
+      <div class="right"><button><i class="fa-regular fa-bookmark"></i></button></div>
+    </div>
+    <div class="ig-meta-line">
+      <span class="liked-c"><i class="fa-regular fa-heart"></i>0</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-eye"></i>2</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-comment"></i>0</span>
+      <span style="margin-left:auto"><i class="fa-regular fa-clock"></i>2026/05/30</span>
+    </div>
+    <div class="ig-caption">
+      <b>異形棒鋼加工品 図面 (1).pdf</b>
+      <span class="desc">異形棒鋼を加工した製品の図面。寸法・公差・材質指示を含む。</span>
+    </div>
+    <div class="ig-chips"><span>図面</span><span>異形棒鋼</span></div>
+  </article>
+
+  <!-- ============ POST 7: DXF ============ -->
+  <article class="post">
+    <div class="media">
+      <span class="ig-tag"><i class="fa-solid fa-vector-square" style="font-size:9px"></i> CAD</span>
+      <div class="dxf-thumb"><i class="fa-solid fa-vector-square"></i></div>
+      <span class="ig-size"><i class="fa-solid fa-file"></i> DXF · 86 KB</span>
+    </div>
+    <div class="ig-actions">
+      <div class="left">
+        <button><i class="fa-regular fa-heart"></i></button>
+        <button><i class="fa-regular fa-comment"></i></button>
+        <button><i class="fa-regular fa-paper-plane"></i></button>
+        <button><i class="fa-solid fa-download" style="font-size:19px"></i></button>
+      </div>
+      <div class="right"><button><i class="fa-regular fa-bookmark"></i></button></div>
+    </div>
+    <div class="ig-meta-line">
+      <span class="liked-c"><i class="fa-regular fa-heart"></i>2</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-eye"></i>9</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-comment"></i>1</span>
+      <span style="margin-left:auto"><i class="fa-regular fa-clock"></i>2026/05/26</span>
+    </div>
+    <div class="ig-caption">
+      <b>frame_layout.dxf</b>
+      <span class="desc">フレーム配置のCADデータ。レーザー切断用。</span>
+    </div>
+    <div class="ig-chips"><span>CAD</span><span>フレーム</span><span>レーザー</span></div>
+    <div class="ig-comments">
+      <div class="row"><b>kondo</b> 板厚 t3.2 で発注かけました</div>
+    </div>
+  </article>
+
+  <!-- ============ POST 8: PDF (検査) ============ -->
+  <article class="post">
+    <div class="media">
+      <span class="ig-tag amber"><i class="fa-solid fa-clipboard-check" style="font-size:9px"></i> 検査記録</span>
+      <div class="pdf-thumb"></div>
+      <span class="ig-pages"><i class="fa-regular fa-file-lines"></i> 5p</span>
+      <span class="ig-size"><i class="fa-solid fa-file"></i> 412 KB</span>
+    </div>
+    <div class="ig-actions">
+      <div class="left">
+        <button><i class="fa-solid fa-heart liked"></i></button>
+        <button><i class="fa-regular fa-comment"></i></button>
+        <button><i class="fa-regular fa-paper-plane"></i></button>
+        <button><i class="fa-solid fa-download" style="font-size:19px"></i></button>
+      </div>
+      <div class="right"><button><i class="fa-regular fa-bookmark"></i></button></div>
+    </div>
+    <div class="ig-meta-line">
+      <span class="liked-c"><i class="fa-solid fa-heart" style="color:var(--red)"></i>4</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-eye"></i>18</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-comment"></i>3</span>
+      <span style="margin-left:auto"><i class="fa-regular fa-clock"></i>2026/05/25</span>
+    </div>
+    <div class="ig-caption">
+      <b>検査記録_2026Q2_W21.pdf</b>
+      <span class="desc">2026年Q2 W21の検査記録。寸法検査・外観検査の結果サマリ。</span>
+    </div>
+    <div class="ig-chips"><span>検査記録</span><span>2026Q2</span><span>W21</span></div>
+    <div class="ig-comments">
+      <div class="row"><b>iwata</b> No.7のロット、要再測定です</div>
+      <div class="more">他に2件のコメント</div>
+    </div>
+  </article>
+
+  <div style="text-align:center;color:var(--muted);font-size:12px;padding:24px 0">
+    — ここまで 8 件 / 全 22 件 —
+  </div>
+
+</main>
+
+<!-- ===== BOTTOM NAV ===== -->
+<nav class="bottom-nav">
+  <a class="active"><i class="fa-solid fa-house"></i>ホーム</a>
+  <a><i class="fa-regular fa-heart"></i>いいね</a>
+  <button class="fab"><i class="fa-solid fa-plus"></i></button>
+  <a><i class="fa-solid fa-tags"></i>タグ</a>
+  <a><i class="fa-solid fa-diagram-project"></i>頭脳</a>
+</nav>
+
+<script>
+// アクションのトグル（モック）
+document.querySelectorAll('.ig-actions .left button').forEach(b=>{
+  b.addEventListener('click', e=>{
+    const i = b.querySelector('i');
+    if(!i) return;
+    if(i.classList.contains('fa-heart')){
+      i.classList.toggle('fa-regular');
+      i.classList.toggle('fa-solid');
+      i.classList.toggle('liked');
+    }
+  });
+});
+document.querySelectorAll('.ig-actions .right button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    const i = b.querySelector('i');
+    if(!i) return;
+    if(i.classList.contains('fa-bookmark')){
+      i.classList.toggle('fa-regular');
+      i.classList.toggle('fa-solid');
+      i.style.color = i.classList.contains('fa-solid') ? 'var(--accent)' : 'var(--primary)';
+    }
+  });
+});
+</script>
+</body>
+</html>
