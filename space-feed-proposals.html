@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space ファイルフィード Instagram風 案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root{
+    --primary:#0a2540;
+    --accent:#635bff;
+    --accent-dk:#4f46e5;
+    --red:#ed4956;
+    --bg:#f6f9fc;
+    --bg-card:#ffffff;
+    --border:#e3e8ef;
+    --text:#0a2540;
+    --muted:#697386;
+    --soft:#eef2ff;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Inter','Noto Sans JP',-apple-system,sans-serif;
+    background:linear-gradient(180deg,#eef2ff 0%, #f6f9fc 240px, #f6f9fc 100%);
+    color:var(--text);
+    padding:48px 24px 80px;
+    min-height:100vh;
+  }
+  .page-head{
+    text-align:center;
+    max-width:980px;
+    margin:0 auto 48px;
+  }
+  .page-head .eyebrow{
+    font-size:11px;font-weight:700;letter-spacing:.32em;
+    color:var(--accent);text-transform:uppercase;margin-bottom:10px;
+  }
+  .page-head h1{
+    font-size:32px;font-weight:800;letter-spacing:-.02em;color:var(--primary);
+    margin-bottom:14px;
+  }
+  .page-head p{
+    color:var(--muted);font-size:14px;line-height:1.7;max-width:680px;margin:0 auto;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:32px;
+    max-width:1320px;
+    margin:0 auto;
+  }
+  @media (max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:760px){.grid{grid-template-columns:1fr}}
+
+  .case{
+    display:flex;flex-direction:column;align-items:center;
+  }
+  .case-title{
+    font-size:18px;font-weight:800;color:var(--primary);
+    margin-bottom:6px;text-align:center;
+  }
+  .case-tag{
+    display:inline-block;font-size:11px;font-weight:700;letter-spacing:.18em;
+    color:var(--accent);background:var(--soft);
+    padding:4px 10px;border-radius:999px;margin-bottom:10px;
+  }
+  .case-desc{
+    font-size:13px;color:var(--muted);line-height:1.7;text-align:center;
+    max-width:340px;margin-bottom:20px;
+  }
+  .case-desc b{color:var(--text);font-weight:700}
+
+  /* ==== iPhone frame ==== */
+  .phone{
+    width:390px;max-width:100%;
+    background:#fff;border-radius:38px;
+    box-shadow:0 24px 56px -16px rgba(10,37,64,.22), 0 8px 16px -8px rgba(10,37,64,.08);
+    overflow:hidden;
+    border:1px solid rgba(10,37,64,.06);
+  }
+  .phone-bar{
+    background:#0a2540;color:#fff;
+    padding:10px 18px 12px;
+    display:flex;align-items:center;justify-content:space-between;
+    font-size:13px;
+  }
+  .phone-bar .done{color:#7ea9ff;font-weight:600;font-size:13px}
+  .phone-bar .url{font-size:12px;opacity:.85}
+  .phone-bar .actions{display:flex;gap:14px;opacity:.85}
+
+  .app-top{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 14px;
+    border-bottom:1px solid var(--border);
+    background:#fff;
+  }
+  .app-top .ham{font-size:18px;color:var(--primary)}
+  .app-top .brand{font-weight:700;font-size:15px;color:var(--primary)}
+  .app-top .search{
+    flex:1;background:#f1f4f9;border-radius:999px;
+    padding:7px 12px;font-size:12px;color:#9aa3b2;
+    display:flex;align-items:center;gap:8px;
+  }
+  .app-top .bell{color:var(--muted);font-size:16px}
+  .app-top .upload{
+    width:32px;height:32px;border-radius:10px;background:var(--accent);
+    color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;
+  }
+
+  .knowl{
+    margin:10px 12px;padding:12px 14px;border:1px solid var(--border);
+    border-radius:14px;background:#fff;
+  }
+  .knowl .top{display:flex;align-items:center;justify-content:space-between;font-size:12px}
+  .knowl .top .l{display:flex;align-items:center;gap:6px;color:var(--primary);font-weight:700}
+  .knowl .top .r{color:var(--accent);font-weight:700}
+  .knowl .bar{height:5px;background:#eef2ff;border-radius:99px;margin-top:8px;overflow:hidden}
+  .knowl .bar i{display:block;height:100%;width:0%;background:var(--accent);border-radius:99px}
+  .knowl .alert{font-size:11px;color:#d68b00;margin-top:8px}
+
+  .section-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px 10px;
+  }
+  .section-head .title{font-weight:700;font-size:15px;color:var(--primary)}
+  .section-head .count{font-size:12px;color:var(--muted);margin-left:6px}
+  .section-head .right{display:flex;align-items:center;gap:8px}
+  .section-head .sort{
+    border:1px solid var(--border);border-radius:8px;
+    padding:5px 10px;font-size:12px;color:var(--text);
+  }
+  .section-head .toggle{
+    border:1px solid var(--border);border-radius:8px;overflow:hidden;display:flex;
+  }
+  .section-head .toggle button{
+    border:0;background:#fff;padding:5px 8px;font-size:12px;color:var(--muted);
+  }
+  .section-head .toggle button.active{background:var(--primary);color:#fff}
+
+  /* ==== Feed common ==== */
+  .feed{padding:4px 0 18px}
+  .post{background:#fff;margin-bottom:16px}
+  .post .media{position:relative;background:#f1f4f9;width:100%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .post .media.tall{aspect-ratio:4/5}
+  .post .media .pdf-thumb{
+    width:78%;height:88%;background:#fff;border-radius:6px;
+    box-shadow:0 4px 16px rgba(10,37,64,.12);
+    position:relative;overflow:hidden;
+    background-image:
+      linear-gradient(#f1f4f9, #f1f4f9),
+      repeating-linear-gradient(180deg, transparent 0 14px, #e3e8ef 14px 15px);
+    background-size: 100% 22%, 100% 100%;
+    background-repeat:no-repeat, repeat;
+    background-position: top, top;
+  }
+  .post .media .pdf-thumb::before{
+    content:"PDF";position:absolute;top:8px;left:8px;
+    background:var(--red);color:#fff;font-size:10px;font-weight:800;
+    padding:2px 6px;border-radius:4px;letter-spacing:.04em;
+  }
+  .post .media .drawing-thumb{
+    width:88%;height:88%;background:#fff;border:1px solid #e3e8ef;border-radius:4px;
+    position:relative;
+    background-image:
+      linear-gradient(#e3e8ef,#e3e8ef),
+      linear-gradient(#e3e8ef,#e3e8ef),
+      linear-gradient(#e3e8ef,#e3e8ef),
+      linear-gradient(#e3e8ef,#e3e8ef),
+      linear-gradient(#e3e8ef,#e3e8ef),
+      linear-gradient(#e3e8ef,#e3e8ef);
+    background-size: 60% 1px, 40% 1px, 50% 1px, 1px 60%, 1px 40%, 1px 50%;
+    background-position: 12% 22%, 60% 38%, 18% 60%, 22% 12%, 38% 62%, 78% 28%;
+    background-repeat:no-repeat;
+  }
+  .post .media .photo-thumb{
+    width:100%;height:100%;
+    background:
+      radial-gradient(circle at 30% 30%, #b6c8e3 0 8%, transparent 9%),
+      radial-gradient(circle at 70% 75%, #8b6fea 0 14%, transparent 15%),
+      linear-gradient(135deg,#3a4a6b 0%, #2a3a5c 100%);
+  }
+
+  .post .ig-tag{
+    position:absolute;top:12px;left:12px;
+    background:rgba(10,37,64,.78);color:#fff;backdrop-filter:blur(6px);
+    font-size:11px;font-weight:700;padding:5px 9px;border-radius:999px;
+    display:flex;align-items:center;gap:5px;
+  }
+  .post .ig-size{
+    position:absolute;bottom:10px;right:10px;
+    background:rgba(0,0,0,.55);color:#fff;backdrop-filter:blur(4px);
+    font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;
+  }
+
+  /* === ICON ROW (Instagram style) === */
+  .ig-actions{
+    display:flex;align-items:center;
+    padding:10px 14px 4px;
+    gap:14px;
+  }
+  .ig-actions .left{display:flex;gap:14px;font-size:22px;color:var(--primary)}
+  .ig-actions .left .liked{color:var(--red)}
+  .ig-actions .right{margin-left:auto;font-size:22px;color:var(--primary)}
+
+  .ig-likes{
+    padding:2px 14px;font-size:13px;font-weight:700;color:var(--primary);
+  }
+  .ig-caption{
+    padding:4px 14px;font-size:13.5px;line-height:1.55;color:var(--text);
+  }
+  .ig-caption b{font-weight:700;margin-right:6px}
+  .ig-caption .more{color:var(--muted);font-size:13px;cursor:pointer}
+  .ig-chips{
+    padding:6px 14px 0;display:flex;flex-wrap:wrap;gap:6px;
+  }
+  .ig-chips span{
+    font-size:11px;font-weight:700;color:var(--accent);background:var(--soft);
+    padding:3px 9px;border-radius:999px;
+  }
+  .ig-comments{
+    padding:6px 14px;font-size:12.5px;color:var(--muted);line-height:1.7;
+  }
+  .ig-comments .row{display:flex;gap:6px}
+  .ig-comments .row b{color:var(--primary);font-weight:700}
+  .ig-date{
+    padding:6px 14px 14px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;
+  }
+
+  /* === COMMENT INPUT (Instagram bottom of post) === */
+  .ig-input{
+    padding:8px 14px 14px;
+    display:flex;align-items:center;gap:10px;
+    border-top:1px solid #f1f4f9;
+  }
+  .ig-input .avatar{
+    width:24px;height:24px;border-radius:50%;
+    background:linear-gradient(135deg,#635bff,#22c1c3);flex-shrink:0;
+  }
+  .ig-input input{
+    border:0;outline:0;flex:1;font-size:13px;color:var(--text);background:transparent;
+  }
+  .ig-input .send{color:var(--accent);font-weight:700;font-size:13px}
+
+  /* === BOTTOM NAV === */
+  .bottom-nav{
+    display:flex;align-items:center;justify-content:space-around;
+    padding:10px 16px 18px;
+    border-top:1px solid var(--border);background:#fff;
+    position:relative;
+  }
+  .bottom-nav a{
+    display:flex;flex-direction:column;align-items:center;gap:3px;
+    font-size:10px;color:var(--muted);
+  }
+  .bottom-nav a.active{color:var(--accent)}
+  .bottom-nav a i{font-size:18px}
+  .bottom-nav .fab{
+    position:absolute;top:-22px;left:50%;transform:translateX(-50%);
+    width:56px;height:56px;border-radius:50%;
+    background:var(--accent);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:22px;
+    box-shadow:0 8px 20px rgba(99,91,255,.45);
+  }
+
+  /* ===========================================================
+     CASE B specific tweaks (compact / business)
+     =========================================================== */
+  .case-b .post .media{aspect-ratio:5/4}
+  .case-b .ig-actions{padding:8px 14px 2px;gap:12px}
+  .case-b .ig-actions .left{font-size:19px;gap:12px}
+  .case-b .ig-actions .right{font-size:18px}
+  .case-b .ig-meta-line{
+    display:flex;align-items:center;gap:10px;
+    padding:0 14px 6px;font-size:11.5px;color:var(--muted);
+  }
+  .case-b .ig-meta-line span i{margin-right:3px;color:var(--muted)}
+  .case-b .ig-meta-line .sep{opacity:.5}
+  .case-b .ig-caption{padding:2px 14px 4px;font-size:13px}
+  .case-b .ig-date{padding:0 14px 12px}
+
+  /* ===========================================================
+     CASE C specific tweaks (minimal vertical)
+     =========================================================== */
+  .case-c .post{margin-bottom:22px}
+  .case-c .post .media{aspect-ratio:1/1;background:#fff}
+  .case-c .ig-actions{padding:12px 16px 2px;gap:18px}
+  .case-c .ig-actions .left{font-size:20px;gap:18px}
+  .case-c .ig-actions .right{font-size:20px}
+  .case-c .filename{
+    padding:8px 16px 2px;font-size:15px;font-weight:700;color:var(--primary);
+  }
+  .case-c .ig-caption{font-size:13px;color:var(--muted);padding:2px 16px 4px}
+  .case-c .ig-comments{padding:2px 16px}
+
+  /* user labels */
+  .legend{
+    margin-top:16px;font-size:12px;color:var(--muted);
+    text-align:center;max-width:340px;line-height:1.6;
+  }
+  .legend b{color:var(--text);font-weight:700}
+
+  /* ===========================================================
+     MOBILE: drop the phone frame, fill the screen
+     =========================================================== */
+  @media (max-width:760px){
+    body{padding:20px 0 60px;background:#f6f9fc}
+    .page-head{padding:0 20px;margin-bottom:24px}
+    .page-head h1{font-size:22px}
+    .page-head p{font-size:13px}
+    .grid{gap:0;padding:0}
+    .case{margin-bottom:0;border-top:14px solid #e3e8ef;padding-top:24px}
+    .case:first-child{border-top:0;padding-top:0}
+    .case-title{font-size:17px;padding:0 20px}
+    .case-tag{margin-bottom:8px}
+    .case-desc{padding:0 20px;margin-bottom:14px}
+    .phone{
+      width:100%;max-width:100%;
+      border-radius:0;border:0;box-shadow:none;
+    }
+    .phone-bar{display:none}     /* 実機のステータスバーがあるので非表示 */
+    .bottom-nav{position:sticky;bottom:0}
+    .legend{padding:14px 20px 0;max-width:100%}
+  }
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <div class="eyebrow">FILE FEED · INSTAGRAM-STYLE</div>
+  <h1>ファイル一覧を「Instagram風」に</h1>
+  <p>大きい画像・絵文字風アクション・コメントを軸に、3パターンを比較できる形でモックしました。同じ3ファイルを各案で並べているので、見比べてからベースを選んでください。</p>
+</header>
+
+<div class="grid">
+
+  <!-- ==================== CASE A ==================== -->
+  <section class="case case-a">
+    <div class="case-title">A. 純Instagram風</div>
+    <div class="case-tag">FULL · LARGE IMAGE</div>
+    <div class="case-desc">
+      <b>そのままInstagram</b>。正方形の大きい画像、ハート/💬/✉️/🔖のアイコン列、いいね数、説明文、コメント2件プレビュー、日付。
+      <br>視覚インパクト最大。1スクロールで見られる件数は少ない。
+    </div>
+
+    <div class="phone">
+      <div class="phone-bar">
+        <span class="done">完了</span>
+        <span class="url">space-apps.pages.dev</span>
+        <span class="actions"><i class="fa-solid fa-desktop"></i><i class="fa-solid fa-arrows-rotate"></i></span>
+      </div>
+      <div class="app-top">
+        <i class="fa-solid fa-bars ham"></i>
+        <div class="brand">ホーム</div>
+        <div class="search"><i class="fa-solid fa-magnifying-glass"></i> ファイル：</div>
+        <i class="fa-regular fa-bell bell"></i>
+        <div class="upload"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      </div>
+
+      <div class="section-head">
+        <div><span class="title">すべてのファイル</span><span class="count">22件</span></div>
+        <div class="right">
+          <div class="sort">新しい順 ⌄</div>
+          <div class="toggle"><button>▦</button><button class="active">≡</button></div>
+        </div>
+      </div>
+
+      <div class="feed">
+
+        <!-- post 1 -->
+        <article class="post">
+          <div class="media">
+            <span class="ig-tag"><i class="fa-solid fa-tag" style="font-size:9px"></i> 溶接</span>
+            <div class="pdf-thumb"></div>
+            <span class="ig-size">631.7 KB</span>
+          </div>
+          <div class="ig-actions">
+            <div class="left">
+              <i class="fa-regular fa-heart"></i>
+              <i class="fa-regular fa-comment"></i>
+              <i class="fa-regular fa-paper-plane"></i>
+            </div>
+            <div class="right"><i class="fa-regular fa-bookmark"></i></div>
+          </div>
+          <div class="ig-likes">いいね 12 件</div>
+          <div class="ig-caption"><b>fl.php.pdf</b>このファイルは、溶接工程に関する情報を含むPDF文書です… <span class="more">続きを読む</span></div>
+          <div class="ig-comments">
+            <div class="row"><b>tanaka</b> 寸法の追記版あります？</div>
+            <div class="row"><b>sato</b> こちら確認しました 👍</div>
+            <div class="row" style="margin-top:4px">コメント22件をすべて見る</div>
+          </div>
+          <div class="ig-date">2026年5月30日</div>
+          <div class="ig-input">
+            <div class="avatar"></div>
+            <input placeholder="コメントを追加…">
+            <span class="send">投稿</span>
+          </div>
+        </article>
+
+        <!-- post 2 -->
+        <article class="post">
+          <div class="media">
+            <span class="ig-tag"><i class="fa-solid fa-tag" style="font-size:9px"></i> 図面</span>
+            <div class="drawing-thumb"></div>
+            <span class="ig-size">128.9 KB</span>
+          </div>
+          <div class="ig-actions">
+            <div class="left">
+              <i class="fa-solid fa-heart liked"></i>
+              <i class="fa-regular fa-comment"></i>
+              <i class="fa-regular fa-paper-plane"></i>
+            </div>
+            <div class="right"><i class="fa-solid fa-bookmark" style="color:var(--accent)"></i></div>
+          </div>
+          <div class="ig-likes">いいね 3 件</div>
+          <div class="ig-caption"><b>UTSK3243-02A__A1200.pdf</b>このファイルは、製品コード「UTSK3243-02A」および… <span class="more">続きを読む</span></div>
+          <div class="ig-comments">
+            <div class="row">コメント0件 — 最初のコメントを書く</div>
+          </div>
+          <div class="ig-date">2026年5月30日</div>
+        </article>
+
+      </div>
+
+      <div class="bottom-nav">
+        <a class="active"><i class="fa-solid fa-house"></i>ホーム</a>
+        <a><i class="fa-regular fa-heart"></i>いいね</a>
+        <div class="fab"><i class="fa-solid fa-plus"></i></div>
+        <a><i class="fa-solid fa-tags"></i>タグ</a>
+        <a><i class="fa-solid fa-diagram-project"></i>頭脳</a>
+      </div>
+    </div>
+
+    <div class="legend">
+      ◎ 視覚効果が一番強い<br>
+      △ 縦が伸びるので1画面で見られるのは <b>1〜1.5件</b> 程度。スクロール量は増える。
+    </div>
+  </section>
+
+  <!-- ==================== CASE B ==================== -->
+  <section class="case case-b">
+    <div class="case-title">B. 業務寄りハイブリッド</div>
+    <div class="case-tag">BALANCED · INFO-DENSE</div>
+    <div class="case-desc">
+      <b>Instagram風 × 業務情報</b>。画像は5:4とやや低め、アイコン行は小さめに。
+      サイズ/閲覧数/日付を1行アイコン列にまとめ、コメントは最新1件のみ。
+      <br>「映え」と「業務効率」のバランス案。
+    </div>
+
+    <div class="phone">
+      <div class="phone-bar">
+        <span class="done">完了</span>
+        <span class="url">space-apps.pages.dev</span>
+        <span class="actions"><i class="fa-solid fa-desktop"></i><i class="fa-solid fa-arrows-rotate"></i></span>
+      </div>
+      <div class="app-top">
+        <i class="fa-solid fa-bars ham"></i>
+        <div class="brand">ホーム</div>
+        <div class="search"><i class="fa-solid fa-magnifying-glass"></i> ファイル：</div>
+        <i class="fa-regular fa-bell bell"></i>
+        <div class="upload"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      </div>
+
+      <div class="section-head">
+        <div><span class="title">すべてのファイル</span><span class="count">22件</span></div>
+        <div class="right">
+          <div class="sort">新しい順 ⌄</div>
+          <div class="toggle"><button>▦</button><button class="active">≡</button></div>
+        </div>
+      </div>
+
+      <div class="feed">
+
+        <!-- post 1 -->
+        <article class="post">
+          <div class="media">
+            <span class="ig-tag"><i class="fa-solid fa-tag" style="font-size:9px"></i> 溶接</span>
+            <div class="pdf-thumb"></div>
+            <span class="ig-size">631.7 KB</span>
+          </div>
+          <div class="ig-actions">
+            <div class="left">
+              <i class="fa-regular fa-heart"></i>
+              <i class="fa-regular fa-comment"></i>
+              <i class="fa-regular fa-paper-plane"></i>
+              <i class="fa-solid fa-download" style="font-size:18px"></i>
+            </div>
+            <div class="right"><i class="fa-regular fa-bookmark"></i></div>
+          </div>
+          <div class="ig-meta-line">
+            <span><i class="fa-regular fa-heart"></i> 12</span>
+            <span class="sep">·</span>
+            <span><i class="fa-regular fa-eye"></i> 28</span>
+            <span class="sep">·</span>
+            <span><i class="fa-regular fa-comment"></i> 22</span>
+            <span style="margin-left:auto"><i class="fa-regular fa-clock"></i> 2026/05/30</span>
+          </div>
+          <div class="ig-caption"><b>fl.php.pdf</b><br>溶接工程に関する情報を含むPDF文書 <span class="more">…続き</span></div>
+          <div class="ig-chips"><span>溶接</span><span>工程表</span></div>
+          <div class="ig-comments">
+            <div class="row"><b>tanaka</b> 寸法の追記版あります？</div>
+            <div class="row" style="margin-top:2px;font-size:11.5px">他に21件のコメント</div>
+          </div>
+        </article>
+
+        <!-- post 2 -->
+        <article class="post">
+          <div class="media">
+            <span class="ig-tag"><i class="fa-solid fa-tag" style="font-size:9px"></i> 図面</span>
+            <div class="drawing-thumb"></div>
+            <span class="ig-size">128.9 KB</span>
+          </div>
+          <div class="ig-actions">
+            <div class="left">
+              <i class="fa-solid fa-heart liked"></i>
+              <i class="fa-regular fa-comment"></i>
+              <i class="fa-regular fa-paper-plane"></i>
+              <i class="fa-solid fa-download" style="font-size:18px"></i>
+            </div>
+            <div class="right"><i class="fa-regular fa-bookmark"></i></div>
+          </div>
+          <div class="ig-meta-line">
+            <span><i class="fa-solid fa-heart" style="color:var(--red)"></i> 3</span>
+            <span class="sep">·</span>
+            <span><i class="fa-regular fa-eye"></i> 14</span>
+            <span class="sep">·</span>
+            <span><i class="fa-regular fa-comment"></i> 0</span>
+            <span style="margin-left:auto"><i class="fa-regular fa-clock"></i> 2026/05/30</span>
+          </div>
+          <div class="ig-caption"><b>UTSK3243-02A__A1200.pdf</b><br>製品コード「UTSK3243-02A」関連の図面 <span class="more">…続き</span></div>
+          <div class="ig-chips"><span>図面</span><span>UTSK3243</span></div>
+        </article>
+
+      </div>
+
+      <div class="bottom-nav">
+        <a class="active"><i class="fa-solid fa-house"></i>ホーム</a>
+        <a><i class="fa-regular fa-heart"></i>いいね</a>
+        <div class="fab"><i class="fa-solid fa-plus"></i></div>
+        <a><i class="fa-solid fa-tags"></i>タグ</a>
+        <a><i class="fa-solid fa-diagram-project"></i>頭脳</a>
+      </div>
+    </div>
+
+    <div class="legend">
+      ◎ 1スクロールで <b>2件</b> 見られる。業務情報（サイズ/閲覧/コメント数）が常に1行で出る。<br>
+      △ 純Instagram感はAより薄め。
+    </div>
+  </section>
+
+  <!-- ==================== CASE C ==================== -->
+  <section class="case case-c">
+    <div class="case-title">C. ミニマル・ジャーナル</div>
+    <div class="case-tag">CLEAN · TEXT-FIRST</div>
+    <div class="case-desc">
+      <b>余白多めの静かなフィード</b>。画像→ファイル名（大）→アクション→説明1行→コメント1件。
+      タグや件数は最小限に隠す（タップで展開）。
+      <br>製造現場の硬めの雰囲気と相性◎。
+    </div>
+
+    <div class="phone">
+      <div class="phone-bar">
+        <span class="done">完了</span>
+        <span class="url">space-apps.pages.dev</span>
+        <span class="actions"><i class="fa-solid fa-desktop"></i><i class="fa-solid fa-arrows-rotate"></i></span>
+      </div>
+      <div class="app-top">
+        <i class="fa-solid fa-bars ham"></i>
+        <div class="brand">ホーム</div>
+        <div class="search"><i class="fa-solid fa-magnifying-glass"></i> ファイル：</div>
+        <i class="fa-regular fa-bell bell"></i>
+        <div class="upload"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      </div>
+
+      <div class="section-head">
+        <div><span class="title">すべてのファイル</span><span class="count">22件</span></div>
+        <div class="right">
+          <div class="sort">新しい順 ⌄</div>
+          <div class="toggle"><button>▦</button><button class="active">≡</button></div>
+        </div>
+      </div>
+
+      <div class="feed">
+
+        <!-- post 1 -->
+        <article class="post">
+          <div class="media">
+            <div class="pdf-thumb"></div>
+          </div>
+          <div class="filename">fl.php.pdf</div>
+          <div class="ig-caption">溶接工程に関する情報を含むPDF文書</div>
+          <div class="ig-actions">
+            <div class="left">
+              <i class="fa-regular fa-heart"></i>
+              <i class="fa-regular fa-comment"></i>
+              <i class="fa-regular fa-paper-plane"></i>
+            </div>
+            <div class="right"><i class="fa-solid fa-ellipsis"></i></div>
+          </div>
+          <div class="ig-comments">
+            <div class="row"><b>tanaka</b> 寸法の追記版あります？</div>
+          </div>
+          <div class="ig-date">631.7 KB · 5月30日</div>
+        </article>
+
+        <!-- post 2 -->
+        <article class="post">
+          <div class="media">
+            <div class="drawing-thumb"></div>
+          </div>
+          <div class="filename">UTSK3243-02A__A1200.pdf</div>
+          <div class="ig-caption">製品コード「UTSK3243-02A」関連の図面</div>
+          <div class="ig-actions">
+            <div class="left">
+              <i class="fa-solid fa-heart liked"></i>
+              <i class="fa-regular fa-comment"></i>
+              <i class="fa-regular fa-paper-plane"></i>
+            </div>
+            <div class="right"><i class="fa-solid fa-ellipsis"></i></div>
+          </div>
+          <div class="ig-date">128.9 KB · 5月30日</div>
+        </article>
+
+        <!-- post 3 -->
+        <article class="post">
+          <div class="media">
+            <div class="drawing-thumb"></div>
+          </div>
+          <div class="filename">異形棒鋼加工品 図面 (1).pdf</div>
+          <div class="ig-caption">異形棒鋼を加工した製品の図面</div>
+          <div class="ig-actions">
+            <div class="left">
+              <i class="fa-regular fa-heart"></i>
+              <i class="fa-regular fa-comment"></i>
+              <i class="fa-regular fa-paper-plane"></i>
+            </div>
+            <div class="right"><i class="fa-solid fa-ellipsis"></i></div>
+          </div>
+          <div class="ig-date">771.4 KB · 5月30日</div>
+        </article>
+
+      </div>
+
+      <div class="bottom-nav">
+        <a class="active"><i class="fa-solid fa-house"></i>ホーム</a>
+        <a><i class="fa-regular fa-heart"></i>いいね</a>
+        <div class="fab"><i class="fa-solid fa-plus"></i></div>
+        <a><i class="fa-solid fa-tags"></i>タグ</a>
+        <a><i class="fa-solid fa-diagram-project"></i>頭脳</a>
+      </div>
+    </div>
+
+    <div class="legend">
+      ◎ 1スクロールで <b>2.5〜3件</b>。落ち着いた印象。<br>
+      △ ハデさはAより控えめ、SNSというより「ノート」っぽい。
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>
