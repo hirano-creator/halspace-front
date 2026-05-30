@@ -971,9 +971,11 @@ function initTools() {
 
   document.querySelectorAll('.tool-color-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (!btn.dataset.color) return;   // customColorBtn は別ハンドラ
       strokeColor = btn.dataset.color;
       document.querySelectorAll('.tool-color-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      applyColorToSelection(strokeColor);
     });
   });
 
@@ -2074,7 +2076,20 @@ function initCustomColor() {
     btn.textContent = '';
     document.querySelectorAll('.tool-color-btn[data-color]').forEach(b => b.classList.remove('active'));
     btn.style.border = '2.5px solid #1A1A2E';
+    applyColorToSelection(col);
   });
+}
+
+/* 選択中の注釈の色を即時更新（テキスト・線・矢印・矩形・楕円・ペン） */
+function applyColorToSelection(col) {
+  if (selectedIdx < 0) return;
+  const a = annotations[selectedIdx];
+  if (!a) return;
+  if (!['text','line','arrow','rect','ellipse','pen'].includes(a.type)) return;
+  if (a.color === col) return;
+  pushHistory();
+  a.color = col;
+  redrawAnnotations();
 }
 
 /* ────── undo / clear ────── */
