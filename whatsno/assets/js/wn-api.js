@@ -514,8 +514,8 @@ function wnFormatDate(iso) {
 }
 
 function wnFileIcon(fileName, mimeType = '') {
-  if (mimeType.startsWith('image/')) return { icon: 'fa-file-image', cls: 'file-icon-img' };
-  if (mimeType.startsWith('video/')) return { icon: 'fa-file-video', cls: 'file-icon-img' };
+  /* 拡張子最優先（DB の mime_type が誤登録されていても正しいアイコンを返す）。
+     map に該当しなければ mime_type からのフォールバックを使う */
   const ext = (fileName || '').split('.').pop().toLowerCase();
   const map = {
     pdf:  { icon: 'fa-file-pdf',    cls: 'file-icon-pdf' },
@@ -544,7 +544,11 @@ function wnFileIcon(fileName, mimeType = '') {
     zip:  { icon: 'fa-file-zipper', cls: 'file-icon-zip' },
     rar:  { icon: 'fa-file-zipper', cls: 'file-icon-zip' },
   };
-  return map[ext] ?? { icon: 'fa-file', cls: 'file-icon-other' };
+  if (map[ext]) return map[ext];
+  /* 拡張子マップに無ければ mime_type からフォールバック */
+  if (mimeType.startsWith('image/')) return { icon: 'fa-file-image', cls: 'file-icon-img' };
+  if (mimeType.startsWith('video/')) return { icon: 'fa-file-video', cls: 'file-icon-img' };
+  return { icon: 'fa-file', cls: 'file-icon-other' };
 }
 
 /* ── Knowl ── */
