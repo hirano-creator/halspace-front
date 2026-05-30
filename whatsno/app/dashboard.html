@@ -19,6 +19,35 @@
       .page-body > .card:not(#fileListCard) { margin-left: 8px !important; margin-right: 8px !important; }
       #fileListCard { border-radius: 0 !important; border-left: none !important; border-right: none !important; margin: 0 !important; }
       #fileGrid { padding: 6px !important; }
+
+      /* タグフィルターをボトムシート化（通常時は非表示） */
+      #tagFilterCard { display: none !important; }
+      body.tag-sheet-open #tagFilterCard {
+        display: block !important;
+        position: fixed;
+        left: 0; right: 0; bottom: 60px;
+        margin: 0 !important;
+        border-radius: 16px 16px 0 0;
+        max-height: 60vh;
+        overflow-y: auto;
+        z-index: 305;
+        box-shadow: 0 -8px 24px rgba(0,0,0,.18);
+        padding: 16px 18px !important;
+        animation: tagSheetSlideUp .22s ease-out;
+      }
+      body.tag-sheet-open #tagFilterCard .tag-sheet-header { display: flex !important; }
+      body.tag-sheet-open #tagSheetBackdrop { display: block; }
+    }
+    #tagSheetBackdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 299;
+    }
+    @keyframes tagSheetSlideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
     }
     @media (max-width: 480px) {
       .page-body { padding-top: 6px !important; padding-bottom: 68px !important; }
@@ -167,7 +196,15 @@
       </div>
 
       <!-- タグフィルター -->
-      <div class="card" style="margin-bottom:16px;padding:14px 20px;">
+      <div class="card" id="tagFilterCard" style="margin-bottom:16px;padding:14px 20px;">
+        <div class="tag-sheet-header" style="display:none;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <span style="font-size:15px;font-weight:700;color:var(--primary);">
+            <i class="fa-solid fa-tag"></i> タグで絞り込み
+          </span>
+          <button id="tagSheetClose" style="background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;padding:4px 8px;">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span style="font-size:13px;font-weight:700;color:var(--primary);flex-shrink:0;">
             <i class="fa-solid fa-tag"></i> タグ
@@ -297,8 +334,8 @@
     <div class="bottom-nav-item" id="bnUpload">
       <i class="fa-solid fa-plus bottom-nav-upload"></i>
     </div>
-    <div class="bottom-nav-item" id="bnRecent">
-      <i class="fa-solid fa-clock-rotate-left"></i><span>最近</span>
+    <div class="bottom-nav-item" id="bnTag">
+      <i class="fa-solid fa-tag"></i><span>タグ</span>
     </div>
     <a class="bottom-nav-item" href="brain.html" style="text-decoration:none;color:inherit;" id="bnBrain">
       <i class="fa-solid fa-circle-nodes"></i><span>頭脳</span>
@@ -427,6 +464,7 @@
 </div>
 
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div id="tagSheetBackdrop"></div>
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -445,17 +483,35 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('bnHome').addEventListener('click', () => {
     document.getElementById('navAll').click();
     setBottomActive('bnHome');
+    closeTagSheet();
   });
   document.getElementById('bnLiked').addEventListener('click', () => {
     document.getElementById('navLiked').click();
     setBottomActive('bnLiked');
+    closeTagSheet();
   });
-  document.getElementById('bnRecent').addEventListener('click', () => {
-    document.getElementById('navRecent').click();
-    setBottomActive('bnRecent');
+  document.getElementById('bnTag').addEventListener('click', () => {
+    toggleTagSheet();
   });
-  document.getElementById('bnUpload').addEventListener('click', () => openUploadModal());
+  document.getElementById('bnUpload').addEventListener('click', () => {
+    openUploadModal();
+    closeTagSheet();
+  });
+
+  document.getElementById('tagSheetBackdrop').addEventListener('click', closeTagSheet);
+  document.getElementById('tagSheetClose').addEventListener('click', closeTagSheet);
 });
+
+function toggleTagSheet() {
+  const open = document.body.classList.toggle('tag-sheet-open');
+  if (open) setBottomActive('bnTag');
+  else      setBottomActive('bnHome');
+}
+function closeTagSheet() {
+  if (document.body.classList.contains('tag-sheet-open')) {
+    document.body.classList.remove('tag-sheet-open');
+  }
+}
 
 function setBottomActive(id) {
   document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
