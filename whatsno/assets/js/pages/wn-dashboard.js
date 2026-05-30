@@ -160,6 +160,14 @@ function renderFiles() {
         btn.classList.toggle('liked', res.liked);
         btn.querySelector('i').className = `fa-${res.liked ? 'solid' : 'regular'} fa-heart`;
         btn.querySelector('span').textContent = res.count;
+
+        // IG-feed の場合、メタ行のいいね数も同期
+        const post = btn.closest('[data-file-id]');
+        const metaLike = post?.querySelector('.ig-post-meta .liked-count');
+        if (metaLike) {
+          metaLike.classList.toggle('is-liked', res.liked);
+          metaLike.innerHTML = `<i class="fa-${res.liked ? 'solid' : 'regular'} fa-heart"></i>${res.count}`;
+        }
       }
     });
   });
@@ -450,58 +458,105 @@ function fileRowHtml(f) {
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
                 || ext === 'dxf';
-  const iconContent = hasThumb
-    ? `<i class="fa-solid ${icon} ${cls}" id="thumb-icon-row-${f.id}" style="font-size:20px;"></i>`
-    : `<i class="fa-solid ${icon} ${cls}" style="font-size:20px;"></i>`;
+  const placeholderIcon = hasThumb
+    ? `<i class="fa-solid ${icon} ${cls}" id="thumb-icon-row-${f.id}"></i>`
+    : `<i class="fa-solid ${icon} ${cls}"></i>`;
+
   const aiDesc = f.ai_description ? h(f.ai_description) : '';
-  const approvalBadge = (() => {
-    const s = f.approval_status ?? 'none';
-    if (s === 'none') return '';
-    const b = wnApprovalBadge(s);
-    return `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;color:${b.color};background:${b.bg};">${b.label}</span>`;
+  const fnameSafe = h(f.file_name);
+
+  /* メイン表示タグ（最初の1件） */
+  const tagList = f.tags || [];
+  const headTag = tagList[0];
+  const headTagHtml = headTag
+    ? `<span class="ig-post-tag${headTag.source === 'ai' ? ' ai' : ''}">
+         <i class="fa-solid ${headTag.source === 'ai' ? 'fa-wand-magic-sparkles' : 'fa-tag'}"></i>${h(headTag.name)}
+       </span>`
+    : '';
+
+  /* 承認バッジ */
+  const apStatus = f.approval_status ?? 'none';
+  const apBadgeHtml = (() => {
+    if (apStatus === 'none') return '';
+    const b = wnApprovalBadge(apStatus);
+    return `<span class="ig-post-approval" style="color:${b.color};background:${b.bg};">${b.label}</span>`;
   })();
+
+  const versionHtml = f.version > 1
+    ? `<span class="ig-post-version">v${f.version}</span>`
+    : '';
+
+  /* タグチップ（先頭タグはメディア上に既に出してるので2件目以降） */
+  const restTags = tagList.slice(1, 5);
+  const chipsHtml = restTags.length
+    ? `<div class="ig-post-chips">${restTags.map(t =>
+        `<span class="tag${t.source === 'ai' ? ' tag-ai' : ''}">${h(t.name)}</span>`
+      ).join('')}</div>`
+    : '';
+
+  const likeCount = f.like_count ?? 0;
+  const viewCount = f.view_count ?? 0;
+  const cmtCount  = f.comment_count ?? 0;
+
   return `
-  <div class="file-row" data-file-id="${f.id}">
-    <div class="file-row-thumb">${iconContent}</div>
-    <div class="file-row-name">
-      <div class="file-row-filename">${h(f.file_name)}</div>
-      ${aiDesc ? `<div class="file-row-ai-desc">${aiDesc}</div>` : ''}
-      <div class="file-row-tags">${(f.tags || []).slice(0, 5).map(t =>
-        `<span class="tag${t.source === 'ai' ? ' tag-ai' : ''}" style="font-size:9px;padding:1px 5px;line-height:1.4;">${h(t.name)}</span>`
-      ).join('')}</div>
-      <div class="file-row-meta">
-        ${f.version > 1 ? `<span class="file-card-version">v${f.version}</span>` : ''}
-        ${approvalBadge}
-        <span class="file-row-size">${wnFormatSize(f.file_size)}</span>
-        <span class="file-row-date">${wnFormatDate(f.created_at)}</span>
-        <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px;" title="閲覧数">
-          <i class="fa-solid fa-eye" style="font-size:10px;"></i>${f.view_count ?? 0}
-        </span>
-        <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px;" title="コメント数">
-          <i class="fa-regular fa-comment" style="font-size:10px;"></i>${f.comment_count ?? 0}
-        </span>
+  <article class="ig-post" data-file-id="${f.id}">
+    <div class="file-row-thumb">
+      ${headTagHtml}
+      ${apBadgeHtml}
+      ${placeholderIcon}
+      ${versionHtml}
+      <span class="ig-post-size"><i class="fa-solid fa-file"></i>${wnFormatSize(f.file_size)}</span>
+    </div>
+
+    <div class="ig-post-actions">
+      <div class="left">
         <button class="like-btn${f.liked ? ' liked' : ''}" data-id="${f.id}" title="いいね">
           <i class="fa-${f.liked ? 'solid' : 'regular'} fa-heart"></i>
-          <span>${f.like_count ?? 0}</span>
+          <span>${likeCount}</span>
         </button>
-        <button class="btn btn-ghost btn-sm" title="メールで共有" style="color:var(--accent);"
-                onclick="event.stopPropagation();openEmailModal(${f.id},'${h(f.file_name)}')">
-          <i class="fa-solid fa-envelope"></i>
+        <button class="file-action-btn" title="コメント"
+                onclick="event.stopPropagation();document.getElementById('rci-${f.id}')?.focus();">
+          <i class="fa-regular fa-comment"></i>
         </button>
-        <button class="btn btn-ghost btn-sm" title="削除" style="color:var(--red);"
-                onclick="event.stopPropagation();confirmDeleteFile(${f.id},'${h(f.file_name)}')">
-          <i class="fa-solid fa-trash"></i>
+        <button class="file-action-btn" title="メールで共有"
+                onclick="event.stopPropagation();openEmailModal(${f.id},'${fnameSafe}')">
+          <i class="fa-regular fa-paper-plane"></i>
         </button>
-        <button class="btn btn-ghost btn-sm" title="ダウンロード"
+        <button class="file-action-btn" title="ダウンロード"
                 onclick="event.stopPropagation();wnDownload(${f.id})">
           <i class="fa-solid fa-download"></i>
         </button>
       </div>
+      <div class="right">
+        <button class="file-action-btn file-action-delete" title="削除"
+                onclick="event.stopPropagation();confirmDeleteFile(${f.id},'${fnameSafe}')">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
     </div>
+
+    <div class="ig-post-meta">
+      <span class="liked-count${f.liked ? ' is-liked' : ''}">
+        <i class="fa-${f.liked ? 'solid' : 'regular'} fa-heart"></i>${likeCount}
+      </span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-eye"></i>${viewCount}</span>
+      <span class="sep">·</span>
+      <span><i class="fa-regular fa-comment"></i>${cmtCount}</span>
+      <span class="date"><i class="fa-regular fa-clock"></i>${wnFormatDate(f.created_at)}</span>
+    </div>
+
+    <div class="ig-post-caption">
+      <span class="filename">${fnameSafe}</span>
+      ${aiDesc ? `<span class="desc">${aiDesc}</span>` : ''}
+    </div>
+
+    ${chipsHtml}
+
     <div class="file-row-comments" id="row-comments-${f.id}">
       <div class="file-row-comments-loading"><i class="fa-solid fa-spinner fa-spin" style="font-size:11px;"></i></div>
     </div>
-  </div>`;
+  </article>`;
 }
 
 function renderTagFilter() {
