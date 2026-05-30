@@ -270,7 +270,7 @@
       padding: 12px 16px 14px;
       flex-shrink: 0;
       background: #FAFAFA;
-      max-height: 38vh;
+      max-height: min(38vh, calc(var(--app-height, 100dvh) * 0.35));
       overflow-y: auto;
     }
     .actions-head {
@@ -1210,6 +1210,28 @@ function updateAppHeight() {
 updateAppHeight();
 window.addEventListener('resize', updateAppHeight);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', updateAppHeight);
+
+/* キーボード表示時に入力欄をスクロールして見えるようにする */
+function scrollFocusedIntoView() {
+  const el = document.activeElement;
+  if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
+  const paneScroll = el.closest('.pane-scroll');
+  if (!paneScroll) return;
+  const elRect = el.getBoundingClientRect();
+  const vvHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  if (elRect.top < 60 || elRect.bottom > vvHeight - 10) {
+    const offset = elRect.top - vvHeight / 3;
+    paneScroll.scrollTop += offset;
+  }
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => setTimeout(scrollFocusedIntoView, 100));
+}
+document.addEventListener('focusin', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    setTimeout(scrollFocusedIntoView, 400);
+  }
+});
 
 /* スマホ用タブ切替 */
 function switchMobileTab(tab) {
