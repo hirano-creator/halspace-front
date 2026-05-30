@@ -1212,26 +1212,26 @@ window.addEventListener('resize', updateAppHeight);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', updateAppHeight);
 
 /* キーボード表示時に入力欄をスクロールして見えるようにする */
-function scrollFocusedIntoView() {
-  const el = document.activeElement;
-  if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
-  const paneScroll = el.closest('.pane-scroll');
-  if (!paneScroll) return;
-  const elRect = el.getBoundingClientRect();
-  const vvHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  if (elRect.top < 60 || elRect.bottom > vvHeight - 10) {
-    const offset = elRect.top - vvHeight / 3;
-    paneScroll.scrollTop += offset;
-  }
-}
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', () => setTimeout(scrollFocusedIntoView, 100));
+  window.visualViewport.addEventListener('resize', () => {
+    const el = document.activeElement;
+    if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
+    const paneScroll = el.closest('.pane-scroll');
+    if (!paneScroll) return;
+    setTimeout(() => {
+      const paneRect  = paneScroll.getBoundingClientRect();
+      const elRect    = el.getBoundingClientRect();
+      const elTopInPane = elRect.top - paneRect.top + paneScroll.scrollTop;
+      const margin = 16;
+      const visibleH = paneRect.height;
+      if (elRect.top < paneRect.top + margin) {
+        paneScroll.scrollTop = elTopInPane - margin;
+      } else if (elRect.bottom > paneRect.bottom - margin) {
+        paneScroll.scrollTop = elTopInPane - visibleH + elRect.height + margin;
+      }
+    }, 80);
+  });
 }
-document.addEventListener('focusin', e => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-    setTimeout(scrollFocusedIntoView, 400);
-  }
-});
 
 /* スマホ用タブ切替 */
 function switchMobileTab(tab) {
