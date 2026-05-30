@@ -279,6 +279,9 @@ async function showPreviewMode(markdown) {
   preview.style.display = '';
   editArea.style.display = 'none';
 
+  // メタ情報段落（日時/場所/参加者/作成者）を2行レイアウトに整形
+  reformatMetaParagraph(preview);
+
   // ボタンを表示
   if (editBtn) editBtn.style.display = 'inline-flex';
   const clearBtn = document.getElementById('clearPreviewBtn');
@@ -681,6 +684,45 @@ async function resolveImageUrl(id) {
   const url = await mlGetAttachmentUrl(mid, id);
   if (url) imageUrlCache[id] = url;
   return url || null;
+}
+
+/* メタ情報段落を2行レイアウトに整形 */
+function reformatMetaParagraph(previewEl) {
+  const dateVal      = document.getElementById('meetingDate')?.value || '';
+  const timeVal      = document.getElementById('meetingTime')?.value || '';
+  const locationVal  = (document.getElementById('meetingLocation')?.value || '').trim();
+  const attendeesVal = (document.getElementById('attendeesInput')?.value || '').trim();
+  const authorVal    = (document.getElementById('authorNameInput')?.value || '').trim();
+
+  // メタ情報を持つ段落を探す（日時 or 参加者 を含む最初の<p>）
+  const metaP = [...previewEl.querySelectorAll('p')].find(p =>
+    p.textContent.includes('日時') || p.textContent.includes('参加者')
+  );
+  if (!metaP) return;
+
+  let dateStr = '';
+  if (dateVal) {
+    const d = new Date(dateVal);
+    const wdays = ['日','月','火','水','木','金','土'];
+    dateStr = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${wdays[d.getDay()]}）`;
+    if (timeVal) dateStr += '&nbsp;&nbsp;' + timeVal;
+  }
+
+  const row1 = [
+    dateStr      ? `<span><strong>日時：</strong>${dateStr}</span>` : '',
+    locationVal  ? `<span><strong>場所：</strong>${locationVal}</span>` : '',
+  ].filter(Boolean).join('');
+
+  const row2 = [
+    attendeesVal ? `<span><strong>参加者：</strong>${attendeesVal}</span>` : '',
+    authorVal    ? `<span><strong>作成者：</strong>${authorVal}</span>` : '',
+  ].filter(Boolean).join('');
+
+  const div = document.createElement('div');
+  div.className = 'preview-meta';
+  if (row1) div.innerHTML += `<div class="preview-meta-row">${row1}</div>`;
+  if (row2) div.innerHTML += `<div class="preview-meta-row">${row2}</div>`;
+  metaP.replaceWith(div);
 }
 
 // Markdown中の mlimg://ID を署名付きURLに置換してからparseする

@@ -531,6 +531,22 @@
     .preview-area .summary-block { background: #EFF6FF; border-left: 3px solid #3B82F6; padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 6px 0 14px; font-size: 13px; line-height: 1.8; }
     .preview-area h1 { font-size: 1.1em; font-weight: 900; margin: 0 0 12px; }
 
+    /* ── プレビュー：メタ情報2行レイアウト ── */
+    .preview-meta {
+      margin: 6px 0 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13.5px;
+      line-height: 1.7;
+    }
+    .preview-meta-row {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+    .preview-meta-row span { flex-shrink: 0; }
+
     /* ── プレビュー内画像 ── */
     .preview-area img {
       max-width: 100%;
