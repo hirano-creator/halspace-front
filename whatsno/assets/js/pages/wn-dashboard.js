@@ -518,11 +518,11 @@ function fileRowHtmlClassic(f) {
           <i class="fa-${f.liked ? 'solid' : 'regular'} fa-heart"></i>
           <span>${f.like_count ?? 0}</span>
         </button>
-        <button class="btn btn-ghost btn-sm" title="メールで共有" style="color:var(--accent);"
+        <button class="btn btn-ghost btn-sm" title="メールで共有"
                 onclick="event.stopPropagation();openEmailModal(${f.id},'${fnameSafe}')">
           <i class="fa-solid fa-envelope"></i>
         </button>
-        <button class="btn btn-ghost btn-sm" title="削除" style="color:var(--red);"
+        <button class="btn btn-ghost btn-sm" title="削除"
                 onclick="event.stopPropagation();confirmDeleteFile(${f.id},'${fnameSafe}')">
           <i class="fa-solid fa-trash"></i>
         </button>

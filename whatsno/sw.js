@@ -1,13 +1,13 @@
 'use strict';
 /* What'sNo Service Worker — /whatsno/sw.js */
 
-const CACHE_NAME = 'whatsno-v12';
+const CACHE_NAME = 'whatsno-v13';
 const SHELL_URLS = [
   '/whatsno/app/dashboard.html',
   '/whatsno/app/file-detail.html',
   '/whatsno/app/admin.html',
   '/whatsno/app/diff.html',
-  '/whatsno/assets/css/wn-app.css?v=20260530d',
+  '/whatsno/assets/css/wn-app.css?v=20260530e',
   '/whatsno/assets/js/wn-api.js',
   '/whatsno/assets/js/pages/wn-dashboard.js',
   '/whatsno/assets/js/pages/wn-file-detail.js',

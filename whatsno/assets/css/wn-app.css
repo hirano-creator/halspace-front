@@ -792,8 +792,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   color: var(--muted);
   transition: background var(--trans), color var(--trans);
 }
-.file-action-btn:hover { background: var(--bg); color: var(--accent); }
-.file-action-delete:hover { color: var(--red) !important; }
+.file-action-btn:hover { background: var(--bg); }
 
 /* =====================
    ファイルリスト表示
@@ -2283,7 +2282,6 @@ tbody tr:last-child { border-bottom: none; }
 .ig-post-actions .like-btn.liked i { color: var(--red); }
 .ig-post-actions .like-btn:not(.liked) i { color: var(--primary); }
 .ig-post-actions .right .file-action-btn { font-size: 18px; padding: 6px; margin: -6px; }
-.ig-post-actions .right .file-action-delete { color: var(--red); }
 
 /* === メタ行 === */
 .ig-post-meta {
