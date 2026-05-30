@@ -786,32 +786,32 @@
       }
 
       /* フォーム項目をスマホで見やすく */
-      .meta-row-compact { gap: 8px; margin-bottom: 8px; }
+      .meta-row-compact { gap: 8px; margin-bottom: 10px; }
       .form-input {
-        padding: 9px 10px;
-        font-size: 14px;
-        border-radius: 8px;
-        min-height: 42px;
+        padding: 12px 14px;
+        font-size: 16px;   /* 16px未満だとiOSが自動ズームする */
+        border-radius: 10px;
+        min-height: 50px;
       }
 
       /* 音声・AI ボタンを大きく */
-      .action-row { gap: 8px; margin-bottom: 10px; }
+      .action-row { gap: 8px; margin-bottom: 12px; }
       .btn-voice-sm {
-        height: 46px;
-        padding: 0 16px;
-        font-size: 13.5px;
+        height: 50px;
+        padding: 0 18px;
+        font-size: 14px;
         border-radius: 10px;
       }
       .btn-ai-sm {
-        height: 46px;
-        font-size: 13.5px;
+        height: 50px;
+        font-size: 14px;
         border-radius: 10px;
       }
 
       /* メモテキストエリア */
       .memo-textarea {
-        min-height: 200px;
-        font-size: 15px;
+        min-height: 220px;
+        font-size: 16px;   /* 16px未満だとiOSが自動ズームする */
         border-radius: 10px;
         padding: 14px;
       }
@@ -823,14 +823,15 @@
         gap: 6px;
         width: 100%;
       }
+      .action-content-input { font-size: 16px; }
       .action-assignee-input,
       .action-due-input {
         width: 100%;
-        min-height: 38px;
-        font-size: 13px;
+        min-height: 44px;
+        font-size: 16px;   /* 16px未満だとiOSが自動ズームする */
       }
       .actions-wrap { padding: 12px 12px 14px; }
-      .btn-add-action { padding: 10px; font-size: 13px; min-height: 44px; }
+      .btn-add-action { padding: 10px; font-size: 14px; min-height: 48px; }
 
       /* プレビュー */
       .preview-area {
@@ -1202,34 +1203,37 @@ AI整形ボタンを押すと右側に議事録が生成されます。"></texta
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-/* ビューポート高さを CSS 変数で管理（100vh のアドレスバー問題回避） */
+/* ビューポート高さを CSS 変数で管理（アドレスバー問題回避、キーボードでは変えない） */
 function updateAppHeight() {
-  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const h = window.innerHeight;
   document.documentElement.style.setProperty('--app-height', h + 'px');
 }
 updateAppHeight();
 window.addEventListener('resize', updateAppHeight);
-if (window.visualViewport) window.visualViewport.addEventListener('resize', updateAppHeight);
 
-/* キーボード表示時に入力欄をスクロールして見えるようにする */
+/* キーボード対応: padding-bottom でスクロール域を確保し入力欄を表示 */
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', () => {
-    const el = document.activeElement;
-    if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
-    const paneScroll = el.closest('.pane-scroll');
-    if (!paneScroll) return;
-    setTimeout(() => {
-      const paneRect  = paneScroll.getBoundingClientRect();
-      const elRect    = el.getBoundingClientRect();
-      const elTopInPane = elRect.top - paneRect.top + paneScroll.scrollTop;
-      const margin = 16;
-      const visibleH = paneRect.height;
-      if (elRect.top < paneRect.top + margin) {
-        paneScroll.scrollTop = elTopInPane - margin;
-      } else if (elRect.bottom > paneRect.bottom - margin) {
-        paneScroll.scrollTop = elTopInPane - visibleH + elRect.height + margin;
-      }
-    }, 80);
+    const keyboardH = Math.max(0, window.innerHeight - window.visualViewport.height);
+    document.querySelectorAll('.pane-scroll').forEach(ps => {
+      ps.style.paddingBottom = keyboardH > 100 ? (keyboardH + 24) + 'px' : '';
+    });
+    if (keyboardH > 100) {
+      requestAnimationFrame(() => {
+        const el = document.activeElement;
+        if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
+        const paneScroll = el.closest('.pane-scroll');
+        if (!paneScroll) return;
+        const vvH       = window.visualViewport.height;
+        const psRect    = paneScroll.getBoundingClientRect();
+        const elRect    = el.getBoundingClientRect();
+        const elTopInPane  = elRect.top - psRect.top + paneScroll.scrollTop;
+        const visibleH     = vvH - psRect.top;   // キーボード上端までの高さ
+        const margin       = 24;
+        const target = elTopInPane + elRect.height + margin - visibleH;
+        if (target > paneScroll.scrollTop) paneScroll.scrollTop = target;
+      });
+    }
   });
 }
 
