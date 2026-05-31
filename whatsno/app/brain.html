@@ -9,6 +9,136 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="../assets/css/wn-app.css">
+  <style>
+    /* ── Knowl 学習方法ヘルプ ボタン ── */
+    .knowl-help-btn {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.32);
+      color: #fff;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    .knowl-help-btn:hover  { background: rgba(255,255,255,0.30); }
+    .knowl-help-btn:active { transform: scale(.96); }
+    .knowl-help-btn i      { font-size: 14px; }
+
+    /* ── モーダル ── */
+    .knowl-help-modal {
+      position: fixed; inset: 0;
+      background: rgba(15, 25, 40, 0.55);
+      backdrop-filter: blur(2px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      padding: 20px;
+    }
+    .knowl-help-modal.open { display: flex; }
+    .knowl-help-modal-card {
+      background: #fff;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 620px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+      overflow: hidden;
+      animation: knowlPopIn .18s ease-out;
+    }
+    @keyframes knowlPopIn {
+      from { opacity: 0; transform: translateY(10px) scale(.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .knowl-help-modal-header {
+      display: flex; align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, var(--accent) 0%, #2a5a8a 100%);
+      color: #fff;
+    }
+    .knowl-help-modal-header h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      flex: 1;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .knowl-help-modal-close {
+      background: rgba(255,255,255,0.18);
+      border: none;
+      color: #fff;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+    }
+    .knowl-help-modal-close:hover { background: rgba(255,255,255,0.32); }
+
+    .knowl-help-modal-body {
+      padding: 20px 24px 24px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--text);
+    }
+    .knowl-help-tip {
+      background: #f0f7ff;
+      border-left: 3px solid var(--accent);
+      padding: 12px 14px;
+      margin-bottom: 18px;
+      border-radius: 6px;
+    }
+    .knowl-help-tip strong i { color: #f5a623; margin-right: 4px; }
+
+    .knowl-help-body h4 {
+      margin: 16px 0 6px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .knowl-help-body ol,
+    .knowl-help-body ul {
+      margin: 0 0 14px 20px;
+      padding: 0;
+      color: var(--muted);
+    }
+    .knowl-help-body ul.no-bullet { list-style: none; margin-left: 4px; }
+    .knowl-help-body li { margin-bottom: 4px; }
+    .knowl-help-body .mark-ok  { color: #43a047; font-weight: 700; margin-right: 4px; }
+    .knowl-help-body .mark-mid { color: #f0a000; font-weight: 700; margin-right: 4px; }
+    .knowl-help-body .mark-ng  { color: #999;    font-weight: 700; margin-right: 4px; }
+    .knowl-help-body strong    { color: var(--text); }
+
+    .knowl-help-admin-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding: 8px 14px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .knowl-help-admin-link:hover { opacity: .9; }
+
+    @media (max-width: 480px) {
+      .knowl-help-btn-label { display: none; }
+      .knowl-help-modal-body { padding: 16px 18px 20px; }
+    }
+  </style>
 </head>
 <body>
 <div class="app-layout">
@@ -64,6 +194,11 @@
           <span class="brain-meter-icon"><i class="fa-solid fa-circle-nodes"></i></span>
           <span class="brain-meter-title">Knowl</span>
           <span class="brain-meter-rate" id="meterRate">—</span>
+          <button type="button" class="knowl-help-btn" id="knowlHelpBtn"
+                  title="Knowlに学習させる方法" aria-label="Knowlに学習させる方法">
+            <i class="fa-solid fa-circle-question"></i>
+            <span class="knowl-help-btn-label">学習方法</span>
+          </button>
         </div>
         <div class="brain-meter-bar-wrap">
           <div class="brain-meter-bar" id="meterBar" style="width:0%"></div>
@@ -149,12 +284,70 @@
   </div>
 </nav>
 
+<!-- Knowl 学習方法ヘルプモーダル -->
+<div class="knowl-help-modal" id="knowlHelpModal" role="dialog" aria-modal="true" aria-labelledby="knowlHelpTitle">
+  <div class="knowl-help-modal-card">
+    <div class="knowl-help-modal-header">
+      <h2 id="knowlHelpTitle">
+        <i class="fa-solid fa-circle-question"></i>
+        Knowlに学習させる方法
+      </h2>
+      <button type="button" class="knowl-help-modal-close" id="knowlHelpClose" aria-label="閉じる">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="knowl-help-modal-body knowl-help-body">
+
+      <div class="knowl-help-tip">
+        <strong><i class="fa-solid fa-lightbulb"></i>ポイント</strong><br>
+        PDFをアップロードしただけでは Knowl は学習しません。<br>
+        <strong>管理者画面 → タグ管理タブ → 「未生成ファイルに一括生成」</strong>ボタンを押す必要があります。
+      </div>
+
+      <h4>学習の流れ</h4>
+      <ol>
+        <li>ダッシュボードから PDF をアップロードする</li>
+        <li>管理者画面 → 「タグ管理」タブを開く</li>
+        <li>「<strong>未生成ファイルに一括生成</strong>」ボタンを押す</li>
+        <li>AI が PDF の本文を読み取り、要約を生成（ファイル数によって数分かかります）</li>
+        <li>このページ上部のメーターで「学習済み」カウントが増えていることを確認</li>
+      </ol>
+
+      <h4>対応ファイル</h4>
+      <ul class="no-bullet">
+        <li><span class="mark-ok">◯</span><strong>PDF</strong>（テキストが選択・コピーできるもの）</li>
+        <li><span class="mark-mid">△</span><strong>スキャン画像のみのPDF</strong> → 文字抽出できないため学習されません</li>
+        <li><span class="mark-ng">×</span><strong>PDF以外</strong>（画像・Office・CAD・動画など）→ 学習対象外</li>
+      </ul>
+
+      <h4>ボタンの使い分け</h4>
+      <ul>
+        <li><strong>未生成ファイルに一括生成</strong> — 通常はこちら。まだ要約のないファイルだけ処理</li>
+        <li><strong>全件再生成（上書き）</strong> — 既存の要約も含めて作り直す。要約の品質を上げたい時のみ</li>
+      </ul>
+
+      <h4>うまく学習されない時</h4>
+      <ul>
+        <li>アップロード直後はブラウザを再読込してから一括生成を実行してみる</li>
+        <li>PDFをブラウザで開いて<strong>文字選択ができるか</strong>確認。できないものは学習対象外です</li>
+        <li>ファイル数が多いと数分かかります。「生成中…」表示が消えるまで待機してください</li>
+        <li>「生成に失敗しました」と出る時は、ファイルが極端に大きい・破損している可能性</li>
+      </ul>
+
+      <a href="admin.html#tab-tags" class="knowl-help-admin-link" id="knowlHelpAdminLink" style="display:none;">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+        管理者画面を開く
+      </a>
+    </div>
+  </div>
+</div>
+
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="../../solid/assets/js/auth.js?v=6"></script>
 <script src="../assets/js/wn-api.js?v=9"></script>
-<script src="../assets/js/pages/wn-brain.js?v=1"></script>
+<script src="../assets/js/pages/wn-brain.js?v=2"></script>
 
 </body>
 </html>

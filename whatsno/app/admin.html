@@ -180,55 +180,6 @@
 
       <!-- タブ3: タグ管理 -->
       <div class="tab-panel" id="tab-tags">
-
-        <!-- Knowl 学習ヘルプ -->
-        <div class="card" id="knowlHelpCard" style="margin-bottom:16px;border-left:4px solid var(--accent);">
-          <div class="card-header" id="knowlHelpToggle" style="cursor:pointer;user-select:none;">
-            <span class="card-title">
-              <i class="fa-solid fa-circle-question" style="color:var(--accent);"></i>
-              Knowl（ナレッジ機能）に学習させる方法
-            </span>
-            <i class="fa-solid fa-chevron-up" id="knowlHelpChevron" style="color:var(--muted);transition:transform .2s;"></i>
-          </div>
-          <div id="knowlHelpBody" style="padding:16px 20px;font-size:13px;line-height:1.8;">
-
-            <div style="background:#f0f7ff;border-left:3px solid var(--accent);padding:10px 14px;margin-bottom:16px;border-radius:4px;color:var(--text);">
-              <strong><i class="fa-solid fa-lightbulb" style="color:#f5a623;"></i> ポイント</strong><br>
-              PDFをアップロードしただけでは Knowl は学習しません。<br>
-              下の「<strong>未生成ファイルに一括生成</strong>」ボタンを押して、AI要約を作る必要があります。
-            </div>
-
-            <h4 style="margin:14px 0 6px;font-size:14px;color:var(--text);font-weight:700;">学習の流れ</h4>
-            <ol style="margin:0 0 16px 20px;color:var(--muted);padding:0;">
-              <li>ダッシュボードから PDF をアップロードする</li>
-              <li>このページの「<strong>未生成ファイルに一括生成</strong>」ボタンを押す</li>
-              <li>AI が PDF 本文を読み取り、要約を生成（ファイル数によって数分かかります）</li>
-              <li>Knowl 画面上部のメーターで「学習済み」カウントが増えていることを確認</li>
-            </ol>
-
-            <h4 style="margin:14px 0 6px;font-size:14px;color:var(--text);font-weight:700;">対応ファイル</h4>
-            <ul style="margin:0 0 16px 20px;color:var(--muted);padding:0;list-style:none;">
-              <li style="margin-bottom:4px;"><span style="color:#43a047;font-weight:700;">◯</span> <strong>PDF</strong>（テキストが選択・コピーできるもの）</li>
-              <li style="margin-bottom:4px;"><span style="color:#f0a000;font-weight:700;">△</span> <strong>スキャン画像のみのPDF</strong> → 文字抽出できないため学習されません</li>
-              <li><span style="color:#999;font-weight:700;">×</span> <strong>PDF以外</strong>（画像・Office・CAD・動画など）→ 学習対象外</li>
-            </ul>
-
-            <h4 style="margin:14px 0 6px;font-size:14px;color:var(--text);font-weight:700;">ボタンの使い分け</h4>
-            <ul style="margin:0 0 16px 20px;color:var(--muted);padding:0;">
-              <li style="margin-bottom:4px;"><strong>未生成ファイルに一括生成</strong> — 通常はこちら。まだ要約のないファイルだけを処理します</li>
-              <li><strong>全件再生成（上書き）</strong> — 既存の要約も含めて作り直します。要約の品質を上げたい時だけ使用</li>
-            </ul>
-
-            <h4 style="margin:14px 0 6px;font-size:14px;color:var(--text);font-weight:700;">うまく学習されない時</h4>
-            <ul style="margin:0 0 0 20px;color:var(--muted);padding:0;">
-              <li style="margin-bottom:4px;">アップロード直後はブラウザを再読込してから一括生成を実行してみる</li>
-              <li style="margin-bottom:4px;">PDFをブラウザで開いて<strong>文字選択ができるか</strong>確認。できないものは学習対象外です</li>
-              <li style="margin-bottom:4px;">ファイル数が多いと数分かかります。「生成中…」表示が消えるまで待機してください</li>
-              <li>「生成に失敗しました」と出る時は、ファイルが極端に大きい・破損している可能性があります</li>
-            </ul>
-          </div>
-        </div>
-
         <!-- AI要約 一括生成 -->
         <div class="card" style="margin-bottom:16px;">
           <div class="card-header">
@@ -482,30 +433,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initTagModal();
   initGenDesc();
   initStorage();
-  initKnowlHelp();
 });
-
-/* ── Knowl 学習ヘルプ 折りたたみ ── */
-function initKnowlHelp() {
-  const toggle  = document.getElementById('knowlHelpToggle');
-  const body    = document.getElementById('knowlHelpBody');
-  const chevron = document.getElementById('knowlHelpChevron');
-  if (!toggle || !body || !chevron) return;
-
-  /* 開閉状態を localStorage で永続化（既定: 開） */
-  const KEY = 'wn_knowl_help_collapsed';
-  const setCollapsed = (collapsed) => {
-    body.style.display      = collapsed ? 'none' : '';
-    chevron.style.transform = collapsed ? 'rotate(180deg)' : 'rotate(0deg)';
-  };
-  setCollapsed(localStorage.getItem(KEY) === '1');
-
-  toggle.addEventListener('click', () => {
-    const next = body.style.display !== 'none';
-    setCollapsed(next);
-    localStorage.setItem(KEY, next ? '1' : '0');
-  });
-}
 
 /* ── タブ切替 ── */
 function initTabs() {

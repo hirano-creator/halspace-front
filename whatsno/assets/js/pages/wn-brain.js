@@ -21,9 +21,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   initInput();
   initHistoryPanel();
+  initKnowlHelp(user);
 
   await Promise.all([loadMeter(), loadHistory()]);
 });
+
+// ─── 学習方法ヘルプモーダル ───────────────────────────────
+function initKnowlHelp(user) {
+  const btn   = document.getElementById('knowlHelpBtn');
+  const modal = document.getElementById('knowlHelpModal');
+  const close = document.getElementById('knowlHelpClose');
+  if (!btn || !modal || !close) return;
+
+  // 管理者の場合は「管理者画面を開く」ボタンを表示
+  if (user && isAdmin(user)) {
+    const link = document.getElementById('knowlHelpAdminLink');
+    if (link) link.style.display = '';
+  }
+
+  const open = () => { modal.classList.add('open'); };
+  const hide = () => { modal.classList.remove('open'); };
+
+  btn.addEventListener('click', open);
+  close.addEventListener('click', hide);
+  modal.addEventListener('click', e => { if (e.target === modal) hide(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && modal.classList.contains('open')) hide();
+  });
+}
 
 // ─── Knowl メーター ───────────────────────────────────────
 async function loadMeter() {
