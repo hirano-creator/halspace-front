@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!fileId) { location.href = 'dashboard.html'; return; }
   currentUser = requireSpaceAuth();
   if (!currentUser) return;
+  applyMobileCommentPosition();
+  window.addEventListener('resize', applyMobileCommentPosition);
   await loadFile();
   initActions();
   initComments();
@@ -22,6 +24,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   initRightPanelTabs();
   initRelations();
 });
+
+/* モバイル時、コメントパネル(.detail-right)を .detail-info-section の前に
+   移動する（PCに戻ったら元の位置に戻す） */
+function applyMobileCommentPosition() {
+  const isMobile     = window.innerWidth <= 768;
+  const detailRight  = document.querySelector('.detail-right');
+  const detailLeft   = document.querySelector('.detail-left');
+  const detailBody   = document.querySelector('.detail-body');
+  const infoSection  = document.querySelector('.detail-info-section');
+  if (!detailRight || !detailLeft || !detailBody || !infoSection) return;
+
+  const movedToLeft = detailRight.parentElement === detailLeft;
+  if (isMobile && !movedToLeft) {
+    detailLeft.insertBefore(detailRight, infoSection);
+  } else if (!isMobile && movedToLeft) {
+    detailBody.appendChild(detailRight);
+  }
+}
 
 /* ────────────────────────────────
    ファイルデータ取得・描画
