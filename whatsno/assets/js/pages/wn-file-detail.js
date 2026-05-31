@@ -772,7 +772,8 @@ function initComments() {
 async function loadComments() {
   const list = document.getElementById('commentList');
   const comments = await wnGetComments(fileId);
-  document.getElementById('commentCount').textContent = comments.length ? `${comments.length}件` : '';
+  const badge = document.getElementById('commentBadge');
+  if (badge) badge.textContent = comments.length ? comments.length : '';
 
   if (!comments.length) {
     list.innerHTML = '<p style="font-size:13px;color:var(--muted);">まだコメントはありません</p>';
