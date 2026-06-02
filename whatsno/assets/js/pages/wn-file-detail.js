@@ -312,16 +312,7 @@ function renderPreview() {
       document.getElementById('previewPlaceholder').style.display = 'none';
     });
   } else if (wnIsOfficeFile(fileData.file_name)) {
-    document.getElementById('previewHint').textContent = 'Officeプレビュー読み込み中…';
-    const frame = document.getElementById('previewFrame');
-    frame.src = wnOfficeViewerUrl(fileId);
-    frame.style.display = 'block';
-    document.getElementById('previewPlaceholder').style.display = 'none';
-    frame.onerror = () => {
-      frame.style.display = 'none';
-      document.getElementById('previewPlaceholder').style.display = '';
-      document.getElementById('previewHint').textContent = 'プレビューを読み込めませんでした';
-    };
+    showOfficePreview();
   } else if (['dxf'].includes(ext)) {
     loadSheetEyeEmbed(fileId, fileData.file_name);
   } else {
@@ -333,6 +324,104 @@ function renderPreview() {
     || mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext);
   const annotBtn = document.getElementById('annotateBtn');
   if (annotBtn) annotBtn.style.display = annotatable ? '' : 'none';
+}
+
+/* ────────────────────────────────
+   Office (Excel / Word) プレビュー
+   - クライアント側で直接レンダリング（Microsoft Office Online Viewerに依存しない）
+   - Excel(.xlsx/.xls/.xlsm): SheetJS で全シートをHTMLテーブル化
+   - Word(.docx): mammoth.js でHTML化
+   - PowerPoint / 旧 .doc: クライアント側レンダラー無し → ダウンロード導線を表示
+   ──────────────────────────────── */
+async function showOfficePreview() {
+  const placeholder = document.getElementById('previewPlaceholder');
+  const hint        = document.getElementById('previewHint');
+  const container   = document.getElementById('officeContainer');
+  const ext         = fileData.file_name.split('.').pop().toLowerCase();
+
+  const showFallback = (title, desc) => {
+    container.style.display = 'none';
+    placeholder.style.display = '';
+    placeholder.innerHTML = `
+      <i class="fa-solid fa-file-lines" id="previewIcon" style="font-size:48px;color:#888;"></i>
+      <p style="margin:12px 0 4px;font-weight:600;">${title}</p>
+      <p style="margin:0 0 16px;color:#666;font-size:13px;">${desc}</p>
+      <button id="officeDownloadBtn" class="btn btn-primary" style="padding:8px 18px;">
+        <i class="fa-solid fa-download"></i> ダウンロードして開く
+      </button>
+    `;
+    document.getElementById('officeDownloadBtn')?.addEventListener('click', () => wnDownload(fileId));
+  };
+
+  /* PowerPoint と旧 .doc はクライアント側で簡単に描画できないためダウンロード導線 */
+  if (['pptx','ppt','pptm','doc'].includes(ext)) {
+    showFallback(
+      'ブラウザプレビュー非対応',
+      'この形式はダウンロードしてご確認ください。',
+    );
+    return;
+  }
+
+  hint.textContent = 'Officeファイル読み込み中…';
+
+  try {
+    const buffer = await wnFetchFileBuffer(fileId, {
+      onProgress: pct => { hint.textContent = `読み込み中… ${pct}%`; },
+    });
+    if (!buffer) throw new Error('ファイル取得失敗');
+
+    if (['xlsx','xls','xlsm'].includes(ext)) {
+      if (typeof XLSX === 'undefined') throw new Error('SheetJS未読み込み');
+      hint.textContent = 'Excel描画中…';
+      renderExcelToContainer(buffer, container);
+    } else if (ext === 'docx' || ext === 'docm') {
+      if (typeof mammoth === 'undefined') throw new Error('mammoth.js未読み込み');
+      hint.textContent = 'Word描画中…';
+      const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
+      container.innerHTML = `<div class="docx-body" style="max-width:820px;margin:0 auto;line-height:1.7;color:#222;">${result.value}</div>`;
+    } else {
+      throw new Error('未対応の拡張子: ' + ext);
+    }
+
+    placeholder.style.display = 'none';
+    container.style.display = 'block';
+  } catch (e) {
+    console.error('Office preview error:', e);
+    showFallback('プレビューを読み込めませんでした', (e.message || 'エラーが発生しました') + ' — ダウンロードしてご確認ください。');
+  }
+}
+
+/* Excelワークブックを全シートHTMLテーブルとしてcontainerへ描画 */
+function renderExcelToContainer(arrayBuffer, container) {
+  const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+  const parts = [];
+  parts.push(`<style>
+    .xlsx-sheet-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;border-bottom:1px solid #ddd;padding-bottom:6px;}
+    .xlsx-sheet-tab{padding:6px 12px;background:#f0f0f0;border:1px solid #ddd;border-radius:4px 4px 0 0;cursor:pointer;font-size:13px;}
+    .xlsx-sheet-tab.active{background:#fff;border-bottom-color:#fff;font-weight:600;color:#0066cc;}
+    .xlsx-sheet{display:none;overflow:auto;}
+    .xlsx-sheet.active{display:block;}
+    .xlsx-sheet table{border-collapse:collapse;font-size:13px;}
+    .xlsx-sheet td,.xlsx-sheet th{border:1px solid #ccc;padding:4px 8px;white-space:nowrap;}
+    .xlsx-sheet tr:first-child td{background:#f5f5f5;font-weight:600;}
+  </style>`);
+  parts.push('<div class="xlsx-sheet-tabs">');
+  wb.SheetNames.forEach((name, i) => {
+    parts.push(`<div class="xlsx-sheet-tab${i===0?' active':''}" data-idx="${i}">${name}</div>`);
+  });
+  parts.push('</div>');
+  wb.SheetNames.forEach((name, i) => {
+    const html = XLSX.utils.sheet_to_html(wb.Sheets[name], { editable: false });
+    parts.push(`<div class="xlsx-sheet${i===0?' active':''}" data-idx="${i}">${html}</div>`);
+  });
+  container.innerHTML = parts.join('');
+  container.querySelectorAll('.xlsx-sheet-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const idx = tab.dataset.idx;
+      container.querySelectorAll('.xlsx-sheet-tab').forEach(t => t.classList.toggle('active', t.dataset.idx === idx));
+      container.querySelectorAll('.xlsx-sheet').forEach(s => s.classList.toggle('active', s.dataset.idx === idx));
+    });
+  });
 }
 
 /* PDF ページナビゲーション */

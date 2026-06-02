@@ -331,9 +331,15 @@ async function wnFetchFileBuffer(fileId, { onProgress, timeoutMs = 120000 } = {}
   }
 }
 
-/* Office Online Viewer 用パブリックプロキシURL */
+/* Office Online Viewer 用パブリックプロキシURL
+   - Microsoft側がプロキシを取得するため token をURLに付与する
+   - localhost / .test ではMicrosoftから到達不可能なため null を返す（呼び出し側でフォールバック表示） */
 function wnOfficeViewerUrl(fileId) {
-  const proxyUrl = WN_API_BASE + `/wn/files/${fileId}/public-view`;
+  const h = location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.test')) return null;
+  const token = localStorage.getItem('space_token');
+  if (!token) return null;
+  const proxyUrl = WN_API_BASE + `/wn/files/${fileId}/public-view?token=${encodeURIComponent(token)}`;
   return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(proxyUrl)}`;
 }
 

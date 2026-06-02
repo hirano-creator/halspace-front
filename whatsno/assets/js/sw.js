@@ -1,7 +1,7 @@
 'use strict';
 /* What'sNo Service Worker */
 
-const CACHE_NAME = 'whatsno-v2';
+const CACHE_NAME = 'whatsno-v3';
 const SHELL_URLS = [
   '/whatsno/app/dashboard.html',
   '/whatsno/app/file-detail.html',
