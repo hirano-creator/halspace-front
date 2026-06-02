@@ -700,6 +700,7 @@ function fileCardHtml(f) {
       <div class="file-card-meta">
         <span>${wnFormatDate(f.created_at)}</span>
         <span>${wnFormatSize(f.file_size)}</span>
+        ${ext ? `<span class="file-card-ext">${ext.toUpperCase()}</span>` : ''}
       </div>
       <div class="file-card-actions">
         <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px;" title="閲覧数">
