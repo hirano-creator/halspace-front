@@ -395,7 +395,8 @@ async function loadFileThumbnails() {
     return mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext)
         || mime === 'application/pdf' || ext === 'pdf'
         || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
-        || ext === 'dxf';
+        || ext === 'dxf'
+        || ['xlsx','xls','xlsm','docx','docm'].includes(ext);
   });
 
   /* 同時実行数を制限しながら並列処理 */
