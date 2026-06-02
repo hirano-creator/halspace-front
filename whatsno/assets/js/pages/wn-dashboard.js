@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initNotifications();
   initEmailModal();
   loadBrainMeter();
+  initDashBrain();
 });
 
 let _lastIsMobile = null;
@@ -82,6 +83,137 @@ function applyMobileLayout() {
     renderFiles();
   }
   _lastIsMobile = isMobile;
+}
+
+/* ────────────────────────────────
+   ダッシュボード上のミニKnowl
+   brain.html に遷移せず、ここで質問→回答まで完結
+   ──────────────────────────────── */
+let dashBrainSessionId = null;
+let dashBrainBusy      = false;
+
+function initDashBrain() {
+  const input = document.getElementById('dashBrainInput');
+  const send  = document.getElementById('dashBrainSendBtn');
+  const voice = document.getElementById('dashBrainVoiceBtn');
+  const close = document.getElementById('dashBrainAnswerClose');
+  if (!input || !send) return;
+
+  input.addEventListener('input', () => {
+    send.disabled = input.value.trim() === '' || dashBrainBusy;
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !send.disabled) {
+      e.preventDefault();
+      dashBrainAsk(input.value.trim());
+    }
+  });
+  send.addEventListener('click', () => {
+    if (!send.disabled) dashBrainAsk(input.value.trim());
+  });
+
+  if (close) close.addEventListener('click', () => {
+    document.getElementById('dashBrainAnswer').style.display = 'none';
+  });
+
+  initDashBrainVoice();
+}
+
+async function dashBrainAsk(question) {
+  if (dashBrainBusy || !question) return;
+  dashBrainBusy = true;
+
+  const input = document.getElementById('dashBrainInput');
+  const send  = document.getElementById('dashBrainSendBtn');
+  const ans   = document.getElementById('dashBrainAnswer');
+  const ansQ  = document.getElementById('dashBrainAnswerQ');
+  const body  = document.getElementById('dashBrainAnswerBody');
+  const srcs  = document.getElementById('dashBrainAnswerSources');
+  const more  = document.querySelector('.brain-widget-answer-more');
+
+  send.disabled = true;
+  ansQ.textContent = question;
+  body.className   = 'brain-widget-answer-body thinking';
+  body.innerHTML   = '<span></span><span></span><span></span>';
+  srcs.innerHTML   = '';
+  ans.style.display = 'block';
+
+  try {
+    const res = await wnBrainAsk(question, dashBrainSessionId);
+    dashBrainSessionId = res.session_id ?? dashBrainSessionId;
+
+    body.className = 'brain-widget-answer-body';
+    body.textContent = res.answer ?? '回答が得られませんでした。';
+
+    const sources = res.sources ?? [];
+    srcs.innerHTML = sources.map(s =>
+      `<a href="file-detail.html?id=${s.id}">
+         <i class="fa-solid fa-file-lines"></i>${h(s.file_name)}
+       </a>`
+    ).join('');
+
+    // 「続ける」リンクは現セッションを引き継ぐ
+    if (more && dashBrainSessionId) {
+      more.href = `brain.html?session=${dashBrainSessionId}`;
+    }
+
+    // 入力欄はクリアして次の質問を受け付ける
+    input.value = '';
+  } catch (err) {
+    body.className = 'brain-widget-answer-body';
+    body.textContent = err?.status === 429
+      ? 'AIの利用制限に達しました。しばらく経ってから再度お試しください。'
+      : '回答の取得中にエラーが発生しました。';
+  } finally {
+    dashBrainBusy = false;
+    send.disabled = input.value.trim() === '';
+  }
+}
+
+function initDashBrainVoice() {
+  const btn  = document.getElementById('dashBrainVoiceBtn');
+  const icon = document.getElementById('dashBrainVoiceIcon');
+  if (!btn) return;
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { btn.style.display = 'none'; return; }
+
+  const recog = new SpeechRecognition();
+  recog.lang = 'ja-JP';
+  recog.interimResults = true;
+  recog.continuous = false;
+  let recording = false;
+
+  btn.addEventListener('click', () => {
+    if (dashBrainBusy) return;
+    if (recording) recog.stop(); else recog.start();
+  });
+
+  recog.onstart = () => {
+    recording = true;
+    btn.classList.add('recording');
+    icon.className = 'fa-solid fa-stop';
+  };
+
+  recog.onresult = e => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+    document.getElementById('dashBrainInput').value = transcript;
+  };
+
+  recog.onend = () => {
+    recording = false;
+    btn.classList.remove('recording');
+    icon.className = 'fa-solid fa-microphone';
+    const input = document.getElementById('dashBrainInput');
+    const q = input.value.trim();
+    if (q) dashBrainAsk(q);
+  };
+
+  recog.onerror = () => {
+    recording = false;
+    btn.classList.remove('recording');
+    icon.className = 'fa-solid fa-microphone';
+  };
 }
 
 async function loadBrainMeter() {
@@ -357,6 +489,28 @@ async function loadOneThumbnail(f) {
       canvas.width = 300; canvas.height = 150;
       if (!wnDxfThumbnail(canvas, text)) return;
       blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.80));
+
+    } else if (['xlsx','xls','xlsm'].includes(ext)) {
+      if (typeof XLSX === 'undefined') return;
+      const res = await fetch(directUrl);
+      if (!res.ok) return;
+      const buffer = await res.arrayBuffer();
+      const wb = XLSX.read(new Uint8Array(buffer), { type: 'array' });
+      const canvas = document.createElement('canvas');
+      canvas.width = 360; canvas.height = 480;
+      if (!drawExcelThumbnail(canvas, wb)) return;
+      blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
+
+    } else if (['docx','docm'].includes(ext)) {
+      if (typeof mammoth === 'undefined') return;
+      const res = await fetch(directUrl);
+      if (!res.ok) return;
+      const buffer = await res.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer: buffer });
+      const canvas = document.createElement('canvas');
+      canvas.width = 360; canvas.height = 480;
+      if (!drawWordThumbnail(canvas, result.value || '')) return;
+      blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
     }
 
     if (!blob) return;
@@ -371,6 +525,114 @@ async function loadOneThumbnail(f) {
     appendImg(iconId, objUrl);
 
   } catch(e) { console.warn('thumb error:', f.file_name, e); }
+}
+
+/* Excelサムネイル: 最初のシートをミニ表として描画 */
+function drawExcelThumbnail(canvas, workbook) {
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) return false;
+  const ws = workbook.Sheets[sheetName];
+  if (!ws || !ws['!ref']) return false;
+
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const MAX_ROWS = 22;
+  const MAX_COLS = 9;
+  const rows = Math.min(range.e.r - range.s.r + 1, MAX_ROWS);
+  const cols = Math.min(range.e.c - range.s.c + 1, MAX_COLS);
+  if (rows <= 0 || cols <= 0) return false;
+
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  /* 上部: Excelタイトルバー */
+  const headerH = 22;
+  ctx.fillStyle = '#107c41';
+  ctx.fillRect(0, 0, canvas.width, headerH);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Excel', 8, headerH / 2);
+
+  /* 表領域 */
+  const tableY = headerH;
+  const tableH = canvas.height - tableY;
+  const cellW = canvas.width / cols;
+  const cellH = tableH / rows;
+
+  ctx.font = '9px "Yu Gothic","Hiragino Sans","Meiryo",sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 0.5;
+  ctx.strokeStyle = '#d0d0d0';
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = c * cellW;
+      const y = tableY + r * cellH;
+
+      /* ヘッダー行（1行目）: 薄青背景 */
+      if (r === 0) {
+        ctx.fillStyle = '#e3f2fd';
+        ctx.fillRect(x, y, cellW, cellH);
+      }
+
+      ctx.strokeRect(x, y, cellW, cellH);
+
+      const cellAddr = XLSX.utils.encode_cell({ r: range.s.r + r, c: range.s.c + c });
+      const cell = ws[cellAddr];
+      if (cell && cell.v !== undefined && cell.v !== null && cell.v !== '') {
+        const raw = String(cell.w ?? cell.v);
+        const text = raw.length > 8 ? raw.slice(0, 7) + '…' : raw;
+        ctx.fillStyle = r === 0 ? '#0d47a1' : '#222';
+        ctx.fillText(text, x + 3, y + cellH / 2);
+      }
+    }
+  }
+
+  return true;
+}
+
+/* Wordサムネイル: テキスト先頭をページ風に描画 */
+function drawWordThumbnail(canvas, text) {
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  /* 上部: Wordタイトルバー */
+  const headerH = 22;
+  ctx.fillStyle = '#2b579a';
+  ctx.fillRect(0, 0, canvas.width, headerH);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Word', 8, headerH / 2);
+
+  /* 本文を行に分割して描画 */
+  const padding = 14;
+  const startY = headerH + 16;
+  const lineH = 12;
+  const maxWidth = canvas.width - padding * 2;
+  ctx.font = '10px "Yu Gothic","Hiragino Sans","Meiryo",sans-serif';
+  ctx.fillStyle = '#222';
+  ctx.textBaseline = 'top';
+
+  const lines = (text || '').split(/\n+/).filter(l => l.trim()).slice(0, 40);
+  let y = startY;
+  for (const line of lines) {
+    if (y + lineH > canvas.height - 4) break;
+    /* 長すぎる行は折り返し */
+    let remaining = line.trim();
+    while (remaining && y + lineH <= canvas.height - 4) {
+      let len = remaining.length;
+      while (len > 0 && ctx.measureText(remaining.slice(0, len)).width > maxWidth) len--;
+      if (len === 0) break;
+      ctx.fillText(remaining.slice(0, len), padding, y);
+      remaining = remaining.slice(len);
+      y += lineH;
+    }
+  }
+
+  return true;
 }
 
 function appendImg(iconId, url) {
@@ -412,7 +674,8 @@ function fileCardHtml(f) {
   const hasThumb = mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext)
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
-                || ext === 'dxf';
+                || ext === 'dxf'
+                || ['xlsx','xls','xlsm','docx','docm'].includes(ext);
   const thumbHtml = hasThumb
     ? `<i class="fa-solid ${icon} file-type-icon ${cls}" id="thumb-icon-${f.id}"></i>`
     : `<i class="fa-solid ${icon} file-type-icon ${cls}"></i>`;
@@ -482,7 +745,8 @@ function fileRowHtmlClassic(f) {
   const hasThumb = mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext)
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
-                || ext === 'dxf';
+                || ext === 'dxf'
+                || ['xlsx','xls','xlsm','docx','docm'].includes(ext);
   const iconContent = hasThumb
     ? `<i class="fa-solid ${icon} ${cls}" id="thumb-icon-row-${f.id}"></i>`
     : `<i class="fa-solid ${icon} ${cls}"></i>`;
@@ -546,7 +810,8 @@ function fileRowHtmlIG(f) {
   const hasThumb = mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext)
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
-                || ext === 'dxf';
+                || ext === 'dxf'
+                || ['xlsx','xls','xlsm','docx','docm'].includes(ext);
   const placeholderIcon = hasThumb
     ? `<i class="fa-solid ${icon} ${cls}" id="thumb-icon-row-${f.id}"></i>`
     : `<i class="fa-solid ${icon} ${cls}"></i>`;
@@ -1303,6 +1568,8 @@ function renderUploadQueue() {
       <div class="progress-bar-bg" style="width:100%;margin-top:0;display:none;">
         <div class="progress-bar-fill" id="prog-${i}" style="width:0%"></div>
       </div>
+      <div class="upload-status-text" id="stat-${i}"
+           style="width:100%;font-size:11px;color:var(--muted);margin-top:4px;display:none;"></div>
     </div>`;
   }).join('');
 }
@@ -1320,16 +1587,25 @@ async function doUpload() {
     const file = uploadQueue[i];
     const prog = document.getElementById(`prog-${i}`);
     const bar  = prog?.parentElement;
+    const stat = document.getElementById(`stat-${i}`);
     if (bar) bar.style.display = 'block';
+    if (stat) { stat.style.display = 'block'; stat.textContent = 'アップロード中…'; }
     try {
       const result = await wnUploadFile(file, {
-        onProgress: pct => { if (prog) prog.style.width = pct + '%'; },
+        onProgress: pct => {
+          if (prog) prog.style.width = pct + '%';
+          if (pct >= 100 && stat) {
+            stat.innerHTML = '<i class="fa-solid fa-circle-nodes fa-spin" style="color:var(--accent);"></i> KnowlがAI学習中…';
+          }
+        },
       });
       document.getElementById(`qitem-${i}`)?.style.setProperty('background', 'rgba(0,184,148,.08)');
+      if (stat) stat.innerHTML = '<i class="fa-solid fa-check" style="color:#2E7D32;"></i> 学習完了';
       if (result?.data?.id) uploadedFiles.push(result.data);
     } catch (err) {
       failCount++;
       document.getElementById(`qitem-${i}`)?.style.setProperty('background', 'rgba(231,76,60,.08)');
+      if (stat) stat.innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color:#C62828;"></i> 失敗';
       wnShowToast(`${file.name} のアップロードに失敗しました: ${err.message}`, 'danger');
     }
   }
