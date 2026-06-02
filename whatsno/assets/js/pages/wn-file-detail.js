@@ -393,26 +393,46 @@ async function showOfficePreview() {
 
 /* Excelワークブックを全シートHTMLテーブルとしてcontainerへ描画 */
 function renderExcelToContainer(arrayBuffer, container) {
-  const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+  const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array', cellStyles: true });
   const parts = [];
+  /* SheetJS のインライン color / background は薄くなりがちなので !important で強制上書き。
+     セルの実値の有無や結合セル等もできるだけ素直に表示。 */
   parts.push(`<style>
-    .xlsx-sheet-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;border-bottom:1px solid #ddd;padding-bottom:6px;}
-    .xlsx-sheet-tab{padding:6px 12px;background:#f0f0f0;border:1px solid #ddd;border-radius:4px 4px 0 0;cursor:pointer;font-size:13px;}
-    .xlsx-sheet-tab.active{background:#fff;border-bottom-color:#fff;font-weight:600;color:#0066cc;}
-    .xlsx-sheet{display:none;overflow:auto;}
+    .xlsx-sheet-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;border-bottom:2px solid #1976d2;padding-bottom:0;}
+    .xlsx-sheet-tab{padding:8px 16px;background:#f5f5f5;border:1px solid #ccc;border-bottom:none;border-radius:6px 6px 0 0;cursor:pointer;font-size:13px;color:#444;}
+    .xlsx-sheet-tab:hover{background:#eaeaea;}
+    .xlsx-sheet-tab.active{background:#1976d2;color:#fff;border-color:#1976d2;font-weight:600;}
+    .xlsx-sheet{display:none;}
     .xlsx-sheet.active{display:block;}
-    .xlsx-sheet table{border-collapse:collapse;font-size:13px;}
-    .xlsx-sheet td,.xlsx-sheet th{border:1px solid #ccc;padding:4px 8px;white-space:nowrap;}
-    .xlsx-sheet tr:first-child td{background:#f5f5f5;font-weight:600;}
+    .xlsx-sheet table{border-collapse:collapse;font-size:13px;font-family:"Yu Gothic","Hiragino Sans","Meiryo",sans-serif;color:#111 !important;background:#fff;}
+    .xlsx-sheet td,.xlsx-sheet th{
+      border:1px solid #bbb !important;
+      padding:6px 10px !important;
+      color:#111 !important;
+      background:#fff;
+      vertical-align:middle;
+      min-width:48px;
+      white-space:nowrap;
+    }
+    .xlsx-sheet td:empty{background:#fafafa;}
+    .xlsx-sheet tr:first-child td{background:#e3f2fd !important;font-weight:600;color:#0d47a1 !important;}
+    /* SheetJS が出力する <html><body> ラッパーをブロック化 */
+    .xlsx-sheet > html, .xlsx-sheet > body{display:block;}
   </style>`);
   parts.push('<div class="xlsx-sheet-tabs">');
   wb.SheetNames.forEach((name, i) => {
-    parts.push(`<div class="xlsx-sheet-tab${i===0?' active':''}" data-idx="${i}">${name}</div>`);
+    parts.push(`<div class="xlsx-sheet-tab${i===0?' active':''}" data-idx="${i}">${escapeHtml(name)}</div>`);
   });
   parts.push('</div>');
   wb.SheetNames.forEach((name, i) => {
-    const html = XLSX.utils.sheet_to_html(wb.Sheets[name], { editable: false });
-    parts.push(`<div class="xlsx-sheet${i===0?' active':''}" data-idx="${i}">${html}</div>`);
+    const ws = wb.Sheets[name];
+    /* header / footer を空にして <html><body> ラッパーを抑止 */
+    let html = XLSX.utils.sheet_to_html(ws, { editable: false, header: '', footer: '' });
+    /* 念のため <html>...<body>...</body></html> ラッパーを剥がす */
+    html = html.replace(/^[\s\S]*?<body[^>]*>/i, '').replace(/<\/body>[\s\S]*$/i, '');
+    /* インライン color / background-color の薄色（#999, #ccc 等）を除去して !important を効かせる */
+    html = html.replace(/\scolor\s*:\s*[^;"']+/gi, '');
+    parts.push(`<div class="xlsx-sheet${i===0?' active':''}" data-idx="${i}" style="overflow:auto;max-width:100%;">${html}</div>`);
   });
   container.innerHTML = parts.join('');
   container.querySelectorAll('.xlsx-sheet-tab').forEach(tab => {
@@ -422,6 +442,10 @@ function renderExcelToContainer(arrayBuffer, container) {
       container.querySelectorAll('.xlsx-sheet').forEach(s => s.classList.toggle('active', s.dataset.idx === idx));
     });
   });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 /* PDF ページナビゲーション */
