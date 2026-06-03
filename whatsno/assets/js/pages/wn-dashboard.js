@@ -446,10 +446,15 @@ async function loadOneThumbnail(f) {
   const mime     = f.mime_type ?? '';
   const cacheKey = `thumb_${f.id}_${f.updated_at ?? f.created_at ?? ''}`;
 
+  /* 文書系 (PDF/Excel/Word) は先頭(タイトル付近)を見せたいので object-position:top */
+  const isDoc = (mime === 'application/pdf' || ext === 'pdf'
+              || ['xlsx','xls','xlsm','docx','docm'].includes(ext));
+  const appendOpts = isDoc ? { anchor: 'top' } : {};
+
   try {
     /* ── メモリキャッシュ確認 ── */
     if (thumbMemCache[cacheKey]) {
-      appendImg(iconId, thumbMemCache[cacheKey]);
+      appendImg(iconId, thumbMemCache[cacheKey], appendOpts);
       return;
     }
 
@@ -458,7 +463,7 @@ async function loadOneThumbnail(f) {
     if (cached) {
       const url = URL.createObjectURL(cached);
       thumbMemCache[cacheKey] = url;
-      appendImg(iconId, url);
+      appendImg(iconId, url, appendOpts);
       return;
     }
 
@@ -554,7 +559,7 @@ async function loadOneThumbnail(f) {
     /* ── 表示 ── */
     const objUrl = URL.createObjectURL(blob);
     thumbMemCache[cacheKey] = objUrl;
-    appendImg(iconId, objUrl);
+    appendImg(iconId, objUrl, appendOpts);
 
   } catch(e) { console.warn('thumb error:', f.file_name, e); }
 }
@@ -667,7 +672,11 @@ function drawWordThumbnail(canvas, text) {
   return true;
 }
 
-function appendImg(iconId, url) {
+function appendImg(iconId, url, opts = {}) {
+  /* 文書系 (PDF/Excel/Word) は object-position:top で先頭(タイトル)を表示。
+     画像/動画は中央クロップのまま。 */
+  const objectPosition = opts.anchor === 'top' ? 'top' : 'center';
+
   /* カードビュー */
   const iconEl = document.getElementById(iconId);
   if (iconEl) {
@@ -675,7 +684,7 @@ function appendImg(iconId, url) {
     if (thumb) {
       const img = document.createElement('img');
       img.alt = '';
-      img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;border-radius:4px 4px 0 0;';
+      img.style.cssText = `width:100%;height:100%;object-fit:cover;object-position:${objectPosition};display:block;position:absolute;inset:0;border-radius:4px 4px 0 0;`;
       img.onload = () => { iconEl.style.display = 'none'; thumb.appendChild(img); };
       img.onerror = () => {};
       img.src = url;
@@ -690,7 +699,7 @@ function appendImg(iconId, url) {
     if (rowThumb) {
       const img = document.createElement('img');
       img.alt = '';
-      img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;border-radius:4px;';
+      img.style.cssText = `width:100%;height:100%;object-fit:cover;object-position:${objectPosition};display:block;border-radius:4px;`;
       img.onload = () => { rowIconEl.style.display = 'none'; rowThumb.appendChild(img); };
       img.onerror = () => {};
       img.src = url;
