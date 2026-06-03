@@ -24,6 +24,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   initKnowlHelp(user);
 
   await Promise.all([loadMeter(), loadHistory()]);
+
+  // ダッシュボードのミニKnowlから "続ける" で来た場合、該当セッションを開く
+  const sessionParam = new URLSearchParams(location.search).get('session');
+  if (sessionParam) {
+    const id = parseInt(sessionParam, 10);
+    if (!Number.isNaN(id)) await loadSession(id);
+  }
 });
 
 // ─── 学習方法ヘルプモーダル ───────────────────────────────
@@ -154,7 +161,19 @@ function appendAiBubble(answer, sources) {
       const tag = document.createElement('a');
       tag.className = 'brain-source-tag';
       tag.href = `file-detail.html?id=${s.id}`;
-      tag.innerHTML = `<i class="fa-solid fa-file-lines"></i> ${escHtml(s.file_name)}`;
+
+      // ページ番号 or シート名（あれば）
+      const locLabel = buildSourceLocationLabel(s);
+      const scoreLabel = (typeof s.score === 'number')
+        ? ` <span class="brain-source-score">${Math.round(s.score * 100)}%</span>` : '';
+
+      tag.innerHTML =
+        `<i class="fa-solid fa-file-lines"></i> ${escHtml(s.file_name)}`
+        + (locLabel ? ` <span class="brain-source-loc">${escHtml(locLabel)}</span>` : '')
+        + scoreLabel;
+
+      // 抜粋ツールチップ
+      if (s.excerpt) tag.title = s.excerpt;
       sourcesEl.appendChild(tag);
     });
     div.appendChild(sourcesEl);
@@ -162,6 +181,32 @@ function appendAiBubble(answer, sources) {
 
   chatArea.appendChild(div);
   scrollToBottom();
+}
+
+/* 出典の補足ラベル（ページ番号 or シート名）を組み立てる */
+function buildSourceLocationLabel(s) {
+  if (Array.isArray(s.pages) && s.pages.length > 0) {
+    // 連続するページは "1-3" 形式にまとめる
+    const ranges = compressNumberRanges(s.pages);
+    return 'p.' + ranges;
+  }
+  if (Array.isArray(s.sections) && s.sections.length > 0) {
+    return s.sections.slice(0, 2).join('・');
+  }
+  return '';
+}
+
+function compressNumberRanges(nums) {
+  const sorted = [...nums].sort((a, b) => a - b);
+  const out = [];
+  let start = sorted[0], prev = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] === prev + 1) { prev = sorted[i]; continue; }
+    out.push(start === prev ? String(start) : `${start}-${prev}`);
+    start = prev = sorted[i];
+  }
+  out.push(start === prev ? String(start) : `${start}-${prev}`);
+  return out.join(',');
 }
 
 function scrollToBottom() {

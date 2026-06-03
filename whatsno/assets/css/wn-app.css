@@ -2166,6 +2166,15 @@ tbody tr:last-child { border-bottom: none; }
   font-size: 10px;
   flex-shrink: 0;
 }
+.brain-source-loc {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  background: rgba(33,150,243,.08);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
 
 /* 入力エリア */
 .brain-input-area {
