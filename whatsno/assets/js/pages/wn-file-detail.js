@@ -804,6 +804,17 @@ function initActions() {
       openSheetEye(fileId, fileData.file_name);
       return;
     }
+    /* Office系 (Excel/Word/PowerPoint) は生URLを開くとブラウザがダウンロードしてしまうため、
+       Microsoft Office Online Viewer を新タブで開く */
+    if (wnIsOfficeFile(fileData.file_name)) {
+      const officeUrl = wnOfficeViewerUrl(fileId);
+      if (officeUrl) {
+        window.open(officeUrl, '_blank');
+      } else {
+        wnShowToast('別タブ表示は本番環境でご利用ください', 'info');
+      }
+      return;
+    }
     const url = await wnGetViewUrl(fileId);
     if (url) window.open(url, '_blank');
     else wnShowToast('プレビューを開けませんでした', 'danger');
