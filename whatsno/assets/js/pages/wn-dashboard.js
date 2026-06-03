@@ -254,8 +254,20 @@ async function loadFiles() {
   if (navView === 'recent') params.recent = 1;
   if (navView === 'liked')  params.liked  = 1;
 
-  allFiles = await wnGetFiles(params);
+  const result = await wnGetFiles(params);
   showLoading(false);
+
+  if (result.error) {
+    /* 取得失敗時は既存リストを保持してエラートースト表示（誤った「空表示」を避ける） */
+    if (typeof wnShowToast === 'function') {
+      wnShowToast('ファイル一覧の取得に失敗しました。再読み込みしてください', 'danger');
+    } else {
+      console.warn('[loadFiles] error:', result.error);
+    }
+    return;
+  }
+
+  allFiles = result.data;
   renderFiles();
 }
 
@@ -387,22 +399,41 @@ const ThumbCache = (() => {
 const thumbMemCache = {};
 
 async function loadFileThumbnails() {
-  const CONCURRENCY = 6; /* 同時取得数の上限 */
+  const CONCURRENCY        = 4;          /* 一般ファイルの同時取得数 */
+  const OFFICE_CONCURRENCY = 1;          /* Office は1ずつ（API帯域を奪わない） */
+  const OFFICE_MAX_BYTES   = 2 * 1024 * 1024; /* 2MB超のOfficeはサムネ生成スキップ */
+
+  const isOffice = (f) => {
+    const ext = (f.file_name || '').split('.').pop().toLowerCase();
+    return ['xlsx','xls','xlsm','docx','docm'].includes(ext);
+  };
 
   const targets = allFiles.filter(f => {
     const ext  = (f.file_name || '').split('.').pop().toLowerCase();
     const mime = f.mime_type ?? '';
+    /* Office で 2MB 超は重すぎてAPIを詰まらせるためスキップ */
+    if (isOffice(f) && (f.file_size ?? 0) > OFFICE_MAX_BYTES) return false;
     return mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext)
         || mime === 'application/pdf' || ext === 'pdf'
         || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
         || ext === 'dxf'
-        || ['xlsx','xls','xlsm','docx','docm'].includes(ext);
+        || isOffice(f);
   });
 
-  /* 同時実行数を制限しながら並列処理 */
-  for (let i = 0; i < targets.length; i += CONCURRENCY) {
+  /* 軽量ファイルとOfficeを分離してスケジュール */
+  const lightTargets  = targets.filter(f => !isOffice(f));
+  const officeTargets = targets.filter(isOffice);
+
+  /* 軽量ファイル: 並列処理 */
+  for (let i = 0; i < lightTargets.length; i += CONCURRENCY) {
     await Promise.allSettled(
-      targets.slice(i, i + CONCURRENCY).map(f => loadOneThumbnail(f))
+      lightTargets.slice(i, i + CONCURRENCY).map(f => loadOneThumbnail(f))
+    );
+  }
+  /* Office: 1つずつ順番に（重いダウンロードでAPIを詰まらせないため） */
+  for (let i = 0; i < officeTargets.length; i += OFFICE_CONCURRENCY) {
+    await Promise.allSettled(
+      officeTargets.slice(i, i + OFFICE_CONCURRENCY).map(f => loadOneThumbnail(f))
     );
   }
 }

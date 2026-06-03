@@ -28,13 +28,32 @@ async function wnFetch(path, options = {}) {
 }
 
 /* ファイル一覧
-   params: { tag, sort, search, liked, recent, mine, company_id } */
+   params: { tag, sort, search, liked, recent, mine, company_id }
+   返り値: { data: [], error: null }  or  { data: null, error: 'msg' }
+   - エラーと「本当に空」を区別するため戻り値を構造化
+   - 5xx/ネットワーク失敗は1回だけ自動リトライ */
 async function wnGetFiles(params = {}) {
   const q = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') q.set(k, v); });
-  const res = await wnFetch('/wn/files?' + q.toString());
-  if (!res || !res.ok) return [];
-  return (await res.json()).data ?? [];
+  const path = '/wn/files?' + q.toString();
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await wnFetch(path);
+      if (!res) return { data: null, error: 'auth' };           /* wnFetchが401でリダイレクト済み */
+      if (res.status >= 500) {
+        if (attempt < 2) { await new Promise(r => setTimeout(r, 800)); continue; }
+        return { data: null, error: `server-${res.status}` };
+      }
+      if (!res.ok) return { data: null, error: `http-${res.status}` };
+      const json = await res.json();
+      return { data: json.data ?? [], error: null };
+    } catch (e) {
+      if (attempt < 2) { await new Promise(r => setTimeout(r, 800)); continue; }
+      return { data: null, error: 'network' };
+    }
+  }
+  return { data: null, error: 'unknown' };
 }
 
 /* ファイル詳細 */

@@ -1784,7 +1784,8 @@ async function searchRelationCandidates(query) {
   results.innerHTML = '<p style="font-size:13px;color:var(--muted);text-align:center;padding:16px 0;"><i class="fa-solid fa-spinner fa-spin"></i></p>';
 
   const existingIds = new Set([parseInt(fileId), ...relationsCache.map(r => r.id)]);
-  const files = await wnGetFiles({ search: query });
+  const filesResult = await wnGetFiles({ search: query });
+  const files = filesResult.data ?? [];
   const filtered = files.filter(f => !existingIds.has(f.id));
 
   if (!filtered.length) {

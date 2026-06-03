@@ -464,7 +464,8 @@ async function loadApproval() {
   table.style.display = 'none';
   empty.classList.add('hidden');
 
-  const files = await wnGetFiles({ approval_status: 'pending' });
+  const filesResult = await wnGetFiles({ approval_status: 'pending' });
+  const files = filesResult.data ?? [];
   loading.style.display = 'none';
   document.getElementById('pendingCount').textContent = files.length ? `${files.length}件` : '';
 
