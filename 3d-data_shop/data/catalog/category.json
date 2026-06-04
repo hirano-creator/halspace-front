@@ -1,0 +1,29 @@
+[
+  {
+    "id": "fasteners",
+    "name": "fasteners",
+    "count": 146,
+    "subcategories": [
+      {
+        "id": "hex_bolt",
+        "name": "hex_bolt",
+        "count": 113
+      },
+      {
+        "id": "hex_nut",
+        "name": "hex_nut",
+        "count": 11
+      },
+      {
+        "id": "flat_washer",
+        "name": "flat_washer",
+        "count": 11
+      },
+      {
+        "id": "spring_washer",
+        "name": "spring_washer",
+        "count": 11
+      }
+    ]
+  }
+]

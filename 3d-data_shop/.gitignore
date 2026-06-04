@@ -1,0 +1,12 @@
+# 3Dモデルファイルは除外（Cloudflare R2で配信）
+data/models/
+models/
+
+# Python・ログ（不要）
+__pycache__/
+*.pyc
+*.py
+*.bat
+generator/
+scripts/
+logs/

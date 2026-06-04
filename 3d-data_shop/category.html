@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カテゴリー — 3D DataShop</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="ds-header">
+  <a href="index.html" class="ds-logo">
+    <i class="fa-solid fa-shapes"></i>
+    3D DataShop
+    <span class="by">by HaLSpace</span>
+  </a>
+  <div class="ds-search">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" id="searchInput" placeholder="型番・部品名・規格で検索…" autocomplete="off">
+  </div>
+  <div class="ds-header-right">
+    <a href="index.html" class="ds-back-btn">
+      <i class="fa-solid fa-house"></i> トップ
+    </a>
+  </div>
+</header>
+
+<div class="ds-layout">
+  <aside class="ds-sidebar" id="sidebar"></aside>
+  <main class="ds-main">
+    <div class="ds-breadcrumb" id="breadcrumb">
+      <a href="index.html">トップ</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span id="breadCatName">すべての部品</span>
+    </div>
+    <div class="ds-filter-bar">
+      <select id="sortSel">
+        <option value="">登録順</option>
+        <option value="name">名前順</option>
+        <option value="cat">カテゴリー順</option>
+      </select>
+      <span class="ds-result-count" id="resultCount"></span>
+    </div>
+    <div class="ds-parts-grid" id="partsGrid">
+      <div class="ds-loading"><i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…</div>
+    </div>
+  </main>
+</div>
+
+<script src="assets/js/catalog.js"></script>
+<script src="assets/js/main.js"></script>
+<script>
+const catId      = getParam('cat');
+const typeFilter = getParam('type');
+const query      = getParam('q');
+
+document.getElementById('sidebar').innerHTML = renderSidebar(catId, typeFilter);
+
+if (catId) {
+  const cat = getCategoryById(catId);
+  document.title = `${cat ? cat.name : catId} — 3D DataShop`;
+  document.getElementById('breadCatName').textContent = cat ? cat.name : catId;
+} else if (query) {
+  document.getElementById('breadCatName').textContent = `"${query}" の検索結果`;
+}
+
+const searchInput = document.getElementById('searchInput');
+if (query) searchInput.value = query;
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const q = searchInput.value.trim();
+    if (q) location.href = `category.html?q=${encodeURIComponent(q)}`;
+  }
+});
+
+function render() {
+  const sortVal = document.getElementById('sortSel').value;
+  let parts = searchParts(query, catId, typeFilter);
+  if (sortVal === 'name') parts.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  else if (sortVal === 'cat') parts.sort((a, b) => a.cat.localeCompare(b.cat));
+  document.getElementById('resultCount').textContent = `${parts.length} 件`;
+  const grid = document.getElementById('partsGrid');
+  if (!parts.length) {
+    grid.innerHTML = `<div class="ds-empty" style="grid-column:1/-1"><i class="fa-solid fa-box-open"></i><div>一致する部品が見つかりません</div></div>`;
+    return;
+  }
+  grid.innerHTML = parts.map(renderPartCard).join('');
+}
+document.getElementById('sortSel').addEventListener('change', render);
+render();
+</script>
+</body>
+</html>

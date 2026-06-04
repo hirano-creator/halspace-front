@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D DataShop — 製造業向け3Dデータライブラリ</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+/* 検索ドロップダウン */
+#searchDropdown {
+  position: fixed;
+  top: calc(var(--header-h) + 1px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, 90vw);
+  max-height: 56vh;
+  overflow-y: auto;
+  background: var(--white);
+  border: 1px solid var(--border2);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,.12);
+  z-index: 300;
+  display: none;
+}
+#searchDropdown .sr-item {
+  padding: 11px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--trans);
+}
+#searchDropdown .sr-item:last-child { border-bottom: none; }
+#searchDropdown .sr-item:hover { background: var(--bg2); }
+#searchDropdown .sr-name { font-weight: 700; font-size: 14px; color: var(--text); }
+#searchDropdown .sr-spec { font-size: 11px; color: var(--muted); }
+#searchOverlay { display: none; position: fixed; inset: 0; z-index: 299; }
+</style>
+</head>
+<body>
+
+<header class="ds-header">
+  <a href="index.html" class="ds-logo">
+    <i class="fa-solid fa-shapes"></i>
+    3D DataShop
+    <span class="by">by HaLSpace</span>
+  </a>
+  <div class="ds-search">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" id="searchInput" placeholder="型番・部品名・規格で検索…" autocomplete="off">
+  </div>
+  <div class="ds-header-right">
+    <a href="../space/apps.html" class="ds-back-btn">
+      <i class="fa-solid fa-grid-2"></i> Space
+    </a>
+  </div>
+</header>
+
+<div id="searchOverlay" onclick="closeSearch()"></div>
+<div id="searchDropdown"></div>
+
+<!-- ヒーロー -->
+<section class="ds-hero">
+  <div class="ds-hero-eyebrow">Manufacturing 3D Data Library</div>
+  <h1>設計に使う3Dデータを<br><em>すぐに手に入れる</em></h1>
+  <p>JIS・ISO規格部品はSTEP/STLを直接ダウンロード。<br>メーカー固有部品はワンクリックで公式ページへ。</p>
+  <div class="ds-hero-stats">
+    <div class="ds-hero-stat">
+      <strong id="statTotal">—</strong>
+      <span>部品数</span>
+    </div>
+    <div class="ds-hero-stat">
+      <strong id="statDl">—</strong>
+      <span>直接DL</span>
+    </div>
+    <div class="ds-hero-stat">
+      <strong id="statCats">—</strong>
+      <span>カテゴリー</span>
+    </div>
+  </div>
+</section>
+
+<!-- フィーチャーストリップ -->
+<div class="ds-feature-strip">
+  <div class="ds-feature-item">
+    <i class="fa-solid fa-download"></i>
+    <div><strong>即時ダウンロード</strong>STEP / STL 対応</div>
+  </div>
+  <div class="ds-feature-item">
+    <i class="fa-solid fa-shield-halved"></i>
+    <div><strong>JIS / ISO 準拠</strong>規格寸法から自動生成</div>
+  </div>
+  <div class="ds-feature-item">
+    <i class="fa-solid fa-rotate-3d"></i>
+    <div><strong>3Dプレビュー</strong>ブラウザ内で確認</div>
+  </div>
+  <div class="ds-feature-item">
+    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+    <div><strong>メーカーリンク</strong>SMC / CKD / THK など</div>
+  </div>
+</div>
+
+<!-- カテゴリー -->
+<div class="ds-section">
+  <div class="ds-section-title">カテゴリーから探す</div>
+  <div class="ds-cat-grid" id="catGrid"></div>
+</div>
+
+<!-- 人気パーツ -->
+<div class="ds-section" style="padding-top:0">
+  <div class="ds-section-title">よく使われる部品</div>
+  <div class="ds-parts-grid" id="popularGrid"></div>
+</div>
+
+<script src="assets/js/catalog.js"></script>
+<script src="assets/js/main.js"></script>
+<script>
+document.getElementById('statTotal').textContent = PARTS.length;
+document.getElementById('statDl').textContent    = PARTS.filter(p => p.type === 'download').length;
+document.getElementById('statCats').textContent  = CATEGORIES.length;
+
+document.getElementById('catGrid').innerHTML    = CATEGORIES.map(renderCatCard).join('');
+const popular = POPULAR_IDS.map(id => PARTS.find(p => p.id === id)).filter(Boolean);
+document.getElementById('popularGrid').innerHTML = popular.map(renderPartCard).join('');
+
+const searchInput    = document.getElementById('searchInput');
+const searchDropdown = document.getElementById('searchDropdown');
+const searchOverlay  = document.getElementById('searchOverlay');
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim();
+  if (!q) { closeSearch(); return; }
+  const hits = searchParts(q).slice(0, 10);
+  searchOverlay.style.display = 'block';
+  searchDropdown.style.display = 'block';
+  if (!hits.length) {
+    searchDropdown.innerHTML = '<div class="ds-empty" style="padding:24px"><i class="fa-solid fa-box-open"></i><div>一致する部品が見つかりません</div></div>';
+    return;
+  }
+  searchDropdown.innerHTML = hits.map(p => `
+    <div class="sr-item" onclick="location.href='product.html?id=${p.id}'">
+      <span style="font-size:22px">${p.thumb || '📦'}</span>
+      <div style="flex:1">
+        <div class="sr-name">${p.name}</div>
+        <div class="sr-spec">${p.spec || ''}</div>
+      </div>
+      ${dlBadge(p.type)}
+    </div>`).join('');
+});
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { const q = searchInput.value.trim(); if (q) location.href = `category.html?q=${encodeURIComponent(q)}`; }
+  if (e.key === 'Escape') closeSearch();
+});
+function closeSearch() {
+  searchOverlay.style.display = 'none';
+  searchDropdown.style.display = 'none';
+}
+</script>
+</body>
+</html>

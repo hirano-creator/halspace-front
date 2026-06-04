@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>部品詳細 — 3D DataShop</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+.ds-dl-note {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 10px;
+  line-height: 1.6;
+  border-left: 2px solid var(--border);
+  padding-left: 10px;
+}
+.ds-viewer-box { position: relative; }
+.viewer-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  background: var(--bg2);
+  pointer-events: none;
+  transition: opacity .3s;
+}
+.viewer-loading .vl-bar { width: 120px; height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.viewer-loading .vl-fill { height: 100%; background: var(--black); border-radius: 2px; animation: vl 1.4s ease-in-out infinite; }
+@keyframes vl { 0%{width:0%} 50%{width:75%} 100%{width:100%} }
+</style>
+</head>
+<body>
+
+<header class="ds-header">
+  <a href="index.html" class="ds-logo">
+    <i class="fa-solid fa-shapes"></i>
+    3D DataShop
+    <span class="by">by HaLSpace</span>
+  </a>
+  <div class="ds-header-right">
+    <a href="javascript:history.back()" class="ds-back-btn">
+      <i class="fa-solid fa-arrow-left"></i> 戻る
+    </a>
+  </div>
+</header>
+
+<div class="ds-detail-layout" id="detailLayout">
+  <div class="ds-loading" style="grid-column:1/-1">
+    <i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…
+  </div>
+</div>
+
+<script>
+// Blob経由の強制ダウンロード（ブラウザがファイルを直接表示するのを防ぐ）
+async function forceDl(url, filename) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) { alert('ファイルが見つかりません: ' + url); return; }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  } catch(e) {
+    alert('ダウンロードに失敗しました。ローカルサーバー (http://localhost:8080) 経由でアクセスしているか確認してください。');
+  }
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+THREE.OrbitControls = function(camera, domEl) {
+  const self = this;
+  this.target = new THREE.Vector3();
+  let drag = false, right = false, px = 0, py = 0;
+  let sph = new THREE.Spherical().setFromVector3(camera.position.clone().sub(self.target));
+  function sync() {
+    camera.position.copy(new THREE.Vector3().setFromSpherical(sph).add(self.target));
+    camera.lookAt(self.target);
+  }
+  domEl.addEventListener('mousedown', e => { drag=true; right=e.button===2; px=e.clientX; py=e.clientY; e.preventDefault(); });
+  window.addEventListener('mousemove', e => {
+    if (!drag) return;
+    const dx=e.clientX-px, dy=e.clientY-py; px=e.clientX; py=e.clientY;
+    if (right) {
+      const r=new THREE.Vector3().crossVectors(camera.getWorldDirection(new THREE.Vector3()),camera.up).normalize();
+      const u=camera.up.clone().normalize();
+      const s=sph.radius*0.0012;
+      self.target.addScaledVector(r,-dx*s).addScaledVector(u,dy*s);
+    } else {
+      sph.theta-=dx*0.007;
+      sph.phi=Math.max(0.05,Math.min(Math.PI-0.05,sph.phi+dy*0.007));
+    }
+    sync();
+  });
+  window.addEventListener('mouseup',()=>drag=false);
+  domEl.addEventListener('wheel',e=>{ sph.radius=Math.max(2,Math.min(2000,sph.radius*(1+e.deltaY*0.001))); sync(); e.preventDefault(); },{passive:false});
+  domEl.addEventListener('contextmenu',e=>e.preventDefault());
+  this.update=()=>{};
+};
+
+THREE.STLLoader=function(){};
+THREE.STLLoader.prototype.load=function(url,onLoad,_,onError){
+  fetch(url).then(r=>{ if(!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+    .then(buf=>{
+      const v=new DataView(buf),n=v.getUint32(80,true);
+      const verts=new Float32Array(n*9),norms=new Float32Array(n*9);
+      let off=84;
+      for(let i=0;i<n;i++){
+        const nx=v.getFloat32(off,true),ny=v.getFloat32(off+4,true),nz=v.getFloat32(off+8,true); off+=12;
+        for(let j=0;j<3;j++){
+          verts[i*9+j*3]=v.getFloat32(off,true);verts[i*9+j*3+1]=v.getFloat32(off+4,true);verts[i*9+j*3+2]=v.getFloat32(off+8,true);
+          norms[i*9+j*3]=nx;norms[i*9+j*3+1]=ny;norms[i*9+j*3+2]=nz; off+=12;
+        }
+        off+=2;
+      }
+      const g=new THREE.BufferGeometry();
+      g.setAttribute('position',new THREE.BufferAttribute(verts,3));
+      g.setAttribute('normal',new THREE.BufferAttribute(norms,3));
+      onLoad(g);
+    }).catch(onError);
+};
+</script>
+<script src="assets/js/catalog.js"></script>
+<script src="assets/js/main.js"></script>
+<script src="assets/js/viewer.js"></script>
+<script>
+const partId = getParam('id');
+const part   = getPartById(partId);
+
+if (!part) {
+  document.getElementById('detailLayout').innerHTML = `
+    <div class="ds-empty" style="grid-column:1/-1;padding:100px 20px">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>部品が見つかりません（ID: ${partId}）</div>
+      <a href="index.html" style="color:var(--text);text-decoration:underline;margin-top:12px;display:inline-block;font-size:13px">← トップへ戻る</a>
+    </div>`;
+} else {
+  const cat = getCategoryById(part.cat);
+  document.title = `${part.name} — 3D DataShop`;
+
+  const LABELS = {
+    d:'内径 d', D:'外径 D', B:'幅 B', C:'定格荷重 C(kN)',
+    thread:'ねじ径', pitch:'ピッチ (mm)', s:'対辺距離 s', k:'頭部高さ k',
+    d1:'内径 d1', d2:'外径 d2', h:'厚さ h', dk:'頭部径 dk',
+    m:'モジュール', z:'歯数', ha:'歯たけ', b:'歯幅',
+    teeth:'歯数', bore:'ボア径', W:'幅 (mm)', H:'高さ (mm)',
+    L:'長さ (mm)', L_block:'ブロック長'
+  };
+  function paramsTable(params) {
+    if (!params) return '';
+    return `<table class="ds-spec-table">${Object.entries(params).map(([k,v])=>
+      `<tr><td>${LABELS[k]||k}</td><td>${v}</td></tr>`).join('')}</table>`;
+  }
+
+  function actionSection(p) {
+    if (p.type === 'download' && p.files) {
+      const btns = [];
+      if (p.files.step) btns.push(`<button onclick="forceDl('${p.files.step}','${p.id}.step')" class="ds-dl-btn ds-dl-btn-primary"><i class="fa-solid fa-download"></i> STEP</button>`);
+      if (p.files.stl)  btns.push(`<button onclick="forceDl('${p.files.stl}','${p.id}.stl')" class="ds-dl-btn ds-dl-btn-secondary"><i class="fa-solid fa-cube"></i> STL</button>`);
+      if (p.files.iges) btns.push(`<button onclick="forceDl('${p.files.iges}','${p.id}.igs')" class="ds-dl-btn ds-dl-btn-secondary"><i class="fa-solid fa-download"></i> IGES</button>`);
+      return `<div class="ds-dl-label">ダウンロード（無料）</div>
+        <div class="ds-dl-buttons">${btns.join('')}</div>
+        <p class="ds-dl-note">JIS/ISO規格寸法から自動生成。設計・製造目的で自由にご利用いただけます。</p>`;
+    }
+    if (p.type === 'link' && p.link) {
+      return `<div class="ds-dl-label">外部サイト</div>
+        <a href="${p.link}" target="_blank" rel="noopener" class="ds-link-btn">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> メーカー公式サイトでダウンロード
+        </a>
+        <p class="ds-dl-note">各メーカーの利用規約に従ってご利用ください。</p>`;
+    }
+    return '<div class="ds-dl-label" style="color:var(--muted)">準備中</div>';
+  }
+
+  const isDownload = part.type === 'download' && part.files?.stl;
+  const viewerHtml = isDownload ? `
+    <div class="ds-viewer-box">
+      <div class="viewer-loading" id="viewerLoading">
+        <span>読み込み中…</span>
+        <div class="vl-bar"><div class="vl-fill"></div></div>
+      </div>
+      <canvas class="ds-viewer-canvas" id="viewerCanvas"></canvas>
+      <div class="ds-viewer-controls">
+        <i class="fa-solid fa-circle-info"></i>
+        左ドラッグ: 回転 &nbsp;|&nbsp; 右ドラッグ: 移動 &nbsp;|&nbsp; スクロール: ズーム
+        <button class="ds-viewer-reset" onclick="resetCamera()">
+          <i class="fa-solid fa-arrows-rotate"></i> リセット
+        </button>
+      </div>
+    </div>` : `
+    <div class="ds-viewer-box" style="display:flex;align-items:center;justify-content:center;min-height:280px;background:var(--bg2)">
+      <div style="text-align:center">
+        <div style="font-size:72px;margin-bottom:12px">${part.thumb || '📦'}</div>
+        <div style="font-size:12px;color:var(--muted)">3Dプレビューはメーカーサイトをご参照ください</div>
+      </div>
+    </div>`;
+
+  document.getElementById('detailLayout').innerHTML = `
+    ${viewerHtml}
+    <div>
+      <div class="ds-breadcrumb">
+        <a href="index.html">トップ</a>
+        <i class="fa-solid fa-chevron-right"></i>
+        <a href="category.html?cat=${part.cat}">${cat ? cat.name : part.cat}</a>
+        <i class="fa-solid fa-chevron-right"></i>
+        <span>${part.name}</span>
+      </div>
+      <div class="ds-info-box">
+        <div class="ds-info-tags">
+          ${dlBadge(part.type)}
+          ${specBadge(part.spec)}
+        </div>
+        <div class="ds-info-title">${part.name}</div>
+        <div class="ds-info-id">${part.id}</div>
+        <table class="ds-spec-table">
+          <tr><td>規格</td><td>${part.spec || '—'}</td></tr>
+          <tr><td>カテゴリー</td><td>${cat ? cat.name : part.cat}</td></tr>
+        </table>
+        ${paramsTable(part.params)}
+        ${actionSection(part)}
+      </div>
+    </div>`;
+
+  if (isDownload) {
+    const canvas = document.getElementById('viewerCanvas');
+    initViewer(canvas);
+
+    function hideLoader() {
+      const el = document.getElementById('viewerLoading');
+      if (el) { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }
+    }
+
+    // 8秒タイムアウト: STLが読めなければプレースホルダー表示
+    const timer = setTimeout(() => { showPlaceholder(part.name); hideLoader(); }, 8000);
+
+    loadSTL(part.files.stl)
+      .then(() => { clearTimeout(timer); hideLoader(); })
+      .catch(() => { clearTimeout(timer); showPlaceholder(part.name); hideLoader(); });
+  }
+}
+</script>
+</body>
+</html>

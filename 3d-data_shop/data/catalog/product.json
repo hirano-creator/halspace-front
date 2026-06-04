@@ -1,0 +1,4779 @@
+{
+  "generated": "2026-06-03T18:42:22.991739",
+  "count": 146,
+  "products": [
+    {
+      "id": "hex_bolt_m3x8",
+      "name": "六角ボルト M3×8",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m3x8.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m3x8.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m3x8.png"
+      },
+      "spec": {
+        "nominal": "M3",
+        "d": 3,
+        "pitch": 0.5,
+        "s": 5.5,
+        "e": 6.01,
+        "k": 2.0,
+        "da": 3.6,
+        "dw": 4.57,
+        "lengths": [
+          6,
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30
+        ],
+        "length": 8
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m3x6",
+      "name": "六角ボルト M3×6",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m3x6.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m3x6.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m3x6.png"
+      },
+      "spec": {
+        "nominal": "M3",
+        "d": 3,
+        "pitch": 0.5,
+        "s": 5.5,
+        "e": 6.01,
+        "k": 2.0,
+        "da": 3.6,
+        "dw": 4.57,
+        "lengths": [
+          6,
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30
+        ],
+        "length": 6
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m3x12",
+      "name": "六角ボルト M3×12",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m3x12.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m3x12.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m3x12.png"
+      },
+      "spec": {
+        "nominal": "M3",
+        "d": 3,
+        "pitch": 0.5,
+        "s": 5.5,
+        "e": 6.01,
+        "k": 2.0,
+        "da": 3.6,
+        "dw": 4.57,
+        "lengths": [
+          6,
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30
+        ],
+        "length": 12
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m3x10",
+      "name": "六角ボルト M3×10",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m3x10.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m3x10.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m3x10.png"
+      },
+      "spec": {
+        "nominal": "M3",
+        "d": 3,
+        "pitch": 0.5,
+        "s": 5.5,
+        "e": 6.01,
+        "k": 2.0,
+        "da": 3.6,
+        "dw": 4.57,
+        "lengths": [
+          6,
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30
+        ],
+        "length": 10
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m3x16",
+      "name": "六角ボルト M3×16",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m3x16.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m3x16.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m3x16.png"
+      },
+      "spec": {
+        "nominal": "M3",
+        "d": 3,
+        "pitch": 0.5,
+        "s": 5.5,
+        "e": 6.01,
+        "k": 2.0,
+        "da": 3.6,
+        "dw": 4.57,
+        "lengths": [
+          6,
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30
+        ],
+        "length": 16
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m3x20",
+      "name": "六角ボルト M3×20",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m3x20.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m3x20.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m3x20.png"
+      },
+      "spec": {
+        "nominal": "M3",
+        "d": 3,
+        "pitch": 0.5,
+        "s": 5.5,
+        "e": 6.01,
+        "k": 2.0,
+        "da": 3.6,
+        "dw": 4.57,
+        "lengths": [
+          6,
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30
+        ],
+        "length": 20
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m3x30",
+      "name": "六角ボルト M3×30",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m3x30.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m3x30.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m3x30.png"
+      },
+      "spec": {
+        "nominal": "M3",
+        "d": 3,
+        "pitch": 0.5,
+        "s": 5.5,
+        "e": 6.01,
+        "k": 2.0,
+        "da": 3.6,
+        "dw": 4.57,
+        "lengths": [
+          6,
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30
+        ],
+        "length": 30
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m3x25",
+      "name": "六角ボルト M3×25",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m3x25.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m3x25.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m3x25.png"
+      },
+      "spec": {
+        "nominal": "M3",
+        "d": 3,
+        "pitch": 0.5,
+        "s": 5.5,
+        "e": 6.01,
+        "k": 2.0,
+        "da": 3.6,
+        "dw": 4.57,
+        "lengths": [
+          6,
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30
+        ],
+        "length": 25
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m4x8",
+      "name": "六角ボルト M4×8",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m4x8.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m4x8.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m4x8.png"
+      },
+      "spec": {
+        "nominal": "M4",
+        "d": 4,
+        "pitch": 0.7,
+        "s": 7.0,
+        "e": 7.66,
+        "k": 2.8,
+        "da": 4.7,
+        "dw": 5.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40
+        ],
+        "length": 8
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m4x10",
+      "name": "六角ボルト M4×10",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m4x10.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m4x10.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m4x10.png"
+      },
+      "spec": {
+        "nominal": "M4",
+        "d": 4,
+        "pitch": 0.7,
+        "s": 7.0,
+        "e": 7.66,
+        "k": 2.8,
+        "da": 4.7,
+        "dw": 5.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40
+        ],
+        "length": 10
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m4x16",
+      "name": "六角ボルト M4×16",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m4x16.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m4x16.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m4x16.png"
+      },
+      "spec": {
+        "nominal": "M4",
+        "d": 4,
+        "pitch": 0.7,
+        "s": 7.0,
+        "e": 7.66,
+        "k": 2.8,
+        "da": 4.7,
+        "dw": 5.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40
+        ],
+        "length": 16
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m4x12",
+      "name": "六角ボルト M4×12",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m4x12.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m4x12.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m4x12.png"
+      },
+      "spec": {
+        "nominal": "M4",
+        "d": 4,
+        "pitch": 0.7,
+        "s": 7.0,
+        "e": 7.66,
+        "k": 2.8,
+        "da": 4.7,
+        "dw": 5.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40
+        ],
+        "length": 12
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m4x20",
+      "name": "六角ボルト M4×20",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m4x20.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m4x20.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m4x20.png"
+      },
+      "spec": {
+        "nominal": "M4",
+        "d": 4,
+        "pitch": 0.7,
+        "s": 7.0,
+        "e": 7.66,
+        "k": 2.8,
+        "da": 4.7,
+        "dw": 5.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40
+        ],
+        "length": 20
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m4x35",
+      "name": "六角ボルト M4×35",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m4x35.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m4x35.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m4x35.png"
+      },
+      "spec": {
+        "nominal": "M4",
+        "d": 4,
+        "pitch": 0.7,
+        "s": 7.0,
+        "e": 7.66,
+        "k": 2.8,
+        "da": 4.7,
+        "dw": 5.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40
+        ],
+        "length": 35
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m4x25",
+      "name": "六角ボルト M4×25",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m4x25.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m4x25.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m4x25.png"
+      },
+      "spec": {
+        "nominal": "M4",
+        "d": 4,
+        "pitch": 0.7,
+        "s": 7.0,
+        "e": 7.66,
+        "k": 2.8,
+        "da": 4.7,
+        "dw": 5.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40
+        ],
+        "length": 25
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m4x30",
+      "name": "六角ボルト M4×30",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m4x30.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m4x30.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m4x30.png"
+      },
+      "spec": {
+        "nominal": "M4",
+        "d": 4,
+        "pitch": 0.7,
+        "s": 7.0,
+        "e": 7.66,
+        "k": 2.8,
+        "da": 4.7,
+        "dw": 5.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40
+        ],
+        "length": 30
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m4x40",
+      "name": "六角ボルト M4×40",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m4x40.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m4x40.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m4x40.png"
+      },
+      "spec": {
+        "nominal": "M4",
+        "d": 4,
+        "pitch": 0.7,
+        "s": 7.0,
+        "e": 7.66,
+        "k": 2.8,
+        "da": 4.7,
+        "dw": 5.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40
+        ],
+        "length": 40
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m5x8",
+      "name": "六角ボルト M5×8",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m5x8.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m5x8.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m5x8.png"
+      },
+      "spec": {
+        "nominal": "M5",
+        "d": 5,
+        "pitch": 0.8,
+        "s": 8.0,
+        "e": 8.79,
+        "k": 3.5,
+        "da": 5.7,
+        "dw": 6.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50
+        ],
+        "length": 8
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m5x10",
+      "name": "六角ボルト M5×10",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m5x10.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m5x10.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m5x10.png"
+      },
+      "spec": {
+        "nominal": "M5",
+        "d": 5,
+        "pitch": 0.8,
+        "s": 8.0,
+        "e": 8.79,
+        "k": 3.5,
+        "da": 5.7,
+        "dw": 6.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50
+        ],
+        "length": 10
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m5x12",
+      "name": "六角ボルト M5×12",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m5x12.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m5x12.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m5x12.png"
+      },
+      "spec": {
+        "nominal": "M5",
+        "d": 5,
+        "pitch": 0.8,
+        "s": 8.0,
+        "e": 8.79,
+        "k": 3.5,
+        "da": 5.7,
+        "dw": 6.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50
+        ],
+        "length": 12
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m5x16",
+      "name": "六角ボルト M5×16",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m5x16.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m5x16.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m5x16.png"
+      },
+      "spec": {
+        "nominal": "M5",
+        "d": 5,
+        "pitch": 0.8,
+        "s": 8.0,
+        "e": 8.79,
+        "k": 3.5,
+        "da": 5.7,
+        "dw": 6.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50
+        ],
+        "length": 16
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m5x25",
+      "name": "六角ボルト M5×25",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m5x25.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m5x25.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m5x25.png"
+      },
+      "spec": {
+        "nominal": "M5",
+        "d": 5,
+        "pitch": 0.8,
+        "s": 8.0,
+        "e": 8.79,
+        "k": 3.5,
+        "da": 5.7,
+        "dw": 6.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50
+        ],
+        "length": 25
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m5x30",
+      "name": "六角ボルト M5×30",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m5x30.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m5x30.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m5x30.png"
+      },
+      "spec": {
+        "nominal": "M5",
+        "d": 5,
+        "pitch": 0.8,
+        "s": 8.0,
+        "e": 8.79,
+        "k": 3.5,
+        "da": 5.7,
+        "dw": 6.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50
+        ],
+        "length": 30
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m5x20",
+      "name": "六角ボルト M5×20",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m5x20.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m5x20.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m5x20.png"
+      },
+      "spec": {
+        "nominal": "M5",
+        "d": 5,
+        "pitch": 0.8,
+        "s": 8.0,
+        "e": 8.79,
+        "k": 3.5,
+        "da": 5.7,
+        "dw": 6.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50
+        ],
+        "length": 20
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m5x35",
+      "name": "六角ボルト M5×35",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m5x35.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m5x35.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m5x35.png"
+      },
+      "spec": {
+        "nominal": "M5",
+        "d": 5,
+        "pitch": 0.8,
+        "s": 8.0,
+        "e": 8.79,
+        "k": 3.5,
+        "da": 5.7,
+        "dw": 6.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50
+        ],
+        "length": 35
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m5x40",
+      "name": "六角ボルト M5×40",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m5x40.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m5x40.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m5x40.png"
+      },
+      "spec": {
+        "nominal": "M5",
+        "d": 5,
+        "pitch": 0.8,
+        "s": 8.0,
+        "e": 8.79,
+        "k": 3.5,
+        "da": 5.7,
+        "dw": 6.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50
+        ],
+        "length": 40
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m5x50",
+      "name": "六角ボルト M5×50",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m5x50.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m5x50.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m5x50.png"
+      },
+      "spec": {
+        "nominal": "M5",
+        "d": 5,
+        "pitch": 0.8,
+        "s": 8.0,
+        "e": 8.79,
+        "k": 3.5,
+        "da": 5.7,
+        "dw": 6.88,
+        "lengths": [
+          8,
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50
+        ],
+        "length": 50
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m6x10",
+      "name": "六角ボルト M6×10",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m6x10.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m6x10.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m6x10.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d": 6,
+        "pitch": 1.0,
+        "s": 10.0,
+        "e": 10.89,
+        "k": 4.0,
+        "da": 6.8,
+        "dw": 8.88,
+        "lengths": [
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60
+        ],
+        "length": 10
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m6x12",
+      "name": "六角ボルト M6×12",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m6x12.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m6x12.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m6x12.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d": 6,
+        "pitch": 1.0,
+        "s": 10.0,
+        "e": 10.89,
+        "k": 4.0,
+        "da": 6.8,
+        "dw": 8.88,
+        "lengths": [
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60
+        ],
+        "length": 12
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m6x16",
+      "name": "六角ボルト M6×16",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m6x16.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m6x16.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m6x16.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d": 6,
+        "pitch": 1.0,
+        "s": 10.0,
+        "e": 10.89,
+        "k": 4.0,
+        "da": 6.8,
+        "dw": 8.88,
+        "lengths": [
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60
+        ],
+        "length": 16
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m6x20",
+      "name": "六角ボルト M6×20",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m6x20.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m6x20.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m6x20.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d": 6,
+        "pitch": 1.0,
+        "s": 10.0,
+        "e": 10.89,
+        "k": 4.0,
+        "da": 6.8,
+        "dw": 8.88,
+        "lengths": [
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60
+        ],
+        "length": 20
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m6x25",
+      "name": "六角ボルト M6×25",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m6x25.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m6x25.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m6x25.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d": 6,
+        "pitch": 1.0,
+        "s": 10.0,
+        "e": 10.89,
+        "k": 4.0,
+        "da": 6.8,
+        "dw": 8.88,
+        "lengths": [
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60
+        ],
+        "length": 25
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m6x30",
+      "name": "六角ボルト M6×30",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m6x30.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m6x30.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m6x30.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d": 6,
+        "pitch": 1.0,
+        "s": 10.0,
+        "e": 10.89,
+        "k": 4.0,
+        "da": 6.8,
+        "dw": 8.88,
+        "lengths": [
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60
+        ],
+        "length": 30
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m6x35",
+      "name": "六角ボルト M6×35",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m6x35.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m6x35.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m6x35.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d": 6,
+        "pitch": 1.0,
+        "s": 10.0,
+        "e": 10.89,
+        "k": 4.0,
+        "da": 6.8,
+        "dw": 8.88,
+        "lengths": [
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60
+        ],
+        "length": 35
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m6x45",
+      "name": "六角ボルト M6×45",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m6x45.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m6x45.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m6x45.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d": 6,
+        "pitch": 1.0,
+        "s": 10.0,
+        "e": 10.89,
+        "k": 4.0,
+        "da": 6.8,
+        "dw": 8.88,
+        "lengths": [
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60
+        ],
+        "length": 45
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m6x40",
+      "name": "六角ボルト M6×40",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m6x40.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m6x40.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m6x40.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d": 6,
+        "pitch": 1.0,
+        "s": 10.0,
+        "e": 10.89,
+        "k": 4.0,
+        "da": 6.8,
+        "dw": 8.88,
+        "lengths": [
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60
+        ],
+        "length": 40
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m6x60",
+      "name": "六角ボルト M6×60",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m6x60.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m6x60.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m6x60.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d": 6,
+        "pitch": 1.0,
+        "s": 10.0,
+        "e": 10.89,
+        "k": 4.0,
+        "da": 6.8,
+        "dw": 8.88,
+        "lengths": [
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60
+        ],
+        "length": 60
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m6x50",
+      "name": "六角ボルト M6×50",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m6x50.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m6x50.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m6x50.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d": 6,
+        "pitch": 1.0,
+        "s": 10.0,
+        "e": 10.89,
+        "k": 4.0,
+        "da": 6.8,
+        "dw": 8.88,
+        "lengths": [
+          10,
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60
+        ],
+        "length": 50
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m8x12",
+      "name": "六角ボルト M8×12",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m8x12.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m8x12.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m8x12.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d": 8,
+        "pitch": 1.25,
+        "s": 13.0,
+        "e": 14.2,
+        "k": 5.5,
+        "da": 9.2,
+        "dw": 11.63,
+        "lengths": [
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60,
+          70,
+          80
+        ],
+        "length": 12
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m8x16",
+      "name": "六角ボルト M8×16",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m8x16.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m8x16.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m8x16.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d": 8,
+        "pitch": 1.25,
+        "s": 13.0,
+        "e": 14.2,
+        "k": 5.5,
+        "da": 9.2,
+        "dw": 11.63,
+        "lengths": [
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60,
+          70,
+          80
+        ],
+        "length": 16
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m8x20",
+      "name": "六角ボルト M8×20",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m8x20.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m8x20.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m8x20.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d": 8,
+        "pitch": 1.25,
+        "s": 13.0,
+        "e": 14.2,
+        "k": 5.5,
+        "da": 9.2,
+        "dw": 11.63,
+        "lengths": [
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60,
+          70,
+          80
+        ],
+        "length": 20
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m8x25",
+      "name": "六角ボルト M8×25",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m8x25.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m8x25.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m8x25.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d": 8,
+        "pitch": 1.25,
+        "s": 13.0,
+        "e": 14.2,
+        "k": 5.5,
+        "da": 9.2,
+        "dw": 11.63,
+        "lengths": [
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60,
+          70,
+          80
+        ],
+        "length": 25
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m8x30",
+      "name": "六角ボルト M8×30",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m8x30.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m8x30.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m8x30.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d": 8,
+        "pitch": 1.25,
+        "s": 13.0,
+        "e": 14.2,
+        "k": 5.5,
+        "da": 9.2,
+        "dw": 11.63,
+        "lengths": [
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60,
+          70,
+          80
+        ],
+        "length": 30
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m8x35",
+      "name": "六角ボルト M8×35",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m8x35.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m8x35.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m8x35.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d": 8,
+        "pitch": 1.25,
+        "s": 13.0,
+        "e": 14.2,
+        "k": 5.5,
+        "da": 9.2,
+        "dw": 11.63,
+        "lengths": [
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60,
+          70,
+          80
+        ],
+        "length": 35
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m8x40",
+      "name": "六角ボルト M8×40",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m8x40.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m8x40.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m8x40.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d": 8,
+        "pitch": 1.25,
+        "s": 13.0,
+        "e": 14.2,
+        "k": 5.5,
+        "da": 9.2,
+        "dw": 11.63,
+        "lengths": [
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60,
+          70,
+          80
+        ],
+        "length": 40
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m8x50",
+      "name": "六角ボルト M8×50",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m8x50.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m8x50.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m8x50.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d": 8,
+        "pitch": 1.25,
+        "s": 13.0,
+        "e": 14.2,
+        "k": 5.5,
+        "da": 9.2,
+        "dw": 11.63,
+        "lengths": [
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60,
+          70,
+          80
+        ],
+        "length": 50
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m8x45",
+      "name": "六角ボルト M8×45",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m8x45.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m8x45.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m8x45.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d": 8,
+        "pitch": 1.25,
+        "s": 13.0,
+        "e": 14.2,
+        "k": 5.5,
+        "da": 9.2,
+        "dw": 11.63,
+        "lengths": [
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60,
+          70,
+          80
+        ],
+        "length": 45
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m8x60",
+      "name": "六角ボルト M8×60",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m8x60.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m8x60.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m8x60.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d": 8,
+        "pitch": 1.25,
+        "s": 13.0,
+        "e": 14.2,
+        "k": 5.5,
+        "da": 9.2,
+        "dw": 11.63,
+        "lengths": [
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60,
+          70,
+          80
+        ],
+        "length": 60
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m8x70",
+      "name": "六角ボルト M8×70",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m8x70.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m8x70.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m8x70.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d": 8,
+        "pitch": 1.25,
+        "s": 13.0,
+        "e": 14.2,
+        "k": 5.5,
+        "da": 9.2,
+        "dw": 11.63,
+        "lengths": [
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60,
+          70,
+          80
+        ],
+        "length": 70
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m8x80",
+      "name": "六角ボルト M8×80",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m8x80.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m8x80.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m8x80.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d": 8,
+        "pitch": 1.25,
+        "s": 13.0,
+        "e": 14.2,
+        "k": 5.5,
+        "da": 9.2,
+        "dw": 11.63,
+        "lengths": [
+          12,
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          45,
+          50,
+          60,
+          70,
+          80
+        ],
+        "length": 80
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m10x16",
+      "name": "六角ボルト M10×16",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m10x16.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m10x16.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m10x16.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d": 10,
+        "pitch": 1.5,
+        "s": 17.0,
+        "e": 18.48,
+        "k": 6.4,
+        "da": 11.2,
+        "dw": 14.63,
+        "lengths": [
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100
+        ],
+        "length": 16
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m10x20",
+      "name": "六角ボルト M10×20",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m10x20.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m10x20.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m10x20.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d": 10,
+        "pitch": 1.5,
+        "s": 17.0,
+        "e": 18.48,
+        "k": 6.4,
+        "da": 11.2,
+        "dw": 14.63,
+        "lengths": [
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100
+        ],
+        "length": 20
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m10x25",
+      "name": "六角ボルト M10×25",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m10x25.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m10x25.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m10x25.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d": 10,
+        "pitch": 1.5,
+        "s": 17.0,
+        "e": 18.48,
+        "k": 6.4,
+        "da": 11.2,
+        "dw": 14.63,
+        "lengths": [
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100
+        ],
+        "length": 25
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m10x30",
+      "name": "六角ボルト M10×30",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m10x30.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m10x30.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m10x30.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d": 10,
+        "pitch": 1.5,
+        "s": 17.0,
+        "e": 18.48,
+        "k": 6.4,
+        "da": 11.2,
+        "dw": 14.63,
+        "lengths": [
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100
+        ],
+        "length": 30
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m10x35",
+      "name": "六角ボルト M10×35",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m10x35.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m10x35.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m10x35.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d": 10,
+        "pitch": 1.5,
+        "s": 17.0,
+        "e": 18.48,
+        "k": 6.4,
+        "da": 11.2,
+        "dw": 14.63,
+        "lengths": [
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100
+        ],
+        "length": 35
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m10x40",
+      "name": "六角ボルト M10×40",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m10x40.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m10x40.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m10x40.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d": 10,
+        "pitch": 1.5,
+        "s": 17.0,
+        "e": 18.48,
+        "k": 6.4,
+        "da": 11.2,
+        "dw": 14.63,
+        "lengths": [
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100
+        ],
+        "length": 40
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m10x50",
+      "name": "六角ボルト M10×50",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m10x50.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m10x50.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m10x50.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d": 10,
+        "pitch": 1.5,
+        "s": 17.0,
+        "e": 18.48,
+        "k": 6.4,
+        "da": 11.2,
+        "dw": 14.63,
+        "lengths": [
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100
+        ],
+        "length": 50
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m10x80",
+      "name": "六角ボルト M10×80",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m10x80.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m10x80.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m10x80.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d": 10,
+        "pitch": 1.5,
+        "s": 17.0,
+        "e": 18.48,
+        "k": 6.4,
+        "da": 11.2,
+        "dw": 14.63,
+        "lengths": [
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100
+        ],
+        "length": 80
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m10x60",
+      "name": "六角ボルト M10×60",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m10x60.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m10x60.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m10x60.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d": 10,
+        "pitch": 1.5,
+        "s": 17.0,
+        "e": 18.48,
+        "k": 6.4,
+        "da": 11.2,
+        "dw": 14.63,
+        "lengths": [
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100
+        ],
+        "length": 60
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m10x70",
+      "name": "六角ボルト M10×70",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m10x70.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m10x70.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m10x70.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d": 10,
+        "pitch": 1.5,
+        "s": 17.0,
+        "e": 18.48,
+        "k": 6.4,
+        "da": 11.2,
+        "dw": 14.63,
+        "lengths": [
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100
+        ],
+        "length": 70
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m10x100",
+      "name": "六角ボルト M10×100",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m10x100.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m10x100.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m10x100.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d": 10,
+        "pitch": 1.5,
+        "s": 17.0,
+        "e": 18.48,
+        "k": 6.4,
+        "da": 11.2,
+        "dw": 14.63,
+        "lengths": [
+          16,
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100
+        ],
+        "length": 100
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m12x20",
+      "name": "六角ボルト M12×20",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m12x20.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m12x20.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m12x20.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d": 12,
+        "pitch": 1.75,
+        "s": 19.0,
+        "e": 20.78,
+        "k": 7.5,
+        "da": 13.2,
+        "dw": 16.63,
+        "lengths": [
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 20
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m12x25",
+      "name": "六角ボルト M12×25",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m12x25.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m12x25.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m12x25.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d": 12,
+        "pitch": 1.75,
+        "s": 19.0,
+        "e": 20.78,
+        "k": 7.5,
+        "da": 13.2,
+        "dw": 16.63,
+        "lengths": [
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 25
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m12x30",
+      "name": "六角ボルト M12×30",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m12x30.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m12x30.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m12x30.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d": 12,
+        "pitch": 1.75,
+        "s": 19.0,
+        "e": 20.78,
+        "k": 7.5,
+        "da": 13.2,
+        "dw": 16.63,
+        "lengths": [
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 30
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m12x35",
+      "name": "六角ボルト M12×35",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m12x35.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m12x35.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m12x35.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d": 12,
+        "pitch": 1.75,
+        "s": 19.0,
+        "e": 20.78,
+        "k": 7.5,
+        "da": 13.2,
+        "dw": 16.63,
+        "lengths": [
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 35
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m12x50",
+      "name": "六角ボルト M12×50",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m12x50.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m12x50.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m12x50.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d": 12,
+        "pitch": 1.75,
+        "s": 19.0,
+        "e": 20.78,
+        "k": 7.5,
+        "da": 13.2,
+        "dw": 16.63,
+        "lengths": [
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 50
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m12x40",
+      "name": "六角ボルト M12×40",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m12x40.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m12x40.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m12x40.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d": 12,
+        "pitch": 1.75,
+        "s": 19.0,
+        "e": 20.78,
+        "k": 7.5,
+        "da": 13.2,
+        "dw": 16.63,
+        "lengths": [
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 40
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m12x60",
+      "name": "六角ボルト M12×60",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m12x60.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m12x60.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m12x60.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d": 12,
+        "pitch": 1.75,
+        "s": 19.0,
+        "e": 20.78,
+        "k": 7.5,
+        "da": 13.2,
+        "dw": 16.63,
+        "lengths": [
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 60
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m12x70",
+      "name": "六角ボルト M12×70",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m12x70.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m12x70.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m12x70.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d": 12,
+        "pitch": 1.75,
+        "s": 19.0,
+        "e": 20.78,
+        "k": 7.5,
+        "da": 13.2,
+        "dw": 16.63,
+        "lengths": [
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 70
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m12x100",
+      "name": "六角ボルト M12×100",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m12x100.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m12x100.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m12x100.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d": 12,
+        "pitch": 1.75,
+        "s": 19.0,
+        "e": 20.78,
+        "k": 7.5,
+        "da": 13.2,
+        "dw": 16.63,
+        "lengths": [
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 100
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m12x80",
+      "name": "六角ボルト M12×80",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m12x80.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m12x80.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m12x80.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d": 12,
+        "pitch": 1.75,
+        "s": 19.0,
+        "e": 20.78,
+        "k": 7.5,
+        "da": 13.2,
+        "dw": 16.63,
+        "lengths": [
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 80
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m12x120",
+      "name": "六角ボルト M12×120",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m12x120.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m12x120.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m12x120.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d": 12,
+        "pitch": 1.75,
+        "s": 19.0,
+        "e": 20.78,
+        "k": 7.5,
+        "da": 13.2,
+        "dw": 16.63,
+        "lengths": [
+          20,
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 120
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m14x25",
+      "name": "六角ボルト M14×25",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m14x25.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m14x25.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m14x25.png"
+      },
+      "spec": {
+        "nominal": "M14",
+        "d": 14,
+        "pitch": 2.0,
+        "s": 22.0,
+        "e": 24.12,
+        "k": 8.8,
+        "da": 15.2,
+        "dw": 19.15,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 25
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m14x30",
+      "name": "六角ボルト M14×30",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m14x30.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m14x30.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m14x30.png"
+      },
+      "spec": {
+        "nominal": "M14",
+        "d": 14,
+        "pitch": 2.0,
+        "s": 22.0,
+        "e": 24.12,
+        "k": 8.8,
+        "da": 15.2,
+        "dw": 19.15,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 30
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m14x35",
+      "name": "六角ボルト M14×35",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m14x35.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m14x35.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m14x35.png"
+      },
+      "spec": {
+        "nominal": "M14",
+        "d": 14,
+        "pitch": 2.0,
+        "s": 22.0,
+        "e": 24.12,
+        "k": 8.8,
+        "da": 15.2,
+        "dw": 19.15,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 35
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m14x40",
+      "name": "六角ボルト M14×40",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m14x40.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m14x40.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m14x40.png"
+      },
+      "spec": {
+        "nominal": "M14",
+        "d": 14,
+        "pitch": 2.0,
+        "s": 22.0,
+        "e": 24.12,
+        "k": 8.8,
+        "da": 15.2,
+        "dw": 19.15,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 40
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m14x50",
+      "name": "六角ボルト M14×50",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m14x50.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m14x50.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m14x50.png"
+      },
+      "spec": {
+        "nominal": "M14",
+        "d": 14,
+        "pitch": 2.0,
+        "s": 22.0,
+        "e": 24.12,
+        "k": 8.8,
+        "da": 15.2,
+        "dw": 19.15,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 50
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m14x60",
+      "name": "六角ボルト M14×60",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m14x60.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m14x60.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m14x60.png"
+      },
+      "spec": {
+        "nominal": "M14",
+        "d": 14,
+        "pitch": 2.0,
+        "s": 22.0,
+        "e": 24.12,
+        "k": 8.8,
+        "da": 15.2,
+        "dw": 19.15,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 60
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m14x70",
+      "name": "六角ボルト M14×70",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m14x70.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m14x70.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m14x70.png"
+      },
+      "spec": {
+        "nominal": "M14",
+        "d": 14,
+        "pitch": 2.0,
+        "s": 22.0,
+        "e": 24.12,
+        "k": 8.8,
+        "da": 15.2,
+        "dw": 19.15,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 70
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m14x100",
+      "name": "六角ボルト M14×100",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m14x100.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m14x100.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m14x100.png"
+      },
+      "spec": {
+        "nominal": "M14",
+        "d": 14,
+        "pitch": 2.0,
+        "s": 22.0,
+        "e": 24.12,
+        "k": 8.8,
+        "da": 15.2,
+        "dw": 19.15,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 100
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m14x80",
+      "name": "六角ボルト M14×80",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m14x80.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m14x80.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m14x80.png"
+      },
+      "spec": {
+        "nominal": "M14",
+        "d": 14,
+        "pitch": 2.0,
+        "s": 22.0,
+        "e": 24.12,
+        "k": 8.8,
+        "da": 15.2,
+        "dw": 19.15,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 80
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m14x120",
+      "name": "六角ボルト M14×120",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m14x120.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m14x120.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m14x120.png"
+      },
+      "spec": {
+        "nominal": "M14",
+        "d": 14,
+        "pitch": 2.0,
+        "s": 22.0,
+        "e": 24.12,
+        "k": 8.8,
+        "da": 15.2,
+        "dw": 19.15,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120
+        ],
+        "length": 120
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m16x25",
+      "name": "六角ボルト M16×25",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m16x25.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m16x25.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m16x25.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d": 16,
+        "pitch": 2.0,
+        "s": 24.0,
+        "e": 26.17,
+        "k": 10.0,
+        "da": 17.2,
+        "dw": 22.0,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150
+        ],
+        "length": 25
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m16x30",
+      "name": "六角ボルト M16×30",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m16x30.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m16x30.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m16x30.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d": 16,
+        "pitch": 2.0,
+        "s": 24.0,
+        "e": 26.17,
+        "k": 10.0,
+        "da": 17.2,
+        "dw": 22.0,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150
+        ],
+        "length": 30
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m16x35",
+      "name": "六角ボルト M16×35",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m16x35.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m16x35.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m16x35.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d": 16,
+        "pitch": 2.0,
+        "s": 24.0,
+        "e": 26.17,
+        "k": 10.0,
+        "da": 17.2,
+        "dw": 22.0,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150
+        ],
+        "length": 35
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m16x40",
+      "name": "六角ボルト M16×40",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m16x40.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m16x40.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m16x40.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d": 16,
+        "pitch": 2.0,
+        "s": 24.0,
+        "e": 26.17,
+        "k": 10.0,
+        "da": 17.2,
+        "dw": 22.0,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150
+        ],
+        "length": 40
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m16x50",
+      "name": "六角ボルト M16×50",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m16x50.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m16x50.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m16x50.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d": 16,
+        "pitch": 2.0,
+        "s": 24.0,
+        "e": 26.17,
+        "k": 10.0,
+        "da": 17.2,
+        "dw": 22.0,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150
+        ],
+        "length": 50
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m16x60",
+      "name": "六角ボルト M16×60",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m16x60.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m16x60.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m16x60.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d": 16,
+        "pitch": 2.0,
+        "s": 24.0,
+        "e": 26.17,
+        "k": 10.0,
+        "da": 17.2,
+        "dw": 22.0,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150
+        ],
+        "length": 60
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m16x70",
+      "name": "六角ボルト M16×70",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m16x70.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m16x70.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m16x70.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d": 16,
+        "pitch": 2.0,
+        "s": 24.0,
+        "e": 26.17,
+        "k": 10.0,
+        "da": 17.2,
+        "dw": 22.0,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150
+        ],
+        "length": 70
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m16x80",
+      "name": "六角ボルト M16×80",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m16x80.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m16x80.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m16x80.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d": 16,
+        "pitch": 2.0,
+        "s": 24.0,
+        "e": 26.17,
+        "k": 10.0,
+        "da": 17.2,
+        "dw": 22.0,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150
+        ],
+        "length": 80
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m16x100",
+      "name": "六角ボルト M16×100",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m16x100.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m16x100.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m16x100.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d": 16,
+        "pitch": 2.0,
+        "s": 24.0,
+        "e": 26.17,
+        "k": 10.0,
+        "da": 17.2,
+        "dw": 22.0,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150
+        ],
+        "length": 100
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m16x120",
+      "name": "六角ボルト M16×120",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m16x120.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m16x120.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m16x120.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d": 16,
+        "pitch": 2.0,
+        "s": 24.0,
+        "e": 26.17,
+        "k": 10.0,
+        "da": 17.2,
+        "dw": 22.0,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150
+        ],
+        "length": 120
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m16x150",
+      "name": "六角ボルト M16×150",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m16x150.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m16x150.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m16x150.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d": 16,
+        "pitch": 2.0,
+        "s": 24.0,
+        "e": 26.17,
+        "k": 10.0,
+        "da": 17.2,
+        "dw": 22.0,
+        "lengths": [
+          25,
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150
+        ],
+        "length": 150
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m20x30",
+      "name": "六角ボルト M20×30",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m20x30.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m20x30.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m20x30.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d": 20,
+        "pitch": 2.5,
+        "s": 30.0,
+        "e": 32.95,
+        "k": 12.5,
+        "da": 21.2,
+        "dw": 27.7,
+        "lengths": [
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 30
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m20x35",
+      "name": "六角ボルト M20×35",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m20x35.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m20x35.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m20x35.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d": 20,
+        "pitch": 2.5,
+        "s": 30.0,
+        "e": 32.95,
+        "k": 12.5,
+        "da": 21.2,
+        "dw": 27.7,
+        "lengths": [
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 35
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m20x40",
+      "name": "六角ボルト M20×40",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m20x40.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m20x40.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m20x40.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d": 20,
+        "pitch": 2.5,
+        "s": 30.0,
+        "e": 32.95,
+        "k": 12.5,
+        "da": 21.2,
+        "dw": 27.7,
+        "lengths": [
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 40
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m20x50",
+      "name": "六角ボルト M20×50",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m20x50.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m20x50.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m20x50.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d": 20,
+        "pitch": 2.5,
+        "s": 30.0,
+        "e": 32.95,
+        "k": 12.5,
+        "da": 21.2,
+        "dw": 27.7,
+        "lengths": [
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 50
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m20x60",
+      "name": "六角ボルト M20×60",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m20x60.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m20x60.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m20x60.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d": 20,
+        "pitch": 2.5,
+        "s": 30.0,
+        "e": 32.95,
+        "k": 12.5,
+        "da": 21.2,
+        "dw": 27.7,
+        "lengths": [
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 60
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m20x70",
+      "name": "六角ボルト M20×70",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m20x70.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m20x70.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m20x70.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d": 20,
+        "pitch": 2.5,
+        "s": 30.0,
+        "e": 32.95,
+        "k": 12.5,
+        "da": 21.2,
+        "dw": 27.7,
+        "lengths": [
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 70
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m20x80",
+      "name": "六角ボルト M20×80",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m20x80.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m20x80.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m20x80.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d": 20,
+        "pitch": 2.5,
+        "s": 30.0,
+        "e": 32.95,
+        "k": 12.5,
+        "da": 21.2,
+        "dw": 27.7,
+        "lengths": [
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 80
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m20x100",
+      "name": "六角ボルト M20×100",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m20x100.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m20x100.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m20x100.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d": 20,
+        "pitch": 2.5,
+        "s": 30.0,
+        "e": 32.95,
+        "k": 12.5,
+        "da": 21.2,
+        "dw": 27.7,
+        "lengths": [
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 100
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m20x120",
+      "name": "六角ボルト M20×120",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m20x120.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m20x120.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m20x120.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d": 20,
+        "pitch": 2.5,
+        "s": 30.0,
+        "e": 32.95,
+        "k": 12.5,
+        "da": 21.2,
+        "dw": 27.7,
+        "lengths": [
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 120
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m20x150",
+      "name": "六角ボルト M20×150",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m20x150.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m20x150.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m20x150.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d": 20,
+        "pitch": 2.5,
+        "s": 30.0,
+        "e": 32.95,
+        "k": 12.5,
+        "da": 21.2,
+        "dw": 27.7,
+        "lengths": [
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 150
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m20x200",
+      "name": "六角ボルト M20×200",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m20x200.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m20x200.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m20x200.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d": 20,
+        "pitch": 2.5,
+        "s": 30.0,
+        "e": 32.95,
+        "k": 12.5,
+        "da": 21.2,
+        "dw": 27.7,
+        "lengths": [
+          30,
+          35,
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 200
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m24x40",
+      "name": "六角ボルト M24×40",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m24x40.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m24x40.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m24x40.png"
+      },
+      "spec": {
+        "nominal": "M24",
+        "d": 24,
+        "pitch": 3.0,
+        "s": 36.0,
+        "e": 39.55,
+        "k": 15.0,
+        "da": 25.6,
+        "dw": 33.25,
+        "lengths": [
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 40
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m24x50",
+      "name": "六角ボルト M24×50",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m24x50.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m24x50.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m24x50.png"
+      },
+      "spec": {
+        "nominal": "M24",
+        "d": 24,
+        "pitch": 3.0,
+        "s": 36.0,
+        "e": 39.55,
+        "k": 15.0,
+        "da": 25.6,
+        "dw": 33.25,
+        "lengths": [
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 50
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m24x60",
+      "name": "六角ボルト M24×60",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m24x60.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m24x60.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m24x60.png"
+      },
+      "spec": {
+        "nominal": "M24",
+        "d": 24,
+        "pitch": 3.0,
+        "s": 36.0,
+        "e": 39.55,
+        "k": 15.0,
+        "da": 25.6,
+        "dw": 33.25,
+        "lengths": [
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 60
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m24x70",
+      "name": "六角ボルト M24×70",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m24x70.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m24x70.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m24x70.png"
+      },
+      "spec": {
+        "nominal": "M24",
+        "d": 24,
+        "pitch": 3.0,
+        "s": 36.0,
+        "e": 39.55,
+        "k": 15.0,
+        "da": 25.6,
+        "dw": 33.25,
+        "lengths": [
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 70
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m24x80",
+      "name": "六角ボルト M24×80",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m24x80.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m24x80.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m24x80.png"
+      },
+      "spec": {
+        "nominal": "M24",
+        "d": 24,
+        "pitch": 3.0,
+        "s": 36.0,
+        "e": 39.55,
+        "k": 15.0,
+        "da": 25.6,
+        "dw": 33.25,
+        "lengths": [
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 80
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m24x100",
+      "name": "六角ボルト M24×100",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m24x100.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m24x100.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m24x100.png"
+      },
+      "spec": {
+        "nominal": "M24",
+        "d": 24,
+        "pitch": 3.0,
+        "s": 36.0,
+        "e": 39.55,
+        "k": 15.0,
+        "da": 25.6,
+        "dw": 33.25,
+        "lengths": [
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 100
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m24x120",
+      "name": "六角ボルト M24×120",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m24x120.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m24x120.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m24x120.png"
+      },
+      "spec": {
+        "nominal": "M24",
+        "d": 24,
+        "pitch": 3.0,
+        "s": 36.0,
+        "e": 39.55,
+        "k": 15.0,
+        "da": 25.6,
+        "dw": 33.25,
+        "lengths": [
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 120
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m24x150",
+      "name": "六角ボルト M24×150",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m24x150.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m24x150.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m24x150.png"
+      },
+      "spec": {
+        "nominal": "M24",
+        "d": 24,
+        "pitch": 3.0,
+        "s": 36.0,
+        "e": 39.55,
+        "k": 15.0,
+        "da": 25.6,
+        "dw": 33.25,
+        "lengths": [
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 150
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_nut_m3",
+      "name": "六角ナット M3",
+      "category": "fasteners",
+      "subcategory": "hex_nut",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_nut/hex_nut_m3.step",
+        "stl": "models/fasteners/hex_nut/hex_nut_m3.stl",
+        "thumb": "thumbnails/fasteners/hex_nut/hex_nut_m3.png"
+      },
+      "spec": {
+        "nominal": "M3",
+        "d": 3,
+        "pitch": 0.5,
+        "s": 5.5,
+        "e": 6.01,
+        "m": 2.4
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_bolt_m24x200",
+      "name": "六角ボルト M24×200",
+      "category": "fasteners",
+      "subcategory": "hex_bolt",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_bolt/hex_bolt_m24x200.step",
+        "stl": "models/fasteners/hex_bolt/hex_bolt_m24x200.stl",
+        "thumb": "thumbnails/fasteners/hex_bolt/hex_bolt_m24x200.png"
+      },
+      "spec": {
+        "nominal": "M24",
+        "d": 24,
+        "pitch": 3.0,
+        "s": 36.0,
+        "e": 39.55,
+        "k": 15.0,
+        "da": 25.6,
+        "dw": 33.25,
+        "lengths": [
+          40,
+          50,
+          60,
+          70,
+          80,
+          100,
+          120,
+          150,
+          200
+        ],
+        "length": 200
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_nut_m4",
+      "name": "六角ナット M4",
+      "category": "fasteners",
+      "subcategory": "hex_nut",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_nut/hex_nut_m4.step",
+        "stl": "models/fasteners/hex_nut/hex_nut_m4.stl",
+        "thumb": "thumbnails/fasteners/hex_nut/hex_nut_m4.png"
+      },
+      "spec": {
+        "nominal": "M4",
+        "d": 4,
+        "pitch": 0.7,
+        "s": 7.0,
+        "e": 7.66,
+        "m": 3.2
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_nut_m5",
+      "name": "六角ナット M5",
+      "category": "fasteners",
+      "subcategory": "hex_nut",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_nut/hex_nut_m5.step",
+        "stl": "models/fasteners/hex_nut/hex_nut_m5.stl",
+        "thumb": "thumbnails/fasteners/hex_nut/hex_nut_m5.png"
+      },
+      "spec": {
+        "nominal": "M5",
+        "d": 5,
+        "pitch": 0.8,
+        "s": 8.0,
+        "e": 8.79,
+        "m": 4.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_nut_m6",
+      "name": "六角ナット M6",
+      "category": "fasteners",
+      "subcategory": "hex_nut",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_nut/hex_nut_m6.step",
+        "stl": "models/fasteners/hex_nut/hex_nut_m6.stl",
+        "thumb": "thumbnails/fasteners/hex_nut/hex_nut_m6.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d": 6,
+        "pitch": 1.0,
+        "s": 10.0,
+        "e": 10.89,
+        "m": 5.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_nut_m8",
+      "name": "六角ナット M8",
+      "category": "fasteners",
+      "subcategory": "hex_nut",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_nut/hex_nut_m8.step",
+        "stl": "models/fasteners/hex_nut/hex_nut_m8.stl",
+        "thumb": "thumbnails/fasteners/hex_nut/hex_nut_m8.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d": 8,
+        "pitch": 1.25,
+        "s": 13.0,
+        "e": 14.2,
+        "m": 6.5
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_nut_m10",
+      "name": "六角ナット M10",
+      "category": "fasteners",
+      "subcategory": "hex_nut",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_nut/hex_nut_m10.step",
+        "stl": "models/fasteners/hex_nut/hex_nut_m10.stl",
+        "thumb": "thumbnails/fasteners/hex_nut/hex_nut_m10.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d": 10,
+        "pitch": 1.5,
+        "s": 17.0,
+        "e": 18.48,
+        "m": 8.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_nut_m12",
+      "name": "六角ナット M12",
+      "category": "fasteners",
+      "subcategory": "hex_nut",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_nut/hex_nut_m12.step",
+        "stl": "models/fasteners/hex_nut/hex_nut_m12.stl",
+        "thumb": "thumbnails/fasteners/hex_nut/hex_nut_m12.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d": 12,
+        "pitch": 1.75,
+        "s": 19.0,
+        "e": 20.78,
+        "m": 10.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_nut_m14",
+      "name": "六角ナット M14",
+      "category": "fasteners",
+      "subcategory": "hex_nut",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_nut/hex_nut_m14.step",
+        "stl": "models/fasteners/hex_nut/hex_nut_m14.stl",
+        "thumb": "thumbnails/fasteners/hex_nut/hex_nut_m14.png"
+      },
+      "spec": {
+        "nominal": "M14",
+        "d": 14,
+        "pitch": 2.0,
+        "s": 22.0,
+        "e": 24.12,
+        "m": 11.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_nut_m16",
+      "name": "六角ナット M16",
+      "category": "fasteners",
+      "subcategory": "hex_nut",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_nut/hex_nut_m16.step",
+        "stl": "models/fasteners/hex_nut/hex_nut_m16.stl",
+        "thumb": "thumbnails/fasteners/hex_nut/hex_nut_m16.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d": 16,
+        "pitch": 2.0,
+        "s": 24.0,
+        "e": 26.17,
+        "m": 13.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_nut_m20",
+      "name": "六角ナット M20",
+      "category": "fasteners",
+      "subcategory": "hex_nut",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_nut/hex_nut_m20.step",
+        "stl": "models/fasteners/hex_nut/hex_nut_m20.stl",
+        "thumb": "thumbnails/fasteners/hex_nut/hex_nut_m20.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d": 20,
+        "pitch": 2.5,
+        "s": 30.0,
+        "e": 32.95,
+        "m": 16.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "hex_nut_m24",
+      "name": "六角ナット M24",
+      "category": "fasteners",
+      "subcategory": "hex_nut",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/hex_nut/hex_nut_m24.step",
+        "stl": "models/fasteners/hex_nut/hex_nut_m24.stl",
+        "thumb": "thumbnails/fasteners/hex_nut/hex_nut_m24.png"
+      },
+      "spec": {
+        "nominal": "M24",
+        "d": 24,
+        "pitch": 3.0,
+        "s": 36.0,
+        "e": 39.55,
+        "m": 19.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "flat_washer_m4",
+      "name": "平座金 M4",
+      "category": "fasteners",
+      "subcategory": "flat_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/flat_washer/flat_washer_m4.step",
+        "stl": "models/fasteners/flat_washer/flat_washer_m4.stl",
+        "thumb": "thumbnails/fasteners/flat_washer/flat_washer_m4.png"
+      },
+      "spec": {
+        "nominal": "M4",
+        "d1": 4.3,
+        "d2": 9.0,
+        "h": 0.9
+      },
+      "status": "ready"
+    },
+    {
+      "id": "flat_washer_m3",
+      "name": "平座金 M3",
+      "category": "fasteners",
+      "subcategory": "flat_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/flat_washer/flat_washer_m3.step",
+        "stl": "models/fasteners/flat_washer/flat_washer_m3.stl",
+        "thumb": "thumbnails/fasteners/flat_washer/flat_washer_m3.png"
+      },
+      "spec": {
+        "nominal": "M3",
+        "d1": 3.2,
+        "d2": 7.0,
+        "h": 0.5
+      },
+      "status": "ready"
+    },
+    {
+      "id": "flat_washer_m5",
+      "name": "平座金 M5",
+      "category": "fasteners",
+      "subcategory": "flat_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/flat_washer/flat_washer_m5.step",
+        "stl": "models/fasteners/flat_washer/flat_washer_m5.stl",
+        "thumb": "thumbnails/fasteners/flat_washer/flat_washer_m5.png"
+      },
+      "spec": {
+        "nominal": "M5",
+        "d1": 5.3,
+        "d2": 10.0,
+        "h": 1.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "flat_washer_m6",
+      "name": "平座金 M6",
+      "category": "fasteners",
+      "subcategory": "flat_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/flat_washer/flat_washer_m6.step",
+        "stl": "models/fasteners/flat_washer/flat_washer_m6.stl",
+        "thumb": "thumbnails/fasteners/flat_washer/flat_washer_m6.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d1": 6.4,
+        "d2": 12.0,
+        "h": 1.6
+      },
+      "status": "ready"
+    },
+    {
+      "id": "flat_washer_m8",
+      "name": "平座金 M8",
+      "category": "fasteners",
+      "subcategory": "flat_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/flat_washer/flat_washer_m8.step",
+        "stl": "models/fasteners/flat_washer/flat_washer_m8.stl",
+        "thumb": "thumbnails/fasteners/flat_washer/flat_washer_m8.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d1": 8.4,
+        "d2": 16.0,
+        "h": 1.6
+      },
+      "status": "ready"
+    },
+    {
+      "id": "flat_washer_m10",
+      "name": "平座金 M10",
+      "category": "fasteners",
+      "subcategory": "flat_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/flat_washer/flat_washer_m10.step",
+        "stl": "models/fasteners/flat_washer/flat_washer_m10.stl",
+        "thumb": "thumbnails/fasteners/flat_washer/flat_washer_m10.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d1": 10.5,
+        "d2": 20.0,
+        "h": 2.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "flat_washer_m12",
+      "name": "平座金 M12",
+      "category": "fasteners",
+      "subcategory": "flat_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/flat_washer/flat_washer_m12.step",
+        "stl": "models/fasteners/flat_washer/flat_washer_m12.stl",
+        "thumb": "thumbnails/fasteners/flat_washer/flat_washer_m12.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d1": 13.0,
+        "d2": 24.0,
+        "h": 2.5
+      },
+      "status": "ready"
+    },
+    {
+      "id": "flat_washer_m14",
+      "name": "平座金 M14",
+      "category": "fasteners",
+      "subcategory": "flat_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/flat_washer/flat_washer_m14.step",
+        "stl": "models/fasteners/flat_washer/flat_washer_m14.stl",
+        "thumb": "thumbnails/fasteners/flat_washer/flat_washer_m14.png"
+      },
+      "spec": {
+        "nominal": "M14",
+        "d1": 15.0,
+        "d2": 28.0,
+        "h": 2.5
+      },
+      "status": "ready"
+    },
+    {
+      "id": "flat_washer_m16",
+      "name": "平座金 M16",
+      "category": "fasteners",
+      "subcategory": "flat_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/flat_washer/flat_washer_m16.step",
+        "stl": "models/fasteners/flat_washer/flat_washer_m16.stl",
+        "thumb": "thumbnails/fasteners/flat_washer/flat_washer_m16.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d1": 17.0,
+        "d2": 30.0,
+        "h": 3.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "flat_washer_m20",
+      "name": "平座金 M20",
+      "category": "fasteners",
+      "subcategory": "flat_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/flat_washer/flat_washer_m20.step",
+        "stl": "models/fasteners/flat_washer/flat_washer_m20.stl",
+        "thumb": "thumbnails/fasteners/flat_washer/flat_washer_m20.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d1": 21.0,
+        "d2": 37.0,
+        "h": 3.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "flat_washer_m24",
+      "name": "平座金 M24",
+      "category": "fasteners",
+      "subcategory": "flat_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/flat_washer/flat_washer_m24.step",
+        "stl": "models/fasteners/flat_washer/flat_washer_m24.stl",
+        "thumb": "thumbnails/fasteners/flat_washer/flat_washer_m24.png"
+      },
+      "spec": {
+        "nominal": "M24",
+        "d1": 25.0,
+        "d2": 44.0,
+        "h": 4.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "spring_washer_m3",
+      "name": "スプリングワッシャ M3",
+      "category": "fasteners",
+      "subcategory": "spring_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/spring_washer/spring_washer_m3.step",
+        "stl": "models/fasteners/spring_washer/spring_washer_m3.stl",
+        "thumb": "thumbnails/fasteners/spring_washer/spring_washer_m3.png"
+      },
+      "spec": {
+        "nominal": "M3",
+        "d1": 3.1,
+        "d2": 5.0,
+        "b": 1.0,
+        "t": 1.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "spring_washer_m4",
+      "name": "スプリングワッシャ M4",
+      "category": "fasteners",
+      "subcategory": "spring_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/spring_washer/spring_washer_m4.step",
+        "stl": "models/fasteners/spring_washer/spring_washer_m4.stl",
+        "thumb": "thumbnails/fasteners/spring_washer/spring_washer_m4.png"
+      },
+      "spec": {
+        "nominal": "M4",
+        "d1": 4.1,
+        "d2": 6.5,
+        "b": 1.3,
+        "t": 1.3
+      },
+      "status": "ready"
+    },
+    {
+      "id": "spring_washer_m5",
+      "name": "スプリングワッシャ M5",
+      "category": "fasteners",
+      "subcategory": "spring_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/spring_washer/spring_washer_m5.step",
+        "stl": "models/fasteners/spring_washer/spring_washer_m5.stl",
+        "thumb": "thumbnails/fasteners/spring_washer/spring_washer_m5.png"
+      },
+      "spec": {
+        "nominal": "M5",
+        "d1": 5.1,
+        "d2": 8.0,
+        "b": 1.6,
+        "t": 1.6
+      },
+      "status": "ready"
+    },
+    {
+      "id": "spring_washer_m6",
+      "name": "スプリングワッシャ M6",
+      "category": "fasteners",
+      "subcategory": "spring_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/spring_washer/spring_washer_m6.step",
+        "stl": "models/fasteners/spring_washer/spring_washer_m6.stl",
+        "thumb": "thumbnails/fasteners/spring_washer/spring_washer_m6.png"
+      },
+      "spec": {
+        "nominal": "M6",
+        "d1": 6.1,
+        "d2": 10.0,
+        "b": 1.9,
+        "t": 1.9
+      },
+      "status": "ready"
+    },
+    {
+      "id": "spring_washer_m8",
+      "name": "スプリングワッシャ M8",
+      "category": "fasteners",
+      "subcategory": "spring_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/spring_washer/spring_washer_m8.step",
+        "stl": "models/fasteners/spring_washer/spring_washer_m8.stl",
+        "thumb": "thumbnails/fasteners/spring_washer/spring_washer_m8.png"
+      },
+      "spec": {
+        "nominal": "M8",
+        "d1": 8.2,
+        "d2": 13.0,
+        "b": 2.5,
+        "t": 2.5
+      },
+      "status": "ready"
+    },
+    {
+      "id": "spring_washer_m10",
+      "name": "スプリングワッシャ M10",
+      "category": "fasteners",
+      "subcategory": "spring_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/spring_washer/spring_washer_m10.step",
+        "stl": "models/fasteners/spring_washer/spring_washer_m10.stl",
+        "thumb": "thumbnails/fasteners/spring_washer/spring_washer_m10.png"
+      },
+      "spec": {
+        "nominal": "M10",
+        "d1": 10.2,
+        "d2": 16.0,
+        "b": 3.0,
+        "t": 3.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "spring_washer_m12",
+      "name": "スプリングワッシャ M12",
+      "category": "fasteners",
+      "subcategory": "spring_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/spring_washer/spring_washer_m12.step",
+        "stl": "models/fasteners/spring_washer/spring_washer_m12.stl",
+        "thumb": "thumbnails/fasteners/spring_washer/spring_washer_m12.png"
+      },
+      "spec": {
+        "nominal": "M12",
+        "d1": 12.2,
+        "d2": 19.0,
+        "b": 3.5,
+        "t": 3.5
+      },
+      "status": "ready"
+    },
+    {
+      "id": "spring_washer_m14",
+      "name": "スプリングワッシャ M14",
+      "category": "fasteners",
+      "subcategory": "spring_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/spring_washer/spring_washer_m14.step",
+        "stl": "models/fasteners/spring_washer/spring_washer_m14.stl",
+        "thumb": "thumbnails/fasteners/spring_washer/spring_washer_m14.png"
+      },
+      "spec": {
+        "nominal": "M14",
+        "d1": 14.2,
+        "d2": 22.0,
+        "b": 4.0,
+        "t": 4.0
+      },
+      "status": "ready"
+    },
+    {
+      "id": "spring_washer_m16",
+      "name": "スプリングワッシャ M16",
+      "category": "fasteners",
+      "subcategory": "spring_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/spring_washer/spring_washer_m16.step",
+        "stl": "models/fasteners/spring_washer/spring_washer_m16.stl",
+        "thumb": "thumbnails/fasteners/spring_washer/spring_washer_m16.png"
+      },
+      "spec": {
+        "nominal": "M16",
+        "d1": 16.2,
+        "d2": 25.0,
+        "b": 4.5,
+        "t": 4.5
+      },
+      "status": "ready"
+    },
+    {
+      "id": "spring_washer_m20",
+      "name": "スプリングワッシャ M20",
+      "category": "fasteners",
+      "subcategory": "spring_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/spring_washer/spring_washer_m20.step",
+        "stl": "models/fasteners/spring_washer/spring_washer_m20.stl",
+        "thumb": "thumbnails/fasteners/spring_washer/spring_washer_m20.png"
+      },
+      "spec": {
+        "nominal": "M20",
+        "d1": 20.2,
+        "d2": 31.0,
+        "b": 5.5,
+        "t": 5.5
+      },
+      "status": "ready"
+    },
+    {
+      "id": "spring_washer_m24",
+      "name": "スプリングワッシャ M24",
+      "category": "fasteners",
+      "subcategory": "spring_washer",
+      "type": "download",
+      "files": {
+        "step": "models/fasteners/spring_washer/spring_washer_m24.step",
+        "stl": "models/fasteners/spring_washer/spring_washer_m24.stl",
+        "thumb": "thumbnails/fasteners/spring_washer/spring_washer_m24.png"
+      },
+      "spec": {
+        "nominal": "M24",
+        "d1": 24.5,
+        "d2": 38.0,
+        "b": 6.5,
+        "t": 6.5
+      },
+      "status": "ready"
+    }
+  ]
+}
