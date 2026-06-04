@@ -360,6 +360,7 @@ input { font-family: inherit; }
 .app-icon-solid   { background: linear-gradient(135deg,#dbeafe,#eff6ff); color: #2563eb; }
 .app-icon-whatsno { background: linear-gradient(135deg,#ede9fe,#f3f0ff); color: #7c3aed; }
 .app-icon-meetlog { background: linear-gradient(135deg,#fce7f3,#fdf2f8); color: #db2777; }
+.app-icon-datashop{ background: linear-gradient(135deg,#d1fae5,#ecfdf5); color: #059669; }
 .app-icon-future  { background: rgba(0,0,0,.04); color: #aeaeb2; }
 
 /* カードテキスト */

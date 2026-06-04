@@ -16,7 +16,7 @@ const MOCK_USERS = {
                 apps: ['solid'], token: 'mock-token-id-modeler' },
   jp_admin:   { id: 3, name: '管理者 花子', email: 'admin@halspace.co.jp',
                 role: 'jp_admin', company: '株式会社HaLSpace',
-                apps: ['solid', 'whatsno', 'meetlog'], token: 'mock-token-jp-admin' },
+                apps: ['solid', 'whatsno', 'meetlog', '3d-datashop'], token: 'mock-token-jp-admin' },
 };
 
 const APP_CATALOG = [
@@ -38,6 +38,12 @@ const APP_CATALOG = [
     icon: 'fa-solid fa-clipboard-list',
     iconClass: 'app-icon-meetlog',
     url: '../meetlog/app/dashboard.html' },
+  { id: '3d-datashop',
+    name: '3D DataShop',
+    desc: '製造業設計者向け3Dデータライブラリ。標準部品（JIS/ISO）を直接ダウンロード、メーカー固有部品はリンクで案内。',
+    icon: 'fa-solid fa-shapes',
+    iconClass: 'app-icon-datashop',
+    url: '../3d-data_shop/index.html' },
   { id: 'future',
     name: 'Analytics',
     desc: '各サービスの利用状況・アクセスデータをリアルタイムで可視化するダッシュボード。',
