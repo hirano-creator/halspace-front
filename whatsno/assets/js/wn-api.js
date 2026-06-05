@@ -76,9 +76,9 @@ async function wnUploadFile(file, { onProgress } = {}) {
   const buffer = await file.arrayBuffer();
   const blob = new Blob([buffer], { type: file.type || 'application/octet-stream' });
 
-  // 本番環境では同一オリジンのプロキシ経由でアップロード（iOS Safari CORS回避）
-  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-  const uploadUrl = isLocal ? WN_API_BASE + '/wn/files' : '/api/wn-upload';
+  // Railway へ直送（CORS は API 側で許可済み。旧 /api/wn-upload プロキシは
+  // 大容量で Worker メモリ上限に当たり壊れるため廃止）
+  const uploadUrl = WN_API_BASE + '/wn/files';
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -121,8 +121,8 @@ async function wnOverwriteFile(id, file) {
   const buffer = await file.arrayBuffer();
   const blob = new Blob([buffer], { type: file.type || 'application/octet-stream' });
 
-  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-  const url = isLocal ? WN_API_BASE + `/wn/files/${id}/overwrite` : `/api/wn-upload?overwrite=${id}`;
+  // Railway へ直送（プロキシ廃止。CORS は API 側で許可済み）
+  const url = WN_API_BASE + `/wn/files/${id}/overwrite`;
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
