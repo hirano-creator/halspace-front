@@ -66,15 +66,15 @@ async function wnGetFile(id, { skipAi = true } = {}) {
   return (await res.json()).data ?? null;
 }
 
-/* ファイルアップロード（XHR・進捗コールバック付き） */
+/* ファイルアップロード（XHR・進捗コールバック付き）
+   - multipart ではなく raw バイナリで送信（CF Workers のメモリ二重バッファ回避）
+   - サーバー側は Content-Type が multipart 以外なら X-File-Name ヘッダーで名前を受け取る */
 async function wnUploadFile(file, { onProgress } = {}) {
   const token = localStorage.getItem('space_token');
 
-  // ファイルをArrayBuffer経由でBlobに変換（iOS Safari参照無効化対策）
+  // ArrayBuffer 経由で Blob に変換（iOS Safari の File 参照無効化対策）
   const buffer = await file.arrayBuffer();
   const blob = new Blob([buffer], { type: file.type || 'application/octet-stream' });
-  const fd = new FormData();
-  fd.append('file', blob, file.name);
 
   // 本番環境では同一オリジンのプロキシ経由でアップロード（iOS Safari CORS回避）
   const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
@@ -85,6 +85,8 @@ async function wnUploadFile(file, { onProgress } = {}) {
     xhr.open('POST', uploadUrl);
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('Content-Type', blob.type);
+    xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
     xhr.upload.onprogress = e => {
       if (e.lengthComputable && onProgress) onProgress(Math.round(e.loaded / e.total * 100));
     };
@@ -108,8 +110,8 @@ async function wnUploadFile(file, { onProgress } = {}) {
     };
     xhr.onerror = () => reject(new Error(`ネットワークエラー (XHR)`));
     xhr.ontimeout = () => reject(new Error('タイムアウト'));
-    xhr.timeout = 120000;
-    xhr.send(fd);
+    xhr.timeout = 300000;
+    xhr.send(blob);
   });
 }
 
@@ -118,8 +120,6 @@ async function wnOverwriteFile(id, file) {
   const token = localStorage.getItem('space_token');
   const buffer = await file.arrayBuffer();
   const blob = new Blob([buffer], { type: file.type || 'application/octet-stream' });
-  const fd = new FormData();
-  fd.append('file', blob, file.name);
 
   const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
   const url = isLocal ? WN_API_BASE + `/wn/files/${id}/overwrite` : `/api/wn-upload?overwrite=${id}`;
@@ -129,6 +129,8 @@ async function wnOverwriteFile(id, file) {
     xhr.open('POST', url);
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('Content-Type', blob.type);
+    xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
     xhr.onload = () => {
       if (xhr.status === 401) {
         localStorage.removeItem('space_token');
@@ -149,8 +151,8 @@ async function wnOverwriteFile(id, file) {
     };
     xhr.onerror = () => reject(new Error('ネットワークエラー (XHR)'));
     xhr.ontimeout = () => reject(new Error('タイムアウト'));
-    xhr.timeout = 120000;
-    xhr.send(fd);
+    xhr.timeout = 300000;
+    xhr.send(blob);
   });
 }
 
