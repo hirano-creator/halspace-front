@@ -31,29 +31,40 @@ async function wnFetch(path, options = {}) {
    params: { tag, sort, search, liked, recent, mine, company_id }
    返り値: { data: [], error: null }  or  { data: null, error: 'msg' }
    - エラーと「本当に空」を区別するため戻り値を構造化
-   - 5xx/ネットワーク失敗は1回だけ自動リトライ */
+   - 本番APIは単一ワーカーで動作するため、アップロードやAI応答など重い処理が
+     スレッドを占有している間は一覧取得が一時的に詰まり、ハング→接続リセット
+     （fetch の Failed to fetch）になりやすい。スレッドが空くまで数百ms〜数秒の
+     ことが多いので、各試行にタイムアウト(中断)を設けて「ハング」を「再試行」に
+     変え、指数バックオフで複数回リトライして自動回復させる。 */
 async function wnGetFiles(params = {}) {
   const q = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== '') q.set(k, v); });
   const path = '/wn/files?' + q.toString();
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  const MAX_ATTEMPTS     = 4;
+  const BACKOFF_MS       = [0, 700, 1600, 3200];   /* 試行前の待機（合計 ~5.5s） */
+  const PER_TRY_TIMEOUT  = 15000;                  /* 1試行が詰まったら中断して再試行 */
+
+  let lastError = 'unknown';
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    if (BACKOFF_MS[attempt]) await new Promise(r => setTimeout(r, BACKOFF_MS[attempt]));
+
+    const ctl   = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), PER_TRY_TIMEOUT);
     try {
-      const res = await wnFetch(path);
+      const res = await wnFetch(path, { signal: ctl.signal });
+      clearTimeout(timer);
       if (!res) return { data: null, error: 'auth' };           /* wnFetchが401でリダイレクト済み */
-      if (res.status >= 500) {
-        if (attempt < 2) { await new Promise(r => setTimeout(r, 800)); continue; }
-        return { data: null, error: `server-${res.status}` };
-      }
-      if (!res.ok) return { data: null, error: `http-${res.status}` };
+      if (res.status >= 500) { lastError = `server-${res.status}`; continue; }   /* 5xxはリトライ */
+      if (!res.ok) return { data: null, error: `http-${res.status}` };           /* 4xxは即返す */
       const json = await res.json();
       return { data: json.data ?? [], error: null };
     } catch (e) {
-      if (attempt < 2) { await new Promise(r => setTimeout(r, 800)); continue; }
-      return { data: null, error: 'network' };
+      clearTimeout(timer);
+      lastError = (e && e.name === 'AbortError') ? 'timeout' : 'network';        /* 中断/接続失敗はリトライ */
     }
   }
-  return { data: null, error: 'unknown' };
+  return { data: null, error: lastError };
 }
 
 /* ファイル詳細 */
