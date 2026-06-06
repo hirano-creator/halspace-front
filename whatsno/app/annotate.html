@@ -10,7 +10,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
   <script src="../../solid/assets/js/auth.js?v=6"></script>
-  <script src="../assets/js/wn-api.js?v=7"></script>
+  <script src="../assets/js/wn-api.js?v=10"></script>
   <style>
     :root {
       --primary: #1E3A5F;
@@ -1768,7 +1768,7 @@ function getBoundingBox(a) {
       w = Math.max(...lines.map(l => annCtx.measureText(l).width), fs, 40);
       annCtx.restore();
     }
-    const h = fs * 1.4 * lines.length;
+    const h = a.h ?? (fs * 1.4 * lines.length);   /* リサイズ済みの枠高さを優先 */
     return { x: a.x, y: a.y - fs, w, h };
   }
   if (a.type === 'pen') {
@@ -1819,14 +1819,14 @@ function getHandles(a) {
       sw: {x:x1,y:y2}, s: {x:mx,y:y2}, se: {x:x2,y:y2}
     };
   }
-  /* text: 折返し幅を変えるハンドル（左右＋4角）。フォントサイズは変えない */
+  /* text: 枠を縦横自由にリサイズする8方向ハンドル（フォントサイズは変えない） */
   const bb = getBoundingBox(a);
   const x1 = bb.x, y1 = bb.y, x2 = bb.x + bb.w, y2 = bb.y + bb.h;
-  const my = (y1 + y2) / 2;
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
   return {
-    nw: { x: x1, y: y1 }, ne: { x: x2, y: y1 },
-    w:  { x: x1, y: my }, e:  { x: x2, y: my },
-    sw: { x: x1, y: y2 }, se: { x: x2, y: y2 },
+    nw: { x: x1, y: y1 }, n: { x: mx, y: y1 }, ne: { x: x2, y: y1 },
+    w:  { x: x1, y: my },                       e:  { x: x2, y: my },
+    sw: { x: x1, y: y2 }, s: { x: mx, y: y2 }, se: { x: x2, y: y2 },
   };
 }
 
@@ -1894,17 +1894,21 @@ function applyResize(a, handle, mx, my) {
     return;
   }
   if (a.type === 'text') {
-    /* 左右・角どのハンドルでも折返し幅(a.w)と左端(a.x)のみ調整（フォントサイズは固定） */
+    /* 枠を縦横自由にリサイズ（rect同様）。フォントサイズは固定、テキストは枠内に上揃え折返し */
+    const fs = a.fontSize ?? 50;
     const bb = getBoundingBox(a);
-    const curRight = a.x + bb.w;
-    const minW = (a.fontSize ?? 50);
-    if (handle === 'e' || handle === 'ne' || handle === 'se') {
-      a.w = Math.max(mx - a.x, minW);
-    } else if (handle === 'w' || handle === 'nw' || handle === 'sw') {
-      const newX = Math.min(mx, curRight - minW);
-      a.w = curRight - newX;
-      a.x = newX;
-    }
+    let left = a.x, top = a.y - fs, right = a.x + bb.w, bottom = (a.y - fs) + bb.h;
+    if (handle.includes('w')) left   = mx;
+    if (handle.includes('e')) right  = mx;
+    if (handle.includes('n')) top    = my;
+    if (handle.includes('s')) bottom = my;
+    const minW = fs, minH = fs * 0.8;
+    if (right - left < minW) { if (handle.includes('w')) left = right - minW; else right = left + minW; }
+    if (bottom - top < minH) { if (handle.includes('n')) top = bottom - minH; else bottom = top + minH; }
+    a.x = left;
+    a.w = right - left;
+    a.h = bottom - top;
+    a.y = top + fs;
     return;
   }
   /* rect / ellipse: 8方向ハンドル — x1>x2/y1>y2 になっても min/max で描画するので問題なし */
