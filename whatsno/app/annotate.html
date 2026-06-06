@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>注釈編集 | What'sNo v2</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=Kosugi+Maru&family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
@@ -219,6 +219,60 @@
       box-sizing: border-box;
       line-height: 1.4;
       font-family: 'Noto Sans JP', sans-serif;
+      white-space: pre;          /* 自動折返しせず横に伸ばす（auto-grow） */
+      min-width: 24px;
+    }
+
+    /* ── テキスト用フローティングツールバー（ilovepdf風） ── */
+    #textToolbar {
+      position: fixed;
+      z-index: 260;
+      display: none;
+      align-items: center;
+      gap: 2px;
+      padding: 5px 6px;
+      background: #fff;
+      border: 1px solid #e3e3e3;
+      border-radius: 10px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.18);
+      font-family: 'Noto Sans JP', sans-serif;
+      user-select: none;
+      white-space: nowrap;
+    }
+    #textToolbar.open { display: flex; }
+    #textToolbar .tt-sep { width: 1px; height: 22px; background: #e3e3e3; margin: 0 3px; flex-shrink: 0; }
+    #textToolbar select.tt-font {
+      height: 30px; border: 1px solid #d8d8d8; border-radius: 6px;
+      font-size: 13px; padding: 0 6px; background: #fff; cursor: pointer;
+      color: #1A1A2E; max-width: 92px;
+    }
+    #textToolbar .tt-size {
+      width: 50px; height: 30px; border: 1px solid #d8d8d8; border-radius: 6px;
+      font-size: 13px; text-align: center; color: #1A1A2E; -moz-appearance: textfield;
+    }
+    #textToolbar .tt-btn {
+      width: 30px; height: 30px; border-radius: 6px; border: none; background: none;
+      cursor: pointer; color: #444; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s;
+    }
+    #textToolbar .tt-btn:hover { background: #F0F4F8; }
+    #textToolbar .tt-btn.active { background: rgba(33,150,243,.12); color: var(--accent); }
+    #textToolbar .tt-btn.danger:hover { background: rgba(225,112,85,.12); color: var(--red); }
+    #textToolbar .tt-color-wrap { position: relative; width: 30px; height: 30px; }
+    #textToolbar .tt-color-btn {
+      width: 30px; height: 30px; border-radius: 6px; cursor: pointer;
+      border: 1px solid #d8d8d8; display: flex; align-items: flex-end; justify-content: center;
+      overflow: hidden; padding-bottom: 3px; font-size: 12px; font-weight: 700; color: #fff;
+      text-shadow: 0 0 2px rgba(0,0,0,.5);
+    }
+    #textToolbar input[type="color"].tt-color-input {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 30px; height: 30px;
+    }
+    @media (max-width: 767px) {
+      #textToolbar { gap: 0; padding: 4px; }
+      #textToolbar select.tt-font { max-width: 72px; font-size: 12px; }
+      #textToolbar .tt-btn { width: 28px; height: 28px; }
     }
 
     /* ── ローディング ── */
@@ -499,7 +553,7 @@
 
   <!-- フォントサイズ -->
   <div class="tool-section-label" id="fontSizeLabel">文字サイズ</div>
-  <input type="number" class="tool-size-select" id="fontSize" min="6" max="100" value="50">
+  <input type="number" class="tool-size-select" id="fontSize" min="6" max="200" value="50">
 
   <!-- テキスト揃え -->
   <div class="tool-section-label">テキスト揃え</div>
@@ -585,6 +639,27 @@
   <span>ここで削除</span>
 </div>
 
+<!-- テキスト用フローティングツールバー（ilovepdf風） -->
+<div id="textToolbar">
+  <select class="tt-font" id="ttFont" title="フォント"></select>
+  <input type="number" class="tt-size" id="ttSize" min="6" max="200" title="文字サイズ">
+  <span class="tt-sep"></span>
+  <div class="tt-color-wrap" title="文字色">
+    <div class="tt-color-btn" id="ttColorBtn">A</div>
+    <input type="color" class="tt-color-input" id="ttColorInput">
+  </div>
+  <span class="tt-sep"></span>
+  <button class="tt-btn" id="ttBold"   title="太字"><i class="fa-solid fa-bold"></i></button>
+  <button class="tt-btn" id="ttItalic" title="斜体"><i class="fa-solid fa-italic"></i></button>
+  <button class="tt-btn" id="ttUnderline" title="下線"><i class="fa-solid fa-underline"></i></button>
+  <span class="tt-sep"></span>
+  <button class="tt-btn" id="ttAlignLeft"   title="左揃え"><i class="fa-solid fa-align-left"></i></button>
+  <button class="tt-btn" id="ttAlignCenter" title="中央揃え"><i class="fa-solid fa-align-center"></i></button>
+  <button class="tt-btn" id="ttAlignRight"  title="右揃え"><i class="fa-solid fa-align-right"></i></button>
+  <span class="tt-sep"></span>
+  <button class="tt-btn danger" id="ttDelete" title="削除"><i class="fa-solid fa-trash"></i></button>
+</div>
+
 <!-- コンテキストメニュー -->
 <div id="contextMenu">
   <button class="ctx-item" id="ctxDuplicate"><i class="fa-regular fa-copy"></i> 複製 (Ctrl+D)</button>
@@ -626,6 +701,83 @@ let fontSize    = 50;
 let textAlign   = 'left';
 const TOOL_DEFAULT_SIZE = { pen: 10, line: 10, arrow: 10, rect: 5, ellipse: 5 };
 
+/* ── テキストのフォント・スタイル（ilovepdf風） ── */
+const FONT_FAMILIES = [
+  { id: 'sans',  label: 'ゴシック',   css: "'Noto Sans JP', sans-serif" },
+  { id: 'serif', label: '明朝',       css: "'Noto Serif JP', serif" },
+  { id: 'round', label: '丸ゴシック', css: "'M PLUS Rounded 1c', 'Kosugi Maru', sans-serif" },
+];
+let textFontFamily = 'sans';   /* 新規テキストのデフォルトフォント */
+let textBold       = false;
+let textItalic     = false;
+let textUnderline  = false;
+
+/* アノテーション a から canvas用フォント文字列を生成 */
+function fontCssOf(a) {
+  const def = FONT_FAMILIES.find(f => f.id === (a.fontFamily || 'sans')) || FONT_FAMILIES[0];
+  const fs  = a.fontSize ?? 50;
+  return `${a.italic ? 'italic ' : ''}${a.bold ? '700' : '400'} ${fs}px ${def.css}`;
+}
+function fontFamilyCss(id) {
+  return (FONT_FAMILIES.find(f => f.id === id) || FONT_FAMILIES[0]).css;
+}
+
+/* 焼き込み前に全Webフォントの読み込みを保証（未使用フォントが代替表示されるのを防ぐ） */
+async function ensureTextFontsLoaded() {
+  if (!document.fonts) return;
+  const fams = ["'Noto Sans JP'", "'Noto Serif JP'", "'M PLUS Rounded 1c'", "'Kosugi Maru'"];
+  const jobs = [];
+  for (const f of fams) for (const w of ['400', '700']) {
+    try { jobs.push(document.fonts.load(`${w} 40px ${f}`, '注釈Aa')); } catch (_) {}
+  }
+  try { await Promise.all(jobs); } catch (_) {}
+}
+
+/* テキスト注釈を任意の ctx に描画（画面表示・PDF焼き込み・画像焼き込み 共通） */
+function drawTextAnnotation(ctx, a) {
+  const fs = a.fontSize ?? 50;
+  const al = a.align ?? 'left';
+  ctx.font      = fontCssOf(a);
+  ctx.fillStyle = a.color;
+  ctx.textAlign = al;
+  const baseX = al === 'center' ? a.x + (a.w ?? 0) / 2
+              : al === 'right'  ? a.x + (a.w ?? 0)
+              : a.x;
+  const lineH = fs * 1.4;
+  const drawn = [];   /* 下線描画用に各行のテキストとy座標を控える */
+  let li = 0;
+  (a.text || '').split('\n').forEach(paragraph => {
+    if (a.w) {
+      let line = '';
+      for (const ch of paragraph) {
+        const test = line + ch;
+        if (ctx.measureText(test).width > a.w && line.length > 0) {
+          const y = a.y + li * lineH;
+          ctx.fillText(line, baseX, y); drawn.push({ line, y });
+          line = ch; li++;
+        } else { line = test; }
+      }
+      if (line) { const y = a.y + li * lineH; ctx.fillText(line, baseX, y); drawn.push({ line, y }); li++; }
+    } else {
+      const y = a.y + li * lineH;
+      ctx.fillText(paragraph, baseX, y); drawn.push({ line: paragraph, y }); li++;
+    }
+  });
+  if (a.underline) {
+    ctx.strokeStyle = a.color;
+    ctx.lineWidth   = Math.max(fs * 0.06, 1);
+    ctx.beginPath();
+    drawn.forEach(d => {
+      const w  = ctx.measureText(d.line).width;
+      const lx = al === 'center' ? baseX - w / 2 : al === 'right' ? baseX - w : baseX;
+      const ly = d.y + fs * 0.16;
+      ctx.moveTo(lx, ly); ctx.lineTo(lx + w, ly);
+    });
+    ctx.stroke();
+  }
+  ctx.textAlign = 'left';
+}
+
 let annotations = [];
 let history     = [];
 let penPath     = [];
@@ -642,8 +794,8 @@ let resizingHandle = null;
 /* テキスト入力 pending */
 let editingTextIdx = -1;
 let lastCommitTime = 0; /* 確定直後の誤入力防止 */
-/* テキスト範囲ドラッグ用 */
-let textDragRect = null; /* { x1, y1, x2, y2 } — ドラッグ中のプレビュー矩形 */
+/* テキスト クリック即入力用 — mousedown位置を記録 */
+let pendingTextClick = null; /* { x, y } */
 /* Redo スタック */
 let redoStack = [];
 /* ホバー中のインデックス */
@@ -677,6 +829,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   initTools();
   initTextInput();
+  initTextToolbar();
   initTopActions();
   initContextMenu();
   initKeyboard();
@@ -995,23 +1148,11 @@ function initTools() {
   });
   document.getElementById('fontSize').addEventListener('input', e => {
     const v = parseInt(e.target.value);
-    if (v >= 6 && v <= 100) fontSize = v;
+    if (v >= 6 && v <= 200) applyTextStyle({ fontSize: v });
   });
 
   document.querySelectorAll('[data-align]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      textAlign = btn.dataset.align;
-      document.querySelectorAll('[data-align]').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      /* 選択中テキストに即時反映 */
-      if (selectedIdx >= 0 && annotations[selectedIdx]?.type === 'text') {
-        pushHistory();
-        annotations[selectedIdx].align = textAlign;
-        redrawAnnotations();
-      }
-      /* インラインtextareaにも反映 */
-      if (inlineTA.style.display !== 'none') inlineTA.style.textAlign = textAlign;
-    });
+    btn.addEventListener('click', () => applyTextStyle({ align: btn.dataset.align }));
   });
 }
 
@@ -1116,7 +1257,7 @@ function initStampPalette() {
 function toolCursor(t) {
   const map = { select: 'default', pen: 'crosshair', line: 'crosshair',
     arrow: 'crosshair', rect: 'crosshair', ellipse: 'crosshair',
-    text: 'crosshair', eraser: 'cell' };
+    text: 'text', eraser: 'cell' };
   return map[t] || 'default';
 }
 
@@ -1141,6 +1282,13 @@ function syncSidebarToAnnotation(a) {
   if (a.align) {
     textAlign = a.align;
     document.querySelectorAll('[data-align]').forEach(b => b.classList.toggle('active', b.dataset.align === textAlign));
+  }
+  /* テキスト選択時は書式（フォント・B/I/U）も拾って次回入力のデフォルトにする */
+  if (a.type === 'text') {
+    textFontFamily = a.fontFamily || 'sans';
+    textBold       = !!a.bold;
+    textItalic     = !!a.italic;
+    textUnderline  = !!a.underline;
   }
   updateStampEditArea();
 }
@@ -1248,8 +1396,9 @@ function onHover(e) {
 }
 
 function onDown(e) {
-  /* テキスト編集中、または確定直後300ms以内はmousedownを無視 */
-  if (inlineTA.style.display === 'block') { return; }
+  /* テキスト編集中に別の場所をクリック → 先に確定（クリック箇所の処理は次クリックへ） */
+  if (inlineTA.style.display === 'block') { commitInlineText(); return; }
+  /* 確定直後400ms以内はmousedownを無視（確定クリックの二度押し防止） */
   if (Date.now() - lastCommitTime < 400) { return; }
 
   const { x, y } = canvasXY(e);
@@ -1295,10 +1444,11 @@ function onDown(e) {
     return;
   }
 
-  /* ④ textツール＋空白: ドラッグで範囲指定開始 */
+  /* ④ textツール＋空白: クリック位置を記録（mouseupで即入力開始） */
   if (tool === 'text') {
     selectedIdx = -1;
-    textDragRect = { x1: x, y1: y, x2: x, y2: y };
+    pendingTextClick = { x, y };
+    redrawAnnotations();
     return;
   }
 
@@ -1370,11 +1520,7 @@ function onMoveDoc(e) {
   trashZone.classList.remove('visible', 'over');
   if (tool === 'pen') { penPath.push({ x, y }); drawPreview(x, y); return; }
   if (tool === 'eraser') { eraseAt(x, y); return; }
-  if (tool === 'text' && textDragRect) {
-    textDragRect.x2 = x; textDragRect.y2 = y;
-    drawTextDragPreview();
-    return;
-  }
+  if (tool === 'text') return;   /* クリック即入力: 移動プレビューなし */
   if (tool === 'select') return;
   drawPreview(x, y);
 }
@@ -1415,21 +1561,13 @@ function onUpDoc(e) {
 
   if (tool === 'select') { selectedIdx = -1; redrawAnnotations(); return; }
   if (tool === 'eraser') return;
-  /* textツール: ドラッグ範囲確定 → inlineTextarea表示 */
-  if (tool === 'text' && textDragRect) {
-    /* 確定直後400ms以内はtextarea表示しない（確定クリック自体をブロック） */
-    if (Date.now() - lastCommitTime < 400) {
-      textDragRect = null; redrawAnnotations(); return;
-    }
-    const rx = Math.min(textDragRect.x1, textDragRect.x2);
-    const ry = Math.min(textDragRect.y1, textDragRect.y2);
-    const rw = Math.abs(textDragRect.x2 - textDragRect.x1);
-    const rh = Math.abs(textDragRect.y2 - textDragRect.y1);
-    textDragRect = null;
-    redrawAnnotations(); /* プレビュー消す */
-    /* 範囲が小さすぎる場合は最小サイズを保証 */
-    const defaultW = Math.min(annotCanvas.width - rx, 280);
-    showInlineTextarea(rx, ry, Math.max(rw, defaultW), Math.max(rh, fontSize * 1.6));
+  /* textツール: クリック位置に即入力カーソル（ilovepdf流・自動幅） */
+  if (tool === 'text' && pendingTextClick) {
+    const p = pendingTextClick;
+    pendingTextClick = null;
+    if (Date.now() - lastCommitTime < 400) { redrawAnnotations(); return; }
+    /* w を渡さない（0）= 内容に合わせて自動拡張 */
+    showInlineTextarea(p.x, p.y, 0, fontSize * 1.6);
     return;
   }
 
@@ -1447,23 +1585,6 @@ function onUpDoc(e) {
     annotations.push({ type: 'ellipse', x1: Math.min(startX,x), y1: Math.min(startY,y), x2: Math.max(startX,x), y2: Math.max(startY,y), color: strokeColor, size: strokeSize });
   }
   redrawAnnotations();
-}
-
-/* テキストドラッグ中のプレビュー（点線矩形） */
-function drawTextDragPreview() {
-  redrawAnnotations();
-  if (!textDragRect) return;
-  const rx = Math.min(textDragRect.x1, textDragRect.x2);
-  const ry = Math.min(textDragRect.y1, textDragRect.y2);
-  const rw = Math.abs(textDragRect.x2 - textDragRect.x1);
-  const rh = Math.abs(textDragRect.y2 - textDragRect.y1);
-  annCtx.save();
-  annCtx.strokeStyle = strokeColor;
-  annCtx.lineWidth = 1.5;
-  annCtx.setLineDash([6, 4]);
-  annCtx.strokeRect(rx, ry, rw, rh);
-  annCtx.setLineDash([]);
-  annCtx.restore();
 }
 
 /* ────── 描画 ────── */
@@ -1536,33 +1657,7 @@ function redrawAnnotations() {
       const rx = Math.abs(a.x2 - a.x1) / 2, ry = Math.abs(a.y2 - a.y1) / 2;
       annCtx.beginPath(); annCtx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); annCtx.stroke();
     } else if (a.type === 'text') {
-      const fs = a.fontSize ?? 50;
-      const al = a.align ?? 'left';
-      annCtx.font = `${fs}px 'Noto Sans JP', sans-serif`;
-      annCtx.fillStyle = a.color;
-      annCtx.textAlign = al;
-      const baseX = al === 'center' ? a.x + (a.w ?? 0) / 2
-                  : al === 'right'  ? a.x + (a.w ?? 0)
-                  : a.x;
-      const lineH = fs * 1.4;
-      let li = 0;
-      a.text.split('\n').forEach(paragraph => {
-        if (a.w) {
-          const words = paragraph.split('');
-          let line = '';
-          for (const ch of words) {
-            const test = line + ch;
-            if (annCtx.measureText(test).width > a.w && line.length > 0) {
-              annCtx.fillText(line, baseX, a.y + li * lineH);
-              line = ch; li++;
-            } else { line = test; }
-          }
-          if (line) { annCtx.fillText(line, baseX, a.y + li * lineH); li++; }
-        } else {
-          annCtx.fillText(paragraph, baseX, a.y + li * lineH); li++;
-        }
-      });
-      annCtx.textAlign = 'left';
+      drawTextAnnotation(annCtx, a);
     } else if (a.type === 'stamp') {
       drawStamp(annCtx, a);
     }
@@ -1597,6 +1692,7 @@ function redrawAnnotations() {
     }
     annCtx.restore();
   });
+  refreshTextToolbar();
 }
 
 function drawArrow(ctx, x1, y1, x2, y2, color, size) {
@@ -1662,9 +1758,16 @@ function getBoundingBox(a) {
   if (a.type === 'text') {
     const fs = a.fontSize ?? 50;
     const lines = a.text ? a.text.split('\n') : [''];
-    const maxLen = Math.max(...lines.map(l => l.length));
-    /* a.w が設定済みならそれを優先（リサイズ後の幅を反映） */
-    const w = a.w ?? Math.max(maxLen * fs * 0.6, fs, 40);
+    let w;
+    if (a.w) {
+      w = a.w;   /* リサイズ済みの固定幅を優先 */
+    } else {
+      /* 実フォントで計測して正確な幅を得る */
+      annCtx.save();
+      annCtx.font = fontCssOf(a);
+      w = Math.max(...lines.map(l => annCtx.measureText(l).width), fs, 40);
+      annCtx.restore();
+    }
     const h = fs * 1.4 * lines.length;
     return { x: a.x, y: a.y - fs, w, h };
   }
@@ -1822,47 +1925,91 @@ function eraseAt(x, y) {
 /* ────── インラインテキスト入力 ────── */
 const inlineTA = document.getElementById('inlineTextarea');
 
-/* ドラッグ範囲 {x,y,w,h} にインラインtextareaを表示 */
+/* {x,y,w,h} にインラインtextareaを表示。rw<=0 なら内容に合わせて自動拡張 */
 function showInlineTextarea(rx, ry, rw, rh, existingIdx = -1) {
   editingTextIdx = existingIdx;
   const a = existingIdx >= 0 ? annotations[existingIdx] : null;
-  const fs = a ? (a.fontSize ?? fontSize) : fontSize;
-  const col = a ? (a.color ?? strokeColor) : strokeColor;
-  const al = a ? (a.align ?? textAlign) : textAlign;
-  inlineTA.style.left      = rx + 'px';
-  inlineTA.style.top       = ry + 'px';
-  inlineTA.style.width     = Math.max(rw, 60) + 'px';
-  inlineTA.style.height    = Math.max(rh, fs * 1.6) + 'px';
-  inlineTA.style.fontSize  = fs + 'px';
-  inlineTA.style.color     = col;
-  inlineTA.style.textAlign = al;
-  inlineTA.style.display   = 'block';
+  /* 編集対象のスタイルを現在の編集状態に同期（新規はグローバルデフォルト） */
+  fontSize       = a ? (a.fontSize ?? fontSize)    : fontSize;
+  strokeColor    = a ? (a.color ?? strokeColor)    : strokeColor;
+  textAlign      = a ? (a.align ?? textAlign)      : textAlign;
+  textFontFamily = a ? (a.fontFamily ?? textFontFamily) : textFontFamily;
+  textBold       = a ? !!a.bold      : textBold;
+  textItalic     = a ? !!a.italic    : textItalic;
+  textUnderline  = a ? !!a.underline : textUnderline;
+
+  const autoWidth = !rw || rw <= 0;
+  inlineTA.style.left            = rx + 'px';
+  inlineTA.style.top             = ry + 'px';
+  inlineTA.style.width           = autoWidth ? (fontSize + 'px') : (Math.max(rw, 60) + 'px');
+  inlineTA.style.height          = Math.max(rh, fontSize * 1.6) + 'px';
+  inlineTA.style.fontSize        = fontSize + 'px';
+  inlineTA.style.fontFamily      = fontFamilyCss(textFontFamily);
+  inlineTA.style.fontWeight      = textBold ? '700' : '400';
+  inlineTA.style.fontStyle       = textItalic ? 'italic' : 'normal';
+  inlineTA.style.textDecoration  = textUnderline ? 'underline' : 'none';
+  inlineTA.style.color           = strokeColor;
+  inlineTA.style.textAlign       = textAlign;
+  inlineTA.style.whiteSpace      = autoWidth ? 'pre' : 'pre-wrap';
+  inlineTA.style.display         = 'block';
+  inlineTA.dataset.autoWidth     = autoWidth ? '1' : '';
   inlineTA.value = a ? (a.text ?? '') : '';
+
+  /* サイドバーも同期 */
+  syncSidebarToAnnotation({ color: strokeColor, fontSize, align: textAlign });
   redrawAnnotations(); /* 編集中の注釈をキャンバスから消す */
+  autoGrowTextarea();
+  refreshTextToolbar();
   inlineTA.select();
   inlineTA.focus();
 }
 
+/* 内容に合わせて textarea の幅・高さを調整（実フォントで計測） */
+function autoGrowTextarea() {
+  if (inlineTA.style.display === 'none') return;
+  const lines = (inlineTA.value || '').split('\n');
+  annCtx.save();
+  annCtx.font = `${textItalic ? 'italic ' : ''}${textBold ? '700' : '400'} ${fontSize}px ${fontFamilyCss(textFontFamily)}`;
+  let maxW = 0;
+  for (const l of lines) maxW = Math.max(maxW, annCtx.measureText(l || ' ').width);
+  annCtx.restore();
+  const lineH = fontSize * 1.4;
+  if (inlineTA.dataset.autoWidth) {
+    const left = parseFloat(inlineTA.style.left) || 0;
+    const w = Math.min(maxW + fontSize * 0.6 + 10, annotCanvas.width - left);
+    inlineTA.style.width = Math.max(w, fontSize) + 'px';
+  }
+  inlineTA.style.height = (lines.length * lineH + 8) + 'px';
+  updateTextToolbarPosition();
+}
+
 function commitInlineText() {
+  if (inlineTA.style.display === 'none') return;   /* 二重確定防止 */
   const txt = inlineTA.value;
   inlineTA.style.display = 'none';
   lastCommitTime = Date.now();
-  if (!txt.trim()) { editingTextIdx = -1; return; }
+  if (!txt.trim()) { editingTextIdx = -1; refreshTextToolbar(); return; }
 
-  /* textareaの位置・サイズをキャンバス座標に変換 */
   const tx = parseFloat(inlineTA.style.left);
   const ty = parseFloat(inlineTA.style.top);
-  const tw = parseFloat(inlineTA.style.width);
   const fs = parseInt(inlineTA.style.fontSize);
+  const autoWidth = !!inlineTA.dataset.autoWidth;
+  const tw = autoWidth ? undefined : parseFloat(inlineTA.style.width);
+
+  const style = {
+    color: strokeColor, fontSize: fs, align: textAlign,
+    fontFamily: textFontFamily, bold: textBold, italic: textItalic, underline: textUnderline,
+  };
 
   pushHistory();
   if (editingTextIdx >= 0) {
-    annotations[editingTextIdx] = {
-      ...annotations[editingTextIdx],
-      text: txt, color: strokeColor, fontSize: fs, align: textAlign, x: tx, y: ty + fs, w: tw,
-    };
+    const next = { ...annotations[editingTextIdx], text: txt, x: tx, y: ty + fs, ...style };
+    if (tw !== undefined) next.w = tw; else delete next.w;
+    annotations[editingTextIdx] = next;
   } else {
-    annotations.push({ type: 'text', text: txt, x: tx, y: ty + fs, w: tw, color: strokeColor, fontSize: fs, align: textAlign });
+    const obj = { type: 'text', text: txt, x: tx, y: ty + fs, ...style };
+    if (tw !== undefined) obj.w = tw;
+    annotations.push(obj);
   }
   editingTextIdx = -1;
   redrawAnnotations();
@@ -1872,33 +2019,217 @@ function cancelInlineText() {
   inlineTA.style.display = 'none';
   lastCommitTime = Date.now();
   editingTextIdx = -1;
+  refreshTextToolbar();
 }
 
-/* 既存テキストをクリックで再編集 */
+/* 既存テキストをダブルクリックで再編集 */
 function openTextEdit(idx) {
-  const a = annotations[idx];
-  editingTextIdx = idx;
-  strokeColor = a.color ?? strokeColor;
-  fontSize    = a.fontSize ?? fontSize;
-  textAlign   = a.align ?? 'left';
-  document.querySelectorAll('.tool-color-btn').forEach(b => b.classList.toggle('active', b.dataset.color === strokeColor));
-  document.querySelectorAll('[data-align]').forEach(b => b.classList.toggle('active', b.dataset.align === textAlign));
-  const fsSel = document.getElementById('fontSize');
-  if (fsSel) fsSel.value = String(fontSize);
-  const bb = getBoundingBox(a);
-  showInlineTextarea(bb.x, bb.y, bb.w, bb.h, idx);
+  const bb = getBoundingBox(annotations[idx]);
+  /* 既存幅を維持して編集（w が無い＝自動幅のテキストは自動幅のまま） */
+  const keepW = annotations[idx].w ? bb.w : 0;
+  showInlineTextarea(bb.x, bb.y, keepW, bb.h, idx);
 }
 
 function initTextInput() {
   inlineTA.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { e.preventDefault(); cancelInlineText(); }
-    /* Shift+Enter で改行、Enter単独は確定 */
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitInlineText(); }
+    /* Enter は改行（ilovepdf流）。Esc または Ctrl/Cmd+Enter で確定 */
+    if (e.key === 'Escape') { e.preventDefault(); commitInlineText(); }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitInlineText(); }
   });
-  inlineTA.addEventListener('blur', () => {
-    /* フォーカスが外れたら確定 */
+  inlineTA.addEventListener('input', autoGrowTextarea);
+  inlineTA.addEventListener('blur', e => {
+    /* フォーカスがツールバーに移った場合は確定しない（書式変更を継続） */
+    const rt = e.relatedTarget;
+    if (rt && document.getElementById('textToolbar').contains(rt)) return;
     if (inlineTA.style.display !== 'none') commitInlineText();
   });
+}
+
+/* ────── テキスト用フローティングツールバー ────── */
+function toHexColor(c) {
+  if (!c) return '#000000';
+  if (c[0] === '#') return c.length === 4 ? '#' + [...c.slice(1)].map(x => x + x).join('') : c.slice(0, 7);
+  return '#000000';
+}
+
+/* サイドバーの色ボタンを現在色に同期 */
+function syncColorButtons(col) {
+  let matched = false;
+  document.querySelectorAll('.tool-color-btn[data-color]').forEach(b => {
+    const on = (b.dataset.color || '').toLowerCase() === col.toLowerCase();
+    b.classList.toggle('active', on);
+    if (on) matched = true;
+  });
+  const cb = document.getElementById('customColorBtn');
+  if (cb && !matched) {
+    cb.style.background = col; cb.style.color = '#fff'; cb.textContent = '';
+    cb.style.border = '2.5px solid #1A1A2E';
+  }
+}
+
+function initTextToolbar() {
+  const sel = document.getElementById('ttFont');
+  FONT_FAMILIES.forEach(f => {
+    const o = document.createElement('option');
+    o.value = f.id; o.textContent = f.label; o.style.fontFamily = f.css;
+    sel.appendChild(o);
+  });
+  sel.addEventListener('change', () => applyTextStyle({ fontFamily: sel.value }));
+
+  const size = document.getElementById('ttSize');
+  size.addEventListener('input', () => {
+    const v = parseInt(size.value);
+    if (v >= 6 && v <= 200) applyTextStyle({ fontSize: v });
+  });
+
+  const colorInput = document.getElementById('ttColorInput');
+  colorInput.addEventListener('input', () => applyTextStyle({ color: colorInput.value }));
+
+  document.getElementById('ttBold').addEventListener('click', () =>
+    applyTextStyle({ bold: !document.getElementById('ttBold').classList.contains('active') }));
+  document.getElementById('ttItalic').addEventListener('click', () =>
+    applyTextStyle({ italic: !document.getElementById('ttItalic').classList.contains('active') }));
+  document.getElementById('ttUnderline').addEventListener('click', () =>
+    applyTextStyle({ underline: !document.getElementById('ttUnderline').classList.contains('active') }));
+  document.getElementById('ttAlignLeft').addEventListener('click',   () => applyTextStyle({ align: 'left' }));
+  document.getElementById('ttAlignCenter').addEventListener('click', () => applyTextStyle({ align: 'center' }));
+  document.getElementById('ttAlignRight').addEventListener('click',  () => applyTextStyle({ align: 'right' }));
+
+  document.getElementById('ttDelete').addEventListener('click', () => {
+    if (inlineTA.style.display === 'block') { cancelInlineText(); return; }
+    if (selectedIdx >= 0) deleteSelected();
+    hideTextToolbar();
+  });
+
+  /* ツールバー上で押下しても編集中テキストの選択（フォーカス）が消えないように */
+  document.getElementById('textToolbar').addEventListener('mousedown', e => {
+    const t = e.target;
+    if (t.tagName !== 'INPUT' && t.tagName !== 'SELECT' && t.tagName !== 'OPTION') e.preventDefault();
+  });
+
+  document.getElementById('canvasArea').addEventListener('scroll', updateTextToolbarPosition);
+  window.addEventListener('resize', updateTextToolbarPosition);
+}
+
+/* スタイル変更を「グローバルデフォルト・編集中textarea・選択中注釈・サイドバー」へ一括反映 */
+function applyTextStyle(patch) {
+  if ('fontFamily' in patch) textFontFamily = patch.fontFamily;
+  if ('bold' in patch)       textBold      = patch.bold;
+  if ('italic' in patch)     textItalic    = patch.italic;
+  if ('underline' in patch)  textUnderline = patch.underline;
+  if ('fontSize' in patch) {
+    fontSize = patch.fontSize;
+    const fsEl = document.getElementById('fontSize'); if (fsEl) fsEl.value = String(fontSize);
+  }
+  if ('color' in patch) { strokeColor = patch.color; syncColorButtons(strokeColor); }
+  if ('align' in patch) {
+    textAlign = patch.align;
+    document.querySelectorAll('[data-align]').forEach(b => b.classList.toggle('active', b.dataset.align === textAlign));
+  }
+
+  /* 編集中の textarea に即時反映 */
+  if (inlineTA.style.display === 'block') {
+    if ('fontFamily' in patch) inlineTA.style.fontFamily     = fontFamilyCss(textFontFamily);
+    if ('bold' in patch)       inlineTA.style.fontWeight     = textBold ? '700' : '400';
+    if ('italic' in patch)     inlineTA.style.fontStyle      = textItalic ? 'italic' : 'normal';
+    if ('underline' in patch)  inlineTA.style.textDecoration = textUnderline ? 'underline' : 'none';
+    if ('fontSize' in patch)   inlineTA.style.fontSize       = fontSize + 'px';
+    if ('color' in patch)      inlineTA.style.color          = strokeColor;
+    if ('align' in patch)      inlineTA.style.textAlign      = textAlign;
+    autoGrowTextarea();
+  }
+
+  /* 選択中のテキスト注釈に反映 */
+  if (selectedIdx >= 0 && annotations[selectedIdx]?.type === 'text') {
+    pushHistory();
+    const a = annotations[selectedIdx];
+    if ('fontFamily' in patch) a.fontFamily = textFontFamily;
+    if ('bold' in patch)       a.bold       = textBold;
+    if ('italic' in patch)     a.italic     = textItalic;
+    if ('underline' in patch)  a.underline  = textUnderline;
+    if ('fontSize' in patch)   a.fontSize   = fontSize;
+    if ('color' in patch)      a.color      = strokeColor;
+    if ('align' in patch)      a.align      = textAlign;
+    redrawAnnotations();
+  }
+  syncTextToolbarState();
+  updateTextToolbarPosition();
+}
+
+/* ツールバーのUIを現在の編集対象に同期 */
+function syncTextToolbarState() {
+  const a = (selectedIdx >= 0 && annotations[selectedIdx]?.type === 'text') ? annotations[selectedIdx] : null;
+  const fam  = a ? (a.fontFamily || 'sans') : textFontFamily;
+  const fs   = a ? (a.fontSize ?? fontSize) : fontSize;
+  const col  = a ? (a.color ?? strokeColor) : strokeColor;
+  const al   = a ? (a.align ?? 'left')      : textAlign;
+  const bold = a ? !!a.bold      : textBold;
+  const ital = a ? !!a.italic    : textItalic;
+  const undl = a ? !!a.underline : textUnderline;
+  document.getElementById('ttFont').value = fam;
+  const sizeEl = document.getElementById('ttSize');
+  if (document.activeElement !== sizeEl) sizeEl.value = fs;
+  document.getElementById('ttColorBtn').style.background = col;
+  document.getElementById('ttColorInput').value = toHexColor(col);
+  document.getElementById('ttBold').classList.toggle('active', bold);
+  document.getElementById('ttItalic').classList.toggle('active', ital);
+  document.getElementById('ttUnderline').classList.toggle('active', undl);
+  document.getElementById('ttAlignLeft').classList.toggle('active',   al === 'left');
+  document.getElementById('ttAlignCenter').classList.toggle('active', al === 'center');
+  document.getElementById('ttAlignRight').classList.toggle('active',  al === 'right');
+}
+
+/* ツールバーの配置基準矩形（スクリーン座標）を返す */
+function getTextToolbarAnchor() {
+  if (inlineTA.style.display === 'block') {
+    const r = inlineTA.getBoundingClientRect();
+    return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+  }
+  if (selectedIdx >= 0 && annotations[selectedIdx]?.type === 'text') {
+    const bb = getBoundingBox(annotations[selectedIdx]);
+    const r  = annotCanvas.getBoundingClientRect();
+    const sx = r.width / annotCanvas.width, sy = r.height / annotCanvas.height;
+    return {
+      left:   r.left + bb.x * sx,
+      top:    r.top  + bb.y * sy,
+      right:  r.left + (bb.x + bb.w) * sx,
+      bottom: r.top  + (bb.y + bb.h) * sy,
+    };
+  }
+  return null;
+}
+
+function updateTextToolbarPosition() {
+  const tb = document.getElementById('textToolbar');
+  if (!tb.classList.contains('open')) return;
+  const a = getTextToolbarAnchor();
+  if (!a) return;
+  const tbw = tb.offsetWidth  || 380;
+  const tbh = tb.offsetHeight || 42;
+  let left = Math.max(8, Math.min(a.left, window.innerWidth - tbw - 8));
+  let top  = a.top - tbh - 8;
+  if (top < 8) top = a.bottom + 8;                 /* 上に入らなければ下に出す */
+  top = Math.min(top, window.innerHeight - tbh - 8);
+  tb.style.left = left + 'px';
+  tb.style.top  = top + 'px';
+}
+
+function showTextToolbar() {
+  const tb = document.getElementById('textToolbar');
+  syncTextToolbarState();
+  tb.classList.add('open');
+  updateTextToolbarPosition();
+}
+function hideTextToolbar() {
+  document.getElementById('textToolbar').classList.remove('open');
+}
+
+/* 編集中 or テキスト選択中ならツールバーを表示・更新、そうでなければ隠す */
+function refreshTextToolbar() {
+  const editing = inlineTA.style.display === 'block';
+  const selText = selectedIdx >= 0 && annotations[selectedIdx]?.type === 'text';
+  if (editing || selText) showTextToolbar();
+  else hideTextToolbar();
 }
 
 /* ────── ヘルパー: history 管理 ────── */
@@ -2082,6 +2413,12 @@ function initCustomColor() {
 
 /* 選択中の注釈の色を即時更新（テキスト・線・矢印・矩形・楕円・ペン） */
 function applyColorToSelection(col) {
+  /* 編集中テキストにも即時反映 */
+  if (inlineTA.style.display === 'block') {
+    strokeColor = col;
+    inlineTA.style.color = col;
+    syncTextToolbarState();
+  }
   if (selectedIdx < 0) return;
   const a = annotations[selectedIdx];
   if (!a) return;
@@ -2090,6 +2427,7 @@ function applyColorToSelection(col) {
   pushHistory();
   a.color = col;
   redrawAnnotations();
+  if (a.type === 'text') syncTextToolbarState();
 }
 
 /* ────── undo / clear ────── */
@@ -2241,6 +2579,7 @@ async function buildAnnotatedPdf() {
   editingTextIdx = -1;
   if (typeof inlineTA !== 'undefined' && inlineTA?.style) inlineTA.style.display = 'none';
   redrawAnnotations();
+  await ensureTextFontsLoaded();
 
   /* 全ページのアノテーションを保存してから処理 */
   savePageAnnotations();
@@ -2315,31 +2654,7 @@ async function buildAnnotatedPdf() {
         const rx = Math.abs(a.x2 - a.x1) / 2, ry = Math.abs(a.y2 - a.y1) / 2;
         tctx.beginPath(); tctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); tctx.stroke();
       } else if (a.type === 'text') {
-        const fs = a.fontSize ?? 50;
-        const al = a.align ?? 'left';
-        tctx.font = `${fs}px 'Noto Sans JP', sans-serif`;
-        tctx.fillStyle = a.color;
-        tctx.textAlign = al;
-        const baseX = al === 'center' ? a.x + (a.w ?? 0) / 2
-                    : al === 'right'  ? a.x + (a.w ?? 0)
-                    : a.x;
-        const lineH = fs * 1.4;
-        let li = 0;
-        (a.text || '').split('\n').forEach(paragraph => {
-          if (a.w) {
-            let line = '';
-            for (const ch of paragraph) {
-              const test = line + ch;
-              if (tctx.measureText(test).width > a.w && line.length > 0) {
-                tctx.fillText(line, baseX, a.y + li * lineH);
-                line = ch; li++;
-              } else { line = test; }
-            }
-            if (line) { tctx.fillText(line, baseX, a.y + li * lineH); li++; }
-          } else {
-            tctx.fillText(paragraph, baseX, a.y + li * lineH); li++;
-          }
-        });
+        drawTextAnnotation(tctx, a);
       } else if (a.type === 'stamp') {
         drawStamp(tctx, a);
       }
@@ -2391,6 +2706,7 @@ async function buildAnnotatedPdf() {
 
 /* 画像に注釈を焼き込む */
 async function buildAnnotatedImage() {
+  await ensureTextFontsLoaded();
   const merged = document.createElement('canvas');
   merged.width  = baseCanvas.width;
   merged.height = baseCanvas.height;
@@ -2424,33 +2740,7 @@ function drawAnnotationToCtx(ctx, a) {
     const rx = Math.abs(a.x2 - a.x1) / 2, ry = Math.abs(a.y2 - a.y1) / 2;
     ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
   } else if (a.type === 'text') {
-    const fs = a.fontSize ?? 50;
-    const al = a.align ?? 'left';
-    ctx.font = `${fs}px 'Noto Sans JP', sans-serif`;
-    ctx.fillStyle = a.color;
-    ctx.textAlign = al;
-    const baseX = al === 'center' ? a.x + (a.w ?? 0) / 2
-                : al === 'right'  ? a.x + (a.w ?? 0)
-                : a.x;
-    const lineH = fs * 1.4;
-    let li = 0;
-    a.text.split('\n').forEach(paragraph => {
-      if (a.w) {
-        const words = paragraph.split('');
-        let line = '';
-        for (const ch of words) {
-          const test = line + ch;
-          if (ctx.measureText(test).width > a.w && line.length > 0) {
-            ctx.fillText(line, baseX, a.y + li * lineH);
-            line = ch; li++;
-          } else { line = test; }
-        }
-        if (line) { ctx.fillText(line, baseX, a.y + li * lineH); li++; }
-      } else {
-        ctx.fillText(paragraph, baseX, a.y + li * lineH); li++;
-      }
-    });
-    ctx.textAlign = 'left';
+    drawTextAnnotation(ctx, a);
   } else if (a.type === 'stamp') {
     drawStamp(ctx, a);
   }
