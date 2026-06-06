@@ -1425,10 +1425,6 @@ function onDown(e) {
         ta._resizeBB   = { ...tbb };
         ta._resizeBase = ta.path.map(p => ({...p}));
       }
-      /* テキスト: 角の比例スケール用に開始状態を保存 */
-      if (ta.type === 'text') {
-        ta._resizeStart = { x: ta.x, y: ta.y, w: ta.w, fontSize: ta.fontSize ?? 50, bb: getBoundingBox(ta) };
-      }
       e.stopPropagation();
       return;
     }
@@ -1542,9 +1538,6 @@ function onUpDoc(e) {
     if (selectedIdx >= 0 && annotations[selectedIdx]?.type === 'pen') {
       delete annotations[selectedIdx]._resizeBase;
       delete annotations[selectedIdx]._resizeBB;
-    }
-    if (selectedIdx >= 0 && annotations[selectedIdx]?.type === 'text') {
-      delete annotations[selectedIdx]._resizeStart;
     }
     redrawAnnotations();
     return;
@@ -1901,38 +1894,17 @@ function applyResize(a, handle, mx, my) {
     return;
   }
   if (a.type === 'text') {
-    /* 左右ハンドル: 折返し幅(a.w)と左端(a.x)のみ調整（フォントサイズ固定） */
-    if (handle === 'e' || handle === 'w') {
-      const bb = getBoundingBox(a);
-      const curRight = a.x + bb.w;
-      const minW = (a.fontSize ?? 50);
-      if (handle === 'e') {
-        a.w = Math.max(mx - a.x, minW);
-      } else {
-        const newX = Math.min(mx, curRight - minW);
-        a.w = curRight - newX;
-        a.x = newX;
-      }
-      return;
+    /* 左右・角どのハンドルでも折返し幅(a.w)と左端(a.x)のみ調整（フォントサイズは固定） */
+    const bb = getBoundingBox(a);
+    const curRight = a.x + bb.w;
+    const minW = (a.fontSize ?? 50);
+    if (handle === 'e' || handle === 'ne' || handle === 'se') {
+      a.w = Math.max(mx - a.x, minW);
+    } else if (handle === 'w' || handle === 'nw' || handle === 'sw') {
+      const newX = Math.min(mx, curRight - minW);
+      a.w = curRight - newX;
+      a.x = newX;
     }
-    /* 角ハンドル: 対角を固定して比例スケール（フォントサイズも変更） */
-    const st = a._resizeStart;
-    if (!st) return;
-    const lines    = ((a.text || '').split('\n').length) || 1;
-    const leftFixed = (handle === 'ne' || handle === 'se');  /* 左端を固定して右側を動かす */
-    const topFixed  = (handle === 'sw' || handle === 'se');  /* 上端を固定して下側を動かす */
-    const anchorX   = leftFixed ? st.x : (st.x + st.bb.w);
-    const newW      = Math.abs(mx - anchorX);
-    let   ratio     = Math.max(newW / Math.max(st.bb.w, 1), 0.05);
-    let   newFs     = Math.max(6, Math.min(400, st.fontSize * ratio));
-    ratio = newFs / st.fontSize;                              /* クランプ後の実比 */
-    a.fontSize = newFs;
-    if (st.w) a.w = st.w * ratio;
-    const newBBw = st.w ? a.w : st.bb.w * ratio;
-    const newBBh = newFs * 1.4 * lines;
-    a.x = leftFixed ? st.x : (st.x + st.bb.w - newBBw);       /* 左 or 右を固定 */
-    a.y = topFixed ? (st.bb.y + newFs)                        /* 上を固定 */
-                   : (st.bb.y + st.bb.h - newBBh + newFs);    /* 下を固定 */
     return;
   }
   /* rect / ellipse: 8方向ハンドル — x1>x2/y1>y2 になっても min/max で描画するので問題なし */
