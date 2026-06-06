@@ -1819,9 +1819,15 @@ function getHandles(a) {
       sw: {x:x1,y:y2}, s: {x:mx,y:y2}, se: {x:x2,y:y2}
     };
   }
-  /* text: 右下ハンドル（フォントサイズ変更） */
+  /* text: 折返し幅を変えるハンドル（左右＋4角）。フォントサイズは変えない */
   const bb = getBoundingBox(a);
-  return { br: { x: bb.x + bb.w, y: bb.y + bb.h } };
+  const x1 = bb.x, y1 = bb.y, x2 = bb.x + bb.w, y2 = bb.y + bb.h;
+  const my = (y1 + y2) / 2;
+  return {
+    nw: { x: x1, y: y1 }, ne: { x: x2, y: y1 },
+    w:  { x: x1, y: my }, e:  { x: x2, y: my },
+    sw: { x: x1, y: y2 }, se: { x: x2, y: y2 },
+  };
 }
 
 /* マウス位置がハンドルに当たっているか返す */
@@ -1888,17 +1894,16 @@ function applyResize(a, handle, mx, my) {
     return;
   }
   if (a.type === 'text') {
-    if (handle === 'br') {
-      /* 横: 幅を更新 */
-      a.w = Math.max(mx - a.x, 20);
-      /* 縦: フォントサイズを更新 */
-      const topY = a.y - (a.fontSize ?? 50);
-      const lines = Math.max(a.text.split('\n').length, 1);
-      const newH = my - topY;
-      const newFs = Math.max(6, Math.min(200, Math.round(newH / (1.4 * lines))));
-      a.fontSize = newFs; fontSize = newFs;
-      const fsEl = document.getElementById('fontSize');
-      if (fsEl) fsEl.value = String(newFs);
+    /* フォントサイズは変えず、折返し幅(a.w)と左端(a.x)のみ調整 */
+    const bb = getBoundingBox(a);
+    const curRight = a.x + bb.w;
+    const minW = (a.fontSize ?? 50);
+    if (handle === 'e' || handle === 'ne' || handle === 'se') {
+      a.w = Math.max(mx - a.x, minW);
+    } else if (handle === 'w' || handle === 'nw' || handle === 'sw') {
+      const newX = Math.min(mx, curRight - minW);
+      a.w = curRight - newX;
+      a.x = newX;
     }
     return;
   }
