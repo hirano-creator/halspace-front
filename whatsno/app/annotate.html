@@ -1700,9 +1700,11 @@ function drawArrow(ctx, x1, y1, x2, y2, color, size) {
   const len   = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
   const head  = Math.min(Math.max(size * 4, 12), len);   /* 矢じりの長さ（線より長くしない） */
   const spread = Math.PI / 7;                             /* 矢じりの開き角 */
-  /* 矢じり根元（左右の角を結ぶ線の中点）まで軸線を引き、先端の丸キャップはみ出しを防ぐ */
-  const baseX = x2 - head * Math.cos(angle);
-  const baseY = y2 - head * Math.sin(angle);
+  /* 軸線は矢じりの根元（左右の角を結ぶ線の中点）で止める。
+     角は先端から head·cos(spread) の距離にあるので、ここに合わせると交差部が綺麗に繋がる */
+  const backDist = head * Math.cos(spread);
+  const baseX = x2 - backDist * Math.cos(angle);
+  const baseY = y2 - backDist * Math.sin(angle);
   ctx.save();
   ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = size;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
