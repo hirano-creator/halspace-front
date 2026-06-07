@@ -135,7 +135,10 @@ async function wnOverwriteFile(id, file) {
   // Railway へ直送（プロキシ廃止。CORS は API 側で許可済み）
   const url = WN_API_BASE + `/wn/files/${id}/overwrite`;
 
-  return new Promise((resolve, reject) => {
+  /* 1回分の送信。ネットワーク系失敗(onerror/ontimeout)は retryable=true を付けて
+     reject し、呼び出し側で再試行できるようにする。HTTPエラーやJSON解析失敗は
+     サーバーの確定的な応答なので再試行しない(retryable=false)。 */
+  const attempt = () => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url);
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -150,21 +153,34 @@ async function wnOverwriteFile(id, file) {
       }
       if (xhr.status >= 200 && xhr.status < 300) {
         try { resolve(JSON.parse(xhr.responseText)); }
-        catch { reject(new Error('レスポンスの解析に失敗しました')); }
+        catch { reject(Object.assign(new Error('レスポンスの解析に失敗しました'), { retryable: false })); }
       } else {
-        try {
-          const err = JSON.parse(xhr.responseText);
-          reject(new Error(err.message || `上書きエラー (${xhr.status})`));
-        } catch {
-          reject(new Error(`上書きエラー (${xhr.status})`));
-        }
+        let msg;
+        try { msg = JSON.parse(xhr.responseText).message; } catch {}
+        reject(Object.assign(new Error(msg || `上書きエラー (${xhr.status})`), { retryable: false }));
       }
     };
-    xhr.onerror = () => reject(new Error('ネットワークエラー (XHR)'));
-    xhr.ontimeout = () => reject(new Error('タイムアウト'));
+    xhr.onerror   = () => reject(Object.assign(new Error('ネットワークエラー (XHR)'), { retryable: true }));
+    xhr.ontimeout = () => reject(Object.assign(new Error('タイムアウト'), { retryable: true }));
     xhr.timeout = 300000;
     xhr.send(blob);
   });
+
+  /* 上書きは冪等（同じ内容で上書き）なので、デプロイ切替や回線の瞬断による
+     一時的な接続リセットは安全に再試行できる。注釈保存が一度の瞬断で失われ
+     ないよう、ネットワーク系エラーのみ指数バックオフで最大3回試行する。 */
+  const BACKOFF_MS = [0, 1000, 2500];
+  let lastErr;
+  for (let i = 0; i < BACKOFF_MS.length; i++) {
+    if (BACKOFF_MS[i]) await new Promise(r => setTimeout(r, BACKOFF_MS[i]));
+    try {
+      return await attempt();
+    } catch (e) {
+      lastErr = e;
+      if (!e || !e.retryable) throw e;   /* 確定的エラーは即座に投げる */
+    }
+  }
+  throw lastErr;
 }
 
 /* ファイル削除 */
