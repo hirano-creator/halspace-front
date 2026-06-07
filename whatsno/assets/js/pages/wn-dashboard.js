@@ -1859,6 +1859,9 @@ async function loadRowComments() {
   await Promise.all(allFiles.map(async (f) => {
     const el = document.getElementById(`row-comments-${f.id}`);
     if (!el) return;
+    // コメント0件のファイルはAPIを叩かず空表示にする（一覧の comment_count を利用）。
+    // 全行で /comments を叩くと1表示で数十リクエストになり 429 を誘発するため。
+    if (!f.comment_count) { renderRowComments(el, f.id, []); return; }
     const comments = await wnGetComments(f.id);
     renderRowComments(el, f.id, comments);
   }));
