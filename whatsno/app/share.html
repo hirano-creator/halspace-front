@@ -301,7 +301,8 @@ function renderFile(file) {
       </span>`
     : '';
 
-  const canPreview = mime.startsWith('image/') || ext === 'pdf' || mime === 'application/pdf';
+  const isVideo    = mime.startsWith('video/') || ['mp4','mov','webm','avi','m4v'].includes(ext);
+  const canPreview = mime.startsWith('image/') || ext === 'pdf' || mime === 'application/pdf' || isVideo;
 
   document.getElementById('main').innerHTML = `
     <div class="card" id="fileCard">
@@ -377,6 +378,13 @@ function renderFile(file) {
       const img = document.createElement('img');
       img.src = url;
       inner.appendChild(img);
+    } else if (isVideo) {
+      const video = document.createElement('video');
+      video.src = url;
+      video.controls = true;
+      video.autoplay = false;
+      video.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;display:block;';
+      inner.appendChild(video);
     } else {
       const frame = document.createElement('iframe');
       frame.src = url;
