@@ -1,7 +1,7 @@
 'use strict';
 
 /* ===== API ベースURL（ローカル開発 vs 本番自動切替） ===== */
-const SPACE_API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+const SPACE_API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.endsWith('.test'))
   ? 'http://127.0.0.1:8000/api'
   : 'https://halspace-api-production.up.railway.app/api';
 

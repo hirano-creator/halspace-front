@@ -34,36 +34,41 @@
     }
     .topbar-logo span { font-size: 11px; font-weight: 400; opacity: .7; margin-left: 6px; }
     .wrap {
-      max-width: 800px; margin: 0 auto; padding: 24px 16px;
+      max-width: 960px; margin: 0 auto; padding: 20px 16px 32px;
     }
     .card {
       background: var(--white); border-radius: 12px;
-      border: 1px solid var(--border); padding: 24px;
-      margin-bottom: 16px;
+      border: 1px solid var(--border); padding: 20px 24px;
+      margin-bottom: 12px;
     }
+    /* プレビューが開いているときはカードの下余白を詰める */
+    .card.has-preview { padding-bottom: 0; }
     .file-header {
-      display: flex; align-items: center; gap: 14px; margin-bottom: 20px;
+      display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px;
     }
     .file-icon {
-      font-size: 40px; color: var(--accent); flex-shrink: 0;
+      font-size: 36px; color: var(--accent); flex-shrink: 0; padding-top: 2px;
     }
+    .file-info { min-width: 0; flex: 1; }
     .file-name {
-      font-size: 18px; font-weight: 700; color: var(--primary);
-      word-break: break-all; margin-bottom: 4px;
+      font-size: 17px; font-weight: 700; color: var(--primary);
+      word-break: break-all; margin-bottom: 5px; line-height: 1.4;
     }
     .file-meta {
-      font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap;
+      font-size: 12px; color: var(--muted);
+      display: flex; gap: 10px 16px; flex-wrap: wrap; align-items: center;
     }
+    .file-meta span { display: inline-flex; align-items: center; gap: 4px; }
     .btn {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: 700;
-      border: none; cursor: pointer; text-decoration: none;
+      padding: 9px 20px; border-radius: 8px; font-size: 14px; font-weight: 700;
+      border: none; cursor: pointer; text-decoration: none; white-space: nowrap;
     }
     .btn-accent  { background: var(--accent);  color: #fff; }
     .btn-outline { background: transparent; border: 1.5px solid var(--accent); color: var(--accent); }
     .btn:disabled { opacity: .5; cursor: default; }
     .btn:not(:disabled):hover { filter: brightness(1.08); }
-    .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-group { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
     /* パスワードフォーム */
     .pw-form {
@@ -90,14 +95,23 @@
     .error-box p  { font-size: 14px; color: var(--muted); }
 
     /* プレビュー */
-    .preview-area {
-      width: 100%; height: 500px; background: #f8f9fb;
-      border-radius: 8px; overflow: hidden; position: relative;
-      border: 1px solid var(--border); margin-top: 16px;
+    .preview-wrap {
+      margin-top: 16px;
+      border-top: 1px solid var(--border);
     }
-    .preview-area iframe { width: 100%; height: 100%; border: none; }
+    .preview-area {
+      width: 100%;
+      height: calc(100vh - 260px);
+      min-height: 480px;
+      max-height: 1000px;
+      background: #1a1a2e;
+      border-radius: 0 0 10px 10px;
+      overflow: hidden; position: relative;
+    }
+    .preview-area iframe { width: 100%; height: 100%; border: none; display: block; }
     .preview-area img {
-      width: 100%; height: 100%; object-fit: contain;
+      width: 100%; height: 100%; object-fit: contain; display: block;
+      background: #1a1a2e;
     }
     .preview-placeholder {
       position: absolute; inset: 0;
@@ -109,7 +123,7 @@
 
     .expiry-badge {
       display: inline-flex; align-items: center; gap: 5px;
-      padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+      padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700;
       background: #E8F5E9; color: #2E7D32;
     }
     .expiry-badge.expiring { background: #FFF3E0; color: #F57C00; }
@@ -127,10 +141,33 @@
     .toast-success { background: #2E7D32; }
     .toast-danger  { background: #C62828; }
 
-    @media (max-width: 500px) {
+    /* タブレット */
+    @media (max-width: 768px) {
+      .wrap { padding: 16px 12px 28px; }
+      .card { padding: 16px 16px; }
+      .file-icon { font-size: 30px; }
       .file-name { font-size: 15px; }
-      .preview-area { height: 320px; }
+      .preview-area {
+        height: calc(100vh - 240px);
+        min-height: 400px;
+      }
+    }
+
+    /* スマートフォン */
+    @media (max-width: 480px) {
+      .topbar { height: 46px; }
+      .topbar-logo { font-size: 16px; }
+      .wrap { padding: 12px 10px 24px; }
+      .card { padding: 14px; }
+      .file-header { gap: 10px; }
+      .file-icon { font-size: 26px; }
+      .file-name { font-size: 14px; }
+      .file-meta { gap: 6px 12px; font-size: 11px; }
       .btn { padding: 8px 14px; font-size: 13px; }
+      .preview-area {
+        height: calc(100vh - 220px);
+        min-height: 320px;
+      }
     }
   </style>
 </head>
@@ -264,18 +301,20 @@ function renderFile(file) {
       </span>`
     : '';
 
+  const canPreview = mime.startsWith('image/') || ext === 'pdf' || mime === 'application/pdf';
+
   document.getElementById('main').innerHTML = `
-    <div class="card">
+    <div class="card" id="fileCard">
       <div class="file-header">
         <i class="fa-solid ${icon} file-icon"></i>
-        <div>
+        <div class="file-info">
           <div class="file-name">${esc(file.file_name)}</div>
           <div class="file-meta">
-            <span><i class="fa-solid fa-weight-hanging"></i> ${formatSize(file.file_size)}</span>
-            <span><i class="fa-solid fa-calendar"></i> ${formatDate(file.created_at)}</span>
-            <span><i class="fa-solid fa-user"></i> ${esc(file.uploader?.name ?? '—')}</span>
+            <span><i class="fa-solid fa-weight-hanging"></i>${formatSize(file.file_size)}</span>
+            <span><i class="fa-solid fa-calendar"></i>${formatDate(file.created_at)}</span>
+            <span><i class="fa-solid fa-user"></i>${esc(file.uploader?.name ?? '—')}</span>
+            ${expiryHtml ? expiryHtml : ''}
           </div>
-          ${expiryHtml ? `<div style="margin-top:8px;">${expiryHtml}</div>` : ''}
         </div>
       </div>
       <div class="btn-group">
@@ -283,7 +322,7 @@ function renderFile(file) {
           class="btn btn-accent" target="_blank">
           <i class="fa-solid fa-download"></i> ダウンロード
         </a>
-        ${(mime.startsWith('image/') || ext === 'pdf' || mime === 'application/pdf')
+        ${canPreview
           ? `<button class="btn btn-outline" id="previewToggleBtn">
               <i class="fa-solid fa-eye"></i> プレビュー表示
             </button>`
@@ -296,9 +335,16 @@ function renderFile(file) {
     </p>`;
 
   document.getElementById('previewToggleBtn')?.addEventListener('click', async () => {
-    const btn  = document.getElementById('previewToggleBtn');
-    const area = document.getElementById('previewArea');
-    if (area.innerHTML) { area.innerHTML = ''; btn.innerHTML = '<i class="fa-solid fa-eye"></i> プレビュー表示'; return; }
+    const btn      = document.getElementById('previewToggleBtn');
+    const area     = document.getElementById('previewArea');
+    const card     = document.getElementById('fileCard');
+
+    if (area.innerHTML) {
+      area.innerHTML = '';
+      card.classList.remove('has-preview');
+      btn.innerHTML = '<i class="fa-solid fa-eye"></i> プレビュー表示';
+      return;
+    }
 
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…';
@@ -307,25 +353,39 @@ function renderFile(file) {
       headers: { 'Accept': 'application/json' },
     });
     btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i> プレビューを閉じる';
 
-    if (!viewRes.ok) { showToast('プレビューを読み込めませんでした', 'danger'); return; }
+    if (!viewRes.ok) {
+      btn.innerHTML = '<i class="fa-solid fa-eye"></i> プレビュー表示';
+      showToast('プレビューを読み込めませんでした', 'danger');
+      return;
+    }
     const viewData = await viewRes.json();
     const url = viewData.url;
-    if (!url) { showToast('プレビューURLを取得できませんでした', 'danger'); return; }
+    if (!url) {
+      btn.innerHTML = '<i class="fa-solid fa-eye"></i> プレビュー表示';
+      showToast('プレビューURLを取得できませんでした', 'danger');
+      return;
+    }
 
-    area.innerHTML = `<div class="preview-area"></div>`;
-    const previewArea = area.querySelector('.preview-area');
+    btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i> プレビューを閉じる';
+    card.classList.add('has-preview');
+
+    area.innerHTML = `<div class="preview-wrap"><div class="preview-area" id="previewInner"></div></div>`;
+    const inner = document.getElementById('previewInner');
 
     if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp'].includes(ext)) {
       const img = document.createElement('img');
       img.src = url;
-      previewArea.appendChild(img);
+      inner.appendChild(img);
     } else {
       const frame = document.createElement('iframe');
       frame.src = url;
-      previewArea.appendChild(frame);
+      frame.setAttribute('allowfullscreen', '');
+      inner.appendChild(frame);
     }
+
+    // プレビュー先頭へスクロール
+    area.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 }
 

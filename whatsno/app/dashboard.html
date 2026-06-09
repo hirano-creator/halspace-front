@@ -446,6 +446,11 @@
         <span id="emailModalFileNameText"></span>
       </p>
 
+      <p style="font-size:11px;color:var(--muted);background:rgba(33,150,243,.08);border-radius:6px;padding:8px 10px;margin-bottom:16px;line-height:1.6;">
+        <i class="fa-solid fa-circle-info" style="margin-right:4px;color:var(--accent);"></i>
+        Gmailをお使いなら「Gmailで送る」、Outlook等のメールアプリなら「メールアプリ」を選んでください。ファイルはダウンロードリンクで共有されます（添付ではありません）。
+      </p>
+
       <!-- メールアドレス入力 -->
       <div style="margin-bottom:16px;">
         <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">
@@ -471,7 +476,7 @@
         <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">
           <i class="fa-solid fa-comment"></i> メッセージ（任意）
         </div>
-        <textarea id="emailMessage" rows="3" placeholder="受信者へのメッセージを入力…（500文字以内）"
+        <textarea id="emailMessage" rows="10" placeholder="受信者へのメッセージを入力…（500文字以内）"
           style="width:100%;padding:8px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;outline:none;resize:vertical;box-sizing:border-box;font-family:inherit;"></textarea>
         <div style="text-align:right;font-size:11px;color:var(--muted);margin-top:3px;">
           <span id="emailMsgCount">0</span> / 500
@@ -481,9 +486,13 @@
 
     <div class="modal-footer">
       <button class="btn btn-ghost" id="emailCancelBtn">キャンセル</button>
-      <button class="btn btn-accent" id="emailSendBtn" disabled>
-        <i class="fa-solid fa-paper-plane"></i>
-        <span id="emailSendBtnText">送信</span>
+      <button class="btn btn-outline" id="emailMailtoBtn">
+        <i class="fa-solid fa-envelope"></i>
+        メールアプリ
+      </button>
+      <button class="btn btn-accent" id="emailGmailBtn">
+        <i class="fa-brands fa-google"></i>
+        Gmailで送る
       </button>
     </div>
   </div>
@@ -504,7 +513,7 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=6"></script>
 <script src="../assets/js/wn-api.js?v=10"></script>
-<script src="../assets/js/pages/wn-dashboard.js?v=36"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=38"></script>
 
 <script>
 /* ── ボトムナビ ── */
