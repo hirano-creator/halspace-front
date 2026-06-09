@@ -743,13 +743,13 @@ function fileCardHtml(f) {
         ${ext ? `<span class="file-card-ext">${ext.toUpperCase()}</span>` : ''}
       </div>
       <div class="file-card-actions">
-        <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px;" title="閲覧数">
-          <i class="fa-solid fa-eye" style="font-size:10px;"></i>${f.view_count ?? 0}
+        <span class="file-card-stat" title="閲覧数">
+          <i class="fa-regular fa-eye"></i>${f.view_count ?? 0}
         </span>
-        <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px;" title="コメント数">
-          <i class="fa-regular fa-comment" style="font-size:10px;"></i>${f.comment_count ?? 0}
+        <span class="file-card-stat" title="コメント数">
+          <i class="fa-regular fa-comment"></i>${f.comment_count ?? 0}
         </span>
-        <button class="like-btn${f.liked ? ' liked' : ''}" data-id="${f.id}" title="いいね">
+        <button class="file-action-btn like-btn${f.liked ? ' liked' : ''}" data-id="${f.id}" title="いいね">
           <i class="fa-${f.liked ? 'solid' : 'regular'} fa-heart"></i>
           <span>${f.like_count ?? 0}</span>
         </button>
@@ -814,11 +814,11 @@ function fileRowHtmlClassic(f) {
         ${approvalBadge}
         <span class="file-row-size">${wnFormatSize(f.file_size)}</span>
         <span class="file-row-date">${wnFormatDate(f.created_at)}</span>
-        <span style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px;" title="閲覧数">
-          <i class="fa-solid fa-eye" style="font-size:11px;"></i>${f.view_count ?? 0}
+        <span class="file-row-stat" title="閲覧数">
+          <i class="fa-regular fa-eye"></i>${f.view_count ?? 0}
         </span>
-        <span style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px;" title="コメント数">
-          <i class="fa-regular fa-comment" style="font-size:11px;"></i>${f.comment_count ?? 0}
+        <span class="file-row-stat" title="コメント数">
+          <i class="fa-regular fa-comment"></i>${f.comment_count ?? 0}
         </span>
         <button class="like-btn${f.liked ? ' liked' : ''}" data-id="${f.id}" title="いいね">
           <i class="fa-${f.liked ? 'solid' : 'regular'} fa-heart"></i>
@@ -903,13 +903,16 @@ function fileRowHtmlIG(f) {
 
     <div class="ig-post-actions">
       <div class="left">
+        <span class="ig-view-count" title="閲覧数">
+          <i class="fa-regular fa-eye"></i><span>${viewCount}</span>
+        </span>
         <button class="like-btn${f.liked ? ' liked' : ''}" data-id="${f.id}" title="いいね">
           <i class="fa-${f.liked ? 'solid' : 'regular'} fa-heart"></i>
           <span>${likeCount}</span>
         </button>
-        <button class="file-action-btn" title="コメント"
-                onclick="event.stopPropagation();document.getElementById('rci-${f.id}')?.focus();">
-          <i class="fa-regular fa-comment"></i>
+        <button class="file-action-btn ig-cmt-btn" title="コメント"
+                onclick="event.stopPropagation();wnScrollToComment('${f.id}');">
+          <i class="fa-regular fa-comment"></i><span class="ig-cmt-cnt">${cmtCount}</span>
         </button>
         <button class="file-action-btn" title="メールで共有"
                 onclick="event.stopPropagation();openEmailModal(${f.id},'${fnameSafe}')">
@@ -928,16 +931,7 @@ function fileRowHtmlIG(f) {
       </div>
     </div>
 
-    <div class="ig-post-meta">
-      <span class="liked-count${f.liked ? ' is-liked' : ''}">
-        <i class="fa-${f.liked ? 'solid' : 'regular'} fa-heart"></i>${likeCount}
-      </span>
-      <span class="sep">·</span>
-      <span><i class="fa-regular fa-eye"></i>${viewCount}</span>
-      <span class="sep">·</span>
-      <span><i class="fa-regular fa-comment"></i>${cmtCount}</span>
-      <span class="date"><i class="fa-regular fa-clock"></i>${wnFormatDate(f.created_at)}</span>
-    </div>
+    <div class="ig-post-date"><i class="fa-regular fa-clock"></i>${wnFormatDate(f.created_at)}</div>
 
     <div class="ig-post-caption">
       <span class="filename">${fnameSafe}</span>
@@ -1865,6 +1859,13 @@ async function loadRowComments() {
     const comments = await wnGetComments(f.id);
     renderRowComments(el, f.id, comments);
   }));
+}
+
+function wnScrollToComment(fileId) {
+  const cmtEl = document.getElementById(`row-comments-${fileId}`);
+  if (!cmtEl) return;
+  cmtEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  setTimeout(() => document.getElementById(`rci-${fileId}`)?.focus(), 300);
 }
 
 function renderRowComments(el, fileId, comments) {

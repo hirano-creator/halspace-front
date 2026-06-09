@@ -139,8 +139,9 @@
     /* 下部情報カード群（横並び） */
     .detail-info-row {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 12px;
+      align-items: start;
     }
 
     /* 右パネル */
@@ -457,6 +458,7 @@
 
       /* ファイル情報のパディング調整（最下段なのでボトムナビ分を確保） */
       .detail-info-section { padding: 12px 12px 84px; }
+      .detail-info-row { grid-template-columns: repeat(2, 1fr); }
 
       /* トップバーをミニマルに */
       .detail-topbar { padding: 0 10px; gap: 6px; }
