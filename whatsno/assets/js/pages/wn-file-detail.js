@@ -2080,16 +2080,34 @@ function _buildEmailContent() {
   return { to, subject, body };
 }
 
-/* Gmail の作成画面を新しいタブで開く */
+/* Gmail の作成画面を開く */
 function doSendEmailGmail() {
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
-  const url = 'https://mail.google.com/mail/?view=cm&fs=1'
-    + `&to=${encodeURIComponent(m.to)}`
-    + `&su=${encodeURIComponent(m.subject)}`
-    + `&body=${encodeURIComponent(m.body)}`;
-  window.open(url, '_blank');
-  wnShowToast('Gmailの作成画面を開きました', 'success');
+
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) {
+    // モバイルは googlegmail:// アプリURLスキームを試みる
+    // アプリ未インストールの場合は 1.5 秒後に mailto にフォールバック
+    const gmailScheme = 'googlegmail://co'
+      + `?to=${encodeURIComponent(m.to)}`
+      + `&subject=${encodeURIComponent(m.subject)}`
+      + `&body=${encodeURIComponent(m.body)}`;
+    window.location.href = gmailScheme;
+    setTimeout(() => {
+      if (!document.hidden) {
+        window.location.href = `mailto:${m.to}?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
+        wnShowToast('メールアプリを起動しました', 'success');
+      }
+    }, 1500);
+  } else {
+    const url = 'https://mail.google.com/mail/?view=cm&fs=1'
+      + `&to=${encodeURIComponent(m.to)}`
+      + `&su=${encodeURIComponent(m.subject)}`
+      + `&body=${encodeURIComponent(m.body)}`;
+    window.open(url, '_blank');
+    wnShowToast('Gmailの作成画面を開きました', 'success');
+  }
   closeEmailModal();
 }
 
