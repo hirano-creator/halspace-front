@@ -102,7 +102,7 @@
     .toolbar {
       position: fixed;
       top: 52px; right: 0; bottom: 0;
-      width: 300px;
+      width: 330px;
       z-index: 99;
       background: var(--white);
       border-left: 1px solid var(--border);
@@ -144,6 +144,20 @@
     }
     .tool-size-select:focus { outline: none; border-color: var(--accent); }
     input[type="number"].tool-size-select { cursor: text; }
+    /* ── コンパクトな数値フィールド（太さ／文字サイズ／塗りつぶしを2行に集約） ── */
+    .tool-compact-row { display: flex; gap: 8px; align-items: flex-end; }
+    .tool-compact-row + .tool-compact-row { margin-top: 8px; }
+    .tool-field { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .tool-field-label {
+      font-size: 10px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .04em; padding: 0 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .tool-field .tool-size-select { height: 36px; min-height: 36px; }
+    .fill-control { display: flex; align-items: center; gap: 6px; }
+    .fill-control .tool-btn { flex-shrink: 0; width: 36px; height: 36px; }
+    .fill-control .tool-size-select { flex: 1; min-width: 0; }
+    .fill-pct { font-size: 13px; color: var(--muted); font-weight: 700; flex-shrink: 0; }
     /* ズームボタン */
     .zoom-btn {
       width: 100%; height: 34px;
@@ -188,7 +202,7 @@
     /* ── キャンバスエリア ── */
     .canvas-area {
       position: fixed;
-      top: 52px; left: 0; right: 300px; bottom: 0;
+      top: 52px; left: 0; right: 330px; bottom: 0;
       overflow: auto;
       display: flex; align-items: center; justify-content: center;
       padding: 24px;
@@ -520,13 +534,12 @@
   <!-- ツール選択 -->
   <div class="tool-section-label">ツール</div>
   <div class="tool-row">
-    <button class="tool-btn active" id="tool-select"  data-tool="select"  title="選択・移動 (V)"><i class="fa-solid fa-arrow-pointer"></i></button>
+    <button class="tool-btn active" id="tool-text"    data-tool="text"    title="テキスト (T)"><i class="fa-solid fa-font"></i></button>
     <button class="tool-btn"        id="tool-pen"     data-tool="pen"     title="ペン (P)"><i class="fa-solid fa-pen"></i></button>
     <button class="tool-btn"        id="tool-line"    data-tool="line"    title="直線 (L)"><i class="fa-solid fa-minus"></i></button>
     <button class="tool-btn"        id="tool-arrow"   data-tool="arrow"   title="矢印 (A)"><i class="fa-solid fa-arrow-right"></i></button>
     <button class="tool-btn"        id="tool-rect"    data-tool="rect"    title="四角形 (R)"><i class="fa-regular fa-square"></i></button>
     <button class="tool-btn"        id="tool-ellipse" data-tool="ellipse" title="楕円 (O)"><i class="fa-regular fa-circle"></i></button>
-    <button class="tool-btn"        id="tool-text"    data-tool="text"    title="テキスト (T)"><i class="fa-solid fa-font"></i></button>
     <button class="tool-btn"        id="tool-eraser"  data-tool="eraser"  title="消しゴム (E)"><i class="fa-solid fa-eraser"></i></button>
   </div>
 
@@ -547,20 +560,34 @@
 
   <div class="tool-sep"></div>
 
-  <!-- 太さ -->
-  <div class="tool-section-label">太さ</div>
-  <input type="number" class="tool-size-select" id="strokeSize" min="1" max="100" value="20">
-
-  <!-- フォントサイズ -->
-  <div class="tool-section-label" id="fontSizeLabel">文字サイズ</div>
-  <input type="number" class="tool-size-select" id="fontSize" min="6" max="200" value="50">
-
-  <!-- テキスト揃え -->
-  <div class="tool-section-label">テキスト揃え</div>
-  <div class="tool-row">
-    <button class="tool-btn active" data-align="left"   title="左揃え"><i class="fa-solid fa-align-left"></i></button>
-    <button class="tool-btn"        data-align="center" title="中央揃え"><i class="fa-solid fa-align-center"></i></button>
-    <button class="tool-btn"        data-align="right"  title="右揃え"><i class="fa-solid fa-align-right"></i></button>
+  <!-- 太さ・文字サイズ・塗りつぶし（コンパクト2行） -->
+  <div class="tool-compact-row">
+    <div class="tool-field">
+      <label class="tool-field-label">太さ</label>
+      <input type="number" class="tool-size-select" id="strokeSize" min="1" max="100" value="20">
+    </div>
+    <div class="tool-field">
+      <label class="tool-field-label" id="fontSizeLabel">文字サイズ</label>
+      <input type="number" class="tool-size-select" id="fontSize" min="6" max="200" value="50">
+    </div>
+  </div>
+  <div class="tool-compact-row" style="align-items:flex-end;">
+    <div class="tool-field" style="flex:1;">
+      <label class="tool-field-label">塗りつぶし（四角・楕円）</label>
+      <div class="fill-control">
+        <button class="tool-btn" id="fillToggle" title="塗りつぶし ON/OFF"><i class="fa-solid fa-fill-drip"></i></button>
+        <input type="number" class="tool-size-select" id="fillOpacityInput" min="0" max="100" value="30" title="濃さ（％）">
+        <span class="fill-pct">%</span>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:3px; flex-shrink:0;">
+      <label class="tool-field-label">テキスト揃え</label>
+      <div style="display:flex; gap:4px;">
+        <button class="tool-btn active" data-align="left"   title="左揃え"><i class="fa-solid fa-align-left"></i></button>
+        <button class="tool-btn"        data-align="center" title="中央揃え"><i class="fa-solid fa-align-center"></i></button>
+        <button class="tool-btn"        data-align="right"  title="右揃え"><i class="fa-solid fa-align-right"></i></button>
+      </div>
+    </div>
   </div>
 
   <!-- スタンプ文字編集（スタンプ選択時のみ表示） -->
@@ -694,12 +721,16 @@ let fitScale     = 1.5;   // キャンバスエリア全体フィットスケー
 let zoomMode     = 'normal'; // 'normal' | 'fit' | 'free'
 
 /* アノテーション状態 */
-let tool        = 'select';
+let tool        = 'text';
 let strokeColor = '#E53935';
 let strokeSize  = 20;
 let fontSize    = 50;
 let textAlign   = 'left';
 const TOOL_DEFAULT_SIZE = { pen: 10, line: 10, arrow: 10, rect: 5, ellipse: 5 };
+
+/* ── 塗りつぶし（四角形・楕円）の既定状態 ── */
+let rectFill    = false;  /* 新規四角形・楕円を塗りつぶすか */
+let fillOpacity = 30;     /* 塗りつぶしの濃さ(%) 0〜100 */
 
 /* ── テキストのフォント・スタイル（ilovepdf風） ── */
 const FONT_FAMILIES = [
@@ -720,6 +751,24 @@ function fontCssOf(a) {
 }
 function fontFamilyCss(id) {
   return (FONT_FAMILIES.find(f => f.id === id) || FONT_FAMILIES[0]).css;
+}
+
+/* hex色 + 不透明度(0〜1) を rgba文字列に変換 */
+function hexToRgba(hex, alpha) {
+  let h = String(hex || '').replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  if (h.length !== 6) return `rgba(0,0,0,${alpha})`;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+/* 塗りつぶし注釈の塗り色(rgba)を返す。塗りつぶし無効・濃さ0なら null */
+function fillStyleOf(a) {
+  if (!a || !a.fill) return null;
+  const pct = Math.max(0, Math.min(100, a.fillOpacity ?? 30));
+  if (pct <= 0) return null;
+  return hexToRgba(a.color || '#000000', pct / 100);
 }
 
 /* 焼き込み前に全Webフォントの読み込みを保証（未使用フォントが代替表示されるのを防ぐ） */
@@ -1146,6 +1195,44 @@ function initTools() {
       }
     }
   });
+
+  /* 塗りつぶし ON/OFF トグル */
+  document.getElementById('fillToggle').addEventListener('click', () => {
+    rectFill = !rectFill;
+    document.getElementById('fillToggle').classList.toggle('active', rectFill);
+    /* 選択中の四角形・楕円に即時反映 */
+    if (selectedIdx >= 0) {
+      const a = annotations[selectedIdx];
+      if (a && (a.type === 'rect' || a.type === 'ellipse')) {
+        pushHistory();
+        a.fill = rectFill;
+        if (a.fillOpacity == null) a.fillOpacity = fillOpacity;
+        redrawAnnotations();
+      }
+    }
+  });
+
+  /* 塗りつぶしの濃さ(%) */
+  document.getElementById('fillOpacityInput').addEventListener('input', e => {
+    let v = parseInt(e.target.value);
+    if (isNaN(v)) return;
+    v = Math.max(0, Math.min(100, v));
+    fillOpacity = v;
+    /* 選択中の四角形・楕円に即時反映 */
+    if (selectedIdx >= 0) {
+      const a = annotations[selectedIdx];
+      if (a && (a.type === 'rect' || a.type === 'ellipse')) {
+        a.fillOpacity = v;
+        /* 濃さを指定したら塗りつぶしを自動でON */
+        if (v > 0 && !a.fill) {
+          a.fill = true; rectFill = true;
+          document.getElementById('fillToggle').classList.add('active');
+        }
+        redrawAnnotations();
+      }
+    }
+  });
+
   document.getElementById('fontSize').addEventListener('input', e => {
     const v = parseInt(e.target.value);
     if (v >= 6 && v <= 200) applyTextStyle({ fontSize: v });
@@ -1290,6 +1377,15 @@ function syncSidebarToAnnotation(a) {
     textItalic     = !!a.italic;
     textUnderline  = !!a.underline;
   }
+  /* 四角形・楕円選択時は塗りつぶし状態をUIに同期 */
+  if (a.type === 'rect' || a.type === 'ellipse') {
+    rectFill = !!a.fill;
+    if (a.fillOpacity != null) fillOpacity = a.fillOpacity;
+    const ft = document.getElementById('fillToggle');
+    if (ft) ft.classList.toggle('active', rectFill);
+    const opEl = document.getElementById('fillOpacityInput');
+    if (opEl && document.activeElement !== opEl) opEl.value = String(fillOpacity);
+  }
   updateStampEditArea();
 }
 
@@ -1370,8 +1466,15 @@ function canvasXY(e) {
 function onHover(e) {
   if (dragging) return;
   const { x, y } = canvasXY(e);
-  if (tool === 'eraser' || tool === 'pen') {
+  if (tool === 'eraser') {
     if (hoverIdx !== -1) { hoverIdx = -1; redrawAnnotations(); }
+    return;
+  }
+  /* ペン: 既存注釈の上ではホバーハイライトと移動カーソルを表示 */
+  if (tool === 'pen') {
+    const idx = hitTest(x, y);
+    if (idx !== hoverIdx) { hoverIdx = idx; redrawAnnotations(); }
+    annotCanvas.style.cursor = idx >= 0 ? 'move' : 'crosshair';
     return;
   }
   /* select / text ツール: ハンドルチェック優先 */
@@ -1406,11 +1509,27 @@ function onDown(e) {
   resizingHandle = null;
   startX = x; startY = y;
 
+  if (tool === 'eraser') { selectedIdx = -1; eraseAt(x, y); return; }
+
+  /* ペン: 既存注釈の上ならテキストツールと同じUXで選択・移動、空白なら描画 */
+  if (tool === 'pen') {
+    const hit = hitTest(x, y);
+    if (hit >= 0) {
+      selectedIdx = hit;
+      const a = annotations[selectedIdx];
+      dragOffX = x - (a.x ?? a.x1 ?? 0);
+      dragOffY = y - (a.y ?? a.y1 ?? 0);
+      syncSidebarToAnnotation(a);
+      redrawAnnotations();
+      return;
+    }
+    selectedIdx = -1;
+    penPath = [{ x, y }];
+    return;
+  }
+
   /* 描画ツール使用時は選択を解除（onUpDocで移動終了ブロックに入らないようにする） */
   if (!['select', 'text'].includes(tool)) selectedIdx = -1;
-
-  if (tool === 'eraser') { eraseAt(x, y); return; }
-  if (tool === 'pen')    { penPath = [{ x, y }]; return; }
 
   /* ① ハンドルチェック（select / text ツール＋選択中）— 最優先 */
   if ((tool === 'select' || tool === 'text') && selectedIdx >= 0 && selectedIdx < annotations.length) {
@@ -1580,9 +1699,9 @@ function onUpDoc(e) {
   } else if (tool === 'arrow' && (Math.abs(x-startX)>2||Math.abs(y-startY)>2)) {
     annotations.push({ type: 'arrow', x1: startX, y1: startY, x2: x, y2: y, color: strokeColor, size: strokeSize });
   } else if (tool === 'rect' && (Math.abs(x-startX)>2||Math.abs(y-startY)>2)) {
-    annotations.push({ type: 'rect', x1: Math.min(startX,x), y1: Math.min(startY,y), x2: Math.max(startX,x), y2: Math.max(startY,y), color: strokeColor, size: strokeSize });
+    annotations.push({ type: 'rect', x1: Math.min(startX,x), y1: Math.min(startY,y), x2: Math.max(startX,x), y2: Math.max(startY,y), color: strokeColor, size: strokeSize, fill: rectFill, fillOpacity });
   } else if (tool === 'ellipse' && (Math.abs(x-startX)>2||Math.abs(y-startY)>2)) {
-    annotations.push({ type: 'ellipse', x1: Math.min(startX,x), y1: Math.min(startY,y), x2: Math.max(startX,x), y2: Math.max(startY,y), color: strokeColor, size: strokeSize });
+    annotations.push({ type: 'ellipse', x1: Math.min(startX,x), y1: Math.min(startY,y), x2: Math.max(startX,x), y2: Math.max(startY,y), color: strokeColor, size: strokeSize, fill: rectFill, fillOpacity });
   }
   redrawAnnotations();
 }
@@ -1604,11 +1723,20 @@ function drawPreview(curX, curY) {
   } else if (tool === 'arrow') {
     drawArrow(annCtx, startX, startY, curX, curY, strokeColor, strokeSize);
   } else if (tool === 'rect') {
+    if (rectFill && fillOpacity > 0) {
+      annCtx.fillStyle = hexToRgba(strokeColor, fillOpacity / 100);
+      annCtx.fillRect(startX, startY, curX - startX, curY - startY);
+    }
     annCtx.strokeRect(startX, startY, curX - startX, curY - startY);
   } else if (tool === 'ellipse') {
     const cx = (startX + curX) / 2, cy = (startY + curY) / 2;
     const rx = Math.abs(curX - startX) / 2, ry = Math.abs(curY - startY) / 2;
-    annCtx.beginPath(); annCtx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); annCtx.stroke();
+    annCtx.beginPath(); annCtx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    if (rectFill && fillOpacity > 0) {
+      annCtx.fillStyle = hexToRgba(strokeColor, fillOpacity / 100);
+      annCtx.fill();
+    }
+    annCtx.stroke();
   }
   annCtx.restore();
 }
@@ -1651,11 +1779,16 @@ function redrawAnnotations() {
     } else if (a.type === 'arrow') {
       drawArrow(annCtx, a.x1, a.y1, a.x2, a.y2, a.color, a.size);
     } else if (a.type === 'rect') {
+      const fc = fillStyleOf(a);
+      if (fc) { annCtx.fillStyle = fc; annCtx.fillRect(a.x1, a.y1, a.x2 - a.x1, a.y2 - a.y1); }
       annCtx.strokeRect(a.x1, a.y1, a.x2 - a.x1, a.y2 - a.y1);
     } else if (a.type === 'ellipse') {
       const cx = (a.x1 + a.x2) / 2, cy = (a.y1 + a.y2) / 2;
       const rx = Math.abs(a.x2 - a.x1) / 2, ry = Math.abs(a.y2 - a.y1) / 2;
-      annCtx.beginPath(); annCtx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); annCtx.stroke();
+      annCtx.beginPath(); annCtx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      const fc = fillStyleOf(a);
+      if (fc) { annCtx.fillStyle = fc; annCtx.fill(); }
+      annCtx.stroke();
     } else if (a.type === 'text') {
       drawTextAnnotation(annCtx, a);
     } else if (a.type === 'stamp') {
@@ -2663,11 +2796,16 @@ async function buildAnnotatedPdf() {
       } else if (a.type === 'arrow') {
         drawArrow(tctx, a.x1, a.y1, a.x2, a.y2, a.color, a.size);
       } else if (a.type === 'rect') {
+        const fc = fillStyleOf(a);
+        if (fc) { tctx.fillStyle = fc; tctx.fillRect(a.x1, a.y1, a.x2 - a.x1, a.y2 - a.y1); }
         tctx.strokeRect(a.x1, a.y1, a.x2 - a.x1, a.y2 - a.y1);
       } else if (a.type === 'ellipse') {
         const cx = (a.x1 + a.x2) / 2, cy = (a.y1 + a.y2) / 2;
         const rx = Math.abs(a.x2 - a.x1) / 2, ry = Math.abs(a.y2 - a.y1) / 2;
-        tctx.beginPath(); tctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); tctx.stroke();
+        tctx.beginPath(); tctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        const fc = fillStyleOf(a);
+        if (fc) { tctx.fillStyle = fc; tctx.fill(); }
+        tctx.stroke();
       } else if (a.type === 'text') {
         drawTextAnnotation(tctx, a);
       } else if (a.type === 'stamp') {
@@ -2749,11 +2887,16 @@ function drawAnnotationToCtx(ctx, a) {
   } else if (a.type === 'arrow') {
     drawArrow(ctx, a.x1, a.y1, a.x2, a.y2, a.color, a.size);
   } else if (a.type === 'rect') {
+    const fc = fillStyleOf(a);
+    if (fc) { ctx.fillStyle = fc; ctx.fillRect(a.x1, a.y1, a.x2 - a.x1, a.y2 - a.y1); }
     ctx.strokeRect(a.x1, a.y1, a.x2 - a.x1, a.y2 - a.y1);
   } else if (a.type === 'ellipse') {
     const cx = (a.x1 + a.x2) / 2, cy = (a.y1 + a.y2) / 2;
     const rx = Math.abs(a.x2 - a.x1) / 2, ry = Math.abs(a.y2 - a.y1) / 2;
-    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    const fc = fillStyleOf(a);
+    if (fc) { ctx.fillStyle = fc; ctx.fill(); }
+    ctx.stroke();
   } else if (a.type === 'text') {
     drawTextAnnotation(ctx, a);
   } else if (a.type === 'stamp') {
