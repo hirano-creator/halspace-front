@@ -398,6 +398,121 @@ const ThumbCache = (() => {
 /* ページ内メモリキャッシュ（ObjectURL、タブを閉じると消える） */
 const thumbMemCache = {};
 
+/* サムネイル生成バージョン（解像度等を変えたら上げてキャッシュを再生成させる） */
+const THUMB_VER = 'v6';
+/* Excel/Word サムネイルの描画倍率（論理座標×この倍率で高解像度化） */
+const THUMB_SS = 2;
+
+/* 保存するサムネイルの長辺ピクセル（表示サイズ×DPRに近づけるほど細線が濃く残る） */
+function wnThumbTargetLong() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  return Math.round(Math.min(1440, Math.max(720, 720 * dpr)));
+}
+
+/* 高品質縮小: 1/2ずつ段階的に縮小して図面の細線がかすれるのを防ぐ
+   （大きい画像をブラウザに一気に縮小させると細線が飛ぶため、
+    Googleドライブのサムネイルと同様に縮小済み画像を保存する） */
+function wnShrinkCanvas(src, targetLong) {
+  let cur = src;
+  while (Math.max(cur.width, cur.height) > targetLong * 2) {
+    const next = document.createElement('canvas');
+    next.width  = Math.max(1, Math.round(cur.width / 2));
+    next.height = Math.max(1, Math.round(cur.height / 2));
+    const ctx = next.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(cur, 0, 0, next.width, next.height);
+    cur = next;
+  }
+  if (Math.max(cur.width, cur.height) > targetLong) {
+    const ratio = targetLong / Math.max(cur.width, cur.height);
+    const next = document.createElement('canvas');
+    next.width  = Math.max(1, Math.round(cur.width * ratio));
+    next.height = Math.max(1, Math.round(cur.height * ratio));
+    const ctx = next.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(cur, 0, 0, next.width, next.height);
+    cur = next;
+  }
+  return cur;
+}
+
+/* 余白自動トリミング: 四隅の色を背景色とみなし、内容の外接矩形+少しの余白で切り出す。
+   余白が大きい図面ほど内容が拡大されて見やすくなる。
+   誤検出防止のため、極端なクロップやほぼ余白なしの場合は元のまま返す */
+function wnTrimMargins(canvas, pad = 0.03) {
+  try {
+    const w = canvas.width, h = canvas.height;
+    const ctx = canvas.getContext('2d');
+    const d = ctx.getImageData(0, 0, w, h).data;
+    const idx = (x, y) => (y * w + x) * 4;
+
+    let br = 0, bg = 0, bb = 0;
+    for (const [x, y] of [[0,0],[w-1,0],[0,h-1],[w-1,h-1]]) {
+      const i = idx(x, y); br += d[i]; bg += d[i+1]; bb += d[i+2];
+    }
+    br /= 4; bg /= 4; bb /= 4;
+    const isBg = i => Math.abs(d[i]-br) + Math.abs(d[i+1]-bg) + Math.abs(d[i+2]-bb) < 48;
+
+    /* 速度のため間引き走査（長辺600サンプル程度） */
+    const stepX = Math.max(1, Math.floor(w / 600));
+    const stepY = Math.max(1, Math.floor(h / 600));
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+    for (let y = 0; y < h; y += stepY) {
+      for (let x = 0; x < w; x += stepX) {
+        if (!isBg(idx(x, y))) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0) return canvas;  /* 全面背景 */
+
+    minX = Math.max(0, minX - Math.round(w * pad));
+    maxX = Math.min(w - 1, maxX + Math.round(w * pad));
+    minY = Math.max(0, minY - Math.round(h * pad));
+    maxY = Math.min(h - 1, maxY + Math.round(h * pad));
+    const cw = maxX - minX + 1, ch = maxY - minY + 1;
+    if (cw < w * 0.3 || ch < h * 0.3) return canvas;    /* 切りすぎ→誤検出の可能性 */
+    if (cw > w * 0.95 && ch > h * 0.95) return canvas;  /* ほぼ余白なし */
+
+    const out = document.createElement('canvas');
+    out.width = cw; out.height = ch;
+    out.getContext('2d').drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
+    return out;
+  } catch { return canvas; }
+}
+
+/* 線画強調: アンシャープマスクで輪郭を立たせ、ガンマで薄くなった線を締める
+   （縮小で淡いグレーになった図面の細線をGoogleドライブ風にくっきり見せる） */
+function wnEnhanceLineArt(canvas, amount = 1.1, gamma = 1.45) {
+  try {
+    const w = canvas.width, h = canvas.height;
+    const ctx  = canvas.getContext('2d');
+    const blur = document.createElement('canvas');
+    blur.width = w; blur.height = h;
+    const bctx = blur.getContext('2d');
+    bctx.filter = 'blur(1px)';  /* filter未対応ブラウザでは差分0となり実質ガンマのみ適用 */
+    bctx.drawImage(canvas, 0, 0);
+    const img = ctx.getImageData(0, 0, w, h);
+    const bim = bctx.getImageData(0, 0, w, h);
+    const s = img.data, b = bim.data;
+    const lut = new Uint8ClampedArray(256);
+    for (let v = 0; v < 256; v++) lut[v] = Math.round(255 * Math.pow(v / 255, gamma));
+    for (let i = 0; i < s.length; i += 4) {
+      for (let c = 0; c < 3; c++) {
+        let v = s[i + c] + amount * (s[i + c] - b[i + c]);
+        v = v < 0 ? 0 : v > 255 ? 255 : Math.round(v);
+        s[i + c] = lut[v];
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  } catch { /* 失敗してもサムネイル自体は無加工で出す */ }
+}
+
 async function loadFileThumbnails() {
   const CONCURRENCY        = 4;          /* 一般ファイルの同時取得数 */
   const OFFICE_CONCURRENCY = 1;          /* Office は1ずつ（API帯域を奪わない） */
@@ -444,7 +559,7 @@ async function loadOneThumbnail(f) {
 
   const ext      = (f.file_name || '').split('.').pop().toLowerCase();
   const mime     = f.mime_type ?? '';
-  const cacheKey = `thumb_${f.id}_${f.updated_at ?? f.created_at ?? ''}`;
+  const cacheKey = `thumb_${f.id}_${f.updated_at ?? f.created_at ?? ''}_${THUMB_VER}`;
 
   /* 文書系 (PDF/Excel/Word) は先頭(タイトル付近)を見せたいので object-position:top */
   const isDoc = (mime === 'application/pdf' || ext === 'pdf'
@@ -490,12 +605,20 @@ async function loadOneThumbnail(f) {
       if (typeof pdfjsLib === 'undefined') return;
       const pdf      = await pdfjsLib.getDocument(directUrl).promise;
       const page     = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1.5 });
+      /* 長辺約2600pxで大きめに描画（スーパーサンプリング）してから
+         高品質縮小で保存サイズへ落とす。図面の細線が濃くはっきり残る */
+      const base   = page.getViewport({ scale: 1 });
+      const scale  = Math.min(4, Math.max(1.5, 2600 / Math.max(base.width, base.height)));
+      const viewport = page.getViewport({ scale });
       const canvas   = document.createElement('canvas');
-      canvas.width   = viewport.width;
-      canvas.height  = viewport.height;
+      canvas.width   = Math.round(viewport.width);
+      canvas.height  = Math.round(viewport.height);
       await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-      blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.80));
+      /* 余白カット → 高品質縮小 → 線画強調 の順で内容を最大限大きく写す */
+      const trimmed = wnTrimMargins(canvas);
+      const out = wnShrinkCanvas(trimmed, wnThumbTargetLong());
+      wnEnhanceLineArt(out);
+      blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
 
     } else if (mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)) {
       blob = await new Promise(resolve => {
@@ -522,10 +645,13 @@ async function loadOneThumbnail(f) {
       if (typeof wnDxfThumbnail !== 'function') return;
       const text = await wnFetchDxfText(f.id);
       if (!text) return;
+      /* 大きめに描画してから高品質縮小（線を濃く残すスーパーサンプリング） */
       const canvas = document.createElement('canvas');
-      canvas.width = 300; canvas.height = 150;
+      canvas.width = 2048; canvas.height = 1024;
       if (!wnDxfThumbnail(canvas, text)) return;
-      blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.80));
+      const out = wnShrinkCanvas(canvas, wnThumbTargetLong());
+      wnEnhanceLineArt(out);
+      blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
 
     } else if (['xlsx','xls','xlsm'].includes(ext)) {
       if (typeof XLSX === 'undefined') return;
@@ -534,7 +660,7 @@ async function loadOneThumbnail(f) {
       const buffer = await res.arrayBuffer();
       const wb = XLSX.read(new Uint8Array(buffer), { type: 'array' });
       const canvas = document.createElement('canvas');
-      canvas.width = 360; canvas.height = 480;
+      canvas.width = 360 * THUMB_SS; canvas.height = 480 * THUMB_SS;
       if (!drawExcelThumbnail(canvas, wb)) return;
       blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
 
@@ -545,7 +671,7 @@ async function loadOneThumbnail(f) {
       const buffer = await res.arrayBuffer();
       const result = await mammoth.extractRawText({ arrayBuffer: buffer });
       const canvas = document.createElement('canvas');
-      canvas.width = 360; canvas.height = 480;
+      canvas.width = 360 * THUMB_SS; canvas.height = 480 * THUMB_SS;
       if (!drawWordThumbnail(canvas, result.value || '')) return;
       blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
     }
@@ -578,14 +704,18 @@ function drawExcelThumbnail(canvas, workbook) {
   const cols = Math.min(range.e.c - range.s.c + 1, MAX_COLS);
   if (rows <= 0 || cols <= 0) return false;
 
+  /* 論理座標 (360x480) で描き、THUMB_SS 倍で高解像度ラスタライズ */
+  const W = canvas.width / THUMB_SS;
+  const H = canvas.height / THUMB_SS;
   const ctx = canvas.getContext('2d');
+  ctx.setTransform(THUMB_SS, 0, 0, THUMB_SS, 0, 0);
   ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, W, H);
 
   /* 上部: Excelタイトルバー */
   const headerH = 22;
   ctx.fillStyle = '#107c41';
-  ctx.fillRect(0, 0, canvas.width, headerH);
+  ctx.fillRect(0, 0, W, headerH);
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 12px sans-serif';
   ctx.textBaseline = 'middle';
@@ -593,8 +723,8 @@ function drawExcelThumbnail(canvas, workbook) {
 
   /* 表領域 */
   const tableY = headerH;
-  const tableH = canvas.height - tableY;
-  const cellW = canvas.width / cols;
+  const tableH = H - tableY;
+  const cellW = W / cols;
   const cellH = tableH / rows;
 
   ctx.font = '9px "Yu Gothic","Hiragino Sans","Meiryo",sans-serif';
@@ -631,14 +761,18 @@ function drawExcelThumbnail(canvas, workbook) {
 
 /* Wordサムネイル: テキスト先頭をページ風に描画 */
 function drawWordThumbnail(canvas, text) {
+  /* 論理座標 (360x480) で描き、THUMB_SS 倍で高解像度ラスタライズ */
+  const W = canvas.width / THUMB_SS;
+  const H = canvas.height / THUMB_SS;
   const ctx = canvas.getContext('2d');
+  ctx.setTransform(THUMB_SS, 0, 0, THUMB_SS, 0, 0);
   ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, W, H);
 
   /* 上部: Wordタイトルバー */
   const headerH = 22;
   ctx.fillStyle = '#2b579a';
-  ctx.fillRect(0, 0, canvas.width, headerH);
+  ctx.fillRect(0, 0, W, headerH);
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 12px sans-serif';
   ctx.textBaseline = 'middle';
@@ -648,7 +782,7 @@ function drawWordThumbnail(canvas, text) {
   const padding = 14;
   const startY = headerH + 16;
   const lineH = 12;
-  const maxWidth = canvas.width - padding * 2;
+  const maxWidth = W - padding * 2;
   ctx.font = '10px "Yu Gothic","Hiragino Sans","Meiryo",sans-serif';
   ctx.fillStyle = '#222';
   ctx.textBaseline = 'top';
@@ -656,10 +790,10 @@ function drawWordThumbnail(canvas, text) {
   const lines = (text || '').split(/\n+/).filter(l => l.trim()).slice(0, 40);
   let y = startY;
   for (const line of lines) {
-    if (y + lineH > canvas.height - 4) break;
+    if (y + lineH > H - 4) break;
     /* 長すぎる行は折り返し */
     let remaining = line.trim();
-    while (remaining && y + lineH <= canvas.height - 4) {
+    while (remaining && y + lineH <= H - 4) {
       let len = remaining.length;
       while (len > 0 && ctx.measureText(remaining.slice(0, len)).width > maxWidth) len--;
       if (len === 0) break;
@@ -754,6 +888,7 @@ function fileCardHtml(f) {
           <span>${f.like_count ?? 0}</span>
         </button>
         <button class="file-action-btn" title="メールで共有"
+                onmouseenter="prefetchEmailShare(${f.id})"
                 onclick="event.stopPropagation();openEmailModal(${f.id},'${h(f.file_name)}')">
           <i class="fa-solid fa-envelope"></i>
         </button>
@@ -825,6 +960,7 @@ function fileRowHtmlClassic(f) {
           <span>${f.like_count ?? 0}</span>
         </button>
         <button class="btn btn-ghost btn-sm" title="メールで共有"
+                onmouseenter="prefetchEmailShare(${f.id})"
                 onclick="event.stopPropagation();openEmailModal(${f.id},'${fnameSafe}')">
           <i class="fa-solid fa-envelope"></i>
         </button>
@@ -915,6 +1051,7 @@ function fileRowHtmlIG(f) {
           <i class="fa-regular fa-comment"></i><span class="ig-cmt-cnt">${cmtCount}</span>
         </button>
         <button class="file-action-btn" title="メールで共有"
+                onmouseenter="prefetchEmailShare(${f.id})"
                 onclick="event.stopPropagation();openEmailModal(${f.id},'${fnameSafe}')">
           <i class="fa-regular fa-paper-plane"></i>
         </button>
@@ -2337,6 +2474,7 @@ let emailModalFileId   = null;
 let emailModalFileName = '';
 let emailChips         = [];  // { email: string }[]
 let emailPregenShare   = null; // モーダルオープン時に先行発行した共有リンク
+const emailShareCache  = new Map(); // fileId → Promise<share>（hover先行発行キャッシュ）
 
 function initEmailModal() {
   const overlay   = document.getElementById('emailModal');
@@ -2377,6 +2515,12 @@ function initEmailModal() {
   document.getElementById('emailGmailBtn').addEventListener('click', doSendEmailGmail);
 }
 
+/* メールボタン hover 時に共有リンクを先行発行してキャッシュ */
+function prefetchEmailShare(fileId) {
+  if (emailShareCache.has(fileId)) return;
+  emailShareCache.set(fileId, wnCreateShare(fileId, { expiresDays: 30 }));
+}
+
 function openEmailModal(fileId, fileName) {
   emailModalFileId   = fileId;
   emailModalFileName = fileName;
@@ -2394,8 +2538,10 @@ function openEmailModal(fileId, fileName) {
   _emailLinkShowLoading();
   setEmailBtnsLoading(true);
 
-  // モーダルを開いた瞬間に先行発行（ボタン押下時は同期処理のみにするため）
-  wnCreateShare(fileId, { expiresDays: 30 }).then(share => {
+  // hover で先行発行済みのPromiseがあれば再利用、なければ新規発行
+  const sharePromise = emailShareCache.get(fileId) ?? wnCreateShare(fileId, { expiresDays: 30 });
+  if (!emailShareCache.has(fileId)) emailShareCache.set(fileId, sharePromise);
+  sharePromise.then(share => {
     emailPregenShare = share;
     setEmailBtnsLoading(false);
     if (share?.url) {
@@ -2405,6 +2551,7 @@ function openEmailModal(fileId, fileName) {
       wnShowToast('共有リンクの発行に失敗しました', 'danger');
     }
   }).catch(() => {
+    emailShareCache.delete(fileId); // 失敗したキャッシュは削除して再試行可能にする
     setEmailBtnsLoading(false);
     _emailLinkShowError();
     wnShowToast('共有リンクの発行に失敗しました', 'danger');

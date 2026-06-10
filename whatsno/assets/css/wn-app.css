@@ -854,8 +854,8 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
    ===================== */
 .file-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
 }
 .file-card {
   background: var(--bg-card);
@@ -872,7 +872,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   transform: translateY(-1px);
 }
 .file-card-thumb {
-  height: 175px;
+  height: 210px;
   background: linear-gradient(135deg, #e8f0fe, #f0f4f8);
   display: flex;
   align-items: center;
