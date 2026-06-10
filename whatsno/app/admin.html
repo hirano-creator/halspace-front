@@ -187,8 +187,8 @@
           </div>
           <div style="padding:16px;">
             <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
-              PDFファイルの本文を読んでAI要約を一括生成します。<br>
-              PDF以外のファイルは対象外です。
+              PDF / Word / Excel / PowerPoint / テキスト系（txt, csv, md）の本文を読み、<br>
+              AI要約とKnowl用の学習インデックスを一括生成します。1件ずつ順番に処理されます。
             </p>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
               <button class="btn btn-accent" id="genDescBtn">
@@ -749,32 +749,91 @@ function initInviteModal() {
   });
 }
 
-/* ── AI説明文 一括生成 ── */
+/* ── AI要約・Knowl学習 一括生成（1件ずつループ呼び出し） ── */
 function initGenDesc() {
+  function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s == null ? '' : String(s);
+    return div.innerHTML;
+  }
+
+  function renderProgress(statusEl, done, total) {
+    const pct = total > 0 ? Math.floor(done / total * 100) : 0;
+    statusEl.innerHTML = `
+      <div><i class="fa-solid fa-spinner fa-spin"></i> 学習中 ${done}/${total} 件（途中で閉じないでください）</div>
+      <div style="margin-top:6px;background:var(--border,#e5e7eb);border-radius:4px;overflow:hidden;height:8px;max-width:360px;">
+        <div style="width:${pct}%;height:100%;background:var(--accent);transition:width .3s;"></div>
+      </div>`;
+  }
+
+  function renderFailures(failures) {
+    if (!failures.length) return '';
+    const items = failures.map(f => `<li>${escapeHtml(f.file_name)}: ${escapeHtml(f.error)}</li>`).join('');
+    return `<div style="margin-top:8px;color:var(--red);">失敗したファイル:</div><ul style="margin:4px 0 0 18px;color:var(--red);">${items}</ul>`;
+  }
+
   async function runGenDesc(force) {
-    const btn       = force ? document.getElementById('genDescForceBtn') : document.getElementById('genDescBtn');
-    const statusEl  = document.getElementById('genDescStatus');
-    btn.disabled    = true;
+    const genBtn   = document.getElementById('genDescBtn');
+    const forceBtn = document.getElementById('genDescForceBtn');
+    const statusEl = document.getElementById('genDescStatus');
+    genBtn.disabled = forceBtn.disabled = true;
     statusEl.style.display = '';
-    statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 生成中… ファイル数によって数分かかる場合があります';
+    statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 対象ファイルを確認中…';
 
-    const res = await wnFetch('/wn/files/generate-all-descriptions', {
-      method: 'POST',
-      body: JSON.stringify({ force }),
-    });
+    const skipIds  = [];
+    const failures = [];
+    let total = null;
+    let prevRemaining = Infinity;
+    let stall = 0;
 
-    btn.disabled = false;
-    if (res && res.ok) {
-      const d = await res.json();
-      statusEl.innerHTML = `<i class="fa-solid fa-circle-check" style="color:var(--green);"></i> ${d.message}`;
-    } else {
-      statusEl.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:var(--red);"></i> 生成に失敗しました';
+    try {
+      while (true) {
+        const res = await wnFetch('/wn/files/generate-all-descriptions', {
+          method: 'POST',
+          body: JSON.stringify({ force, batch: 1, skip_ids: skipIds }),
+        });
+        if (!res || !res.ok) {
+          statusEl.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:var(--red);"></i> サーバーとの通信に失敗しました。時間をおいて再実行してください（処理済み分は保存されています）' + renderFailures(failures);
+          return;
+        }
+        const d = await res.json();
+
+        if (d.ai_key_configured === false) {
+          statusEl.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:var(--red);"></i> Gemini APIキーが未設定です。サーバーの環境変数 GEMINI_API_KEY を確認してください';
+          return;
+        }
+
+        skipIds.push(...(d.done_ids || []));
+        failures.push(...(d.failed || []));
+        if (total === null) total = (d.processed || 0) + (d.remaining || 0);
+
+        renderProgress(statusEl, total - d.remaining, total);
+
+        if (d.remaining <= 0) {
+          const okCount = skipIds.length - failures.length;
+          statusEl.innerHTML = `<i class="fa-solid fa-circle-check" style="color:var(--green);"></i> 完了: 成功 ${okCount} 件 / 失敗 ${failures.length} 件` + renderFailures(failures);
+          return;
+        }
+
+        // 残件数が減らないまま続く場合は無限ループを防いで中断
+        if (d.remaining >= prevRemaining) {
+          if (++stall >= 3) {
+            statusEl.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:var(--red);"></i> 進行が停止したため中断しました。再実行すると続きから処理されます' + renderFailures(failures);
+            return;
+          }
+        } else {
+          stall = 0;
+        }
+        prevRemaining = d.remaining;
+      }
+    } finally {
+      genBtn.disabled = forceBtn.disabled = false;
     }
   }
 
   document.getElementById('genDescBtn').addEventListener('click', () => runGenDesc(false));
   document.getElementById('genDescForceBtn').addEventListener('click', () => {
-    if (confirm('全ファイルのAI要約を再生成します。時間がかかります。よろしいですか？')) {
+    if (confirm('全ファイルのAI要約とKnowl用インデックスを再生成します。時間がかかります。よろしいですか？')) {
       runGenDesc(true);
     }
   });
