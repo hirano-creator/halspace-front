@@ -79,7 +79,8 @@ async function wnGetFile(id, { skipAi = true } = {}) {
 
 /* ファイルアップロード（XHR・進捗コールバック付き）
    - multipart ではなく raw バイナリで送信（CF Workers のメモリ二重バッファ回避）
-   - サーバー側は Content-Type が multipart 以外なら X-File-Name ヘッダーで名前を受け取る */
+   - サーバー側は Content-Type が multipart 以外なら X-File-Name ヘッダーで名前を受け取る
+   - ネットワーク系エラーは指数バックオフで最大3回リトライ（wnOverwriteFile と同方針） */
 async function wnUploadFile(file, { onProgress } = {}) {
   const token = localStorage.getItem('space_token');
 
@@ -91,7 +92,7 @@ async function wnUploadFile(file, { onProgress } = {}) {
   // 大容量で Worker メモリ上限に当たり壊れるため廃止）
   const uploadUrl = WN_API_BASE + '/wn/files';
 
-  return new Promise((resolve, reject) => {
+  const attempt = () => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', uploadUrl);
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
@@ -109,21 +110,34 @@ async function wnUploadFile(file, { onProgress } = {}) {
       }
       if (xhr.status >= 200 && xhr.status < 300) {
         try { resolve(JSON.parse(xhr.responseText)); }
-        catch { reject(new Error('レスポンスの解析に失敗しました')); }
+        catch { reject(Object.assign(new Error('レスポンスの解析に失敗しました'), { retryable: false })); }
       } else {
         try {
           const err = JSON.parse(xhr.responseText);
-          reject(new Error(err.message || `アップロードエラー (${xhr.status})`));
+          reject(Object.assign(new Error(err.message || `アップロードエラー (${xhr.status})`), { retryable: false }));
         } catch {
-          reject(new Error(`アップロードエラー (${xhr.status})`));
+          reject(Object.assign(new Error(`アップロードエラー (${xhr.status})`), { retryable: false }));
         }
       }
     };
-    xhr.onerror = () => reject(new Error(`ネットワークエラー (XHR)`));
-    xhr.ontimeout = () => reject(new Error('タイムアウト'));
+    xhr.onerror   = () => reject(Object.assign(new Error(`ネットワークエラー (XHR)`), { retryable: true }));
+    xhr.ontimeout = () => reject(Object.assign(new Error('タイムアウト'), { retryable: true }));
     xhr.timeout = 300000;
     xhr.send(blob);
   });
+
+  const BACKOFF_MS = [0, 1000, 2500];
+  let lastErr;
+  for (let i = 0; i < BACKOFF_MS.length; i++) {
+    if (BACKOFF_MS[i]) await new Promise(r => setTimeout(r, BACKOFF_MS[i]));
+    try {
+      return await attempt();
+    } catch (e) {
+      lastErr = e;
+      if (!e || !e.retryable) throw e;
+    }
+  }
+  throw lastErr;
 }
 
 /* 既存ファイルの内容を上書き（新バージョンを作らない） */

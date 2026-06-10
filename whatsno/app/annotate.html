@@ -2816,12 +2816,12 @@ async function buildAnnotatedPdf() {
     return tmp;
   }
 
-  /* 注釈レイヤーの目標解像度: PDF寸法 × TARGET_SCALE（288DPI相当）
+  /* 注釈レイヤーの目標解像度: PDF寸法 × TARGET_SCALE（144DPI相当）
      表示時の pdfScale に依存せず、常に高解像度で書き出す。
-     端末別に MAX_DIM を分け、PCではより高解像度、モバイルではメモリ制約を考慮 */
-  const TARGET_SCALE = 4;
-  const isMobileUA = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-  const MAX_DIM = isMobileUA ? 4096 : 8192;
+     幅・高さ両方を MAX_DIM でクランプし、大判図面(A0/A1等)で
+     出力 PNG が巨大になって Railway の上限(100MB)を超えるのを防ぐ。 */
+  const TARGET_SCALE = 2;
+  const MAX_DIM = 4096;
 
   for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
     const annots = pageAnnotations[pageNum] || [];
@@ -2842,11 +2842,16 @@ async function buildAnnotatedPdf() {
     }
 
     /* 表示用canvas (cw×ch) → 出力解像度を視覚的なPDF寸法基準で算出
-       回転PDF: 視覚的な幅 = pH（内部高さ）、視覚的な高さ = pW（内部幅） */
+       回転PDF: 視覚的な幅 = pH（内部高さ）、視覚的な高さ = pW（内部幅）
+       幅・高さ両方を MAX_DIM でクランプして出力キャンバスを抑制 */
     const visualW = (rotAngle === 90 || rotAngle === 270) ? pH : pW;
-    let targetW = visualW * TARGET_SCALE;
-    if (targetW > MAX_DIM) targetW = MAX_DIM;
-    const scaleFactor = Math.max(targetW / cw, 1);  /* 1未満にはしない（縮小しない） */
+    const visualH = (rotAngle === 90 || rotAngle === 270) ? pW : pH;
+    let targetW = Math.min(visualW * TARGET_SCALE, MAX_DIM);
+    let targetH = Math.min(visualH * TARGET_SCALE, MAX_DIM);
+    /* 縦横比を保ちながらどちらか大きい方を MAX_DIM に収める */
+    const scaleByW = targetW / cw;
+    const scaleByH = targetH / ch;
+    const scaleFactor = Math.max(Math.min(scaleByW, scaleByH), 1);
 
     /* 全注釈（スタンプ含む）を高解像度Canvasに描画 → bakeOnPage で焼き込む */
     const sourceCanvas = drawAnnotationsToCanvas(annots, cw, ch, scaleFactor);
