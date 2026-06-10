@@ -788,10 +788,21 @@ function initGenDesc() {
 
     try {
       while (true) {
-        const res = await wnFetch('/wn/files/generate-all-descriptions', {
-          method: 'POST',
-          body: JSON.stringify({ force, batch: 1, skip_ids: skipIds }),
-        });
+        // 1ファイルの処理が異常に長い場合のハング対策（通常はバッチembeddingで数十秒以内）
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 240000);
+        let res;
+        try {
+          res = await wnFetch('/wn/files/generate-all-descriptions', {
+            method: 'POST',
+            body: JSON.stringify({ force, batch: 1, skip_ids: skipIds }),
+            signal: ctl.signal,
+          });
+        } catch (e) {
+          res = null;
+        } finally {
+          clearTimeout(timer);
+        }
         if (!res || !res.ok) {
           statusEl.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color:var(--red);"></i> サーバーとの通信に失敗しました。時間をおいて再実行してください（処理済み分は保存されています）' + renderFailures(failures);
           return;
