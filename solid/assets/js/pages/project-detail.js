@@ -287,6 +287,15 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
           : '')
       : (REVIEW_BADGE[f.review_status] || '');
 
+    // バッジ横の検査者・依頼者表示（誰がいつ操作したか）
+    const reviewMetaText = f.review_status === 'submitted'
+      ? (f.review_requested_by_name ? `依頼: ${f.review_requested_by_name} ${f.review_requested_at || ''}` : '')
+      : (['ok', 'revision', 'delivered'].includes(f.review_status) && f.reviewed_by_name
+          ? `検査: ${f.reviewed_by_name} ${f.reviewed_at || ''}` : '');
+    const reviewMeta = reviewMetaText
+      ? `<span style="font-size:11px;color:var(--muted);margin-right:6px;white-space:nowrap;">${reviewMetaText}</span>`
+      : '';
+
     // 管理者: OK / 修正依頼 / 納品
     // 検査依頼前（pending）のファイルは検査・納品の対象外、納品済みはバッジのみ
     const canAdminReview = showAdminBtns && ['submitted', 'ok', 'revision'].includes(f.review_status);
@@ -330,6 +339,7 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
         </div>
       </div>
       ${reviewBadge}
+      ${reviewMeta}
       ${reviewBtns}
       ${modelerBtns}
       ${canPreview ? `<button class="file-preview-btn" data-file-id="${f.id}">
@@ -739,9 +749,9 @@ async function updateStatus(status, note) {
 /* ── ファイル単位 review_status 更新 ── */
 async function setFileReviewStatus(fileId, status) {
   try {
-    await api.patch(`/files/${fileId}/review-status`, { review_status: status });
+    const data = await api.patch(`/files/${fileId}/review-status`, { review_status: status });
     const f = project.files.find(x => x.id === fileId);
-    if (f) f.review_status = status;
+    if (f) Object.assign(f, data?.file ?? { review_status: status });
     renderFiles();
     renderTimeline();
   } catch (err) {
@@ -885,9 +895,9 @@ document.getElementById('submitModelConfirmBtn')?.addEventListener('click', asyn
   // 選択されたファイルをファイル単位で検査依頼（submitted）にする
   for (const id of [...checkedIds, ...newIds]) {
     try {
-      await api.patch(`/files/${id}/review-status`, { review_status: 'submitted' });
+      const data = await api.patch(`/files/${id}/review-status`, { review_status: 'submitted' });
       const f = project.files.find(x => x.id === id);
-      if (f) f.review_status = 'submitted';
+      if (f) Object.assign(f, data?.file ?? { review_status: 'submitted' });
     } catch {
       showToast('検査依頼の設定に失敗したファイルがあります', 'danger');
     }
