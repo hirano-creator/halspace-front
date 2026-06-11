@@ -971,11 +971,11 @@ tbody tr:last-child { border-bottom: none; }
 .file-preview-btn {
   display:inline-flex;align-items:center;justify-content:center;
   padding:6px 9px;font-size:13px;
-  border:1.5px solid var(--blue);border-radius:6px;
+  border:none;border-radius:6px;
   color:var(--blue);background:transparent;cursor:pointer;
-  transition:background var(--trans),color var(--trans);
+  transition:background var(--trans);
 }
-.file-preview-btn:hover { background:var(--blue);color:#fff; }
+.file-preview-btn:hover { background:rgba(9,132,227,.1); }
 
 /* ビューアツールバーボタン */
 .viewer-tool-btn {
