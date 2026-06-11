@@ -226,7 +226,7 @@ async function _openPdf(file, content, loading) {
   const url = `${API_BASE}/files/${file.id}/view`;
   try {
     const buf  = await _fetchFileBuffer(url);
-    const blob = new Blob([buf]);
+    const blob = new Blob([buf], { type: 'application/pdf' });
     loading.remove();
     const blobUrl = URL.createObjectURL(blob);
     const iframe = document.createElement('iframe');
