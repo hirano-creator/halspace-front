@@ -55,6 +55,37 @@ const api = {
   delete: path          => apiFetch(path, { method:'DELETE' }),
 };
 
+/* ===== 自動更新ヘルパー =====
+   - タブ表示中のみ intervalMs ごとに fn を実行（多重実行ガード付き）
+   - タブ復帰・ウィンドウフォーカス時は即時実行
+   - 連続失敗時は間隔を一時的に最大8倍まで延ばすバックオフ */
+function startAutoRefresh(fn, intervalMs) {
+  let running = false;
+  let failures = 0;
+  let lastRun = 0;
+
+  const tick = async (force = false) => {
+    if (running || document.hidden && !force) return;
+    const backoff = intervalMs * Math.min(2 ** failures, 8);
+    if (!force && Date.now() - lastRun < backoff - 50) return;
+    running = true;
+    try {
+      await fn();
+      failures = 0;
+    } catch {
+      failures = Math.min(failures + 1, 3);
+    } finally {
+      lastRun = Date.now();
+      running = false;
+    }
+  };
+
+  const timer = setInterval(() => tick(false), intervalMs);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(true); });
+  window.addEventListener('focus', () => tick(true));
+  return () => clearInterval(timer);
+}
+
 /* ===== モックデータ（⑨でAPI呼び出しに差し替え） ===== */
 const MOCK = {
   projects: [

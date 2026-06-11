@@ -507,6 +507,9 @@ function avatarCls(role) {
 
 function renderChat() {
   const box  = document.getElementById('chatMessages');
+  // 最下部付近にいるときだけ自動スクロール（過去ログを読んでいる最中は位置を保持）
+  const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  const prevScrollTop = box.scrollTop;
   const list = comments.filter(c => c.channel === currentChannel);
 
   if (!list.length) {
@@ -558,7 +561,7 @@ function renderChat() {
     </div>`;
   }).join('');
 
-  box.scrollTop = box.scrollHeight;
+  box.scrollTop = nearBottom ? box.scrollHeight : prevScrollTop;
 
   box.querySelectorAll('[data-lightbox]').forEach(img => {
     img.addEventListener('click', () => openLightbox(img.src));
@@ -572,10 +575,21 @@ function renderChat() {
   loadAuthImages(box);
 }
 
+/* 認証付き画像のblob URLキャッシュ（再描画ごとの再フェッチ・ちらつき防止） */
+const authImgCache = new Map();
+
 function loadAuthImages(container) {
   container.querySelectorAll('[data-auth-img]').forEach(async img => {
     const url = img.dataset.authImg;
     if (!url) return;
+    const cached = authImgCache.get(url);
+    if (cached) {
+      img.src = cached;
+      img.style.opacity = '1';
+      img.dataset.lightbox = '';
+      img.addEventListener('click', () => openLightbox(cached));
+      return;
+    }
     try {
       const token = localStorage.getItem('space_token');
       const res = await fetch(url, {
@@ -584,6 +598,7 @@ function loadAuthImages(container) {
       if (!res.ok) return;
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
+      authImgCache.set(url, blobUrl);
       img.src = blobUrl;
       img.style.opacity = '1';
       img.dataset.lightbox = '';
@@ -1208,24 +1223,38 @@ async function init() {
   }
   await loadProject();
 
-  // 30秒ごとにプロジェクト情報を再取得して担当モデラー・ステータス・ファイル検査状況を自動更新
-  const reviewSig = fs => (fs ?? []).map(f => `${f.id}:${f.review_status}`).join(',');
-  setInterval(async () => {
-    try {
-      const data = await api.get(`/projects/${projId}`);
-      if (!data?.project) return;
-      const updated = data.project;
-      if (updated.modeler_id !== project.modeler_id
-          || updated.status !== project.status
-          || reviewSig(updated.files) !== reviewSig(project.files)) {
-        project = updated;
-        comments = project.comments ?? [];
-        renderInfo();
-        renderTimeline();
-        renderDeadlinePanel();
-        renderFiles();
-      }
-    } catch {}
-  }, 30000);
+  // ほぼリアルタイム更新: 3秒ごとに軽量version APIをポーリングし、
+  // 変化があったときだけ詳細を再取得して差分単位で再描画する
+  const reviewSig   = fs => (fs ?? []).map(f => `${f.id}:${f.review_status}`).join(',');
+  const commentsSig = cs => (cs ?? []).map(c => c.id).join(',');
+  const deadlineSig = p  => [p.deadline_requested, p.deadline_replied, p.deadline_reply_status,
+                             p.deadline_reply_note, p.deadline_at].join('|');
+
+  startAutoRefresh(async () => {
+    const v = await api.get(`/projects/${projId}/version`);
+    if (!v?.version || v.version === project.version) return;
+
+    const data = await api.get(`/projects/${projId}`);
+    if (!data?.project) return;
+    const updated = data.project;
+
+    const statusChanged   = updated.status !== project.status
+                         || updated.modeler_id !== project.modeler_id;
+    const filesChanged    = reviewSig(updated.files) !== reviewSig(project.files);
+    const commentsChanged = commentsSig(updated.comments) !== commentsSig(comments);
+    const deadlineChanged = deadlineSig(updated) !== deadlineSig(project);
+
+    project  = updated;
+    comments = project.comments ?? [];
+
+    if (statusChanged) { renderInfo(); renderTimeline(); }
+    if (filesChanged)  { renderFiles(); renderTimeline(); }
+    if (commentsChanged) renderChat();
+    // 納期回答フォームに入力中は再描画しない（入力内容が消えるのを防ぐ）
+    if ((statusChanged || deadlineChanged)
+        && !document.getElementById('deadlinePanel')?.contains(document.activeElement)) {
+      renderDeadlinePanel();
+    }
+  }, 3000);
 }
 init();

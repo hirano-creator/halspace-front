@@ -731,3 +731,6 @@ async function init() {
   await Promise.all([loadProjects(), loadUsers(), loadCleanup()]);
 }
 init();
+
+// タブ表示中は30秒ごと＋タブ復帰時に即時、プロジェクト一覧を自動更新
+startAutoRefresh(loadProjects, 30000);

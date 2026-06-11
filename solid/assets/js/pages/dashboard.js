@@ -224,4 +224,7 @@ if (user) {
   document.getElementById('companyFilter')?.addEventListener('change', loadProjects);
 
   loadCompanyFilter().then(() => loadProjects());
+
+  // タブ表示中は30秒ごと＋タブ復帰時に即時、一覧を自動更新
+  startAutoRefresh(loadProjects, 30000);
 }

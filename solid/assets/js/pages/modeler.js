@@ -251,3 +251,6 @@ document.getElementById('uploadSubmitBtn').addEventListener('click', async () =>
 
 /* ── 初期化 ── */
 loadProjects();
+
+// タブ表示中は30秒ごと＋タブ復帰時に即時、一覧を自動更新
+startAutoRefresh(loadProjects, 30000);
