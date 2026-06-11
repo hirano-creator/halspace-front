@@ -1100,27 +1100,13 @@ const Viewer = (() => {
   }
 
   function _decodeDxf(buf) {
-    const bytes = new Uint8Array(buf);
-    /* UTF-8 BOM */
-    if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
-      return new TextDecoder('utf-8').decode(buf);
+    /* AutoCAD 2007以降のDXFはUTF-8（$DWGCODEPAGEにANSI_932が残っていても）。
+       UTF-8でデコードして文字化け（置換文字 or 高位バイトに日本語なし）の場合のみ Shift-JIS で再デコード */
+    let text = new TextDecoder('utf-8').decode(buf);
+    if (/�/.test(text) || (/[\x80-\xFF]/.test(text) && !/[　-鿿]/.test(text))) {
+      try { text = new TextDecoder('shift_jis').decode(buf); } catch {}
     }
-    /* DXFヘッダーの $DWGCODEPAGE を ASCII で読んで判定（最初の8KB以内に必ず存在） */
-    const header = new TextDecoder('ascii', { fatal: false }).decode(bytes.slice(0, Math.min(bytes.length, 8192)));
-    if (/ANSI_932|ANSI_936|ANSI_949|ANSI_950|shift.?jis|sjis/i.test(header)) {
-      return new TextDecoder('shift_jis').decode(buf);
-    }
-    if (/ANSI_936/.test(header)) {
-      return new TextDecoder('gbk').decode(buf);
-    }
-    /* 全バイトを走査して 0x80以上のバイトが存在すれば Shift-JIS として試みる */
-    for (let i = 0; i < bytes.length; i++) {
-      const b = bytes[i];
-      if ((b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC)) {
-        try { return new TextDecoder('shift_jis').decode(buf); } catch { break; }
-      }
-    }
-    return new TextDecoder('utf-8').decode(buf);
+    return text;
   }
 
   function _openPdf(file, content, loading) {

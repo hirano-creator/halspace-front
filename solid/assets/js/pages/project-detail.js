@@ -192,6 +192,34 @@ function renderFiles() {
     uploadBtn.style.display = 'none';
   }
 
+  /* 図面・参考資料の追加（全ロール共通）*/
+  const drawingInput = document.getElementById('drawingFileInput');
+  if (drawingInput && !drawingInput.dataset.bound) {
+    drawingInput.dataset.bound = '1';
+    drawingInput.addEventListener('change', async e => {
+      const files = Array.from(e.target.files);
+      if (!files.length) return;
+      for (const file of files) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        const fileType = ['dxf', 'dwg'].includes(ext) ? 'drawing_dxf'
+                       : ext === 'pdf'                ? 'drawing_pdf'
+                       : 'reference';
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('file_type', fileType);
+        try {
+          const data = await apiFetchForm(`/projects/${projId}/files`, fd);
+          project.files = [...(project.files ?? []), data.file];
+          renderFiles();
+          showToast(`${file.name} を追加しました`, 'success');
+        } catch {
+          showToast(`${file.name} のアップロードに失敗しました`, 'danger');
+        }
+      }
+      e.target.value = '';
+    });
+  }
+
   /* モデラー用ファイルアップロード（アップロードボタンから直接追加する場合）*/
   const modelInput = document.getElementById('modelFileInput');
   if (modelInput && !modelInput.dataset.bound) {
@@ -287,7 +315,13 @@ function renderFileSection(area, files, canDelete, showReviewBtns = false) {
       const fid  = Number(btn.dataset.fileId);
       const file = files.find(x => x.id === fid);
       if (!file) return;
-      window.open(`viewer.html?file_id=${file.id}&file_name=${encodeURIComponent(file.file_name)}`, '_blank');
+      const ext = file.file_name.split('.').pop().toLowerCase();
+      if (ext === 'dxf') {
+        // DXFはSheetEye（計測・寸法ツール付きビューア）で開く
+        window.open(`sheeteye.html?file_id=${file.id}&name=${encodeURIComponent(file.file_name)}`, '_blank');
+      } else {
+        window.open(`viewer.html?file_id=${file.id}&file_name=${encodeURIComponent(file.file_name)}`, '_blank');
+      }
     });
   });
 

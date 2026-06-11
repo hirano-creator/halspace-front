@@ -153,6 +153,11 @@
           <div class="card">
             <div class="card-header">
               <span class="card-title"><i class="fa-solid fa-file-lines text-blue"></i> 図面・参考資料</span>
+              <button class="btn btn-blue btn-sm" id="uploadDrawingBtn"
+                      onclick="document.getElementById('drawingFileInput').click()">
+                <i class="fa-solid fa-plus"></i> 資料を追加
+              </button>
+              <input type="file" id="drawingFileInput" multiple style="display:none">
             </div>
             <div id="drawingFileArea"></div>
           </div>
