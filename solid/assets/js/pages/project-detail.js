@@ -272,11 +272,17 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
     const ext = f.file_name.split('.').pop().toLowerCase();
     const canPreview = ['pdf', 'dxf', 'dwg', 'stl', 'stp', 'step'].includes(ext);
 
-    const reviewBadge = REVIEW_BADGE[f.review_status] || '';
-    const isDelivered = f.review_status === 'delivered';
+    // 検査依頼前（pending）バッジは3Dモデルエリア（検査対象）でのみ表示
+    const reviewBadge = (f.review_status === 'pending' || !f.review_status)
+      ? ((showAdminBtns || showModelerBtns)
+          ? '<span class="badge badge-submitted" style="font-size:11px;margin-right:4px;">検査依頼前</span>'
+          : '')
+      : (REVIEW_BADGE[f.review_status] || '');
 
-    // 管理者: OK / 修正依頼 / 納品（納品済みのファイルはバッジのみ）
-    const reviewBtns = (showAdminBtns && !isDelivered) ? `
+    // 管理者: OK / 修正依頼 / 納品
+    // 検査依頼前（pending）のファイルは検査・納品の対象外、納品済みはバッジのみ
+    const canAdminReview = showAdminBtns && ['submitted', 'ok', 'revision'].includes(f.review_status);
+    const reviewBtns = canAdminReview ? `
       <button class="btn btn-sm file-review-ok-btn ${f.review_status === 'ok' ? 'btn-success' : 'btn-outline'}"
               data-file-id="${f.id}" style="min-width:52px;">
         <i class="fa-solid fa-check"></i> OK
