@@ -13,6 +13,9 @@ let layoutView   = (() => {
 })();
 let uploadQueue  = [];
 let semanticMode = false;   // AI自然言語検索モード中かどうか
+let selectMode   = false;   // PDF結合の選択モード中かどうか
+let selectedIds  = [];      // 選択中ファイルID（選択順を保持）
+let mergeOrder   = [];      // 結合モーダル内の並び順
 
 /* ────────────────────────────────
    初期化
@@ -41,6 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initEmailModal();
   loadBrainMeter();
   initDashBrain();
+  initMergeSelect();
 });
 
 let _lastIsMobile = null;
@@ -307,9 +311,13 @@ function renderFiles() {
   document.querySelectorAll('[data-file-id]').forEach(el => {
     el.addEventListener('click', e => {
       if (e.target.closest('.like-btn') || e.target.closest('.file-action-btn')) return;
+      if (selectMode) { toggleMergeSelect(el.dataset.fileId); return; }
       location.href = `file-detail.html?id=${el.dataset.fileId}`;
     });
   });
+
+  // 選択モード中の再描画（ソート・フィルタ変更等）でも選択状態を復元
+  if (selectMode) selectedIds.forEach(id => applySelectedVisual(id, true));
 
   document.querySelectorAll('.like-btn[data-id]').forEach(btn => {
     btn.addEventListener('click', async e => {
@@ -865,8 +873,8 @@ function fileCardHtml(f) {
     : '';
 
   return `
-  <div class="file-card" data-file-id="${f.id}">
-    <div class="file-card-thumb">${thumbHtml}</div>
+  <div class="file-card${wnIsPdf(f) ? '' : ' wn-select-disabled'}" data-file-id="${f.id}">
+    <div class="file-card-thumb"><span class="wn-select-check" data-check-id="${f.id}"><i class="fa-regular fa-circle"></i></span>${thumbHtml}</div>
     ${vBadge ? `<div class="file-card-badge">${vBadge}</div>` : ''}
     <div class="file-card-body">
       <div class="file-card-name" title="${h(f.file_name)}">${h(f.file_name)}</div>
@@ -936,8 +944,8 @@ function fileRowHtmlClassic(f) {
   })();
   const fnameSafe = h(f.file_name);
   return `
-  <div class="file-row" data-file-id="${f.id}">
-    <div class="file-row-thumb">${iconContent}</div>
+  <div class="file-row${wnIsPdf(f) ? '' : ' wn-select-disabled'}" data-file-id="${f.id}">
+    <div class="file-row-thumb"><span class="wn-select-check" data-check-id="${f.id}"><i class="fa-regular fa-circle"></i></span>${iconContent}</div>
     <div class="file-row-name">
       <div class="file-row-filename">${fnameSafe}</div>
       ${aiDesc ? `<div class="file-row-ai-desc">${aiDesc}</div>` : ''}
@@ -1028,8 +1036,9 @@ function fileRowHtmlIG(f) {
   const cmtCount  = f.comment_count ?? 0;
 
   return `
-  <article class="ig-post" data-file-id="${f.id}">
+  <article class="ig-post${wnIsPdf(f) ? '' : ' wn-select-disabled'}" data-file-id="${f.id}">
     <div class="file-row-thumb">
+      <span class="wn-select-check" data-check-id="${f.id}"><i class="fa-regular fa-circle"></i></span>
       ${headTagHtml}
       ${apBadgeHtml}
       ${placeholderIcon}
@@ -2709,4 +2718,238 @@ function doSendEmailMailto() {
   window.location.href = url;
   wnShowToast('メールアプリを起動しました', 'success');
   closeEmailModal();
+}
+
+/* ────────────────────────────────
+   PDF結合（選択モード＋結合モーダル）
+   ──────────────────────────────── */
+let mergeBusy = false;   // 結合処理の実行中フラグ（多重実行・途中閉じ防止）
+
+function wnIsPdf(f) {
+  const ext = (f.file_name || '').split('.').pop().toLowerCase();
+  return ext === 'pdf' || f.mime_type === 'application/pdf';
+}
+
+function initMergeSelect() {
+  document.getElementById('selectModeBtn')?.addEventListener('click', toggleSelectMode);
+  document.getElementById('mergeCancelBtn')?.addEventListener('click', () => { if (selectMode) toggleSelectMode(); });
+  document.getElementById('mergeOpenBtn')?.addEventListener('click', openMergeModal);
+  document.getElementById('mergeModalClose')?.addEventListener('click', closeMergeModal);
+  document.getElementById('mergeModalCancelBtn')?.addEventListener('click', closeMergeModal);
+  document.getElementById('mergeExecBtn')?.addEventListener('click', executeMerge);
+}
+
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  document.body.classList.toggle('select-mode', selectMode);
+  const label = document.getElementById('selectModeBtnLabel');
+  if (label) label.textContent = selectMode ? '選択解除' : '選択';
+  document.getElementById('mergeActionBar')?.classList.toggle('hidden', !selectMode);
+  if (!selectMode) {
+    selectedIds.forEach(id => applySelectedVisual(id, false));
+    selectedIds = [];
+  }
+  updateMergeActionBar();
+}
+
+function toggleMergeSelect(fileId) {
+  const id = String(fileId);
+  const f  = allFiles.find(x => String(x.id) === id);
+  if (!f) return;
+  if (!wnIsPdf(f)) {
+    wnShowToast('PDFファイルのみ選択できます', 'warning');
+    return;
+  }
+  const idx = selectedIds.indexOf(id);
+  if (idx >= 0) selectedIds.splice(idx, 1);
+  else selectedIds.push(id);
+  applySelectedVisual(id, idx < 0);
+  updateMergeActionBar();
+}
+
+function applySelectedVisual(fileId, on) {
+  // グリッドとリストの両方が同時にDOMに存在するため全要素に適用
+  document.querySelectorAll(`[data-file-id="${fileId}"]`).forEach(el => {
+    el.classList.toggle('wn-selected', on);
+    const icon = el.querySelector('.wn-select-check i');
+    if (icon) icon.className = on ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle';
+  });
+}
+
+function updateMergeActionBar() {
+  const count = document.getElementById('mergeSelCount');
+  const btn   = document.getElementById('mergeOpenBtn');
+  const lbl   = document.getElementById('mergeOpenLabel');
+  if (count) count.textContent = `${selectedIds.length}件選択中`;
+  if (btn)   btn.disabled = selectedIds.length < 2;
+  if (lbl)   lbl.textContent = selectedIds.length >= 2 ? `${selectedIds.length}件を結合` : '結合';
+}
+
+/* ── 結合モーダル ── */
+
+function mergeDefaultName() {
+  const d = new Date();
+  const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  return `結合_${ymd}.pdf`;
+}
+
+function openMergeModal() {
+  if (selectedIds.length < 2) return;
+  mergeOrder = [...selectedIds];
+  document.getElementById('mergeFileName').value = mergeDefaultName();
+  const prog = document.getElementById('mergeProgress');
+  prog.style.display = 'none';
+  document.getElementById('mergeProgressBar').style.width = '0%';
+  document.getElementById('mergeProgressText').textContent = '';
+  setMergeModalBusy(false);
+  renderMergeList();
+  document.getElementById('mergeModal').classList.remove('hidden');
+}
+
+function closeMergeModal() {
+  if (mergeBusy) return;   // 結合中は閉じない
+  document.getElementById('mergeModal').classList.add('hidden');
+}
+
+function renderMergeList() {
+  const list = document.getElementById('mergeFileList');
+  list.innerHTML = mergeOrder.map((id, i) => {
+    const f = allFiles.find(x => String(x.id) === id);
+    if (!f) return '';
+    const cacheKey = `thumb_${f.id}_${f.updated_at ?? f.created_at ?? ''}_${THUMB_VER}`;
+    const { icon, cls } = wnFileIcon(f.file_name, f.mime_type);
+    const thumb = thumbMemCache[cacheKey]
+      ? `<img class="merge-item-thumb" src="${thumbMemCache[cacheKey]}" alt="">`
+      : `<span class="merge-item-icon"><i class="fa-solid ${icon} ${cls}"></i></span>`;
+    return `
+    <div class="merge-item">
+      <span class="merge-item-num">${i + 1}</span>
+      ${thumb}
+      <span class="merge-item-name" title="${h(f.file_name)}">${h(f.file_name)}</span>
+      <span class="merge-item-btns">
+        <button title="上へ" onclick="mergeMoveItem(${i},-1)" ${i === 0 ? 'disabled' : ''}><i class="fa-solid fa-chevron-up"></i></button>
+        <button title="下へ" onclick="mergeMoveItem(${i},1)" ${i === mergeOrder.length - 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-down"></i></button>
+        <button title="リストから外す" onclick="mergeRemoveItem(${i})"><i class="fa-solid fa-xmark"></i></button>
+      </span>
+    </div>`;
+  }).join('');
+  document.getElementById('mergeExecBtn').disabled = mergeBusy || mergeOrder.length < 2;
+}
+
+function mergeMoveItem(i, dir) {
+  if (mergeBusy) return;
+  const j = i + dir;
+  if (j < 0 || j >= mergeOrder.length) return;
+  [mergeOrder[i], mergeOrder[j]] = [mergeOrder[j], mergeOrder[i]];
+  renderMergeList();
+}
+
+function mergeRemoveItem(i) {
+  if (mergeBusy) return;
+  mergeOrder.splice(i, 1);
+  renderMergeList();
+}
+
+function setMergeModalBusy(busy) {
+  mergeBusy = busy;
+  const exec = document.getElementById('mergeExecBtn');
+  exec.disabled = busy || mergeOrder.length < 2;
+  exec.innerHTML = busy
+    ? '<i class="fa-solid fa-spinner fa-spin"></i> 結合中…'
+    : '<i class="fa-solid fa-object-group"></i> 結合する';
+  document.getElementById('mergeModalClose').disabled     = busy;
+  document.getElementById('mergeModalCancelBtn').disabled = busy;
+  document.getElementById('mergeFileName').disabled       = busy;
+  document.querySelectorAll('input[name="mergeSaveMode"]').forEach(r => r.disabled = busy);
+}
+
+function setMergeProgress(pct, text) {
+  document.getElementById('mergeProgress').style.display = 'block';
+  document.getElementById('mergeProgressBar').style.width = `${Math.min(100, Math.round(pct))}%`;
+  document.getElementById('mergeProgressText').textContent = text;
+}
+
+/* ── 結合実行 ──
+   進捗配分: ダウンロード 0〜70% / PDF生成 70〜80% / アップロード 80〜100%
+   元ファイルの削除（replaceモード）はアップロード成功後にのみ行う */
+async function executeMerge() {
+  if (mergeBusy || mergeOrder.length < 2) return;
+
+  const nameInput = document.getElementById('mergeFileName');
+  let finalName = nameInput.value.trim() || mergeDefaultName();
+  if (!/\.pdf$/i.test(finalName)) finalName += '.pdf';
+  nameInput.value = finalName;
+
+  const saveMode = document.querySelector('input[name="mergeSaveMode"]:checked')?.value ?? 'keep';
+  const order = [...mergeOrder];
+  const nameOf = id => allFiles.find(x => String(x.id) === id)?.file_name ?? `ID:${id}`;
+
+  setMergeModalBusy(true);
+  try {
+    const merged = await PDFLib.PDFDocument.create();
+
+    // 直列処理（メモリ消費と単一ワーカーAPIの保護のため並列にしない）
+    for (let i = 0; i < order.length; i++) {
+      const id   = order[i];
+      const name = nameOf(id);
+      const base = (i / order.length) * 70;
+      const span = 70 / order.length;
+      setMergeProgress(base, `(${i + 1}/${order.length}) 「${name}」を取得中…`);
+
+      const buf = await wnFetchFileBuffer(id, {
+        onProgress: pct => setMergeProgress(base + span * pct / 100, `(${i + 1}/${order.length}) 「${name}」を取得中… ${pct}%`),
+      });
+      if (!buf) throw new Error(`「${name}」の取得に失敗しました。通信環境を確認して再試行してください`);
+
+      let src;
+      try {
+        src = await PDFLib.PDFDocument.load(buf, { ignoreEncryption: true });
+      } catch (e) {
+        console.error('[executeMerge] load failed', name, e);
+        throw new Error(`「${name}」を読み込めませんでした（破損または対応外のPDF）`);
+      }
+      const pages = await merged.copyPages(src, src.getPageIndices());
+      pages.forEach(p => merged.addPage(p));
+      src = null;   // 参照を切ってGC可能に
+    }
+
+    setMergeProgress(72, '結合PDFを生成中…');
+    const bytes = await merged.save();
+    if (bytes.length > 100 * 1024 * 1024) {
+      throw new Error('結合後のサイズが100MBを超えるため保存できません');
+    }
+
+    setMergeProgress(80, 'アップロード中…');
+    const outFile = new File([bytes], finalName, { type: 'application/pdf' });
+    const result  = await wnUploadFile(outFile, {
+      onProgress: pct => setMergeProgress(80 + pct * 0.2, `アップロード中… ${pct}%`),
+    });
+
+    // ここまで来たら結合ファイルは保存済み。replaceモードのみ元ファイルを削除
+    if (saveMode === 'replace') {
+      setMergeProgress(100, '元ファイルを削除中…');
+      const failNames = [];
+      for (const id of order) {
+        const ok = await wnDeleteFile(id);
+        if (!ok) failNames.push(nameOf(id));
+      }
+      if (failNames.length) {
+        wnShowToast(`結合は成功しましたが、${failNames.length}件の元ファイルを削除できませんでした`, 'warning');
+      }
+    }
+
+    setMergeProgress(100, '完了');
+    mergeBusy = false;
+    closeMergeModal();
+    if (selectMode) toggleSelectMode();
+    wnShowToast(`${order.length}件のPDFを結合しました`, 'success');
+
+    await loadFiles();
+    if (result?.data?.id) showAiTagModal([result.data]);
+  } catch (err) {
+    console.error('[executeMerge]', err);
+    wnShowToast(err.message || 'PDFの結合に失敗しました', 'danger');
+    setMergeModalBusy(false);   // モーダルは開いたまま＝設定を保持してリトライ可能
+    document.getElementById('mergeProgressText').textContent = '';
+  }
 }

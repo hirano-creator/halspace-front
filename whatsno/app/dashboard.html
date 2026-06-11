@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260611a">
+  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260611b">
   <style>
     @media (max-width: 767px) {
       .page-body { padding: 8px 0 72px !important; }
@@ -257,6 +257,9 @@
             <span style="font-size:13px;color:var(--muted);flex-shrink:0;" id="fileCountLabel"></span>
           </div>
           <div class="filter-bar" style="margin:0;flex-shrink:0;flex-wrap:nowrap;">
+            <button class="btn btn-outline btn-sm" id="selectModeBtn" style="height:34px;white-space:nowrap;">
+              <i class="fa-solid fa-object-group"></i> <span id="selectModeBtnLabel">選択</span>
+            </button>
             <select class="form-select" id="sortFilter" style="width:auto;height:34px;padding:0 28px 0 12px;font-size:13px;line-height:1;">
               <option value="newest">新しい順</option>
               <option value="oldest">古い順</option>
@@ -296,6 +299,15 @@
     </div><!-- /page-body -->
   </div><!-- /main-content -->
 </div><!-- /app-layout -->
+
+<!-- PDF結合: 下部アクションバー -->
+<div class="merge-action-bar hidden" id="mergeActionBar">
+  <span class="merge-sel-count" id="mergeSelCount">0件選択中</span>
+  <button class="btn btn-outline btn-sm" id="mergeCancelBtn">キャンセル</button>
+  <button class="btn btn-accent btn-sm" id="mergeOpenBtn" disabled>
+    <i class="fa-solid fa-object-group"></i> <span id="mergeOpenLabel">結合</span>
+  </button>
+</div>
 
 <!-- 全画面D&Dオーバーレイ -->
 <div class="drop-overlay" id="dropOverlay">
@@ -343,6 +355,39 @@
       <button class="btn btn-outline" id="uploadCancelBtn">キャンセル</button>
       <button class="btn btn-accent" id="uploadSubmitBtn" disabled>
         <i class="fa-solid fa-cloud-arrow-up"></i> アップロード
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF結合モーダル -->
+<div class="modal-overlay hidden" id="mergeModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-object-group" style="color:var(--accent);"></i> PDFを結合</span>
+      <button class="modal-close" id="mergeModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px;">上から順に結合されます。▲▼ボタンで並べ替えできます。</p>
+    <div id="mergeFileList"></div>
+
+    <label style="display:block;font-size:13px;font-weight:700;margin-bottom:4px;">結合後のファイル名</label>
+    <input type="text" class="form-input" id="mergeFileName" placeholder="結合後のファイル名.pdf">
+
+    <div class="merge-save-options">
+      <label><input type="radio" name="mergeSaveMode" value="keep" checked> 新規ファイルとして保存（元ファイルは残す）</label>
+      <label><input type="radio" name="mergeSaveMode" value="replace"> 結合ファイルのみ残す（元ファイルを削除）</label>
+    </div>
+
+    <div id="mergeProgress" style="display:none;margin-top:12px;">
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="mergeProgressBar" style="width:0%"></div></div>
+      <div id="mergeProgressText" style="font-size:12px;color:var(--muted);margin-top:4px;"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="mergeModalCancelBtn">キャンセル</button>
+      <button class="btn btn-accent" id="mergeExecBtn">
+        <i class="fa-solid fa-object-group"></i> 結合する
       </button>
     </div>
   </div>
@@ -516,6 +561,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.js"></script>
 <script src="../assets/js/wn-dxf-viewer.js"></script>
@@ -525,7 +571,7 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=6"></script>
 <script src="../assets/js/wn-api.js?v=10"></script>
-<script src="../assets/js/pages/wn-dashboard.js?v=42"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=43"></script>
 
 <script>
 /* ── ボトムナビ ── */
