@@ -458,7 +458,14 @@ async function apiFetchForm(path, formData) {
     },
     body: formData,
   });
-  if (!res.ok) throw new Error(`API Error ${res.status}`);
+  if (!res.ok) {
+    let msg = `API Error ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body.message) msg = body.message;
+    } catch {}
+    throw new Error(msg);
+  }
   return res.json();
 }
 
@@ -660,12 +667,12 @@ document.getElementById('chatImageInput').addEventListener('change', e => {
 
 async function submitComment(body, imageFile, channel) {
   const ch = channel || currentChannel;
-  try {
-    const fd = new FormData();
-    fd.append('body', body);
-    fd.append('channel', ch);
-    if (imageFile) fd.append('image', imageFile);
+  const fd = new FormData();
+  fd.append('body', body);
+  fd.append('channel', ch);
+  if (imageFile) fd.append('image', imageFile);
 
+  try {
     const data = await apiFetchForm(`/projects/${projId}/comments`, fd);
     // 投稿直後は Blob URL を使って即表示（再描画後も認証エンドポイントに差し替え）
     if (imageFile && data.comment.image_path) {
@@ -673,19 +680,11 @@ async function submitComment(body, imageFile, channel) {
     }
     comments.push(data.comment);
     renderChat();
-  } catch {
-    /* フォールバック: ローカル追加 */
-    comments.push({
-      id: Date.now() + Math.random(),
-      channel: ch,
-      user_id: user.id,
-      user_name: user.name,
-      user_role: user.role,
-      body,
-      image_path: imageFile ? URL.createObjectURL(imageFile) : null,
-      created_at: new Date().toLocaleString('ja-JP'),
-    });
-    renderChat();
+  } catch (err) {
+    // サーバーに保存されていないのにローカル表示すると「送れたように見えるのに相手に届かない」
+    // 状態になるため、フォールバック表示はせず失敗を明示する
+    showToast(`メッセージを送信できませんでした: ${err.message || 'サーバーエラー'}`, 'danger');
+    throw err;
   }
 }
 
@@ -694,16 +693,19 @@ document.getElementById('commentSubmit').addEventListener('click', async () => {
   const body  = input.value.trim();
   if (!body && !pendingImages.length) return;
 
-  if (pendingImages.length) {
-    for (const img of pendingImages) {
-      await submitComment(body, img.file);
+  try {
+    if (pendingImages.length) {
+      for (const img of pendingImages) {
+        await submitComment(body, img.file);
+      }
+      pendingImages = [];
+      renderImagePreview();
+    } else {
+      await submitComment(body, null);
     }
-    pendingImages = [];
-    renderImagePreview();
-  } else {
-    await submitComment(body, null);
-  }
-  input.value = '';
+    // 成功時のみクリア（失敗時は入力を残してそのまま再送できるように）
+    input.value = '';
+  } catch {}
 });
 
 document.getElementById('commentInput').addEventListener('keydown', e => {
@@ -911,7 +913,9 @@ document.getElementById('cancelBtn')?.addEventListener('click', () => cancelModa
 document.getElementById('cancelSubmit')?.addEventListener('click', async () => {
   const note = document.getElementById('cancelNote').value.trim();
   cancelModal.classList.add('hidden');
-  if (note) await submitComment(`【キャンセル】${note}`, null);
+  if (note) {
+    try { await submitComment(`【キャンセル】${note}`, null); } catch { return; }
+  }
   await updateStatus('cancelled', note || 'キャンセル');
   showToast('発注をキャンセルしました', 'warning');
 });
@@ -975,7 +979,7 @@ document.getElementById('revisionSubmit')?.addEventListener('click', async () =>
     }
   }
 
-  await submitComment(`【修正依頼】${note}`, null);
+  try { await submitComment(`【修正依頼】${note}`, null); } catch { return; }
   await updateStatus('revision_requested', note);
   modal.classList.add('hidden');
   revisionPendingFiles = [];
@@ -1051,7 +1055,7 @@ function renderDeadlinePanel() {
     document.getElementById('deadlineCounterBtn')?.addEventListener('click', async () => {
       const newDate = prompt('新しい希望納期を入力してください（YYYY-MM-DD）:', project.deadline_requested || '');
       if (!newDate) return;
-      await submitComment(`【納期再調整依頼】新しい希望納期: ${newDate}`, null);
+      try { await submitComment(`【納期再調整依頼】新しい希望納期: ${newDate}`, null); } catch { return; }
       project.deadline_requested = newDate;
       renderDeadlinePanel(); renderInfo(); renderChat();
       showToast('新しい希望納期を送りました', 'warning');
@@ -1128,7 +1132,7 @@ function renderDeadlinePanel() {
       }
 
       const msg = `【納期回答】${date}（${status === 'ok' ? '対応可能' : '要調整'}）${note ? '\n' + note : ''}`;
-      await submitComment(msg, null, 'modeler');
+      try { await submitComment(msg, null, 'modeler'); } catch { return; }
       showToast('管理者へ回答を送りました', 'success');
     });
     return;
