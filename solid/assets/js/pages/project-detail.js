@@ -150,19 +150,29 @@ function renderFiles() {
   // 3Dモデルエリアの表示制御
   const modelArea      = document.getElementById('modelFileArea');
   const lockedMsg      = document.getElementById('modelFileLockedMsg');
-  const clientLocked   = isClient(user) && !['approved','delivered'].includes(project.status);
-  const isAdminReview  = isAdmin(user) && project.status === 'review_pending';
+  // 管理者はプロジェクト進行中ならいつでもファイル単位の検査・納品が可能
+  const isAdminReview  = isAdmin(user)
+    && ['in_progress','review_pending','revision_requested','approved'].includes(project.status);
+  // モデラーはファイル単位で検査依頼が可能
+  const isModelerSubmit = isModeler(user)
+    && ['in_progress','review_pending','revision_requested'].includes(project.status);
+
+  // 発注者には「納品済み」ファイル＋（承認後は）検査OKファイルを表示
+  const visibleModelFiles = isClient(user)
+    ? modelFiles.filter(f =>
+        f.review_status === 'delivered' ||
+        (['approved','delivered'].includes(project.status) && f.review_status === 'ok'))
+    : modelFiles;
+  const clientLocked = isClient(user)
+    && !['approved','delivered'].includes(project.status)
+    && visibleModelFiles.length === 0;
 
   if (clientLocked) {
     lockedMsg.style.display = '';
     modelArea.innerHTML = '';
   } else {
     lockedMsg.style.display = 'none';
-    // 発注者には review_status=ok のファイルのみ表示
-    const visibleModelFiles = isClient(user)
-      ? modelFiles.filter(f => f.review_status === 'ok')
-      : modelFiles;
-    renderFileSection(modelArea, visibleModelFiles, !isClient(user), isAdminReview);
+    renderFileSection(modelArea, visibleModelFiles, !isClient(user), isAdminReview, isModelerSubmit);
   }
 
   // 図面・参考資料エリア（全員表示）
@@ -245,7 +255,14 @@ function renderFiles() {
   }
 }
 
-function renderFileSection(area, files, canDelete, showReviewBtns = false) {
+const REVIEW_BADGE = {
+  submitted: '<span class="badge badge-review_pending" style="font-size:11px;margin-right:4px;">検査依頼中</span>',
+  ok:        '<span class="badge badge-approved" style="font-size:11px;margin-right:4px;">OK</span>',
+  revision:  '<span class="badge badge-revision_requested" style="font-size:11px;margin-right:4px;">修正依頼</span>',
+  delivered: '<span class="badge badge-delivered" style="font-size:11px;margin-right:4px;"><i class="fa-solid fa-truck" style="margin-right:3px;"></i>納品済み</span>',
+};
+
+function renderFileSection(area, files, canDelete, showAdminBtns = false, showModelerBtns = false) {
   if (!files.length) {
     area.innerHTML = '<p style="color:var(--muted);padding:12px 0;font-size:13px;">ファイルがありません</p>';
     return;
@@ -255,13 +272,11 @@ function renderFileSection(area, files, canDelete, showReviewBtns = false) {
     const ext = f.file_name.split('.').pop().toLowerCase();
     const canPreview = ['pdf', 'dxf', 'dwg', 'stl', 'stp', 'step'].includes(ext);
 
-    const reviewBadge = f.review_status === 'ok'
-      ? '<span class="badge badge-approved" style="font-size:11px;margin-right:4px;">OK</span>'
-      : f.review_status === 'revision'
-        ? '<span class="badge badge-revision_requested" style="font-size:11px;margin-right:4px;">修正依頼</span>'
-        : '';
+    const reviewBadge = REVIEW_BADGE[f.review_status] || '';
+    const isDelivered = f.review_status === 'delivered';
 
-    const reviewBtns = showReviewBtns ? `
+    // 管理者: OK / 修正依頼 / 納品（納品済みのファイルはバッジのみ）
+    const reviewBtns = (showAdminBtns && !isDelivered) ? `
       <button class="btn btn-sm file-review-ok-btn ${f.review_status === 'ok' ? 'btn-success' : 'btn-outline'}"
               data-file-id="${f.id}" style="min-width:52px;">
         <i class="fa-solid fa-check"></i> OK
@@ -270,7 +285,26 @@ function renderFileSection(area, files, canDelete, showReviewBtns = false) {
               data-file-id="${f.id}"
               style="min-width:72px;${f.review_status === 'revision' ? 'background:var(--warning);color:var(--dark);border-color:var(--warning);' : ''}">
         <i class="fa-solid fa-rotate-left"></i> 修正依頼
+      </button>
+      <button class="btn btn-sm file-deliver-btn ${f.review_status === 'ok' ? 'btn-primary' : 'btn-outline'}"
+              data-file-id="${f.id}" data-file-name="${f.file_name}"
+              ${f.review_status !== 'ok' ? 'disabled style="min-width:64px;opacity:.45;cursor:not-allowed;" title="検査OKにすると納品できます"' : 'style="min-width:64px;" title="このファイルを発注者へ納品"'}>
+        <i class="fa-solid fa-truck"></i> 納品
       </button>` : '';
+
+    // モデラー: ファイル単位の検査依頼（pending/revision → submitted、submitted → 取消可）
+    const modelerBtns = showModelerBtns
+      ? (['pending','revision'].includes(f.review_status) ? `
+      <button class="btn btn-sm btn-success file-request-review-btn"
+              data-file-id="${f.id}" data-file-name="${f.file_name}" style="min-width:90px;">
+        <i class="fa-solid fa-paper-plane"></i> 検査依頼
+      </button>`
+      : f.review_status === 'submitted' ? `
+      <button class="btn btn-sm btn-outline file-cancel-review-btn"
+              data-file-id="${f.id}" style="min-width:80px;">
+        <i class="fa-solid fa-xmark"></i> 依頼取消
+      </button>` : '')
+      : '';
 
     return `
     <div class="upload-file-item" data-file-id="${f.id}">
@@ -283,6 +317,7 @@ function renderFileSection(area, files, canDelete, showReviewBtns = false) {
       </div>
       ${reviewBadge}
       ${reviewBtns}
+      ${modelerBtns}
       ${canPreview ? `<button class="file-preview-btn" data-file-id="${f.id}">
         <i class="fa-solid fa-eye"></i> プレビュー
       </button>` : ''}
@@ -307,6 +342,30 @@ function renderFileSection(area, files, canDelete, showReviewBtns = false) {
     btn.addEventListener('click', () => {
       const f = project.files.find(x => x.id === Number(btn.dataset.fileId));
       setFileReviewStatus(Number(btn.dataset.fileId), f?.review_status === 'revision' ? 'pending' : 'revision');
+    });
+  });
+
+  // 管理者: ファイル単位の納品
+  area.querySelectorAll('.file-deliver-btn:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const fileName = btn.dataset.fileName;
+      if (!confirm(`「${fileName}」を発注者へ納品しますか？\n納品後、発注者がこのファイルを閲覧・ダウンロードできるようになります。`)) return;
+      await setFileReviewStatus(Number(btn.dataset.fileId), 'delivered');
+      showToast(`${fileName} を納品しました。発注者に公開されます。`, 'success');
+    });
+  });
+
+  // モデラー: ファイル単位の検査依頼／取消
+  area.querySelectorAll('.file-request-review-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await setFileReviewStatus(Number(btn.dataset.fileId), 'submitted');
+      showToast(`${btn.dataset.fileName} の検査を依頼しました`, 'success');
+    });
+  });
+  area.querySelectorAll('.file-cancel-review-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await setFileReviewStatus(Number(btn.dataset.fileId), 'pending');
+      showToast('検査依頼を取り消しました', 'warning');
     });
   });
 
@@ -662,7 +721,7 @@ function updateAdminReviewBarState() {
   const btn = document.getElementById('adminPublishBtn');
   if (!btn) return;
   const modelFiles = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
-  const hasOk = modelFiles.some(f => f.review_status === 'ok');
+  const hasOk = modelFiles.some(f => ['ok', 'delivered'].includes(f.review_status));
   btn.disabled = !hasOk;
   btn.style.opacity = hasOk ? '1' : '0.5';
 }
@@ -703,11 +762,13 @@ function openSubmitModelModal() {
   submitNewFiles = [];
   document.getElementById('submitNewFilePreview').innerHTML = '';
 
-  // 既存の model_3d / delivery ファイルをチェックリストに表示
-  const modelFiles = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
+  // 検査依頼の対象となる model_3d / delivery ファイルをチェックリストに表示
+  // （検査OK・納品済みのファイルは再依頼不要のため除外）
+  const modelFiles = (project.files ?? []).filter(f =>
+    MODEL_TYPES.includes(f.file_type) && !['ok', 'delivered'].includes(f.review_status));
   const list = document.getElementById('submitFileCheckList');
   if (modelFiles.length === 0) {
-    list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">まだアップロード済みのファイルがありません</div>';
+    list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">検査依頼できるファイルがありません</div>';
   } else {
     list.innerHTML = modelFiles.map(f => `
       <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);
@@ -717,7 +778,7 @@ function openSubmitModelModal() {
         ${getFileIcon(f.file_name)}
         <div style="flex:1;">
           <div style="font-weight:600;">${f.file_name}</div>
-          <div style="font-size:11px;color:var(--muted);">${TYPE_LABEL[f.file_type]||''} · ${formatBytes(f.file_size)}</div>
+          <div style="font-size:11px;color:var(--muted);">${TYPE_LABEL[f.file_type]||''} · ${formatBytes(f.file_size)}${f.review_status === 'submitted' ? ' · 検査依頼中' : ''}</div>
         </div>
       </label>`).join('');
     list.querySelectorAll('.submit-file-check').forEach(cb =>
@@ -765,14 +826,16 @@ document.getElementById('submitNewFileInput')?.addEventListener('change', e => {
 });
 
 document.getElementById('submitModelConfirmBtn')?.addEventListener('click', async () => {
-  // チェックされた既存ファイル数を確認
-  const checkedCount = document.querySelectorAll('.submit-file-check:checked').length;
-  if (checkedCount === 0 && submitNewFiles.length === 0) {
+  // チェックされた既存ファイルIDを取得
+  const checkedIds = Array.from(document.querySelectorAll('.submit-file-check:checked'))
+    .map(cb => Number(cb.value));
+  if (checkedIds.length === 0 && submitNewFiles.length === 0) {
     showToast('提出するファイルを1件以上選択してください', 'warning');
     return;
   }
 
   // 新規ファイルをアップロード
+  const newIds = [];
   for (const file of submitNewFiles) {
     const fd = new FormData();
     fd.append('file', file);
@@ -780,9 +843,21 @@ document.getElementById('submitModelConfirmBtn')?.addEventListener('click', asyn
     try {
       const data = await apiFetchForm(`/projects/${projId}/files`, fd);
       project.files = [...(project.files ?? []), data.file];
+      newIds.push(data.file.id);
     } catch {
       showToast(`${file.name} のアップロードに失敗しました`, 'danger');
       return;
+    }
+  }
+
+  // 選択されたファイルをファイル単位で検査依頼（submitted）にする
+  for (const id of [...checkedIds, ...newIds]) {
+    try {
+      await api.patch(`/files/${id}/review-status`, { review_status: 'submitted' });
+      const f = project.files.find(x => x.id === id);
+      if (f) f.review_status = 'submitted';
+    } catch {
+      showToast('検査依頼の設定に失敗したファイルがあります', 'danger');
     }
   }
 
@@ -791,7 +866,7 @@ document.getElementById('submitModelConfirmBtn')?.addEventListener('click', asyn
   if (project.status === 'review_pending') {
     // すでに検査依頼中 → ステータス変更不要、ファイル追加のみ反映
     renderFiles();
-    showToast('ファイルを追加しました。管理者の検査をお待ちください。', 'success');
+    showToast('選択したファイルを検査依頼しました。管理者の検査をお待ちください。', 'success');
   } else {
     await updateStatus('review_pending');
     showToast('完成・提出しました。管理者の検査をお待ちください。', 'success');
@@ -1118,19 +1193,22 @@ async function init() {
   }
   await loadProject();
 
-  // 30秒ごとにプロジェクト情報を再取得して担当モデラー・ステータス等を自動更新
+  // 30秒ごとにプロジェクト情報を再取得して担当モデラー・ステータス・ファイル検査状況を自動更新
+  const reviewSig = fs => (fs ?? []).map(f => `${f.id}:${f.review_status}`).join(',');
   setInterval(async () => {
     try {
       const data = await api.get(`/projects/${projId}`);
       if (!data?.project) return;
       const updated = data.project;
-      // 担当モデラーが変わった場合のみ再描画
-      if (updated.modeler_id !== project.modeler_id || updated.status !== project.status) {
+      if (updated.modeler_id !== project.modeler_id
+          || updated.status !== project.status
+          || reviewSig(updated.files) !== reviewSig(project.files)) {
         project = updated;
         comments = project.comments ?? [];
         renderInfo();
         renderTimeline();
         renderDeadlinePanel();
+        renderFiles();
       }
     } catch {}
   }, 30000);

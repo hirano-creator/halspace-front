@@ -201,6 +201,7 @@ document.getElementById('uploadSubmitBtn').addEventListener('click', async () =>
 
   const token = localStorage.getItem('space_token');
   let errors = [];
+  const uploadedIds = [];
 
   for (const file of pendingFiles) {
     const fd = new FormData();
@@ -219,9 +220,18 @@ document.getElementById('uploadSubmitBtn').addEventListener('click', async () =>
         const body = await res.text();
         throw new Error(`${res.status}: ${body}`);
       }
+      const data = await res.json();
+      if (data?.file?.id) uploadedIds.push(data.file.id);
     } catch (err) {
       errors.push(file.name);
     }
+  }
+
+  // アップロードしたファイルをファイル単位で検査依頼（submitted）にする
+  for (const id of uploadedIds) {
+    try {
+      await api.patch(`/files/${id}/review-status`, { review_status: 'submitted' });
+    } catch {}
   }
 
   if (errors.length) {
