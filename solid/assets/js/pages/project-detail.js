@@ -345,8 +345,8 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
         ${reviewBadge}
         ${reviewBtns}
         ${modelerBtns}
-        ${canPreview ? `<button class="file-preview-btn" data-file-id="${f.id}">
-          <i class="fa-solid fa-eye"></i> プレビュー
+        ${canPreview ? `<button class="file-preview-btn" data-file-id="${f.id}" title="プレビュー">
+          <i class="fa-solid fa-eye"></i>
         </button>` : ''}
         <button class="btn btn-ghost btn-sm file-download-btn" data-file-id="${f.id}"
                 data-file-name="${f.file_name}" title="ダウンロード">

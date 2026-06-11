@@ -969,11 +969,11 @@ tbody tr:last-child { border-bottom: none; }
 
 /* ファイル行のプレビューボタン */
 .file-preview-btn {
-  display:inline-flex;align-items:center;gap:5px;
-  padding:5px 10px;font-size:12px;font-weight:600;
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:6px 9px;font-size:13px;
   border:1.5px solid var(--blue);border-radius:6px;
   color:var(--blue);background:transparent;cursor:pointer;
-  transition:background var(--trans),color var(--trans);white-space:nowrap;
+  transition:background var(--trans),color var(--trans);
 }
 .file-preview-btn:hover { background:var(--blue);color:#fff; }
 
@@ -1240,9 +1240,6 @@ tbody tr:last-child { border-bottom: none; }
   #projectTable td:nth-child(2) code { font-size: 10px; }
   /* タイトル列のmin-widthを解除してレイアウト崩れを防止 */
   #projectTable td:nth-child(3) { min-width: 0 !important; }
-
-  /* ファイルプレビューボタンのラベル非表示 */
-  .file-preview-btn span { display: none; }
 
   /* チャットの最大幅拡大 */
   .chat-bubble-wrap { max-width: 94%; }
