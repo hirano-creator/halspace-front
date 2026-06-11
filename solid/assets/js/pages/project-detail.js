@@ -57,16 +57,24 @@ function renderAll() {
 function renderTimeline() {
   const tl   = document.getElementById('timeline');
   const rank = statusRank(project.status);
+  // 1件でも検査依頼中のファイルがあれば「管理者検査」ステップを点灯させる
+  const hasSubmittedFile = (project.files ?? []).some(f =>
+    MODEL_TYPES.includes(f.file_type) && f.review_status === 'submitted');
   tl.innerHTML = STEPS.map((s, i) => {
     const stepRank = statusRank(s.key);
     const isDone   = rank > stepRank;
-    const isActive = rank === stepRank || (project.status === 'revision_requested' && s.key === 'review_pending');
+    const partialReview = s.key === 'review_pending' && rank < stepRank && hasSubmittedFile;
+    const isActive = rank === stepRank
+      || (project.status === 'revision_requested' && s.key === 'review_pending')
+      || partialReview;
     return `
       <div class="timeline-step ${isDone?'done':''} ${isActive?'active':''}">
         <div class="timeline-dot">
-          <i class="fa-solid ${isDone?'fa-check':isActive?'fa-spinner':String(i+1)}"></i>
+          <i class="fa-solid ${isDone?'fa-check':partialReview?'fa-paper-plane':isActive?'fa-spinner':String(i+1)}"></i>
         </div>
-        <span class="timeline-label">${s.label}</span>
+        <span class="timeline-label">${s.label}${partialReview
+          ? '<br><span style="font-size:10px;font-weight:600;color:var(--accent-strong,#E55A2B);">検査依頼あり</span>'
+          : ''}</span>
       </div>
       ${i < STEPS.length-1 ? `<div style="flex:1;height:2px;background:${isDone?'var(--accent)':'var(--border)'};align-self:flex-start;margin-top:15px;"></div>` : ''}`;
   }).join('');
@@ -718,6 +726,7 @@ async function setFileReviewStatus(fileId, status) {
     const f = project.files.find(x => x.id === fileId);
     if (f) f.review_status = status;
     renderFiles();
+    renderTimeline();
   } catch (err) {
     showToast('ステータス更新に失敗しました', 'danger');
   }
