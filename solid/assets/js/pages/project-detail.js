@@ -293,7 +293,7 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
       : (['ok', 'revision', 'delivered'].includes(f.review_status) && f.reviewed_by_name
           ? `検査: ${f.reviewed_by_name} ${f.reviewed_at || ''}` : '');
     const reviewMeta = reviewMetaText
-      ? `<span style="font-size:11px;color:var(--muted);margin-right:6px;white-space:nowrap;">${reviewMetaText}</span>`
+      ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${reviewMetaText}</div>`
       : '';
 
     // 管理者: OK / 修正依頼 / 納品
@@ -331,28 +331,32 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
 
     return `
     <div class="upload-file-item" data-file-id="${f.id}">
-      ${getFileIcon(f.file_name)}
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:600;">${f.file_name}</div>
-        <div style="font-size:12px;color:var(--muted);">
-          ${TYPE_LABEL[f.file_type]||f.file_type||'ファイル'} · ${formatBytes(f.file_size)} · ${f.uploaded_by_name||f.uploaded_by||''}
+      <div class="file-item-main">
+        ${getFileIcon(f.file_name)}
+        <div class="file-item-info">
+          <div class="file-item-name">${f.file_name}</div>
+          <div style="font-size:12px;color:var(--muted);">
+            ${TYPE_LABEL[f.file_type]||f.file_type||'ファイル'} · ${formatBytes(f.file_size)} · ${f.uploaded_by_name||f.uploaded_by||''}
+          </div>
+          ${reviewMeta}
         </div>
       </div>
-      ${reviewBadge}
-      ${reviewMeta}
-      ${reviewBtns}
-      ${modelerBtns}
-      ${canPreview ? `<button class="file-preview-btn" data-file-id="${f.id}">
-        <i class="fa-solid fa-eye"></i> プレビュー
-      </button>` : ''}
-      <button class="btn btn-ghost btn-sm file-download-btn" data-file-id="${f.id}"
-              data-file-name="${f.file_name}" title="ダウンロード">
-        <i class="fa-solid fa-download"></i>
-      </button>
-      ${canDelete ? `<button class="btn btn-ghost btn-sm file-delete-btn" data-file-id="${f.id}"
-              data-file-name="${f.file_name}" title="削除" style="color:#e74c3c;">
-        <i class="fa-solid fa-trash"></i>
-      </button>` : ''}
+      <div class="file-item-actions">
+        ${reviewBadge}
+        ${reviewBtns}
+        ${modelerBtns}
+        ${canPreview ? `<button class="file-preview-btn" data-file-id="${f.id}">
+          <i class="fa-solid fa-eye"></i> プレビュー
+        </button>` : ''}
+        <button class="btn btn-ghost btn-sm file-download-btn" data-file-id="${f.id}"
+                data-file-name="${f.file_name}" title="ダウンロード">
+          <i class="fa-solid fa-download"></i>
+        </button>
+        ${canDelete ? `<button class="btn btn-ghost btn-sm file-delete-btn" data-file-id="${f.id}"
+                data-file-name="${f.file_name}" title="削除" style="color:#e74c3c;">
+          <i class="fa-solid fa-trash"></i>
+        </button>` : ''}
+      </div>
     </div>`;
   }).join('');
 
