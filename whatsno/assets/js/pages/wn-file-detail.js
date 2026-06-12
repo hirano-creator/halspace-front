@@ -5,6 +5,11 @@ let currentUser = null;
 let fileData    = null;
 const fileId    = new URLSearchParams(location.search).get('id');
 
+/* ── PDF プレビュー回転状態 ── */
+let pdfPreviewDoc  = null;
+let pdfPreviewPage = 1;
+let pdfPreviewRot  = 0;   // ビューア側追加回転: 0 | 90 | 180 | 270
+
 document.addEventListener('DOMContentLoaded', async () => {
   if (!fileId) { location.href = 'dashboard.html'; return; }
   currentUser = requireSpaceAuth();
@@ -475,17 +480,20 @@ function renderPdfNav(pdfDoc, _page, canvas, ctx, area, currentPageNum) {
   async function goTo(n) {
     if (n < 1 || n > total) return;
     cur = n;
+    pdfPreviewPage = n;
     const pg = await pdfDoc.getPage(cur);
     const areaW = area.clientWidth  - 24;
     const areaH = area.clientHeight - 24;
     const dpr   = Math.max(window.devicePixelRatio || 1, 2);
-    const baseVP = pg.getViewport({ scale: 1 });
-    const scale  = Math.min(areaW / baseVP.width, areaH / baseVP.height);
-    const vp = pg.getViewport({ scale: scale * dpr });
+    const _defVP  = pg.getViewport({ scale: 1 });
+    const _totRot = (_defVP.rotation + pdfPreviewRot) % 360;
+    const baseVP  = pg.getViewport({ scale: 1, rotation: _totRot });
+    const scale   = Math.min(areaW / baseVP.width, areaH / baseVP.height);
+    const vp = pg.getViewport({ scale: scale * dpr, rotation: _totRot });
     canvas.width  = vp.width;
     canvas.height = vp.height;
-    canvas.style.width  = (vp.width  / dpr) + 'px';
-    canvas.style.height = (vp.height / dpr) + 'px';
+    canvas.style.width  = (baseVP.width  * scale) + 'px';
+    canvas.style.height = (baseVP.height * scale) + 'px';
     await pg.render({ canvasContext: ctx, viewport: vp }).promise;
     document.getElementById('pdfPageLabel').textContent = `${cur} / ${total}`;
     document.getElementById('pdfContainer').scrollTop = 0;
@@ -493,6 +501,79 @@ function renderPdfNav(pdfDoc, _page, canvas, ctx, area, currentPageNum) {
 
   nav.querySelector('#pdfPrev').addEventListener('click', () => goTo(cur - 1));
   nav.querySelector('#pdfNext').addEventListener('click', () => goTo(cur + 1));
+}
+
+/* PDF プレビューの現在ページを回転付きで再描画 */
+async function reRenderPdfPreviewPage() {
+  if (!pdfPreviewDoc) return;
+  const page    = await pdfPreviewDoc.getPage(pdfPreviewPage);
+  const canvas  = document.getElementById('pdfCanvas');
+  const ctx     = canvas.getContext('2d');
+  const area    = document.getElementById('previewArea');
+
+  const dpr          = Math.max(window.devicePixelRatio || 1, 2);
+  const _defVP       = page.getViewport({ scale: 1 });
+  const _totRot      = (_defVP.rotation + pdfPreviewRot) % 360;
+  const baseVP       = page.getViewport({ scale: 1, rotation: _totRot });
+  const areaW        = Math.max(area.clientWidth  - 24, 100);
+  const areaH        = Math.max(area.clientHeight - 24, 100);
+  const fitScale     = Math.min(areaW / baseVP.width, areaH / baseVP.height);
+  const MIN_SCALE    = 1.5;
+  const MAX_DIM      = 4096;
+  let   renderScale  = Math.max(fitScale * dpr, MIN_SCALE);
+  if (Math.max(baseVP.width, baseVP.height) * renderScale > MAX_DIM) {
+    renderScale = MAX_DIM / Math.max(baseVP.width, baseVP.height);
+  }
+  const viewport = page.getViewport({ scale: renderScale, rotation: _totRot });
+
+  canvas.width  = viewport.width;
+  canvas.height = viewport.height;
+  canvas.style.width  = (baseVP.width  * fitScale) + 'px';
+  canvas.style.height = (baseVP.height * fitScale) + 'px';
+
+  await page.render({ canvasContext: ctx, viewport }).promise;
+}
+
+/* PDF プレビューエリアに回転ボタンのオーバーレイを追加 */
+function addPdfRotateOverlay() {
+  document.getElementById('pdfRotateBar')?.remove();
+  const bar = document.createElement('div');
+  bar.id = 'pdfRotateBar';
+  bar.style.cssText = [
+    'position:absolute', 'top:12px', 'left:12px',
+    'background:rgba(0,0,0,.55)', 'backdrop-filter:blur(4px)',
+    'border-radius:20px', 'padding:3px 6px',
+    'display:flex', 'align-items:center', 'gap:2px', 'z-index:10',
+  ].join(';');
+
+  const btnStyle = [
+    'background:none', 'border:none', 'color:#fff', 'cursor:pointer',
+    'font-size:15px', 'padding:4px 7px', 'border-radius:12px',
+    'transition:background .15s',
+  ].join(';');
+
+  bar.innerHTML = `
+    <button id="pdfRotCCW" title="左90°回転" style="${btnStyle}">
+      <i class="fa-solid fa-rotate-left"></i>
+    </button>
+    <button id="pdfRotCW" title="右90°回転" style="${btnStyle}">
+      <i class="fa-solid fa-rotate-right"></i>
+    </button>
+  `;
+  document.getElementById('previewArea').appendChild(bar);
+
+  bar.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('mouseenter', () => btn.style.background = 'rgba(255,255,255,.2)');
+    btn.addEventListener('mouseleave', () => btn.style.background = 'none');
+  });
+  bar.querySelector('#pdfRotCCW').addEventListener('click', async () => {
+    pdfPreviewRot = (pdfPreviewRot - 90 + 360) % 360;
+    await reRenderPdfPreviewPage();
+  });
+  bar.querySelector('#pdfRotCW').addEventListener('click', async () => {
+    pdfPreviewRot = (pdfPreviewRot + 90) % 360;
+    await reRenderPdfPreviewPage();
+  });
 }
 
 /* ────────────────────────────────
@@ -530,7 +611,9 @@ async function loadPdfPreview(attempt) {
     }
 
     hintEl().textContent = 'PDF描画中…';
-    const pdfDoc   = await pdfjsLib.getDocument({ data: buffer }).promise;
+    pdfPreviewDoc  = await pdfjsLib.getDocument({ data: buffer }).promise;
+    pdfPreviewPage = 1;
+    const pdfDoc   = pdfPreviewDoc;
     const page     = await pdfDoc.getPage(1);
     const container = document.getElementById('pdfContainer');
     const canvas    = document.getElementById('pdfCanvas');
@@ -547,7 +630,9 @@ async function loadPdfPreview(attempt) {
     const areaW     = Math.max(area.clientWidth  - 24, 100);
     const areaH     = Math.max(area.clientHeight - 24, 100);
     const dpr       = Math.max(window.devicePixelRatio || 1, 2);
-    const baseVP    = page.getViewport({ scale: 1 });
+    const _defVP    = page.getViewport({ scale: 1 });
+    const _totRot   = (_defVP.rotation + pdfPreviewRot) % 360;
+    const baseVP    = page.getViewport({ scale: 1, rotation: _totRot });
     /* 表示用スケール（エリアにフィット） */
     const fitScale  = Math.min(areaW / baseVP.width, areaH / baseVP.height);
 
@@ -560,7 +645,7 @@ async function loadPdfPreview(attempt) {
     if (maxBaseDim * renderScale > MAX_CANVAS_DIM) {
       renderScale = MAX_CANVAS_DIM / maxBaseDim;
     }
-    const viewport = page.getViewport({ scale: renderScale });
+    const viewport = page.getViewport({ scale: renderScale, rotation: _totRot });
 
     canvas.width  = viewport.width;
     canvas.height = viewport.height;
@@ -575,6 +660,7 @@ async function loadPdfPreview(attempt) {
     if (pdfDoc.numPages > 1) {
       renderPdfNav(pdfDoc, page, canvas, ctx, area, 1);
     }
+    addPdfRotateOverlay();
   } catch (e) {
     console.error(`PDF preview error (attempt ${attempt}):`, e);
 

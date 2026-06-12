@@ -613,6 +613,14 @@
       <span id="zoomLabel">100%</span>
       <button id="zoomInBtn"  class="zoom-step-btn" title="拡大 (Ctrl+スクロール)">＋</button>
     </div>
+    <div style="display:flex;gap:4px;margin-top:6px;">
+      <button id="rotateCCWBtn" class="zoom-btn" style="flex:1;" title="左90°回転">
+        <i class="fa-solid fa-rotate-left"></i> 左回転
+      </button>
+      <button id="rotateCWBtn" class="zoom-btn" style="flex:1;" title="右90°回転">
+        <i class="fa-solid fa-rotate-right"></i> 右回転
+      </button>
+    </div>
   </div>
 
   <!-- ページナビ（PDF用） -->
@@ -712,13 +720,14 @@ let fileData    = null;
 let saveMode    = 'newversion'; // 'newversion' | 'overwrite'
 
 /* PDF 用 */
-let pdfDoc       = null;
-let currentPage  = 1;
-let totalPages   = 1;
-let pdfScale     = 1.5;
-let normalScale  = 1.5;   // A4フィットスケール（通常表示）
-let fitScale     = 1.5;   // キャンバスエリア全体フィットスケール（全体表示）
-let zoomMode     = 'normal'; // 'normal' | 'fit' | 'free'
+let pdfDoc          = null;
+let currentPage     = 1;
+let totalPages      = 1;
+let pdfScale        = 1.5;
+let normalScale     = 1.5;   // A4フィットスケール（通常表示）
+let fitScale        = 1.5;   // キャンバスエリア全体フィットスケール（全体表示）
+let zoomMode        = 'normal'; // 'normal' | 'fit' | 'free'
+let pdfViewRotation = 0;     // ビューア側追加回転: 0 | 90 | 180 | 270
 
 /* アノテーション状態 */
 let tool        = 'text';
@@ -924,7 +933,9 @@ async function loadPdf() {
 
   // 1ページ目のサイズからスケールを計算
   const firstPage  = await pdfDoc.getPage(1);
-  const baseVP     = firstPage.getViewport({ scale: 1 });
+  const _fp0       = firstPage.getViewport({ scale: 1 });
+  const _totR0     = (_fp0.rotation + pdfViewRotation) % 360;
+  const baseVP     = firstPage.getViewport({ scale: 1, rotation: _totR0 });
 
   /* canvasArea の実寸を使う（モバイルでは toolbar が下部に来るためレイアウトが異なる） */
   const canvasArea = document.getElementById('canvasArea');
@@ -958,20 +969,22 @@ async function renderPdfPage(num) {
   const page = await pdfDoc.getPage(num);
 
   /* 表示用ビューポート（注釈座標と一致するサイズ） */
-  const displayVP = page.getViewport({ scale: pdfScale });
+  const _defVP    = page.getViewport({ scale: 1 });
+  const _totRot   = (_defVP.rotation + pdfViewRotation) % 360;
+  const displayVP = page.getViewport({ scale: pdfScale, rotation: _totRot });
 
   /* レンダリング用スケール：file-detail.html と同等。表示時に小さくならないよう
      最低でも PDF 寸法の 1.5 倍で描画 + DPR 補正。MAX_CANVAS_DIM で上限。 */
   const dpr = Math.max(window.devicePixelRatio || 1, 2);
   const MIN_RENDER_SCALE = 1.5;
   const MAX_CANVAS_DIM   = 4096;
-  const baseVP1   = page.getViewport({ scale: 1 });
-  let renderScale = Math.max(pdfScale * dpr, MIN_RENDER_SCALE);
+  const baseVP1    = page.getViewport({ scale: 1, rotation: _totRot });
+  let renderScale  = Math.max(pdfScale * dpr, MIN_RENDER_SCALE);
   const maxBaseDim = Math.max(baseVP1.width, baseVP1.height);
   if (maxBaseDim * renderScale > MAX_CANVAS_DIM) {
     renderScale = MAX_CANVAS_DIM / maxBaseDim;
   }
-  const renderVP = page.getViewport({ scale: renderScale });
+  const renderVP = page.getViewport({ scale: renderScale, rotation: _totRot });
 
   /* annotCanvas は表示サイズに合わせる（注釈座標の互換性維持） */
   annotCanvas.width  = displayVP.width;
@@ -1034,6 +1047,46 @@ document.getElementById('actualBtn').addEventListener('click', async () => {
 
 document.getElementById('zoomInBtn').addEventListener('click', () => applyZoom(pdfScale * 1.25));
 document.getElementById('zoomOutBtn').addEventListener('click', () => applyZoom(pdfScale / 1.25));
+
+document.getElementById('rotateCCWBtn').addEventListener('click', () => applyPdfViewRotation(-90));
+document.getElementById('rotateCWBtn').addEventListener('click',  () => applyPdfViewRotation(90));
+
+/* PDF ビューア回転（全ページの注釈をリセットしてから回転） */
+async function applyPdfViewRotation(delta) {
+  const hasAny = annotations.length > 0 ||
+    Object.values(pageAnnotations).some(arr => arr && arr.length > 0);
+
+  if (hasAny) {
+    showToast('注釈をリセットしてページを回転しました', 'info');
+    annotations = [];
+    Object.keys(pageAnnotations).forEach(k => { pageAnnotations[k] = []; });
+    Object.keys(pageSizes).forEach(k => { delete pageSizes[k]; });
+    redrawAnnotations();
+  }
+
+  pdfViewRotation = (pdfViewRotation + delta + 360) % 360;
+
+  /* 回転後の寸法でスケールを再計算 */
+  const pg      = await pdfDoc.getPage(currentPage);
+  const _defVP  = pg.getViewport({ scale: 1 });
+  const _totRot = (_defVP.rotation + pdfViewRotation) % 360;
+  const baseVP  = pg.getViewport({ scale: 1, rotation: _totRot });
+
+  const canvasArea = document.getElementById('canvasArea');
+  const padding    = 32;
+  const areaW      = Math.max(canvasArea.clientWidth  - padding, 100);
+  const areaH      = Math.max(canvasArea.clientHeight - padding, 100);
+
+  fitScale    = Math.min(areaW / baseVP.width, areaH / baseVP.height);
+  normalScale = areaW / baseVP.width;
+  pdfScale    = fitScale;
+  zoomMode    = 'fit';
+
+  await renderPdfPage(currentPage);
+  updateZoomBtns();
+
+  if (!hasAny) showToast('ページを回転しました', 'success');
+}
 
 /* Ctrl+マウスホイールでズーム */
 document.getElementById('canvasArea').addEventListener('wheel', e => {
@@ -2625,8 +2678,9 @@ async function saveAsNewVersion() {
   /* テキスト入力中なら先に確定（blur発火タイミングの差異を吸収） */
   if (inlineTA.style.display !== 'none') commitInlineText();
 
-  if (!annotations.length && !Object.values(pageAnnotations).some(p => p.length)) {
-    showToast('注釈がありません', 'danger'); return;
+  const hasAnnotations = annotations.length > 0 || Object.values(pageAnnotations).some(p => p.length);
+  if (!hasAnnotations && pdfViewRotation === 0) {
+    showToast('注釈も回転もありません', 'danger'); return;
   }
 
   const btn = document.getElementById('saveBtn');
@@ -2650,6 +2704,8 @@ async function saveAsNewVersion() {
     const res  = await wnUploadFile(file);
 
     if (res?.data) {
+      /* 保存後サムネイルを先行生成（ダッシュボードで即時表示） */
+      await preGenerateThumbnail(String(res.data.id), res.data.updated_at).catch(() => {});
       /* 保存後は新ファイルのIDに更新してページ遷移せず継続編集可能にする */
       fileId   = String(res.data.id);
       fileData = res.data;
@@ -2675,8 +2731,9 @@ async function saveOverwrite() {
   /* テキスト入力中なら先に確定 */
   if (inlineTA.style.display !== 'none') commitInlineText();
 
-  if (!annotations.length && !Object.values(pageAnnotations).some(p => p.length)) {
-    showToast('注釈がありません', 'danger'); return;
+  const hasAnnotations = annotations.length > 0 || Object.values(pageAnnotations).some(p => p.length);
+  if (!hasAnnotations && pdfViewRotation === 0) {
+    showToast('注釈も回転もありません', 'danger'); return;
   }
 
   const btn = document.getElementById('saveBtn');
@@ -2700,6 +2757,8 @@ async function saveOverwrite() {
     const res  = await wnOverwriteFile(fileId, file);
 
     if (res?.data) {
+      /* 保存後サムネイルを先行生成（ダッシュボードで即時表示） */
+      await preGenerateThumbnail(String(fileId), res.data.updated_at).catch(() => {});
       /* 保存済みファイル（注釈焼き込み済み）で同ページを再ロード */
       location.replace(location.pathname + '?id=' + fileId + '&from=' + encodeURIComponent(fromPage) + '&saved=1');
     } else {
@@ -2816,6 +2875,14 @@ async function buildAnnotatedPdf() {
     return tmp;
   }
 
+  /* ビューア回転をPDFの各ページに焼き込む（回転のみ保存でも機能する） */
+  if (pdfViewRotation !== 0) {
+    for (const pg of pages) {
+      const cur = pg.getRotation?.()?.angle ?? 0;
+      pg.setRotation(PDFLib.degrees((cur + pdfViewRotation) % 360));
+    }
+  }
+
   /* 注釈レイヤーの目標解像度: PDF寸法 × TARGET_SCALE（144DPI相当）
      表示時の pdfScale に依存せず、常に高解像度で書き出す。
      幅・高さ両方を MAX_DIM でクランプし、大判図面(A0/A1等)で
@@ -2837,7 +2904,9 @@ async function buildAnnotatedPdf() {
       ch = pageSizes[pageNum].h;
     } else {
       const pdfPage = await pdfDoc.getPage(pageNum);
-      const vp = pdfPage.getViewport({ scale: pdfScale });
+      const _defVP  = pdfPage.getViewport({ scale: 1 });
+      const _totRot = (_defVP.rotation + pdfViewRotation) % 360;
+      const vp = pdfPage.getViewport({ scale: pdfScale, rotation: _totRot });
       cw = vp.width; ch = vp.height;
     }
 
@@ -2942,6 +3011,194 @@ function showToastWithAction(msg, actionLabel, onAction) {
   c.appendChild(t);
   requestAnimationFrame(() => t.classList.add('show'));
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 6000);
+}
+
+/* ────── 保存後サムネイル先行生成 ──────
+   wn-dashboard.js の IndexedDB（wn-thumb-cache）と同じキー形式で書き込む。
+   ANNOT_THUMB_VER は wn-dashboard.js の THUMB_VER と必ず一致させること。 */
+const ANNOT_THUMB_VER = 'v6';
+
+async function preGenerateThumbnail(newFileId, updatedAt) {
+  try {
+    if (!baseCanvas || baseCanvas.width === 0) {
+      console.warn('[Thumb] baseCanvas not ready');
+      return;
+    }
+
+    /* baseCanvas(高解像度PDF) と annotCanvas(表示サイズ注釈) を合成 */
+    const merged = document.createElement('canvas');
+    merged.width  = baseCanvas.width;
+    merged.height = baseCanvas.height;
+    const mCtx = merged.getContext('2d');
+    mCtx.drawImage(baseCanvas, 0, 0);
+
+    /* 注釈がある場合はアップスケールして重ねる */
+    if (annotCanvas.width > 0 && annotCanvas.height > 0 &&
+        (annotations.length > 0 || Object.values(pageAnnotations).some(p => p && p.length))) {
+      const sx = baseCanvas.width  / annotCanvas.width;
+      const sy = baseCanvas.height / annotCanvas.height;
+      mCtx.save();
+      mCtx.scale(sx, sy);
+      mCtx.drawImage(annotCanvas, 0, 0);
+      mCtx.restore();
+    }
+
+    /* wn-dashboard.js と同等のパイプライン */
+    const dpr        = Math.min(window.devicePixelRatio || 1, 2);
+    const targetLong = Math.round(Math.min(1440, Math.max(720, 720 * dpr)));
+    const shrunk  = _thumbShrink(merged, targetLong);
+    const trimmed = _thumbTrim(shrunk);
+    _thumbEnhance(trimmed);
+
+    const blob = await new Promise(r => trimmed.toBlob(r, 'image/jpeg', 0.88));
+    if (!blob) {
+      console.warn('[Thumb] blob generation failed');
+      return;
+    }
+
+    const cacheKey = `thumb_${newFileId}_${updatedAt ?? ''}_${ANNOT_THUMB_VER}`;
+    console.log('[Thumb] Writing to IndexedDB:', cacheKey, `(${blob.size} bytes)`);
+
+    /* IndexedDB 書き込み（エラーハンドリング強化） */
+    await new Promise((resolve, reject) => {
+      const req = indexedDB.open('wn-thumb-cache', 1);
+
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('thumbs')) {
+          db.createObjectStore('thumbs');
+        }
+      };
+
+      req.onsuccess = e => {
+        try {
+          const db = e.target.result;
+          const tx = db.transaction('thumbs', 'readwrite');
+          const store = tx.objectStore('thumbs');
+
+          /* 古いキャッシュを削除 */
+          const delReq = store.openCursor();
+          delReq.onsuccess = ev => {
+            const cursor = ev.target.result;
+            if (cursor) {
+              if (String(cursor.key).startsWith(`thumb_${newFileId}_`)) {
+                cursor.delete();
+              }
+              cursor.continue();
+            }
+          };
+
+          /* 新しいキャッシュを保存 */
+          const putReq = store.put(blob, cacheKey);
+
+          tx.oncomplete = () => {
+            console.log('[Thumb] ✓ Successfully written to IndexedDB');
+            /* ダッシュボード側のメモリキャッシュをリセット信号 */
+            localStorage.setItem('wn_thumb_bust', newFileId);
+            resolve();
+          };
+          tx.onerror = () => {
+            console.warn('[Thumb] Transaction error:', tx.error);
+            reject(tx.error);
+          };
+        } catch (err) {
+          console.warn('[Thumb] Database error:', err);
+          reject(err);
+        }
+      };
+
+      req.onerror = () => {
+        console.warn('[Thumb] Failed to open IndexedDB:', req.error);
+        reject(req.error);
+      };
+    });
+  } catch (err) {
+    console.warn('[Thumb] preGenerateThumbnail error:', err);
+  }
+}
+
+/* 段階縮小（wn-dashboard.js の wnShrinkCanvas と同実装） */
+function _thumbShrink(src, targetLong) {
+  let cur = src;
+  while (Math.max(cur.width, cur.height) > targetLong * 2) {
+    const next = document.createElement('canvas');
+    next.width  = Math.max(1, Math.round(cur.width  / 2));
+    next.height = Math.max(1, Math.round(cur.height / 2));
+    const ctx = next.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(cur, 0, 0, next.width, next.height);
+    cur = next;
+  }
+  if (Math.max(cur.width, cur.height) > targetLong) {
+    const ratio = targetLong / Math.max(cur.width, cur.height);
+    const next  = document.createElement('canvas');
+    next.width  = Math.max(1, Math.round(cur.width  * ratio));
+    next.height = Math.max(1, Math.round(cur.height * ratio));
+    next.getContext('2d').drawImage(cur, 0, 0, next.width, next.height);
+    cur = next;
+  }
+  return cur;
+}
+
+/* 余白トリミング（wn-dashboard.js の wnTrimMargins と同実装） */
+function _thumbTrim(canvas, pad = 0.03) {
+  try {
+    const w = canvas.width, h = canvas.height;
+    const ctx = canvas.getContext('2d');
+    const d = ctx.getImageData(0, 0, w, h).data;
+    const idx = (x, y) => (y * w + x) * 4;
+    let br = 0, bg = 0, bb = 0;
+    for (const [x, y] of [[0,0],[w-1,0],[0,h-1],[w-1,h-1]]) {
+      const i = idx(x, y); br += d[i]; bg += d[i+1]; bb += d[i+2];
+    }
+    br /= 4; bg /= 4; bb /= 4;
+    const isBg = i => Math.abs(d[i]-br)+Math.abs(d[i+1]-bg)+Math.abs(d[i+2]-bb) < 48;
+    const sx = Math.max(1, Math.floor(w / 600));
+    const sy = Math.max(1, Math.floor(h / 600));
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+    for (let y = 0; y < h; y += sy)
+      for (let x = 0; x < w; x += sx)
+        if (!isBg(idx(x, y))) {
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+    if (maxX < 0) return canvas;
+    minX = Math.max(0, minX - Math.round(w * pad));
+    maxX = Math.min(w-1, maxX + Math.round(w * pad));
+    minY = Math.max(0, minY - Math.round(h * pad));
+    maxY = Math.min(h-1, maxY + Math.round(h * pad));
+    const cw = maxX - minX + 1, ch = maxY - minY + 1;
+    if (cw < w * 0.3 || ch < h * 0.3 || (cw > w * 0.95 && ch > h * 0.95)) return canvas;
+    const out = document.createElement('canvas');
+    out.width = cw; out.height = ch;
+    out.getContext('2d').drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
+    return out;
+  } catch { return canvas; }
+}
+
+/* 線画強調（wn-dashboard.js の wnEnhanceLineArt と同実装） */
+function _thumbEnhance(canvas, amount = 1.1, gamma = 1.45) {
+  try {
+    const w = canvas.width, h = canvas.height;
+    const ctx  = canvas.getContext('2d');
+    const blur = document.createElement('canvas');
+    blur.width = w; blur.height = h;
+    const bctx = blur.getContext('2d');
+    bctx.filter = 'blur(1px)';
+    bctx.drawImage(canvas, 0, 0);
+    const img = ctx.getImageData(0, 0, w, h);
+    const bim = bctx.getImageData(0, 0, w, h);
+    const s = img.data, b = bim.data;
+    const lut = new Uint8ClampedArray(256);
+    for (let v = 0; v < 256; v++) lut[v] = Math.round(255 * Math.pow(v / 255, gamma));
+    for (let i = 0; i < s.length; i += 4)
+      for (let c = 0; c < 3; c++) {
+        let v = s[i+c] + amount * (s[i+c] - b[i+c]);
+        s[i+c] = lut[Math.max(0, Math.min(255, Math.round(v)))];
+      }
+    ctx.putImageData(img, 0, 0);
+  } catch {}
 }
 </script>
 </body>

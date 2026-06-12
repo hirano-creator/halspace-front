@@ -45,7 +45,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadBrainMeter();
   initDashBrain();
   initMergeSelect();
+  initThumbnailBust();
 });
+
+/* 注釈編集後の新サムネイル取得用：ダッシュボード表示時にメモリキャッシュをリセット
+   → IndexedDB の新しいキャッシュが確実に読まれるようにする */
+function initThumbnailBust() {
+  const bustFileId = localStorage.getItem('wn_thumb_bust');
+  if (bustFileId) {
+    const prefix = `thumb_${bustFileId}_`;
+    let count = 0;
+    Object.keys(thumbMemCache).forEach(k => {
+      if (k.startsWith(prefix)) {
+        URL.revokeObjectURL(thumbMemCache[k]);
+        delete thumbMemCache[k];
+        count++;
+      }
+    });
+    if (count > 0) {
+      console.log(`[Dashboard] Cleared ${count} memory cache entries for file ${bustFileId}`);
+    }
+    localStorage.removeItem('wn_thumb_bust');
+  }
+}
 
 let _lastIsMobile = null;
 function applyMobileLayout() {
