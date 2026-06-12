@@ -552,6 +552,8 @@ async function loadFileThumbnails() {
     const ext = (f.file_name || '').split('.').pop().toLowerCase();
     return ['xlsx','xls','xlsm','docx','docm'].includes(ext);
   };
+  /* PowerPoint はサーバー変換済みPDFを使うため、元ファイルのサイズ制限は不要 */
+  const isPpt = (f) => ['pptx','ppt','pptm'].includes((f.file_name || '').split('.').pop().toLowerCase());
 
   const targets = allFiles.filter(f => {
     const ext  = (f.file_name || '').split('.').pop().toLowerCase();
@@ -562,12 +564,14 @@ async function loadFileThumbnails() {
         || mime === 'application/pdf' || ext === 'pdf'
         || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
         || ext === 'dxf'
-        || isOffice(f);
+        || isOffice(f)
+        || isPpt(f);
   });
 
-  /* 軽量ファイルとOfficeを分離してスケジュール */
-  const lightTargets  = targets.filter(f => !isOffice(f));
-  const officeTargets = targets.filter(isOffice);
+  /* 軽量ファイルとOffice系を分離してスケジュール
+     （PowerPoint も未キャッシュ時はサーバー変換が走るため1つずつ） */
+  const lightTargets  = targets.filter(f => !isOffice(f) && !isPpt(f));
+  const officeTargets = targets.filter(f => isOffice(f) || isPpt(f));
 
   /* 軽量ファイル: 並列処理 */
   for (let i = 0; i < lightTargets.length; i += CONCURRENCY) {
@@ -704,6 +708,26 @@ async function loadOneThumbnail(f) {
       canvas.width = 360 * THUMB_SS; canvas.height = 480 * THUMB_SS;
       if (!drawWordThumbnail(canvas, result.value || '')) return;
       blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
+
+    } else if (['pptx','ppt','pptm'].includes(ext)) {
+      /* PowerPoint: サーバー変換済みPDF（preview-pdf）の1ページ目をサムネイル化。
+         アップロード時にプリキャッシュ済みなので通常は即返る */
+      if (typeof pdfjsLib === 'undefined') return;
+      const res = await wnFetch(`/wn/files/${f.id}/preview-pdf`);
+      if (!res || !res.ok) return;
+      const buffer   = await res.arrayBuffer();
+      const pdf      = await pdfjsLib.getDocument({ data: buffer }).promise;
+      const page     = await pdf.getPage(1);
+      const base     = page.getViewport({ scale: 1 });
+      const scale    = Math.min(4, Math.max(1.5, 2600 / Math.max(base.width, base.height)));
+      const viewport = page.getViewport({ scale });
+      const canvas   = document.createElement('canvas');
+      canvas.width   = Math.round(viewport.width);
+      canvas.height  = Math.round(viewport.height);
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      /* スライドは全面デザインが多いので余白カット・線画強調はかけない */
+      const out = wnShrinkCanvas(canvas, wnThumbTargetLong());
+      blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
     }
 
     if (!blob) return;
