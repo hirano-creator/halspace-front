@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space ロゴ案</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Poppins', sans-serif;
+  background: #f5f6f8;
+  padding: 56px 32px;
+}
+.page-title {
+  text-align: center;
+  margin-bottom: 52px;
+}
+.page-title p {
+  font-size: 12px; font-weight: 500;
+  letter-spacing: .3em; color: #9ca3af;
+  text-transform: uppercase;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 44px 24px 28px;
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  transition: box-shadow .2s, transform .2s; cursor: pointer;
+}
+.card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.1); transform: translateY(-2px); }
+.card-num { align-self: flex-start; font-size: 10px; font-weight: 600; letter-spacing: .2em; color: #d1d5db; }
+.logo-area { display: flex; align-items: center; justify-content: center; width: 100%; height: 100px; }
+.card-label { font-size: 11px; font-weight: 500; letter-spacing: .1em; color: #9ca3af; text-transform: uppercase; }
+
+/* ══════════════════════════
+   1. ピリオドだけ青
+══════════════════════════ */
+.l1 { display: flex; align-items: baseline; }
+.l1 .word { font-size: 40px; font-weight: 700; color: #111827; letter-spacing: -.03em; }
+.l1 .period { font-size: 40px; font-weight: 700; color: #2563eb; }
+
+/* ══════════════════════════
+   2. ネガティブスペースS
+══════════════════════════ */
+.l2 {
+  width: 64px; height: 64px;
+  background: #111827;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+}
+.l2::after {
+  content: 'S';
+  font-size: 42px; font-weight: 900;
+  color: #f5f6f8;
+  letter-spacing: -.05em;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* ══════════════════════════
+   3. 極細 × 太字
+══════════════════════════ */
+.l3 { display: flex; align-items: baseline; gap: 0; }
+.l3 .s    { font-size: 52px; font-weight: 900; color: #111827; letter-spacing: -.04em; line-height: 1; }
+.l3 .pace { font-size: 52px; font-weight: 200; color: #9ca3af; letter-spacing: -.04em; line-height: 1; }
+
+/* ══════════════════════════
+   4. S を大きく背景に
+══════════════════════════ */
+.l4 { position: relative; display: flex; align-items: center; justify-content: center; width: 160px; height: 90px; overflow: hidden; }
+.l4-bg {
+  position: absolute;
+  font-size: 120px; font-weight: 900;
+  color: #eff6ff;
+  left: -16px; top: -20px;
+  letter-spacing: -.05em;
+  line-height: 1;
+  user-select: none;
+}
+.l4-fg { position: relative; font-size: 28px; font-weight: 700; color: #1d4ed8; letter-spacing: .05em; text-transform: uppercase; }
+
+/* ══════════════════════════
+   5. 一文字だけ色変え
+══════════════════════════ */
+.l5 { font-size: 42px; font-weight: 800; letter-spacing: -.03em; color: #111827; }
+.l5 .a { color: #2563eb; }
+
+/* ══════════════════════════
+   6. スラッシュ区切り
+══════════════════════════ */
+.l6 { display: flex; align-items: center; gap: 0; }
+.l6 .s     { font-size: 44px; font-weight: 900; color: #111827; letter-spacing: -.04em; }
+.l6 .slash { font-size: 44px; font-weight: 200; color: #2563eb; margin: 0 2px; }
+.l6 .pace  { font-size: 44px; font-weight: 300; color: #6b7280; letter-spacing: -.04em; }
+
+/* ══════════════════════════
+   7. 文字間スペース
+══════════════════════════ */
+.l7 { font-size: 24px; font-weight: 600; color: #111827; letter-spacing: .45em; text-transform: uppercase; position: relative; }
+.l7::after {
+  content: '';
+  display: block;
+  width: 18px; height: 2px;
+  background: #2563eb;
+  margin: 8px auto 0;
+  border-radius: 1px;
+}
+
+/* ══════════════════════════
+   8. 下線だけ
+══════════════════════════ */
+.l8 { position: relative; display: inline-block; }
+.l8 .word { font-size: 42px; font-weight: 700; color: #111827; letter-spacing: -.03em; }
+.l8-line {
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 4px; width: 100%;
+  background: #2563eb;
+  border-radius: 2px;
+}
+
+/* ══════════════════════════
+   9. ○ × テキスト
+══════════════════════════ */
+.l9 { display: flex; align-items: center; gap: 12px; }
+.l9-circle {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #2563eb;
+  flex-shrink: 0;
+}
+.l9 .word { font-size: 38px; font-weight: 700; color: #111827; letter-spacing: -.03em; }
+
+/* ══════════════════════════
+   10. 反転カラー左半分
+══════════════════════════ */
+.l10 {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  height: 70px;
+}
+.l10-bg {
+  position: absolute;
+  left: 50%; top: 0;
+  width: 50%; height: 100%;
+  transform: translateX(-100%);
+  background: #111827;
+  border-radius: 8px 0 0 8px;
+}
+.l10-text {
+  position: relative;
+  font-size: 42px; font-weight: 800; letter-spacing: -.03em;
+  background: linear-gradient(90deg, #fff 50%, #111827 50%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  padding: 0 14px;
+}
+</style>
+</head>
+<body>
+
+<div class="page-title">
+  <p>Space — Logo Proposals Vol.3</p>
+</div>
+
+<div class="grid">
+
+  <!-- 1 -->
+  <div class="card">
+    <div class="card-num">01</div>
+    <div class="logo-area">
+      <div class="l1"><span class="word">Space</span><span class="period">.</span></div>
+    </div>
+    <div class="card-label">ピリオドアクセント</div>
+  </div>
+
+  <!-- 2 -->
+  <div class="card">
+    <div class="card-num">02</div>
+    <div class="logo-area">
+      <div class="l2"></div>
+    </div>
+    <div class="card-label">ネガティブスペースS</div>
+  </div>
+
+  <!-- 3 -->
+  <div class="card">
+    <div class="card-num">03</div>
+    <div class="logo-area">
+      <div class="l3"><span class="s">S</span><span class="pace">pace</span></div>
+    </div>
+    <div class="card-label">太字 × 極細</div>
+  </div>
+
+  <!-- 4 -->
+  <div class="card">
+    <div class="card-num">04</div>
+    <div class="logo-area">
+      <div class="l4">
+        <div class="l4-bg">S</div>
+        <div class="l4-fg">Space</div>
+      </div>
+    </div>
+    <div class="card-label">透かしS</div>
+  </div>
+
+  <!-- 5 -->
+  <div class="card">
+    <div class="card-num">05</div>
+    <div class="logo-area">
+      <div class="l5">Sp<span class="a">a</span>ce</div>
+    </div>
+    <div class="card-label">一文字アクセント</div>
+  </div>
+
+  <!-- 6 -->
+  <div class="card">
+    <div class="card-num">06</div>
+    <div class="logo-area">
+      <div class="l6">
+        <span class="s">S</span>
+        <span class="slash">/</span>
+        <span class="pace">pace</span>
+      </div>
+    </div>
+    <div class="card-label">スラッシュ区切り</div>
+  </div>
+
+  <!-- 7 -->
+  <div class="card">
+    <div class="card-num">07</div>
+    <div class="logo-area">
+      <div class="l7">Space</div>
+    </div>
+    <div class="card-label">レタースペーシング</div>
+  </div>
+
+  <!-- 8 -->
+  <div class="card">
+    <div class="card-num">08</div>
+    <div class="logo-area">
+      <div class="l8">
+        <div class="word">Space</div>
+        <div class="l8-line"></div>
+      </div>
+    </div>
+    <div class="card-label">ボトムライン</div>
+  </div>
+
+  <!-- 9 -->
+  <div class="card">
+    <div class="card-num">09</div>
+    <div class="logo-area">
+      <div class="l9">
+        <div class="l9-circle"></div>
+        <div class="word">Space</div>
+      </div>
+    </div>
+    <div class="card-label">ドットマーク</div>
+  </div>
+
+  <!-- 10 -->
+  <div class="card">
+    <div class="card-num">10</div>
+    <div class="logo-area">
+      <div class="l10">
+        <div class="l10-bg"></div>
+        <div class="l10-text">Space</div>
+      </div>
+    </div>
+    <div class="card-label">ハーフインバート</div>
+  </div>
+
+</div>
+</body>
+</html>

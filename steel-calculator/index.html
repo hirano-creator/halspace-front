@@ -223,9 +223,9 @@ body {
 .stored-item-detail {
   font-size: 11px;
   color: var(--text-sub);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
 .stored-item-delete {
@@ -839,6 +839,7 @@ let calcOperator = '';
 let calcPrev = '';
 let calcNewNumber = true;
 let calcExpression = '';
+let lastAcPress = 0;
 
 function updateCalcDisplay() {
   document.getElementById('calcResult').textContent = calcDisplay;
@@ -873,13 +874,20 @@ function calcAction(type, val) {
 
     case 'op':
       if (calcOperator && !calcNewNumber) {
+        // 連続演算：途中結果は表示用に計算するが、計算式は途中でまとめず全式を残す
         const result = evaluate(parseFloat(calcPrev), parseFloat(calcDisplay), calcOperator);
+        calcExpression += ' ' + calcDisplay + ' ' + dispOp(val);
         calcDisplay = formatNumber(result);
+      } else if (calcOperator && calcNewNumber) {
+        // 演算子だけ押し直したとき：末尾の演算子を差し替える
+        calcExpression = calcExpression.replace(/\s\S+$/, ' ' + dispOp(val));
+      } else {
+        // 新しい計算式の開始
+        calcExpression = calcDisplay + ' ' + dispOp(val);
       }
       calcPrev = calcDisplay;
       calcOperator = val;
       calcNewNumber = true;
-      calcExpression = calcPrev + ' ' + dispOp(val);
       break;
 
     case 'equal':
@@ -887,7 +895,8 @@ function calcAction(type, val) {
         const a = parseFloat(calcPrev);
         const b = parseFloat(calcDisplay);
         const result = evaluate(a, b, calcOperator);
-        calcExpression = calcPrev + ' ' + dispOp(calcOperator) + ' ' + calcDisplay + ' =';
+        // 途中でまとめず、入力した全式をそのまま残す
+        calcExpression += ' ' + calcDisplay + ' =';
         calcDisplay = formatNumber(result);
         calcOperator = '';
         calcPrev = '';
@@ -895,13 +904,22 @@ function calcAction(type, val) {
       }
       break;
 
-    case 'clear':
+    case 'clear': {
+      // AC を短時間に2回押したら保管データもクリア
+      const now = Date.now();
+      if (now - lastAcPress < 800 && storedItems.length > 0) {
+        storedItems = [];
+        saveStored();
+        renderStored();
+      }
+      lastAcPress = now;
       calcDisplay = '0';
       calcOperator = '';
       calcPrev = '';
       calcNewNumber = true;
       calcExpression = '';
       break;
+    }
 
     case 'backspace':
       if (!calcNewNumber && calcDisplay.length > 1) {
@@ -1028,6 +1046,14 @@ function storeCalcResult() {
   const btn = document.querySelector('.store-btn');
   btn.textContent = '済';
   setTimeout(() => { btn.textContent = '保管'; }, 600);
+
+  // 入力欄を0にリセット
+  calcDisplay = '0';
+  calcOperator = '';
+  calcPrev = '';
+  calcNewNumber = true;
+  calcExpression = '';
+  updateCalcDisplay();
 }
 
 function storeSteelResult() {

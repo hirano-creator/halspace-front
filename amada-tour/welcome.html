@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bem-vindos — HIRANO Co., Ltd.</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@200;300;400;600;700&family=Noto+Sans+JP:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #080c1e;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Poppins', 'Noto Sans JP', sans-serif;
+    color: #fff;
+  }
+
+  /* Canvas layers */
+  canvas {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+  }
+  #canvas-bg  { z-index: 0; }
+  #canvas-ring { z-index: 1; }
+
+  /* ===== MAIN STAGE ===== */
+  #stage {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ===== HIRANO LOGO ===== */
+  #logo-block {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 2s ease, transform 2s ease;
+    text-align: center;
+  }
+  #logo-block.show { opacity: 1; transform: translateY(0); }
+
+  #logo-text {
+    font-size: clamp(36px, 6.5vw, 90px);
+    font-weight: 600;
+    letter-spacing: 0.38em;
+    color: #fff;
+    animation: breathe 6s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { opacity: 0.88; }
+    50%       { opacity: 1;    }
+  }
+
+  #logo-sub {
+    font-size: clamp(10px, 1.3vw, 16px);
+    font-weight: 300;
+    letter-spacing: 0.45em;
+    color: rgba(255,255,255,0.35);
+    margin-top: 10px;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+
+  /* ===== DIVIDER ===== */
+  #divider {
+    width: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent,
+      rgba(79,110,247,0.5) 20%,
+      rgba(255,215,0,0.55) 50%,
+      rgba(0,156,59,0.5) 80%,
+      transparent
+    );
+    transition: width 2.2s ease 0.4s;
+    margin: 30px 0;
+  }
+  #divider.show { width: min(520px, 62vw); }
+
+  /* Traveling light dot on divider */
+  #divider-dot {
+    width: 0;
+    height: 1px;
+    position: relative;
+    overflow: visible;
+    margin-top: -31px;
+    margin-bottom: 30px;
+    opacity: 0;
+    transition: opacity 1s ease 3s;
+  }
+  #divider-dot.show { opacity: 1; }
+  #divider-dot::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: 0;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 10px 3px rgba(255,255,255,0.6);
+    animation: travelDot 4s ease-in-out infinite;
+  }
+  @keyframes travelDot {
+    0%   { left: 0;                  opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { left: min(513px, 61.4vw); opacity: 0; }
+  }
+
+  /* ===== BEM-VINDOS ===== */
+  #bem-vindos {
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 2.5s ease, transform 2.5s ease;
+    text-align: center;
+  }
+  #bem-vindos.show { opacity: 1; transform: translateY(0); }
+
+  #bem-vindos-text {
+    font-size: clamp(42px, 8.5vw, 112px);
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    background: linear-gradient(90deg,
+      rgba(255,255,255,0.85) 0%,
+      rgba(255,255,255,1)    40%,
+      rgba(255,215,0,0.9)    60%,
+      rgba(255,255,255,0.85) 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmerText 7s ease-in-out infinite;
+  }
+  @keyframes shimmerText {
+    0%   { background-position: 100% 0; }
+    50%  { background-position:   0% 0; }
+    100% { background-position: 100% 0; }
+  }
+
+  #bem-vindos-pt {
+    font-size: clamp(11px, 1.5vw, 18px);
+    font-weight: 300;
+    color: rgba(255,255,255,0.38);
+    letter-spacing: 0.35em;
+    margin-top: 10px;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+
+  /* ===== INFO BLOCK ===== */
+  #info-block {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 2s ease, transform 2s ease;
+    text-align: center;
+    margin-top: 38px;
+  }
+  #info-block.show { opacity: 1; transform: translateY(0); }
+
+  #info-ja {
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: clamp(13px, 1.9vw, 22px);
+    font-weight: 300;
+    color: rgba(255,255,255,0.68);
+    letter-spacing: 0.12em;
+  }
+  #info-pt {
+    font-size: clamp(11px, 1.3vw, 16px);
+    font-weight: 300;
+    color: rgba(255,255,255,0.34);
+    margin-top: 5px;
+    letter-spacing: 0.08em;
+  }
+  #info-tour {
+    margin-top: 22px;
+    display: inline-block;
+    padding: 8px 30px;
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 30px;
+    font-size: clamp(11px, 1.4vw, 17px);
+    font-weight: 400;
+    letter-spacing: 0.26em;
+    color: rgba(255,255,255,0.55);
+    background: rgba(255,255,255,0.03);
+    animation: pillPulse 5s ease-in-out infinite;
+  }
+  @keyframes pillPulse {
+    0%, 100% { border-color: rgba(255,255,255,0.14); }
+    50%       { border-color: rgba(255,215,0,0.35); }
+  }
+
+  #info-date {
+    font-family: 'Noto Sans JP', sans-serif;
+    margin-top: 10px;
+    font-size: clamp(10px, 1.1vw, 13px);
+    color: rgba(255,255,255,0.24);
+    letter-spacing: 0.22em;
+  }
+
+  /* ===== BRAZIL BAR (bottom) ===== */
+  #flag-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    display: flex;
+    opacity: 0;
+    transition: opacity 2s ease;
+  }
+  #flag-bar.show { opacity: 0.7; }
+  #flag-bar .fb-g { flex:1; background:#009C3B; }
+  #flag-bar .fb-y { flex:1; background:#FFDF00; }
+  #flag-bar .fb-b { flex:1; background:#002776; }
+
+  /* ===== LANG TICKER ===== */
+  #lang-ticker {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 2s ease;
+    text-align: center;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  #lang-ticker.show { opacity: 1; }
+
+  #ticker-text {
+    font-size: clamp(11px, 1.5vw, 16px);
+    font-weight: 300;
+    letter-spacing: 0.45em;
+    color: rgba(255,255,255,0.28);
+    transition: opacity 0.8s ease;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  #ticker-text.fade { opacity: 0; }
+
+  /* ===== CORNER DATE ===== */
+  #corner-date {
+    position: fixed;
+    top: 28px; right: 36px;
+    font-size: clamp(10px, 1vw, 13px);
+    font-weight: 300;
+    letter-spacing: 0.2em;
+    color: rgba(255,255,255,0.2);
+    font-family: 'Noto Sans JP', sans-serif;
+    opacity: 0;
+    transition: opacity 2s ease;
+  }
+  #corner-date.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- Layer 0: stars / aurora -->
+<canvas id="canvas-bg"></canvas>
+<!-- Layer 1: expanding rings -->
+<canvas id="canvas-ring"></canvas>
+
+<div id="stage">
+  <div id="logo-block">
+    <div id="logo-text">HIRANO</div>
+    <div id="logo-sub">株式会社ヒラノ &nbsp;·&nbsp; HIRANO Co., Ltd.</div>
+  </div>
+
+  <div id="divider"></div>
+  <div id="divider-dot"></div>
+
+  <div id="bem-vindos">
+    <div id="bem-vindos-text">BEM-VINDOS!</div>
+    <div id="bem-vindos-pt">ようこそ &nbsp;·&nbsp; Welcome &nbsp;·&nbsp; Bem-vindos</div>
+  </div>
+
+  <div id="info-block">
+    <div id="info-ja">株式会社ヒラノ へようこそ</div>
+    <div id="info-pt">Bem-vindos à Hirano Co., Ltd.</div>
+    <div id="info-tour">AMADA TOUR 2026</div>
+    <div id="info-date">2026年6月2日 &nbsp;·&nbsp; 2 de junho de 2026</div>
+  </div>
+</div>
+
+<div id="corner-date">2026.06.02</div>
+
+<div id="lang-ticker">
+  <div id="ticker-text">BEM-VINDOS!</div>
+</div>
+
+<div id="flag-bar">
+  <span class="fb-g"></span>
+  <span class="fb-y"></span>
+  <span class="fb-b"></span>
+</div>
+
+<script>
+// ============================================================
+// CANVAS BG — aurora gradient + floating stars
+// ============================================================
+const bgCanvas = document.getElementById('canvas-bg');
+const bgCtx    = bgCanvas.getContext('2d');
+
+function resizeAll() {
+  bgCanvas.width  = ringCanvas.width  = window.innerWidth;
+  bgCanvas.height = ringCanvas.height = window.innerHeight;
+}
+
+// Aurora blobs
+const blobs = [
+  { x: 0.25, y: 0.35, r: 0.45, col: [79,110,247],   phase: 0 },
+  { x: 0.75, y: 0.55, r: 0.40, col: [0,156,59],      phase: 1.5 },
+  { x: 0.50, y: 0.80, r: 0.35, col: [167,139,250],   phase: 3 },
+  { x: 0.15, y: 0.70, r: 0.30, col: [255,215,0],     phase: 4.5 },
+  { x: 0.85, y: 0.20, r: 0.30, col: [96,165,250],    phase: 2.2 },
+];
+
+// Stars
+const STAR_COUNT = 110;
+const stars = Array.from({length: STAR_COUNT}, () => ({
+  x:   Math.random(),
+  y:   Math.random(),
+  r:   Math.random() * 1.4 + 0.2,
+  a:   Math.random() * 0.5 + 0.05,
+  da:  (Math.random() * 0.004 + 0.001) * (Math.random() < 0.5 ? 1 : -1),
+  vx:  (Math.random() - 0.5) * 0.00012,
+  vy:  (Math.random() - 0.5) * 0.00012,
+  col: [[255,255,255],[79,110,247],[167,139,250],[255,215,0]][Math.floor(Math.random()*4)],
+}));
+
+function drawBg(t) {
+  const W = bgCanvas.width, H = bgCanvas.height;
+  bgCtx.fillStyle = '#080c1e';
+  bgCtx.fillRect(0, 0, W, H);
+
+  // Aurora blobs
+  blobs.forEach(b => {
+    const cx = (b.x + Math.sin(t * 0.00018 + b.phase) * 0.10) * W;
+    const cy = (b.y + Math.cos(t * 0.00014 + b.phase) * 0.08) * H;
+    const r  = (b.r + Math.sin(t * 0.00020 + b.phase) * 0.04) * Math.max(W, H);
+    const grd = bgCtx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    const [rr,gg,bb] = b.col;
+    grd.addColorStop(0,   `rgba(${rr},${gg},${bb},0.10)`);
+    grd.addColorStop(0.5, `rgba(${rr},${gg},${bb},0.04)`);
+    grd.addColorStop(1,   `rgba(${rr},${gg},${bb},0)`);
+    bgCtx.fillStyle = grd;
+    bgCtx.fillRect(0, 0, W, H);
+  });
+
+  // Stars
+  stars.forEach(s => {
+    s.x += s.vx; s.y += s.vy;
+    if (s.x < 0) s.x = 1; if (s.x > 1) s.x = 0;
+    if (s.y < 0) s.y = 1; if (s.y > 1) s.y = 0;
+    s.a += s.da;
+    if (s.a > 0.55) s.da = -Math.abs(s.da);
+    if (s.a < 0.04) s.da =  Math.abs(s.da);
+    const [rr,gg,bb] = s.col;
+    bgCtx.beginPath();
+    bgCtx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+    bgCtx.fillStyle = `rgba(${rr},${gg},${bb},${s.a})`;
+    bgCtx.fill();
+  });
+}
+
+// ============================================================
+// CANVAS RING — concentric rings expanding from center
+// ============================================================
+const ringCanvas = document.getElementById('canvas-ring');
+const ringCtx    = ringCanvas.getContext('2d');
+
+const RING_COLORS = [
+  [79,110,247],
+  [255,215,0],
+  [0,156,59],
+  [167,139,250],
+  [96,165,250],
+];
+const RING_COUNT  = 5;
+const RING_PERIOD = 6000; // ms for one ring to expand fully
+
+const rings = Array.from({length: RING_COUNT}, (_, i) => ({
+  offset: (i / RING_COUNT) * RING_PERIOD,
+  col:    RING_COLORS[i % RING_COLORS.length],
+}));
+
+function drawRings(t) {
+  const W = ringCanvas.width, H = ringCanvas.height;
+  ringCtx.clearRect(0, 0, W, H);
+  const cx = W / 2, cy = H / 2;
+  const maxR = Math.sqrt(cx * cx + cy * cy) * 0.72;
+
+  rings.forEach(ring => {
+    const phase  = ((t + ring.offset) % RING_PERIOD) / RING_PERIOD; // 0→1
+    const radius = phase * maxR;
+    const alpha  = (1 - phase) * 0.18;
+    if (alpha < 0.002) return;
+    const [rr,gg,bb] = ring.col;
+    ringCtx.beginPath();
+    ringCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ringCtx.strokeStyle = `rgba(${rr},${gg},${bb},${alpha})`;
+    ringCtx.lineWidth   = 1.2;
+    ringCtx.stroke();
+  });
+}
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+resizeAll();
+window.addEventListener('resize', resizeAll);
+
+function frame(t) {
+  drawBg(t);
+  drawRings(t);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ============================================================
+// APPEARANCE SEQUENCE  —  30秒ごとに最初から繰り返す
+// ============================================================
+const SEQUENCE_IDS = [
+  'logo-block', 'divider', 'divider-dot',
+  'bem-vindos', 'info-block', 'corner-date',
+  'flag-bar', 'lang-ticker',
+];
+const SEQUENCE_DELAYS = [1200, 2400, 3600, 4400, 6800, 6800, 8200, 9600];
+const LOOP_INTERVAL   = 30000; // 30秒
+
+const langs = [
+  'BEM-VINDOS!',
+  'ようこそ',
+  'WELCOME',
+  'アマダツアーの皆様、ようこそ',
+];
+let tickerIdx      = 0;
+let tickerInterval = null;
+let pendingTimers  = [];
+const tickerEl     = document.getElementById('ticker-text');
+
+function scheduleTimer(fn, delay) {
+  const id = setTimeout(fn, delay);
+  pendingTimers.push(id);
+  return id;
+}
+
+function startTicker(startDelay) {
+  scheduleTimer(() => {
+    tickerInterval = setInterval(() => {
+      tickerEl.classList.add('fade');
+      setTimeout(() => {
+        tickerIdx = (tickerIdx + 1) % langs.length;
+        tickerEl.textContent = langs[tickerIdx];
+        tickerEl.classList.remove('fade');
+      }, 850);
+    }, 4500);
+  }, startDelay);
+}
+
+function startSequence() {
+  // 各要素を時間差で表示
+  SEQUENCE_IDS.forEach((id, i) => {
+    scheduleTimer(() => {
+      document.getElementById(id).classList.add('show');
+    }, SEQUENCE_DELAYS[i]);
+  });
+
+  // ティッカーを lang-ticker 表示と同タイミングで開始
+  startTicker(SEQUENCE_DELAYS[SEQUENCE_IDS.indexOf('lang-ticker')]);
+}
+
+function resetSequence() {
+  // タイマーをすべてクリア
+  pendingTimers.forEach(id => clearTimeout(id));
+  pendingTimers = [];
+  if (tickerInterval) { clearInterval(tickerInterval); tickerInterval = null; }
+
+  // 要素を非表示に戻す（CSSトランジションでフェードアウト）
+  SEQUENCE_IDS.forEach(id => document.getElementById(id).classList.remove('show'));
+
+  // ティッカーをリセット
+  tickerIdx = 0;
+  tickerEl.textContent = langs[0];
+  tickerEl.classList.remove('fade');
+}
+
+// 初回スタート
+startSequence();
+
+// 30秒ごとにリセット→再スタート
+setInterval(() => {
+  resetSequence();
+  // フェードアウトが落ち着く1秒後に再スタート
+  setTimeout(startSequence, 1000);
+}, LOOP_INTERVAL);
+</script>
+</body>
+</html>

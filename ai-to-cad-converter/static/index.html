@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI to CAD Converter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .card {
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 16px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 560px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-top: 0.2rem;
+    }
+
+    .drop-zone {
+      border: 2px dashed #374151;
+      border-radius: 12px;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #111827;
+      position: relative;
+    }
+
+    .drop-zone.drag-over {
+      border-color: #6366f1;
+      background: rgba(99,102,241,0.08);
+    }
+
+    .drop-zone.has-file {
+      border-color: #10b981;
+      background: rgba(16,185,129,0.05);
+    }
+
+    .drop-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+      opacity: 0.5;
+    }
+
+    .drop-text {
+      font-size: 0.95rem;
+      color: #9ca3af;
+      line-height: 1.6;
+    }
+
+    .drop-text strong {
+      color: #6366f1;
+      cursor: pointer;
+    }
+
+    .file-info {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding: 0.6rem 1rem;
+      background: rgba(16,185,129,0.1);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: #10b981;
+    }
+
+    .file-info.visible { display: flex; }
+
+    #file-input { display: none; }
+
+    .format-group {
+      margin-top: 1.5rem;
+    }
+
+    .format-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.75rem;
+    }
+
+    .format-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .format-option {
+      position: relative;
+    }
+
+    .format-option input { display: none; }
+
+    .format-option label {
+      display: flex;
+      flex-direction: column;
+      padding: 0.85rem 1rem;
+      border: 1.5px solid #374151;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: #111827;
+    }
+
+    .format-option input:checked + label {
+      border-color: #6366f1;
+      background: rgba(99,102,241,0.1);
+    }
+
+    .format-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #e2e8f0;
+    }
+
+    .format-desc {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 0.2rem;
+    }
+
+    .btn-convert {
+      width: 100%;
+      margin-top: 1.5rem;
+      padding: 0.85rem;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn-convert:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+    .btn-convert:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .status {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      display: none;
+    }
+
+    .status.loading {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(99,102,241,0.1);
+      color: #818cf8;
+    }
+
+    .status.success {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(16,185,129,0.1);
+      color: #10b981;
+    }
+
+    .status.error {
+      display: block;
+      background: rgba(239,68,68,0.1);
+      color: #f87171;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(129,140,248,0.3);
+      border-top-color: #818cf8;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .info-box {
+      margin-top: 1.5rem;
+      padding: 0.85rem 1rem;
+      background: rgba(99,102,241,0.05);
+      border: 1px solid rgba(99,102,241,0.2);
+      border-radius: 8px;
+      font-size: 0.78rem;
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    .info-box ul {
+      padding-left: 1.2em;
+      margin-top: 0.4rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">⬡</div>
+      <div>
+        <h1>AI to CAD Converter</h1>
+        <div class="subtitle">.ai → .igs / .stp（3D CADインポート用）</div>
+      </div>
+    </div>
+
+    <div class="drop-zone" id="drop-zone">
+      <div class="drop-icon">📐</div>
+      <div class="drop-text">
+        ここにドロップ、または<strong onclick="document.getElementById('file-input').click()">ファイルを選択</strong><br>
+        <small>Adobe Illustrator .ai ファイル</small>
+      </div>
+    </div>
+    <input type="file" id="file-input" accept=".ai">
+    <div class="file-info" id="file-info">
+      <span>📄</span>
+      <span id="file-name">—</span>
+    </div>
+
+    <div class="format-group">
+      <div class="format-label">出力フォーマット</div>
+      <div class="format-options">
+        <div class="format-option">
+          <input type="radio" name="format" id="fmt-iges" value="iges" checked>
+          <label for="fmt-iges">
+            <span class="format-name">.igs (IGES)</span>
+            <span class="format-desc">広く互換性あり</span>
+          </label>
+        </div>
+        <div class="format-option">
+          <input type="radio" name="format" id="fmt-step" value="step">
+          <label for="fmt-step">
+            <span class="format-name">.stp (STEP)</span>
+            <span class="format-desc">AP214・モダン標準</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-convert" id="btn-convert" disabled>変換してダウンロード</button>
+
+    <div class="status" id="status"></div>
+
+    <div class="info-box">
+      <strong>変換内容について</strong>
+      <ul>
+        <li>直線・三次ベジェ曲線 → IGES/STEP 曲線エンティティ（Z=0 平面）</li>
+        <li>SolidWorks・Fusion 360・FreeCAD でインポート可能</li>
+        <li>単位は mm（ポイント→mm 自動変換）</li>
+        <li>テキスト・グラデーション・画像は変換されません</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileInfo = document.getElementById('file-info');
+    const fileName = document.getElementById('file-name');
+    const btnConvert = document.getElementById('btn-convert');
+    const status = document.getElementById('status');
+    let selectedFile = null;
+
+    function setFile(file) {
+      if (!file || !file.name.toLowerCase().endsWith('.ai')) {
+        showStatus('error', '.aiファイルを選択してください');
+        return;
+      }
+      selectedFile = file;
+      fileName.textContent = file.name;
+      fileInfo.classList.add('visible');
+      dropZone.classList.add('has-file');
+      btnConvert.disabled = false;
+      status.style.display = 'none';
+      status.className = 'status';
+    }
+
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const f = e.dataTransfer.files[0];
+      if (f) setFile(f);
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) setFile(fileInput.files[0]);
+    });
+
+    function showStatus(type, msg) {
+      status.className = `status ${type}`;
+      if (type === 'loading') {
+        status.innerHTML = `<div class="spinner"></div><span>${msg}</span>`;
+      } else {
+        status.textContent = msg;
+      }
+      status.style.display = type === 'loading' ? 'flex' : 'block';
+    }
+
+    btnConvert.addEventListener('click', async () => {
+      if (!selectedFile) return;
+      const format = document.querySelector('input[name="format"]:checked').value;
+
+      btnConvert.disabled = true;
+      showStatus('loading', '変換中...');
+
+      const body = new FormData();
+      body.append('file', selectedFile);
+      body.append('format', format);
+
+      try {
+        const res = await fetch('/convert', { method: 'POST', body });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: '不明なエラー' }));
+          throw new Error(err.detail || res.statusText);
+        }
+
+        const pathCount = res.headers.get('X-Path-Count') || '?';
+        const segCount = res.headers.get('X-Segment-Count') || '?';
+
+        const blob = await res.blob();
+        const ext = format === 'iges' ? '.igs' : '.stp';
+        const outName = selectedFile.name.replace(/\.ai$/i, ext);
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = outName;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showStatus('success', `✓ 変換完了 — パス数: ${pathCount}、セグメント数: ${segCount}。ダウンロードを確認してください。`);
+      } catch (e) {
+        showStatus('error', `エラー: ${e.message}`);
+      } finally {
+        btnConvert.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space ファビコン案</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Poppins', sans-serif; background: #f0f2f5; padding: 52px 32px; }
+.title { text-align: center; margin-bottom: 48px; }
+.title p { font-size: 11px; font-weight: 500; letter-spacing: .3em; color: #9ca3af; text-transform: uppercase; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px; max-width: 960px; margin: 0 auto;
+}
+.card {
+  background: #fff; border-radius: 14px;
+  padding: 32px 20px 22px;
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  transition: box-shadow .2s, transform .2s; cursor: pointer;
+}
+.card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.1); transform: translateY(-2px); }
+.card-num { align-self: flex-start; font-size: 10px; font-weight: 600; letter-spacing: .2em; color: #d1d5db; }
+
+/* サイズプレビュー行 */
+.sizes {
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 16px; width: 100%;
+}
+.size-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.size-label { font-size: 9px; font-weight: 500; color: #9ca3af; letter-spacing: .05em; }
+
+/* ダーク背景プレビュー */
+.dark-preview {
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+}
+.dark-preview .tab-text { font-size: 11px; color: #94a3b8; }
+.tab-bar { width: 1px; height: 14px; background: #334155; }
+
+.card-label { font-size: 11px; font-weight: 500; letter-spacing: .1em; color: #9ca3af; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<div class="title">
+  <p>Space — Favicon Proposals</p>
+</div>
+
+<div class="grid">
+
+  <!-- 1: ソリッド角丸 -->
+  <div class="card">
+    <div class="card-num">01</div>
+    <div class="sizes">
+      <!-- 64px -->
+      <div class="size-wrap">
+        <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#1d4ed8"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">64px</span>
+      </div>
+      <!-- 32px -->
+      <div class="size-wrap">
+        <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#1d4ed8"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">32px</span>
+      </div>
+      <!-- 16px -->
+      <div class="size-wrap">
+        <svg width="16" height="16" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#1d4ed8"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">16px</span>
+      </div>
+    </div>
+    <!-- ブラウザタブイメージ -->
+    <div class="dark-preview">
+      <svg width="16" height="16" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1d4ed8"/><text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text></svg>
+      <span class="tab-text">Space</span>
+    </div>
+    <div class="card-label">ブルー角丸</div>
+  </div>
+
+  <!-- 2: ダーク角丸 -->
+  <div class="card">
+    <div class="card-num">02</div>
+    <div class="sizes">
+      <div class="size-wrap">
+        <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#0f172a"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="#3b82f6" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">64px</span>
+      </div>
+      <div class="size-wrap">
+        <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#0f172a"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="#3b82f6" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">32px</span>
+      </div>
+      <div class="size-wrap">
+        <svg width="16" height="16" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#0f172a"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="#3b82f6" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">16px</span>
+      </div>
+    </div>
+    <div class="dark-preview">
+      <svg width="16" height="16" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0f172a"/><text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="#3b82f6" text-anchor="middle">S</text></svg>
+      <span class="tab-text">Space</span>
+    </div>
+    <div class="card-label">ダーク × ブルーS</div>
+  </div>
+
+  <!-- 3: グラデーション -->
+  <div class="card">
+    <div class="card-num">03</div>
+    <div class="sizes">
+      <div class="size-wrap">
+        <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient></defs>
+          <rect width="64" height="64" rx="14" fill="url(#g3)"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">64px</span>
+      </div>
+      <div class="size-wrap">
+        <svg width="32" height="32" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="g3b" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient></defs>
+          <rect width="64" height="64" rx="14" fill="url(#g3b)"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">32px</span>
+      </div>
+      <div class="size-wrap">
+        <svg width="16" height="16" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="g3c" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient></defs>
+          <rect width="64" height="64" rx="14" fill="url(#g3c)"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">16px</span>
+      </div>
+    </div>
+    <div class="dark-preview">
+      <svg width="16" height="16" viewBox="0 0 64 64"><defs><linearGradient id="g3d" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#g3d)"/><text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text></svg>
+      <span class="tab-text">Space</span>
+    </div>
+    <div class="card-label">グラデーション</div>
+  </div>
+
+  <!-- 4: 円形 -->
+  <div class="card">
+    <div class="card-num">04</div>
+    <div class="sizes">
+      <div class="size-wrap">
+        <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="32" cy="32" r="32" fill="#1d4ed8"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">64px</span>
+      </div>
+      <div class="size-wrap">
+        <svg width="32" height="32" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="32" fill="#1d4ed8"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">32px</span>
+      </div>
+      <div class="size-wrap">
+        <svg width="16" height="16" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="32" fill="#1d4ed8"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">16px</span>
+      </div>
+    </div>
+    <div class="dark-preview">
+      <svg width="16" height="16" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="#1d4ed8"/><text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text></svg>
+      <span class="tab-text">Space</span>
+    </div>
+    <div class="card-label">サークル</div>
+  </div>
+
+  <!-- 5: ホワイト背景 -->
+  <div class="card">
+    <div class="card-num">05</div>
+    <div class="sizes">
+      <div class="size-wrap">
+        <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="white" stroke="#e5e7eb" stroke-width="2"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="#1d4ed8" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">64px</span>
+      </div>
+      <div class="size-wrap">
+        <svg width="32" height="32" viewBox="0 0 64 64">
+          <rect width="64" height="64" rx="14" fill="white" stroke="#e5e7eb" stroke-width="2"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="#1d4ed8" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">32px</span>
+      </div>
+      <div class="size-wrap">
+        <svg width="16" height="16" viewBox="0 0 64 64">
+          <rect width="64" height="64" rx="14" fill="white" stroke="#e5e7eb" stroke-width="2"/>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="#1d4ed8" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">16px</span>
+      </div>
+    </div>
+    <div class="dark-preview">
+      <svg width="16" height="16" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="white"/><text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="#1d4ed8" text-anchor="middle">S</text></svg>
+      <span class="tab-text">Space</span>
+    </div>
+    <div class="card-label">ホワイト × ブルー</div>
+  </div>
+
+  <!-- 6: 斜め2色 -->
+  <div class="card">
+    <div class="card-num">06</div>
+    <div class="sizes">
+      <div class="size-wrap">
+        <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <rect width="64" height="64" rx="14" fill="#1e3a8a"/>
+          <polygon points="0,0 64,0 64,64" fill="#1d4ed8"/>
+          <rect width="64" height="64" rx="14" fill="none"/>
+          <clipPath id="clip6a"><rect width="64" height="64" rx="14"/></clipPath>
+          <g clip-path="url(#clip6a)">
+            <rect width="64" height="64" fill="#1e3a8a"/>
+            <polygon points="0,0 64,0 64,64" fill="#2563eb"/>
+          </g>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">64px</span>
+      </div>
+      <div class="size-wrap">
+        <svg width="32" height="32" viewBox="0 0 64 64">
+          <clipPath id="clip6b"><rect width="64" height="64" rx="14"/></clipPath>
+          <g clip-path="url(#clip6b)">
+            <rect width="64" height="64" fill="#1e3a8a"/>
+            <polygon points="0,0 64,0 64,64" fill="#2563eb"/>
+          </g>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">32px</span>
+      </div>
+      <div class="size-wrap">
+        <svg width="16" height="16" viewBox="0 0 64 64">
+          <clipPath id="clip6c"><rect width="64" height="64" rx="14"/></clipPath>
+          <g clip-path="url(#clip6c)">
+            <rect width="64" height="64" fill="#1e3a8a"/>
+            <polygon points="0,0 64,0 64,64" fill="#2563eb"/>
+          </g>
+          <text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text>
+        </svg>
+        <span class="size-label">16px</span>
+      </div>
+    </div>
+    <div class="dark-preview">
+      <svg width="16" height="16" viewBox="0 0 64 64"><clipPath id="clip6d"><rect width="64" height="64" rx="14"/></clipPath><g clip-path="url(#clip6d)"><rect width="64" height="64" fill="#1e3a8a"/><polygon points="0,0 64,0 64,64" fill="#2563eb"/></g><text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text></svg>
+      <span class="tab-text">Space</span>
+    </div>
+    <div class="card-label">ダイアゴナル2色</div>
+  </div>
+
+</div>
+
+<!-- SVGダウンロードセクション -->
+<div style="max-width:960px;margin:40px auto 0;background:#fff;border-radius:14px;padding:28px 24px;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+  <p style="font-size:11px;font-weight:600;letter-spacing:.2em;color:#9ca3af;text-transform:uppercase;margin-bottom:16px;">SVG コード（favicon.svg として保存）</p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;">
+    <button onclick="download(1)" style="padding:8px 16px;background:#1d4ed8;color:white;border:none;border-radius:8px;font-family:Poppins,sans-serif;font-size:12px;font-weight:600;cursor:pointer;">01 ブルー角丸</button>
+    <button onclick="download(2)" style="padding:8px 16px;background:#0f172a;color:white;border:none;border-radius:8px;font-family:Poppins,sans-serif;font-size:12px;font-weight:600;cursor:pointer;">02 ダーク</button>
+    <button onclick="download(3)" style="padding:8px 16px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:white;border:none;border-radius:8px;font-family:Poppins,sans-serif;font-size:12px;font-weight:600;cursor:pointer;">03 グラデーション</button>
+    <button onclick="download(4)" style="padding:8px 16px;background:#1d4ed8;color:white;border:none;border-radius:8px;font-family:Poppins,sans-serif;font-size:12px;font-weight:600;cursor:pointer;border-radius:24px;">04 サークル</button>
+    <button onclick="download(5)" style="padding:8px 16px;background:#fff;color:#1d4ed8;border:1.5px solid #e5e7eb;border-radius:8px;font-family:Poppins,sans-serif;font-size:12px;font-weight:600;cursor:pointer;">05 ホワイト</button>
+    <button onclick="download(6)" style="padding:8px 16px;background:#1e3a8a;color:white;border:none;border-radius:8px;font-family:Poppins,sans-serif;font-size:12px;font-weight:600;cursor:pointer;">06 斜め2色</button>
+  </div>
+</div>
+
+<script>
+const svgs = {
+  1: `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="#1d4ed8"/><text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text></svg>`,
+  2: `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="#0f172a"/><text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="#3b82f6" text-anchor="middle">S</text></svg>`,
+  3: `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1d4ed8"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#g)"/><text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text></svg>`,
+  4: `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="32" fill="#1d4ed8"/><text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text></svg>`,
+  5: `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><rect width="64" height="64" rx="14" fill="white" stroke="#e5e7eb" stroke-width="2"/><text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="#1d4ed8" text-anchor="middle">S</text></svg>`,
+  6: `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><clipPath id="c"><rect width="64" height="64" rx="14"/></clipPath><g clip-path="url(#c)"><rect width="64" height="64" fill="#1e3a8a"/><polygon points="0,0 64,0 64,64" fill="#2563eb"/></g><text x="32" y="46" font-family="Poppins,sans-serif" font-weight="800" font-size="38" fill="white" text-anchor="middle">S</text></svg>`,
+};
+function download(n) {
+  const blob = new Blob([svgs[n]], { type: 'image/svg+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `space-favicon-0${n}.svg`;
+  a.click();
+}
+</script>
+</body>
+</html>
