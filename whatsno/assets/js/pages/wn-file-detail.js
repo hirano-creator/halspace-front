@@ -9,6 +9,8 @@ const fileId    = new URLSearchParams(location.search).get('id');
 let pdfPreviewDoc  = null;
 let pdfPreviewPage = 1;
 let pdfPreviewRot  = 0;   // ビューア側追加回転: 0 | 90 | 180 | 270
+let pdfViewMode    = 'single';  // 'single' | 'grid'
+let pdfGridRendered = false;    // グリッド描画済みフラグ（回転時に無効化）
 
 document.addEventListener('DOMContentLoaded', async () => {
   if (!fileId) { location.href = 'dashboard.html'; return; }
@@ -492,13 +494,10 @@ function renderPdfNav(pdfDoc, _page, canvas, ctx, area, currentPageNum) {
   `;
   document.getElementById('previewArea').appendChild(nav);
 
-  let cur = currentPageNum;
-
   async function goTo(n) {
     if (n < 1 || n > total) return;
-    cur = n;
     pdfPreviewPage = n;
-    const pg = await pdfDoc.getPage(cur);
+    const pg = await pdfDoc.getPage(n);
     const areaW = area.clientWidth  - 24;
     const areaH = area.clientHeight - 24;
     const dpr   = Math.max(window.devicePixelRatio || 1, 2);
@@ -512,12 +511,103 @@ function renderPdfNav(pdfDoc, _page, canvas, ctx, area, currentPageNum) {
     canvas.style.width  = (baseVP.width  * scale) + 'px';
     canvas.style.height = (baseVP.height * scale) + 'px';
     await pg.render({ canvasContext: ctx, viewport: vp }).promise;
-    document.getElementById('pdfPageLabel').textContent = `${cur} / ${total}`;
+    document.getElementById('pdfPageLabel').textContent = `${n} / ${total}`;
     document.getElementById('pdfContainer').scrollTop = 0;
   }
 
-  nav.querySelector('#pdfPrev').addEventListener('click', () => goTo(cur - 1));
-  nav.querySelector('#pdfNext').addEventListener('click', () => goTo(cur + 1));
+  nav.querySelector('#pdfPrev').addEventListener('click', () => goTo(pdfPreviewPage - 1));
+  nav.querySelector('#pdfNext').addEventListener('click', () => goTo(pdfPreviewPage + 1));
+}
+
+/* ────────────────────────────────
+   PDF グリッド表示（全ページ一覧）
+   ──────────────────────────────── */
+
+/* 単ページ⇔グリッドの表示切り替え */
+async function setPdfViewMode(mode) {
+  pdfViewMode = mode;
+  const single = document.getElementById('pdfContainer');
+  const nav    = document.getElementById('pdfNavBar');
+  const toggle = document.getElementById('pdfViewToggle');
+
+  if (mode === 'grid') {
+    await renderPdfGrid();
+    single.style.display = 'none';
+    if (nav) nav.style.display = 'none';
+    document.getElementById('pdfGridContainer').style.display = 'block';
+    if (toggle) {
+      toggle.innerHTML = '<i class="fa-regular fa-square"></i>';
+      toggle.title = '単ページ表示に戻る';
+    }
+  } else {
+    const grid = document.getElementById('pdfGridContainer');
+    if (grid) grid.style.display = 'none';
+    single.style.display = 'flex';
+    if (nav) nav.style.display = 'flex';
+    if (toggle) {
+      toggle.innerHTML = '<i class="fa-solid fa-table-cells"></i>';
+      toggle.title = '全ページを一覧表示';
+    }
+  }
+}
+
+/* 全ページをサムネイルサイズでグリッド描画（描画済みなら再利用） */
+async function renderPdfGrid() {
+  if (!pdfPreviewDoc) return;
+  const area = document.getElementById('previewArea');
+
+  let grid = document.getElementById('pdfGridContainer');
+  if (!grid) {
+    grid = document.createElement('div');
+    grid.id = 'pdfGridContainer';
+    grid.style.cssText =
+      'display:none;width:100%;height:100%;overflow:auto;background:#525659;' +
+      'padding:12px;box-sizing:border-box;';
+    area.appendChild(grid);
+  }
+  if (pdfGridRendered) return;
+
+  grid.innerHTML =
+    '<div id="pdfGridInner" style="display:grid;' +
+    'grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;"></div>';
+  const inner = grid.querySelector('#pdfGridInner');
+  const total = pdfPreviewDoc.numPages;
+
+  /* セル幅相当の固定解像度で描画（縮小表示なので軽量。15ページ程度なら数MB） */
+  const THUMB_RENDER_W = 480;
+
+  for (let n = 1; n <= total; n++) {
+    const cell = document.createElement('div');
+    cell.style.cssText =
+      'position:relative;cursor:pointer;background:#fff;border-radius:4px;' +
+      'overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:outline .1s;';
+    cell.innerHTML =
+      '<canvas style="display:block;width:100%;height:auto;"></canvas>' +
+      `<span style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.6);` +
+      `color:#fff;font-size:11px;border-radius:10px;padding:2px 8px;">p.${n}</span>`;
+    cell.addEventListener('mouseenter', () => cell.style.outline = '3px solid #1976d2');
+    cell.addEventListener('mouseleave', () => cell.style.outline = 'none');
+    cell.addEventListener('click', async () => {
+      pdfPreviewPage = n;
+      await setPdfViewMode('single');
+      await reRenderPdfPreviewPage();
+      const label = document.getElementById('pdfPageLabel');
+      if (label) label.textContent = `${n} / ${total}`;
+    });
+    inner.appendChild(cell);
+
+    const page    = await pdfPreviewDoc.getPage(n);
+    const _defVP  = page.getViewport({ scale: 1 });
+    const _totRot = (_defVP.rotation + pdfPreviewRot) % 360;
+    const baseVP  = page.getViewport({ scale: 1, rotation: _totRot });
+    const scale   = THUMB_RENDER_W / baseVP.width;
+    const vp      = page.getViewport({ scale, rotation: _totRot });
+    const canvas  = cell.querySelector('canvas');
+    canvas.width  = vp.width;
+    canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+  }
+  pdfGridRendered = true;
 }
 
 /* PDF プレビューの現在ページを回転付きで再描画 */
@@ -569,6 +659,7 @@ function addPdfRotateOverlay() {
     'transition:background .15s',
   ].join(';');
 
+  const multiPage = (pdfPreviewDoc?.numPages || 1) > 1;
   bar.innerHTML = `
     <button id="pdfRotCCW" title="左90°回転" style="${btnStyle}">
       <i class="fa-solid fa-rotate-left"></i>
@@ -576,6 +667,10 @@ function addPdfRotateOverlay() {
     <button id="pdfRotCW" title="右90°回転" style="${btnStyle}">
       <i class="fa-solid fa-rotate-right"></i>
     </button>
+    ${multiPage ? `
+    <button id="pdfViewToggle" title="全ページを一覧表示" style="${btnStyle}">
+      <i class="fa-solid fa-table-cells"></i>
+    </button>` : ''}
   `;
   document.getElementById('previewArea').appendChild(bar);
 
@@ -583,14 +678,19 @@ function addPdfRotateOverlay() {
     btn.addEventListener('mouseenter', () => btn.style.background = 'rgba(255,255,255,.2)');
     btn.addEventListener('mouseleave', () => btn.style.background = 'none');
   });
-  bar.querySelector('#pdfRotCCW').addEventListener('click', async () => {
-    pdfPreviewRot = (pdfPreviewRot - 90 + 360) % 360;
-    await reRenderPdfPreviewPage();
-  });
-  bar.querySelector('#pdfRotCW').addEventListener('click', async () => {
-    pdfPreviewRot = (pdfPreviewRot + 90) % 360;
-    await reRenderPdfPreviewPage();
-  });
+  async function applyRotate(delta) {
+    pdfPreviewRot = (pdfPreviewRot + delta + 360) % 360;
+    pdfGridRendered = false;  /* グリッドのサムネイルも回転を反映させるため無効化 */
+    if (pdfViewMode === 'grid') {
+      await renderPdfGrid();
+    } else {
+      await reRenderPdfPreviewPage();
+    }
+  }
+  bar.querySelector('#pdfRotCCW').addEventListener('click', () => applyRotate(-90));
+  bar.querySelector('#pdfRotCW').addEventListener('click', () => applyRotate(90));
+  bar.querySelector('#pdfViewToggle')?.addEventListener('click', () =>
+    setPdfViewMode(pdfViewMode === 'grid' ? 'single' : 'grid'));
 }
 
 /* ────────────────────────────────
@@ -635,6 +735,9 @@ async function loadPdfPreview(attempt) {
     hintEl().textContent = 'PDF描画中…';
     pdfPreviewDoc  = await pdfjsLib.getDocument({ data: buffer }).promise;
     pdfPreviewPage = 1;
+    pdfViewMode    = 'single';
+    pdfGridRendered = false;
+    document.getElementById('pdfGridContainer')?.remove();
     const pdfDoc   = pdfPreviewDoc;
     const page     = await pdfDoc.getPage(1);
     const container = document.getElementById('pdfContainer');
