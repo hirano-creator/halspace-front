@@ -468,13 +468,12 @@ async function showPowerPointPreview() {
   hint.textContent = 'スライドを変換中…';
 
   try {
-    const response = await fetch(`${window.wnApiBase}/wn/files/${fileId}/preview-slides`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
-    });
+    const response = await wnFetch(`/wn/files/${fileId}/preview-slides`);
+    if (!response) throw new Error('認証エラー');
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'プレビュー生成失敗');
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `プレビュー生成失敗 (HTTP ${response.status})`);
     }
 
     const data = await response.json();
