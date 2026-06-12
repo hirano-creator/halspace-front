@@ -601,8 +601,12 @@ const authImgCache = new Map();
 
 function loadAuthImages(container) {
   container.querySelectorAll('[data-auth-img]').forEach(async img => {
-    const url = img.dataset.authImg;
+    let url = img.dataset.authImg;
     if (!url) return;
+    // APIが http:// のURLを返してもMixed Contentでブロックされないよう https に昇格
+    if (location.protocol === 'https:' && url.startsWith('http://')) {
+      url = 'https://' + url.slice('http://'.length);
+    }
     const cached = authImgCache.get(url);
     if (cached) {
       img.src = cached;
