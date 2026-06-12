@@ -904,7 +904,7 @@ function fileCardHtml(f) {
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
                 || ext === 'dxf'
-                || ['xlsx','xls','xlsm','docx','docm'].includes(ext);
+                || ['xlsx','xls','xlsm','docx','docm','pptx','ppt','pptm'].includes(ext);
   const thumbHtml = hasThumb
     ? `<i class="fa-solid ${icon} file-type-icon ${cls}" id="thumb-icon-${f.id}"></i>`
     : `<i class="fa-solid ${icon} file-type-icon ${cls}"></i>`;
@@ -977,7 +977,7 @@ function fileRowHtmlClassic(f) {
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
                 || ext === 'dxf'
-                || ['xlsx','xls','xlsm','docx','docm'].includes(ext);
+                || ['xlsx','xls','xlsm','docx','docm','pptx','ppt','pptm'].includes(ext);
   const iconContent = hasThumb
     ? `<i class="fa-solid ${icon} ${cls}" id="thumb-icon-row-${f.id}"></i>`
     : `<i class="fa-solid ${icon} ${cls}"></i>`;
@@ -1043,7 +1043,7 @@ function fileRowHtmlIG(f) {
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
                 || ext === 'dxf'
-                || ['xlsx','xls','xlsm','docx','docm'].includes(ext);
+                || ['xlsx','xls','xlsm','docx','docm','pptx','ppt','pptm'].includes(ext);
   const placeholderIcon = hasThumb
     ? `<i class="fa-solid ${icon} ${cls}" id="thumb-icon-row-${f.id}"></i>`
     : `<i class="fa-solid ${icon} ${cls}"></i>`;
