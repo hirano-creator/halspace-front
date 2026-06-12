@@ -318,7 +318,9 @@ function renderPreview() {
       document.getElementById('previewPlaceholder').style.display = 'none';
     });
   } else if (['pptx','ppt','pptm'].includes(ext)) {
-    showPowerPointPreview();
+    /* サーバー側で PDF に変換し、既存の PDF.js ビューアで表示 */
+    document.getElementById('previewHint').textContent = 'スライドを変換中…';
+    loadPdfPreview(1);
   } else if (wnIsOfficeFile(fileData.file_name)) {
     showOfficePreview();
   } else if (['dxf'].includes(ext)) {
@@ -457,122 +459,16 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-/* ────────────────────────────────
-   PowerPoint（PPTX）プレビュー
-   ── サーバー側でPDFに変換、さらにPNGに変換したスライド画像を表示 ── */
-async function showPowerPointPreview() {
-  const placeholder = document.getElementById('previewPlaceholder');
-  const hint = document.getElementById('previewHint');
-  const area = document.getElementById('previewArea');
-
-  hint.textContent = 'スライドを変換中…';
-
-  try {
-    const response = await wnFetch(`/wn/files/${fileId}/preview-slides`);
-    if (!response) throw new Error('認証エラー');
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || `プレビュー生成失敗 (HTTP ${response.status})`);
-    }
-
-    const data = await response.json();
-    if (!data.slides || data.slides.length === 0) {
-      throw new Error('スライドが生成されませんでした');
-    }
-
-    placeholder.style.display = 'none';
-    hint.style.display = 'none';
-
-    // スライドビューアコンテナを作成
-    const viewer = document.createElement('div');
-    viewer.id = 'pptxViewer';
-    viewer.style.cssText = `
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      background: #2a2a2a;
-      position: relative;
-      overflow: hidden;
-    `;
-
-    // スライド画像
-    const img = document.createElement('img');
-    img.id = 'pptxSlideImg';
-    img.style.cssText = `
-      max-width: 100%;
-      max-height: calc(100% - 50px);
-      object-fit: contain;
-      display: block;
-    `;
-    viewer.appendChild(img);
-
-    // ナビゲーションバー
-    const nav = document.createElement('div');
-    nav.style.cssText = `
-      position: absolute;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,.6);
-      backdrop-filter: blur(4px);
-      color: #fff;
-      border-radius: 20px;
-      padding: 5px 14px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-      z-index: 10;
-    `;
-
-    nav.innerHTML = `
-      <button id="pptxPrev" style="background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:0 4px;">
-        <i class="fa-solid fa-chevron-left"></i>
-      </button>
-      <span id="pptxPageLabel">1 / ${data.slides.length}</span>
-      <button id="pptxNext" style="background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:0 4px;">
-        <i class="fa-solid fa-chevron-right"></i>
-      </button>
-    `;
-    viewer.appendChild(nav);
-
-    area.appendChild(viewer);
-
-    // スライド管理状態
-    let currentPage = 1;
-    const totalPages = data.slides.length;
-
-    const showSlide = (pageNum) => {
-      if (pageNum < 1 || pageNum > totalPages) return;
-      currentPage = pageNum;
-      const slide = data.slides[pageNum - 1];
-      img.src = slide.url;
-      document.getElementById('pptxPageLabel').textContent = `${pageNum} / ${totalPages}`;
-    };
-
-    // ナビゲーション操作
-    document.getElementById('pptxPrev').addEventListener('click', () => showSlide(currentPage - 1));
-    document.getElementById('pptxNext').addEventListener('click', () => showSlide(currentPage + 1));
-
-    // キーボードナビゲーション
-    const handleKeydown = (e) => {
-      if (e.key === 'ArrowLeft') showSlide(currentPage - 1);
-      if (e.key === 'ArrowRight') showSlide(currentPage + 1);
-    };
-    document.addEventListener('keydown', handleKeydown);
-
-    // 初期スライド表示
-    showSlide(1);
-
-  } catch (e) {
-    console.error('PowerPoint preview error:', e);
-    placeholder.style.display = '';
-    hint.textContent = 'プレビュー生成に失敗しました: ' + e.message;
+/* PowerPoint: サーバー側で変換した PDF を ArrayBuffer で取得
+   （表示は loadPdfPreview の PDF.js ビューアに合流） */
+async function wnFetchPptxPdfBuffer(id) {
+  const res = await wnFetch(`/wn/files/${id}/preview-pdf`);
+  if (!res) throw new Error('認証エラー');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `スライド変換に失敗しました (HTTP ${res.status})`);
   }
+  return await res.arrayBuffer();
 }
 
 /* PDF ページナビゲーション */
@@ -717,10 +613,15 @@ async function loadPdfPreview(attempt) {
 
     /* IndexedDB キャッシュ確認 */
     let buffer = null;
+    const isPpt = ['pptx','ppt','pptm'].includes(fileData.file_name.split('.').pop().toLowerCase());
     const cachedBlob = await (window.WnPreviewCache?.get(fileId, fileData.updated_at) ?? null);
     if (cachedBlob) {
       hintEl().textContent = 'キャッシュから読み込み中…';
       buffer = await cachedBlob.arrayBuffer();
+    } else if (isPpt) {
+      /* PowerPoint はサーバー側で PDF 変換したものを取得（初回は変換に時間がかかる） */
+      hintEl().textContent = 'スライドをPDFに変換中…（初回は1分ほどかかることがあります）';
+      buffer = await wnFetchPptxPdfBuffer(fileId);
     } else {
       buffer = await wnFetchFileBuffer(fileId, {
         onProgress: pct => { hintEl().textContent = `PDF読み込み中… ${pct}%`; },
