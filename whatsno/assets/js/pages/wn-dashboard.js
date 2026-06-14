@@ -379,49 +379,130 @@ async function runSkill(instruction) {
 
   try {
     const contacts = await wnGetContacts();
-    const res   = await wnRunSkill(instruction, file.id, contacts);
-    const draft = res.draft || {};
+    const res    = await wnRunSkill(instruction, file.id, contacts);
+    const action = res.action_type;
+    const runId  = res.run_id;
 
-    // 既存のメール送信モーダルを開く（共有リンクを先行発行）
-    openEmailModal(file.id, file.file_name);
-
-    // LLMの下書きを流し込む
-    if (draft.to_email) {
-      emailChips = [{ email: draft.to_email }];
-      renderEmailChips();
-    }
-    if (draft.body_message) {
-      const msgEl = document.getElementById('emailMessage');
-      const cnt   = document.getElementById('emailMsgCount');
-      if (msgEl) msgEl.value = draft.body_message;
-      if (cnt)   cnt.textContent = String(draft.body_message.length);
+    // 該当スキルなし → 入力は残して再入力できるようにする
+    if (!action) {
+      wnShowToast(res.message || '対応するスキルが見つかりませんでした', 'info');
+      return;
     }
 
     input.value = '';
 
-    if (draft.to_email) {
-      // 宛先が解決できた → 共有リンクの発行完了を待つ
-      skillPendingName = '';
-      const share = await (emailShareCache.get(file.id) ?? Promise.resolve(null));
-      if (!share?.url) {
-        wnShowToast('共有リンクの生成を待っています。完了後に送信してください', 'info');
-      } else {
-        const pref = wnGetMailerPref();
-        if (pref === 'gmail')       doSendEmailGmail();   // 2回目以降: 記憶したGmailを自動起動
-        else if (pref === 'mailto') doSendEmailMailto();  // 2回目以降: 記憶した既定メールアプリを自動起動
-        else wnShowToast('送信方法を選んでください（次回から自動で起動します）', 'info');  // 初回はモーダルで選択
-      }
-    } else {
-      // 宛先が未解決 → 手入力を促し、入力されたら連絡先に保存する
-      skillPendingName = draft.to_name || '';
-      wnShowToast(`「${draft.to_name || '宛先'}」のメールアドレスを入力してください`, 'info');
+    // メール: 既存のメールモーダル導線を踏襲（送信方法の記憶・自動起動あり）
+    if (action === 'email') {
+      await runSkillEmail(file, res);
+      return;
     }
+
+    // 実行できない状態（承認申請不可など）
+    if (res.blocked) {
+      wnShowToast(res.message || 'このスキルは実行できません', 'info');
+      await wnConfirmSkillRun(runId, 'canceled');
+      return;
+    }
+
+    // 共有リンク発行
+    if (action === 'share') {
+      const days = (res.draft && res.draft.expires_days) || 30;
+      if (!confirm(res.message || `共有リンクを発行しますか？（有効期限${days}日）`)) {
+        await wnConfirmSkillRun(runId, 'canceled'); return;
+      }
+      const share = await wnCreateShare(file.id, { expiresDays: days });
+      if (share?.url) {
+        await navigator.clipboard?.writeText(share.url).catch(() => {});
+        wnShowToast('共有リンクを発行しました（クリップボードにコピー）', 'success');
+        await wnConfirmSkillRun(runId, 'executed');
+      } else {
+        wnShowToast('共有リンクの発行に失敗しました', 'danger');
+      }
+      return;
+    }
+
+    // 承認申請
+    if (action === 'approval') {
+      if (!confirm(res.message || 'このファイルを承認申請しますか？')) {
+        await wnConfirmSkillRun(runId, 'canceled'); return;
+      }
+      const r = await wnSubmitApproval(file.id);
+      if (r) {
+        wnShowToast('承認申請しました', 'success');
+        await wnConfirmSkillRun(runId, 'executed');
+        await loadFiles();
+      } else {
+        wnShowToast('承認申請に失敗しました', 'danger');
+      }
+      return;
+    }
+
+    // AIタグ付け
+    if (action === 'ai_tags') {
+      const tags = (res.draft && res.draft.suggested_tags) || [];
+      if (!tags.length) { wnShowToast(res.message || 'タグ候補がありませんでした', 'info'); return; }
+      if (!confirm(`${res.message}\n\n${tags.join('、')}`)) {
+        await wnConfirmSkillRun(runId, 'canceled'); return;
+      }
+      const r = await wnApplyAiTags(file.id, tags);
+      if (r) {
+        wnShowToast('AIタグを付与しました', 'success');
+        await wnConfirmSkillRun(runId, 'executed');
+        await loadFiles();
+      } else {
+        wnShowToast('タグの付与に失敗しました', 'danger');
+      }
+      return;
+    }
+
+    wnShowToast(res.message || 'スキルを実行しました', 'info');
   } catch (err) {
     wnShowToast(err?.message || 'スキルの実行に失敗しました', 'danger');
   } finally {
     skillBusy = false;
     const input2 = document.getElementById('skillInput');
     send.disabled = !input2 || input2.value.trim() === '';
+  }
+}
+
+/* メールスキル: 既存のメール送信モーダルに下書きを流し込み、送信方法を自動起動する */
+async function runSkillEmail(file, res) {
+  const draft = res.draft || {};
+  const runId = res.run_id;
+
+  // 既存のメール送信モーダルを開く（共有リンクを先行発行）
+  openEmailModal(file.id, file.file_name);
+
+  // LLMの下書きを流し込む
+  if (draft.to_email) {
+    emailChips = [{ email: draft.to_email }];
+    renderEmailChips();
+  }
+  if (draft.body_message) {
+    const msgEl = document.getElementById('emailMessage');
+    const cnt   = document.getElementById('emailMsgCount');
+    if (msgEl) msgEl.value = draft.body_message;
+    if (cnt)   cnt.textContent = String(draft.body_message.length);
+  }
+
+  if (draft.to_email) {
+    // 宛先が解決できた → 共有リンクの発行完了を待つ
+    skillPendingName = '';
+    const share = await (emailShareCache.get(file.id) ?? Promise.resolve(null));
+    if (!share?.url) {
+      wnShowToast('共有リンクの生成を待っています。完了後に送信してください', 'info');
+    } else {
+      const pref = wnGetMailerPref();
+      if (pref === 'gmail')       doSendEmailGmail();   // 2回目以降: 記憶したGmailを自動起動
+      else if (pref === 'mailto') doSendEmailMailto();  // 2回目以降: 記憶した既定メールアプリを自動起動
+      else wnShowToast('送信方法を選んでください（次回から自動で起動します）', 'info');  // 初回はモーダルで選択
+    }
+    // 下書きの提示まで成功 → executed として記録
+    wnConfirmSkillRun(runId, 'executed').catch(() => {});
+  } else {
+    // 宛先が未解決 → 手入力を促し、入力されたら連絡先に保存する
+    skillPendingName = draft.to_name || '';
+    wnShowToast(`「${draft.to_name || '宛先'}」のメールアドレスを入力してください`, 'info');
   }
 }
 
@@ -1148,7 +1229,7 @@ function fileCardHtml(f) {
     : '';
 
   return `
-  <div class="file-card${wnIsPdf(f) ? '' : ' wn-select-disabled'}" data-file-id="${f.id}">
+  <div class="file-card" data-file-id="${f.id}">
     <div class="file-card-thumb"><span class="wn-select-check" data-check-id="${f.id}"><i class="fa-regular fa-circle"></i></span>${thumbHtml}</div>
     ${vBadge ? `<div class="file-card-badge">${vBadge}</div>` : ''}
     <div class="file-card-body">
@@ -1219,7 +1300,7 @@ function fileRowHtmlClassic(f) {
   })();
   const fnameSafe = h(f.file_name);
   return `
-  <div class="file-row${wnIsPdf(f) ? '' : ' wn-select-disabled'}" data-file-id="${f.id}">
+  <div class="file-row" data-file-id="${f.id}">
     <div class="file-row-thumb"><span class="wn-select-check" data-check-id="${f.id}"><i class="fa-regular fa-circle"></i></span>${iconContent}</div>
     <div class="file-row-name">
       <div class="file-row-filename">${fnameSafe}</div>
@@ -1311,7 +1392,7 @@ function fileRowHtmlIG(f) {
   const cmtCount  = f.comment_count ?? 0;
 
   return `
-  <article class="ig-post${wnIsPdf(f) ? '' : ' wn-select-disabled'}" data-file-id="${f.id}">
+  <article class="ig-post" data-file-id="${f.id}">
     <div class="file-row-thumb">
       <span class="wn-select-check" data-check-id="${f.id}"><i class="fa-regular fa-circle"></i></span>
       ${headTagHtml}
@@ -3036,13 +3117,10 @@ function toggleSelectMode() {
 }
 
 function toggleMergeSelect(fileId) {
+  // 「選択」はスキル対象・結合の共通選択。種別を問わず選べる（結合はPDFのみ有効化）。
   const id = String(fileId);
   const f  = allFiles.find(x => String(x.id) === id);
   if (!f) return;
-  if (!wnIsPdf(f)) {
-    wnShowToast('PDFファイルのみ選択できます', 'warning');
-    return;
-  }
   const idx = selectedIds.indexOf(id);
   if (idx >= 0) selectedIds.splice(idx, 1);
   else selectedIds.push(id);
@@ -3063,9 +3141,15 @@ function updateMergeActionBar() {
   const count = document.getElementById('mergeSelCount');
   const btn   = document.getElementById('mergeOpenBtn');
   const lbl   = document.getElementById('mergeOpenLabel');
+  // 結合は「2件以上 かつ 全てPDF」のときだけ有効
+  const sel    = selectedIds.map(id => allFiles.find(f => String(f.id) === String(id))).filter(Boolean);
+  const allPdf = sel.length >= 2 && sel.every(wnIsPdf);
   if (count) count.textContent = `${selectedIds.length}件選択中`;
-  if (btn)   btn.disabled = selectedIds.length < 2;
-  if (lbl)   lbl.textContent = selectedIds.length >= 2 ? `${selectedIds.length}件を結合` : '結合';
+  if (btn) {
+    btn.disabled = !allPdf;
+    btn.title    = allPdf ? '' : 'PDFを2つ以上選択すると結合できます';
+  }
+  if (lbl)   lbl.textContent = allPdf ? `${sel.length}件を結合` : '結合';
 }
 
 /* ── 結合モーダル ── */
@@ -3078,6 +3162,12 @@ function mergeDefaultName() {
 
 function openMergeModal() {
   if (selectedIds.length < 2) return;
+  // 防御: 非PDFが混ざっていたら結合しない（ボタン無効化の二重チェック）
+  const sel = selectedIds.map(id => allFiles.find(f => String(f.id) === String(id))).filter(Boolean);
+  if (!sel.every(wnIsPdf)) {
+    wnShowToast('結合できるのはPDFファイルのみです', 'warning');
+    return;
+  }
   mergeOrder = [...selectedIds];
   document.getElementById('mergeFileName').value = mergeDefaultName();
   const prog = document.getElementById('mergeProgress');
