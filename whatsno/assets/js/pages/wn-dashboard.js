@@ -379,130 +379,49 @@ async function runSkill(instruction) {
 
   try {
     const contacts = await wnGetContacts();
-    const res    = await wnRunSkill(instruction, file.id, contacts);
-    const action = res.action_type;
-    const runId  = res.run_id;
+    const res   = await wnRunSkill(instruction, file.id, contacts);
+    const draft = res.draft || {};
 
-    // 該当スキルなし → 入力は残して再入力できるようにする
-    if (!action) {
-      wnShowToast(res.message || '対応するスキルが見つかりませんでした', 'info');
-      return;
+    // 既存のメール送信モーダルを開く（共有リンクを先行発行）
+    openEmailModal(file.id, file.file_name);
+
+    // LLMの下書きを流し込む
+    if (draft.to_email) {
+      emailChips = [{ email: draft.to_email }];
+      renderEmailChips();
+    }
+    if (draft.body_message) {
+      const msgEl = document.getElementById('emailMessage');
+      const cnt   = document.getElementById('emailMsgCount');
+      if (msgEl) msgEl.value = draft.body_message;
+      if (cnt)   cnt.textContent = String(draft.body_message.length);
     }
 
     input.value = '';
 
-    // メール: 既存のメールモーダル導線を踏襲（送信方法の記憶・自動起動あり）
-    if (action === 'email') {
-      await runSkillEmail(file, res);
-      return;
-    }
-
-    // 実行できない状態（承認申請不可など）
-    if (res.blocked) {
-      wnShowToast(res.message || 'このスキルは実行できません', 'info');
-      await wnConfirmSkillRun(runId, 'canceled');
-      return;
-    }
-
-    // 共有リンク発行
-    if (action === 'share') {
-      const days = (res.draft && res.draft.expires_days) || 30;
-      if (!confirm(res.message || `共有リンクを発行しますか？（有効期限${days}日）`)) {
-        await wnConfirmSkillRun(runId, 'canceled'); return;
-      }
-      const share = await wnCreateShare(file.id, { expiresDays: days });
-      if (share?.url) {
-        await navigator.clipboard?.writeText(share.url).catch(() => {});
-        wnShowToast('共有リンクを発行しました（クリップボードにコピー）', 'success');
-        await wnConfirmSkillRun(runId, 'executed');
+    if (draft.to_email) {
+      // 宛先が解決できた → 共有リンクの発行完了を待つ
+      skillPendingName = '';
+      const share = await (emailShareCache.get(file.id) ?? Promise.resolve(null));
+      if (!share?.url) {
+        wnShowToast('共有リンクの生成を待っています。完了後に送信してください', 'info');
       } else {
-        wnShowToast('共有リンクの発行に失敗しました', 'danger');
+        const pref = wnGetMailerPref();
+        if (pref === 'gmail')       doSendEmailGmail();   // 2回目以降: 記憶したGmailを自動起動
+        else if (pref === 'mailto') doSendEmailMailto();  // 2回目以降: 記憶した既定メールアプリを自動起動
+        else wnShowToast('送信方法を選んでください（次回から自動で起動します）', 'info');  // 初回はモーダルで選択
       }
-      return;
+    } else {
+      // 宛先が未解決 → 手入力を促し、入力されたら連絡先に保存する
+      skillPendingName = draft.to_name || '';
+      wnShowToast(`「${draft.to_name || '宛先'}」のメールアドレスを入力してください`, 'info');
     }
-
-    // 承認申請
-    if (action === 'approval') {
-      if (!confirm(res.message || 'このファイルを承認申請しますか？')) {
-        await wnConfirmSkillRun(runId, 'canceled'); return;
-      }
-      const r = await wnSubmitApproval(file.id);
-      if (r) {
-        wnShowToast('承認申請しました', 'success');
-        await wnConfirmSkillRun(runId, 'executed');
-        await loadFiles();
-      } else {
-        wnShowToast('承認申請に失敗しました', 'danger');
-      }
-      return;
-    }
-
-    // AIタグ付け
-    if (action === 'ai_tags') {
-      const tags = (res.draft && res.draft.suggested_tags) || [];
-      if (!tags.length) { wnShowToast(res.message || 'タグ候補がありませんでした', 'info'); return; }
-      if (!confirm(`${res.message}\n\n${tags.join('、')}`)) {
-        await wnConfirmSkillRun(runId, 'canceled'); return;
-      }
-      const r = await wnApplyAiTags(file.id, tags);
-      if (r) {
-        wnShowToast('AIタグを付与しました', 'success');
-        await wnConfirmSkillRun(runId, 'executed');
-        await loadFiles();
-      } else {
-        wnShowToast('タグの付与に失敗しました', 'danger');
-      }
-      return;
-    }
-
-    wnShowToast(res.message || 'スキルを実行しました', 'info');
   } catch (err) {
     wnShowToast(err?.message || 'スキルの実行に失敗しました', 'danger');
   } finally {
     skillBusy = false;
     const input2 = document.getElementById('skillInput');
     send.disabled = !input2 || input2.value.trim() === '';
-  }
-}
-
-/* メールスキル: 既存のメール送信モーダルに下書きを流し込み、送信方法を自動起動する */
-async function runSkillEmail(file, res) {
-  const draft = res.draft || {};
-  const runId = res.run_id;
-
-  // 既存のメール送信モーダルを開く（共有リンクを先行発行）
-  openEmailModal(file.id, file.file_name);
-
-  // LLMの下書きを流し込む
-  if (draft.to_email) {
-    emailChips = [{ email: draft.to_email }];
-    renderEmailChips();
-  }
-  if (draft.body_message) {
-    const msgEl = document.getElementById('emailMessage');
-    const cnt   = document.getElementById('emailMsgCount');
-    if (msgEl) msgEl.value = draft.body_message;
-    if (cnt)   cnt.textContent = String(draft.body_message.length);
-  }
-
-  if (draft.to_email) {
-    // 宛先が解決できた → 共有リンクの発行完了を待つ
-    skillPendingName = '';
-    const share = await (emailShareCache.get(file.id) ?? Promise.resolve(null));
-    if (!share?.url) {
-      wnShowToast('共有リンクの生成を待っています。完了後に送信してください', 'info');
-    } else {
-      const pref = wnGetMailerPref();
-      if (pref === 'gmail')       doSendEmailGmail();   // 2回目以降: 記憶したGmailを自動起動
-      else if (pref === 'mailto') doSendEmailMailto();  // 2回目以降: 記憶した既定メールアプリを自動起動
-      else wnShowToast('送信方法を選んでください（次回から自動で起動します）', 'info');  // 初回はモーダルで選択
-    }
-    // 下書きの提示まで成功 → executed として記録
-    wnConfirmSkillRun(runId, 'executed').catch(() => {});
-  } else {
-    // 宛先が未解決 → 手入力を促し、入力されたら連絡先に保存する
-    skillPendingName = draft.to_name || '';
-    wnShowToast(`「${draft.to_name || '宛先'}」のメールアドレスを入力してください`, 'info');
   }
 }
 
