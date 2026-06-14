@@ -553,6 +553,39 @@ async function wnRunSkill(instruction, fileId, contacts) {
   return res.json();
 }
 
+/* ── 連絡先（会社単位・スキルの宛先解決に使用） ── */
+async function wnGetContacts() {
+  const res = await wnFetch('/wn/contacts');
+  if (!res || !res.ok) return [];
+  return (await res.json()).data ?? [];
+}
+async function wnSaveContact(name, email) {
+  const res = await wnFetch('/wn/contacts', {
+    method: 'POST',
+    body: JSON.stringify({ name, email }),
+  });
+  if (!res || !res.ok) {
+    const err = await res?.json().catch(() => ({}));
+    throw new Error(err.message || '連絡先の保存に失敗しました');
+  }
+  return (await res.json()).data;
+}
+async function wnUpdateContact(id, name, email) {
+  const res = await wnFetch(`/wn/contacts/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name, email }),
+  });
+  if (!res || !res.ok) {
+    const err = await res?.json().catch(() => ({}));
+    throw new Error(err.message || '連絡先の更新に失敗しました');
+  }
+  return (await res.json()).data;
+}
+async function wnDeleteContact(id) {
+  const res = await wnFetch(`/wn/contacts/${id}`, { method: 'DELETE' });
+  return !!(res && res.ok);
+}
+
 /* ── 関連ファイル ── */
 async function wnGetRelations(fileId) {
   const res = await wnFetch(`/wn/files/${fileId}/relations`);

@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadBrainMeter();
   initDashBrain();
   initSkillBar();
+  initContactsModal();
   initMergeSelect();
   initThumbnailBust();
 });
@@ -200,21 +201,9 @@ async function dashBrainAsk(question) {
 /* ────────────────────────────────
    スキルバー（自然言語 → アクション・PoC: メール見積依頼）
    ──────────────────────────────── */
-const WN_CONTACTS_KEY = 'wn_contacts';
+// 連絡先は wn-api.js の wnGetContacts/wnSaveContact 等（バックエンドDB）を使用。
 let skillBusy        = false;
 let skillPendingName = '';   // 宛先未解決時に保持する人物名（送信時に連絡先へ保存）
-
-function wnGetContacts() {
-  try { return JSON.parse(localStorage.getItem(WN_CONTACTS_KEY)) || []; }
-  catch { return []; }
-}
-function wnSaveContact(name, email) {
-  if (!name || !email) return;
-  const list = wnGetContacts();
-  if (list.some(c => c.email === email)) return;
-  list.push({ name, email });
-  localStorage.setItem(WN_CONTACTS_KEY, JSON.stringify(list));
-}
 
 function initSkillBar() {
   const input = document.getElementById('skillInput');
@@ -228,6 +217,140 @@ function initSkillBar() {
     if (e.key === 'Enter' && !send.disabled) { e.preventDefault(); runSkill(input.value.trim()); }
   });
   send.addEventListener('click', () => { if (!send.disabled) runSkill(input.value.trim()); });
+}
+
+/* ────────────────────────────────
+   連絡先管理モーダル（一覧・追加・編集・削除）
+   ──────────────────────────────── */
+let contactsBusy = false;
+
+function wnEscapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, m => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]
+  ));
+}
+
+function initContactsModal() {
+  const openBtn  = document.getElementById('contactsOpenBtn');
+  const closeBtn = document.getElementById('contactsModalClose');
+  const cancelBtn= document.getElementById('contactsCloseBtn');
+  const addBtn   = document.getElementById('contactAddBtn');
+  const nameEl   = document.getElementById('contactNameInput');
+  const emailEl  = document.getElementById('contactEmailInput');
+  if (!openBtn) return;
+
+  openBtn.addEventListener('click', openContactsModal);
+  closeBtn?.addEventListener('click', closeContactsModal);
+  cancelBtn?.addEventListener('click', closeContactsModal);
+  addBtn?.addEventListener('click', addContactFromForm);
+  emailEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addContactFromForm(); } });
+  nameEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); emailEl?.focus(); } });
+}
+
+function openContactsModal() {
+  document.getElementById('contactsModal').classList.remove('hidden');
+  document.getElementById('contactNameInput').value = '';
+  document.getElementById('contactEmailInput').value = '';
+  _contactShowError('');
+  renderContactsList();
+}
+function closeContactsModal() {
+  document.getElementById('contactsModal').classList.add('hidden');
+}
+
+function _contactShowError(msg) {
+  const box = document.getElementById('contactInputError');
+  const txt = document.getElementById('contactInputErrorText');
+  if (!box) return;
+  if (msg) { txt.textContent = msg; box.style.display = 'block'; }
+  else     { box.style.display = 'none'; }
+}
+
+async function renderContactsList() {
+  const list = document.getElementById('contactsList');
+  if (!list) return;
+  list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px;"><i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…</div>';
+
+  let contacts = [];
+  try { contacts = await wnGetContacts(); }
+  catch { list.innerHTML = '<div style="font-size:12px;color:#E17055;padding:8px;">連絡先の取得に失敗しました</div>'; return; }
+
+  if (!contacts.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px;">まだ連絡先がありません。上のフォームから追加してください。</div>';
+    return;
+  }
+
+  list.innerHTML = contacts.map(c => `
+    <div data-id="${c.id}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:700;color:var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${wnEscapeHtml(c.name)}</div>
+        <div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${wnEscapeHtml(c.email)}</div>
+      </div>
+      <button class="btn btn-outline btn-sm contact-edit-btn" style="flex-shrink:0;font-size:11px;padding:4px 8px;" title="編集"><i class="fa-solid fa-pen"></i></button>
+      <button class="btn btn-outline btn-sm contact-del-btn" style="flex-shrink:0;font-size:11px;padding:4px 8px;color:#E17055;" title="削除"><i class="fa-solid fa-trash"></i></button>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.contact-del-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.closest('[data-id]').dataset.id;
+      deleteContactById(id);
+    });
+  });
+  list.querySelectorAll('.contact-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const row = btn.closest('[data-id]');
+      const c = contacts.find(x => String(x.id) === String(row.dataset.id));
+      if (c) editContact(c);
+    });
+  });
+}
+
+async function addContactFromForm() {
+  if (contactsBusy) return;
+  const nameEl  = document.getElementById('contactNameInput');
+  const emailEl = document.getElementById('contactEmailInput');
+  const name  = nameEl.value.trim();
+  const email = emailEl.value.trim();
+
+  if (!name)  { _contactShowError('名前を入力してください'); nameEl.focus(); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { _contactShowError('メールアドレスの形式が正しくありません'); emailEl.focus(); return; }
+  _contactShowError('');
+
+  contactsBusy = true;
+  try {
+    await wnSaveContact(name, email);
+    nameEl.value = '';
+    emailEl.value = '';
+    nameEl.focus();
+    await renderContactsList();
+    wnShowToast('連絡先を登録しました', 'success');
+  } catch (err) {
+    _contactShowError(err?.message || '連絡先の保存に失敗しました');
+  } finally {
+    contactsBusy = false;
+  }
+}
+
+function editContact(c) {
+  const newName  = window.prompt('名前', c.name);
+  if (newName === null) return;
+  const newEmail = window.prompt('メールアドレス', c.email);
+  if (newEmail === null) return;
+  const name = newName.trim(), email = newEmail.trim();
+  if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { wnShowToast('名前とメールアドレスを正しく入力してください', 'danger'); return; }
+  wnUpdateContact(c.id, name, email)
+    .then(() => { renderContactsList(); wnShowToast('連絡先を更新しました', 'success'); })
+    .catch(err => wnShowToast(err?.message || '更新に失敗しました', 'danger'));
+}
+
+function deleteContactById(id) {
+  if (!window.confirm('この連絡先を削除しますか？')) return;
+  wnDeleteContact(id)
+    .then(ok => {
+      if (ok) { renderContactsList(); wnShowToast('連絡先を削除しました', 'success'); }
+      else    { wnShowToast('削除に失敗しました', 'danger'); }
+    });
 }
 
 async function runSkill(instruction) {
@@ -245,7 +368,8 @@ async function runSkill(instruction) {
   send.disabled = true;
 
   try {
-    const res   = await wnRunSkill(instruction, file.id, wnGetContacts());
+    const contacts = await wnGetContacts();
+    const res   = await wnRunSkill(instruction, file.id, contacts);
     const draft = res.draft || {};
 
     // 既存のメール送信モーダルを開く（共有リンクを先行発行）
@@ -263,15 +387,22 @@ async function runSkill(instruction) {
       if (cnt)   cnt.textContent = String(draft.body_message.length);
     }
 
-    // 宛先が解決できなかった場合は手入力を促し、入力されたら連絡先に保存する
-    if (!draft.to_email) {
+    input.value = '';
+
+    if (draft.to_email) {
+      // 宛先が解決できた → 共有リンクの発行完了を待ってメーラーを自動起動
+      skillPendingName = '';
+      const share = await (emailShareCache.get(file.id) ?? Promise.resolve(null));
+      if (share?.url) {
+        doSendEmailMailto();   // 既定メールアプリを起動（モーダルも閉じる）
+      } else {
+        wnShowToast('共有リンクの生成を待っています。完了後に送信してください', 'info');
+      }
+    } else {
+      // 宛先が未解決 → 手入力を促し、入力されたら連絡先に保存する
       skillPendingName = draft.to_name || '';
       wnShowToast(`「${draft.to_name || '宛先'}」のメールアドレスを入力してください`, 'info');
-    } else {
-      skillPendingName = '';
     }
-
-    input.value = '';
   } catch (err) {
     wnShowToast(err?.message || 'スキルの実行に失敗しました', 'danger');
   } finally {
@@ -2754,7 +2885,11 @@ function addEmailChip() {
   errEl.style.display = 'none';
   emailChips.push({ email: val });
   // スキル経由で宛先を手入力した場合は、次回から自動解決できるよう連絡先に保存
-  if (skillPendingName) { wnSaveContact(skillPendingName, val); skillPendingName = ''; }
+  if (skillPendingName) {
+    const nm = skillPendingName;
+    skillPendingName = '';
+    wnSaveContact(nm, val).catch(() => {});
+  }
   input.value = '';
   renderEmailChips();
   input.focus();
