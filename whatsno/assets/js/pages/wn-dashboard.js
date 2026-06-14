@@ -205,6 +205,16 @@ async function dashBrainAsk(question) {
 let skillBusy        = false;
 let skillPendingName = '';   // 宛先未解決時に保持する人物名（送信時に連絡先へ保存）
 
+// スキルで使うメーラーの記憶（1回目に選んだら2回目以降は自動でそのメーラーを起動）
+const WN_MAILER_PREF_KEY = 'wn_mailer_pref';   // 'gmail' | 'mailto'
+function wnGetMailerPref() {
+  const v = localStorage.getItem(WN_MAILER_PREF_KEY);
+  return (v === 'gmail' || v === 'mailto') ? v : null;
+}
+function wnSetMailerPref(v) {
+  if (v === 'gmail' || v === 'mailto') localStorage.setItem(WN_MAILER_PREF_KEY, v);
+}
+
 function initSkillBar() {
   const input = document.getElementById('skillInput');
   const send  = document.getElementById('skillSendBtn');
@@ -390,13 +400,16 @@ async function runSkill(instruction) {
     input.value = '';
 
     if (draft.to_email) {
-      // 宛先が解決できた → 共有リンクの発行完了を待ってメーラーを自動起動
+      // 宛先が解決できた → 共有リンクの発行完了を待つ
       skillPendingName = '';
       const share = await (emailShareCache.get(file.id) ?? Promise.resolve(null));
-      if (share?.url) {
-        doSendEmailMailto();   // 既定メールアプリを起動（モーダルも閉じる）
-      } else {
+      if (!share?.url) {
         wnShowToast('共有リンクの生成を待っています。完了後に送信してください', 'info');
+      } else {
+        const pref = wnGetMailerPref();
+        if (pref === 'gmail')       doSendEmailGmail();   // 2回目以降: 記憶したGmailを自動起動
+        else if (pref === 'mailto') doSendEmailMailto();  // 2回目以降: 記憶した既定メールアプリを自動起動
+        else wnShowToast('送信方法を選んでください（次回から自動で起動します）', 'info');  // 初回はモーダルで選択
       }
     } else {
       // 宛先が未解決 → 手入力を促し、入力されたら連絡先に保存する
@@ -2951,6 +2964,7 @@ function _buildEmailContent() {
 function doSendEmailGmail() {
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
+  wnSetMailerPref('gmail');   // 次回スキルから自動でGmailを起動
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if (isMobile) {
@@ -2982,6 +2996,7 @@ function doSendEmailGmail() {
 function doSendEmailMailto() {
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
+  wnSetMailerPref('mailto');   // 次回スキルから自動で既定メールアプリを起動
   const url = `mailto:${m.to}?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
   window.location.href = url;
   wnShowToast('メールアプリを起動しました', 'success');
