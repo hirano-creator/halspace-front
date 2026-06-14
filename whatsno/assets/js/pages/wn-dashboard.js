@@ -44,6 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initEmailModal();
   loadBrainMeter();
   initDashBrain();
+  initSkillBar();
   initMergeSelect();
   initThumbnailBust();
 });
@@ -193,6 +194,90 @@ async function dashBrainAsk(question) {
   } finally {
     dashBrainBusy = false;
     send.disabled = input.value.trim() === '';
+  }
+}
+
+/* ────────────────────────────────
+   スキルバー（自然言語 → アクション・PoC: メール見積依頼）
+   ──────────────────────────────── */
+const WN_CONTACTS_KEY = 'wn_contacts';
+let skillBusy        = false;
+let skillPendingName = '';   // 宛先未解決時に保持する人物名（送信時に連絡先へ保存）
+
+function wnGetContacts() {
+  try { return JSON.parse(localStorage.getItem(WN_CONTACTS_KEY)) || []; }
+  catch { return []; }
+}
+function wnSaveContact(name, email) {
+  if (!name || !email) return;
+  const list = wnGetContacts();
+  if (list.some(c => c.email === email)) return;
+  list.push({ name, email });
+  localStorage.setItem(WN_CONTACTS_KEY, JSON.stringify(list));
+}
+
+function initSkillBar() {
+  const input = document.getElementById('skillInput');
+  const send  = document.getElementById('skillSendBtn');
+  if (!input || !send) return;
+
+  input.addEventListener('input', () => {
+    send.disabled = input.value.trim() === '' || skillBusy;
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !send.disabled) { e.preventDefault(); runSkill(input.value.trim()); }
+  });
+  send.addEventListener('click', () => { if (!send.disabled) runSkill(input.value.trim()); });
+}
+
+async function runSkill(instruction) {
+  if (skillBusy || !instruction) return;
+
+  // 対象ファイル: 選択中の先頭。未選択なら促す。
+  const fileId = selectedIds[0] ?? null;
+  if (!fileId) { wnShowToast('対象のファイルを1つ選択してください', 'info'); return; }
+  const file = allFiles.find(f => String(f.id) === String(fileId));
+  if (!file) { wnShowToast('選択ファイルが見つかりません', 'danger'); return; }
+
+  skillBusy = true;
+  const input = document.getElementById('skillInput');
+  const send  = document.getElementById('skillSendBtn');
+  send.disabled = true;
+
+  try {
+    const res   = await wnRunSkill(instruction, file.id, wnGetContacts());
+    const draft = res.draft || {};
+
+    // 既存のメール送信モーダルを開く（共有リンクを先行発行）
+    openEmailModal(file.id, file.file_name);
+
+    // LLMの下書きを流し込む
+    if (draft.to_email) {
+      emailChips = [{ email: draft.to_email }];
+      renderEmailChips();
+    }
+    if (draft.body_message) {
+      const msgEl = document.getElementById('emailMessage');
+      const cnt   = document.getElementById('emailMsgCount');
+      if (msgEl) msgEl.value = draft.body_message;
+      if (cnt)   cnt.textContent = String(draft.body_message.length);
+    }
+
+    // 宛先が解決できなかった場合は手入力を促し、入力されたら連絡先に保存する
+    if (!draft.to_email) {
+      skillPendingName = draft.to_name || '';
+      wnShowToast(`「${draft.to_name || '宛先'}」のメールアドレスを入力してください`, 'info');
+    } else {
+      skillPendingName = '';
+    }
+
+    input.value = '';
+  } catch (err) {
+    wnShowToast(err?.message || 'スキルの実行に失敗しました', 'danger');
+  } finally {
+    skillBusy = false;
+    const input2 = document.getElementById('skillInput');
+    send.disabled = !input2 || input2.value.trim() === '';
   }
 }
 
@@ -2668,6 +2753,8 @@ function addEmailChip() {
 
   errEl.style.display = 'none';
   emailChips.push({ email: val });
+  // スキル経由で宛先を手入力した場合は、次回から自動解決できるよう連絡先に保存
+  if (skillPendingName) { wnSaveContact(skillPendingName, val); skillPendingName = ''; }
   input.value = '';
   renderEmailChips();
   input.focus();

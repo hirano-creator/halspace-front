@@ -221,6 +221,23 @@
         </div>
       </div>
 
+      <!-- スキルバー（自然言語でアクション実行・PoC: メール見積依頼） -->
+      <div class="card" id="skillBar" style="margin-bottom:16px;padding:14px 20px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+          <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--accent);"></i>
+          <span style="font-size:14px;font-weight:700;color:var(--primary);">スキル</span>
+          <span style="font-size:12px;color:var(--muted);">ファイルを1つ選択して指示を入力（例: このファイルを山田さんに見積依頼で送って）</span>
+        </div>
+        <div class="brain-widget-ask">
+          <input type="text" id="skillInput" class="brain-widget-input"
+                 placeholder="選択したファイルを〇〇さんに見積依頼で送って…"
+                 autocomplete="off">
+          <button type="button" id="skillSendBtn" class="brain-widget-send" title="実行" disabled>
+            <i class="fa-solid fa-paper-plane"></i>
+          </button>
+        </div>
+      </div>
+
       <!-- タグフィルター -->
       <div class="card" id="tagFilterCard" style="margin-bottom:16px;padding:14px 20px;">
         <div class="tag-sheet-header" style="display:none;align-items:center;justify-content:space-between;margin-bottom:10px;">
@@ -571,7 +588,7 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=6"></script>
 <script src="../assets/js/wn-api.js?v=10"></script>
-<script src="../assets/js/pages/wn-dashboard.js?v=45"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=46"></script>
 
 <script>
 /* ── ボトムナビ ── */

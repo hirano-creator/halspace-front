@@ -540,6 +540,19 @@ async function wnSendFileByEmail(fileId, emails, message) {
   return res.json();
 }
 
+/* スキル実行（自然言語の指示 → アクション下書き・PoC） */
+async function wnRunSkill(instruction, fileId, contacts) {
+  const res = await wnFetch('/wn/skills/run', {
+    method: 'POST',
+    body: JSON.stringify({ instruction, file_id: fileId, contacts: contacts || [] }),
+  });
+  if (!res || !res.ok) {
+    const err = await res?.json().catch(() => ({}));
+    throw new Error(err.message || 'スキルの実行に失敗しました');
+  }
+  return res.json();
+}
+
 /* ── 関連ファイル ── */
 async function wnGetRelations(fileId) {
   const res = await wnFetch(`/wn/files/${fileId}/relations`);
