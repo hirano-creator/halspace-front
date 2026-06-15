@@ -390,6 +390,15 @@ async function runSkill(instruction) {
   try {
     const contacts = await wnGetContacts();
     const res   = await wnRunSkill(instruction, file.id, contacts);
+
+    // スキルが特定できなかった場合は入力を残してエラーを表示
+    if (!res.action_type) {
+      wnShowToast(res.message || '対応するスキルが見つかりませんでした', 'warning');
+      skillBusy = false;
+      send.disabled = !input.value.trim();
+      return;
+    }
+
     const draft = res.draft || {};
 
     // 既存のメール送信モーダルを開く（共有リンクを先行発行）
