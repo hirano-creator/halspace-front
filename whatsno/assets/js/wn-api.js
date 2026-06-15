@@ -540,7 +540,7 @@ async function wnSendFileByEmail(fileId, emails, message) {
   return res.json();
 }
 
-/* スキル実行（自然言語の指示 → アクション下書き・PoC） */
+/* スキル実行（自然言語の指示 → どのスキルを発動するか判定・下書き） */
 async function wnRunSkill(instruction, fileId, contacts) {
   const res = await wnFetch('/wn/skills/run', {
     method: 'POST',
@@ -553,16 +553,34 @@ async function wnRunSkill(instruction, fileId, contacts) {
   return res.json();
 }
 
+/* スキル実行の確定結果を記録（status: 'executed' | 'canceled'） */
+async function wnConfirmSkillRun(runId, status) {
+  if (!runId) return null;
+  const res = await wnFetch(`/wn/skills/runs/${runId}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  });
+  if (!res || !res.ok) return null;
+  return (await res.json()).data ?? null;
+}
+
+/* スキル実行履歴（自社・最新100件） */
+async function wnGetSkillRuns() {
+  const res = await wnFetch('/wn/skills/runs');
+  if (!res || !res.ok) return [];
+  return (await res.json()).data ?? [];
+}
+
 /* ── 連絡先（会社単位・スキルの宛先解決に使用） ── */
 async function wnGetContacts() {
   const res = await wnFetch('/wn/contacts');
   if (!res || !res.ok) return [];
   return (await res.json()).data ?? [];
 }
-async function wnSaveContact(name, email) {
+async function wnSaveContact(name, email, companyName) {
   const res = await wnFetch('/wn/contacts', {
     method: 'POST',
-    body: JSON.stringify({ name, email }),
+    body: JSON.stringify({ name, email, company_name: companyName || null }),
   });
   if (!res || !res.ok) {
     const err = await res?.json().catch(() => ({}));
@@ -570,10 +588,10 @@ async function wnSaveContact(name, email) {
   }
   return (await res.json()).data;
 }
-async function wnUpdateContact(id, name, email) {
+async function wnUpdateContact(id, name, email, companyName) {
   const res = await wnFetch(`/wn/contacts/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ name, email }),
+    body: JSON.stringify({ name, email, company_name: companyName ?? null }),
   });
   if (!res || !res.ok) {
     const err = await res?.json().catch(() => ({}));

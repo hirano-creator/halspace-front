@@ -241,25 +241,28 @@ function wnEscapeHtml(s) {
 }
 
 function initContactsModal() {
-  const openBtn  = document.getElementById('contactsOpenBtn');
-  const closeBtn = document.getElementById('contactsModalClose');
-  const cancelBtn= document.getElementById('contactsCloseBtn');
-  const addBtn   = document.getElementById('contactAddBtn');
-  const nameEl   = document.getElementById('contactNameInput');
-  const emailEl  = document.getElementById('contactEmailInput');
+  const openBtn   = document.getElementById('contactsOpenBtn');
+  const closeBtn  = document.getElementById('contactsModalClose');
+  const cancelBtn = document.getElementById('contactsCloseBtn');
+  const addBtn    = document.getElementById('contactAddBtn');
+  const nameEl    = document.getElementById('contactNameInput');
+  const companyEl = document.getElementById('contactCompanyInput');
+  const emailEl   = document.getElementById('contactEmailInput');
   if (!openBtn) return;
 
   openBtn.addEventListener('click', openContactsModal);
   closeBtn?.addEventListener('click', closeContactsModal);
   cancelBtn?.addEventListener('click', closeContactsModal);
   addBtn?.addEventListener('click', addContactFromForm);
+  nameEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); companyEl?.focus(); } });
+  companyEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); emailEl?.focus(); } });
   emailEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addContactFromForm(); } });
-  nameEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); emailEl?.focus(); } });
 }
 
 function openContactsModal() {
   document.getElementById('contactsModal').classList.remove('hidden');
   document.getElementById('contactNameInput').value = '';
+  document.getElementById('contactCompanyInput').value = '';
   document.getElementById('contactEmailInput').value = '';
   _contactShowError('');
   renderContactsList();
@@ -294,7 +297,9 @@ async function renderContactsList() {
     <div data-id="${c.id}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;">
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:700;color:var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${wnEscapeHtml(c.name)}</div>
-        <div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${wnEscapeHtml(c.email)}</div>
+        <div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          ${c.company_name ? `<span style="margin-right:4px;">${wnEscapeHtml(c.company_name)}</span><span style="margin-right:4px;">·</span>` : ''}${wnEscapeHtml(c.email)}
+        </div>
       </div>
       <button class="btn btn-outline btn-sm contact-edit-btn" style="flex-shrink:0;font-size:11px;padding:4px 8px;" title="編集"><i class="fa-solid fa-pen"></i></button>
       <button class="btn btn-outline btn-sm contact-del-btn" style="flex-shrink:0;font-size:11px;padding:4px 8px;color:#E17055;" title="削除"><i class="fa-solid fa-trash"></i></button>
@@ -318,10 +323,12 @@ async function renderContactsList() {
 
 async function addContactFromForm() {
   if (contactsBusy) return;
-  const nameEl  = document.getElementById('contactNameInput');
-  const emailEl = document.getElementById('contactEmailInput');
-  const name  = nameEl.value.trim();
-  const email = emailEl.value.trim();
+  const nameEl    = document.getElementById('contactNameInput');
+  const companyEl = document.getElementById('contactCompanyInput');
+  const emailEl   = document.getElementById('contactEmailInput');
+  const name    = nameEl.value.trim();
+  const company = companyEl.value.trim();
+  const email   = emailEl.value.trim();
 
   if (!name)  { _contactShowError('名前を入力してください'); nameEl.focus(); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { _contactShowError('メールアドレスの形式が正しくありません'); emailEl.focus(); return; }
@@ -329,8 +336,9 @@ async function addContactFromForm() {
 
   contactsBusy = true;
   try {
-    await wnSaveContact(name, email);
+    await wnSaveContact(name, email, company || null);
     nameEl.value = '';
+    companyEl.value = '';
     emailEl.value = '';
     nameEl.focus();
     await renderContactsList();
@@ -343,13 +351,15 @@ async function addContactFromForm() {
 }
 
 function editContact(c) {
-  const newName  = window.prompt('名前', c.name);
+  const newName    = window.prompt('名前', c.name);
   if (newName === null) return;
-  const newEmail = window.prompt('メールアドレス', c.email);
+  const newCompany = window.prompt('会社名（任意、空欄でクリア）', c.company_name ?? '');
+  if (newCompany === null) return;
+  const newEmail   = window.prompt('メールアドレス', c.email);
   if (newEmail === null) return;
-  const name = newName.trim(), email = newEmail.trim();
+  const name = newName.trim(), email = newEmail.trim(), company = newCompany.trim();
   if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { wnShowToast('名前とメールアドレスを正しく入力してください', 'danger'); return; }
-  wnUpdateContact(c.id, name, email)
+  wnUpdateContact(c.id, name, email, company || null)
     .then(() => { renderContactsList(); wnShowToast('連絡先を更新しました', 'success'); })
     .catch(err => wnShowToast(err?.message || '更新に失敗しました', 'danger'));
 }
