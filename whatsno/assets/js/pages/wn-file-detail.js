@@ -17,6 +17,8 @@ let pdfZoomFactor = 1.0;
 let pdfBaseCssW   = 0;
 let pdfBaseCssH   = 0;
 let imgZoomFactor = 1.0;
+let imgPanX       = 0;   // 画像ドラッグ移動オフセット(px)
+let imgPanY       = 0;
 
 /* ── Ctrl+ホイール：ブラウザズーム防止＋in-appズームを一本化 ── */
 window.addEventListener('wheel', e => {
@@ -35,6 +37,7 @@ window.addEventListener('wheel', e => {
       canvas.style.width  = pdfBaseCssW * pdfZoomFactor + 'px';
       canvas.style.height = pdfBaseCssH * pdfZoomFactor + 'px';
       showPreviewZoomLabel(Math.round(pdfZoomFactor * 100) + '%');
+      updatePdfPanCursor();
     }
     return;
   }
@@ -44,14 +47,29 @@ window.addEventListener('wheel', e => {
     const img = previewArea.querySelector('img');
     if (img) {
       imgZoomFactor = Math.max(0.25, Math.min(4.0, imgZoomFactor * factor));
-      img.style.transform       = `scale(${imgZoomFactor})`;
+      if (imgZoomFactor <= 1.0) { imgPanX = 0; imgPanY = 0; }  // 等倍以下は再センタリング
       img.style.transformOrigin = 'center center';
       img.style.maxWidth        = imgZoomFactor > 1.0 ? 'none' : '';
       img.style.maxHeight       = imgZoomFactor > 1.0 ? 'none' : '';
+      img.style.cursor          = imgZoomFactor > 1.0 ? 'grab' : '';
+      applyImgTransform(img);
       showPreviewZoomLabel(Math.round(imgZoomFactor * 100) + '%');
     }
   }
 }, { passive: false, capture: true });
+
+/* 画像の transform（移動＋拡大）を適用 */
+function applyImgTransform(img) {
+  img.style.transform = `translate(${imgPanX}px, ${imgPanY}px) scale(${imgZoomFactor})`;
+}
+
+/* PDFコンテナがパン可能なら grab カーソルに */
+function updatePdfPanCursor() {
+  const c = document.getElementById('pdfContainer');
+  if (!c) return;
+  const pannable = c.scrollWidth > c.clientWidth || c.scrollHeight > c.clientHeight;
+  c.style.cursor = pannable ? 'grab' : '';
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   if (!fileId) { location.href = 'dashboard.html'; return; }
@@ -737,18 +755,106 @@ function addPdfRotateOverlay() {
     setPdfViewMode(pdfViewMode === 'grid' ? 'single' : 'grid'));
 }
 
-/* ── Ctrl+ホイール：PDFズーム（window リスナーへ一本化・ここは overscroll のみ設定） ── */
+/* ── Ctrl+ホイール：PDFズーム（window リスナーへ一本化・ここは overscroll とパン初期化） ── */
 function initPdfWheelZoom() {
   const container = document.getElementById('pdfContainer');
   if (!container) return;
   container.style.overscrollBehavior = 'contain';
+  initPdfPan(container);
 }
 
-/* ── Ctrl+ホイール：画像ズーム（window リスナーへ一本化・ここはリセットのみ） ── */
-function initImgWheelZoom(_imgEl) {
+/* ── Ctrl+ホイール：画像ズーム（window リスナーへ一本化・状態リセットとパン初期化） ── */
+function initImgWheelZoom(imgEl) {
   imgZoomFactor = 1.0;
+  imgPanX = 0;
+  imgPanY = 0;
   const area = document.getElementById('previewArea');
   if (area) area.style.overscrollBehavior = 'contain';
+  if (imgEl) initImgPan(imgEl);
+}
+
+/* ── 左ドラッグでPDFをパン（ネイティブスクロールを利用） ── */
+function initPdfPan(container) {
+  if (container._panInit) return;
+  container._panInit = true;
+
+  let panning = false;
+  let startX = 0, startY = 0, startSL = 0, startST = 0;
+
+  container.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const pannable = container.scrollWidth > container.clientWidth ||
+                     container.scrollHeight > container.clientHeight;
+    if (!pannable) return;
+    e.preventDefault();
+    panning = true;
+    startX  = e.clientX; startY = e.clientY;
+    startSL = container.scrollLeft; startST = container.scrollTop;
+    container.setPointerCapture(e.pointerId);
+    container.style.cursor = 'grabbing';
+    container.style.userSelect = 'none';
+  });
+  container.addEventListener('pointermove', e => {
+    if (!panning) return;
+    container.scrollLeft = startSL - (e.clientX - startX);
+    container.scrollTop  = startST - (e.clientY - startY);
+  });
+  const endPan = e => {
+    if (!panning) return;
+    panning = false;
+    try { container.releasePointerCapture(e.pointerId); } catch (_) {}
+    container.style.userSelect = '';
+    updatePdfPanCursor();
+  };
+  container.addEventListener('pointerup', endPan);
+  container.addEventListener('pointercancel', endPan);
+}
+
+/* ── 左ドラッグで画像をパン（transform の translate を更新） ── */
+function initImgPan(imgEl) {
+  imgEl.draggable = false;
+
+  let panning = false;
+  let startX = 0, startY = 0, startPX = 0, startPY = 0;
+
+  imgEl.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || imgZoomFactor <= 1.0) return;
+    e.preventDefault();
+    panning = true;
+    startX  = e.clientX; startY = e.clientY;
+    startPX = imgPanX;   startPY = imgPanY;
+    imgEl.setPointerCapture(e.pointerId);
+    imgEl.style.cursor = 'grabbing';
+  });
+  imgEl.addEventListener('pointermove', e => {
+    if (!panning) return;
+    imgPanX = startPX + (e.clientX - startX);
+    imgPanY = startPY + (e.clientY - startY);
+    clampImgPan(imgEl);
+    applyImgTransform(imgEl);
+  });
+  const endPan = e => {
+    if (!panning) return;
+    panning = false;
+    try { imgEl.releasePointerCapture(e.pointerId); } catch (_) {}
+    imgEl.style.cursor = imgZoomFactor > 1.0 ? 'grab' : '';
+  };
+  imgEl.addEventListener('pointerup', endPan);
+  imgEl.addEventListener('pointercancel', endPan);
+}
+
+/* 画像が画面外へ完全に消えないよう移動量を制限（はみ出した分だけ動かせる） */
+function clampImgPan(imgEl) {
+  const area = document.getElementById('previewArea');
+  if (!area) return;
+  const ar = area.getBoundingClientRect();
+  /* 拡大後の実寸（transform後の見た目サイズ） */
+  const dispW = imgEl.offsetWidth  * imgZoomFactor;
+  const dispH = imgEl.offsetHeight * imgZoomFactor;
+  const maxX = Math.max(0, (dispW - ar.width)  / 2);
+  const maxY = Math.max(0, (dispH - ar.height) / 2);
+  imgPanX = Math.max(-maxX, Math.min(maxX, imgPanX));
+  imgPanY = Math.max(-maxY, Math.min(maxY, imgPanY));
 }
 
 /* ── ズームレベルを一時表示 ── */
@@ -871,6 +977,7 @@ async function loadPdfPreview(attempt) {
     }
     addPdfRotateOverlay();
     initPdfWheelZoom();
+    updatePdfPanCursor();
   } catch (e) {
     console.error(`PDF preview error (attempt ${attempt}):`, e);
 
