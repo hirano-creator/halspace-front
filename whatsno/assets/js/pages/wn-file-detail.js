@@ -12,6 +12,47 @@ let pdfPreviewRot  = 0;   // ビューア側追加回転: 0 | 90 | 180 | 270
 let pdfViewMode    = 'single';  // 'single' | 'grid'
 let pdfGridRendered = false;    // グリッド描画済みフラグ（回転時に無効化）
 
+/* ── ズーム状態 ── */
+let pdfZoomFactor = 1.0;
+let pdfBaseCssW   = 0;
+let pdfBaseCssH   = 0;
+let imgZoomFactor = 1.0;
+
+/* ── Ctrl+ホイール：ブラウザズーム防止＋in-appズームを一本化 ── */
+window.addEventListener('wheel', e => {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();                 // ブラウザズームを常時ブロック
+
+  const pdfContainer  = document.getElementById('pdfContainer');
+  const previewArea   = document.getElementById('previewArea');
+  const factor        = e.deltaY < 0 ? 1.1 : 0.9;
+
+  /* PDF ズーム */
+  if (pdfContainer && pdfContainer.style.display !== 'none' && pdfContainer.contains(e.target)) {
+    pdfZoomFactor = Math.max(0.25, Math.min(4.0, pdfZoomFactor * factor));
+    const canvas = document.getElementById('pdfCanvas');
+    if (canvas && pdfBaseCssW) {
+      canvas.style.width  = pdfBaseCssW * pdfZoomFactor + 'px';
+      canvas.style.height = pdfBaseCssH * pdfZoomFactor + 'px';
+      showPreviewZoomLabel(Math.round(pdfZoomFactor * 100) + '%');
+    }
+    return;
+  }
+
+  /* 画像ズーム */
+  if (previewArea) {
+    const img = previewArea.querySelector('img');
+    if (img) {
+      imgZoomFactor = Math.max(0.25, Math.min(4.0, imgZoomFactor * factor));
+      img.style.transform       = `scale(${imgZoomFactor})`;
+      img.style.transformOrigin = 'center center';
+      img.style.maxWidth        = imgZoomFactor > 1.0 ? 'none' : '';
+      img.style.maxHeight       = imgZoomFactor > 1.0 ? 'none' : '';
+      showPreviewZoomLabel(Math.round(imgZoomFactor * 100) + '%');
+    }
+  }
+}, { passive: false, capture: true });
+
 document.addEventListener('DOMContentLoaded', async () => {
   if (!fileId) { location.href = 'dashboard.html'; return; }
   currentUser = requireSpaceAuth();
@@ -274,6 +315,7 @@ function renderPreview() {
     img.onload = () => {
       document.getElementById('previewPlaceholder').style.display = 'none';
       document.getElementById('previewArea').appendChild(img);
+      initImgWheelZoom(img);
     };
     img.onerror = () => { document.getElementById('previewHint').textContent = 'プレビューを読み込めませんでした'; };
   };
@@ -635,8 +677,10 @@ async function reRenderPdfPreviewPage() {
 
   canvas.width  = viewport.width;
   canvas.height = viewport.height;
-  canvas.style.width  = (baseVP.width  * fitScale) + 'px';
-  canvas.style.height = (baseVP.height * fitScale) + 'px';
+  pdfBaseCssW = baseVP.width  * fitScale;
+  pdfBaseCssH = baseVP.height * fitScale;
+  canvas.style.width  = pdfBaseCssW * pdfZoomFactor + 'px';
+  canvas.style.height = pdfBaseCssH * pdfZoomFactor + 'px';
 
   await page.render({ canvasContext: ctx, viewport }).promise;
 }
@@ -693,6 +737,41 @@ function addPdfRotateOverlay() {
     setPdfViewMode(pdfViewMode === 'grid' ? 'single' : 'grid'));
 }
 
+/* ── Ctrl+ホイール：PDFズーム（window リスナーへ一本化・ここは overscroll のみ設定） ── */
+function initPdfWheelZoom() {
+  const container = document.getElementById('pdfContainer');
+  if (!container) return;
+  container.style.overscrollBehavior = 'contain';
+}
+
+/* ── Ctrl+ホイール：画像ズーム（window リスナーへ一本化・ここはリセットのみ） ── */
+function initImgWheelZoom(_imgEl) {
+  imgZoomFactor = 1.0;
+  const area = document.getElementById('previewArea');
+  if (area) area.style.overscrollBehavior = 'contain';
+}
+
+/* ── ズームレベルを一時表示 ── */
+let _zoomLabelTimer = null;
+function showPreviewZoomLabel(text) {
+  let label = document.getElementById('previewZoomLabel');
+  if (!label) {
+    label = document.createElement('div');
+    label.id = 'previewZoomLabel';
+    label.style.cssText = [
+      'position:absolute', 'bottom:52px', 'left:50%', 'transform:translateX(-50%)',
+      'background:rgba(0,0,0,.65)', 'color:#fff', 'font-size:13px', 'font-weight:700',
+      'padding:5px 14px', 'border-radius:14px', 'pointer-events:none', 'z-index:20',
+      'transition:opacity .3s',
+    ].join(';');
+    document.getElementById('previewArea').appendChild(label);
+  }
+  label.textContent = text;
+  label.style.opacity = '1';
+  clearTimeout(_zoomLabelTimer);
+  _zoomLabelTimer = setTimeout(() => { if (label) label.style.opacity = '0'; }, 1200);
+}
+
 /* ────────────────────────────────
    PDF プレビュー（自動リトライ付き）
    ──────────────────────────────── */
@@ -737,6 +816,9 @@ async function loadPdfPreview(attempt) {
     pdfPreviewPage = 1;
     pdfViewMode    = 'single';
     pdfGridRendered = false;
+    pdfZoomFactor  = 1.0;
+    pdfBaseCssW    = 0;
+    pdfBaseCssH    = 0;
     document.getElementById('pdfGridContainer')?.remove();
     const pdfDoc   = pdfPreviewDoc;
     const page     = await pdfDoc.getPage(1);
@@ -775,8 +857,10 @@ async function loadPdfPreview(attempt) {
     canvas.width  = viewport.width;
     canvas.height = viewport.height;
     /* CSS表示サイズはエリアにフィット */
-    canvas.style.width  = (baseVP.width  * fitScale) + 'px';
-    canvas.style.height = (baseVP.height * fitScale) + 'px';
+    pdfBaseCssW = baseVP.width  * fitScale;
+    pdfBaseCssH = baseVP.height * fitScale;
+    canvas.style.width  = pdfBaseCssW * pdfZoomFactor + 'px';
+    canvas.style.height = pdfBaseCssH * pdfZoomFactor + 'px';
 
     await page.render({ canvasContext: ctx, viewport }).promise;
 
@@ -786,6 +870,7 @@ async function loadPdfPreview(attempt) {
       renderPdfNav(pdfDoc, page, canvas, ctx, area, 1);
     }
     addPdfRotateOverlay();
+    initPdfWheelZoom();
   } catch (e) {
     console.error(`PDF preview error (attempt ${attempt}):`, e);
 
