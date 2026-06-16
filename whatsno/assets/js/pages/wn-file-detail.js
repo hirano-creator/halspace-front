@@ -459,9 +459,10 @@ async function showOfficePreview() {
     document.getElementById('officeDownloadBtn')?.addEventListener('click', () => wnDownload(fileId));
   };
 
-  /* 本番環境: Microsoft Office Online Viewer を iframe で埋め込み（Excel/Word/PowerPoint 全対応） */
+  /* 本番環境 + Excel: Microsoft Office Online Viewer を iframe で埋め込み
+     Word (.docx/.docm) は mammoth.js レンダリングを使う（Ctrl+ホイールズームのため） */
   const officeUrl = wnOfficeViewerUrl(fileId);
-  if (officeUrl) {
+  if (officeUrl && ['xlsx','xls','xlsm'].includes(ext)) {
     hint.textContent = 'Office Online 読み込み中…';
     placeholder.style.display = '';
     container.style.display = 'none';
@@ -471,7 +472,7 @@ async function showOfficePreview() {
     return;
   }
 
-  /* ローカル環境: クライアント側レンダリング (SheetJS / mammoth.js) にフォールバック */
+  /* Word / ローカル環境: クライアント側レンダリング (SheetJS / mammoth.js) */
 
   /* PowerPoint と旧 .doc はクライアント側で簡単に描画できないためダウンロード導線 */
   if (['pptx','ppt','pptm','doc'].includes(ext)) {
