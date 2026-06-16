@@ -19,6 +19,8 @@ let pdfBaseCssH   = 0;
 let imgZoomFactor = 1.0;
 let imgPanX       = 0;   // 画像ドラッグ移動オフセット(px)
 let imgPanY       = 0;
+let pdfPanX       = 0;   // PDFドラッグ移動オフセット(px)
+let pdfPanY       = 0;
 
 /* ── Ctrl+ホイール：ブラウザズーム防止＋in-appズームを一本化 ── */
 window.addEventListener('wheel', e => {
@@ -32,12 +34,12 @@ window.addEventListener('wheel', e => {
   /* PDF ズーム */
   if (pdfContainer && pdfContainer.style.display !== 'none' && pdfContainer.contains(e.target)) {
     pdfZoomFactor = Math.max(0.25, Math.min(4.0, pdfZoomFactor * factor));
+    if (pdfZoomFactor <= 1.0) { pdfPanX = 0; pdfPanY = 0; }
     const canvas = document.getElementById('pdfCanvas');
     if (canvas && pdfBaseCssW) {
-      canvas.style.width  = pdfBaseCssW * pdfZoomFactor + 'px';
-      canvas.style.height = pdfBaseCssH * pdfZoomFactor + 'px';
+      applyPdfTransform(canvas);
       showPreviewZoomLabel(Math.round(pdfZoomFactor * 100) + '%');
-      centerPdfScroll();
+      updatePdfPanCursor();
     }
     return;
   }
@@ -61,23 +63,30 @@ function applyImgTransform(img) {
   img.style.transform = `translate(${imgPanX}px, ${imgPanY}px) scale(${imgZoomFactor})`;
 }
 
-/* PDFコンテナがパン可能なら grab カーソルに */
+/* PDF の transform（移動＋拡大）を適用（クランプ込み） */
+function applyPdfTransform(canvas) {
+  clampPdfPan();
+  canvas.style.transform       = `translate(${pdfPanX}px, ${pdfPanY}px) scale(${pdfZoomFactor})`;
+  canvas.style.transformOrigin = 'center center';
+}
+
+/* PDFのパン移動量をコンテナ内に制限 */
+function clampPdfPan() {
+  const c = document.getElementById('pdfContainer');
+  if (!c || !pdfBaseCssW) return;
+  const maxX = Math.max(0, (pdfBaseCssW * pdfZoomFactor - c.clientWidth)  / 2);
+  const maxY = Math.max(0, (pdfBaseCssH * pdfZoomFactor - c.clientHeight) / 2);
+  pdfPanX = Math.max(-maxX, Math.min(maxX, pdfPanX));
+  pdfPanY = Math.max(-maxY, Math.min(maxY, pdfPanY));
+}
+
+/* PDFがパン可能なら grab カーソルに */
 function updatePdfPanCursor() {
   const c = document.getElementById('pdfContainer');
   if (!c) return;
-  const pannable = c.scrollWidth > c.clientWidth || c.scrollHeight > c.clientHeight;
+  const pannable = pdfBaseCssW * pdfZoomFactor > c.clientWidth ||
+                   pdfBaseCssH * pdfZoomFactor > c.clientHeight;
   c.style.cursor = pannable ? 'grab' : '';
-}
-
-/* ズーム後: スクロール位置を中央に合わせる（上下左右すべてにパン可能にする） */
-function centerPdfScroll() {
-  requestAnimationFrame(() => {
-    const c = document.getElementById('pdfContainer');
-    if (!c) return;
-    c.scrollLeft = Math.max(0, (c.scrollWidth  - c.clientWidth)  / 2);
-    c.scrollTop  = Math.max(0, (c.scrollHeight - c.clientHeight) / 2);
-    updatePdfPanCursor();
-  });
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -577,11 +586,15 @@ function renderPdfNav(pdfDoc, _page, canvas, ctx, area, currentPageNum) {
     const vp = pg.getViewport({ scale: scale * dpr, rotation: _totRot });
     canvas.width  = vp.width;
     canvas.height = vp.height;
-    canvas.style.width  = (baseVP.width  * scale) + 'px';
-    canvas.style.height = (baseVP.height * scale) + 'px';
+    pdfBaseCssW = baseVP.width  * scale;
+    pdfBaseCssH = baseVP.height * scale;
+    pdfZoomFactor = 1.0; pdfPanX = 0; pdfPanY = 0;
+    canvas.style.width  = pdfBaseCssW + 'px';
+    canvas.style.height = pdfBaseCssH + 'px';
     await pg.render({ canvasContext: ctx, viewport: vp }).promise;
+    applyPdfTransform(canvas);
+    updatePdfPanCursor();
     document.getElementById('pdfPageLabel').textContent = `${n} / ${total}`;
-    document.getElementById('pdfContainer').scrollTop = 0;
   }
 
   nav.querySelector('#pdfPrev').addEventListener('click', () => goTo(pdfPreviewPage - 1));
@@ -611,7 +624,7 @@ async function setPdfViewMode(mode) {
   } else {
     const grid = document.getElementById('pdfGridContainer');
     if (grid) grid.style.display = 'none';
-    single.style.display = 'block';
+    single.style.display = 'flex';
     if (nav) nav.style.display = 'flex';
     if (toggle) {
       toggle.innerHTML = '<i class="fa-solid fa-table-cells"></i>';
@@ -706,10 +719,11 @@ async function reRenderPdfPreviewPage() {
   canvas.height = viewport.height;
   pdfBaseCssW = baseVP.width  * fitScale;
   pdfBaseCssH = baseVP.height * fitScale;
-  canvas.style.width  = pdfBaseCssW * pdfZoomFactor + 'px';
-  canvas.style.height = pdfBaseCssH * pdfZoomFactor + 'px';
+  canvas.style.width  = pdfBaseCssW + 'px';
+  canvas.style.height = pdfBaseCssH + 'px';
 
   await page.render({ canvasContext: ctx, viewport }).promise;
+  applyPdfTransform(canvas);
 }
 
 /* PDF プレビューエリアに回転ボタンのオーバーレイを追加 */
@@ -782,31 +796,33 @@ function initImgWheelZoom(imgEl) {
   if (imgEl) initImgPan(imgEl);
 }
 
-/* ── 左ドラッグでPDFをパン（ネイティブスクロールを利用） ── */
+/* ── 左ドラッグでPDFをパン（transform translate を更新） ── */
 function initPdfPan(container) {
   if (container._panInit) return;
   container._panInit = true;
 
   let panning = false;
-  let startX = 0, startY = 0, startSL = 0, startST = 0;
+  let startX = 0, startY = 0, startPX = 0, startPY = 0;
 
   container.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
-    const pannable = container.scrollWidth > container.clientWidth ||
-                     container.scrollHeight > container.clientHeight;
+    const pannable = pdfBaseCssW * pdfZoomFactor > container.clientWidth ||
+                     pdfBaseCssH * pdfZoomFactor > container.clientHeight;
     if (!pannable) return;
     e.preventDefault();
     panning = true;
     startX  = e.clientX; startY = e.clientY;
-    startSL = container.scrollLeft; startST = container.scrollTop;
+    startPX = pdfPanX;   startPY = pdfPanY;
     container.setPointerCapture(e.pointerId);
     container.style.cursor = 'grabbing';
     container.style.userSelect = 'none';
   });
   container.addEventListener('pointermove', e => {
     if (!panning) return;
-    container.scrollLeft = startSL - (e.clientX - startX);
-    container.scrollTop  = startST - (e.clientY - startY);
+    pdfPanX = startPX + (e.clientX - startX);
+    pdfPanY = startPY + (e.clientY - startY);
+    const canvas = document.getElementById('pdfCanvas');
+    if (canvas) applyPdfTransform(canvas);
   });
   const endPan = e => {
     if (!panning) return;
@@ -932,6 +948,8 @@ async function loadPdfPreview(attempt) {
     pdfViewMode    = 'single';
     pdfGridRendered = false;
     pdfZoomFactor  = 1.0;
+    pdfPanX        = 0;
+    pdfPanY        = 0;
     pdfBaseCssW    = 0;
     pdfBaseCssH    = 0;
     document.getElementById('pdfGridContainer')?.remove();
@@ -944,7 +962,7 @@ async function loadPdfPreview(attempt) {
 
     /* 寸法測定前に container を表示して、parent の高さを正しく確定させる */
     placeholder.style.display = 'none';
-    container.style.display = 'block';
+    container.style.display = 'flex';
 
     /* ブラウザに 1 フレーム描画させてから測定（モバイルで height: auto の親が確定するように） */
     await new Promise(r => requestAnimationFrame(r));
@@ -974,10 +992,11 @@ async function loadPdfPreview(attempt) {
     /* CSS表示サイズはエリアにフィット */
     pdfBaseCssW = baseVP.width  * fitScale;
     pdfBaseCssH = baseVP.height * fitScale;
-    canvas.style.width  = pdfBaseCssW * pdfZoomFactor + 'px';
-    canvas.style.height = pdfBaseCssH * pdfZoomFactor + 'px';
+    canvas.style.width  = pdfBaseCssW + 'px';
+    canvas.style.height = pdfBaseCssH + 'px';
 
     await page.render({ canvasContext: ctx, viewport }).promise;
+    applyPdfTransform(canvas);
 
     hintEl().textContent = '';
 
