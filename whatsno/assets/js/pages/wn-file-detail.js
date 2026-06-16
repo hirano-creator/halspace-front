@@ -49,8 +49,6 @@ window.addEventListener('wheel', e => {
       imgZoomFactor = Math.max(0.25, Math.min(4.0, imgZoomFactor * factor));
       if (imgZoomFactor <= 1.0) { imgPanX = 0; imgPanY = 0; }  // 等倍以下は再センタリング
       img.style.transformOrigin = 'center center';
-      img.style.maxWidth        = imgZoomFactor > 1.0 ? 'none' : '';
-      img.style.maxHeight       = imgZoomFactor > 1.0 ? 'none' : '';
       img.style.cursor          = imgZoomFactor > 1.0 ? 'grab' : '';
       applyImgTransform(img);
       showPreviewZoomLabel(Math.round(imgZoomFactor * 100) + '%');
