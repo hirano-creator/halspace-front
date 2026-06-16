@@ -13,14 +13,15 @@ let pdfViewMode    = 'single';  // 'single' | 'grid'
 let pdfGridRendered = false;    // グリッド描画済みフラグ（回転時に無効化）
 
 /* ── ズーム状態 ── */
-let pdfZoomFactor = 1.0;
-let pdfBaseCssW   = 0;
-let pdfBaseCssH   = 0;
-let imgZoomFactor = 1.0;
-let imgPanX       = 0;   // 画像ドラッグ移動オフセット(px)
-let imgPanY       = 0;
-let pdfPanX       = 0;   // PDFドラッグ移動オフセット(px)
-let pdfPanY       = 0;
+let pdfZoomFactor    = 1.0;
+let pdfBaseCssW      = 0;
+let pdfBaseCssH      = 0;
+let imgZoomFactor    = 1.0;
+let imgPanX          = 0;   // 画像ドラッグ移動オフセット(px)
+let imgPanY          = 0;
+let pdfPanX          = 0;   // PDFドラッグ移動オフセット(px)
+let pdfPanY          = 0;
+let officeZoomFactor = 1.0; // Excel/Word (クライアント側レンダリング) ズーム倍率
 
 /* ── Ctrl+ホイール：ブラウザズーム防止＋in-appズームを一本化 ── */
 window.addEventListener('wheel', e => {
@@ -54,7 +55,16 @@ window.addEventListener('wheel', e => {
       img.style.cursor          = imgZoomFactor > 1.0 ? 'grab' : '';
       applyImgTransform(img);
       showPreviewZoomLabel(Math.round(imgZoomFactor * 100) + '%');
+      return;
     }
+  }
+
+  /* Excel/Word クライアント側レンダリングズーム (officeContainer が表示中) */
+  const officeContainer = document.getElementById('officeContainer');
+  if (officeContainer && officeContainer.style.display !== 'none') {
+    officeZoomFactor = Math.max(0.25, Math.min(4.0, officeZoomFactor * factor));
+    officeContainer.style.zoom = officeZoomFactor;
+    showPreviewZoomLabel(Math.round(officeZoomFactor * 100) + '%');
   }
 }, { passive: false, capture: true });
 
@@ -430,6 +440,9 @@ async function showOfficePreview() {
   const container   = document.getElementById('officeContainer');
   const frame       = document.getElementById('previewFrame');
   const ext         = fileData.file_name.split('.').pop().toLowerCase();
+
+  officeZoomFactor = 1.0;
+  container.style.zoom = '';
 
   const showFallback = (title, desc) => {
     container.style.display = 'none';
