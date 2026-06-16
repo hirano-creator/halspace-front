@@ -37,7 +37,7 @@ window.addEventListener('wheel', e => {
       canvas.style.width  = pdfBaseCssW * pdfZoomFactor + 'px';
       canvas.style.height = pdfBaseCssH * pdfZoomFactor + 'px';
       showPreviewZoomLabel(Math.round(pdfZoomFactor * 100) + '%');
-      updatePdfPanCursor();
+      centerPdfScroll();
     }
     return;
   }
@@ -67,6 +67,17 @@ function updatePdfPanCursor() {
   if (!c) return;
   const pannable = c.scrollWidth > c.clientWidth || c.scrollHeight > c.clientHeight;
   c.style.cursor = pannable ? 'grab' : '';
+}
+
+/* ズーム後: スクロール位置を中央に合わせる（上下左右すべてにパン可能にする） */
+function centerPdfScroll() {
+  requestAnimationFrame(() => {
+    const c = document.getElementById('pdfContainer');
+    if (!c) return;
+    c.scrollLeft = Math.max(0, (c.scrollWidth  - c.clientWidth)  / 2);
+    c.scrollTop  = Math.max(0, (c.scrollHeight - c.clientHeight) / 2);
+    updatePdfPanCursor();
+  });
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -600,7 +611,7 @@ async function setPdfViewMode(mode) {
   } else {
     const grid = document.getElementById('pdfGridContainer');
     if (grid) grid.style.display = 'none';
-    single.style.display = 'flex';
+    single.style.display = 'block';
     if (nav) nav.style.display = 'flex';
     if (toggle) {
       toggle.innerHTML = '<i class="fa-solid fa-table-cells"></i>';
@@ -933,7 +944,7 @@ async function loadPdfPreview(attempt) {
 
     /* 寸法測定前に container を表示して、parent の高さを正しく確定させる */
     placeholder.style.display = 'none';
-    container.style.display = 'flex';
+    container.style.display = 'block';
 
     /* ブラウザに 1 フレーム描画させてから測定（モバイルで height: auto の親が確定するように） */
     await new Promise(r => requestAnimationFrame(r));
