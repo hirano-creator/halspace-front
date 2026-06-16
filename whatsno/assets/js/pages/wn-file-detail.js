@@ -428,10 +428,12 @@ async function showOfficePreview() {
   const placeholder = document.getElementById('previewPlaceholder');
   const hint        = document.getElementById('previewHint');
   const container   = document.getElementById('officeContainer');
+  const frame       = document.getElementById('previewFrame');
   const ext         = fileData.file_name.split('.').pop().toLowerCase();
 
   const showFallback = (title, desc) => {
     container.style.display = 'none';
+    frame.style.display = 'none';
     placeholder.style.display = '';
     placeholder.innerHTML = `
       <i class="fa-solid fa-file-lines" id="previewIcon" style="font-size:48px;color:#888;"></i>
@@ -443,6 +445,20 @@ async function showOfficePreview() {
     `;
     document.getElementById('officeDownloadBtn')?.addEventListener('click', () => wnDownload(fileId));
   };
+
+  /* 本番環境: Microsoft Office Online Viewer を iframe で埋め込み（Excel/Word/PowerPoint 全対応） */
+  const officeUrl = wnOfficeViewerUrl(fileId);
+  if (officeUrl) {
+    hint.textContent = 'Office Online 読み込み中…';
+    placeholder.style.display = '';
+    container.style.display = 'none';
+    frame.src = officeUrl;
+    frame.style.display = 'block';
+    frame.onload = () => { placeholder.style.display = 'none'; };
+    return;
+  }
+
+  /* ローカル環境: クライアント側レンダリング (SheetJS / mammoth.js) にフォールバック */
 
   /* PowerPoint と旧 .doc はクライアント側で簡単に描画できないためダウンロード導線 */
   if (['pptx','ppt','pptm','doc'].includes(ext)) {
