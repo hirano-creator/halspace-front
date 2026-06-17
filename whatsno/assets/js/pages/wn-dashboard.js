@@ -232,7 +232,8 @@ function initSkillBar() {
 /* ────────────────────────────────
    連絡先管理モーダル（一覧・追加・編集・削除）
    ──────────────────────────────── */
-let contactsBusy = false;
+let contactsBusy     = false;
+let contactEditingId = null;
 
 function wnEscapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, m => (
@@ -241,20 +242,22 @@ function wnEscapeHtml(s) {
 }
 
 function initContactsModal() {
-  const openBtn   = document.getElementById('contactsOpenBtn');
-  const closeBtn  = document.getElementById('contactsModalClose');
-  const cancelBtn = document.getElementById('contactsCloseBtn');
-  const addBtn    = document.getElementById('contactAddBtn');
-  const nameEl    = document.getElementById('contactNameInput');
-  const kanaEl    = document.getElementById('contactKanaInput');
-  const companyEl = document.getElementById('contactCompanyInput');
-  const emailEl   = document.getElementById('contactEmailInput');
+  const openBtn         = document.getElementById('contactsOpenBtn');
+  const closeBtn        = document.getElementById('contactsModalClose');
+  const cancelBtn       = document.getElementById('contactsCloseBtn');
+  const addBtn          = document.getElementById('contactAddBtn');
+  const cancelEditBtn   = document.getElementById('contactCancelEditBtn');
+  const nameEl          = document.getElementById('contactNameInput');
+  const kanaEl          = document.getElementById('contactKanaInput');
+  const companyEl       = document.getElementById('contactCompanyInput');
+  const emailEl         = document.getElementById('contactEmailInput');
   if (!openBtn) return;
 
   openBtn.addEventListener('click', openContactsModal);
   closeBtn?.addEventListener('click', closeContactsModal);
   cancelBtn?.addEventListener('click', closeContactsModal);
   addBtn?.addEventListener('click', addContactFromForm);
+  cancelEditBtn?.addEventListener('click', _contactCancelEdit);
   nameEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); kanaEl?.focus(); } });
   kanaEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); companyEl?.focus(); } });
   companyEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); emailEl?.focus(); } });
@@ -263,15 +266,23 @@ function initContactsModal() {
 
 function openContactsModal() {
   document.getElementById('contactsModal').classList.remove('hidden');
-  document.getElementById('contactNameInput').value = '';
-  document.getElementById('contactKanaInput').value = '';
-  document.getElementById('contactCompanyInput').value = '';
-  document.getElementById('contactEmailInput').value = '';
-  _contactShowError('');
+  _contactCancelEdit();
   renderContactsList();
 }
 function closeContactsModal() {
   document.getElementById('contactsModal').classList.add('hidden');
+}
+
+function _contactCancelEdit() {
+  contactEditingId = null;
+  document.getElementById('contactNameInput').value    = '';
+  document.getElementById('contactKanaInput').value    = '';
+  document.getElementById('contactCompanyInput').value = '';
+  document.getElementById('contactEmailInput').value   = '';
+  document.getElementById('contactAddBtnIcon').className  = 'fa-solid fa-plus';
+  document.getElementById('contactAddBtnLabel').textContent = '追加';
+  document.getElementById('contactCancelEditBtn')?.classList.add('hidden');
+  _contactShowError('');
 }
 
 function _contactShowError(msg) {
@@ -344,14 +355,15 @@ async function addContactFromForm() {
 
   contactsBusy = true;
   try {
-    await wnSaveContact(name, email, company || null, kana || null);
-    nameEl.value = '';
-    kanaEl.value = '';
-    companyEl.value = '';
-    emailEl.value = '';
-    nameEl.focus();
+    if (contactEditingId) {
+      await wnUpdateContact(contactEditingId, name, email, company || null, kana || null);
+      wnShowToast('連絡先を更新しました', 'success');
+    } else {
+      await wnSaveContact(name, email, company || null, kana || null);
+      wnShowToast('連絡先を登録しました', 'success');
+    }
+    _contactCancelEdit();
     await renderContactsList();
-    wnShowToast('連絡先を登録しました', 'success');
   } catch (err) {
     _contactShowError(err?.message || '連絡先の保存に失敗しました');
   } finally {
@@ -360,20 +372,17 @@ async function addContactFromForm() {
 }
 
 function editContact(c) {
-  const newName    = window.prompt('名前', c.name);
-  if (newName === null) return;
-  const newKana    = window.prompt('カナ（任意、全角カタカナ）', c.name_kana ?? '');
-  if (newKana === null) return;
-  const newCompany = window.prompt('会社名（任意、空欄でクリア）', c.company_name ?? '');
-  if (newCompany === null) return;
-  const newEmail   = window.prompt('メールアドレス', c.email);
-  if (newEmail === null) return;
-  const name = newName.trim(), kana = newKana.trim(), email = newEmail.trim(), company = newCompany.trim();
-  if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { wnShowToast('名前とメールアドレスを正しく入力してください', 'danger'); return; }
-  if (kana && !/^[ァ-ヶー\s　]+$/.test(kana)) { wnShowToast('カナは全角カタカナで入力してください', 'danger'); return; }
-  wnUpdateContact(c.id, name, email, company || null, kana || null)
-    .then(() => { renderContactsList(); wnShowToast('連絡先を更新しました', 'success'); })
-    .catch(err => wnShowToast(err?.message || '更新に失敗しました', 'danger'));
+  contactEditingId = c.id;
+  document.getElementById('contactNameInput').value    = c.name        ?? '';
+  document.getElementById('contactKanaInput').value    = c.name_kana   ?? '';
+  document.getElementById('contactCompanyInput').value = c.company_name ?? '';
+  document.getElementById('contactEmailInput').value   = c.email       ?? '';
+  document.getElementById('contactAddBtnIcon').className  = 'fa-solid fa-check';
+  document.getElementById('contactAddBtnLabel').textContent = '更新';
+  document.getElementById('contactCancelEditBtn')?.classList.remove('hidden');
+  _contactShowError('');
+  document.getElementById('contactNameInput').focus();
+  document.getElementById('contactsModal').querySelector('[style*="padding"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function deleteContactById(id) {

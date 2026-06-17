@@ -607,8 +607,9 @@
         <input type="email" id="contactEmailInput" placeholder="メール（例: yamada@example.com）"
           style="flex:1;padding:8px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;outline:none;min-width:0;">
         <button class="btn btn-accent btn-sm" id="contactAddBtn" style="flex-shrink:0;white-space:nowrap;">
-          <i class="fa-solid fa-plus"></i> 追加
+          <i class="fa-solid fa-plus" id="contactAddBtnIcon"></i> <span id="contactAddBtnLabel">追加</span>
         </button>
+        <button class="btn btn-ghost btn-sm hidden" id="contactCancelEditBtn" style="flex-shrink:0;white-space:nowrap;">キャンセル</button>
       </div>
       <div id="contactInputError" style="display:none;font-size:11px;color:#E17055;margin-bottom:8px;">
         <i class="fa-solid fa-triangle-exclamation"></i>
