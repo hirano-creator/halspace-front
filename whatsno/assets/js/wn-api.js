@@ -577,10 +577,10 @@ async function wnGetContacts() {
   if (!res || !res.ok) return [];
   return (await res.json()).data ?? [];
 }
-async function wnSaveContact(name, email, companyName) {
+async function wnSaveContact(name, email, companyName, nameKana) {
   const res = await wnFetch('/wn/contacts', {
     method: 'POST',
-    body: JSON.stringify({ name, email, company_name: companyName || null }),
+    body: JSON.stringify({ name, email, company_name: companyName || null, name_kana: nameKana || null }),
   });
   if (!res || !res.ok) {
     const err = await res?.json().catch(() => ({}));
@@ -588,10 +588,10 @@ async function wnSaveContact(name, email, companyName) {
   }
   return (await res.json()).data;
 }
-async function wnUpdateContact(id, name, email, companyName) {
+async function wnUpdateContact(id, name, email, companyName, nameKana) {
   const res = await wnFetch(`/wn/contacts/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ name, email, company_name: companyName ?? null }),
+    body: JSON.stringify({ name, email, company_name: companyName ?? null, name_kana: nameKana ?? null }),
   });
   if (!res || !res.ok) {
     const err = await res?.json().catch(() => ({}));

@@ -246,6 +246,7 @@ function initContactsModal() {
   const cancelBtn = document.getElementById('contactsCloseBtn');
   const addBtn    = document.getElementById('contactAddBtn');
   const nameEl    = document.getElementById('contactNameInput');
+  const kanaEl    = document.getElementById('contactKanaInput');
   const companyEl = document.getElementById('contactCompanyInput');
   const emailEl   = document.getElementById('contactEmailInput');
   if (!openBtn) return;
@@ -254,7 +255,8 @@ function initContactsModal() {
   closeBtn?.addEventListener('click', closeContactsModal);
   cancelBtn?.addEventListener('click', closeContactsModal);
   addBtn?.addEventListener('click', addContactFromForm);
-  nameEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); companyEl?.focus(); } });
+  nameEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); kanaEl?.focus(); } });
+  kanaEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); companyEl?.focus(); } });
   companyEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); emailEl?.focus(); } });
   emailEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addContactFromForm(); } });
 }
@@ -262,6 +264,7 @@ function initContactsModal() {
 function openContactsModal() {
   document.getElementById('contactsModal').classList.remove('hidden');
   document.getElementById('contactNameInput').value = '';
+  document.getElementById('contactKanaInput').value = '';
   document.getElementById('contactCompanyInput').value = '';
   document.getElementById('contactEmailInput').value = '';
   _contactShowError('');
@@ -296,7 +299,9 @@ async function renderContactsList() {
   list.innerHTML = contacts.map(c => `
     <div data-id="${c.id}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;">
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:700;color:var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${wnEscapeHtml(c.name)}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          ${wnEscapeHtml(c.name)}${c.name_kana ? `<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">${wnEscapeHtml(c.name_kana)}</span>` : ''}
+        </div>
         <div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
           ${c.company_name ? `<span style="margin-right:4px;">${wnEscapeHtml(c.company_name)}</span><span style="margin-right:4px;">·</span>` : ''}${wnEscapeHtml(c.email)}
         </div>
@@ -324,20 +329,24 @@ async function renderContactsList() {
 async function addContactFromForm() {
   if (contactsBusy) return;
   const nameEl    = document.getElementById('contactNameInput');
+  const kanaEl    = document.getElementById('contactKanaInput');
   const companyEl = document.getElementById('contactCompanyInput');
   const emailEl   = document.getElementById('contactEmailInput');
   const name    = nameEl.value.trim();
+  const kana    = kanaEl.value.trim();
   const company = companyEl.value.trim();
   const email   = emailEl.value.trim();
 
   if (!name)  { _contactShowError('名前を入力してください'); nameEl.focus(); return; }
+  if (kana && !/^[ァ-ヶー\s　]+$/.test(kana)) { _contactShowError('カナは全角カタカナで入力してください'); kanaEl.focus(); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { _contactShowError('メールアドレスの形式が正しくありません'); emailEl.focus(); return; }
   _contactShowError('');
 
   contactsBusy = true;
   try {
-    await wnSaveContact(name, email, company || null);
+    await wnSaveContact(name, email, company || null, kana || null);
     nameEl.value = '';
+    kanaEl.value = '';
     companyEl.value = '';
     emailEl.value = '';
     nameEl.focus();
@@ -353,13 +362,16 @@ async function addContactFromForm() {
 function editContact(c) {
   const newName    = window.prompt('名前', c.name);
   if (newName === null) return;
+  const newKana    = window.prompt('カナ（任意、全角カタカナ）', c.name_kana ?? '');
+  if (newKana === null) return;
   const newCompany = window.prompt('会社名（任意、空欄でクリア）', c.company_name ?? '');
   if (newCompany === null) return;
   const newEmail   = window.prompt('メールアドレス', c.email);
   if (newEmail === null) return;
-  const name = newName.trim(), email = newEmail.trim(), company = newCompany.trim();
+  const name = newName.trim(), kana = newKana.trim(), email = newEmail.trim(), company = newCompany.trim();
   if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { wnShowToast('名前とメールアドレスを正しく入力してください', 'danger'); return; }
-  wnUpdateContact(c.id, name, email, company || null)
+  if (kana && !/^[ァ-ヶー\s　]+$/.test(kana)) { wnShowToast('カナは全角カタカナで入力してください', 'danger'); return; }
+  wnUpdateContact(c.id, name, email, company || null, kana || null)
     .then(() => { renderContactsList(); wnShowToast('連絡先を更新しました', 'success'); })
     .catch(err => wnShowToast(err?.message || '更新に失敗しました', 'danger'));
 }
