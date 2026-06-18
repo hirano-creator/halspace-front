@@ -1096,10 +1096,6 @@ async function loadPdfPreview(attempt) {
     if (pdfDoc.numPages > 1) {
       renderPdfNav(pdfDoc, page, canvas, ctx, area, 1);
     }
-    if (pdfDoc.numPages > 1 && pdfDoc.numPages <= 4) {
-      /* 少ページ: 自動でグリッド（全ページ大表示）に切り替え */
-      await setPdfViewMode('grid');
-    }
     addPdfRotateOverlay();
     initPdfWheelZoom();
     updatePdfPanCursor();
