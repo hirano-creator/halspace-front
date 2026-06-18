@@ -663,7 +663,7 @@ async function setPdfViewMode(mode) {
   }
 }
 
-/* 全ページをサムネイルサイズでグリッド描画（描画済みなら再利用） */
+/* 全ページをグリッド描画（ページ数が少ない場合は高さフィットの大表示） */
 async function renderPdfGrid() {
   if (!pdfPreviewDoc) return;
   const area = document.getElementById('previewArea');
@@ -672,53 +672,111 @@ async function renderPdfGrid() {
   if (!grid) {
     grid = document.createElement('div');
     grid.id = 'pdfGridContainer';
-    grid.style.cssText =
-      'display:none;width:100%;height:100%;overflow:auto;background:#525659;' +
-      'padding:12px;box-sizing:border-box;';
     area.appendChild(grid);
   }
   if (pdfGridRendered) return;
 
-  grid.innerHTML =
-    '<div id="pdfGridInner" style="display:grid;' +
-    'grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;"></div>';
-  const inner = grid.querySelector('#pdfGridInner');
-  const total = pdfPreviewDoc.numPages;
+  const total   = pdfPreviewDoc.numPages;
+  const areaW   = area.clientWidth  || 900;
+  const areaH   = area.clientHeight || 600;
+  /* ≤4ページ: 高さをフルに使った大表示モード */
+  const bigMode = total <= 4;
 
-  /* セル幅相当の固定解像度で描画（縮小表示なので軽量。15ページ程度なら数MB） */
-  const THUMB_RENDER_W = 480;
+  if (bigMode) {
+    /* スクロール不要・高さフィット */
+    grid.style.cssText =
+      'display:none;width:100%;height:100%;overflow:hidden;background:#525659;' +
+      'box-sizing:border-box;';
+    const cols        = total;
+    const colTemplate = `repeat(${cols}, 1fr)`;
+    /* 高さから逆算したレンダリング幅（Retina×2） */
+    const cellH      = areaH - 24;
+    const RENDER_H   = cellH * 2;   /* CSS px → 描画px */
+    grid.innerHTML   =
+      `<div id="pdfGridInner" style="display:grid;grid-template-columns:${colTemplate};` +
+      `gap:12px;height:100%;padding:12px;box-sizing:border-box;align-items:center;"></div>`;
+    const inner = grid.querySelector('#pdfGridInner');
 
-  for (let n = 1; n <= total; n++) {
-    const cell = document.createElement('div');
-    cell.style.cssText =
-      'position:relative;cursor:pointer;background:#fff;border-radius:4px;' +
-      'overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:outline .1s;';
-    cell.innerHTML =
-      '<canvas style="display:block;width:100%;height:auto;"></canvas>' +
-      `<span style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.6);` +
-      `color:#fff;font-size:11px;border-radius:10px;padding:2px 8px;">p.${n}</span>`;
-    cell.addEventListener('mouseenter', () => cell.style.outline = '3px solid #1976d2');
-    cell.addEventListener('mouseleave', () => cell.style.outline = 'none');
-    cell.addEventListener('click', async () => {
-      pdfPreviewPage = n;
-      await setPdfViewMode('single');
-      await reRenderPdfPreviewPage();
-      const label = document.getElementById('pdfPageLabel');
-      if (label) label.textContent = `${n} / ${total}`;
-    });
-    inner.appendChild(cell);
+    for (let n = 1; n <= total; n++) {
+      const cell = document.createElement('div');
+      cell.style.cssText =
+        'position:relative;cursor:pointer;background:#fff;border-radius:4px;' +
+        'overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.5);transition:outline .1s;' +
+        'height:100%;min-height:0;display:flex;align-items:center;justify-content:center;';
+      cell.innerHTML =
+        '<canvas style="display:block;max-width:100%;max-height:100%;width:auto;height:auto;"></canvas>' +
+        `<span style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.6);` +
+        `color:#fff;font-size:11px;border-radius:10px;padding:2px 8px;">p.${n}</span>`;
+      cell.addEventListener('mouseenter', () => cell.style.outline = '3px solid #1976d2');
+      cell.addEventListener('mouseleave', () => cell.style.outline = 'none');
+      cell.addEventListener('click', async () => {
+        pdfPreviewPage = n;
+        await setPdfViewMode('single');
+        await reRenderPdfPreviewPage();
+        const label = document.getElementById('pdfPageLabel');
+        if (label) label.textContent = `${n} / ${total}`;
+      });
+      inner.appendChild(cell);
 
-    const page    = await pdfPreviewDoc.getPage(n);
-    const _defVP  = page.getViewport({ scale: 1 });
-    const _totRot = (_defVP.rotation + pdfPreviewRot) % 360;
-    const baseVP  = page.getViewport({ scale: 1, rotation: _totRot });
-    const scale   = THUMB_RENDER_W / baseVP.width;
-    const vp      = page.getViewport({ scale, rotation: _totRot });
-    const canvas  = cell.querySelector('canvas');
-    canvas.width  = vp.width;
-    canvas.height = vp.height;
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-  }
+      const page    = await pdfPreviewDoc.getPage(n);
+      const _defVP  = page.getViewport({ scale: 1 });
+      const _totRot = (_defVP.rotation + pdfPreviewRot) % 360;
+      const baseVP  = page.getViewport({ scale: 1, rotation: _totRot });
+      const scale   = RENDER_H / baseVP.height;
+      const vp      = page.getViewport({ scale, rotation: _totRot });
+      const canvas  = cell.querySelector('canvas');
+      canvas.width  = vp.width;
+      canvas.height = vp.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    }
+  } else {
+    /* 多ページ: サムネイルグリッド */
+    grid.style.cssText =
+      'display:none;width:100%;height:100%;overflow:auto;background:#525659;' +
+      'padding:12px;box-sizing:border-box;';
+    const cols        = total <= 9 ? 3 : total <= 12 ? 4 : 0;
+    const colTemplate = cols > 0
+      ? `repeat(${cols}, 1fr)`
+      : 'repeat(auto-fit,minmax(240px,1fr))';
+    const THUMB_RENDER_W = cols > 0
+      ? Math.round((areaW - 24 - (cols - 1) * 12) / cols) * 2
+      : 480;
+    grid.innerHTML =
+      `<div id="pdfGridInner" style="display:grid;grid-template-columns:${colTemplate};gap:12px;"></div>`;
+    const inner = grid.querySelector('#pdfGridInner');
+
+    for (let n = 1; n <= total; n++) {
+      const cell = document.createElement('div');
+      cell.style.cssText =
+        'position:relative;cursor:pointer;background:#fff;border-radius:4px;' +
+        'overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:outline .1s;';
+      cell.innerHTML =
+        '<canvas style="display:block;width:100%;height:auto;"></canvas>' +
+        `<span style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.6);` +
+        `color:#fff;font-size:11px;border-radius:10px;padding:2px 8px;">p.${n}</span>`;
+      cell.addEventListener('mouseenter', () => cell.style.outline = '3px solid #1976d2');
+      cell.addEventListener('mouseleave', () => cell.style.outline = 'none');
+      cell.addEventListener('click', async () => {
+        pdfPreviewPage = n;
+        await setPdfViewMode('single');
+        await reRenderPdfPreviewPage();
+        const label = document.getElementById('pdfPageLabel');
+        if (label) label.textContent = `${n} / ${total}`;
+      });
+      inner.appendChild(cell);
+
+      const page    = await pdfPreviewDoc.getPage(n);
+      const _defVP  = page.getViewport({ scale: 1 });
+      const _totRot = (_defVP.rotation + pdfPreviewRot) % 360;
+      const baseVP  = page.getViewport({ scale: 1, rotation: _totRot });
+      const scale   = THUMB_RENDER_W / baseVP.width;
+      const vp      = page.getViewport({ scale, rotation: _totRot });
+      const canvas  = cell.querySelector('canvas');
+      canvas.width  = vp.width;
+      canvas.height = vp.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    }
+  }   /* end if(bigMode)/else */
   pdfGridRendered = true;
 }
 
@@ -1030,7 +1088,10 @@ async function loadPdfPreview(attempt) {
 
     hintEl().textContent = '';
 
-    if (pdfDoc.numPages > 1) {
+    if (pdfDoc.numPages > 1 && pdfDoc.numPages <= 4) {
+      /* 少ページ: 自動でグリッド（全ページ大表示）に切り替え */
+      await setPdfViewMode('grid');
+    } else if (pdfDoc.numPages > 1) {
       renderPdfNav(pdfDoc, page, canvas, ctx, area, 1);
     }
     addPdfRotateOverlay();
