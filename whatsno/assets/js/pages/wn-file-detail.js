@@ -689,26 +689,31 @@ async function renderPdfGrid() {
       'box-sizing:border-box;';
     const cols        = total;
     const colTemplate = `repeat(${cols}, 1fr)`;
-    /* 高さから逆算したレンダリング幅（Retina×2） */
-    const cellH      = areaH - 24;
-    const RENDER_H   = cellH * 2;   /* CSS px → 描画px */
-    grid.innerHTML   =
+    /* 表示可能な最大サイズ（padding 12px×2 = 24px） */
+    const maxH = areaH - 24;
+    const maxW = Math.floor((areaW - 24 - (cols - 1) * 12) / cols);
+    /* 高さ基準でレンダリング（Retina×2）、横長ページでも maxW 内に収まるよう両辺を渡す */
+    const RENDER_H = maxH * 2;
+    grid.innerHTML =
       `<div id="pdfGridInner" style="display:grid;grid-template-columns:${colTemplate};` +
       `gap:12px;height:100%;padding:12px;box-sizing:border-box;align-items:center;"></div>`;
     const inner = grid.querySelector('#pdfGridInner');
 
     for (let n = 1; n <= total; n++) {
+      /* セル自体は透明・サイズなし — ページコンテンツにぴったり合う wrap div に白背景を乗せる */
       const cell = document.createElement('div');
-      cell.style.cssText =
-        'position:relative;cursor:pointer;background:#fff;border-radius:4px;' +
-        'overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.5);transition:outline .1s;' +
-        'height:100%;min-height:0;display:flex;align-items:center;justify-content:center;';
-      cell.innerHTML =
-        '<canvas style="display:block;max-width:100%;max-height:100%;width:auto;height:auto;"></canvas>' +
+      cell.style.cssText = 'cursor:pointer;display:flex;align-items:center;justify-content:center;';
+      const wrap = document.createElement('div');
+      wrap.style.cssText =
+        'position:relative;line-height:0;background:#fff;border-radius:4px;' +
+        'overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.45);transition:outline .1s;';
+      wrap.innerHTML =
+        `<canvas style="display:block;max-width:${maxW}px;max-height:${maxH}px;width:auto;height:auto;"></canvas>` +
         `<span style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.6);` +
         `color:#fff;font-size:11px;border-radius:10px;padding:2px 8px;">p.${n}</span>`;
-      cell.addEventListener('mouseenter', () => cell.style.outline = '3px solid #1976d2');
-      cell.addEventListener('mouseleave', () => cell.style.outline = 'none');
+      cell.appendChild(wrap);
+      cell.addEventListener('mouseenter', () => wrap.style.outline = '3px solid #1976d2');
+      cell.addEventListener('mouseleave', () => wrap.style.outline = 'none');
       cell.addEventListener('click', async () => {
         pdfPreviewPage = n;
         await setPdfViewMode('single');
@@ -724,7 +729,7 @@ async function renderPdfGrid() {
       const baseVP  = page.getViewport({ scale: 1, rotation: _totRot });
       const scale   = RENDER_H / baseVP.height;
       const vp      = page.getViewport({ scale, rotation: _totRot });
-      const canvas  = cell.querySelector('canvas');
+      const canvas  = wrap.querySelector('canvas');
       canvas.width  = vp.width;
       canvas.height = vp.height;
       await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
