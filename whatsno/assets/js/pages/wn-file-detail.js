@@ -925,6 +925,10 @@ function addImgRotateOverlay(imgEl) {
     'transition:background .15s',
   ].join(';');
 
+  /* 回転を焼き込んで上書き保存できる形式のみ「保存」ボタンを出す */
+  const ext = (fileData?.file_name?.split('.').pop() || '').toLowerCase();
+  const rotSavable = ['png', 'jpg', 'jpeg', 'webp'].includes(ext);
+
   const sepStyle = 'width:1px;height:18px;background:rgba(255,255,255,.25);margin:0 2px;';
   bar.innerHTML = `
     <button id="imgZoomOut" title="縮小" style="${btnStyle}">
@@ -943,6 +947,11 @@ function addImgRotateOverlay(imgEl) {
     <button id="imgRotCW" title="右90°回転" style="${btnStyle}">
       <i class="fa-solid fa-rotate-right"></i>
     </button>
+    ${rotSavable ? `
+    <span id="imgRotSaveSep" style="${sepStyle};display:none;"></span>
+    <button id="imgRotSave" title="回転を上書き保存" style="${btnStyle};display:none;color:#FFD54F;">
+      <i class="fa-solid fa-floppy-disk"></i>
+    </button>` : ''}
   `;
   document.getElementById('previewArea').appendChild(bar);
 
@@ -950,12 +959,24 @@ function addImgRotateOverlay(imgEl) {
     btn.addEventListener('mouseenter', () => btn.style.background = 'rgba(255,255,255,.2)');
     btn.addEventListener('mouseleave', () => btn.style.background = 'none');
   });
+
+  /* 回転状態に応じて「保存」ボタンの表示を切り替える */
+  const updateSaveBtn = () => {
+    const saveBtn = bar.querySelector('#imgRotSave');
+    const saveSep = bar.querySelector('#imgRotSaveSep');
+    if (!saveBtn) return;
+    const show = imgPreviewRot !== 0 ? '' : 'none';
+    saveBtn.style.display = show;
+    if (saveSep) saveSep.style.display = show;
+  };
+
   const applyRotate = (delta) => {
     imgPreviewRot = (imgPreviewRot + delta + 360) % 360;
     /* 回転後は中央に戻す（パン位置をリセット） */
     imgPanX = 0;
     imgPanY = 0;
     applyImgTransform(imgEl);
+    updateSaveBtn();
   };
   bar.querySelector('#imgZoomIn').addEventListener('click', () => zoomImg(imgEl, 1.25));
   bar.querySelector('#imgZoomOut').addEventListener('click', () => zoomImg(imgEl, 0.8));
@@ -969,6 +990,57 @@ function addImgRotateOverlay(imgEl) {
   });
   bar.querySelector('#imgRotCCW').addEventListener('click', () => applyRotate(-90));
   bar.querySelector('#imgRotCW').addEventListener('click', () => applyRotate(90));
+  bar.querySelector('#imgRotSave')?.addEventListener('click', () => saveImageRotation(ext));
+}
+
+/* 現在の回転を焼き込んで元ファイルに上書き保存する（画像のみ） */
+async function saveImageRotation(ext) {
+  if (imgPreviewRot === 0) return;
+  if (!confirm('現在の回転を元ファイルに上書き保存します。よろしいですか？\n（元の向きには戻せません）')) return;
+
+  const saveBtn = document.getElementById('imgRotSave');
+  const origHtml = saveBtn ? saveBtn.innerHTML : '';
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+
+  try {
+    /* canvas へ書き出すため CORS クリーンな画像を別途読み込む（表示中imgはtaintされうる） */
+    const src = await new Promise((resolve, reject) => {
+      const im = new Image();
+      im.crossOrigin = 'anonymous';
+      im.onload  = () => resolve(im);
+      im.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+      im.src = wnPublicViewUrl(fileId);
+    });
+
+    const rot  = imgPreviewRot;
+    const swap = (rot === 90 || rot === 270);
+    const w = src.naturalWidth, h = src.naturalHeight;
+    const canvas = document.createElement('canvas');
+    canvas.width  = swap ? h : w;
+    canvas.height = swap ? w : h;
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(rot * Math.PI / 180);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(src, -w / 2, -h / 2, w, h);
+
+    const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+    const quality = mime === 'image/png' ? undefined : 0.92;
+    const blob = await new Promise(r => canvas.toBlob(r, mime, quality));
+    if (!blob) throw new Error('画像の生成に失敗しました');
+
+    const file = new File([blob], fileData.file_name, { type: mime });
+    const res  = await wnOverwriteFile(fileId, file);
+    if (!res?.data) throw new Error('保存に失敗しました');
+
+    wnShowToast('回転を保存しました', 'success');
+    /* 保存後の向きで再読み込み（サムネイルは updated_at 変化で自動再生成） */
+    setTimeout(() => location.reload(), 600);
+  } catch (e) {
+    console.error('rotate save error:', e);
+    wnShowToast('保存エラー: ' + e.message, 'danger');
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = origHtml; }
+  }
 }
 
 /* ── 左ドラッグでPDFをパン（transform translate を更新） ── */
