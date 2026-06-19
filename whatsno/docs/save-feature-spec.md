@@ -24,11 +24,20 @@
       → wnUploadFile() → POST /api/wn/files
 ```
 
-### PC / iOS（手動取り込み）
+### PC（ダッシュボードで完結 ※別画面に飛ばさない）
+PCには「共有」OSメニューが無いため Share Target は効かない。`save.html` へ遷移させると画面が増えるだけなので、
+**ダッシュボード上で完結**させる。
 ```
-save.html を開く（PWA長押しショートカット / ブックマーク / ダッシュボードのリンク）
-  → D&D または ファイル選択 / 写真選択 でキューに追加
-  → 「保存」 → wnUploadFile() → POST /api/wn/files
+A) クリップボード貼り付け: コピー画像/スクショ(Win+Shift+S) → ダッシュボードで Ctrl+V
+     → openUploadModal([file]) で確認 → 保存
+B) 全画面D&D（既存 initDragDrop）: メール(Gmail/Outlook)の添付をブラウザにドラッグ
+     → openUploadModal(files) → 保存
+```
+
+### iOS（手動取り込み）
+```
+save.html を開く（PWA長押しショートカット / ブックマーク）
+  → ファイル選択 / 写真選択 でキューに追加 → 保存
 ```
 
 ---
@@ -201,6 +210,17 @@ async function doUpload() {
 - 完了パネル（成功件数・失敗件数・次アクション）
 
 **共有経由時の挙動**：`?shared=1` 検知 → `loadSharedFiles()` でキュー投入 → そのまま自動アップロード（手間ゼロ）。失敗・空のときは手動アップロードUIにフォールバック。
+
+### 2.3.1 PC強化（`assets/js/pages/wn-dashboard.js`）
+
+ダッシュボードに以下を追加（別ページ不要・既存アップロード経路を流用）：
+
+- `initPasteUpload()`：`document` の `paste` を監視。`clipboardData.files`／`items` にファイルがあれば
+  `e.preventDefault()` して `openUploadModal(files)`（`wn-dashboard.js:2017`）へ。
+  ファイルが無い貼り付け（検索欄・スキルバーへのテキスト）は素通り。
+  スクショ等の無名/重複名ファイルは `pasted-YYYYMMDDHHMMSS.ext` に改名。
+- 全画面D&D（`initDragDrop()`、既存）の発見性向上：オーバーレイ文言に「メール添付もドラッグでOK」を明記。
+- `DOMContentLoaded` 内の `initDragDrop()` の直後に `initPasteUpload()` を呼ぶ。
 
 ### 2.4 `app/dashboard.html`（入口リンク）
 

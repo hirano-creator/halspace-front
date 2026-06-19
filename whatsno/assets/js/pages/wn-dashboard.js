@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadFiles();
   initNav();
   initDragDrop();
+  initPasteUpload();
   initUploadModal();
   initFilters();
   initViewToggle();
@@ -1977,6 +1978,43 @@ function initDragDrop() {
     overlay.classList.remove('active');
     const files = Array.from(e.dataTransfer.files);
     if (files.length) openUploadModal(files);
+  });
+}
+
+/* クリップボード貼り付けでアップロード
+   PC: コピーした画像/ファイルやスクショ(Win+Shift+S)を、どの画面でも Ctrl+V で即取込。
+   Webメールの添付画像をコピー→貼り付けで保存、といったダウンロード不要の最短導線。 */
+function initPasteUpload() {
+  document.addEventListener('paste', e => {
+    const dt = e.clipboardData;
+    if (!dt) return;
+
+    let files = [];
+    if (dt.files && dt.files.length) {
+      files = Array.from(dt.files);
+    } else if (dt.items && dt.items.length) {
+      for (const it of dt.items) {
+        if (it.kind === 'file') {
+          const f = it.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+    }
+    /* ファイルが無ければ通常のテキスト貼り付け（検索欄・スキルバー等）を妨げない */
+    if (!files.length) return;
+    e.preventDefault();
+
+    /* スクショ等は名前が無い/重複しがちなので分かりやすい名前を付与 */
+    const ts = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+    const stamped = files.map((f, idx) => {
+      if (f.name && f.name !== 'image.png' && f.name !== 'blob') return f;
+      const ext = (f.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+      const suffix = files.length > 1 ? `-${idx + 1}` : '';
+      return new File([f], `pasted-${ts}${suffix}.${ext}`, { type: f.type });
+    });
+
+    openUploadModal(stamped);
+    wnShowToast(`${stamped.length}件を貼り付けました。確認して保存してください`, 'success');
   });
 }
 

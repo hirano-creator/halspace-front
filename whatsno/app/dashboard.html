@@ -333,8 +333,8 @@
 <div class="drop-overlay" id="dropOverlay">
   <div class="drop-overlay-inner">
     <i class="fa-solid fa-cloud-arrow-up"></i>
-    <div class="drop-overlay-title">ここにドロップしてアップロード</div>
-    <div class="drop-overlay-sub">複数ファイル同時対応 · STP, STEP, STL, PDF, DXF, 画像, 動画 他</div>
+    <div class="drop-overlay-title">ここにドロップして保存</div>
+    <div class="drop-overlay-sub">メールの添付ファイルもドラッグでOK · 複数同時対応 · STP, STEP, STL, PDF, DXF, 画像, 動画 他</div>
   </div>
 </div>
 
@@ -371,10 +371,10 @@
 
     <div class="upload-file-list" id="uploadFileList" style="margin-top:12px;"></div>
 
-    <a href="save.html" style="display:flex;align-items:center;gap:8px;margin-top:14px;padding:10px 12px;border:1px dashed var(--border);border-radius:var(--radius);text-decoration:none;color:var(--muted);font-size:12.5px;">
-      <i class="fa-solid fa-share-from-square" style="color:var(--accent);"></i>
-      <span>メールの添付ファイルや写真を「共有」から直接保存することもできます →</span>
-    </a>
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-top:14px;padding:10px 12px;background:var(--bg);border-radius:var(--radius);color:var(--muted);font-size:12.5px;line-height:1.6;">
+      <i class="fa-solid fa-lightbulb" style="color:var(--accent);margin-top:2px;"></i>
+      <span><b style="color:var(--primary);">時短ヒント</b>：コピーした画像やスクショは、この画面で <b style="color:var(--primary);">Ctrl&nbsp;+&nbsp;V</b> で直接貼り付けて保存できます。メール添付は<b style="color:var(--primary);">ドラッグ＆ドロップ</b>でもOK。スマホはメールアプリの<a href="save.html" style="color:var(--accent);font-weight:600;">「共有」から保存</a>。</span>
+    </div>
 
     <div class="modal-footer">
       <button class="btn btn-outline" id="uploadCancelBtn">キャンセル</button>
@@ -647,7 +647,7 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=6"></script>
 <script src="../assets/js/wn-api.js?v=11"></script>
-<script src="../assets/js/pages/wn-dashboard.js?v=48"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=49"></script>
 
 <script>
 /* ── ボトムナビ ── */
