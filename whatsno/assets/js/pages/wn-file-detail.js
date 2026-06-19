@@ -1033,14 +1033,57 @@ async function saveImageRotation(ext) {
     const res  = await wnOverwriteFile(fileId, file);
     if (!res?.data) throw new Error('保存に失敗しました');
 
+    /* ダッシュボードのサムネイルを即時反映：回転後blobを同じキャッシュキーで先行書き込み
+       （画像のサムネイルは元blobそのものなので再利用できる） */
+    await preGenerateImageThumb(fileId, res.data.updated_at, blob).catch(() => {});
+
     wnShowToast('回転を保存しました', 'success');
-    /* 保存後の向きで再読み込み（サムネイルは updated_at 変化で自動再生成） */
+    /* 保存後の向きで再読み込み */
     setTimeout(() => location.reload(), 600);
   } catch (e) {
     console.error('rotate save error:', e);
     wnShowToast('保存エラー: ' + e.message, 'danger');
     if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = origHtml; }
   }
+}
+
+/* ダッシュボードのサムネイルキャッシュ（IndexedDB: wn-thumb-cache / thumbs）へ
+   回転後の画像blobを先行書き込みする。キー形式・バージョンは wn-dashboard.js の
+   THUMB_VER と必ず一致させること（不一致だとヒットせず再生成される）。 */
+const FD_THUMB_VER = 'v6';
+function preGenerateImageThumb(id, updatedAt, blob) {
+  const cacheKey = `thumb_${id}_${updatedAt ?? ''}_${FD_THUMB_VER}`;
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('wn-thumb-cache', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('thumbs')) db.createObjectStore('thumbs');
+    };
+    req.onsuccess = e => {
+      try {
+        const db = e.target.result;
+        const tx = db.transaction('thumbs', 'readwrite');
+        const store = tx.objectStore('thumbs');
+        /* 同ファイルの古いサムネイル（旧 updated_at）を一掃 */
+        const cur = store.openCursor();
+        cur.onsuccess = ev => {
+          const c = ev.target.result;
+          if (c) {
+            if (String(c.key).startsWith(`thumb_${id}_`)) c.delete();
+            c.continue();
+          }
+        };
+        store.put(blob, cacheKey);
+        tx.oncomplete = () => {
+          /* ダッシュボード側のメモリキャッシュを次回表示時に破棄させる */
+          localStorage.setItem('wn_thumb_bust', String(id));
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error);
+      } catch (err) { reject(err); }
+    };
+    req.onerror = () => reject(req.error);
+  });
 }
 
 /* ── 左ドラッグでPDFをパン（transform translate を更新） ── */
