@@ -798,6 +798,7 @@ let saveMode    = 'newversion'; // 'newversion' | 'overwrite'
 
 /* PDF 用 */
 let pdfDoc          = null;
+let imgSource       = null;  // 画像注釈モードの元画像（自然解像度を保持）
 let currentPage     = 1;
 let totalPages      = 1;
 let pdfScale        = 1.5;
@@ -1088,6 +1089,45 @@ async function renderPdfPage(num) {
   setLoading(false);
 }
 
+/* PDF・画像どちらでも現在の表示を再描画する共通入口 */
+async function renderCurrentPage() {
+  if (pdfDoc)        await renderPdfPage(currentPage);
+  else if (imgSource) renderImagePage();
+}
+
+/* 画像を pdfScale / pdfViewRotation に従って描画。
+   base/annot キャンバスを同サイズに保つ（保存時の焼き込み互換のため）。 */
+function renderImagePage() {
+  const rot  = pdfViewRotation;
+  const swap = (rot === 90 || rot === 270);
+  const natW = imgSource.naturalWidth, natH = imgSource.naturalHeight;
+  /* 回転後の自然向きサイズ */
+  const dispNatW = swap ? natH : natW;
+  const dispNatH = swap ? natW : natH;
+  const displayW = Math.max(1, Math.round(dispNatW * pdfScale));
+  const displayH = Math.max(1, Math.round(dispNatH * pdfScale));
+
+  baseCanvas.width  = annotCanvas.width  = displayW;
+  baseCanvas.height = annotCanvas.height = displayH;
+  /* PDF レンダリングで付いた CSS サイズをクリア（属性サイズ＝表示サイズで 1:1） */
+  baseCanvas.style.width = ''; baseCanvas.style.height = '';
+
+  basCtx.setTransform(1, 0, 0, 1, 0, 0);
+  basCtx.clearRect(0, 0, displayW, displayH);
+  basCtx.save();
+  basCtx.translate(displayW / 2, displayH / 2);
+  basCtx.rotate(rot * Math.PI / 180);
+  basCtx.imageSmoothingEnabled = true;
+  basCtx.imageSmoothingQuality = 'high';
+  /* 自然画像を pdfScale 倍で中央に描画（回転後ちょうど displayW×displayH を占める） */
+  const dw = natW * pdfScale, dh = natH * pdfScale;
+  basCtx.drawImage(imgSource, -dw / 2, -dh / 2, dw, dh);
+  basCtx.restore();
+
+  pageSizes[1] = { w: displayW, h: displayH };
+  redrawAnnotations();
+}
+
 function updateZoomBtns() {
   document.getElementById('fitBtn').classList.toggle('active', zoomMode === 'fit');
   document.getElementById('actualBtn').classList.toggle('active', zoomMode === 'normal');
@@ -1109,7 +1149,7 @@ async function applyZoom(newScale) {
   pdfScale = clamped;
   zoomMode = 'free';
   rescaleAllAnnotations(oldScale, pdfScale);
-  await renderPdfPage(currentPage);
+  await renderCurrentPage();
   redrawAnnotations();
   updateZoomBtns();
 }
@@ -1121,7 +1161,7 @@ document.getElementById('fitBtn').addEventListener('click', async () => {
   pdfScale = fitScale;
   updateZoomBtns();
   rescaleAllAnnotations(oldScale, fitScale);
-  await renderPdfPage(currentPage);
+  await renderCurrentPage();
   redrawAnnotations();
 });
 
@@ -1132,7 +1172,7 @@ document.getElementById('actualBtn').addEventListener('click', async () => {
   pdfScale = normalScale;
   updateZoomBtns();
   rescaleAllAnnotations(oldScale, normalScale);
-  await renderPdfPage(currentPage);
+  await renderCurrentPage();
   redrawAnnotations();
 });
 
@@ -1157,23 +1197,31 @@ async function applyPdfViewRotation(delta) {
 
   pdfViewRotation = (pdfViewRotation + delta + 360) % 360;
 
-  /* 回転後の寸法でスケールを再計算 */
-  const pg      = await pdfDoc.getPage(currentPage);
-  const _defVP  = pg.getViewport({ scale: 1 });
-  const _totRot = (_defVP.rotation + pdfViewRotation) % 360;
-  const baseVP  = pg.getViewport({ scale: 1, rotation: _totRot });
+  /* 回転後の寸法でスケールを再計算（PDF はビューポート、画像は自然サイズから） */
+  let baseW, baseH;
+  if (pdfDoc) {
+    const pg      = await pdfDoc.getPage(currentPage);
+    const _defVP  = pg.getViewport({ scale: 1 });
+    const _totRot = (_defVP.rotation + pdfViewRotation) % 360;
+    const baseVP  = pg.getViewport({ scale: 1, rotation: _totRot });
+    baseW = baseVP.width; baseH = baseVP.height;
+  } else {
+    const swap = (pdfViewRotation === 90 || pdfViewRotation === 270);
+    baseW = swap ? imgSource.naturalHeight : imgSource.naturalWidth;
+    baseH = swap ? imgSource.naturalWidth  : imgSource.naturalHeight;
+  }
 
   const canvasArea = document.getElementById('canvasArea');
   const padding    = 32;
   const areaW      = Math.max(canvasArea.clientWidth  - padding, 100);
   const areaH      = Math.max(canvasArea.clientHeight - padding, 100);
 
-  fitScale    = Math.min(areaW / baseVP.width, areaH / baseVP.height);
-  normalScale = areaW / baseVP.width;
+  fitScale    = Math.min(areaW / baseW, areaH / baseH);
+  normalScale = areaW / baseW;
   pdfScale    = fitScale;
   zoomMode    = 'fit';
 
-  await renderPdfPage(currentPage);
+  await renderCurrentPage();
   updateZoomBtns();
 
   if (!hasAny) showToast('ページを回転しました', 'success');
@@ -1187,14 +1235,14 @@ function initPdfFloatBar() {
     if (zoomMode === 'fit') return;
     const old = pdfScale; zoomMode = 'fit'; pdfScale = fitScale;
     rescaleAllAnnotations(old, fitScale);
-    await renderPdfPage(currentPage);
+    await renderCurrentPage();
     redrawAnnotations(); updateZoomBtns();
   });
   document.getElementById('pfbWide').addEventListener('click', async () => {
     if (zoomMode === 'normal') return;
     const old = pdfScale; zoomMode = 'normal'; pdfScale = normalScale;
     rescaleAllAnnotations(old, normalScale);
-    await renderPdfPage(currentPage);
+    await renderCurrentPage();
     redrawAnnotations(); updateZoomBtns();
   });
   document.getElementById('pfbPrev').addEventListener('click', () => goToPage(currentPage - 1));
@@ -1217,7 +1265,7 @@ document.getElementById('canvasArea').addEventListener('wheel', e => {
   e.stopPropagation(); // キャンバス外へのバブリングを遮断（ページ・右パネルを巻き込まない）
   if (!e.ctrlKey && !e.metaKey) return;
   e.preventDefault();
-  if (!pdfDoc) return;
+  if (!pdfDoc && !imgSource) return;
 
   const factor    = e.deltaY < 0 ? 1.1 : 1 / 1.1;
   const tentative = pdfScale * _smoothZoomCss * factor;
@@ -1317,22 +1365,8 @@ function loadPageAnnotations() {
 /* ────── 画像読み込み ────── */
 async function loadImage() {
   const url = wnPublicViewUrl(fileId);
-  await new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const maxW = window.innerWidth - 32;
-      const maxH = window.innerHeight - 120;
-      let w = img.naturalWidth, h = img.naturalHeight;
-      const r = Math.min(maxW / w, maxH / h, 1);
-      w = Math.round(w * r); h = Math.round(h * r);
-      resizeCanvases(w, h);
-      basCtx.drawImage(img, 0, 0, w, h);
-      resolve();
-    };
-    img.onerror = reject;
-    img.src = url;
-  });
+  const img = await loadImageEl(url, true);
+  setupImageMode(img);
 }
 
 /* ────── HEIC 読み込み ────── */
@@ -1342,21 +1376,43 @@ async function loadHeic() {
   let blob = await heic2any({ blob: new Blob([buffer], { type: 'image/heic' }), toType: 'image/jpeg', quality: 0.9 });
   if (Array.isArray(blob)) blob = blob[0];
   const url = URL.createObjectURL(blob);
-  await new Promise((resolve, reject) => {
+  const img = await loadImageEl(url, false);
+  setupImageMode(img);
+}
+
+/* URL から Image 要素を読み込む */
+function loadImageEl(url, cors) {
+  return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => {
-      const maxW = window.innerWidth - 32;
-      const maxH = window.innerHeight - 120;
-      let w = img.naturalWidth, h = img.naturalHeight;
-      const r = Math.min(maxW / w, maxH / h, 1);
-      w = Math.round(w * r); h = Math.round(h * r);
-      resizeCanvases(w, h);
-      basCtx.drawImage(img, 0, 0, w, h);
-      resolve();
-    };
+    if (cors) img.crossOrigin = 'anonymous';
+    img.onload  = () => resolve(img);
     img.onerror = reject;
     img.src = url;
   });
+}
+
+/* 画像注釈モードの初期化（ズーム/回転を PDF と共通の状態で扱う） */
+function setupImageMode(img) {
+  imgSource = img;
+  const natW = img.naturalWidth, natH = img.naturalHeight;
+
+  const canvasArea = document.getElementById('canvasArea');
+  const padding    = 32;
+  const areaW = Math.max(canvasArea.clientWidth  - padding, 100);
+  const areaH = Math.max(canvasArea.clientHeight - padding, 100);
+
+  pdfViewRotation = 0;
+  fitScale    = Math.min(areaW / natW, areaH / natH);
+  normalScale = areaW / natW;
+  pdfScale    = fitScale;
+  zoomMode    = 'fit';
+
+  /* ズームUI・フローティングバーを表示（ページ送りは単一ページなので非表示のまま） */
+  document.getElementById('zoomArea').style.display = '';
+  document.getElementById('pdfFloatBar').classList.add('visible');
+
+  renderImagePage();
+  updateZoomBtns();
 }
 
 /* ────── キャンバスサイズ ────── */
