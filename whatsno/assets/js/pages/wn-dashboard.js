@@ -424,7 +424,7 @@ async function runSkill(instruction) {
     const draft = res.draft || {};
 
     // 既存のメール送信モーダルを開く（共有リンクを先行発行）
-    openEmailModal(file.id, file.file_name);
+    openEmailModal([{ id: file.id, name: file.file_name }]);
 
     // LLMの下書きを流し込む
     if (draft.to_email) {
@@ -1213,7 +1213,7 @@ function fileCardHtml(f) {
         </button>
         <button class="file-action-btn" title="メールで共有"
                 onmouseenter="prefetchEmailShare(${f.id})"
-                onclick="event.stopPropagation();openEmailModal(${f.id},'${h(f.file_name)}')">
+                onclick="event.stopPropagation();openEmailModal([{id:${f.id},name:'${h(f.file_name)}'}])">
           <i class="fa-solid fa-envelope"></i>
         </button>
         <button class="file-action-btn file-action-delete" title="削除"
@@ -1285,7 +1285,7 @@ function fileRowHtmlClassic(f) {
         </button>
         <button class="btn btn-ghost btn-sm" title="メールで共有"
                 onmouseenter="prefetchEmailShare(${f.id})"
-                onclick="event.stopPropagation();openEmailModal(${f.id},'${fnameSafe}')">
+                onclick="event.stopPropagation();openEmailModal([{id:${f.id},name:'${fnameSafe}'}])">
           <i class="fa-solid fa-envelope"></i>
         </button>
         <button class="btn btn-ghost btn-sm" title="削除"
@@ -1377,7 +1377,7 @@ function fileRowHtmlIG(f) {
         </button>
         <button class="file-action-btn" title="メールで共有"
                 onmouseenter="prefetchEmailShare(${f.id})"
-                onclick="event.stopPropagation();openEmailModal(${f.id},'${fnameSafe}')">
+                onclick="event.stopPropagation();openEmailModal([{id:${f.id},name:'${fnameSafe}'}])">
           <i class="fa-regular fa-paper-plane"></i>
         </button>
         <button class="file-action-btn" title="ダウンロード"
@@ -2832,10 +2832,9 @@ function h(str) {
 /* ────────────────────────────────
    メール送信モーダル
    ──────────────────────────────── */
-let emailModalFileId   = null;
-let emailModalFileName = '';
+let emailModalFiles    = [];   // [{ id, name }]
 let emailChips         = [];  // { email: string }[]
-let emailPregenShare   = null; // モーダルオープン時に先行発行した共有リンク
+let emailPregenShares  = null; // [{ id, name, url }] | null
 const emailShareCache  = new Map(); // fileId → Promise<share>（hover先行発行キャッシュ）
 
 function initEmailModal() {
@@ -2867,8 +2866,11 @@ function initEmailModal() {
   });
 
   document.getElementById('emailCopyLinkBtn')?.addEventListener('click', () => {
-    if (!emailPregenShare?.url) return;
-    navigator.clipboard.writeText(emailPregenShare.url)
+    if (!emailPregenShares?.length) return;
+    const text = emailPregenShares.length === 1
+      ? emailPregenShares[0].url
+      : emailPregenShares.map(s => `■ ${s.name}\n${s.url}`).join('\n\n');
+    navigator.clipboard.writeText(text)
       .then(() => wnShowToast('リンクをコピーしました', 'success'))
       .catch(() => wnShowToast('コピーに失敗しました', 'danger'));
   });
@@ -2883,13 +2885,22 @@ function prefetchEmailShare(fileId) {
   emailShareCache.set(fileId, wnCreateShare(fileId, { expiresDays: 30 }));
 }
 
-function openEmailModal(fileId, fileName) {
-  emailModalFileId   = fileId;
-  emailModalFileName = fileName;
-  emailChips         = [];
-  emailPregenShare   = null;
+function openEmailModal(files) {
+  emailModalFiles   = Array.isArray(files) ? files : [files];
+  emailChips        = [];
+  emailPregenShares = null;
 
-  document.getElementById('emailModalFileNameText').textContent = fileName;
+  // ファイルリスト表示
+  const listEl = document.getElementById('emailModalFileList');
+  if (listEl) {
+    if (emailModalFiles.length === 1) {
+      listEl.innerHTML = `<i class="fa-solid fa-file" style="margin-right:4px;"></i>${h(emailModalFiles[0].name)}`;
+    } else {
+      listEl.innerHTML = `<div style="margin-bottom:4px;"><i class="fa-solid fa-copy" style="margin-right:4px;"></i><strong>${emailModalFiles.length}件のファイル</strong></div>`
+        + emailModalFiles.map(f => `<div style="padding-left:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h(f.name)}</div>`).join('');
+    }
+  }
+
   document.getElementById('emailInput').value    = '';
   document.getElementById('emailMessage').value  = '';
   document.getElementById('emailMsgCount').textContent = '0';
@@ -2900,20 +2911,33 @@ function openEmailModal(fileId, fileName) {
   _emailLinkShowLoading();
   setEmailBtnsLoading(true);
 
-  // hover で先行発行済みのPromiseがあれば再利用、なければ新規発行
-  const sharePromise = emailShareCache.get(fileId) ?? wnCreateShare(fileId, { expiresDays: 30 });
-  if (!emailShareCache.has(fileId)) emailShareCache.set(fileId, sharePromise);
-  sharePromise.then(share => {
-    emailPregenShare = share;
-    setEmailBtnsLoading(false);
-    if (share?.url) {
-      _emailLinkShowReady(share.url);
-    } else {
+  // 全ファイルの共有リンクを並行生成（hoverキャッシュがあれば再利用）
+  const promises = emailModalFiles.map(f => {
+    const p = emailShareCache.has(f.id)
+      ? emailShareCache.get(f.id)
+      : wnCreateShare(f.id, { expiresDays: 30 });
+    if (!emailShareCache.has(f.id)) emailShareCache.set(f.id, p);
+    return p.then(share => ({ id: f.id, name: f.name, url: share?.url ?? null }));
+  });
+
+  Promise.all(promises).then(results => {
+    const failed = results.filter(r => !r.url);
+    if (failed.length > 0) {
+      failed.forEach(r => emailShareCache.delete(r.id));
+      setEmailBtnsLoading(false);
       _emailLinkShowError();
       wnShowToast('共有リンクの発行に失敗しました', 'danger');
+      return;
+    }
+    emailPregenShares = results;
+    setEmailBtnsLoading(false);
+    if (emailPregenShares.length === 1) {
+      _emailLinkShowReady(emailPregenShares[0].url);
+    } else {
+      _emailLinkShowReadyMulti(emailPregenShares.length);
     }
   }).catch(() => {
-    emailShareCache.delete(fileId); // 失敗したキャッシュは削除して再試行可能にする
+    emailModalFiles.forEach(f => emailShareCache.delete(f.id));
     setEmailBtnsLoading(false);
     _emailLinkShowError();
     wnShowToast('共有リンクの発行に失敗しました', 'danger');
@@ -2941,12 +2965,20 @@ function _emailLinkShowError() {
   const el = document.getElementById('emailLinkLoading');
   if (el) { el.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#E17055;"></i> リンクの生成に失敗しました'; }
 }
+function _emailLinkShowReadyMulti(count) {
+  const el  = document.getElementById('emailLinkLoading');
+  const rd  = document.getElementById('emailLinkReady');
+  const txt = document.getElementById('emailLinkUrl');
+  if (el)  el.style.display  = 'none';
+  if (rd)  rd.style.display  = 'flex';
+  if (txt) txt.textContent   = `${count}件の共有リンクを生成しました`;
+}
 
 function closeEmailModal() {
   document.getElementById('emailModal').classList.add('hidden');
-  emailModalFileId = null;
-  emailPregenShare = null;
-  emailChips       = [];
+  emailModalFiles   = [];
+  emailPregenShares = null;
+  emailChips        = [];
 }
 
 function addEmailChip() {
@@ -3014,7 +3046,7 @@ function setEmailBtnsLoading(loading) {
 
 /* 宛先・件名・本文を同期で組み立てる（先行発行済みの URL を使用） */
 function _buildEmailContent() {
-  if (!emailPregenShare?.url) return null;
+  if (!emailPregenShares?.length) return null;
 
   const inputEl = document.getElementById('emailInput');
   const pending = inputEl.value.trim().replace(/,$/, '');
@@ -3025,11 +3057,17 @@ function _buildEmailContent() {
   }
 
   const message = document.getElementById('emailMessage').value.trim();
-  const subject = `【What'sNo】${emailModalFileName} を共有します`;
+  const subject = emailModalFiles.length === 1
+    ? `【What'sNo】${emailModalFiles[0].name} を共有します`
+    : `【What'sNo】${emailModalFiles.length}件のファイルを共有します`;
   const lines = [];
   if (message) { lines.push(message, ''); }
   lines.push('▼ ファイルはこちらからご確認ください');
-  lines.push(emailPregenShare.url);
+  for (const s of emailPregenShares) {
+    lines.push('');
+    lines.push(`■ ${s.name}`);
+    lines.push(s.url);
+  }
   lines.push('');
   lines.push('※ リンクからダウンロードできます（有効期限：発行から30日）');
   const body = lines.join('\r\n');
@@ -3098,6 +3136,13 @@ function initMergeSelect() {
   document.getElementById('mergeModalClose')?.addEventListener('click', closeMergeModal);
   document.getElementById('mergeModalCancelBtn')?.addEventListener('click', closeMergeModal);
   document.getElementById('mergeExecBtn')?.addEventListener('click', executeMerge);
+  document.getElementById('emailSelBtn')?.addEventListener('click', () => {
+    const files = selectedIds.map(id => {
+      const f = allFiles.find(f => String(f.id) === String(id));
+      return f ? { id: f.id, name: f.file_name } : null;
+    }).filter(Boolean);
+    if (files.length > 0) openEmailModal(files);
+  });
 }
 
 function toggleSelectMode() {
@@ -3135,9 +3180,10 @@ function applySelectedVisual(fileId, on) {
 }
 
 function updateMergeActionBar() {
-  const count = document.getElementById('mergeSelCount');
-  const btn   = document.getElementById('mergeOpenBtn');
-  const lbl   = document.getElementById('mergeOpenLabel');
+  const count    = document.getElementById('mergeSelCount');
+  const btn      = document.getElementById('mergeOpenBtn');
+  const lbl      = document.getElementById('mergeOpenLabel');
+  const emailBtn = document.getElementById('emailSelBtn');
   // 結合は「2件以上 かつ 全てPDF」のときだけ有効
   const sel    = selectedIds.map(id => allFiles.find(f => String(f.id) === String(id))).filter(Boolean);
   const allPdf = sel.length >= 2 && sel.every(wnIsPdf);
@@ -3146,7 +3192,8 @@ function updateMergeActionBar() {
     btn.disabled = !allPdf;
     btn.title    = allPdf ? '' : 'PDFを2つ以上選択すると結合できます';
   }
-  if (lbl)   lbl.textContent = allPdf ? `${sel.length}件を結合` : '結合';
+  if (lbl)      lbl.textContent = allPdf ? `${sel.length}件を結合` : '結合';
+  if (emailBtn) emailBtn.disabled = selectedIds.length === 0;
 }
 
 /* ── 結合モーダル ── */
