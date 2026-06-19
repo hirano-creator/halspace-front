@@ -19,6 +19,7 @@ let pdfBaseCssH      = 0;
 let imgZoomFactor    = 1.0;
 let imgPanX          = 0;   // 画像ドラッグ移動オフセット(px)
 let imgPanY          = 0;
+let imgPreviewRot    = 0;   // 画像ビューア回転: 0 | 90 | 180 | 270
 let pdfPanX          = 0;   // PDFドラッグ移動オフセット(px)
 let pdfPanY          = 0;
 let officeZoomFactor = 1.0; // Excel/Word (クライアント側レンダリング) ズーム倍率
@@ -68,9 +69,19 @@ window.addEventListener('wheel', e => {
   }
 }, { passive: false, capture: true });
 
-/* 画像の transform（移動＋拡大）を適用 */
+/* 画像の transform（移動＋回転＋拡大）を適用 */
 function applyImgTransform(img) {
-  img.style.transform = `translate(${imgPanX}px, ${imgPanY}px) scale(${imgZoomFactor})`;
+  /* 90°/270° 回転時は縦横が入れ替わるため、エリアに収まるよう補正倍率をかける */
+  let rotFit = 1;
+  if (imgPreviewRot === 90 || imgPreviewRot === 270) {
+    const area = document.getElementById('previewArea');
+    if (area && img.offsetWidth && img.offsetHeight) {
+      const ar = area.getBoundingClientRect();
+      rotFit = Math.min(1, ar.width / img.offsetHeight, ar.height / img.offsetWidth);
+    }
+  }
+  img.style.transformOrigin = 'center center';
+  img.style.transform = `translate(${imgPanX}px, ${imgPanY}px) rotate(${imgPreviewRot}deg) scale(${imgZoomFactor * rotFit})`;
 }
 
 /* PDF の transform（移動＋拡大）を適用（クランプ込み） */
@@ -884,9 +895,54 @@ function initImgWheelZoom(imgEl) {
   imgZoomFactor = 1.0;
   imgPanX = 0;
   imgPanY = 0;
+  imgPreviewRot = 0;
   const area = document.getElementById('previewArea');
   if (area) area.style.overscrollBehavior = 'contain';
   if (imgEl) initImgPan(imgEl);
+  if (imgEl) addImgRotateOverlay(imgEl);
+}
+
+/* 画像プレビューエリアに回転ボタンのオーバーレイを追加 */
+function addImgRotateOverlay(imgEl) {
+  document.getElementById('imgRotateBar')?.remove();
+  const bar = document.createElement('div');
+  bar.id = 'imgRotateBar';
+  bar.style.cssText = [
+    'position:absolute', 'top:12px', 'left:12px',
+    'background:rgba(0,0,0,.55)', 'backdrop-filter:blur(4px)',
+    'border-radius:20px', 'padding:3px 6px',
+    'display:flex', 'align-items:center', 'gap:2px', 'z-index:10',
+  ].join(';');
+
+  const btnStyle = [
+    'background:none', 'border:none', 'color:#fff', 'cursor:pointer',
+    'font-size:15px', 'padding:4px 7px', 'border-radius:12px',
+    'transition:background .15s',
+  ].join(';');
+
+  bar.innerHTML = `
+    <button id="imgRotCCW" title="左90°回転" style="${btnStyle}">
+      <i class="fa-solid fa-rotate-left"></i>
+    </button>
+    <button id="imgRotCW" title="右90°回転" style="${btnStyle}">
+      <i class="fa-solid fa-rotate-right"></i>
+    </button>
+  `;
+  document.getElementById('previewArea').appendChild(bar);
+
+  bar.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('mouseenter', () => btn.style.background = 'rgba(255,255,255,.2)');
+    btn.addEventListener('mouseleave', () => btn.style.background = 'none');
+  });
+  const applyRotate = (delta) => {
+    imgPreviewRot = (imgPreviewRot + delta + 360) % 360;
+    /* 回転後は中央に戻す（パン位置をリセット） */
+    imgPanX = 0;
+    imgPanY = 0;
+    applyImgTransform(imgEl);
+  };
+  bar.querySelector('#imgRotCCW').addEventListener('click', () => applyRotate(-90));
+  bar.querySelector('#imgRotCW').addEventListener('click', () => applyRotate(90));
 }
 
 /* ── 左ドラッグでPDFをパン（transform translate を更新） ── */
@@ -966,9 +1022,17 @@ function clampImgPan(imgEl) {
   const area = document.getElementById('previewArea');
   if (!area) return;
   const ar = area.getBoundingClientRect();
+  /* 90°/270° 回転時は縦横が入れ替わる＋収まり補正倍率を反映 */
+  const rotated = (imgPreviewRot === 90 || imgPreviewRot === 270);
+  let rotFit = 1;
+  if (rotated && imgEl.offsetWidth && imgEl.offsetHeight) {
+    rotFit = Math.min(1, ar.width / imgEl.offsetHeight, ar.height / imgEl.offsetWidth);
+  }
+  const baseW = rotated ? imgEl.offsetHeight : imgEl.offsetWidth;
+  const baseH = rotated ? imgEl.offsetWidth  : imgEl.offsetHeight;
   /* 拡大後の実寸（transform後の見た目サイズ） */
-  const dispW = imgEl.offsetWidth  * imgZoomFactor;
-  const dispH = imgEl.offsetHeight * imgZoomFactor;
+  const dispW = baseW * imgZoomFactor * rotFit;
+  const dispH = baseH * imgZoomFactor * rotFit;
   const maxX = Math.max(0, (dispW - ar.width)  / 2);
   const maxY = Math.max(0, (dispH - ar.height) / 2);
   imgPanX = Math.max(-maxX, Math.min(maxX, imgPanX));
