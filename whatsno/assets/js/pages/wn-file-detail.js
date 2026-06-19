@@ -50,12 +50,7 @@ window.addEventListener('wheel', e => {
   if (previewArea) {
     const img = previewArea.querySelector('img');
     if (img) {
-      imgZoomFactor = Math.max(0.25, Math.min(4.0, imgZoomFactor * factor));
-      if (imgZoomFactor <= 1.0) { imgPanX = 0; imgPanY = 0; }  // 等倍以下は再センタリング
-      img.style.transformOrigin = 'center center';
-      img.style.cursor          = imgZoomFactor > 1.0 ? 'grab' : '';
-      applyImgTransform(img);
-      showPreviewZoomLabel(Math.round(imgZoomFactor * 100) + '%');
+      zoomImg(img, factor);
       return;
     }
   }
@@ -68,6 +63,16 @@ window.addEventListener('wheel', e => {
     showPreviewZoomLabel(Math.round(officeZoomFactor * 100) + '%');
   }
 }, { passive: false, capture: true });
+
+/* 画像をズーム（倍率を乗算。ホイール／ボタン共通） */
+function zoomImg(img, factor) {
+  imgZoomFactor = Math.max(0.25, Math.min(4.0, imgZoomFactor * factor));
+  if (imgZoomFactor <= 1.0) { imgPanX = 0; imgPanY = 0; }  // 等倍以下は再センタリング
+  img.style.transformOrigin = 'center center';
+  img.style.cursor          = imgZoomFactor > 1.0 ? 'grab' : '';
+  applyImgTransform(img);
+  showPreviewZoomLabel(Math.round(imgZoomFactor * 100) + '%');
+}
 
 /* 画像の transform（移動＋回転＋拡大）を適用 */
 function applyImgTransform(img) {
@@ -902,7 +907,7 @@ function initImgWheelZoom(imgEl) {
   if (imgEl) addImgRotateOverlay(imgEl);
 }
 
-/* 画像プレビューエリアに回転ボタンのオーバーレイを追加 */
+/* 画像プレビューエリアに拡大・縮小・回転ボタンのオーバーレイを追加 */
 function addImgRotateOverlay(imgEl) {
   document.getElementById('imgRotateBar')?.remove();
   const bar = document.createElement('div');
@@ -920,7 +925,18 @@ function addImgRotateOverlay(imgEl) {
     'transition:background .15s',
   ].join(';');
 
+  const sepStyle = 'width:1px;height:18px;background:rgba(255,255,255,.25);margin:0 2px;';
   bar.innerHTML = `
+    <button id="imgZoomOut" title="縮小" style="${btnStyle}">
+      <i class="fa-solid fa-magnifying-glass-minus"></i>
+    </button>
+    <button id="imgZoomIn" title="拡大" style="${btnStyle}">
+      <i class="fa-solid fa-magnifying-glass-plus"></i>
+    </button>
+    <button id="imgZoomReset" title="等倍に戻す" style="${btnStyle}">
+      <i class="fa-solid fa-expand"></i>
+    </button>
+    <span style="${sepStyle}"></span>
     <button id="imgRotCCW" title="左90°回転" style="${btnStyle}">
       <i class="fa-solid fa-rotate-left"></i>
     </button>
@@ -941,6 +957,16 @@ function addImgRotateOverlay(imgEl) {
     imgPanY = 0;
     applyImgTransform(imgEl);
   };
+  bar.querySelector('#imgZoomIn').addEventListener('click', () => zoomImg(imgEl, 1.25));
+  bar.querySelector('#imgZoomOut').addEventListener('click', () => zoomImg(imgEl, 0.8));
+  bar.querySelector('#imgZoomReset').addEventListener('click', () => {
+    imgZoomFactor = 1.0;
+    imgPanX = 0;
+    imgPanY = 0;
+    imgEl.style.cursor = '';
+    applyImgTransform(imgEl);
+    showPreviewZoomLabel('100%');
+  });
   bar.querySelector('#imgRotCCW').addEventListener('click', () => applyRotate(-90));
   bar.querySelector('#imgRotCW').addEventListener('click', () => applyRotate(90));
 }
