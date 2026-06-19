@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1E3A5F">
+  <title>What'sNoに保存</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="apple-touch-icon" sizes="180x180" href="../assets/icons/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260611b">
+  <style>
+    .save-wrap {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+    }
+    .save-head {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 0 16px;
+    }
+    .save-back {
+      width: 38px; height: 38px; flex: none;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; color: var(--primary); text-decoration: none;
+      font-size: 17px; transition: background .15s;
+    }
+    .save-back:hover { background: var(--bg); }
+    .save-title { font-size: 19px; font-weight: 800; color: var(--primary); line-height: 1.2; }
+    .save-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--bg-card);
+      padding: 30px 18px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .dropzone:hover { border-color: var(--accent); background: #fbfbff; }
+    .dropzone.drag-over { border-color: var(--accent); background: #eef0ff; }
+    .dropzone .dz-icon { font-size: 34px; color: var(--accent); }
+    .dropzone .dz-main { font-size: 15px; font-weight: 700; color: var(--primary); margin-top: 10px; }
+    .dropzone .dz-sub  { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    .pick-row { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+    .pick-btn {
+      flex: 1 1 0; min-width: 120px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--bg-card);
+      color: var(--primary); font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: border-color .15s, background .15s;
+    }
+    .pick-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .pick-btn i { font-size: 15px; }
+
+    .queue { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+    .qitem {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--bg-card);
+    }
+    .qicon { width: 36px; height: 36px; flex: none; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg); color: var(--accent); font-size: 16px; }
+    .qbody { flex: 1; min-width: 0; }
+    .qname { font-size: 13px; font-weight: 700; color: var(--primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .qmeta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .qbar  { height: 5px; border-radius: 3px; background: var(--border);
+      margin-top: 7px; overflow: hidden; display: none; }
+    .qbar > i { display: block; height: 100%; width: 0; background: var(--accent);
+      transition: width .2s; }
+    .qstat { font-size: 11px; margin-top: 4px; display: none; }
+    .qdel  { flex: none; width: 30px; height: 30px; border: none; background: none;
+      color: var(--muted); cursor: pointer; border-radius: 6px; font-size: 14px; }
+    .qdel:hover { color: var(--red); background: var(--bg); }
+
+    .save-actions { margin-top: 20px; }
+    .btn-save {
+      width: 100%; padding: 14px; border: none; border-radius: var(--radius);
+      background: var(--accent); color: #fff; font-size: 15px; font-weight: 800;
+      cursor: pointer; transition: background .15s; font-family: inherit;
+    }
+    .btn-save:hover:not(:disabled) { background: var(--accent-dk); }
+    .btn-save:disabled { opacity: .5; cursor: not-allowed; }
+
+    .done-panel { text-align: center; padding: 28px 16px; }
+    .done-panel .dp-icon { font-size: 46px; color: var(--green); }
+    .done-panel .dp-title { font-size: 18px; font-weight: 800; color: var(--primary); margin-top: 12px; }
+    .done-panel .dp-sub   { font-size: 13px; color: var(--muted); margin-top: 6px; }
+    .done-actions { display: flex; gap: 10px; margin-top: 22px; }
+    .done-actions a, .done-actions button {
+      flex: 1; padding: 13px; border-radius: var(--radius); font-size: 14px; font-weight: 700;
+      text-decoration: none; text-align: center; cursor: pointer; font-family: inherit;
+      border: 1px solid var(--border);
+    }
+    .da-primary { background: var(--accent); color: #fff; border-color: var(--accent) !important; }
+    .da-primary:hover { background: var(--accent-dk); }
+    .da-ghost { background: var(--bg-card); color: var(--primary); }
+    .da-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="save-wrap">
+  <div class="save-head">
+    <a href="dashboard.html" class="save-back" aria-label="戻る"><i class="fa-solid fa-arrow-left"></i></a>
+    <div>
+      <div class="save-title">What'sNoに保存</div>
+      <div class="save-sub">メールの添付ファイルや資料をそのまま保存できます</div>
+    </div>
+  </div>
+
+  <!-- 取り込みUI -->
+  <div id="pickArea">
+    <div class="dropzone" id="dropzone">
+      <div class="dz-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <div class="dz-main">ここにドラッグ＆ドロップ</div>
+      <div class="dz-sub">またはタップしてファイルを選択（最大100MB / 1ファイル）</div>
+    </div>
+    <div class="pick-row">
+      <button class="pick-btn" id="pickFileBtn"><i class="fa-solid fa-folder-open"></i> ファイルを選択</button>
+      <button class="pick-btn" id="pickPhotoBtn"><i class="fa-solid fa-camera"></i> 写真・カメラ</button>
+    </div>
+    <input type="file" id="inputFile"  multiple style="display:none;">
+    <input type="file" id="inputPhoto" accept="image/*" capture="environment" style="display:none;">
+
+    <div class="queue" id="queue"></div>
+
+    <div class="save-actions">
+      <button class="btn-save" id="saveBtn" disabled>保存する</button>
+    </div>
+  </div>
+
+  <!-- 完了パネル -->
+  <div class="done-panel hidden" id="donePanel">
+    <div class="dp-icon"><i class="fa-solid fa-circle-check"></i></div>
+    <div class="dp-title" id="doneTitle">保存しました</div>
+    <div class="dp-sub" id="doneSub"></div>
+    <div class="done-actions">
+      <a href="dashboard.html" class="da-primary">ダッシュボードを開く</a>
+      <button class="da-ghost" id="moreBtn">続けて保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="../../solid/assets/js/auth.js?v=6"></script>
+<script src="../assets/js/wn-api.js?v=11"></script>
+<script src="../assets/js/pwa.js"></script>
+<script>
+'use strict';
+/* What'sNo ユニバーサル保存ページ
+   - PWA Web Share Target（Android: OS共有メニュー→What'sNo）の受け皿
+   - PC/iOS 向けの D&D・ファイル選択・写真の手動取り込み窓口を兼ねる
+   - 保存は既存 wnUploadFile()（POST /api/wn/files）を流用 */
+
+const user = requireSpaceAuth();
+if (!user) throw new Error('未認証');
+
+const MAX_SIZE = 100 * 1024 * 1024;   /* 100MB（ダッシュボードと同方針） */
+let queue = [];
+
+/* ---------- 表示ユーティリティ ---------- */
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+function iconFor(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  if (['pdf'].includes(ext)) return 'fa-file-pdf';
+  if (['png','jpg','jpeg','gif','webp','heic','bmp','svg'].includes(ext)) return 'fa-file-image';
+  if (['doc','docx'].includes(ext)) return 'fa-file-word';
+  if (['xls','xlsx','csv'].includes(ext)) return 'fa-file-excel';
+  if (['ppt','pptx'].includes(ext)) return 'fa-file-powerpoint';
+  if (['zip','rar','7z'].includes(ext)) return 'fa-file-zipper';
+  if (['mp4','mov','avi','webm'].includes(ext)) return 'fa-file-video';
+  return 'fa-file';
+}
+
+function renderQueue() {
+  const q = document.getElementById('queue');
+  q.innerHTML = '';
+  queue.forEach((f, i) => {
+    const el = document.createElement('div');
+    el.className = 'qitem';
+    el.id = `qitem-${i}`;
+    el.innerHTML = `
+      <div class="qicon"><i class="fa-solid ${iconFor(f.name)}"></i></div>
+      <div class="qbody">
+        <div class="qname">${escapeHtml(f.name)}</div>
+        <div class="qmeta">${fmtSize(f.size)}</div>
+        <div class="qbar"><i id="bar-${i}"></i></div>
+        <div class="qstat" id="stat-${i}"></div>
+      </div>
+      <button class="qdel" data-i="${i}" aria-label="削除"><i class="fa-solid fa-xmark"></i></button>
+    `;
+    q.appendChild(el);
+  });
+  q.querySelectorAll('.qdel').forEach(btn => {
+    btn.addEventListener('click', () => {
+      queue.splice(Number(btn.dataset.i), 1);
+      renderQueue();
+    });
+  });
+  document.getElementById('saveBtn').disabled = queue.length === 0;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+/* ---------- キュー追加 ---------- */
+function addToQueue(files) {
+  files.forEach(f => {
+    if (!f || f.size === 0) return;
+    if (f.size > MAX_SIZE) {
+      wnShowToast(`${f.name} は100MBを超えています`, 'danger');
+      return;
+    }
+    queue.push(f);
+  });
+  renderQueue();
+}
+
+/* ---------- 共有ファイル復元（?shared=1） ---------- */
+async function loadSharedFiles() {
+  try {
+    const cache = await caches.open('wn-share');
+    const idxRes = await cache.match('/whatsno/__share__/index');
+    if (!idxRes) return [];
+    const index = await idxRes.json();
+    const files = [];
+    for (const it of index) {
+      const res = await cache.match(it.key);
+      if (!res) continue;
+      const blob = await res.blob();
+      files.push(new File([blob], it.name, { type: it.type || blob.type }));
+    }
+    for (const k of await cache.keys()) await cache.delete(k);   /* 復元後に掃除 */
+    return files;
+  } catch (e) {
+    return [];
+  }
+}
+
+/* ---------- アップロード ---------- */
+async function doUpload() {
+  if (!queue.length) return;
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = '保存中…';
+
+  let ok = 0, fail = 0;
+  for (let i = 0; i < queue.length; i++) {
+    const bar  = document.getElementById(`bar-${i}`);
+    const stat = document.getElementById(`stat-${i}`);
+    if (bar) bar.parentElement.style.display = 'block';
+    if (stat) { stat.style.display = 'block'; stat.textContent = 'アップロード中…'; stat.style.color = 'var(--muted)'; }
+    document.querySelector(`#qitem-${i} .qdel`)?.style.setProperty('display', 'none');
+    try {
+      await wnUploadFile(queue[i], { onProgress: pct => { if (bar) bar.style.width = pct + '%'; } });
+      ok++;
+      document.getElementById(`qitem-${i}`)?.style.setProperty('background', 'rgba(26,156,107,.07)');
+      if (stat) { stat.innerHTML = '<i class="fa-solid fa-check"></i> 保存完了'; stat.style.color = 'var(--green)'; }
+    } catch (err) {
+      fail++;
+      document.getElementById(`qitem-${i}`)?.style.setProperty('background', 'rgba(223,27,65,.06)');
+      if (stat) { stat.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> 失敗'; stat.style.color = 'var(--red)'; }
+      wnShowToast(`${queue[i].name} の保存に失敗しました`, 'danger');
+    }
+  }
+
+  showDone(ok, fail);
+}
+
+function showDone(ok, fail) {
+  document.getElementById('pickArea').classList.add('hidden');
+  const panel = document.getElementById('donePanel');
+  panel.classList.remove('hidden');
+  document.getElementById('doneTitle').textContent =
+    fail === 0 ? `${ok}件を保存しました` : `${ok}件を保存（${fail}件失敗）`;
+  document.getElementById('doneSub').textContent =
+    fail === 0 ? "What'sNo に取り込みました。KnowlがAI学習を行います。"
+               : '失敗したファイルは「続けて保存」から再試行できます。';
+}
+
+/* ---------- 初期化 ---------- */
+document.addEventListener('DOMContentLoaded', async () => {
+  /* ファイル選択 */
+  document.getElementById('pickFileBtn').addEventListener('click', () => document.getElementById('inputFile').click());
+  document.getElementById('pickPhotoBtn').addEventListener('click', () => document.getElementById('inputPhoto').click());
+  ['inputFile', 'inputPhoto'].forEach(id => {
+    document.getElementById(id).addEventListener('change', function () {
+      addToQueue(Array.from(this.files));
+      this.value = '';
+    });
+  });
+
+  /* ドロップゾーン */
+  const dz = document.getElementById('dropzone');
+  dz.addEventListener('click', () => document.getElementById('inputFile').click());
+  dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    addToQueue(Array.from(e.dataTransfer.files));
+  });
+
+  /* 保存 */
+  document.getElementById('saveBtn').addEventListener('click', doUpload);
+
+  /* 「続けて保存」 */
+  document.getElementById('moreBtn').addEventListener('click', () => {
+    queue = [];
+    renderQueue();
+    document.getElementById('donePanel').classList.add('hidden');
+    document.getElementById('pickArea').classList.remove('hidden');
+    const sb = document.getElementById('saveBtn');
+    sb.disabled = true; sb.textContent = '保存する';
+  });
+
+  /* 共有経由なら退避ファイルを復元してそのまま保存 */
+  const params = new URLSearchParams(location.search);
+  if (params.get('shared') === '1') {
+    const files = await loadSharedFiles();
+    if (files.length) {
+      addToQueue(files);
+      if (queue.length) doUpload();   /* 手間ゼロで自動保存 */
+    } else {
+      wnShowToast('共有ファイルを取得できませんでした。手動で選択してください', 'warning');
+    }
+  }
+});
+</script>
+</body>
+</html>

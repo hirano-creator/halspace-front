@@ -1,9 +1,11 @@
 'use strict';
 /* What'sNo Service Worker — /whatsno/sw.js */
 
-const CACHE_NAME = 'whatsno-v32';
+const CACHE_NAME  = 'whatsno-v33';
+const SHARE_CACHE = 'wn-share';   /* Web Share Target で受け取ったファイルの一時退避先 */
 const SHELL_URLS = [
   '/whatsno/app/dashboard.html',
+  '/whatsno/app/save.html',
   '/whatsno/app/file-detail.html',
   '/whatsno/app/admin.html',
   '/whatsno/app/diff.html',
@@ -26,13 +28,40 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME && k !== SHARE_CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+
+  /* Web Share Target: save.html への共有POSTを傍受してファイルを退避し、
+     303でsave.html(GET)へ渡す（OS共有メニュー「What'sNo」経由の保存） */
+  if (event.request.method === 'POST' && url.pathname === '/whatsno/app/save.html') {
+    event.respondWith((async () => {
+      try {
+        const formData = await event.request.formData();
+        const files = formData.getAll('files').filter(f => f && f.size > 0);
+        const cache = await caches.open(SHARE_CACHE);
+        for (const k of await cache.keys()) await cache.delete(k); /* 前回分を掃除 */
+        const index = [];
+        let i = 0;
+        for (const f of files) {
+          const key = `/whatsno/__share__/${i}`;
+          await cache.put(key, new Response(f, {
+            headers: { 'Content-Type': f.type || 'application/octet-stream' },
+          }));
+          index.push({ key, name: f.name || `shared-${i}`, type: f.type, size: f.size });
+          i++;
+        }
+        await cache.put('/whatsno/__share__/index',
+          new Response(JSON.stringify(index), { headers: { 'Content-Type': 'application/json' } }));
+      } catch (e) { /* 失敗してもsave.htmlへ遷移して手動アップロードに誘導 */ }
+      return Response.redirect('/whatsno/app/save.html?shared=1', 303);
+    })());
+    return;
+  }
 
   /* GET以外（POST/PATCH/DELETE等）はService Worker不介入 → ネットワーク直通 */
   if (event.request.method !== 'GET') return;
