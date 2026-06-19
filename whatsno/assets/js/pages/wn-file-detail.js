@@ -854,6 +854,10 @@ function addPdfRotateOverlay() {
   ].join(';');
 
   const multiPage = (pdfPreviewDoc?.numPages || 1) > 1;
+  /* 回転を上書き保存できるのは実PDFのみ（PowerPoint変換表示は元が.pptxなので対象外） */
+  const ext = (fileData?.file_name?.split('.').pop() || '').toLowerCase();
+  const rotSavable = ext === 'pdf' || (fileData?.mime_type === 'application/pdf');
+  const sepStyle = 'width:1px;height:18px;background:rgba(255,255,255,.25);margin:0 2px;';
   bar.innerHTML = `
     <button id="pdfRotCCW" title="左90°回転" style="${btnStyle}">
       <i class="fa-solid fa-rotate-left"></i>
@@ -865,6 +869,11 @@ function addPdfRotateOverlay() {
     <button id="pdfViewToggle" title="全ページを一覧表示" style="${btnStyle}">
       <i class="fa-solid fa-table-cells"></i>
     </button>` : ''}
+    ${rotSavable ? `
+    <span id="pdfRotSaveSep" style="${sepStyle};display:none;"></span>
+    <button id="pdfRotSave" title="回転を上書き保存（全ページ）" style="${btnStyle};display:none;color:#FFD54F;">
+      <i class="fa-solid fa-floppy-disk"></i>
+    </button>` : ''}
   `;
   document.getElementById('previewArea').appendChild(bar);
 
@@ -872,6 +881,17 @@ function addPdfRotateOverlay() {
     btn.addEventListener('mouseenter', () => btn.style.background = 'rgba(255,255,255,.2)');
     btn.addEventListener('mouseleave', () => btn.style.background = 'none');
   });
+
+  /* 回転状態に応じて「保存」ボタンの表示を切り替える */
+  const updateSaveBtn = () => {
+    const saveBtn = bar.querySelector('#pdfRotSave');
+    const saveSep = bar.querySelector('#pdfRotSaveSep');
+    if (!saveBtn) return;
+    const show = pdfPreviewRot !== 0 ? '' : 'none';
+    saveBtn.style.display = show;
+    if (saveSep) saveSep.style.display = show;
+  };
+
   async function applyRotate(delta) {
     pdfPreviewRot = (pdfPreviewRot + delta + 360) % 360;
     pdfGridRendered = false;  /* グリッドのサムネイルも回転を反映させるため無効化 */
@@ -880,11 +900,76 @@ function addPdfRotateOverlay() {
     } else {
       await reRenderPdfPreviewPage();
     }
+    updateSaveBtn();
   }
   bar.querySelector('#pdfRotCCW').addEventListener('click', () => applyRotate(-90));
   bar.querySelector('#pdfRotCW').addEventListener('click', () => applyRotate(90));
   bar.querySelector('#pdfViewToggle')?.addEventListener('click', () =>
     setPdfViewMode(pdfViewMode === 'grid' ? 'single' : 'grid'));
+  bar.querySelector('#pdfRotSave')?.addEventListener('click', () => savePdfRotation());
+}
+
+/* 現在のビューア回転を全ページに焼き込んで元PDFを上書き保存する */
+async function savePdfRotation() {
+  if (pdfPreviewRot === 0) return;
+  if (typeof PDFLib === 'undefined') { wnShowToast('pdf-libが読み込まれていません', 'danger'); return; }
+  if (!confirm('現在の回転を全ページに焼き込んで元PDFに上書き保存します。よろしいですか？\n（元の向きには戻せません）')) return;
+
+  const saveBtn = document.getElementById('pdfRotSave');
+  const origHtml = saveBtn ? saveBtn.innerHTML : '';
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+
+  try {
+    const buffer = await wnFetchFileBuffer(fileId);
+    if (!buffer) throw new Error('ファイルの取得に失敗しました');
+
+    const pdfLibDoc = await PDFLib.PDFDocument.load(buffer, { ignoreEncryption: true });
+    pdfLibDoc.getPages().forEach(pg => {
+      const cur = pg.getRotation?.()?.angle ?? 0;
+      pg.setRotation(PDFLib.degrees((cur + pdfPreviewRot) % 360));
+    });
+    const bytes = await pdfLibDoc.save();
+    const blob  = new Blob([bytes], { type: 'application/pdf' });
+
+    const file = new File([blob], fileData.file_name, { type: 'application/pdf' });
+    const res  = await wnOverwriteFile(fileId, file);
+    if (!res?.data) throw new Error('保存に失敗しました');
+
+    /* プレビューキャッシュは updated_at をキーに含むため、変化により次回自動ミス→最新PDF取得 */
+
+    /* ダッシュボードのサムネイルを即時反映（回転後の1ページ目で先行生成） */
+    await preGeneratePdfThumb(res.data.updated_at).catch(() => {});
+
+    wnShowToast('回転を保存しました', 'success');
+    setTimeout(() => location.reload(), 600);
+  } catch (e) {
+    console.error('pdf rotate save error:', e);
+    wnShowToast('保存エラー: ' + e.message, 'danger');
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = origHtml; }
+  }
+}
+
+/* 回転後のPDF 1ページ目から、ダッシュボードと同じパイプラインでサムネイルを先行生成 */
+async function preGeneratePdfThumb(updatedAt) {
+  if (!pdfPreviewDoc) return;
+  const page     = await pdfPreviewDoc.getPage(1);
+  const _defVP   = page.getViewport({ scale: 1 });
+  /* 保存後のPDFは回転が焼き込まれるため、ダッシュボードが描く向き＝intrinsic+pdfPreviewRot */
+  const rotation = (_defVP.rotation + pdfPreviewRot) % 360;
+  const base     = page.getViewport({ scale: 1, rotation });
+  const scale    = Math.min(4, Math.max(1.5, 2600 / Math.max(base.width, base.height)));
+  const viewport = page.getViewport({ scale, rotation });
+  const canvas   = document.createElement('canvas');
+  canvas.width   = Math.round(viewport.width);
+  canvas.height  = Math.round(viewport.height);
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+
+  /* ダッシュボードのPDFサムネと同じ順序：余白カット → 高品質縮小 → 線画強調 */
+  const trimmed = fdThumbTrim(canvas);
+  const out     = fdThumbShrink(trimmed, fdThumbTargetLong());
+  fdThumbEnhance(out);
+  const blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
+  if (blob) await writeThumbToCache(fileId, updatedAt, blob);
 }
 
 /* ── Ctrl+ホイール：PDFズーム（window リスナーへ一本化・ここは overscroll とパン初期化） ── */
@@ -1035,7 +1120,7 @@ async function saveImageRotation(ext) {
 
     /* ダッシュボードのサムネイルを即時反映：回転後blobを同じキャッシュキーで先行書き込み
        （画像のサムネイルは元blobそのものなので再利用できる） */
-    await preGenerateImageThumb(fileId, res.data.updated_at, blob).catch(() => {});
+    await writeThumbToCache(fileId, res.data.updated_at, blob).catch(() => {});
 
     wnShowToast('回転を保存しました', 'success');
     /* 保存後の向きで再読み込み */
@@ -1048,10 +1133,10 @@ async function saveImageRotation(ext) {
 }
 
 /* ダッシュボードのサムネイルキャッシュ（IndexedDB: wn-thumb-cache / thumbs）へ
-   回転後の画像blobを先行書き込みする。キー形式・バージョンは wn-dashboard.js の
-   THUMB_VER と必ず一致させること（不一致だとヒットせず再生成される）。 */
+   生成済みサムネイルblobを先行書き込みする（画像・PDF共通）。キー形式・バージョンは
+   wn-dashboard.js の THUMB_VER と必ず一致させること（不一致だとヒットせず再生成される）。 */
 const FD_THUMB_VER = 'v6';
-function preGenerateImageThumb(id, updatedAt, blob) {
+function writeThumbToCache(id, updatedAt, blob) {
   const cacheKey = `thumb_${id}_${updatedAt ?? ''}_${FD_THUMB_VER}`;
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('wn-thumb-cache', 1);
@@ -1084,6 +1169,105 @@ function preGenerateImageThumb(id, updatedAt, blob) {
     };
     req.onerror = () => reject(req.error);
   });
+}
+
+/* ── サムネイル生成パイプライン（wn-dashboard.js と同実装・PDFサムネ先行生成用） ── */
+/* 保存するサムネイルの長辺ピクセル */
+function fdThumbTargetLong() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  return Math.round(Math.min(1440, Math.max(720, 720 * dpr)));
+}
+
+/* 高品質縮小: 1/2ずつ段階縮小して細線がかすれるのを防ぐ */
+function fdThumbShrink(src, targetLong) {
+  let cur = src;
+  while (Math.max(cur.width, cur.height) > targetLong * 2) {
+    const next = document.createElement('canvas');
+    next.width  = Math.max(1, Math.round(cur.width  / 2));
+    next.height = Math.max(1, Math.round(cur.height / 2));
+    const ctx = next.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(cur, 0, 0, next.width, next.height);
+    cur = next;
+  }
+  if (Math.max(cur.width, cur.height) > targetLong) {
+    const ratio = targetLong / Math.max(cur.width, cur.height);
+    const next  = document.createElement('canvas');
+    next.width  = Math.max(1, Math.round(cur.width  * ratio));
+    next.height = Math.max(1, Math.round(cur.height * ratio));
+    const ctx = next.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(cur, 0, 0, next.width, next.height);
+    cur = next;
+  }
+  return cur;
+}
+
+/* 余白自動トリミング: 四隅色を背景とみなし、内容の外接矩形+少しの余白で切り出す */
+function fdThumbTrim(canvas, pad = 0.03) {
+  try {
+    const w = canvas.width, h = canvas.height;
+    const ctx = canvas.getContext('2d');
+    const d = ctx.getImageData(0, 0, w, h).data;
+    const idx = (x, y) => (y * w + x) * 4;
+    let br = 0, bg = 0, bb = 0;
+    for (const [x, y] of [[0,0],[w-1,0],[0,h-1],[w-1,h-1]]) {
+      const i = idx(x, y); br += d[i]; bg += d[i+1]; bb += d[i+2];
+    }
+    br /= 4; bg /= 4; bb /= 4;
+    const isBg = i => Math.abs(d[i]-br) + Math.abs(d[i+1]-bg) + Math.abs(d[i+2]-bb) < 48;
+    const stepX = Math.max(1, Math.floor(w / 600));
+    const stepY = Math.max(1, Math.floor(h / 600));
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+    for (let y = 0; y < h; y += stepY) {
+      for (let x = 0; x < w; x += stepX) {
+        if (!isBg(idx(x, y))) {
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0) return canvas;
+    minX = Math.max(0, minX - Math.round(w * pad));
+    maxX = Math.min(w - 1, maxX + Math.round(w * pad));
+    minY = Math.max(0, minY - Math.round(h * pad));
+    maxY = Math.min(h - 1, maxY + Math.round(h * pad));
+    const cw = maxX - minX + 1, ch = maxY - minY + 1;
+    if (cw < w * 0.3 || ch < h * 0.3) return canvas;
+    if (cw > w * 0.95 && ch > h * 0.95) return canvas;
+    const out = document.createElement('canvas');
+    out.width = cw; out.height = ch;
+    out.getContext('2d').drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
+    return out;
+  } catch { return canvas; }
+}
+
+/* 線画強調: アンシャープマスク＋ガンマで細線をくっきりさせる */
+function fdThumbEnhance(canvas, amount = 1.1, gamma = 1.45) {
+  try {
+    const w = canvas.width, h = canvas.height;
+    const ctx  = canvas.getContext('2d');
+    const blur = document.createElement('canvas');
+    blur.width = w; blur.height = h;
+    const bctx = blur.getContext('2d');
+    bctx.filter = 'blur(1px)';
+    bctx.drawImage(canvas, 0, 0);
+    const img = ctx.getImageData(0, 0, w, h);
+    const bim = bctx.getImageData(0, 0, w, h);
+    const s = img.data, b = bim.data;
+    const lut = new Uint8ClampedArray(256);
+    for (let v = 0; v < 256; v++) lut[v] = Math.round(255 * Math.pow(v / 255, gamma));
+    for (let i = 0; i < s.length; i += 4) {
+      for (let c = 0; c < 3; c++) {
+        let v = s[i+c] + amount * (s[i+c] - b[i+c]);
+        v = v < 0 ? 0 : v > 255 ? 255 : Math.round(v);
+        s[i+c] = lut[v];
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  } catch {}
 }
 
 /* ── 左ドラッグでPDFをパン（transform translate を更新） ── */
