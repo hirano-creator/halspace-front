@@ -398,11 +398,11 @@ function deleteContactById(id) {
 async function runSkill(instruction) {
   if (skillBusy || !instruction) return;
 
-  // 対象ファイル: 選択中の先頭。未選択なら促す。
-  const fileId = selectedIds[0] ?? null;
-  if (!fileId) { wnShowToast('対象のファイルを1つ選択してください', 'info'); return; }
-  const file = allFiles.find(f => String(f.id) === String(fileId));
-  if (!file) { wnShowToast('選択ファイルが見つかりません', 'danger'); return; }
+  // 対象ファイル: 選択中の全ファイル。未選択なら促す。
+  if (selectedIds.length === 0) { wnShowToast('対象のファイルを選択してください', 'info'); return; }
+  const files = selectedIds.map(id => allFiles.find(f => String(f.id) === String(id))).filter(Boolean);
+  if (files.length === 0) { wnShowToast('選択ファイルが見つかりません', 'danger'); return; }
+  const file = files[0]; // スキルAPI（宛先・下書き解決）には代表ファイルを渡す
 
   skillBusy = true;
   const input = document.getElementById('skillInput');
@@ -423,8 +423,8 @@ async function runSkill(instruction) {
 
     const draft = res.draft || {};
 
-    // 既存のメール送信モーダルを開く（共有リンクを先行発行）
-    openEmailModal([{ id: file.id, name: file.file_name }]);
+    // メール送信モーダルを開く（全選択ファイルの共有リンクを先行発行）
+    openEmailModal(files.map(f => ({ id: f.id, name: f.file_name })));
 
     // LLMの下書きを流し込む
     if (draft.to_email) {
@@ -441,10 +441,11 @@ async function runSkill(instruction) {
     input.value = '';
 
     if (draft.to_email) {
-      // 宛先が解決できた → 共有リンクの発行完了を待つ
+      // 宛先が解決できた → 全ファイルの共有リンク発行完了を待つ
       skillPendingName = '';
-      const share = await (emailShareCache.get(file.id) ?? Promise.resolve(null));
-      if (!share?.url) {
+      const sharePromises = files.map(f => emailShareCache.get(f.id) ?? Promise.resolve(null));
+      const shares = await Promise.all(sharePromises);
+      if (shares.some(s => !s?.url)) {
         wnShowToast('共有リンクの生成を待っています。完了後に送信してください', 'info');
       } else {
         const pref = wnGetMailerPref();
