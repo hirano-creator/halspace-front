@@ -444,10 +444,13 @@ async function runSkill(instruction) {
       // 宛先が解決できた → 全ファイルの共有リンク発行完了を待つ
       skillPendingName = '';
       const sharePromises = files.map(f => emailShareCache.get(f.id) ?? Promise.resolve(null));
-      const shares = await Promise.all(sharePromises);
-      if (shares.some(s => !s?.url)) {
+      const rawShares = await Promise.all(sharePromises);
+      const shareResults = files.map((f, i) => ({ id: f.id, name: f.file_name, url: rawShares[i]?.url ?? null }));
+      if (shareResults.some(s => !s.url)) {
         wnShowToast('共有リンクの生成を待っています。完了後に送信してください', 'info');
       } else {
+        // _buildEmailContent() が参照する emailPregenShares を先に設定してからメーラーを起動する
+        emailPregenShares = shareResults;
         const pref = wnGetMailerPref();
         if (pref === 'gmail')       doSendEmailGmail();   // 2回目以降: 記憶したGmailを自動起動
         else if (pref === 'mailto') doSendEmailMailto();  // 2回目以降: 記憶した既定メールアプリを自動起動
