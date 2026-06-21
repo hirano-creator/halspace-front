@@ -1406,7 +1406,7 @@ function fileRowHtmlIG(f) {
         <button class="file-action-btn" title="メールで共有"
                 onmouseenter="prefetchEmailShare(${f.id})"
                 onclick="event.stopPropagation();openEmailModal([{id:${f.id},name:'${fnameSafe}'}])">
-          <i class="fa-regular fa-paper-plane"></i>
+          <i class="fa-regular fa-envelope"></i>
         </button>
         <button class="file-action-btn" title="ダウンロード"
                 onclick="event.stopPropagation();wnDownload(${f.id})">
