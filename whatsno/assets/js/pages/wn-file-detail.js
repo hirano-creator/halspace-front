@@ -1831,21 +1831,95 @@ async function loadComments() {
     list.innerHTML = '<p style="font-size:13px;color:var(--muted);">まだコメントはありません</p>';
     return;
   }
-  list.innerHTML = comments.map(c => `
-    <div class="comment-item">
+  const isAdmin = currentUser && ['jp_admin', 'super_admin'].includes(currentUser.role);
+  list.innerHTML = comments.map(c => {
+    const isMine  = currentUser && c.user && c.user.id === currentUser.id;
+    const canEdit = isMine;
+    const canDel  = isMine || isAdmin;
+    const actions = (canEdit || canDel) ? `
+      <span class="comment-actions">
+        ${canEdit ? `<button class="comment-action-btn" data-comment-action="edit" data-id="${c.id}" title="編集"><i class="fa-solid fa-pen"></i></button>` : ''}
+        ${canDel  ? `<button class="comment-action-btn danger" data-comment-action="delete" data-id="${c.id}" title="削除"><i class="fa-solid fa-trash"></i></button>` : ''}
+      </span>` : '';
+    return `
+    <div class="comment-item" data-comment-id="${c.id}">
       <div class="comment-avatar">${h((c.user?.name ?? '?').charAt(0))}</div>
       <div class="comment-body-wrap">
         <div class="comment-meta">
           <span class="comment-user">${h(c.user?.name ?? '不明')}</span>
           <span class="comment-date">${wnFormatDate(c.created_at)}</span>
+          ${actions}
         </div>
-        <div class="comment-text">${h(c.body).replace(/\n/g, '<br>')}</div>
+        <div class="comment-text" data-comment-text>${h(c.body).replace(/\n/g, '<br>')}</div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
+
+  // 編集／削除ボタン
+  list.querySelectorAll('[data-comment-action]').forEach(btn => {
+    const id     = Number(btn.dataset.id);
+    const action = btn.dataset.commentAction;
+    const comment = comments.find(c => c.id === id);
+    if (action === 'edit') {
+      btn.addEventListener('click', () => startEditComment(id, comment?.body ?? ''));
+    } else if (action === 'delete') {
+      btn.addEventListener('click', () => deleteCommentFlow(id));
+    }
+  });
 
   const panelList = document.getElementById('commentList');
   panelList.scrollTop = panelList.scrollHeight;
+}
+
+function startEditComment(commentId, currentBody) {
+  const item = document.querySelector(`.comment-item[data-comment-id="${commentId}"]`);
+  if (!item) return;
+  const textEl = item.querySelector('[data-comment-text]');
+  if (!textEl || item.querySelector('.comment-edit-area')) return;
+
+  const area = document.createElement('div');
+  area.className = 'comment-edit-area';
+  area.innerHTML = `
+    <textarea rows="3"></textarea>
+    <div class="comment-edit-buttons">
+      <button class="btn btn-accent btn-sm" data-edit-save>保存</button>
+      <button class="btn btn-ghost btn-sm" data-edit-cancel>キャンセル</button>
+    </div>`;
+  const ta = area.querySelector('textarea');
+  ta.value = currentBody;
+
+  textEl.style.display = 'none';
+  textEl.after(area);
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+
+  const cancel = () => { area.remove(); textEl.style.display = ''; };
+  area.querySelector('[data-edit-cancel]').addEventListener('click', cancel);
+  area.querySelector('[data-edit-save]').addEventListener('click', async () => {
+    const body = ta.value.trim();
+    if (!body) { wnShowToast('コメントを入力してください', 'danger'); return; }
+    if (body === currentBody) { cancel(); return; }
+    const res = await wnUpdateComment(fileId, commentId, body);
+    if (res) {
+      await loadComments();
+    } else {
+      wnShowToast('コメントの更新に失敗しました', 'danger');
+    }
+  });
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) area.querySelector('[data-edit-save]').click();
+    if (e.key === 'Escape') cancel();
+  });
+}
+
+async function deleteCommentFlow(commentId) {
+  if (!confirm('このコメントを削除しますか？')) return;
+  const ok = await wnDeleteComment(fileId, commentId);
+  if (ok) {
+    await loadComments();
+  } else {
+    wnShowToast('コメントの削除に失敗しました', 'danger');
+  }
 }
 
 async function postComment() {

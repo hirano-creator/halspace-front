@@ -253,6 +253,24 @@ async function wnPostComment(fileId, body) {
   return (await res.json()).data ?? null;
 }
 
+/* コメント編集 */
+async function wnUpdateComment(fileId, commentId, body) {
+  const res = await wnFetch(`/wn/files/${fileId}/comments/${commentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ body }),
+  });
+  if (!res || !res.ok) return null;
+  return (await res.json()).data ?? null;
+}
+
+/* コメント削除 */
+async function wnDeleteComment(fileId, commentId) {
+  const res = await wnFetch(`/wn/files/${fileId}/comments/${commentId}`, {
+    method: 'DELETE',
+  });
+  return !!(res && res.ok);
+}
+
 /* バージョン履歴 */
 async function wnGetVersions(fileId) {
   const res = await wnFetch(`/wn/files/${fileId}/versions`);
