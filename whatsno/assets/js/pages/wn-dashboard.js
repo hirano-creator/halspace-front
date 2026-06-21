@@ -703,7 +703,7 @@ const ThumbCache = (() => {
 const thumbMemCache = {};
 
 /* サムネイル生成バージョン（解像度等を変えたら上げてキャッシュを再生成させる） */
-const THUMB_VER = 'v6';
+const THUMB_VER = 'v7';
 /* Excel/Word サムネイルの描画倍率（論理座標×この倍率で高解像度化） */
 const THUMB_SS = 2;
 
@@ -740,6 +740,26 @@ function wnShrinkCanvas(src, targetLong) {
     cur = next;
   }
   return cur;
+}
+
+/* EXIF Orientation を画素に焼き込んで再エンコード。
+   iOS Safari が object-fit:cover + aspect-ratio で EXIF 回転を無視する不具合対策。
+   対象は EXIF を持つ JPEG/HEIC のみ。失敗時は元 blob をそのまま返す。 */
+async function wnNormalizeImageBlob(blob) {
+  try {
+    if (typeof createImageBitmap !== 'function') return blob;
+    const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    const canvas = document.createElement('canvas');
+    canvas.width  = bmp.width;
+    canvas.height = bmp.height;
+    canvas.getContext('2d').drawImage(bmp, 0, 0);
+    bmp.close?.();
+    const out = wnShrinkCanvas(canvas, wnThumbTargetLong());  // 既存の高品質段階縮小を再利用
+    const re  = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.9));
+    return re || blob;
+  } catch {
+    return blob;  // createImageBitmap 非対応や失敗時は元のまま
+  }
 }
 
 /* 余白自動トリミング: 四隅の色を背景色とみなし、内容の外接矩形+少しの余白で切り出す。
@@ -903,11 +923,15 @@ async function loadOneThumbnail(f) {
       const buffer = await res.arrayBuffer();
       let b = await heic2any({ blob: new Blob([buffer], { type: 'image/heic' }), toType: 'image/jpeg', quality: 0.70 });
       blob = Array.isArray(b) ? b[0] : b;
+      blob = await wnNormalizeImageBlob(blob);   // EXIF 回転を焼き込み
 
     } else if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','svg'].includes(ext)) {
       const res = await fetch(directUrl);
       if (!res.ok) return;
       blob = await res.blob();
+      if (['jpg','jpeg'].includes(ext) || mime === 'image/jpeg') {
+        blob = await wnNormalizeImageBlob(blob);  // EXIF 回転を焼き込み
+      }
 
     } else if (mime === 'application/pdf' || ext === 'pdf') {
       if (typeof pdfjsLib === 'undefined') return;
