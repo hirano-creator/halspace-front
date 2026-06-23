@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0a0a0a">
+<title>投稿 — a.a</title>
+<link rel="stylesheet" href="../assets/app.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="appbar">
+      <button class="icon-btn" onclick="history.back()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="title">投稿</div>
+      <button class="icon-btn" id="shareBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4M12 2v13"/></svg></button>
+    </header>
+
+    <div class="scroll" id="detail"><div class="center">読み込み中…</div></div>
+
+    <div class="tabbar" style="justify-content:stretch;padding:8px 14px;gap:10px">
+      <input class="input" id="cbody" placeholder="コメントを書く…" style="height:44px;flex:1">
+      <button class="fab" id="csend" style="width:44px;height:44px;border-radius:50%;transform:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+    </div>
+  </div>
+
+  <script src="../assets/aa-api.js"></script>
+  <script src="../assets/aa-pdf.js"></script>
+  <script src="../assets/aa-shell.js"></script>
+  <script>
+    if (!AA.isAuthed()) location.replace('../index.html');
+    const id = new URLSearchParams(location.search).get('id');
+    const esc = (s)=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const initial = (s)=>(s||'?').trim().charAt(0);
+    const CATS = ['補助金','セミナー','設備紹介','お知らせ','相談'];
+    let P = null;
+
+    async function loadMedia(container){
+      // 各 .media[data-view] の実体URLを取得して表示
+      for (const el of container.querySelectorAll('[data-view]')) {
+        try {
+          const viewUrl = el.dataset.view;
+          const midMatch = viewUrl.match(/\/media\/(\d+)\/view/);
+          const mediaId = midMatch ? midMatch[1] : null;
+          const url = await AA.mediaUrl(viewUrl);
+          if (el.dataset.kind === 'video') el.innerHTML = `<video src="${url}" controls playsinline preload="metadata"></video>`;
+          else if (el.dataset.kind === 'image') el.innerHTML = `<img src="${url}" alt="">`;
+          else {
+            // 資料：PDF は pdf.js、Office ファイルは埋め込みサムネイル、それ以外はファイルカード
+            const mime = el.dataset.mime || '';
+            const wnId = el.dataset.wnid;
+            const isPdf = mime === 'application/pdf';
+            const renderDocFallback = () => {
+              el.style.minHeight = '';
+              el.innerHTML = `<a class="doc" href="${url}" target="_blank" rel="noopener"><div class="dic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div><div class="dt"><b>資料を開く</b><span>${esc(mime)}</span></div></a>`;
+            };
+            if (isPdf) {
+              try {
+                // R2直URLではなくプロキシ経由（CORS: null origin 対策）
+                const pdfUrl = mediaId
+                  ? (AA.apiBase() + '/aa/media/' + mediaId + '/raw?token=' + AA.token())
+                  : url;
+                await aaRenderPdf(pdfUrl, el);
+                el.style.cursor = 'pointer';
+                el.title = '資料を開く';
+                el.onclick = () => window.open(url, '_blank');
+              } catch(e) { renderDocFallback(); }
+            } else if (wnId) {
+              try {
+                const thumbRes = await fetch(AA.apiBase() + '/wn/files/' + wnId + '/thumbnail', {
+                  headers: { 'Authorization': 'Bearer ' + AA.token() }
+                });
+                if (!thumbRes.ok) throw new Error('thumbnail ' + thumbRes.status);
+                const blob = await thumbRes.blob();
+                const imgUrl = URL.createObjectURL(blob);
+                const img = document.createElement('img');
+                img.style.cssText = 'width:100%;display:block';
+                img.onload = () => URL.revokeObjectURL(imgUrl);
+                img.onerror = () => { URL.revokeObjectURL(imgUrl); renderDocFallback(); };
+                el.style.minHeight = '';
+                el.innerHTML = '';
+                el.appendChild(img);
+                img.src = imgUrl;
+                el.style.cursor = 'pointer';
+                el.onclick = () => window.open(url, '_blank');
+              } catch(e) { renderDocFallback(); }
+            } else {
+              renderDocFallback();
+            }
+          }
+        } catch(e){ el.innerHTML = '<div class="center">メディアを読み込めません</div>'; }
+      }
+    }
+
+    async function render(){
+      const root = document.getElementById('detail');
+      try {
+        const { data: p } = await AA.getPost(id);
+        P = p;
+        const mediaHtml = (p.media||[]).map(m => {
+          if (m.kind === 'document') {
+            const wnAttr = p.source_wn_file_id ? ` data-wnid="${p.source_wn_file_id}"` : '';
+            return `<div class="media" data-view="${m.view}" data-kind="document" data-mime="${esc(m.mime||'')}"${wnAttr} style="min-height:160px"></div>`;
+          } else if (m.kind === 'image' && m.url) {
+            return `<div class="media" style="text-align:center"><img src="${esc(m.url)}" style="max-width:100%;border-radius:12px;display:block" alt="" onerror="this.style.display='none'"></div>`;
+          } else if (m.kind === 'video' && m.url) {
+            return `<div class="media"><video src="${esc(m.url)}" controls playsinline preload="metadata" style="width:100%;border-radius:12px"></video></div>`;
+          } else {
+            return `<div class="media" data-view="${m.view}" data-kind="${m.kind}" style="min-height:120px"></div>`;
+          }
+        }).join('');
+        const helpful = (p.reactions && p.reactions.helpful) || 0;
+        const mine = (p.my_reactions||[]).indexOf('helpful')>=0;
+        const thumb = mine
+          ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 11h3.2v10H2z"/><path d="M7 21V11l4.2-8.1a1.7 1.7 0 0 1 3.2 1l-.2 4.2h5a2 2 0 0 1 2 2.4l-1.4 7a2 2 0 0 1-2 1.6H7z"/></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 11h3.2v10H2z"/><path d="M7 21V11l4.2-8.1a1.7 1.7 0 0 1 3.2 1l-.2 4.2h5a2 2 0 0 1 2 2.4l-1.4 7a2 2 0 0 1-2 1.6H7z"/></svg>';
+
+        root.innerHTML = `<article class="post">
+          <div class="phead">
+            <div class="ava">${esc(initial(p.author_name||p.company_name))}</div>
+            <div class="who"><b>${esc(p.author_name||'—')}</b><span>${esc(p.company_name||'')}</span></div>
+            <div class="rightmeta">${p.category?`<span class="cat">${esc(p.category)}</span>`:''}</div>
+          </div>
+          ${p.body?`<div class="ptext">${esc(p.body)}</div>`:''}
+          ${mediaHtml}
+          <div class="react"><button class="chip${mine?' on':''}" id="reactBtn">${thumb}<span class="n">${helpful}</span></button>
+            ${p.is_mine?`<div class="rtools"><button class="t" id="editBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>編集</button><button class="t" id="delBtn" style="color:#c0392b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>削除</button></div>`:''}
+          </div>
+        </article>
+        <div style="padding:8px 18px;color:var(--mute);font-size:12px;font-weight:700" id="ctitle">コメント</div>
+        <div id="clist"></div>`;
+        loadMedia(root);
+        document.getElementById('reactBtn').onclick = async () => {
+          const r = await AA.react(id,'helpful');
+          const b = document.getElementById('reactBtn');
+          b.classList.toggle('on', r.reacted); b.querySelector('.n').textContent = r.count;
+        };
+        if (p.is_mine) {
+          document.getElementById('editBtn').onclick = renderEdit;
+          document.getElementById('delBtn').onclick = async () => {
+            if (!confirm('この投稿を削除しますか？')) return;
+            try { await AA.deletePost(id); location.href = './feed.html'; } catch(e){ alert(e.message); }
+          };
+        }
+        loadComments();
+      } catch(e){ root.innerHTML = `<div class="center">${esc(e.message)}</div>`; }
+    }
+
+    function renderEdit(){
+      const root = document.getElementById('detail');
+      let ecat = P.category;
+      const existing = (P.media || []).slice(); // {id,kind,...}
+      const removeIds = [];                      // 削除対象の既存メディアid
+      const newFiles  = [];                      // 追加メディア {file,kind}
+      const mlabel = (k) => k==='video'?'動画':k==='document'?'資料':'画像';
+
+      root.innerHTML = `<div class="post">
+        <div style="font-size:11.5px;color:var(--mute);font-weight:700;margin-bottom:6px">カテゴリ</div>
+        <div class="filterbar" id="ecats" style="padding-left:0;padding-right:0">${CATS.map(c=>`<button class="fchip${c===ecat?' on':''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+        <textarea id="ebody" style="width:100%;min-height:140px;font-size:16px;line-height:1.7;outline:none;font-family:var(--sans);margin-top:12px;resize:none">${esc(P.body||'')}</textarea>
+        <div style="font-size:11.5px;color:var(--mute);font-weight:700;margin:10px 2px 6px">メディア</div>
+        <div id="emedia" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
+        <div class="react" style="flex-wrap:wrap">
+          <label class="chip" style="cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>写真<input type="file" accept="image/*" multiple hidden id="ePhoto"></label>
+          <label class="chip" style="cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>動画<input type="file" accept="video/*" hidden id="eVideo"></label>
+          <label class="chip" style="cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>資料<input type="file" accept="application/pdf" hidden id="eDoc"></label>
+        </div>
+        <div class="react" style="margin-top:14px"><button class="btn" id="ecancel" style="flex:1">取消</button><button class="btn primary" id="esave" style="flex:1">保存</button></div>
+        <div id="emsg" style="color:#c0392b;font-size:12.5px;text-align:center;min-height:18px;margin-top:8px"></div>
+      </div>`;
+
+      function paintMedia(){
+        const ex = existing.map(m => {
+          const off = removeIds.includes(m.id);
+          return `<span class="chip" style="${off?'opacity:.45;text-decoration:line-through':''}">${mlabel(m.kind)} <b data-ex="${m.id}" style="cursor:pointer" title="${off?'戻す':'削除'}">${off?'↺':'×'}</b></span>`;
+        }).join('');
+        const nw = newFiles.map((f,i)=>`<span class="chip" style="background:var(--accent-bg);color:var(--accent)">＋${mlabel(f.kind)}：${esc(f.file.name.slice(0,14))} <b data-nw="${i}" style="cursor:pointer">×</b></span>`).join('');
+        const em = document.getElementById('emedia');
+        em.innerHTML = (ex + nw) || '<span style="color:var(--mute);font-size:12.5px">メディアなし</span>';
+        em.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => {
+          const mid = +b.dataset.ex, i = removeIds.indexOf(mid);
+          if (i >= 0) removeIds.splice(i,1); else removeIds.push(mid);
+          paintMedia();
+        });
+        em.querySelectorAll('[data-nw]').forEach(b => b.onclick = () => { newFiles.splice(+b.dataset.nw,1); paintMedia(); });
+      }
+      paintMedia();
+
+      root.querySelectorAll('#ecats .fchip').forEach(b => b.onclick = () => {
+        ecat = b.dataset.c;
+        root.querySelectorAll('#ecats .fchip').forEach(x => x.classList.toggle('on', x.dataset.c === ecat));
+      });
+
+      const addInput = (input, kind) => input.addEventListener('change', () => {
+        [...input.files].forEach(file => newFiles.push({ file, kind }));
+        input.value = ''; paintMedia();
+      });
+      addInput(document.getElementById('ePhoto'), 'image');
+      addInput(document.getElementById('eVideo'), 'video');
+      addInput(document.getElementById('eDoc'), 'document');
+
+      document.getElementById('ecancel').onclick = render;
+      document.getElementById('esave').onclick = async () => {
+        const emsg = document.getElementById('emsg'); emsg.textContent = '';
+        const btn = document.getElementById('esave');
+        const fd = new FormData();
+        fd.append('category', ecat);
+        fd.append('body', document.getElementById('ebody').value.trim());
+        removeIds.forEach(mid => fd.append('remove_media_ids[]', mid));
+        newFiles.forEach(f => fd.append('media[]', f.file));
+        try { btn.textContent = '保存中…'; btn.disabled = true; await AA.updatePostMedia(id, fd); render(); }
+        catch(e){ emsg.textContent = e.message; btn.textContent = '保存'; btn.disabled = false; }
+      };
+    }
+
+    async function loadComments(){
+      const { data } = await AA.comments(id);
+      // await中に編集モードへ切り替わると ctitle/clist が差し替わるためガード
+      const ctitle = document.getElementById('ctitle');
+      const clist  = document.getElementById('clist');
+      if (!ctitle || !clist) return;
+      ctitle.textContent = `コメント ${data.length}`;
+      clist.innerHTML = data.map(c => `
+        <div class="post" style="padding:12px 18px">
+          <div class="phead" style="margin:0">
+            <div class="ava alt" style="width:30px;height:30px;flex:0 0 30px;font-size:11px">${esc(initial(c.company_name||c.user_name))}</div>
+            <div class="who"><b>${esc(c.company_name||c.user_name||'—')}</b></div>
+          </div>
+          <div class="ptext" style="margin:6px 0 0;font-size:14px">${esc(c.body)}</div>
+        </div>`).join('') || '<div class="center" style="padding:20px">まだコメントはありません</div>';
+    }
+
+    document.getElementById('csend').onclick = async () => {
+      const inp = document.getElementById('cbody'); const body = inp.value.trim();
+      if (!body) return;
+      try { await AA.postComment(id, body); inp.value=''; loadComments(); } catch(e){ alert(e.message); }
+    };
+    document.getElementById('shareBtn').onclick = async () => {
+      try { const r = await AA.shareLink(id);
+        if (navigator.share) navigator.share({ url: r.data.url }); else window.open(r.data.x_url,'_blank');
+      } catch(e){ alert(e.message); }
+    };
+    render();
+  </script>
+</body>
+</html>

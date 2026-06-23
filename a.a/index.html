@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./assets/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>a.a — ログイン</title>
+<link rel="stylesheet" href="./assets/app.css">
+<style>
+  .join-link{text-align:center;margin-top:20px;font-size:13px;color:var(--mute)}
+  .join-link button{background:none;border:none;color:var(--accent);font-size:13px;font-weight:700;cursor:pointer;padding:0;text-decoration:underline}
+  .step{display:none !important}.step.on{display:flex !important}
+  /* ログイン画面レイアウト：ロゴ＋フォームを縦中央にまとめる */
+  .login{min-height:100vh;display:flex;flex-direction:column;align-items:stretch;justify-content:center;padding:48px 28px 40px !important}
+  .login .top{flex:none !important;text-align:center;margin-bottom:36px}
+  .login .logo{font-size:60px}
+  .login .tagline{font-size:13px;margin-top:6px}
+  /* 入力欄：白背景＋細い枠線、高さを抑える */
+  .login .input{height:46px;font-size:14.5px;background:#fff;border:1px solid #ebebf2;transition:border-color .18s,box-shadow .18s}
+  .login .input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(31,72,255,.11);outline:none}
+  .login .input::placeholder{color:#b8b8c4}
+  .login .btn{height:48px;font-size:14.5px}
+  .login .actions{max-width:300px;align-self:center;width:100%}
+  .back-btn{background:none;border:none;font-size:13px;color:var(--mute);cursor:pointer;padding:0;margin-bottom:18px;display:flex;align-items:center;gap:4px}
+  .code-display{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.05em;background:var(--soft);padding:8px 12px;border-radius:10px;margin-bottom:16px;color:var(--ink)}
+  .note-tag{font-size:11.5px;color:var(--mute);margin-bottom:18px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="login">
+      <div class="top">
+        <div class="logo">a<span class="s">.</span>a</div>
+        <div class="tagline">経営者が、会社と業界の"今"を<br>発信し合う場所。</div>
+      </div>
+
+      <!-- ステップ1: ログイン -->
+      <div class="actions step on" id="stepLogin">
+        <input class="input" id="email" type="email" placeholder="メールアドレス" autocomplete="username">
+        <input class="input" id="password" type="password" placeholder="パスワード" autocomplete="current-password">
+        <button class="btn primary" id="loginBtn">ログイン</button>
+        <div id="loginMsg" class="errmsg"></div>
+        <div class="join-link">
+          招待コードをお持ちですか？
+          <button id="toJoinBtn">新規参加</button>
+        </div>
+        <div class="terms">続けることで<u>利用規約</u>と<u>プライバシーポリシー</u>に同意したものとみなされます。</div>
+      </div>
+
+      <!-- ステップ2: 招待コード入力 -->
+      <div class="actions step" id="stepCode">
+        <button class="back-btn" id="backToLoginBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+          ログインに戻る
+        </button>
+        <div style="font-size:14px;font-weight:700;margin-bottom:16px">招待コードを入力</div>
+        <input class="input" id="inviteCode" placeholder="例: AA-7F3K2X" autocomplete="off" style="font-family:var(--mono);letter-spacing:.06em">
+        <button class="btn primary" id="checkCodeBtn">確認する</button>
+        <div id="codeMsg" class="errmsg"></div>
+      </div>
+
+      <!-- ステップ3: 新規登録フォーム -->
+      <div class="actions step" id="stepRegister">
+        <button class="back-btn" id="backToCodeBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+          招待コードに戻る
+        </button>
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">参加情報を入力</div>
+        <div id="codeTag" class="code-display"></div>
+        <div id="inviteNote" class="note-tag"></div>
+        <input class="input" id="companyName" type="text" placeholder="会社名（例: 山田製作所）" autocomplete="organization">
+        <input class="input" id="regName" type="text" placeholder="担当者名（例: 山田 太郎）" autocomplete="name">
+        <input class="input" id="regEmail" type="email" placeholder="メールアドレス" autocomplete="email">
+        <input class="input" id="regPassword" type="password" placeholder="パスワード（8文字以上）" autocomplete="new-password">
+        <button class="btn primary" id="registerBtn">参加する</button>
+        <div id="registerMsg" class="errmsg"></div>
+        <div class="terms">続けることで<u>利用規約</u>と<u>プライバシーポリシー</u>に同意したものとみなされます。</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./assets/aa-api.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
+    // ── 起動処理：Space.appからのSSO引き換え → 既存トークン → ログイン画面 ──
+    (async function bootstrap(){
+      const m = location.hash.match(/(?:^|[#&])sso=([^&]+)/);
+      if (m) {
+        // URLからチケットを消す（履歴・再読込で再利用されないように）
+        history.replaceState(null, '', location.pathname + location.search);
+        try {
+          const r = await AA.ssoRedeem(decodeURIComponent(m[1]));
+          AA.setToken(r.token);
+          location.replace('./app/feed.html');
+          return;
+        } catch (e) {
+          // 非メンバー等：ログイン画面のまま案内を表示し、招待導線へ誘導
+          const msg = document.getElementById('loginMsg');
+          if (msg) msg.textContent = e.message || 'a.aを開けませんでした';
+        }
+      }
+      if (AA.isAuthed()) location.replace('./app/feed.html');
+    })();
+
+    // ── ステップ切り替え ──
+    let confirmedCode = '';
+    function showStep(id) {
+      ['stepLogin', 'stepCode', 'stepRegister'].forEach(s => {
+        document.getElementById(s).classList.toggle('on', s === id);
+      });
+    }
+    document.getElementById('toJoinBtn').onclick = () => { showStep('stepCode'); document.getElementById('codeMsg').textContent = ''; };
+    document.getElementById('backToLoginBtn').onclick = () => showStep('stepLogin');
+    document.getElementById('backToCodeBtn').onclick = () => showStep('stepCode');
+
+    // ── ログイン ──
+    const loginMsg = document.getElementById('loginMsg');
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      loginMsg.textContent = '';
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if (!email || !password) { loginMsg.textContent = 'メールとパスワードを入力してください'; return; }
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true; btn.textContent = 'ログイン中…';
+      try {
+        await AA.login(email, password);
+        location.href = './app/feed.html';
+      } catch (e) {
+        loginMsg.textContent = e.message || 'ログインに失敗しました';
+        btn.disabled = false; btn.textContent = 'ログイン';
+      }
+    });
+
+    // ── 招待コード確認 ──
+    const codeMsg = document.getElementById('codeMsg');
+    document.getElementById('checkCodeBtn').addEventListener('click', async () => {
+      codeMsg.textContent = '';
+      const code = document.getElementById('inviteCode').value.trim();
+      if (!code) { codeMsg.textContent = '招待コードを入力してください'; return; }
+      const btn = document.getElementById('checkCodeBtn');
+      btn.disabled = true; btn.textContent = '確認中…';
+      try {
+        const r = await AA.inviteValidate(code);
+        confirmedCode = code.toUpperCase();
+        document.getElementById('codeTag').textContent = confirmedCode;
+        const noteEl = document.getElementById('inviteNote');
+        noteEl.textContent = r.note ? `備考: ${r.note}` : '';
+        showStep('stepRegister');
+      } catch (e) {
+        codeMsg.textContent = e.message || '招待コードを確認できませんでした';
+      } finally {
+        btn.disabled = false; btn.textContent = '確認する';
+      }
+    });
+
+    // ── 新規登録 ──
+    const registerMsg = document.getElementById('registerMsg');
+    document.getElementById('registerBtn').addEventListener('click', async () => {
+      registerMsg.textContent = '';
+      const companyName = document.getElementById('companyName').value.trim();
+      const name        = document.getElementById('regName').value.trim();
+      const email       = document.getElementById('regEmail').value.trim();
+      const password    = document.getElementById('regPassword').value;
+      if (!companyName || !name || !email || !password) { registerMsg.textContent = 'すべての項目を入力してください'; return; }
+      if (password.length < 8) { registerMsg.textContent = 'パスワードは8文字以上にしてください'; return; }
+      const btn = document.getElementById('registerBtn');
+      btn.disabled = true; btn.textContent = '参加処理中…';
+      try {
+        const r = await AA.inviteRegister({ code: confirmedCode, company_name: companyName, name, email, password });
+        AA.setToken(r.token);
+        location.href = './app/feed.html';
+      } catch (e) {
+        registerMsg.textContent = e.message || '登録に失敗しました';
+        btn.disabled = false; btn.textContent = '参加する';
+      }
+    });
+
+    // Enterキーで進む
+    document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
+    document.getElementById('inviteCode').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('checkCodeBtn').click(); });
+  </script>
+</body>
+</html>

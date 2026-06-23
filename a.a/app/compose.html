@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0a0a0a">
+<title>新規投稿 — a.a</title>
+<link rel="stylesheet" href="../assets/app.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="appbar">
+      <button class="icon-btn" onclick="location.href='./feed.html'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      <div class="title">新規投稿</div>
+      <span style="width:40px"></span>
+    </header>
+
+    <div class="scroll" style="padding:8px 18px">
+      <button class="news" id="fromWn" style="width:100%;text-align:left;display:flex;align-items:center;gap:12px;margin:6px 0">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1f48ff" stroke-width="1.7"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        <div><b style="color:#1f48ff;font-size:13.5px">What'sNoから選んで公開</b><div style="font-size:11px;color:#6f7cc6">社内の図面・資料をそのまま業界内に共有</div></div>
+      </button>
+
+      <div style="font-size:11.5px;color:var(--mute);font-weight:700;margin:14px 2px 6px">カテゴリ</div>
+      <div class="filterbar" id="cats" style="padding-left:0;padding-right:0"></div>
+
+      <textarea id="body" placeholder="共有したいこと・気づきを書く…&#10;例) 採択された補助金の申請のコツ"
+        style="width:100%;min-height:120px;font-size:16px;line-height:1.7;outline:none;font-family:var(--sans);margin-top:8px;resize:none"></textarea>
+
+      <div id="preview" style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"></div>
+
+      <div class="react" style="margin-top:6px;flex-wrap:wrap">
+        <label class="chip" style="cursor:pointer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>写真
+          <input type="file" accept="image/*" capture="environment" multiple hidden id="fPhoto">
+        </label>
+        <label class="chip" style="cursor:pointer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>動画
+          <input type="file" accept="video/*" capture="environment" hidden id="fVideo">
+        </label>
+        <label class="chip" style="cursor:pointer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>資料
+          <input type="file" accept="application/pdf" hidden id="fDoc">
+        </label>
+        <button class="chip" id="maskBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/><rect x="7" y="12" width="5" height="3" fill="currentColor"/></svg>マスク
+        </button>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;color:var(--mute);font-size:12.5px;margin:12px 2px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+        公開範囲：<b style="color:var(--accent)">業界内</b>（招待メンバー）
+      </div>
+
+      <button class="btn primary" id="submit" style="margin-top:6px">投稿する</button>
+      <div id="msg" style="color:#c0392b;font-size:12.5px;text-align:center;min-height:18px;margin-top:8px"></div>
+    </div>
+  </div>
+
+  <!-- マスク編集モーダル -->
+  <div class="overlay" id="maskModal" style="display:none">
+    <div class="sheet">
+      <header><span>マスク（黒塗り）</span><button class="x" id="maskClose"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 6L6 18M6 6l12 12"/></svg></button></header>
+      <div class="maskhint">隠したい部分を指でなぞって黒塗りします。元画像は端末から出ません。</div>
+      <div class="sbody maskwrap"><canvas class="mask" id="maskCanvas"></canvas></div>
+      <footer>
+        <button class="btn" id="maskUndo">ひとつ戻す</button>
+        <button class="btn" id="maskClear">全消し</button>
+        <button class="btn primary" id="maskApply">適用</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- What'sNo選択モーダル -->
+  <div class="overlay" id="wnModal" style="display:none">
+    <div class="sheet">
+      <header><span>What'sNoから選んで公開</span><button class="x" id="wnClose"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 6L6 18M6 6l12 12"/></svg></button></header>
+      <div class="sbody" id="wnList"><div class="center">読み込み中…</div></div>
+    </div>
+  </div>
+
+  <script src="../assets/aa-api.js"></script>
+  <script>
+    if (!AA.isAuthed()) location.replace('../index.html');
+    const esc = (s)=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const CATS = ['補助金','セミナー','設備紹介','お知らせ','相談'];
+    let cat = '設備紹介';
+    let isMasked = false;
+    let selectedWn = null; // What'sNoから選んだファイル {id, name}
+    const files = []; // {file, kind}
+
+    function renderCats(){
+      const el = document.getElementById('cats');
+      el.innerHTML = CATS.map(c => `<button class="fchip${c===cat?' on':''}" data-c="${c}">${c}</button>`).join('');
+      el.querySelectorAll('.fchip').forEach(b => b.onclick = () => { cat = b.dataset.c; renderCats(); });
+    }
+    function renderPreview(){
+      const el = document.getElementById('preview');
+      let html = files.map((f,i)=>`<span class="chip">${f.masked?'🖤 ':''}${f.kind==='video'?'動画':f.kind==='document'?'資料':'画像'}：${esc(f.file.name.slice(0,16))} <b data-rm="${i}" style="cursor:pointer">×</b></span>`).join('');
+      if (selectedWn) html += `<span class="chip" style="background:var(--accent-bg);color:var(--accent)">📄 What'sNo：${esc(selectedWn.name.slice(0,18))} <b data-rmwn="1" style="cursor:pointer">×</b></span>`;
+      el.innerHTML = html;
+      el.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{ files.splice(+b.dataset.rm,1); renderPreview(); });
+      const rw = el.querySelector('[data-rmwn]'); if (rw) rw.onclick = () => { selectedWn = null; renderPreview(); };
+    }
+    function add(input, kind){
+      input.addEventListener('change', () => { [...input.files].forEach(file => files.push({file,kind})); input.value=''; renderPreview(); });
+    }
+    add(document.getElementById('fPhoto'),'image');
+    add(document.getElementById('fVideo'),'video');
+    add(document.getElementById('fDoc'),'document');
+
+    /* ───── マスク編集（canvas黒塗り） ───── */
+    let mImg, mRects = [], mScale = 1, mTargetIdx = -1, mDrawing = null;
+    const maskModal = document.getElementById('maskModal');
+    const cv = document.getElementById('maskCanvas');
+    const ctx = cv.getContext('2d');
+
+    document.getElementById('maskBtn').onclick = () => {
+      mTargetIdx = files.findIndex(f => f.kind === 'image');
+      if (mTargetIdx < 0) { document.getElementById('msg').textContent = 'マスクする画像を「写真」から追加してください'; return; }
+      const f = files[mTargetIdx];
+      const img = new Image();
+      img.onload = () => {
+        mImg = img; mRects = [];
+        const maxW = Math.min(window.innerWidth - 28, 560);
+        mScale = Math.min(1, maxW / img.naturalWidth);
+        cv.width = Math.round(img.naturalWidth * mScale);
+        cv.height = Math.round(img.naturalHeight * mScale);
+        redraw();
+        maskModal.style.display = 'flex';
+      };
+      img.src = URL.createObjectURL(f.file);
+    };
+    function redraw(){
+      ctx.clearRect(0,0,cv.width,cv.height);
+      ctx.drawImage(mImg, 0,0, cv.width, cv.height);
+      ctx.fillStyle = '#000';
+      mRects.forEach(r => ctx.fillRect(r.x, r.y, r.w, r.h));
+      if (mDrawing) { ctx.fillRect(mDrawing.x, mDrawing.y, mDrawing.w, mDrawing.h); }
+    }
+    function pos(e){
+      const rect = cv.getBoundingClientRect();
+      const t = e.touches ? e.touches[0] : e;
+      return { x: (t.clientX - rect.left) * (cv.width/rect.width), y: (t.clientY - rect.top) * (cv.height/rect.height) };
+    }
+    function down(e){ e.preventDefault(); const p = pos(e); mDrawing = { x:p.x, y:p.y, w:0, h:0, sx:p.x, sy:p.y }; }
+    function move(e){ if(!mDrawing) return; e.preventDefault(); const p = pos(e);
+      mDrawing.x = Math.min(p.x, mDrawing.sx); mDrawing.y = Math.min(p.y, mDrawing.sy);
+      mDrawing.w = Math.abs(p.x - mDrawing.sx); mDrawing.h = Math.abs(p.y - mDrawing.sy); redraw(); }
+    function up(){ if(mDrawing && mDrawing.w>4 && mDrawing.h>4) mRects.push({x:mDrawing.x,y:mDrawing.y,w:mDrawing.w,h:mDrawing.h}); mDrawing=null; redraw(); }
+    cv.addEventListener('mousedown',down); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+    cv.addEventListener('touchstart',down,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',up);
+
+    document.getElementById('maskUndo').onclick = () => { mRects.pop(); redraw(); };
+    document.getElementById('maskClear').onclick = () => { mRects = []; redraw(); };
+    document.getElementById('maskClose').onclick = () => { maskModal.style.display='none'; };
+    document.getElementById('maskApply').onclick = () => {
+      // 元解像度で合成して書き出し（元画像は送らない）
+      const out = document.createElement('canvas');
+      out.width = mImg.naturalWidth; out.height = mImg.naturalHeight;
+      const o = out.getContext('2d');
+      o.drawImage(mImg, 0, 0);
+      o.fillStyle = '#000';
+      mRects.forEach(r => o.fillRect(r.x/mScale, r.y/mScale, r.w/mScale, r.h/mScale));
+      out.toBlob((blob) => {
+        const masked = new File([blob], 'masked_' + files[mTargetIdx].file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+        files[mTargetIdx] = { file: masked, kind: 'image', masked: true };
+        isMasked = true;
+        document.getElementById('maskBtn').classList.add('on');
+        maskModal.style.display = 'none';
+        renderPreview();
+      }, 'image/jpeg', 0.9);
+    };
+
+    /* ───── What'sNo取り込み ───── */
+    const wnModal = document.getElementById('wnModal');
+    document.getElementById('wnClose').onclick = () => { wnModal.style.display='none'; };
+    document.getElementById('fromWn').onclick = async () => {
+      wnModal.style.display = 'flex';
+      const list = document.getElementById('wnList');
+      list.innerHTML = '<div class="center">読み込み中…</div>';
+      try {
+        const r = await AA.wnFiles();
+        const items = r.data || r.files || (Array.isArray(r) ? r : []);
+        if (!items.length) { list.innerHTML = '<div class="center">What\'sNoに公開できるファイルがありません</div>'; return; }
+        list.innerHTML = items.map(f => `
+          <button class="wnitem" data-id="${f.id}">
+            <div class="dic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>
+            <b>${esc(f.file_name || f.name || ('file#'+f.id))}</b>
+          </button>`).join('');
+        list.querySelectorAll('.wnitem').forEach(b => b.onclick = () => {
+          // 選んだら新規投稿ページに戻る。公開は「投稿する」を押したとき。
+          selectedWn = { id: b.dataset.id, name: b.querySelector('b').textContent };
+          wnModal.style.display = 'none';
+          renderPreview();
+        });
+      } catch(e){ list.innerHTML = `<div class="center">読み込みに失敗：${esc(e.message)}</div>`; }
+    };
+
+    document.getElementById('submit').onclick = async () => {
+      const msg = document.getElementById('msg'); msg.textContent='';
+      const body = document.getElementById('body').value.trim();
+      const btn = document.getElementById('submit');
+
+      // What'sNoから選んだ場合は from-wn で公開
+      if (selectedWn) {
+        try { btn.textContent='公開中…'; btn.disabled=true; await AA.publishFromWn(selectedWn.id, { category: cat, body }); location.href = './feed.html'; }
+        catch(e){ msg.textContent = e.message; btn.textContent='投稿する'; btn.disabled=false; }
+        return;
+      }
+
+      if (!body && !files.length) { msg.textContent = '本文かメディアを入れてください'; return; }
+      const fd = new FormData();
+      fd.append('category', cat);
+      if (body) fd.append('body', body);
+      if (isMasked) fd.append('is_masked', '1');
+      files.forEach(f => fd.append('media[]', f.file));
+      try { btn.textContent='投稿中…'; btn.disabled=true; await AA.createPost(fd); location.href = './feed.html'; }
+      catch(e){ msg.textContent = e.message; btn.textContent='投稿する'; btn.disabled=false; }
+    };
+
+    renderCats();
+  </script>
+</body>
+</html>

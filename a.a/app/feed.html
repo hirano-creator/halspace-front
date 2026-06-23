@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0a0a0a">
+<link rel="manifest" href="../manifest.json">
+<title>a.a</title>
+<link rel="stylesheet" href="../assets/app.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="appbar">
+      <div class="brand">a<span class="s">.</span>a</div>
+      <button class="icon-btn" title="さがす">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+      </button>
+    </header>
+
+    <div class="scroll">
+      <div class="filterbar" id="filterbar"></div>
+      <div id="feed"><div class="center">読み込み中…</div></div>
+    </div>
+
+    <nav class="tabbar">
+      <a class="tab on" href="./feed.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>ホーム</a>
+      <a class="tab" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>さがす</a>
+      <a class="fab" href="./compose.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M12 5v14M5 12h14"/></svg></a>
+      <a class="tab" href="./notifications.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>通知</a>
+      <a class="tab" href="./profile.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>自分</a>
+    </nav>
+  </div>
+
+  <script src="../assets/aa-api.js"></script>
+  <script src="../assets/aa-pdf.js"></script>
+  <script src="../assets/aa-shell.js"></script>
+  <script>
+    if (!AA.isAuthed()) location.replace('../index.html');
+
+    const CATS = ['すべて','補助金','セミナー','設備紹介','お知らせ','相談'];
+    let activeCat = '';
+    const esc = (s) => (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const initial = (s) => (s||'?').trim().charAt(0);
+    // ニュースの日付（配信元の公開日、無ければ取得日）を「今日/昨日/N日前/M月D日」で表示
+    function fmtNewsDate(iso){
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      const today = new Date(); today.setHours(0,0,0,0);
+      const dd = new Date(d); dd.setHours(0,0,0,0);
+      const days = Math.round((today - dd) / 86400000);
+      if (days <= 0) return '今日';
+      if (days === 1) return '昨日';
+      if (days < 7) return days + '日前';
+      const m = d.getMonth()+1, day = d.getDate();
+      return d.getFullYear() === today.getFullYear() ? `${m}月${day}日` : `${d.getFullYear()}/${m}/${day}`;
+    }
+
+    function renderFilter(){
+      const bar = document.getElementById('filterbar');
+      bar.innerHTML = CATS.map(c => {
+        const val = c === 'すべて' ? '' : c;
+        const on = val === activeCat ? ' on' : '';
+        return `<button class="fchip${on}" data-cat="${esc(val)}">${esc(c)}</button>`;
+      }).join('');
+      bar.querySelectorAll('.fchip').forEach(b => b.onclick = () => { activeCat = b.dataset.cat; renderFilter(); load(); });
+    }
+
+    function thumbIcon(kind){
+      if (kind==='video') return '<svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#9b9ba3" stroke-width="1.4"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z" fill="#9b9ba3"/></svg>';
+      return '<svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#9b9ba3" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
+    }
+
+    function postCard(p){
+      // ニュース
+      if (p.kind === 'news') {
+        const ndate = fmtNewsDate(p.news_published_at || p.created_at);
+        return `<a class="news" href="${esc(p.news_url)}" target="_blank" rel="noopener">
+          <div class="nh"><span class="nbadge">ニュース</span><span class="src">${esc(p.news_source)}</span>${ndate?`<span class="ndate">${esc(ndate)}</span>`:''}<span class="ncat">${esc(p.category)}</span></div>
+          <h3>${esc(p.news_title)}</h3>${p.news_summary?`<p>${esc(p.news_summary)}</p>`:''}
+        </a>`;
+      }
+      // メディア表現
+      let mediaHtml = '';
+      const m = (p.media||[])[0];
+      if (m) {
+        if (m.kind === 'document') {
+          // 資料は非同期サムネイル描画。PPTXはpreview-pdf変換、PDFは直接pdf.js。data-wnidはPPTX変換に使う。
+          const wnAttr = p.source_wn_file_id ? ` data-wnid="${p.source_wn_file_id}"` : '';
+          mediaHtml = `<div class="media docprev" data-view="${m.view}" data-mime="${esc(m.mime||'')}"${wnAttr} style="min-height:120px;background:var(--soft);cursor:pointer"></div>`;
+        } else if (m.kind === 'image' && m.url) {
+          mediaHtml = `<div class="media" style="aspect-ratio:4/3;overflow:hidden;background:var(--soft)"><img src="${esc(m.url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" onerror="this.parentElement.innerHTML='${thumbIcon('image').replace(/'/g,"\\'")}';this.parentElement.style.display='flex';this.parentElement.style.alignItems='center';this.parentElement.style.justifyContent='center'"></div>`;
+        } else if (m.kind === 'video' && m.url) {
+          mediaHtml = `<div class="media" style="aspect-ratio:4/3;overflow:hidden;background:#000"><video src="${esc(m.url)}" style="width:100%;height:100%;object-fit:contain" controls preload="metadata" playsinline></video></div>`;
+        } else {
+          mediaHtml = `<div class="media" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:var(--soft)">${thumbIcon(m.kind)}</div>`;
+        }
+      }
+      const helpful = (p.reactions && p.reactions.helpful) || 0;
+      const mine = (p.my_reactions||[]).indexOf('helpful') >= 0;
+      const thumb = mine
+        ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 11h3.2v10H2z"/><path d="M7 21V11l4.2-8.1a1.7 1.7 0 0 1 3.2 1l-.2 4.2h5a2 2 0 0 1 2 2.4l-1.4 7a2 2 0 0 1-2 1.6H7z"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 11h3.2v10H2z"/><path d="M7 21V11l4.2-8.1a1.7 1.7 0 0 1 3.2 1l-.2 4.2h5a2 2 0 0 1 2 2.4l-1.4 7a2 2 0 0 1-2 1.6H7z"/></svg>';
+
+      return `<article class="post" data-id="${p.id}">
+        <div class="phead">
+          <div class="ava">${esc(initial(p.author_name||p.company_name))}</div>
+          <div class="who"><b>${esc(p.author_name||'—')}</b><span>${esc(p.company_name||'')}</span></div>
+          <div class="rightmeta">${p.source_wn_file_id?'<span class="wnflag">What\'sNo発</span>':''}${p.category?`<span class="cat">${esc(p.category)}</span>`:''}</div>
+        </div>
+        ${p.body?`<div class="ptext">${esc(p.body)}</div>`:''}
+        ${mediaHtml}
+        <div class="react">
+          <button class="chip${mine?' on':''}" data-react="${p.id}">${thumb}<span class="n">${helpful}</span></button>
+          <div class="rtools">
+            <a class="t" href="./post.html?id=${p.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.4 8.4 0 0 1-11.9 7.6L3 21l1.9-6.1A8.4 8.4 0 1 1 21 11.5z"/></svg>${p.comment_count||0}</a>
+            <button class="t" data-share="${p.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4M12 2v13"/></svg>シェア</button>
+          </div>
+        </div>
+      </article>`;
+    }
+
+    async function load(){
+      const el = document.getElementById('feed');
+      el.innerHTML = '<div class="center">読み込み中…</div>';
+      try {
+        const r = await AA.feed(activeCat);
+        if (!r.data || !r.data.length) { el.innerHTML = '<div class="center">まだ投稿がありません。<br>右下の＋から最初の投稿をしてみましょう。</div>'; return; }
+        el.innerHTML = r.data.map(postCard).join('');
+        bind();
+        renderDocs();
+      } catch (e) {
+        el.innerHTML = `<div class="center">読み込みに失敗しました：${esc(e.message)}</div>`;
+      }
+    }
+
+    function docFileCard(mime, url) {
+      const LBL = {
+        'application/pdf': 'PDF',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PPTX',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'XLSX',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+      };
+      const label = LBL[mime] || (mime ? mime.split('/').pop().slice(0, 6).toUpperCase() : 'FILE');
+      return `<div style="display:flex;align-items:center;gap:14px;padding:18px 16px">
+        <div style="width:44px;height:44px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;flex:0 0 44px">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--accent)" stroke-width="1.7"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        </div>
+        <div>
+          <b style="font-size:13px;display:block;margin-bottom:2px">${label}</b>
+          <span style="font-size:11px;color:var(--mute)">${url ? 'タップして開く' : ''}</span>
+        </div>
+      </div>`;
+    }
+
+    async function renderDocs(){
+      for (const el of document.querySelectorAll('.docprev[data-view]')) {
+        const mime = el.dataset.mime || '';
+        const wnId = el.dataset.wnid;
+        const isPdf = mime === 'application/pdf';
+        // view URLからメディアIDを取り出す（R2直接fetchを避けてプロキシ経由にするため）
+        const viewUrl = el.dataset.view;
+        const midMatch = viewUrl.match(/\/media\/(\d+)\/view/);
+        const mediaId = midMatch ? midMatch[1] : null;
+        let url;
+        try {
+          url = await AA.mediaUrl(viewUrl);
+          el.removeAttribute('data-view');
+
+          if (isPdf) {
+            // PDF: R2直URLではなくプロキシ経由でfetch（CORS: null origin 対策）
+            const pdfUrl = mediaId
+              ? (AA.apiBase() + '/aa/media/' + mediaId + '/raw?token=' + AA.token())
+              : url;
+            await aaRenderPdf(pdfUrl, el);
+          } else if (wnId) {
+            // Office ファイル (PPTX/DOCX/XLSX): 埋め込みサムネイル画像を取得
+            // ZipArchive で docProps/thumbnail.jpeg を抽出するだけ（LibreOffice不要）
+            const thumbRes = await fetch(AA.apiBase() + '/wn/files/' + wnId + '/thumbnail', {
+              headers: { 'Authorization': 'Bearer ' + AA.token() }
+            });
+            if (!thumbRes.ok) throw new Error('thumbnail ' + thumbRes.status);
+            const blob = await thumbRes.blob();
+            const imgUrl = URL.createObjectURL(blob);
+            const img = document.createElement('img');
+            img.style.cssText = 'width:100%;display:block';
+            img.onload = () => URL.revokeObjectURL(imgUrl);
+            img.onerror = () => {
+              URL.revokeObjectURL(imgUrl);
+              el.style.minHeight = '';
+              el.innerHTML = docFileCard(mime, url);
+            };
+            el.style.minHeight = '';
+            el.innerHTML = '';
+            el.appendChild(img);
+            img.src = imgUrl; // src は appendChild のあと（onload/onerror を確実に受け取る）
+          } else {
+            throw new Error('not renderable');
+          }
+        } catch(e) {
+          console.warn('renderDocs', mime, wnId, e.message);
+          el.style.minHeight = '';
+          el.innerHTML = docFileCard(mime, url);
+        } finally {
+          if (url) el.onclick = () => window.open(url, '_blank');
+        }
+      }
+    }
+
+    function bind(){
+      document.querySelectorAll('[data-react]').forEach(b => b.onclick = async () => {
+        try {
+          const r = await AA.react(b.dataset.react, 'helpful');
+          b.classList.toggle('on', r.reacted);
+          b.querySelector('.n').textContent = r.count;
+        } catch(e){ alert(e.message); }
+      });
+      document.querySelectorAll('[data-share]').forEach(b => b.onclick = async () => {
+        try {
+          const r = await AA.shareLink(b.dataset.share);
+          if (navigator.share) { navigator.share({ url: r.data.url }); }
+          else { window.open(r.data.x_url, '_blank'); }
+        } catch(e){ alert(e.message); }
+      });
+    }
+
+    renderFilter();
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0a0a0a">
+<title>管理 — a.a</title>
+<link rel="stylesheet" href="../assets/app.css">
+<style>
+  .atabs{display:flex;gap:8px;padding:8px 16px 12px;overflow-x:auto;position:sticky;top:56px;background:#fff;z-index:4}
+  .atab{flex:0 0 auto;font-size:13.5px;font-weight:700;padding:9px 16px;border-radius:999px;background:var(--soft);color:#5b5b63}
+  .atab.on{background:var(--ink);color:#fff}
+  .sec{padding:8px 16px 40px}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .card{background:var(--soft);border-radius:16px;padding:16px}
+  .card b{display:block;font-size:24px;font-weight:800}
+  .card.hi b{color:var(--accent)}
+  .card span{font-size:11.5px;color:var(--mute)}
+  .h4{font-size:13px;font-weight:800;margin:20px 2px 10px}
+  .row{display:flex;align-items:center;gap:10px;padding:13px 4px;border-bottom:1px solid #f0f0f3}
+  .row .grow{flex:1;min-width:0}
+  .row b{font-size:13.5px;font-weight:700;display:block;word-break:break-word}
+  .row small{font-size:11px;color:var(--mute)}
+  .badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--soft);color:#5b5b63;white-space:nowrap}
+  .badge.ok{background:#e7f6ec;color:#1a8a4a}.badge.off{background:#fdeaea;color:#c0392b}.badge.acc{background:var(--accent-bg);color:var(--accent)}
+  .mini{font-size:12px;font-weight:700;padding:7px 12px;border-radius:999px;background:var(--soft);color:#222;white-space:nowrap}
+  .mini.danger{color:#c0392b}.mini.accent{background:var(--accent);color:#fff}
+  .formrow{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .formrow .input{height:44px;flex:1;min-width:120px;font-size:13.5px}
+  .deny{padding:60px 24px;text-align:center;color:var(--mute)}
+  .seg{display:flex;gap:8px;margin:6px 0 4px}
+  .seg .s{font-size:12px;font-weight:700;padding:7px 13px;border-radius:999px;background:var(--soft);color:#5b5b63}
+  .seg .s.on{background:var(--ink);color:#fff}
+  code.inv{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.04em}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="appbar">
+      <button class="icon-btn" onclick="location.href='./feed.html'" title="ホームへ戻る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="title">管理</div>
+      <span style="width:40px"></span>
+    </header>
+
+    <div class="atabs" id="atabs"></div>
+    <div class="scroll"><div id="sec" class="sec"><div class="center">読み込み中…</div></div></div>
+  </div>
+
+  <script src="../assets/aa-api.js"></script>
+  <script src="../assets/aa-shell.js"></script>
+  <script>
+    if (!AA.isAuthed()) location.replace('../index.html');
+    const esc = (s)=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const TABS = [['stats','ダッシュボード'],['posts','投稿'],['news','ニュース'],['members','メンバー']];
+    let tab = 'stats';
+    const sec = () => document.getElementById('sec');
+
+    function renderTabs(){
+      document.getElementById('atabs').innerHTML = TABS.map(([k,l])=>`<button class="atab${k===tab?' on':''}" data-k="${k}">${l}</button>`).join('');
+      document.querySelectorAll('.atab').forEach(b=>b.onclick=()=>{ tab=b.dataset.k; renderTabs(); route(); });
+    }
+
+    async function route(){
+      sec().innerHTML = '<div class="center">読み込み中…</div>';
+      try {
+        if (tab==='stats') return renderStats();
+        if (tab==='posts') return renderPosts();
+        if (tab==='news') return renderNews();
+        if (tab==='members') return renderMembers();
+      } catch(e){ sec().innerHTML = `<div class="center">${esc(e.message)}</div>`; }
+    }
+
+    /* ── ダッシュボード ── */
+    async function renderStats(){
+      const { data:s } = await AA.admin.stats();
+      const card=(v,l,hi)=>`<div class="card${hi?' hi':''}"><b>${v}</b><span>${l}</span></div>`;
+      const cat = Object.entries(s.by_category||{}).map(([k,v])=>`<div class="row"><div class="grow"><b>${esc(k||'(未分類)')}</b></div><span class="badge">${v}</span></div>`).join('') || '<div class="center" style="padding:16px">なし</div>';
+      sec().innerHTML = `
+        <div class="cards">
+          ${card(s.posts,'投稿',true)}${card(s.news,'ニュース')}
+          ${card(s.companies,'投稿した企業')}${card(s.users_active+'/'+s.users,'有効ユーザー')}
+          ${card(s.comments,'コメント')}${card(s.reactions,'リアクション')}
+          ${card(s.posts_hidden,'非表示中')}${card(s.invites_open,'有効な招待')}
+        </div>
+        <div class="h4">カテゴリ別の投稿数</div>${cat}`;
+    }
+
+    /* ── 投稿モデレーション ── */
+    let postFilter='';
+    async function renderPosts(){
+      const { data } = await AA.admin.posts(postFilter);
+      const seg = `<div class="seg">${[['','すべて'],['published','公開'],['hidden','非表示']].map(([k,l])=>`<button class="s${k===postFilter?' on':''}" data-f="${k}">${l}</button>`).join('')}</div>`;
+      const list = data.map(p=>`
+        <div class="row">
+          <div class="grow">
+            <b>${esc((p.body||'').slice(0,60))||'（メディアのみ）'}</b>
+            <small>${esc(p.company_name||'')} ・ ${esc(p.author_name||'')} ・ ${esc(p.category||'')} ${p.is_masked?'・🖤マスク':''} ・💬${p.comment_count}</small>
+          </div>
+          <span class="badge ${p.status==='hidden'?'off':'ok'}">${p.status==='hidden'?'非表示':'公開'}</span>
+          <button class="mini" data-toggle="${p.id}" data-to="${p.status==='hidden'?'published':'hidden'}">${p.status==='hidden'?'再公開':'非表示'}</button>
+          <button class="mini danger" data-del="${p.id}">削除</button>
+        </div>`).join('') || '<div class="center" style="padding:20px">投稿はありません</div>';
+      sec().innerHTML = seg + list;
+      document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{ postFilter=b.dataset.f; renderPosts(); });
+      document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=async()=>{ await AA.admin.setPostStatus(b.dataset.toggle,b.dataset.to); renderPosts(); });
+      document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{ if(confirm('この投稿を削除しますか？')){ await AA.admin.deletePost(b.dataset.del); renderPosts(); } });
+    }
+
+    /* ── ニュース管理 ── */
+    async function renderNews(){
+      const [{data:news},{data:feeds}] = await Promise.all([AA.admin.news(), AA.admin.feeds()]);
+      const newsList = news.slice(0,20).map(n=>`
+        <div class="row">
+          <div class="grow"><b>${esc(n.news_title)}</b><small>${esc(n.news_source||'')} ・ ${esc(n.category||'')}</small></div>
+          <span class="badge ${n.status==='hidden'?'off':'ok'}">${n.status==='hidden'?'非表示':'公開'}</span>
+          <button class="mini" data-ntoggle="${n.id}" data-to="${n.status==='hidden'?'published':'hidden'}">${n.status==='hidden'?'再公開':'非表示'}</button>
+        </div>`).join('') || '<div class="center" style="padding:16px">ニュースなし</div>';
+      const feedList = feeds.map(f=>`
+        <div class="row">
+          <div class="grow"><b>${esc(f.source)} <span class="badge acc">${esc(f.category)}</span></b><small>${esc(f.url)}</small></div>
+          <span class="badge ${f.is_active?'ok':'off'}">${f.is_active?'有効':'停止'}</span>
+          <button class="mini" data-ftoggle="${f.id}">${f.is_active?'停止':'有効'}</button>
+          <button class="mini danger" data-fdel="${f.id}">削除</button>
+        </div>`).join('') || '<div class="center" style="padding:16px">フィードなし</div>';
+      sec().innerHTML = `
+        <button class="btn primary" id="runImport" style="margin:4px 0 10px">いま取り込む（手動実行）</button>
+        <div id="importMsg" class="center" style="display:none;padding:8px"></div>
+        <div class="h4">取り込み済みニュース（最新20件）</div>${newsList}
+        <div class="h4">ニュースフィード（RSS）</div>${feedList}
+        <div class="formrow">
+          <input class="input" id="fcat" placeholder="カテゴリ(例:補助金)">
+          <input class="input" id="fsrc" placeholder="出典名">
+        </div>
+        <div class="formrow">
+          <input class="input" id="furl" placeholder="RSSのURL">
+          <button class="mini accent" id="addFeed">追加</button>
+        </div>`;
+      document.getElementById('runImport').onclick = async (e)=>{
+        e.target.textContent='取り込み中…'; e.target.disabled=true;
+        try{ const r=await AA.admin.runImport(); const m=document.getElementById('importMsg'); m.style.display='block'; m.textContent=r.output||'完了'; }catch(err){ alert(err.message); }
+        renderNews();
+      };
+      document.querySelectorAll('[data-ntoggle]').forEach(b=>b.onclick=async()=>{ await AA.admin.setPostStatus(b.dataset.ntoggle,b.dataset.to); renderNews(); });
+      document.querySelectorAll('[data-ftoggle]').forEach(b=>b.onclick=async()=>{ await AA.admin.toggleFeed(b.dataset.ftoggle); renderNews(); });
+      document.querySelectorAll('[data-fdel]').forEach(b=>b.onclick=async()=>{ if(confirm('このフィードを削除しますか？')){ await AA.admin.deleteFeed(b.dataset.fdel); renderNews(); } });
+      document.getElementById('addFeed').onclick = async ()=>{
+        const category=document.getElementById('fcat').value.trim(), source=document.getElementById('fsrc').value.trim(), url=document.getElementById('furl').value.trim();
+        if(!category||!source||!url){ alert('カテゴリ・出典・URLを入力してください'); return; }
+        try{ await AA.admin.addFeed({category,source,url}); renderNews(); }catch(e){ alert(e.message); }
+      };
+    }
+
+    /* ── メンバー / 企業 / 招待 ── */
+    async function renderMembers(){
+      const [{data:m},{data:invites}] = await Promise.all([AA.admin.members(), AA.admin.invites()]);
+      const inv = invites.slice(0,12).map(i=>`
+        <div class="row">
+          <div class="grow"><b><code class="inv">${esc(i.code)}</code></b><small>${esc(i.note||'')}</small></div>
+          <span class="badge ${i.status==='open'?'ok':(i.status==='used'?'acc':'off')}">${i.status==='open'?'有効':(i.status==='used'?'使用済':'無効')}</span>
+          ${i.status==='open'?`<button class="mini danger" data-revoke="${i.id}">無効化</button>`:''}
+        </div>`).join('') || '<div class="center" style="padding:12px">なし</div>';
+      const companies = m.companies.map(c=>`
+        <div class="row"><div class="grow"><b>${esc(c.name)}</b><small>ユーザー${c.users} ・ 投稿${c.posts}</small></div>
+          <span class="badge ${c.is_active?'ok':'off'}">${c.is_active?'有効':'無効'}</span></div>`).join('');
+      const users = m.users.map(u=>`
+        <div class="row"><div class="grow"><b>${esc(u.name)} <small>${esc(u.role||'')}</small></b><small>${esc(u.company_name||'')} ・ ${esc(u.email)}</small></div>
+          <span class="badge ${u.is_active?'ok':'off'}">${u.is_active?'有効':'無効'}</span>
+          <button class="mini" data-utoggle="${u.id}">${u.is_active?'無効化':'有効化'}</button></div>`).join('');
+      sec().innerHTML = `
+        <div class="h4">招待コード</div>
+        <div class="formrow"><input class="input" id="invnote" placeholder="メモ（任意・例: ◯◯製作所向け）"><button class="mini accent" id="genInv">発行</button></div>
+        ${inv}
+        <div class="h4">参加企業（${m.companies.length}）</div>${companies}
+        <div class="h4">ユーザー（${m.users.length}）</div>${users}`;
+      document.getElementById('genInv').onclick = async ()=>{ try{ await AA.admin.createInvite(document.getElementById('invnote').value.trim()); renderMembers(); }catch(e){ alert(e.message); } };
+      document.querySelectorAll('[data-revoke]').forEach(b=>b.onclick=async()=>{ await AA.admin.revokeInvite(b.dataset.revoke); renderMembers(); });
+      document.querySelectorAll('[data-utoggle]').forEach(b=>b.onclick=async()=>{ await AA.admin.toggleUser(b.dataset.utoggle); renderMembers(); });
+    }
+
+    // 権限チェック（super_admin / jp_admin のみ）
+    (async () => {
+      try {
+        const r = await AA.me();
+        const u = r.user || r.data || r;
+        const role = u.role || '';
+        if (role !== 'super_admin' && role !== 'jp_admin') {
+          document.querySelector('.wrap').innerHTML = '<header class="appbar"><button class="icon-btn" onclick="location.href=\'./feed.html\'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M15 18l-6-6 6-6"/></svg></button><div class="title">管理</div><span style="width:40px"></span></header><div class="deny">この画面は管理者のみ利用できます。</div>';
+          return;
+        }
+        renderTabs(); route();
+      } catch(e){ sec().innerHTML = `<div class="center">${esc(e.message)}</div>`; }
+    })();
+  </script>
+</body>
+</html>

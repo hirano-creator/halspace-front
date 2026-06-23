@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0a0a0a">
+<title>プロフィール — a.a</title>
+<link rel="stylesheet" href="../assets/app.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="appbar">
+      <button class="icon-btn" onclick="location.href='./feed.html'" title="ホームへ戻る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <div class="title">プロフィール</div>
+      <button class="icon-btn" id="logout" title="ログアウト"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg></button>
+    </header>
+
+    <div class="scroll" id="body"><div class="center">読み込み中…</div></div>
+
+    <nav class="tabbar">
+      <a class="tab" href="./feed.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>ホーム</a>
+      <a class="tab" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>さがす</a>
+      <a class="fab" href="./compose.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M12 5v14M5 12h14"/></svg></a>
+      <a class="tab" href="./notifications.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>通知</a>
+      <a class="tab on" href="./profile.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>自分</a>
+    </nav>
+  </div>
+
+  <script src="../assets/aa-api.js"></script>
+  <script src="../assets/aa-shell.js"></script>
+  <script>
+    if (!AA.isAuthed()) location.replace('../index.html');
+    const esc = (s)=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const initial = (s)=>(s||'?').trim().charAt(0);
+    const CATS_ICON = '';
+    document.getElementById('logout').onclick = () => { AA.logout(); location.href='../index.html'; };
+
+    let P = null; // プロフィール一式
+    const root = document.getElementById('body');
+
+    async function load(){
+      root.innerHTML = '<div class="center">読み込み中…</div>';
+      try { P = await AA.profile(); renderView(); }
+      catch(e){ root.innerHTML = `<div class="center">${esc(e.message)}</div>`; }
+    }
+
+    function head(){
+      const name = P.user?.name || '';
+      const company = P.company?.name || '—';
+      return `<div style="display:flex;align-items:center;gap:16px">
+        <div class="ava" style="width:64px;height:64px;font-size:23px">${esc(initial(name||company))}</div>
+        <div><h2 style="font-size:19px;font-weight:800">${esc(name)}</h2>
+        <div style="font-size:12.5px;color:var(--mute);font-weight:500;margin-top:3px">${esc(company)}</div></div>
+      </div>`;
+    }
+    function statsRow(){
+      const s = P.stats || {};
+      const box = (n,l,acc)=>`<div style="flex:1;text-align:center;background:var(--soft);border-radius:16px;padding:13px 0"><b style="display:block;font-size:18px;font-weight:800${acc?';color:var(--accent)':''}">${n}</b><span style="font-size:10.5px;color:var(--mute)">${l}</span></div>`;
+      return `<div style="display:flex;gap:10px;margin-top:18px">${box(s.posts??0,'投稿',true)}${box(s.helpful??0,'参考になった')}${box(s.skills??0,'対応領域')}</div>`;
+    }
+
+    /* ───── 表示モード ───── */
+    function renderView(){
+      const isAdmin = P.user?.role === 'super_admin' || P.user?.role === 'jp_admin';
+      const skills = P.skills || [];
+      const bioHtml = P.bio
+        ? `<p style="font-size:13.5px;line-height:1.8;color:#3a3a42;margin-top:16px;white-space:pre-wrap">${esc(P.bio)}</p>`
+        : `<p style="font-size:13px;line-height:1.7;color:var(--mute);margin-top:16px">会社紹介がまだありません。対応領域や補助金活用の実績を書くと引き合いに繋がります。</p>`;
+      const skillsHtml = skills.length
+        ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">${skills.map(s=>`<span class="chip" style="background:var(--accent-bg);color:var(--accent)">${esc(s.label)}</span>`).join('')}</div>`
+        : '';
+      const posts = P.posts || [];
+      const postsHtml = posts.length
+        ? posts.map(p=>`<a class="post" href="./post.html?id=${p.id}" style="display:block;text-decoration:none;color:inherit;border-top:1px solid #eef0f3">
+            <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--mute)">${p.category?`<span class="cat">${esc(p.category)}</span>`:''}${p.media_count?`<span>🖼 ${p.media_count}</span>`:''}<span>👍 ${p.helpful}</span><span>💬 ${p.comment_count}</span></div>
+            <div style="font-size:14px;line-height:1.6;color:#2a2a30;margin-top:6px">${esc((p.body||'（メディア投稿）').slice(0,90))}</div>
+          </a>`).join('')
+        : '<div class="center" style="padding:24px">まだ投稿がありません。</div>';
+
+      root.innerHTML = `
+        <div style="padding:24px 20px 8px">
+          ${head()}
+          ${bioHtml}
+          ${skillsHtml}
+          ${statsRow()}
+          <button class="btn" id="editBtn" style="margin-top:16px;gap:8px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>プロフィールを編集</button>
+          ${isAdmin ? `<a class="btn" href="./admin.html" style="text-decoration:none;margin-top:10px;gap:9px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.5-2.4 1a7 7 0 0 0-2.2-1.3L14 2h-4l-.3 2.6a7 7 0 0 0-2.2 1.3l-2.4-1-2 3.5 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.3l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 2.2 1.3L10 22h4l.3-2.6a7 7 0 0 0 2.2-1.3l2.4 1 2-3.5-2-1.5A7 7 0 0 0 19 12z"/></svg>管理画面へ</a>` : ''}
+        </div>
+        <div style="padding:14px 20px 6px;color:var(--mute);font-size:12px;font-weight:700">自分の投稿 ${posts.length}</div>
+        <div>${postsHtml}</div>`;
+      document.getElementById('editBtn').onclick = renderEdit;
+    }
+
+    /* ───── 編集モード ───── */
+    function renderEdit(){
+      const skills = (P.skills || []).slice();
+      root.innerHTML = `
+        <div style="padding:24px 20px">
+          ${head()}
+          <div style="font-size:11.5px;color:var(--mute);font-weight:700;margin:18px 2px 6px">会社紹介</div>
+          <textarea id="ebio" maxlength="1000" placeholder="例) 板金・レーザー加工が得意な金属加工メーカーです。ものづくり補助金で最新の複合機を導入。小ロット・短納期に対応します。"
+            style="width:100%;min-height:130px;font-size:14.5px;line-height:1.8;outline:none;font-family:var(--sans);resize:none;background:var(--soft);border-radius:14px;padding:13px 14px;border:none">${esc(P.bio||'')}</textarea>
+
+          <div style="font-size:11.5px;color:var(--mute);font-weight:700;margin:18px 2px 6px">対応領域タグ</div>
+          <div id="eskills" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
+          <div style="display:flex;gap:8px">
+            <input class="input" id="skillInput" placeholder="例: レーザー加工" maxlength="60" style="flex:1;height:42px">
+            <button class="btn" id="addSkillBtn" style="width:84px;height:42px">追加</button>
+          </div>
+          <div id="emsg" style="color:#c0392b;font-size:12.5px;min-height:18px;margin-top:8px"></div>
+
+          <div class="react" style="margin-top:14px"><button class="btn" id="ecancel" style="flex:1">完了</button><button class="btn primary" id="esave" style="flex:1">保存</button></div>
+        </div>`;
+
+      function paintSkills(){
+        document.getElementById('eskills').innerHTML = skills.length
+          ? skills.map(s=>`<span class="chip" style="background:var(--accent-bg);color:var(--accent)">${esc(s.label)} <b data-rm="${s.id}" style="cursor:pointer">×</b></span>`).join('')
+          : '<span style="color:var(--mute);font-size:12.5px">タグ未設定</span>';
+        document.querySelectorAll('#eskills [data-rm]').forEach(b=>b.onclick=async()=>{
+          const id=+b.dataset.rm;
+          try { await AA.deleteSkill(id); const i=skills.findIndex(s=>s.id===id); if(i>=0)skills.splice(i,1); P.skills=skills.slice(); paintSkills(); }
+          catch(e){ document.getElementById('emsg').textContent=e.message; }
+        });
+      }
+      paintSkills();
+
+      const emsg = document.getElementById('emsg');
+      document.getElementById('addSkillBtn').onclick = async () => {
+        emsg.textContent='';
+        const inp = document.getElementById('skillInput'); const label = inp.value.trim();
+        if (!label) return;
+        try { const r = await AA.addSkill(label); if (r.data && !skills.some(s=>s.id===r.data.id)) skills.push(r.data); P.skills=skills.slice(); inp.value=''; paintSkills(); }
+        catch(e){ emsg.textContent = e.message; }
+      };
+      document.getElementById('skillInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('addSkillBtn').click(); }});
+
+      document.getElementById('ecancel').onclick = () => { load(); };
+      document.getElementById('esave').onclick = async () => {
+        emsg.textContent='';
+        const btn = document.getElementById('esave');
+        try { btn.textContent='保存中…'; btn.disabled=true; const r = await AA.updateProfile(document.getElementById('ebio').value.trim()); P.bio = r.bio; load(); }
+        catch(e){ emsg.textContent = e.message; btn.textContent='保存'; btn.disabled=false; }
+      };
+    }
+
+    load();
+  </script>
+</body>
+</html>
