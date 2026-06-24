@@ -1,8 +1,12 @@
 # What'sNo デスクトップ連携 セットアップスクリプト
-# 使い方: このファイルを wn-upload.ps1 と同じフォルダに置き、右クリック → 「PowerShellで実行」
+# 使い方: ダッシュボードの「デスクトップ連携」でコマンドをコピーし、
+#          スクリプトと同じフォルダで PowerShell に貼り付けて実行
+
+param(
+    [string]$Token = ''
+)
 
 Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName Microsoft.VisualBasic
 
 $appDir       = Join-Path $env:APPDATA 'WhatsNo'
 $uploadScript = Join-Path $appDir 'wn-upload.ps1'
@@ -22,32 +26,35 @@ if (-not (Test-Path $srcUpload)) {
 New-Item -ItemType Directory -Force -Path $appDir | Out-Null
 Copy-Item $srcUpload $uploadScript -Force
 
-# ── トークン入力 ──
-$existing = if (Test-Path $configFile) {
-    try { (Get-Content $configFile -Raw -Encoding utf8 | ConvertFrom-Json).token } catch { '' }
-} else { '' }
+# ── トークン取得（パラメータ優先、なければ InputBox） ──
+if (-not $Token) {
+    $existing = if (Test-Path $configFile) {
+        try { (Get-Content $configFile -Raw -Encoding utf8 | ConvertFrom-Json).token } catch { '' }
+    } else { '' }
 
-$prompt = if ($existing) {
-    "既存のトークンが設定されています。`n新しいトークンを入力すると上書きされます（キャンセルで既存を保持）。`n`nWhat'sNo ダッシュボードの「デスクトップ連携」からトークンをコピーして貼り付けてください。"
-} else {
-    "What'sNo ダッシュボードの「デスクトップ連携」からトークンをコピーし、以下に貼り付けてください。"
-}
+    $prompt = if ($existing) {
+        "既存のトークンが設定されています。`n新しいトークンを入力すると上書きされます（キャンセルで既存を保持）。"
+    } else {
+        "What'sNo ダッシュボードの「デスクトップ連携」でコマンドをコピーして実行することをお勧めします。`n直接入力する場合はトークンを以下に貼り付けてください。"
+    }
 
-$token = [Microsoft.VisualBasic.Interaction]::InputBox($prompt, "What'sNo セットアップ — トークン入力", '')
+    Add-Type -AssemblyName Microsoft.VisualBasic
+    $Token = [Microsoft.VisualBasic.Interaction]::InputBox($prompt, "What'sNo セットアップ — トークン入力", '')
 
-if (-not $token) {
-    if ($existing) {
+    if (-not $Token) {
+        if ($existing) {
+            [System.Windows.Forms.MessageBox]::Show(
+                '既存のトークンを保持しました。', "What'sNo セットアップ", 'OK', 'Information') | Out-Null
+            exit 0
+        }
         [System.Windows.Forms.MessageBox]::Show(
-            '既存のトークンを保持しました。', "What'sNo セットアップ", 'OK', 'Information') | Out-Null
+            'セットアップをキャンセルしました。', "What'sNo セットアップ", 'OK', 'Warning') | Out-Null
         exit 0
     }
-    [System.Windows.Forms.MessageBox]::Show(
-        'セットアップをキャンセルしました。', "What'sNo セットアップ", 'OK', 'Warning') | Out-Null
-    exit 0
 }
 
 # ── config.json 保存 & ACL制限 ──
-@{ token = $token } | ConvertTo-Json | Set-Content $configFile -Encoding utf8
+@{ token = $Token } | ConvertTo-Json | Set-Content $configFile -Encoding utf8
 icacls $configFile /inheritance:r /grant:r "${env:USERNAME}:F" 2>&1 | Out-Null
 
 # ── レジストリ登録（HKCU — 管理者権限不要） ──

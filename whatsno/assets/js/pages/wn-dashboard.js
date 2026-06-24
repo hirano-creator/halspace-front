@@ -3468,14 +3468,16 @@ function initDesktopIntegrationModal() {
   const navBtn     = document.getElementById('navDesktop');
   const closeX     = document.getElementById('desktopModalClose');
   const closeBtn   = document.getElementById('desktopCloseBtn');
-  const tokenInput = document.getElementById('desktopTokenInput');
-  const toggleBtn  = document.getElementById('desktopTokenToggle');
+  const cmdPreview = document.getElementById('desktopCmdPreview');
   const copyBtn    = document.getElementById('desktopTokenCopy');
 
+  function buildCommand() {
+    const token = localStorage.getItem('space_token') || '';
+    return `powershell -ExecutionPolicy Bypass -File ".\\wn-install.ps1" -Token "${token}"`;
+  }
+
   function openModal() {
-    tokenInput.value = localStorage.getItem('space_token') || '';
-    tokenInput.type  = 'password';
-    toggleBtn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+    cmdPreview.textContent = buildCommand();
     modal.classList.remove('hidden');
   }
   function closeModal() {
@@ -3487,18 +3489,9 @@ function initDesktopIntegrationModal() {
   closeBtn?.addEventListener('click', closeModal);
   modal?.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 
-  toggleBtn?.addEventListener('click', () => {
-    const show = tokenInput.type === 'password';
-    tokenInput.type = show ? 'text' : 'password';
-    toggleBtn.innerHTML = show
-      ? '<i class="fa-solid fa-eye-slash"></i>'
-      : '<i class="fa-solid fa-eye"></i>';
-  });
-
   copyBtn?.addEventListener('click', async () => {
-    const token = localStorage.getItem('space_token') || '';
-    if (!token) return;
-    await navigator.clipboard.writeText(token);
+    const cmd = buildCommand();
+    await navigator.clipboard.writeText(cmd);
     copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> コピー済み';
     setTimeout(() => { copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i> コピー'; }, 2000);
   });

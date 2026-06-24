@@ -646,28 +646,10 @@
 
       <!-- Step 1 -->
       <div>
-        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">
-          <i class="fa-solid fa-key" style="color:var(--accent);margin-right:6px;"></i>Step 1 — トークンをコピー
-        </div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">他人に見せないでください。</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="password" id="desktopTokenInput" readonly
-            style="flex:1;font-family:monospace;font-size:12px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);">
-          <button class="btn btn-ghost btn-sm" id="desktopTokenToggle" title="表示/非表示">
-            <i class="fa-solid fa-eye"></i>
-          </button>
-          <button class="btn btn-sm" id="desktopTokenCopy"
-            style="background:var(--accent);color:#fff;border-color:var(--accent);white-space:nowrap;">
-            <i class="fa-solid fa-copy"></i> コピー
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 2 -->
-      <div>
         <div style="font-size:13px;font-weight:600;margin-bottom:8px;">
-          <i class="fa-solid fa-download" style="color:var(--accent);margin-right:6px;"></i>Step 2 — スクリプトをダウンロード
+          <i class="fa-solid fa-download" style="color:var(--accent);margin-right:6px;"></i>Step 1 — スクリプトをダウンロード
         </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">2つのファイルを同じフォルダ（例: デスクトップ）に保存してください。</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <a class="btn btn-ghost btn-sm" href="../tools/wn-install.ps1" download>
             <i class="fa-solid fa-file-code"></i> wn-install.ps1
@@ -678,15 +660,33 @@
         </div>
       </div>
 
+      <!-- Step 2 -->
+      <div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">
+          <i class="fa-solid fa-terminal" style="color:var(--accent);margin-right:6px;"></i>Step 2 — インストールコマンドをコピー
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">トークン入り完成コマンドです。他人に見せないでください。</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <code id="desktopCmdPreview"
+            style="flex:1;font-size:11px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:block;">
+          </code>
+          <button class="btn btn-sm" id="desktopTokenCopy"
+            style="background:var(--accent);color:#fff;border-color:var(--accent);white-space:nowrap;flex-shrink:0;">
+            <i class="fa-solid fa-copy"></i> コピー
+          </button>
+        </div>
+      </div>
+
       <!-- Step 3 -->
       <div style="background:var(--surface2);border-radius:8px;padding:14px 16px;">
         <div style="font-size:13px;font-weight:600;margin-bottom:8px;">
-          <i class="fa-solid fa-terminal" style="color:var(--accent);margin-right:6px;"></i>Step 3 — インストール
+          <i class="fa-solid fa-play" style="color:var(--accent);margin-right:6px;"></i>Step 3 — PowerShellで実行
         </div>
-        <div style="font-size:12px;color:var(--muted);line-height:1.8;">
-          2つのファイルを同じフォルダに置き、<code style="background:var(--surface);padding:1px 5px;border-radius:4px;">wn-install.ps1</code>
-          を右クリック → <strong>「PowerShellで実行」</strong><br>
-          トークンを貼り付けると右クリックメニューに「What'sNoに保存」が追加されます。
+        <div style="font-size:12px;color:var(--muted);line-height:1.9;">
+          ① スクリプトを保存したフォルダを開く<br>
+          ② フォルダ内で <strong>Shift+右クリック</strong> →「PowerShellウィンドウをここで開く」<br>
+          ③ コピーしたコマンドを貼り付けて <strong>Enter</strong><br>
+          ④ 完了ダイアログが出たらセットアップ完了です
         </div>
       </div>
 
@@ -720,7 +720,7 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=6"></script>
 <script src="../assets/js/wn-api.js?v=11"></script>
-<script src="../assets/js/pages/wn-dashboard.js?v=53"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=54"></script>
 
 <script>
 /* ── ボトムナビ ── */
