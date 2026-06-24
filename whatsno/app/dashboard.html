@@ -170,58 +170,6 @@
 
     <div class="page-body">
 
-      <!-- Knowl メーターウィジェット -->
-      <div class="brain-widget" id="dashBrainWidget">
-        <!-- 行1: アイコン＋名前 / メーターバー / パーセント / ボタン -->
-        <div class="brain-widget-row1">
-          <a href="brain.html" class="brain-widget-logo">
-            <i class="fa-solid fa-circle-nodes"></i>
-            <span>Knowl</span>
-          </a>
-          <div class="brain-widget-meter">
-            <span id="dashBrainLabel" class="brain-widget-label">読み込み中…</span>
-            <div class="brain-widget-bar-bg">
-              <div id="dashBrainBar" class="brain-widget-bar-fill"></div>
-            </div>
-          </div>
-          <span id="dashBrainRate" class="brain-widget-rate">—</span>
-          <a href="brain.html" class="btn btn-ghost btn-sm brain-widget-btn">
-            <i class="fa-solid fa-comment-dots"></i><span class="brain-widget-btn-text"> 詳しく</span>
-          </a>
-        </div>
-        <!-- 行2: ギャップ警告（表示時のみ） -->
-        <div id="dashBrainGap" class="brain-widget-gap">
-          <i class="fa-solid fa-triangle-exclamation"></i>
-          <span id="dashBrainGapText"></span>の文書不足
-        </div>
-        <!-- 行3: 質問入力欄 -->
-        <div class="brain-widget-ask">
-          <input type="text" id="dashBrainInput" class="brain-widget-input"
-                 placeholder="社内文書について質問…  例: SUS304の予熱温度は？"
-                 autocomplete="off">
-          <button type="button" id="dashBrainVoiceBtn" class="brain-widget-voice" title="音声で質問">
-            <i class="fa-solid fa-microphone" id="dashBrainVoiceIcon"></i>
-          </button>
-          <button type="button" id="dashBrainSendBtn" class="brain-widget-send" title="送信" disabled>
-            <i class="fa-solid fa-paper-plane"></i>
-          </button>
-        </div>
-        <!-- 行4: ミニ回答表示エリア（質問時のみ展開） -->
-        <div id="dashBrainAnswer" class="brain-widget-answer" style="display:none;">
-          <div class="brain-widget-answer-q" id="dashBrainAnswerQ"></div>
-          <div class="brain-widget-answer-body" id="dashBrainAnswerBody"></div>
-          <div class="brain-widget-answer-sources" id="dashBrainAnswerSources"></div>
-          <div class="brain-widget-answer-actions">
-            <a href="brain.html" class="brain-widget-answer-more">
-              <i class="fa-solid fa-arrow-right"></i> Knowlで続ける
-            </a>
-            <button type="button" id="dashBrainAnswerClose" class="brain-widget-answer-close" title="閉じる">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-
       <!-- スキルバー（自然言語でアクション実行: メール／共有リンク／AIタグ／承認申請） -->
       <div class="card" id="skillBar" style="margin-bottom:16px;padding:14px 20px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">

@@ -43,8 +43,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   initVoiceSearch();
   initNotifications();
   initEmailModal();
-  loadBrainMeter();
-  initDashBrain();
   initSkillBar();
   initContactsModal();
   initMergeSelect();
@@ -113,91 +111,6 @@ function applyMobileLayout() {
     renderFiles();
   }
   _lastIsMobile = isMobile;
-}
-
-/* ────────────────────────────────
-   ダッシュボード上のミニKnowl
-   brain.html に遷移せず、ここで質問→回答まで完結
-   ──────────────────────────────── */
-let dashBrainSessionId = null;
-let dashBrainBusy      = false;
-
-function initDashBrain() {
-  const input = document.getElementById('dashBrainInput');
-  const send  = document.getElementById('dashBrainSendBtn');
-  const voice = document.getElementById('dashBrainVoiceBtn');
-  const close = document.getElementById('dashBrainAnswerClose');
-  if (!input || !send) return;
-
-  input.addEventListener('input', () => {
-    send.disabled = input.value.trim() === '' || dashBrainBusy;
-  });
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !send.disabled) {
-      e.preventDefault();
-      dashBrainAsk(input.value.trim());
-    }
-  });
-  send.addEventListener('click', () => {
-    if (!send.disabled) dashBrainAsk(input.value.trim());
-  });
-
-  if (close) close.addEventListener('click', () => {
-    document.getElementById('dashBrainAnswer').style.display = 'none';
-  });
-
-  initDashBrainVoice();
-}
-
-async function dashBrainAsk(question) {
-  if (dashBrainBusy || !question) return;
-  dashBrainBusy = true;
-
-  const input = document.getElementById('dashBrainInput');
-  const send  = document.getElementById('dashBrainSendBtn');
-  const ans   = document.getElementById('dashBrainAnswer');
-  const ansQ  = document.getElementById('dashBrainAnswerQ');
-  const body  = document.getElementById('dashBrainAnswerBody');
-  const srcs  = document.getElementById('dashBrainAnswerSources');
-  const more  = document.querySelector('.brain-widget-answer-more');
-
-  send.disabled = true;
-  ansQ.textContent = question;
-  body.className   = 'brain-widget-answer-body thinking';
-  body.innerHTML   = '<span></span><span></span><span></span>';
-  srcs.innerHTML   = '';
-  ans.style.display = 'block';
-
-  try {
-    const res = await wnBrainAsk(question, dashBrainSessionId);
-    dashBrainSessionId = res.session_id ?? dashBrainSessionId;
-
-    body.className = 'brain-widget-answer-body';
-    body.textContent = res.answer ?? '回答が得られませんでした。';
-
-    const sources = res.sources ?? [];
-    srcs.innerHTML = sources.map(s =>
-      `<a href="file-detail.html?id=${s.id}">
-         <i class="fa-solid fa-file-lines"></i>${h(s.file_name)}
-       </a>`
-    ).join('');
-
-    // 「続ける」リンクは現セッションを引き継ぐ
-    if (more && dashBrainSessionId) {
-      more.href = `brain.html?session=${dashBrainSessionId}`;
-    }
-
-    // 入力欄はクリアして次の質問を受け付ける
-    input.value = '';
-  } catch (err) {
-    body.className = 'brain-widget-answer-body';
-    body.textContent = err?.status === 429
-      ? 'AIの利用制限に達しました。しばらく経ってから再度お試しください。'
-      : '回答の取得中にエラーが発生しました。';
-  } finally {
-    dashBrainBusy = false;
-    send.disabled = input.value.trim() === '';
-  }
 }
 
 /* ────────────────────────────────
@@ -528,72 +441,6 @@ async function runSkill(instruction) {
     skillBusy = false;
     const input2 = document.getElementById('skillInput');
     send.disabled = !input2 || input2.value.trim() === '';
-  }
-}
-
-function initDashBrainVoice() {
-  const btn  = document.getElementById('dashBrainVoiceBtn');
-  const icon = document.getElementById('dashBrainVoiceIcon');
-  if (!btn) return;
-
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) { btn.style.display = 'none'; return; }
-
-  const recog = new SpeechRecognition();
-  recog.lang = 'ja-JP';
-  recog.interimResults = true;
-  recog.continuous = false;
-  let recording = false;
-
-  btn.addEventListener('click', () => {
-    if (dashBrainBusy) return;
-    if (recording) recog.stop(); else recog.start();
-  });
-
-  recog.onstart = () => {
-    recording = true;
-    btn.classList.add('recording');
-    icon.className = 'fa-solid fa-stop';
-  };
-
-  recog.onresult = e => {
-    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
-    document.getElementById('dashBrainInput').value = transcript;
-  };
-
-  recog.onend = () => {
-    recording = false;
-    btn.classList.remove('recording');
-    icon.className = 'fa-solid fa-microphone';
-    const input = document.getElementById('dashBrainInput');
-    const q = input.value.trim();
-    if (q) dashBrainAsk(q);
-  };
-
-  recog.onerror = () => {
-    recording = false;
-    btn.classList.remove('recording');
-    icon.className = 'fa-solid fa-microphone';
-  };
-}
-
-async function loadBrainMeter() {
-  try {
-    const data = await wnBrainMeter();
-    const widget = document.getElementById('dashBrainWidget');
-    if (!widget) return;
-    widget.style.display = 'block';
-    const rate = data.fill_rate ?? 0;
-    document.getElementById('dashBrainRate').textContent = rate + '%';
-    document.getElementById('dashBrainBar').style.width = rate + '%';
-    document.getElementById('dashBrainLabel').textContent =
-      `学習済み ${data.indexed_files ?? 0} 件 / 全 ${data.total_files ?? 0} 件`;
-    if (data.gap_tags && data.gap_tags.length > 0) {
-      document.getElementById('dashBrainGapText').textContent = data.gap_tags.join('・');
-      document.getElementById('dashBrainGap').style.display = 'block';
-    }
-  } catch {
-    // メーター取得失敗は無視（サイレント）
   }
 }
 
