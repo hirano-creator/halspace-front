@@ -66,6 +66,7 @@ New-Item -Path $regBase    -Force | Out-Null
 New-Item -Path $regCommand -Force | Out-Null
 Set-ItemProperty -Path $regBase    -Name '(Default)' -Value "What'sNoに保存"
 Set-ItemProperty -Path $regBase    -Name 'Icon'      -Value 'shell32.dll,13'
+Set-ItemProperty -Path $regBase    -Name 'Position'  -Value 'Top'
 Set-ItemProperty -Path $regCommand -Name '(Default)' -Value $psCmd
 
 # ── 完了 ──
