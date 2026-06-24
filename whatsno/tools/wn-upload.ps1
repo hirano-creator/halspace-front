@@ -1,4 +1,4 @@
-# What'sNo コンテキストメニュー アップロードスクリプト
+﻿# What'sNo コンテキストメニュー アップロードスクリプト
 # 使い方: wn-install.ps1 でレジストリ登録後、右クリックから自動実行される
 
 param([string]$FilePath)

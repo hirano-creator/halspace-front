@@ -1,4 +1,4 @@
-# What'sNo デスクトップ連携 アンインストールスクリプト
+﻿# What'sNo デスクトップ連携 アンインストールスクリプト
 # 使い方: 右クリック → 「PowerShellで実行」
 
 Add-Type -AssemblyName System.Windows.Forms
