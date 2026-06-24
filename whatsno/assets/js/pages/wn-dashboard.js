@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initContactsModal();
   initMergeSelect();
   initThumbnailBust();
+  initDesktopIntegrationModal();
 });
 
 /* 注釈編集後の新サムネイル取得用：ダッシュボード表示時にメモリキャッシュをリセット
@@ -228,6 +229,66 @@ function initSkillBar() {
     if (e.key === 'Enter' && !send.disabled) { e.preventDefault(); runSkill(input.value.trim()); }
   });
   send.addEventListener('click', () => { if (!send.disabled) runSkill(input.value.trim()); });
+
+  initSkillVoice();
+}
+
+// スキルバーの音声入力（Web Speech API）。認識結果は入力欄に流し込み、
+// 安全のため自動実行はしない（スキルはメーラー起動等の副作用があるため確認方式）。
+function initSkillVoice() {
+  const btn   = document.getElementById('skillVoiceBtn');
+  const icon  = document.getElementById('skillVoiceIcon');
+  const input = document.getElementById('skillInput');
+  const send  = document.getElementById('skillSendBtn');
+  if (!btn || !input) return;
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { btn.style.display = 'none'; return; }  // 非対応ブラウザでは非表示
+
+  const recog = new SpeechRecognition();
+  recog.lang = 'ja-JP';
+  recog.interimResults = true;
+  recog.continuous = false;
+  let recording = false;
+
+  const syncSend = () => { if (send) send.disabled = input.value.trim() === '' || skillBusy; };
+  const reset = () => {
+    recording = false;
+    btn.classList.remove('recording');
+    icon.className = 'fa-solid fa-microphone';
+    btn.title = '音声で入力';
+  };
+
+  btn.addEventListener('click', () => {
+    if (skillBusy) return;
+    if (recording) { recog.stop(); return; }
+    try { recog.start(); } catch { /* 連打などで start 済みの場合は無視 */ }
+  });
+
+  recog.onstart = () => {
+    recording = true;
+    btn.classList.add('recording');
+    icon.className = 'fa-solid fa-stop';
+    btn.title = '停止';
+  };
+
+  recog.onresult = e => {
+    input.value = Array.from(e.results).map(r => r[0].transcript).join('');
+    syncSend();
+  };
+
+  recog.onend = () => {
+    reset();
+    syncSend();
+    if (input.value.trim()) input.focus();  // 結果を確認のうえ手動で実行
+  };
+
+  recog.onerror = e => {
+    reset();
+    if (e && e.error && e.error !== 'no-speech' && e.error !== 'aborted') {
+      wnShowToast('音声認識に失敗しました。もう一度お試しください。', 'warning');
+    }
+  };
 }
 
 /* ────────────────────────────────
@@ -3397,4 +3458,48 @@ async function executeMerge() {
     setMergeModalBusy(false);   // モーダルは開いたまま＝設定を保持してリトライ可能
     document.getElementById('mergeProgressText').textContent = '';
   }
+}
+
+/* ────────────────────────────────
+   デスクトップ連携モーダル
+   ──────────────────────────────── */
+function initDesktopIntegrationModal() {
+  const modal      = document.getElementById('desktopModal');
+  const navBtn     = document.getElementById('navDesktop');
+  const closeX     = document.getElementById('desktopModalClose');
+  const closeBtn   = document.getElementById('desktopCloseBtn');
+  const tokenInput = document.getElementById('desktopTokenInput');
+  const toggleBtn  = document.getElementById('desktopTokenToggle');
+  const copyBtn    = document.getElementById('desktopTokenCopy');
+
+  function openModal() {
+    tokenInput.value = localStorage.getItem('space_token') || '';
+    tokenInput.type  = 'password';
+    toggleBtn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+    modal.classList.remove('hidden');
+  }
+  function closeModal() {
+    modal.classList.add('hidden');
+  }
+
+  navBtn?.addEventListener('click', openModal);
+  closeX?.addEventListener('click', closeModal);
+  closeBtn?.addEventListener('click', closeModal);
+  modal?.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+  toggleBtn?.addEventListener('click', () => {
+    const show = tokenInput.type === 'password';
+    tokenInput.type = show ? 'text' : 'password';
+    toggleBtn.innerHTML = show
+      ? '<i class="fa-solid fa-eye-slash"></i>'
+      : '<i class="fa-solid fa-eye"></i>';
+  });
+
+  copyBtn?.addEventListener('click', async () => {
+    const token = localStorage.getItem('space_token') || '';
+    if (!token) return;
+    await navigator.clipboard.writeText(token);
+    copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> コピー済み';
+    setTimeout(() => { copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i> コピー'; }, 2000);
+  });
 }
