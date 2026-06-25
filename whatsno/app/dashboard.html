@@ -118,25 +118,13 @@
         <div class="search-bar" id="searchBar">
           <i class="fa-solid fa-magnifying-glass" id="searchIcon"></i>
           <input type="text" id="searchInput" placeholder="検索、またはやりたいことを入力…" autocomplete="off">
-          <button class="btn btn-ghost btn-sm" id="semanticClearBtn" title="AI検索をクリア"
-            style="display:none;padding:4px 8px;border-left:1px solid var(--border);border-radius:0;flex-shrink:0;color:var(--muted);">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
           <button class="voice-search-btn" id="voiceSearchBtn" title="音声で検索" style="display:none;">
             <i class="fa-solid fa-microphone" id="voiceSearchIcon"></i>
-          </button>
-          <button class="btn btn-ghost btn-sm top-bar-ai-btn" id="semanticSearchBtn" title="AI自然言語検索">
-            <i class="fa-solid fa-circle-nodes" style="color:var(--accent);"></i>
-            <span class="top-bar-ai-label">AI</span>
           </button>
           <button type="button" id="skillSendBtn" title="スキル実行（ファイルを選択して送信）" disabled
             style="flex-shrink:0;background:none;border:none;border-left:1px solid var(--border);padding:4px 10px;cursor:pointer;color:var(--accent);opacity:.4;transition:opacity .15s;">
             <i class="fa-solid fa-paper-plane"></i>
           </button>
-        </div>
-        <div id="semanticHint" style="display:none;font-size:11px;color:var(--accent);padding:2px 2px 0;">
-          <i class="fa-solid fa-circle-info"></i>
-          AI検索中 — ×ボタンで通常検索に戻ります
         </div>
       </div>
 

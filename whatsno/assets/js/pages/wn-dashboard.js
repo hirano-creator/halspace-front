@@ -1609,13 +1609,8 @@ function initNav() {
       // ホームは検索・タグ選択をリセットして全件表示
       if (id === 'navAll') {
         selectedTags = [];
-        semanticMode = false;
         const searchInput = document.getElementById('searchInput');
         if (searchInput) searchInput.value = '';
-        document.getElementById('semanticClearBtn')?.style && (document.getElementById('semanticClearBtn').style.display = 'none');
-        document.getElementById('semanticHint')?.style && (document.getElementById('semanticHint').style.display = 'none');
-        document.getElementById('searchIcon')?.classList.remove('fa-wand-magic-sparkles');
-        document.getElementById('searchIcon')?.classList.add('fa-magnifying-glass');
         renderTagFilter();
       }
       loadFiles();
@@ -1663,59 +1658,9 @@ function initFilters() {
 function initSearch() {
   let timer;
   document.getElementById('searchInput').addEventListener('input', () => {
-    if (semanticMode) return;
     if (selectedIds.length > 0) return; // ファイル選択中はスキル入力モード（検索しない）
     clearTimeout(timer);
     timer = setTimeout(loadFiles, 400);
-  });
-
-  // AI自然言語検索ボタン
-  const runSemanticSearch = async () => {
-    const q = document.getElementById('searchInput').value.trim();
-    if (!q) { wnShowToast('検索キーワードを入力してください', 'warning'); return; }
-
-    const btn      = document.getElementById('semanticSearchBtn');
-    const bar      = document.getElementById('searchBar');
-    const hint     = document.getElementById('semanticHint');
-    const clearBtn = document.getElementById('semanticClearBtn');
-
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="color:var(--accent);"></i><span style="font-size:11px;color:var(--accent);font-weight:700;">AI</span>';
-    btn.disabled  = true;
-    bar.style.outline = '2px solid var(--accent)';
-
-    const results = await wnSemanticSearch(q);
-
-    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" style="color:var(--accent);"></i><span style="font-size:11px;color:var(--accent);font-weight:700;">AI</span>';
-    btn.disabled  = false;
-
-    if (!results.length) {
-      bar.style.outline = '';
-      wnShowToast('類似するファイルが見つかりませんでした。AI要約が生成されていないファイルは対象外です。', 'warning');
-      return;
-    }
-
-    // AI検索モードに切替
-    semanticMode = true;
-    bar.style.outline  = '2px solid var(--accent)';
-    hint.style.display = '';
-    clearBtn.style.display = '';
-
-    allFiles = results;
-    document.getElementById('areaTitle').textContent = `AI検索: "${q}"`;
-    renderFiles();
-    wnShowToast(`${results.length}件のファイルが見つかりました`, 'success');
-  };
-
-  document.getElementById('semanticSearchBtn')?.addEventListener('click', runSemanticSearch);
-
-  // クリアボタン：通常検索に戻る
-  document.getElementById('semanticClearBtn')?.addEventListener('click', () => {
-    semanticMode = false;
-    document.getElementById('searchBar').style.outline  = '';
-    document.getElementById('semanticHint').style.display  = 'none';
-    document.getElementById('semanticClearBtn').style.display = 'none';
-    document.getElementById('searchInput').value = '';
-    loadFiles();
   });
 }
 
@@ -1818,14 +1763,8 @@ function initVoiceSearch() {
     }
     if (q !== raw) input.value = q;
 
-    // 10文字超 → AI自然言語検索、それ以下 → 通常検索
-    if (q.length > 10) {
-      wnShowToast(`「${q}」でAI検索します`, 'success');
-      document.getElementById('semanticSearchBtn').click();
-    } else {
-      if (!corrected) wnShowToast(`「${q}」で検索します`, 'success');
-      loadFiles();
-    }
+    if (!corrected) wnShowToast(`「${q}」で検索します`, 'success');
+    loadFiles();
   };
 
   recog.onerror = (e) => {
