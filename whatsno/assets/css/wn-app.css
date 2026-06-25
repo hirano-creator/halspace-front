@@ -1901,7 +1901,7 @@ tbody tr:last-child { border-bottom: none; }
   .summary-label { font-size: 11px; }
 
   /* 検索バー */
-  .search-bar { padding: 5px 10px; gap: 6px; }
+  .search-bar { padding: 5px 0 5px 10px; gap: 6px; }
   .search-bar input { font-size: 13px; }
 
   /* ページ余白（左右0を維持） */
