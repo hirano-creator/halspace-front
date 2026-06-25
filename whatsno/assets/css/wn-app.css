@@ -1856,9 +1856,6 @@ tbody tr:last-child { border-bottom: none; }
   /* アップロードボタン非表示（ボトムナビの+で代替） */
   #uploadBtn { display: none !important; }
 
-  /* 連絡先ボタン非表示（サイドバー経由でアクセス） */
-  #contactsOpenBtn { display: none; }
-
   /* 右ゾーンの間隔を詰める */
   .top-bar-right { gap: 2px; }
 }
