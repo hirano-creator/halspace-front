@@ -1856,18 +1856,21 @@ tbody tr:last-child { border-bottom: none; }
   /* アップロードボタン非表示（ボトムナビの+で代替） */
   #uploadBtn { display: none !important; }
 
-  /* トップバー全体のパディングを縮小して検索バーに幅を回す */
-  .top-bar { padding: 0 6px; gap: 4px; }
+  /* トップバー全体のパディングを左右対称にして検索バーに幅を回す */
+  .top-bar { padding: 0 8px; gap: 2px; }
 
   /* 右ゾーンの間隔を詰める */
   .top-bar-right { gap: 0; }
 
   /* 通知ベル・連絡先ボタンをコンパクトに */
-  .notif-bell-btn { width: 32px; height: 32px; }
-  #contactsOpenBtn { width: 32px; height: 32px; font-size: 14px; }
+  .notif-bell-btn { width: 30px; height: 30px; }
+  #contactsOpenBtn { width: 30px; height: 30px; font-size: 14px; }
+
+  /* 送信ボタンは検索バーに寄せて余白を削る（アイコンを左寄せ・幅縮小） */
+  #skillSendBtn { width: 26px; height: 30px; padding: 0; }
 
   /* ハンバーガーボタンもコンパクトに */
-  .menu-toggle { width: 32px; height: 32px; font-size: 16px; padding: 0; }
+  .menu-toggle { width: 30px; height: 30px; font-size: 16px; padding: 0; }
 
   /* 検索バー右端の余白をなくして送信ボタンの直前まで広げる */
   .search-bar { padding-right: 0; }
