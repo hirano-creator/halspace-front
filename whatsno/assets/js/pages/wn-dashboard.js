@@ -1725,7 +1725,7 @@ function initVoiceSearch() {
     if (sideIcon)  sideIcon.className = 'fa-solid fa-microphone-lines';
     if (sideLabel) sideLabel.textContent = '聞いています…';
     // 検索バー
-    input.placeholder = '話してください…';
+    input.placeholder = selectedIds.length > 0 ? 'やりたいことを話してください…' : '話してください…';
     input.value = '';
     // トップバーの検索バーにフォーカスを当てて入力中を明示
     document.getElementById('searchBar')?.classList.add('voice-active');
@@ -1751,6 +1751,12 @@ function initVoiceSearch() {
 
     const raw = input.value.trim();
     if (!raw) return;
+
+    // ファイル選択中は音声入力をスキルとして実行
+    if (selectedIds.length > 0) {
+      runSkill(raw);
+      return;
+    }
 
     // 音声入力の正規化
     let q = normalizeVoiceQuery(raw);
