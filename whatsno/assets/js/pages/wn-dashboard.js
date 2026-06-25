@@ -1663,7 +1663,8 @@ function initFilters() {
 function initSearch() {
   let timer;
   document.getElementById('searchInput').addEventListener('input', () => {
-    if (semanticMode) return; // AI検索中は通常検索をスキップ
+    if (semanticMode) return;
+    if (selectedIds.length > 0) return; // ファイル選択中はスキル入力モード（検索しない）
     clearTimeout(timer);
     timer = setTimeout(loadFiles, 400);
   });
@@ -3083,6 +3084,14 @@ function updateMergeActionBar() {
   }
   if (lbl)      lbl.textContent = allPdf ? `${sel.length}件を結合` : '結合';
   if (emailBtn) emailBtn.disabled = selectedIds.length === 0;
+
+  // ファイル選択中はスキル入力モードとしてプレースホルダーを切り替え
+  const si = document.getElementById('searchInput');
+  if (si) {
+    si.placeholder = selectedIds.length > 0
+      ? 'やりたいことを入力して送信（例: 向後さんにメールして）…'
+      : '検索、またはやりたいことを入力…';
+  }
 }
 
 /* ── 結合モーダル ── */
