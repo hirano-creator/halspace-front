@@ -1869,6 +1869,9 @@ tbody tr:last-child { border-bottom: none; }
   /* ハンバーガーボタンもコンパクトに */
   .menu-toggle { width: 32px; height: 32px; font-size: 16px; padding: 0; }
 
+  /* 検索バー右端の余白をなくして送信ボタンの直前まで広げる */
+  .search-bar { padding-right: 0; }
+
 }
 
 /* ==============================
