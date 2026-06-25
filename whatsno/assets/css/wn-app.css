@@ -1856,8 +1856,18 @@ tbody tr:last-child { border-bottom: none; }
   /* アップロードボタン非表示（ボトムナビの+で代替） */
   #uploadBtn { display: none !important; }
 
+  /* トップバー全体のパディングを縮小して検索バーに幅を回す */
+  .top-bar { padding: 0 6px; gap: 4px; }
+
   /* 右ゾーンの間隔を詰める */
-  .top-bar-right { gap: 2px; }
+  .top-bar-right { gap: 0; }
+
+  /* 通知ベル・連絡先ボタンをコンパクトに */
+  .notif-bell-btn { width: 32px; height: 32px; }
+  #contactsOpenBtn { width: 32px; height: 32px; font-size: 14px; }
+
+  /* ハンバーガーボタンもコンパクトに */
+  .menu-toggle { width: 32px; height: 32px; font-size: 16px; padding: 0; }
 }
 
 /* ==============================
