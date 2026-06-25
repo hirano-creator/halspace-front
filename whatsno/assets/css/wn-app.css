@@ -1838,43 +1838,35 @@ tbody tr:last-child { border-bottom: none; }
   /* 通知ドロップダウン */
   .notif-dropdown { width: calc(100vw - 20px); right: -10px; }
 
-  /* 検索バー内マイクを小さく */
-  .voice-search-btn { width: 24px; height: 24px; font-size: 12px; }
-
-  /* タイトル */
-  .top-bar-title { font-size: 14px; }
-
   /* AI説明1行 */
   .file-row-ai-desc { -webkit-line-clamp: 1; }
 
-  /* 戻るボタン縮小 */
-  #backBtn { width: 28px; height: 28px; font-size: 13px; }
+  /* ===== モバイル トップバー（1段・等間隔配置） =====
+     並び: [≡] [検索 … 🎤] [➤送信] [👤連絡先] [🔔通知] */
+  .top-bar { padding: 0 8px; gap: 6px; }
+  .top-bar-left  { gap: 0; }
+  .top-bar-title { display: none; }          /* タイトル非表示 */
+  #backBtn       { display: none; }          /* 戻るは履歴ジェスチャで代替 */
+  #uploadBtn     { display: none !important; } /* アップロードはボトムナビの + で代替 */
 
-  /* ホームタイトル非表示（ハンバーガーのみ残す） */
-  .top-bar-title { display: none; }
+  /* 左右のアイコンボタンをタップしやすい同サイズに統一 → 等間隔で並ぶ */
+  .menu-toggle,
+  #skillSendBtn,
+  #contactsOpenBtn,
+  .notif-bell-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 16px;
+    padding: 0;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  .top-bar-right { gap: 2px; }
 
-  /* アップロードボタン非表示（ボトムナビの+で代替） */
-  #uploadBtn { display: none !important; }
-
-  /* トップバー全体のパディングを左右対称にして検索バーに幅を回す */
-  .top-bar { padding: 0 8px; gap: 2px; }
-
-  /* 右ゾーンの間隔を詰める */
-  .top-bar-right { gap: 0; }
-
-  /* 通知ベル・連絡先ボタンをコンパクトに */
-  .notif-bell-btn { width: 30px; height: 30px; }
-  #contactsOpenBtn { width: 30px; height: 30px; font-size: 14px; }
-
-  /* 送信ボタンは検索バーに寄せて余白を削る（アイコンを左寄せ・幅縮小） */
-  #skillSendBtn { width: 26px; height: 30px; padding: 0; }
-
-  /* ハンバーガーボタンもコンパクトに */
-  .menu-toggle { width: 30px; height: 30px; font-size: 16px; padding: 0; }
-
-  /* 検索バー右端の余白をなくして送信ボタンの直前まで広げる */
-  .search-bar { padding-right: 0; }
-
+  /* 検索バー: 高さをアイコンと揃え、マイクは右端に密着して余白を作らない */
+  .search-bar { height: 38px; padding: 0 4px 0 14px; border-radius: 19px; }
+  .search-bar input { font-size: 14px; }
+  .voice-search-btn { width: 30px; height: 30px; font-size: 14px; flex-shrink: 0; }
 }
 
 /* ==============================
@@ -1903,8 +1895,8 @@ tbody tr:last-child { border-bottom: none; }
   .summary-num  { font-size: 16px; }
   .summary-label { font-size: 11px; }
 
-  /* 検索バー */
-  .search-bar { padding: 5px 0 5px 10px; gap: 6px; }
+  /* 検索バー（高さ38pxは767px側から継承、左paddingのみ詰める） */
+  .search-bar { padding: 0 4px 0 12px; gap: 4px; }
   .search-bar input { font-size: 13px; }
 
   /* ページ余白（左右0を維持） */
