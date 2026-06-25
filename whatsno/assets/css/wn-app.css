@@ -1842,8 +1842,8 @@ tbody tr:last-child { border-bottom: none; }
   .file-row-ai-desc { -webkit-line-clamp: 1; }
 
   /* ===== モバイル トップバー（1段・PCと同じ余白バランス） =====
-     並び: [≡] [検索 … 🎤] [➤送信] [👤連絡先] [🔔通知]
-     PCと同じく gap 8px でアイコンを呼吸させる */
+     並び: [≡] [検索 … 🎤 ➤] [👤連絡先] [🔔通知]
+     送信ボタンは検索バー内に統合 → 検索バーを最大幅に */
   .top-bar { padding: 0 10px; gap: 8px; }
   .top-bar-left  { gap: 0; }
   .top-bar-title { display: none; }          /* タイトル非表示 */
@@ -1852,7 +1852,6 @@ tbody tr:last-child { border-bottom: none; }
 
   /* 左右のアイコンボタンをタップしやすい同サイズに統一 → 等間隔で並ぶ */
   .menu-toggle,
-  #skillSendBtn,
   #contactsOpenBtn,
   .notif-bell-btn {
     width: 38px;
@@ -1864,8 +1863,8 @@ tbody tr:last-child { border-bottom: none; }
   }
   .top-bar-right { gap: 8px; }
 
-  /* 検索バー: 高さをアイコンと揃え、マイクは右端に密着して余白を作らない */
-  .search-bar { height: 38px; padding: 0 6px 0 14px; border-radius: 19px; }
+  /* 検索バー: 高さをアイコンと揃え、送信ボタン・マイクを内包 */
+  .search-bar { height: 38px; padding: 0 4px 0 14px; border-radius: 19px; }
   .search-bar input { font-size: 14px; }
   .voice-search-btn { width: 30px; height: 30px; font-size: 14px; flex-shrink: 0; }
 }

@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260625g">
+  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260625h">
   <style>
     @media (max-width: 767px) {
       .page-body { padding: 8px 0 72px !important; }
@@ -121,6 +121,10 @@
           <button class="voice-search-btn" id="voiceSearchBtn" title="音声で検索" style="display:none;">
             <i class="fa-solid fa-microphone" id="voiceSearchIcon"></i>
           </button>
+          <button type="button" id="skillSendBtn" class="voice-search-btn search-bar-send" title="スキル実行（ファイルを選択して送信）" disabled
+            style="color:var(--accent);opacity:.4;transition:opacity .15s;">
+            <i class="fa-solid fa-paper-plane"></i>
+          </button>
         </div>
       </div>
 
@@ -130,10 +134,6 @@
         <a href="../../space/apps.html" class="top-bar-icon-btn mobile-only" title="アプリ一覧" style="text-decoration:none;display:none;">
           <i class="fa-solid fa-grid-2" style="font-size:16px;"></i>
         </a>
-        <button type="button" id="skillSendBtn" class="top-bar-icon-btn" title="スキル実行（ファイルを選択して送信）" disabled
-          style="color:var(--accent);opacity:.4;transition:opacity .15s;">
-          <i class="fa-solid fa-paper-plane"></i>
-        </button>
         <button type="button" id="contactsOpenBtn" class="top-bar-icon-btn" title="連絡先（スキル用）">
           <i class="fa-solid fa-address-book"></i>
         </button>
