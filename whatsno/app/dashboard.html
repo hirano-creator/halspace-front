@@ -121,10 +121,6 @@
           <button class="voice-search-btn" id="voiceSearchBtn" title="音声で検索" style="display:none;">
             <i class="fa-solid fa-microphone" id="voiceSearchIcon"></i>
           </button>
-          <button type="button" id="skillSendBtn" title="スキル実行（ファイルを選択して送信）" disabled
-            style="flex-shrink:0;background:none;border:none;border-left:1px solid var(--border);padding:4px 10px;cursor:pointer;color:var(--accent);opacity:.4;transition:opacity .15s;">
-            <i class="fa-solid fa-paper-plane"></i>
-          </button>
         </div>
       </div>
 
@@ -134,6 +130,10 @@
         <a href="../../space/apps.html" class="top-bar-icon-btn mobile-only" title="アプリ一覧" style="text-decoration:none;display:none;">
           <i class="fa-solid fa-grid-2" style="font-size:16px;"></i>
         </a>
+        <button type="button" id="skillSendBtn" class="top-bar-icon-btn" title="スキル実行（ファイルを選択して送信）" disabled
+          style="color:var(--accent);opacity:.4;transition:opacity .15s;">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
         <button type="button" id="contactsOpenBtn" class="top-bar-icon-btn" title="連絡先（スキル用）">
           <i class="fa-solid fa-address-book"></i>
         </button>
