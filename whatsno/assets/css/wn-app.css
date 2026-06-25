@@ -1841,9 +1841,10 @@ tbody tr:last-child { border-bottom: none; }
   /* AI説明1行 */
   .file-row-ai-desc { -webkit-line-clamp: 1; }
 
-  /* ===== モバイル トップバー（1段・等間隔配置） =====
-     並び: [≡] [検索 … 🎤] [➤送信] [👤連絡先] [🔔通知] */
-  .top-bar { padding: 0 8px; gap: 6px; }
+  /* ===== モバイル トップバー（1段・PCと同じ余白バランス） =====
+     並び: [≡] [検索 … 🎤] [➤送信] [👤連絡先] [🔔通知]
+     PCと同じく gap 8px でアイコンを呼吸させる */
+  .top-bar { padding: 0 10px; gap: 8px; }
   .top-bar-left  { gap: 0; }
   .top-bar-title { display: none; }          /* タイトル非表示 */
   #backBtn       { display: none; }          /* 戻るは履歴ジェスチャで代替 */
@@ -1861,10 +1862,10 @@ tbody tr:last-child { border-bottom: none; }
     border-radius: 10px;
     flex-shrink: 0;
   }
-  .top-bar-right { gap: 2px; }
+  .top-bar-right { gap: 8px; }
 
   /* 検索バー: 高さをアイコンと揃え、マイクは右端に密着して余白を作らない */
-  .search-bar { height: 38px; padding: 0 4px 0 14px; border-radius: 19px; }
+  .search-bar { height: 38px; padding: 0 6px 0 14px; border-radius: 19px; }
   .search-bar input { font-size: 14px; }
   .voice-search-btn { width: 30px; height: 30px; font-size: 14px; flex-shrink: 0; }
 }
@@ -1895,8 +1896,8 @@ tbody tr:last-child { border-bottom: none; }
   .summary-num  { font-size: 16px; }
   .summary-label { font-size: 11px; }
 
-  /* 検索バー（高さ38pxは767px側から継承、左paddingのみ詰める） */
-  .search-bar { padding: 0 4px 0 12px; gap: 4px; }
+  /* 検索バー（高さ38pxは767px側から継承） */
+  .search-bar { padding: 0 6px 0 12px; gap: 6px; }
   .search-bar input { font-size: 13px; }
 
   /* ページ余白（左右0を維持） */
