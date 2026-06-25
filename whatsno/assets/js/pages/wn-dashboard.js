@@ -131,77 +131,24 @@ function wnSetMailerPref(v) {
 }
 
 function initSkillBar() {
-  const input = document.getElementById('skillInput');
+  const input = document.getElementById('searchInput');
   const send  = document.getElementById('skillSendBtn');
   if (!input || !send) return;
 
-  input.addEventListener('input', () => {
-    send.disabled = input.value.trim() === '' || skillBusy;
-  });
+  const syncSend = () => {
+    const hasText = input.value.trim() !== '';
+    send.disabled  = !hasText || skillBusy;
+    send.style.opacity = (hasText && !skillBusy) ? '1' : '.4';
+  };
+
+  // searchInput の input イベントはすでに initSearch() が管理しているため、
+  // ここでは送信ボタンの状態だけ同期する専用リスナーを追加する
+  input.addEventListener('input', syncSend);
+
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !send.disabled) { e.preventDefault(); runSkill(input.value.trim()); }
   });
   send.addEventListener('click', () => { if (!send.disabled) runSkill(input.value.trim()); });
-
-  initSkillVoice();
-}
-
-// スキルバーの音声入力（Web Speech API）。認識結果は入力欄に流し込み、
-// 安全のため自動実行はしない（スキルはメーラー起動等の副作用があるため確認方式）。
-function initSkillVoice() {
-  const btn   = document.getElementById('skillVoiceBtn');
-  const icon  = document.getElementById('skillVoiceIcon');
-  const input = document.getElementById('skillInput');
-  const send  = document.getElementById('skillSendBtn');
-  if (!btn || !input) return;
-
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) { btn.style.display = 'none'; return; }  // 非対応ブラウザでは非表示
-
-  const recog = new SpeechRecognition();
-  recog.lang = 'ja-JP';
-  recog.interimResults = true;
-  recog.continuous = false;
-  let recording = false;
-
-  const syncSend = () => { if (send) send.disabled = input.value.trim() === '' || skillBusy; };
-  const reset = () => {
-    recording = false;
-    btn.classList.remove('recording');
-    icon.className = 'fa-solid fa-microphone';
-    btn.title = '音声で入力';
-  };
-
-  btn.addEventListener('click', () => {
-    if (skillBusy) return;
-    if (recording) { recog.stop(); return; }
-    try { recog.start(); } catch { /* 連打などで start 済みの場合は無視 */ }
-  });
-
-  recog.onstart = () => {
-    recording = true;
-    btn.classList.add('recording');
-    icon.className = 'fa-solid fa-stop';
-    btn.title = '停止';
-  };
-
-  recog.onresult = e => {
-    input.value = Array.from(e.results).map(r => r[0].transcript).join('');
-    syncSend();
-  };
-
-  recog.onend = () => {
-    reset();
-    syncSend();
-    if (input.value.trim()) input.focus();  // 結果を確認のうえ手動で実行
-  };
-
-  recog.onerror = e => {
-    reset();
-    if (e && e.error && e.error !== 'no-speech' && e.error !== 'aborted') {
-      wnShowToast('音声認識に失敗しました。もう一度お試しください。', 'warning');
-    }
-  };
 }
 
 /* ────────────────────────────────
@@ -379,9 +326,10 @@ async function runSkill(instruction) {
   const file = files[0]; // スキルAPI（宛先・下書き解決）には代表ファイルを渡す
 
   skillBusy = true;
-  const input = document.getElementById('skillInput');
+  const input = document.getElementById('searchInput');
   const send  = document.getElementById('skillSendBtn');
   send.disabled = true;
+  send.style.opacity = '.4';
 
   try {
     const contacts = await wnGetContacts();
@@ -391,7 +339,9 @@ async function runSkill(instruction) {
     if (!res.action_type) {
       wnShowToast(res.message || '対応するスキルが見つかりませんでした', 'warning');
       skillBusy = false;
-      send.disabled = !input.value.trim();
+      const hasText = input.value.trim() !== '';
+      send.disabled = !hasText;
+      send.style.opacity = hasText ? '1' : '.4';
       return;
     }
 
@@ -413,6 +363,8 @@ async function runSkill(instruction) {
     }
 
     input.value = '';
+    send.disabled = true;
+    send.style.opacity = '.4';
 
     if (draft.to_email) {
       // 宛先が解決できた → 全ファイルの共有リンク発行完了を待つ
@@ -439,8 +391,9 @@ async function runSkill(instruction) {
     wnShowToast(err?.message || 'スキルの実行に失敗しました', 'danger');
   } finally {
     skillBusy = false;
-    const input2 = document.getElementById('skillInput');
-    send.disabled = !input2 || input2.value.trim() === '';
+    const hasText = input.value.trim() !== '';
+    send.disabled = !hasText;
+    send.style.opacity = hasText ? '1' : '.4';
   }
 }
 

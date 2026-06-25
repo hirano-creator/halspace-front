@@ -113,11 +113,11 @@
         <span class="top-bar-title" id="topBarTitle">ホーム</span>
       </div>
 
-      <!-- 中央ゾーン: 検索バー -->
+      <!-- 中央ゾーン: 検索バー（スキル入力と統合） -->
       <div class="top-bar-search">
         <div class="search-bar" id="searchBar">
           <i class="fa-solid fa-magnifying-glass" id="searchIcon"></i>
-          <input type="text" id="searchInput" placeholder="ファイル名・タグで検索…">
+          <input type="text" id="searchInput" placeholder="検索、またはやりたいことを入力…" autocomplete="off">
           <button class="btn btn-ghost btn-sm" id="semanticClearBtn" title="AI検索をクリア"
             style="display:none;padding:4px 8px;border-left:1px solid var(--border);border-radius:0;flex-shrink:0;color:var(--muted);">
             <i class="fa-solid fa-xmark"></i>
@@ -128,6 +128,10 @@
           <button class="btn btn-ghost btn-sm top-bar-ai-btn" id="semanticSearchBtn" title="AI自然言語検索">
             <i class="fa-solid fa-circle-nodes" style="color:var(--accent);"></i>
             <span class="top-bar-ai-label">AI</span>
+          </button>
+          <button type="button" id="skillSendBtn" title="スキル実行（ファイルを選択して送信）" disabled
+            style="flex-shrink:0;background:none;border:none;border-left:1px solid var(--border);padding:4px 10px;cursor:pointer;color:var(--accent);opacity:.4;transition:opacity .15s;">
+            <i class="fa-solid fa-paper-plane"></i>
           </button>
         </div>
         <div id="semanticHint" style="display:none;font-size:11px;color:var(--accent);padding:2px 2px 0;">
@@ -142,6 +146,9 @@
         <a href="../../space/apps.html" class="top-bar-icon-btn mobile-only" title="アプリ一覧" style="text-decoration:none;display:none;">
           <i class="fa-solid fa-grid-2" style="font-size:16px;"></i>
         </a>
+        <button type="button" id="contactsOpenBtn" class="top-bar-icon-btn" title="連絡先（スキル用）">
+          <i class="fa-solid fa-address-book"></i>
+        </button>
         <div class="notif-bell-wrap" id="notifWrap">
           <button class="notif-bell-btn" id="notifBtn" title="通知">
             <i class="fa-solid fa-bell"></i>
@@ -169,29 +176,6 @@
     </div>
 
     <div class="page-body">
-
-      <!-- スキルバー（自然言語でアクション実行: メール／共有リンク／AIタグ／承認申請） -->
-      <div class="card" id="skillBar" style="margin-bottom:16px;padding:14px 20px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--accent);"></i>
-          <span style="font-size:14px;font-weight:700;color:var(--primary);">スキル</span>
-          <button type="button" id="contactsOpenBtn" class="btn btn-outline btn-sm" style="margin-left:auto;flex-shrink:0;white-space:nowrap;font-size:12px;">
-            <i class="fa-solid fa-address-book"></i> 連絡先
-          </button>
-        </div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">ファイルを1つ選択して指示を入力（例: 見積依頼で送って／共有リンクを作って／AIタグを付けて／承認申請して）</div>
-        <div class="brain-widget-ask">
-          <input type="text" id="skillInput" class="brain-widget-input"
-                 placeholder="やりたいことを入力（例: 山田さんに見積依頼で送って／共有リンクを作って）…"
-                 autocomplete="off">
-          <button type="button" id="skillVoiceBtn" class="brain-widget-voice" title="音声で入力" aria-label="音声で入力">
-            <i class="fa-solid fa-microphone" id="skillVoiceIcon"></i>
-          </button>
-          <button type="button" id="skillSendBtn" class="brain-widget-send" title="実行" disabled>
-            <i class="fa-solid fa-paper-plane"></i>
-          </button>
-        </div>
-      </div>
 
       <!-- タグフィルター -->
       <div class="card" id="tagFilterCard" style="margin-bottom:16px;padding:14px 20px;">
