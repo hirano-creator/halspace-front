@@ -703,15 +703,19 @@ async function renderPdfGrid() {
     grid.style.cssText =
       'display:none;width:100%;height:100%;overflow:hidden;background:#525659;' +
       'box-sizing:border-box;';
-    const cols        = total;
+    /* 4ページは 2×2、それ以外は横一列 */
+    const cols = total === 4 ? 2 : total;
+    const rows = total === 4 ? 2 : 1;
     const colTemplate = `repeat(${cols}, 1fr)`;
+    const rowTemplate = rows > 1 ? `repeat(${rows}, 1fr)` : '';
     /* 表示可能な最大サイズ（padding 12px×2 = 24px） */
-    const maxH = areaH - 24;
+    const maxH = Math.floor((areaH - 24 - (rows - 1) * 12) / rows);
     const maxW = Math.floor((areaW - 24 - (cols - 1) * 12) / cols);
     /* 高さ基準でレンダリング（Retina×2）、横長ページでも maxW 内に収まるよう両辺を渡す */
     const RENDER_H = maxH * 2;
     grid.innerHTML =
       `<div id="pdfGridInner" style="display:grid;grid-template-columns:${colTemplate};` +
+      (rowTemplate ? `grid-template-rows:${rowTemplate};` : '') +
       `gap:12px;height:100%;padding:12px;box-sizing:border-box;align-items:center;"></div>`;
     const inner = grid.querySelector('#pdfGridInner');
 
