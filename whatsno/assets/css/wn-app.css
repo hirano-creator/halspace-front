@@ -1849,6 +1849,18 @@ tbody tr:last-child { border-bottom: none; }
 
   /* 戻るボタン縮小 */
   #backBtn { width: 28px; height: 28px; font-size: 13px; }
+
+  /* ホームタイトル非表示（ハンバーガーのみ残す） */
+  .top-bar-title { display: none; }
+
+  /* アップロードボタン非表示（ボトムナビの+で代替） */
+  #uploadBtn { display: none !important; }
+
+  /* 連絡先ボタン非表示（サイドバー経由でアクセス） */
+  #contactsOpenBtn { display: none; }
+
+  /* 右ゾーンの間隔を詰める */
+  .top-bar-right { gap: 2px; }
 }
 
 /* ==============================
