@@ -566,7 +566,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 }
 
 .page-body {
-  padding: 20px 24px;
+  padding: 10px 10px;
   flex: 1;
   min-width: 0;
   overflow-x: hidden;
