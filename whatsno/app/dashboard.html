@@ -52,6 +52,20 @@
     @media (max-width: 480px) {
       .page-body { padding-top: 6px !important; padding-bottom: 68px !important; }
     }
+
+    /* デスクトップ: タグフィルターを固定してファイルリストのみスクロール */
+    @media (min-width: 768px) {
+      .main-content { height: 100vh; overflow: hidden; }
+      .page-body { overflow-y: auto; }
+      #tagFilterCard {
+        flex-shrink: 0;
+        border-left: none;
+        border-right: none;
+        border-top: none;
+        border-radius: 0;
+        margin: 0 !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -159,10 +173,8 @@
 
     </div>
 
-    <div class="page-body">
-
-      <!-- タグフィルター -->
-      <div class="card" id="tagFilterCard" style="margin-bottom:16px;padding:14px 20px;">
+    <!-- タグフィルター（スクロールしない固定エリア） -->
+    <div class="card" id="tagFilterCard" style="padding:14px 20px;">
         <div class="tag-sheet-header" style="display:none;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <span style="font-size:15px;font-weight:700;color:var(--primary);">
             <i class="fa-solid fa-tag"></i> タグで絞り込み
@@ -188,6 +200,8 @@
           </button>
         </div>
       </div>
+
+    <div class="page-body">
 
       <!-- ファイル一覧 -->
       <div class="card" id="fileListCard" style="padding:0;overflow:hidden;">

@@ -313,13 +313,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   gap: 8px;
 }
 
-/* タグフィルター: top-barに続いて固定 */
-#tagFilterCard {
-  position: sticky;
-  top: var(--header-h);
-  z-index: 99;
-}
-
 /* 左ゾーン */
 .top-bar-left {
   display: flex;
