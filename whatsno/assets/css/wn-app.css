@@ -75,7 +75,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   display: flex;
   flex-direction: column;
   justify-content: center;
-  border-bottom: 1px solid var(--border);
 }
 .sidebar-logo-title {
   font-family: 'Poppins', sans-serif;
@@ -303,7 +302,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .top-bar {
   height: var(--header-h);
   background: var(--white);
-  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   padding: 0 20px;
