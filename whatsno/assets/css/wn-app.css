@@ -13,7 +13,7 @@
   --bg:         #f6f9fc;
   --bg-card:    #ffffff;
   --sidebar-w:  220px;
-  --header-h:   56px;
+  --header-h:   72px;
   --border:     #e3e8ef;
   --text:       #0a2540;
   --muted:      #697386;
@@ -69,7 +69,12 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   overflow-y: auto;
 }
 .sidebar-logo {
-  padding: 18px 16px 14px;
+  height: 72px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   border-bottom: 1px solid var(--border);
 }
 .sidebar-logo-title {
