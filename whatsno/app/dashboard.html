@@ -53,10 +53,14 @@
       .page-body { padding-top: 6px !important; padding-bottom: 68px !important; }
     }
 
-    /* デスクトップ: タグフィルターを固定してファイルリストのみスクロール */
+    /* デスクトップ: タグフィルター・ファイル一覧ヘッダーを固定、中身のみスクロール */
     @media (min-width: 768px) {
       .main-content { height: 100vh; overflow: hidden; }
-      .page-body { overflow-y: auto; }
+      .page-body {
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
       #tagFilterCard {
         flex-shrink: 0;
         border-left: none;
@@ -64,6 +68,18 @@
         border-top: none;
         border-radius: 0;
         margin: 0 !important;
+      }
+      #fileListCard {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+      }
+      #gridArea, #listArea {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
       }
     }
   </style>
