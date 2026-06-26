@@ -1139,7 +1139,7 @@ async function saveImageRotation(ext) {
 /* ダッシュボードのサムネイルキャッシュ（IndexedDB: wn-thumb-cache / thumbs）へ
    生成済みサムネイルblobを先行書き込みする（画像・PDF共通）。キー形式・バージョンは
    wn-dashboard.js の THUMB_VER と必ず一致させること（不一致だとヒットせず再生成される）。 */
-const FD_THUMB_VER = 'v7';
+const FD_THUMB_VER = 'v8';
 function writeThumbToCache(id, updatedAt, blob) {
   const cacheKey = `thumb_${id}_${updatedAt ?? ''}_${FD_THUMB_VER}`;
   return new Promise((resolve, reject) => {

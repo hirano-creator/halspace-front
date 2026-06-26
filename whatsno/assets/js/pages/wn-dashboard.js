@@ -564,7 +564,7 @@ const ThumbCache = (() => {
 const thumbMemCache = {};
 
 /* サムネイル生成バージョン（解像度等を変えたら上げてキャッシュを再生成させる） */
-const THUMB_VER = 'v7';
+const THUMB_VER = 'v8';
 /* Excel/Word サムネイルの描画倍率（論理座標×この倍率で高解像度化） */
 const THUMB_SS = 2;
 
@@ -796,7 +796,12 @@ async function loadOneThumbnail(f) {
 
     } else if (mime === 'application/pdf' || ext === 'pdf') {
       if (typeof pdfjsLib === 'undefined') return;
-      const pdf      = await pdfjsLib.getDocument(directUrl).promise;
+      const pdf      = await pdfjsLib.getDocument({
+        url: directUrl,
+        cMapUrl: 'https://unpkg.com/pdfjs-dist@3.11.174/cmaps/',
+        cMapPacked: true,
+        standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@3.11.174/standard_fonts/',
+      }).promise;
       const page     = await pdf.getPage(1);
       /* 長辺約2600pxで大きめに描画（スーパーサンプリング）してから
          高品質縮小で保存サイズへ落とす。図面の細線が濃くはっきり残る */
