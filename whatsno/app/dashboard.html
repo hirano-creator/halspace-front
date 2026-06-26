@@ -256,7 +256,7 @@
         </div>
 
         <!-- グリッド表示 -->
-        <div id="gridArea" style="padding:5px;">
+        <div id="gridArea" style="padding:5px 10px;">
           <div class="file-grid" id="fileGrid"></div>
         </div>
 
@@ -745,8 +745,8 @@ function setBottomActive(id) {
     /* gridAreaのpadding調整 */
     var ga = document.getElementById('gridArea');
     if(ga){
-      ga.style.setProperty('padding-left',  mobile ? '6px' : '5px','important');
-      ga.style.setProperty('padding-right', mobile ? '6px' : '5px','important');
+      ga.style.setProperty('padding-left',  mobile ? '6px' : '10px','important');
+      ga.style.setProperty('padding-right', mobile ? '6px' : '10px','important');
       ga.style.setProperty('padding-top',   '5px','important');
     }
   }
