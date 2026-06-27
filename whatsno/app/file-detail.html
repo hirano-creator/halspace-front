@@ -353,41 +353,58 @@
     .similar-item .meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
     .similar-item .arrow { color: var(--muted); font-size: 11px; text-align: center; }
 
-    /* 関連ファイルパネル */
+    /* 関連ファイルパネル - サムネイルカード表示 */
     .relation-panel-body {
       flex: 1; overflow-y: auto;
-      padding: 12px 14px;
-      display: flex; flex-direction: column; gap: 8px;
+      padding: 8px;
+      display: flex; flex-direction: column; gap: 6px;
     }
     .relation-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 9px 10px;
-      border: 1px solid var(--border);
+      display: block;
+      position: relative;
       border-radius: 8px;
-      cursor: pointer;
+      overflow: hidden;
+      border: 1.5px solid var(--border);
       text-decoration: none;
-      transition: background .15s, border-color .15s;
+      aspect-ratio: 4 / 3;
+      background: var(--bg-card);
+      transition: border-color .15s;
     }
-    .relation-item:hover { background: var(--bg); border-color: var(--accent); }
-    .relation-item-icon {
-      width: 32px; height: 32px; border-radius: 6px;
-      background: rgba(33,150,243,.1);
+    .relation-item:hover { border-color: var(--accent); }
+    .relation-item-thumb-wrap {
+      position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      color: var(--accent); font-size: 14px; flex-shrink: 0;
+      background: rgba(33,150,243,.07);
     }
-    .relation-item-body { flex: 1; min-width: 0; }
+    .relation-item-thumb-wrap img {
+      width: 100%; height: 100%;
+      object-fit: cover; object-position: top;
+      display: block; position: absolute; inset: 0;
+    }
+    .relation-item-icon {
+      color: var(--accent); font-size: 30px;
+    }
+    .relation-item-footer {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: linear-gradient(to top, rgba(0,0,0,.72) 0%, transparent 100%);
+      padding: 18px 8px 5px;
+    }
     .relation-item-name {
-      font-size: 12px; font-weight: 700; color: var(--text);
+      font-size: 11px; font-weight: 700; color: #fff;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      display: block;
     }
-    .relation-item-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .relation-item-meta { font-size: 10px; color: rgba(255,255,255,.72); margin-top: 1px; }
     .relation-item-del {
-      background: none; border: none; padding: 4px 6px;
-      color: var(--muted); cursor: pointer; border-radius: 4px;
-      font-size: 12px; flex-shrink: 0;
-      transition: color .15s, background .15s;
+      position: absolute; top: 5px; right: 5px;
+      background: rgba(0,0,0,.45); border: none; color: #fff;
+      border-radius: 50%; width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 11px;
+      transition: background .15s;
+      z-index: 1;
     }
-    .relation-item-del:hover { color: var(--red); background: rgba(229,62,62,.08); }
+    .relation-item-del:hover { background: rgba(229,62,62,.8); }
 
     .relation-suggest-section { margin-top: 4px; }
     .relation-suggest-label {
@@ -1072,7 +1089,7 @@
 <script src="../assets/js/wn-api.js?v=12"></script>
 <script src="../assets/js/wn-preview-cache.js?v=1"></script>
 <script src="../assets/js/wn-sheeteye.js?v=1"></script>
-<script src="../assets/js/pages/wn-file-detail.js?v=36"></script>
+<script src="../assets/js/pages/wn-file-detail.js?v=37"></script>
 <script src="../assets/js/pwa.js?v=5"></script>
 </body>
 </html>

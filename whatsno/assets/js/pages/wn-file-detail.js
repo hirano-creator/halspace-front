@@ -2688,14 +2688,14 @@ function renderRelations() {
 
   list.innerHTML = relationsCache.map(r => `
     <a href="file-detail.html?id=${r.id}" class="relation-item" data-id="${r.id}">
-      <div class="relation-item-icon">
-        <i class="${wnFileIconClass(r.mime_type)}"></i>
+      <div class="relation-item-thumb-wrap" id="rel-thumb-${r.id}">
+        <i class="relation-item-icon ${wnFileIconClass(r.mime_type)}"></i>
       </div>
-      <div class="relation-item-body">
-        <div class="relation-item-name" title="${h(r.file_name)}">${h(r.file_name)}</div>
+      <div class="relation-item-footer">
+        <span class="relation-item-name" title="${h(r.file_name)}">${h(r.file_name)}</span>
         <div class="relation-item-meta">
           v${r.version}
-          ${r.approval_status === 'approved' ? '<span style="color:var(--green);">✓承認済</span>' : ''}
+          ${r.approval_status === 'approved' ? '<span style="color:#6ee7b7;">✓承認済</span>' : ''}
           ${r.source === 'ai' ? '<span style="color:var(--accent);">AI</span>' : ''}
         </div>
       </div>
@@ -2704,6 +2704,8 @@ function renderRelations() {
       </button>
     </a>
   `).join('');
+
+  loadRelationThumbnails();
 
   /* 削除ボタン */
   list.querySelectorAll('.relation-item-del').forEach(btn => {
@@ -2722,6 +2724,132 @@ function renderRelations() {
       }
     });
   });
+}
+
+/* ─────────────────────────────────
+   関連ファイルサムネイル
+   ───────────────────────────────── */
+const RelationThumbCache = (() => {
+  const DB_NAME = 'wn-thumb-cache';
+  const STORE_NAME = 'thumbs';
+  let db = null;
+  function open() {
+    if (db) return Promise.resolve(db);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = e => { e.target.result.createObjectStore(STORE_NAME); };
+      req.onsuccess = e => { db = e.target.result; resolve(db); };
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function get(key) {
+    try {
+      const d = await open();
+      return new Promise(resolve => {
+        const req = d.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(key);
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror = () => resolve(null);
+      });
+    } catch { return null; }
+  }
+  async function set(key, blob) {
+    try {
+      const d = await open();
+      return new Promise(resolve => {
+        const tx = d.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(blob, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch {}
+  }
+  return { get, set };
+})();
+
+const relationThumbMem = {};
+const RELATION_THUMB_VER = 'v8';
+
+function loadRelationThumbnails() {
+  relationsCache.forEach(r => loadOneRelationThumb(r).catch(() => {}));
+}
+
+async function loadOneRelationThumb(r) {
+  const wrapEl = document.getElementById(`rel-thumb-${r.id}`);
+  if (!wrapEl) return;
+
+  const ext = (r.file_name || '').split('.').pop().toLowerCase();
+  const mime = r.mime_type ?? '';
+  const cacheKey = `thumb_${r.id}_${r.updated_at ?? r.created_at ?? ''}_${RELATION_THUMB_VER}`;
+  const isDoc = mime === 'application/pdf' || ext === 'pdf'
+             || ['xlsx','xls','xlsm','docx','docm'].includes(ext);
+
+  function setImg(url) {
+    if (wrapEl.querySelector('img')) return;
+    const img = document.createElement('img');
+    img.alt = '';
+    img.style.objectPosition = isDoc ? 'top' : 'center';
+    img.onload = () => {
+      const icon = wrapEl.querySelector('i');
+      if (icon) icon.style.display = 'none';
+      wrapEl.appendChild(img);
+    };
+    img.onerror = () => {};
+    img.src = url;
+  }
+
+  if (relationThumbMem[cacheKey]) { setImg(relationThumbMem[cacheKey]); return; }
+
+  const cached = await RelationThumbCache.get(cacheKey);
+  if (cached) {
+    const url = URL.createObjectURL(cached);
+    relationThumbMem[cacheKey] = url;
+    setImg(url);
+    return;
+  }
+
+  const directUrl = wnPublicViewUrl(r.id);
+  let blob = null;
+
+  try {
+    if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','svg'].includes(ext)) {
+      const res = await fetch(directUrl);
+      if (!res.ok) return;
+      blob = await res.blob();
+
+    } else if (mime === 'application/pdf' || ext === 'pdf') {
+      if (typeof pdfjsLib === 'undefined') return;
+      const pdf = await pdfjsLib.getDocument({
+        url: directUrl,
+        cMapUrl: 'https://unpkg.com/pdfjs-dist@3.11.174/cmaps/',
+        cMapPacked: true,
+        standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@3.11.174/standard_fonts/',
+      }).promise;
+      const page = await pdf.getPage(1);
+      const base = page.getViewport({ scale: 1 });
+      const scale = Math.min(4, Math.max(1.5, 2600 / Math.max(base.width, base.height)));
+      const vp = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(vp.width);
+      canvas.height = Math.round(vp.height);
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      const targetLong = Math.round(Math.min(1440, Math.max(720, 720 * Math.min(window.devicePixelRatio || 1, 2))));
+      const ratio = targetLong / Math.max(canvas.width, canvas.height);
+      const out = document.createElement('canvas');
+      out.width  = Math.round(canvas.width  * ratio);
+      out.height = Math.round(canvas.height * ratio);
+      const ctx = out.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(canvas, 0, 0, out.width, out.height);
+      blob = await new Promise(res => out.toBlob(res, 'image/jpeg', 0.90));
+    }
+  } catch { return; }
+
+  if (!blob) return;
+  await RelationThumbCache.set(cacheKey, blob);
+  const url = URL.createObjectURL(blob);
+  relationThumbMem[cacheKey] = url;
+  setImg(url);
 }
 
 let suggestionsCache = [];
