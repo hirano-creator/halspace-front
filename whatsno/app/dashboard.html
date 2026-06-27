@@ -214,6 +214,25 @@
             border-radius:6px;padding:3px 10px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap;">
             <i class="fa-solid fa-xmark"></i> 全解除
           </button>
+          <div style="position:relative;flex-shrink:0;">
+            <button id="tagManageBtn" title="タグ管理（管理者）"
+              style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px;color:var(--muted);cursor:pointer;">
+              <i class="fa-solid fa-gear"></i>
+            </button>
+            <div id="tagManagePanel" style="display:none;position:absolute;right:0;top:calc(100% + 6px);
+              background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;
+              min-width:260px;z-index:200;box-shadow:0 4px 16px rgba(0,0,0,.12);">
+              <p style="font-size:13px;font-weight:700;margin:0 0 10px;">タグ管理</p>
+              <div style="display:flex;gap:6px;margin-bottom:10px;">
+                <input id="tagManageInput" type="text" class="form-input" placeholder="新しいタグ名…"
+                  style="flex:1;padding:5px 8px;font-size:12px;">
+                <button id="tagManageCreateBtn" class="btn btn-accent btn-sm" style="white-space:nowrap;">
+                  追加
+                </button>
+              </div>
+              <div id="tagManageList" style="max-height:240px;overflow-y:auto;"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -391,66 +410,6 @@
     </a>
   </div>
 </nav>
-
-<!-- AIタグ提案モーダル -->
-<div class="modal-overlay hidden" id="aiTagModal">
-  <div class="modal" style="max-width:480px;">
-    <div class="modal-header">
-      <span class="modal-title">
-        <i class="fa-solid fa-circle-nodes" style="color:var(--accent);"></i>
-        AIタグ提案
-      </span>
-      <span style="font-size:12px;color:var(--muted);" id="aiTagStep"></span>
-    </div>
-    <div style="padding:4px 0 8px;">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;" id="aiTagFileName"></p>
-
-      <div style="margin-bottom:12px;">
-        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">
-          <i class="fa-solid fa-circle-nodes" style="color:var(--accent);"></i> AIが提案するタグ
-          <span style="font-weight:400;color:var(--muted);">（クリックで選択/解除）</span>
-        </div>
-        <div class="tag-list" id="aiTagSuggested"></div>
-      </div>
-
-      <div id="aiTagSelectedWrap" style="display:none;margin-bottom:12px;">
-        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">
-          選択中のタグ <span style="font-weight:400;color:var(--muted);">（×で削除）</span>
-        </div>
-        <div class="tag-list" id="aiTagSelected"></div>
-      </div>
-
-      <!-- 既存タグから選択 -->
-      <div id="aiTagExistingWrap" style="display:none;margin-bottom:12px;">
-        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">
-          <i class="fa-solid fa-tags"></i> 既存タグから選択
-          <span style="font-weight:400;color:var(--muted);">（クリックで追加）</span>
-        </div>
-        <div class="tag-list" id="aiTagExistingList"></div>
-      </div>
-
-      <!-- 手動タグ入力 -->
-      <div style="margin-bottom:4px;">
-        <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">
-          <i class="fa-solid fa-tag"></i> 新しいタグを追加
-        </div>
-        <div style="display:flex;gap:6px;">
-          <input type="text" id="aiTagManualInput" placeholder="タグ名を入力…"
-            style="flex:1;padding:7px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;outline:none;">
-          <button class="btn btn-outline btn-sm" id="aiTagManualAddBtn" style="flex-shrink:0;">
-            <i class="fa-solid fa-plus"></i> 追加
-          </button>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" id="aiTagSkipBtn">スキップ</button>
-      <button class="btn btn-accent" id="aiTagApplyBtn">
-        <i class="fa-solid fa-check"></i> 選択したタグを保存
-      </button>
-    </div>
-  </div>
-</div>
 
 <!-- メール送信モーダル -->
 <div class="modal-overlay hidden" id="emailModal">

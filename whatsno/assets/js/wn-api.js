@@ -285,46 +285,30 @@ async function wnGetViewUrl(fileId) {
   return (await res.json()).url ?? null;
 }
 
-/* AIタグ提案取得 */
-async function wnGetAiTags(fileId) {
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 25000);
-    const token = localStorage.getItem('space_token');
-    const res = await fetch(WN_API_BASE + `/wn/files/${fileId}/ai-tags`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      },
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    if (!res.ok) return [];
-    return (await res.json()).data ?? [];
-  } catch {
-    return [];
-  }
-}
-
-/* AIタグ確定保存 */
-async function wnApplyAiTags(fileId, tags) {
-  const res = await wnFetch(`/wn/files/${fileId}/ai-tags`, {
+/* タグ追加（マスターから選択） */
+async function wnAddTag(fileId, tagId) {
+  const res = await wnFetch(`/wn/files/${fileId}/tags`, {
     method: 'POST',
-    body: JSON.stringify({ tags }),
+    body: JSON.stringify({ tag_id: tagId }),
   });
   if (!res || !res.ok) return null;
   return (await res.json()).data ?? null;
 }
 
-/* タグ追加 */
-async function wnAddTag(fileId, name) {
-  const res = await wnFetch(`/wn/files/${fileId}/tags`, {
+/* タグマスター作成（管理者のみ） */
+async function wnCreateTag(name) {
+  const res = await wnFetch('/wn/tags', {
     method: 'POST',
     body: JSON.stringify({ name }),
   });
   if (!res || !res.ok) return null;
   return (await res.json()).data ?? null;
+}
+
+/* タグマスター削除（管理者のみ） */
+async function wnDeleteTag(tagId) {
+  const res = await wnFetch(`/wn/tags/${tagId}`, { method: 'DELETE' });
+  return res && res.ok;
 }
 
 /* タグ削除 */

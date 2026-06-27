@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initMergeSelect();
   initThumbnailBust();
   initDesktopIntegrationModal();
+  initTagManagePanel();
 });
 
 /* 注釈編集後の新サムネイル取得用：ダッシュボード表示時にメモリキャッシュをリセット
@@ -1164,7 +1165,7 @@ function fileRowHtmlClassic(f) {
       <div class="file-row-filename">${fnameSafe}</div>
       ${aiDesc ? `<div class="file-row-ai-desc">${aiDesc}</div>` : ''}
       <div class="file-row-tags">${(f.tags || []).slice(0, 5).map(t =>
-        `<span class="tag${t.source === 'ai' ? ' tag-ai' : ''}" style="font-size:10px;padding:2px 7px;line-height:1.4;">${h(t.name)}</span>`
+        `<span class="tag" style="font-size:10px;padding:2px 7px;line-height:1.4;">${h(t.name)}</span>`
       ).join('')}</div>
       <div class="file-row-meta">
         ${f.version > 1 ? `<span class="file-card-version">v${f.version}</span>` : ''}
@@ -1241,7 +1242,7 @@ function fileRowHtmlIG(f) {
   const restTags = tagList.slice(1, 5);
   const chipsHtml = restTags.length
     ? `<div class="ig-post-chips">${restTags.map(t =>
-        `<span class="tag${t.source === 'ai' ? ' tag-ai' : ''}">${h(t.name)}</span>`
+        `<span class="tag${''}">${h(t.name)}</span>`
       ).join('')}</div>`
     : '';
 
@@ -1320,7 +1321,7 @@ function renderTagFilter() {
   const rest    = allTags.slice(TAG_BAR_MAX);
 
   const tagHtml = (t) =>
-    `<span class="tag tag-draggable${t.source === 'ai' ? ' tag-ai' : ''}${selectedTags.includes(String(t.id)) ? ' active' : ''}"
+    `<span class="tag tag-draggable${selectedTags.includes(String(t.id)) ? ' active' : ''}"
            data-tag-id="${t.id}">${h(t.name)}${t.files_count ? `<span style="margin-left:4px;opacity:.6;font-size:10px;">${t.files_count}</span>` : ''}</span>`;
 
   let html = visible.map(tagHtml).join('');
@@ -1495,7 +1496,7 @@ function rebuildPopupList() {
   if (!popList) return;
   const rest = allTags.slice(TAG_BAR_MAX);
   popList.innerHTML = rest.map(t =>
-    `<span class="tag tag-draggable${t.source === 'ai' ? ' tag-ai' : ''}${selectedTags.includes(String(t.id)) ? ' active' : ''}"
+    `<span class="tag tag-draggable${selectedTags.includes(String(t.id)) ? ' active' : ''}"
            data-tag-id="${t.id}">
        ${h(t.name)}${t.files_count ? `<span style="margin-left:4px;opacity:.6;font-size:10px;">${t.files_count}</span>` : ''}
      </span>`
@@ -1557,7 +1558,7 @@ function showTagPopup(anchor, rest) {
     <p style="font-size:11px;color:var(--muted);margin:0 0 10px;">バーへドラッグで移動・クリックで絞り込み</p>
     <div class="tag-list" id="tagPopupList" style="gap:8px;">
       ${rest.map(t =>
-        `<span class="tag tag-draggable${t.source === 'ai' ? ' tag-ai' : ''}${selectedTags.includes(String(t.id)) ? ' active' : ''}"
+        `<span class="tag tag-draggable${selectedTags.includes(String(t.id)) ? ' active' : ''}"
                data-tag-id="${t.id}">
            ${h(t.name)}${t.files_count ? `<span style="margin-left:4px;opacity:.6;font-size:10px;">${t.files_count}</span>` : ''}
          </span>`
@@ -1992,185 +1993,91 @@ async function doUpload() {
   closeUploadModal();
   await loadFiles();
 
-  // アップロード成功ファイルのAIタグ提案モーダルを表示
-  if (uploadedFiles.length > 0) {
-    showAiTagModal(uploadedFiles);
-  } else if (failCount === 0) {
+  if (failCount === 0) {
     wnShowToast('アップロードが完了しました', 'success');
   }
 }
 
 /* ────────────────────────────────
-   AIタグ提案モーダル
+   タグ管理パネル（管理者専用）
    ──────────────────────────────── */
-let aiTagQueue      = [];
-let aiTagCurrent    = 0;
-let aiTagController = null;  // 進行中リクエストのAbortController
-let aiTagLoading    = false;
+function initTagManagePanel() {
+  const btn = document.getElementById('tagManageBtn');
+  if (!btn) return;
+  if (!isAdmin(currentUser)) { btn.style.display = 'none'; return; }
 
-async function showAiTagModal(files) {
-  aiTagQueue   = files;
-  aiTagCurrent = 0;
-  document.getElementById('aiTagModal').classList.remove('hidden');
-  await loadAiTagSuggestion();
+  btn.addEventListener('click', () => {
+    const panel = document.getElementById('tagManagePanel');
+    const isOpen = panel.style.display !== 'none' && panel.style.display !== '';
+    panel.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) renderTagManageList();
+  });
+
+  document.getElementById('tagManageCreateBtn').addEventListener('click', createTagFromPanel);
+  document.getElementById('tagManageInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') createTagFromPanel();
+  });
+
+  document.addEventListener('click', e => {
+    const panel = document.getElementById('tagManagePanel');
+    if (!panel || !btn) return;
+    if (!panel.contains(e.target) && !btn.contains(e.target)) {
+      panel.style.display = 'none';
+    }
+  });
 }
 
-function aiTagSkip() {
-  if (aiTagController) { aiTagController.abort(); aiTagController = null; }
-  aiTagCurrent++;
-  loadAiTagSuggestion();
+async function createTagFromPanel() {
+  const input = document.getElementById('tagManageInput');
+  const name = input.value.trim();
+  if (!name) return;
+  input.disabled = true;
+  const tag = await wnCreateTag(name);
+  input.disabled = false;
+  if (!tag) { wnShowToast('タグの作成に失敗しました', 'danger'); return; }
+  input.value = '';
+  allTags = await wnGetTags();
+  renderTagFilter();
+  renderTagManageList();
+  wnShowToast(`「${tag.name}」を作成しました`, 'success');
 }
 
-async function loadAiTagSuggestion() {
-  if (aiTagCurrent >= aiTagQueue.length) {
-    document.getElementById('aiTagModal').classList.add('hidden');
-    wnShowToast('アップロードとタグ設定が完了しました', 'success');
-    await loadFiles();
+function renderTagManageList() {
+  const list = document.getElementById('tagManageList');
+  if (!allTags.length) {
+    list.innerHTML = '<p style="font-size:12px;color:var(--muted);margin:0;">タグがありません</p>';
     return;
   }
+  list.innerHTML = allTags.map(t => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px;">${h(t.name)}</span>
+      <span style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:11px;color:var(--muted);">${t.files_count ?? 0}件</span>
+        <button class="btn btn-ghost btn-sm tag-manage-delete" data-tag-id="${t.id}" data-tag-name="${h(t.name)}" data-files-count="${t.files_count ?? 0}"
+                style="padding:2px 6px;font-size:11px;color:var(--danger,#e53e3e);">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </span>
+    </div>
+  `).join('');
 
-  const file = aiTagQueue[aiTagCurrent];
-  document.getElementById('aiTagFileName').textContent = file.file_name;
-  document.getElementById('aiTagStep').textContent     = `${aiTagCurrent + 1} / ${aiTagQueue.length}`;
-  document.getElementById('aiTagSuggested').innerHTML  =
-    '<span style="color:var(--muted);font-size:13px;">' +
-    '<i class="fa-solid fa-spinner fa-spin"></i> AIがタグを解析中…</span>';
-
-  // スキップは解析中でも即反応
-  document.getElementById('aiTagSkipBtn').onclick = aiTagSkip;
-  document.getElementById('aiTagApplyBtn').onclick = null;
-
-  // タイムアウト付きでAIタグ取得
-  aiTagController = new AbortController();
-  const timer = setTimeout(() => {
-    if (aiTagController) { aiTagController.abort(); aiTagController = null; }
-  }, 20000);
-
-  let tags = [];
-  try {
-    const token = localStorage.getItem('space_token');
-    const res = await fetch(WN_API_BASE + `/wn/files/${file.id}/ai-tags`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      },
-      signal: aiTagController.signal,
+  list.querySelectorAll('.tag-manage-delete').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const tagId     = Number(btn.dataset.tagId);
+      const tagName   = btn.dataset.tagName;
+      const filesCount = Number(btn.dataset.filesCount);
+      const msg = filesCount > 0
+        ? `「${tagName}」は${filesCount}件のファイルに使用中です。削除しますか？`
+        : `「${tagName}」を削除しますか？`;
+      if (!confirm(msg)) return;
+      const ok = await wnDeleteTag(tagId);
+      if (!ok) { wnShowToast('削除に失敗しました', 'danger'); return; }
+      allTags = await wnGetTags();
+      renderTagFilter();
+      renderTagManageList();
+      wnShowToast(`「${tagName}」を削除しました`, 'success');
     });
-    clearTimeout(timer);
-    aiTagController = null;
-    if (res.ok) tags = (await res.json()).data ?? [];
-  } catch {
-    clearTimeout(timer);
-    aiTagController = null;
-    // abortまたはタイムアウト → タグなしで続行
-  }
-
-  // スキップされていたら何もしない
-  if (aiTagCurrent >= aiTagQueue.length) return;
-  if (aiTagQueue[aiTagCurrent]?.id !== file.id) return;
-
-  const selectedTags = new Set((file.tags ?? []).map(t => t.name));
-
-  const renderAll = () => {
-    // 提案タグ（選択状態をトグル）
-    document.getElementById('aiTagSuggested').innerHTML = tags.length
-      ? tags.map(t => `
-          <span class="tag${selectedTags.has(t) ? ' active' : ''}" data-tag="${h(t)}" style="cursor:pointer;">
-            ✦ ${h(t)}
-          </span>`).join('')
-      : '<span style="font-size:13px;color:var(--muted);">提案なし（スキップしてください）</span>';
-
-    document.getElementById('aiTagSuggested').querySelectorAll('.tag').forEach(el => {
-      el.addEventListener('click', () => {
-        const name = el.dataset.tag;
-        if (selectedTags.has(name)) selectedTags.delete(name);
-        else selectedTags.add(name);
-        renderAll();
-      });
-    });
-
-    // 選択済みタグ（×で削除）
-    const wrap = document.getElementById('aiTagSelectedWrap');
-    const sel  = document.getElementById('aiTagSelected');
-    if (selectedTags.size > 0) {
-      wrap.style.display = '';
-      sel.innerHTML = [...selectedTags].map(t => `
-        <span class="tag tag-removable active" data-tag="${h(t)}" style="cursor:pointer;">
-          ${h(t)} <i class="fa-solid fa-xmark" style="font-size:10px;opacity:.7;margin-left:3px;"></i>
-        </span>`).join('');
-      sel.querySelectorAll('.tag-removable').forEach(el => {
-        el.addEventListener('click', () => {
-          selectedTags.delete(el.dataset.tag);
-          renderAll();
-        });
-      });
-    } else {
-      wrap.style.display = 'none';
-      sel.innerHTML = '';
-    }
-
-    // 既存タグの選択状態を同期
-    document.querySelectorAll('#aiTagExistingList .tag[data-tag]').forEach(el => {
-      el.classList.toggle('active', selectedTags.has(el.dataset.tag));
-    });
-  };
-
-  renderAll();
-
-  // 手動タグ入力 + 既存タグ選択
-  const manualInput  = document.getElementById('aiTagManualInput');
-  const manualAddBtn = document.getElementById('aiTagManualAddBtn');
-  manualInput.value  = '';
-
-  // 既存タグをインプット下に候補表示
-  const existingWrap = document.getElementById('aiTagExistingWrap');
-  if (existingWrap) {
-    const otherTags = allTags.filter(t => !tags.includes(t.name)); // AI提案と被らないもの
-    if (otherTags.length) {
-      existingWrap.style.display = '';
-      existingWrap.querySelector('#aiTagExistingList').innerHTML = otherTags.map(t =>
-        `<span class="tag${selectedTags.has(t.name) ? ' active' : ''}" data-tag="${h(t.name)}" style="cursor:pointer;">${h(t.name)}</span>`
-      ).join('');
-      existingWrap.querySelectorAll('.tag[data-tag]').forEach(el => {
-        el.addEventListener('click', () => {
-          const name = el.dataset.tag;
-          if (selectedTags.has(name)) selectedTags.delete(name);
-          else selectedTags.add(name);
-          renderAll();
-          // 既存タグの選択状態も更新
-          el.classList.toggle('active', selectedTags.has(name));
-        });
-      });
-    } else {
-      existingWrap.style.display = 'none';
-    }
-  }
-
-  const addManualTag = () => {
-    const name = manualInput.value.trim();
-    if (!name) return;
-    selectedTags.add(name);
-    manualInput.value = '';
-    renderAll();
-    manualInput.focus();
-  };
-  manualAddBtn.onclick = addManualTag;
-  manualInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addManualTag(); } };
-
-  document.getElementById('aiTagApplyBtn').onclick = async () => {
-    const selected = [...selectedTags];
-    const btn = document.getElementById('aiTagApplyBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 保存中…';
-    if (selected.length) await wnApplyAiTags(file.id, selected);
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-check"></i> 選択したタグを保存';
-    aiTagCurrent++;
-    await loadAiTagSuggestion();
-  };
-
-  document.getElementById('aiTagSkipBtn').onclick = aiTagSkip;
+  });
 }
 
 /* ────────────────────────────────
@@ -3214,7 +3121,6 @@ async function executeMerge() {
     wnShowToast(`${order.length}件のPDFを結合しました`, 'success');
 
     await loadFiles();
-    if (result?.data?.id) showAiTagModal([result.data]);
   } catch (err) {
     console.error('[executeMerge]', err);
     wnShowToast(err.message || 'PDFの結合に失敗しました', 'danger');
