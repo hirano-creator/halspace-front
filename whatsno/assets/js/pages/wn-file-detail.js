@@ -12,6 +12,9 @@ let pdfPreviewRot  = 0;   // ビューア側追加回転: 0 | 90 | 180 | 270
 let pdfViewMode    = 'single';  // 'single' | 'grid'
 let pdfGridRendered = false;    // グリッド描画済みフラグ（回転時に無効化）
 
+let _activePdfRenderTask = null;  // 現在実行中のPDFレンダリングタスク（タイムアウト制御用）
+let _pdfLoadGeneration   = 0;     // loadPdfPreview の呼び出し世代番号（古い呼び出しを無効化）
+
 /* ── ズーム状態 ── */
 let pdfZoomFactor    = 1.0;
 let pdfBaseCssW      = 0;
@@ -821,7 +824,7 @@ async function reRenderPdfPreviewPage() {
   const areaH        = Math.max(area.clientHeight - 24, 100);
   const fitScale     = Math.min(areaW / baseVP.width, areaH / baseVP.height);
   const MIN_SCALE    = 1.5;
-  const MAX_DIM      = 4096;
+  const MAX_DIM      = window.innerWidth <= 768 ? 2048 : 4096;
   let   renderScale  = Math.max(fitScale * dpr, MIN_SCALE);
   if (Math.max(baseVP.width, baseVP.height) * renderScale > MAX_DIM) {
     renderScale = MAX_DIM / Math.max(baseVP.width, baseVP.height);
@@ -835,7 +838,21 @@ async function reRenderPdfPreviewPage() {
   canvas.style.width  = pdfBaseCssW + 'px';
   canvas.style.height = pdfBaseCssH + 'px';
 
-  await page.render({ canvasContext: ctx, viewport }).promise;
+  _activePdfRenderTask?.cancel();
+  const _reRenderTask = page.render({ canvasContext: ctx, viewport });
+  _activePdfRenderTask = _reRenderTask;
+  const _reRenderTid = setTimeout(() => {
+    if (_activePdfRenderTask === _reRenderTask) _reRenderTask.cancel();
+  }, 20_000);
+  try { await _reRenderTask.promise; }
+  catch (e) {
+    clearTimeout(_reRenderTid);
+    if (_activePdfRenderTask === _reRenderTask) _activePdfRenderTask = null;
+    if (e?.name !== 'RenderingCancelledException') throw e;
+    return;   // キャンセル（タイムアウトまたは上書き）は黙って終了
+  }
+  clearTimeout(_reRenderTid);
+  if (_activePdfRenderTask === _reRenderTask) _activePdfRenderTask = null;
   applyPdfTransform(canvas);
 }
 
@@ -1139,7 +1156,7 @@ async function saveImageRotation(ext) {
 /* ダッシュボードのサムネイルキャッシュ（IndexedDB: wn-thumb-cache / thumbs）へ
    生成済みサムネイルblobを先行書き込みする（画像・PDF共通）。キー形式・バージョンは
    wn-dashboard.js の THUMB_VER と必ず一致させること（不一致だとヒットせず再生成される）。 */
-const FD_THUMB_VER = 'v8';
+const FD_THUMB_VER = 'v9';
 function writeThumbToCache(id, updatedAt, blob) {
   const cacheKey = `thumb_${id}_${updatedAt ?? ''}_${FD_THUMB_VER}`;
   return new Promise((resolve, reject) => {
@@ -1249,7 +1266,7 @@ function fdThumbTrim(canvas, pad = 0.03) {
 }
 
 /* 線画強調: アンシャープマスク＋ガンマで細線をくっきりさせる */
-function fdThumbEnhance(canvas, amount = 1.1, gamma = 1.45) {
+function fdThumbEnhance(canvas, amount = 1.3, gamma = 1.55) {
   try {
     const w = canvas.width, h = canvas.height;
     const ctx  = canvas.getContext('2d');
@@ -1274,37 +1291,85 @@ function fdThumbEnhance(canvas, amount = 1.1, gamma = 1.45) {
   } catch {}
 }
 
-/* ── 左ドラッグでPDFをパン（transform translate を更新） ── */
+/* ── 1本指ドラッグでPDFをパン、2本指ピンチでズーム ── */
 function initPdfPan(container) {
   if (container._panInit) return;
   container._panInit = true;
 
-  let panning = false;
+  const ptrs = new Map();              // pointerId → {x, y}
+  let panning = false, panPtrId = null;
   let startX = 0, startY = 0, startPX = 0, startPY = 0;
+  let pinching = false, pinchStartDist = 0, pinchStartZoom = 1;
 
   container.addEventListener('pointerdown', e => {
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (ptrs.size >= 2) {
+      /* 2本目が触れたらパン中止してピンチ開始 */
+      if (panning) {
+        panning = false;
+        try { container.releasePointerCapture(panPtrId); } catch (_) {}
+        panPtrId = null;
+        container.style.cursor = '';
+        container.style.userSelect = '';
+      }
+      if (ptrs.size === 2) {
+        pinching = true;
+        const [a, b] = [...ptrs.values()];
+        pinchStartDist = Math.hypot(a.x - b.x, a.y - b.y);
+        pinchStartZoom = pdfZoomFactor;
+      }
+      return;
+    }
+
+    /* 1本指パン（拡大中のみ有効） */
     if (e.button !== 0) return;
     const pannable = pdfBaseCssW * pdfZoomFactor > container.clientWidth ||
                      pdfBaseCssH * pdfZoomFactor > container.clientHeight;
     if (!pannable) return;
     e.preventDefault();
-    panning = true;
-    startX  = e.clientX; startY = e.clientY;
-    startPX = pdfPanX;   startPY = pdfPanY;
+    panning  = true;
+    panPtrId = e.pointerId;
+    startX   = e.clientX; startY = e.clientY;
+    startPX  = pdfPanX;   startPY = pdfPanY;
     container.setPointerCapture(e.pointerId);
-    container.style.cursor = 'grabbing';
+    container.style.cursor     = 'grabbing';
     container.style.userSelect = 'none';
   });
+
   container.addEventListener('pointermove', e => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pinching && ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinchStartDist > 0) {
+        pdfZoomFactor = Math.max(0.25, Math.min(4.0, pinchStartZoom * (dist / pinchStartDist)));
+        if (pdfZoomFactor <= 1.0) { pdfPanX = 0; pdfPanY = 0; }
+        const canvas = document.getElementById('pdfCanvas');
+        if (canvas && pdfBaseCssW) {
+          applyPdfTransform(canvas);
+          showPreviewZoomLabel(Math.round(pdfZoomFactor * 100) + '%');
+          updatePdfPanCursor();
+        }
+      }
+      return;
+    }
+
     if (!panning) return;
     pdfPanX = startPX + (e.clientX - startX);
     pdfPanY = startPY + (e.clientY - startY);
     const canvas = document.getElementById('pdfCanvas');
     if (canvas) applyPdfTransform(canvas);
   });
+
   const endPan = e => {
-    if (!panning) return;
-    panning = false;
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinching = false;
+    if (!panning || e.pointerId !== panPtrId) return;
+    panning  = false;
+    panPtrId = null;
     try { container.releasePointerCapture(e.pointerId); } catch (_) {}
     container.style.userSelect = '';
     updatePdfPanCursor();
@@ -1313,32 +1378,75 @@ function initPdfPan(container) {
   container.addEventListener('pointercancel', endPan);
 }
 
-/* ── 左ドラッグで画像をパン（transform の translate を更新） ── */
+/* ── 1本指ドラッグで画像をパン、2本指ピンチでズーム ── */
 function initImgPan(imgEl) {
   imgEl.draggable = false;
 
-  let panning = false;
+  const ptrs = new Map();
+  let panning = false, panPtrId = null;
   let startX = 0, startY = 0, startPX = 0, startPY = 0;
+  let pinching = false, pinchStartDist = 0, pinchStartZoom = 1;
 
   imgEl.addEventListener('pointerdown', e => {
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (ptrs.size >= 2) {
+      /* 2本目が触れたらパン中止してピンチ開始 */
+      if (panning) {
+        panning = false;
+        try { imgEl.releasePointerCapture(panPtrId); } catch (_) {}
+        panPtrId = null;
+        imgEl.style.cursor = imgZoomFactor > 1.0 ? 'grab' : '';
+      }
+      if (ptrs.size === 2) {
+        pinching = true;
+        const [a, b] = [...ptrs.values()];
+        pinchStartDist = Math.hypot(a.x - b.x, a.y - b.y);
+        pinchStartZoom = imgZoomFactor;
+      }
+      return;
+    }
+
+    /* 1本指パン（拡大中のみ有効） */
     if (e.button !== 0 || imgZoomFactor <= 1.0) return;
     e.preventDefault();
-    panning = true;
-    startX  = e.clientX; startY = e.clientY;
-    startPX = imgPanX;   startPY = imgPanY;
+    panning  = true;
+    panPtrId = e.pointerId;
+    startX   = e.clientX; startY = e.clientY;
+    startPX  = imgPanX;   startPY = imgPanY;
     imgEl.setPointerCapture(e.pointerId);
     imgEl.style.cursor = 'grabbing';
   });
+
   imgEl.addEventListener('pointermove', e => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pinching && ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinchStartDist > 0) {
+        imgZoomFactor = Math.max(0.25, Math.min(4.0, pinchStartZoom * (dist / pinchStartDist)));
+        if (imgZoomFactor <= 1.0) { imgPanX = 0; imgPanY = 0; }
+        applyImgTransform(imgEl);
+        showPreviewZoomLabel(Math.round(imgZoomFactor * 100) + '%');
+      }
+      return;
+    }
+
     if (!panning) return;
     imgPanX = startPX + (e.clientX - startX);
     imgPanY = startPY + (e.clientY - startY);
     clampImgPan(imgEl);
     applyImgTransform(imgEl);
   });
+
   const endPan = e => {
-    if (!panning) return;
-    panning = false;
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinching = false;
+    if (!panning || e.pointerId !== panPtrId) return;
+    panning  = false;
+    panPtrId = null;
     try { imgEl.releasePointerCapture(e.pointerId); } catch (_) {}
     imgEl.style.cursor = imgZoomFactor > 1.0 ? 'grab' : '';
   };
@@ -1394,6 +1502,7 @@ function showPreviewZoomLabel(text) {
    ──────────────────────────────── */
 async function loadPdfPreview(attempt) {
   const MAX_ATTEMPTS = 3;
+  const gen = ++_pdfLoadGeneration;   // この呼び出しの世代番号
   const placeholder = document.getElementById('previewPlaceholder');
 
   /* previewHint は再試行ごとに再取得（innerHTML 置換後も正しく参照） */
@@ -1470,7 +1579,8 @@ async function loadPdfPreview(attempt) {
     /* レンダリング用スケール：最低でも PDF 等倍解像度を確保（モバイルで小さくならないように）
        MAX_CANVAS_DIM で上限を設けてメモリ枯渇を防止 */
     const MIN_RENDER_SCALE = 1.5;   /* PDF寸法の1.5倍以上で描画 */
-    const MAX_CANVAS_DIM   = 4096;
+    /* モバイルはメモリ節約のため上限を下げる（4096²≈64MB → 2048²≈16MB） */
+    const MAX_CANVAS_DIM   = window.innerWidth <= 768 ? 2048 : 4096;
     let renderScale = Math.max(fitScale * dpr, MIN_RENDER_SCALE);
     const maxBaseDim = Math.max(baseVP.width, baseVP.height);
     if (maxBaseDim * renderScale > MAX_CANVAS_DIM) {
@@ -1486,7 +1596,26 @@ async function loadPdfPreview(attempt) {
     canvas.style.width  = pdfBaseCssW + 'px';
     canvas.style.height = pdfBaseCssH + 'px';
 
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    /* 旧レンダリングをキャンセルして新しいタスクを開始（タイムアウト20秒） */
+    _activePdfRenderTask?.cancel();
+    const _renderTask = page.render({ canvasContext: ctx, viewport });
+    _activePdfRenderTask = _renderTask;
+    let _renderTimedOut = false;
+    const _rendTid = setTimeout(() => {
+      _renderTimedOut = true;
+      if (_activePdfRenderTask === _renderTask) _renderTask.cancel();
+    }, 20_000);
+    try { await _renderTask.promise; }
+    catch (e) {
+      clearTimeout(_rendTid);
+      if (_activePdfRenderTask === _renderTask) _activePdfRenderTask = null;
+      if (e?.name === 'RenderingCancelledException' && _renderTimedOut) {
+        throw new Error('PDFのレンダリングがタイムアウトしました（ファイルが大きすぎる可能性があります）');
+      }
+      throw e;
+    }
+    clearTimeout(_rendTid);
+    if (_activePdfRenderTask === _renderTask) _activePdfRenderTask = null;
     applyPdfTransform(canvas);
 
     hintEl().textContent = '';
@@ -1498,6 +1627,9 @@ async function loadPdfPreview(attempt) {
     initPdfWheelZoom();
     updatePdfPanCursor();
   } catch (e) {
+    /* 新しいロードに追い越された場合はエラー処理をしない */
+    if (gen !== _pdfLoadGeneration) return;
+
     console.error(`PDF preview error (attempt ${attempt}):`, e);
 
     /* ファイル固有エラー（リトライ不要） */
@@ -1595,8 +1727,8 @@ function renderTags() {
     return;
   }
   list.innerHTML = tags.map(t => `
-    <span class="tag tag-removable${t.source === 'ai' ? ' tag-ai' : ''}" data-tag-id="${t.id}">
-      ${t.source === 'ai' ? '✦ ' : ''}${h(t.name)}
+    <span class="tag tag-removable" data-tag-id="${t.id}">
+      ${h(t.name)}
       <i class="fa-solid fa-xmark" style="font-size:10px;opacity:.6;margin-left:3px;"></i>
     </span>
   `).join('');
@@ -1792,31 +1924,61 @@ function initActions() {
    タグ追加
    ──────────────────────────────── */
 function initTags() {
-  document.getElementById('addTagBtn').addEventListener('click', () => {
-    const area = document.getElementById('tagAddArea');
-    const show = area.style.display === 'none' || area.style.display === '';
-    area.style.display = show ? 'flex' : 'none';
-    if (show) document.getElementById('tagInput').focus();
+  let allTagsForPicker = [];
+
+  function renderTagPicker(tags) {
+    const list = document.getElementById('tagPickerList');
+    const currentIds = new Set((fileData.tags ?? []).map(t => String(t.id)));
+    if (!tags.length) {
+      list.innerHTML = '<span style="font-size:12px;color:var(--muted);">タグがありません</span>';
+      return;
+    }
+    list.innerHTML = tags.map(t => {
+      const already = currentIds.has(String(t.id));
+      return `<span class="tag${already ? '' : ' tag-selectable'}"
+                    data-tag-id="${t.id}"
+                    style="cursor:${already ? 'default' : 'pointer'};opacity:${already ? '.4' : '1'};margin:2px;">
+                ${h(t.name)}
+              </span>`;
+    }).join('');
+
+    list.querySelectorAll('.tag-selectable').forEach(el => {
+      el.addEventListener('click', async () => {
+        const tagId = Number(el.dataset.tagId);
+        const tag = await wnAddTag(fileId, tagId);
+        if (!tag) { wnShowToast('タグの追加に失敗しました', 'danger'); return; }
+        document.getElementById('tagPickerPanel').style.display = 'none';
+        document.getElementById('tagPickerSearch').value = '';
+        if (!fileData.tags) fileData.tags = [];
+        fileData.tags.push(tag);
+        renderTags();
+      });
+    });
+  }
+
+  document.getElementById('addTagBtn').addEventListener('click', async () => {
+    const panel = document.getElementById('tagPickerPanel');
+    const isOpen = panel.style.display !== 'none' && panel.style.display !== '';
+    if (isOpen) { panel.style.display = 'none'; return; }
+    if (!allTagsForPicker.length) allTagsForPicker = await wnGetTags();
+    document.getElementById('tagPickerSearch').value = '';
+    renderTagPicker(allTagsForPicker);
+    panel.style.display = 'block';
+    document.getElementById('tagPickerSearch').focus();
   });
 
-  const submitTag = async () => {
-    const input = document.getElementById('tagInput');
-    const name = input.value.trim();
-    if (!name) return;
-    input.disabled = true;
-    const tag = await wnAddTag(fileId, name);
-    input.disabled = false;
-    if (!tag) { wnShowToast('タグの追加に失敗しました', 'danger'); return; }
-    input.value = '';
-    document.getElementById('tagAddArea').style.display = 'none';
-    if (!fileData.tags) fileData.tags = [];
-    fileData.tags.push(tag);
-    renderTags();
-  };
+  document.getElementById('tagPickerSearch').addEventListener('input', () => {
+    const q = document.getElementById('tagPickerSearch').value.toLowerCase();
+    const filtered = allTagsForPicker.filter(t => t.name.toLowerCase().includes(q));
+    renderTagPicker(filtered);
+  });
 
-  document.getElementById('tagSubmitBtn').addEventListener('click', submitTag);
-  document.getElementById('tagInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') submitTag();
+  document.addEventListener('click', e => {
+    const panel = document.getElementById('tagPickerPanel');
+    const btn   = document.getElementById('addTagBtn');
+    if (panel && !panel.contains(e.target) && !btn.contains(e.target)) {
+      panel.style.display = 'none';
+    }
   });
 }
 
@@ -2766,7 +2928,7 @@ const RelationThumbCache = (() => {
 })();
 
 const relationThumbMem = {};
-const RELATION_THUMB_VER = 'v8';
+const RELATION_THUMB_VER = 'v9';
 
 function loadRelationThumbnails() {
   relationsCache.forEach(r => loadOneRelationThumb(r).catch(() => {}));
@@ -2784,9 +2946,11 @@ async function loadOneRelationThumb(r) {
 
   function setImg(url) {
     if (wrapEl.querySelector('img')) return;
+    if (isDoc) wrapEl.style.background = '#fff';
     const img = document.createElement('img');
     img.alt = '';
-    img.style.objectPosition = isDoc ? 'top' : 'center';
+    img.style.objectFit      = isDoc ? 'contain' : 'cover';
+    img.style.objectPosition = isDoc ? 'top center' : 'center';
     img.onload = () => {
       const icon = wrapEl.querySelector('i');
       if (icon) icon.style.display = 'none';
@@ -2831,15 +2995,9 @@ async function loadOneRelationThumb(r) {
       canvas.width  = Math.round(vp.width);
       canvas.height = Math.round(vp.height);
       await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-      const targetLong = Math.round(Math.min(1440, Math.max(720, 720 * Math.min(window.devicePixelRatio || 1, 2))));
-      const ratio = targetLong / Math.max(canvas.width, canvas.height);
-      const out = document.createElement('canvas');
-      out.width  = Math.round(canvas.width  * ratio);
-      out.height = Math.round(canvas.height * ratio);
-      const ctx = out.getContext('2d');
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(canvas, 0, 0, out.width, out.height);
+      const trimmed = fdThumbTrim(canvas);
+      const out = fdThumbShrink(trimmed, fdThumbTargetLong());
+      fdThumbEnhance(out);
       blob = await new Promise(res => out.toBlob(res, 'image/jpeg', 0.90));
     }
   } catch { return; }
