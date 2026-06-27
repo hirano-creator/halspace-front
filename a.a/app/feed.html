@@ -173,31 +173,13 @@
               ? (AA.apiBase() + '/aa/media/' + mediaId + '/raw?token=' + AA.token())
               : url;
             await aaRenderPdf(pdfUrl, el);
+          } else if (mediaId) {
+            // Office ファイル (DOCX/XLSX/PPTX): LibreOffice で PDF 変換→pdf.js で表示
+            // wnId の有無にかかわらず aa/media/{id}/office-pdf を使う（変換結果はR2にキャッシュ済み）
+            const officePdfUrl = AA.apiBase() + '/aa/media/' + mediaId + '/office-pdf?token=' + AA.token();
+            await aaRenderPdf(officePdfUrl, el);
           } else {
-            // Office ファイル (PPTX/DOCX/XLSX): 埋め込みサムネイル画像を取得
-            // What'sNo由来ファイルは /wn/files/{wnId}/thumbnail、直接投稿は /aa/media/{id}/thumbnail
-            const thumbEndpoint = wnId
-              ? (AA.apiBase() + '/wn/files/' + wnId + '/thumbnail')
-              : (mediaId ? (AA.apiBase() + '/aa/media/' + mediaId + '/thumbnail?token=' + AA.token()) : null);
-            if (!thumbEndpoint) throw new Error('not renderable');
-            const thumbRes = await fetch(thumbEndpoint, {
-              headers: { 'Authorization': 'Bearer ' + AA.token() }
-            });
-            if (!thumbRes.ok) throw new Error('thumbnail ' + thumbRes.status);
-            const blob = await thumbRes.blob();
-            const imgUrl = URL.createObjectURL(blob);
-            const img = document.createElement('img');
-            img.style.cssText = 'width:100%;display:block';
-            img.onload = () => URL.revokeObjectURL(imgUrl);
-            img.onerror = () => {
-              URL.revokeObjectURL(imgUrl);
-              el.style.minHeight = '';
-              el.innerHTML = docFileCard(mime, url);
-            };
-            el.style.minHeight = '';
-            el.innerHTML = '';
-            el.appendChild(img);
-            img.src = imgUrl;
+            throw new Error('not renderable');
           }
         } catch(e) {
           console.warn('renderDocs', mime, wnId, e.message);
