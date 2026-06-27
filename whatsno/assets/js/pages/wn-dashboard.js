@@ -161,63 +161,97 @@ function initSkillBar() {
 /* ────────────────────────────────
    連絡先メール起動モーダル
    ──────────────────────────────── */
-let _contactMailTarget = { email: '', name: '' };
+const WN_MAIL_SIG_KEY  = 'wn_mail_signature';
+let _contactMailTarget = { email: '', name: '', company: '' };
 
 function initContactMailModal() {
-  document.getElementById('contactMailModalClose')?.addEventListener('click', () => {
-    document.getElementById('contactMailModal').classList.add('hidden');
-  });
+  const modal    = document.getElementById('contactMailModal');
+  const sigEdit  = document.getElementById('contactMailSigEdit');
+  const closeModal = () => modal.classList.add('hidden');
+
+  document.getElementById('contactMailModalClose')?.addEventListener('click', closeModal);
+  document.getElementById('contactMailCancelBtn')?.addEventListener('click', closeModal);
+
   document.getElementById('contactMailMailtoBtn')?.addEventListener('click', () => {
-    _doContactMailMailto();
-    document.getElementById('contactMailModal').classList.add('hidden');
+    _doContactMail('mailto'); closeModal();
   });
   document.getElementById('contactMailGmailBtn')?.addEventListener('click', () => {
-    _doContactMailGmail();
-    document.getElementById('contactMailModal').classList.add('hidden');
+    _doContactMail('gmail'); closeModal();
+  });
+
+  document.getElementById('contactMailSigToggleBtn')?.addEventListener('click', () => {
+    const open = sigEdit.style.display === 'none';
+    sigEdit.style.display = open ? 'block' : 'none';
+    if (open) document.getElementById('contactMailSigInput').value = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
+  });
+  document.getElementById('contactMailSigSaveBtn')?.addEventListener('click', () => {
+    const sig = document.getElementById('contactMailSigInput').value.trim();
+    localStorage.setItem(WN_MAIL_SIG_KEY, sig);
+    _renderContactMailSig();
+    sigEdit.style.display = 'none';
+  });
+  document.getElementById('contactMailSigCancelBtn')?.addEventListener('click', () => {
+    sigEdit.style.display = 'none';
   });
 }
 
-function openContactMail(email, name) {
-  const pref = wnGetMailerPref();
-  if (pref === 'gmail') { _doContactMailGmail(email, name); return; }
-  if (pref === 'mailto') { _doContactMailMailto(email, name); return; }
-  // 未設定: モーダルで選択させる
-  _contactMailTarget = { email, name };
-  document.getElementById('contactMailName').textContent = name;
+function openContactMail(email, name, company) {
+  _contactMailTarget = { email, name: name || '', company: company || '' };
+
+  // 宛先表示
+  document.getElementById('contactMailName').textContent =
+    company ? `${name}　${company}` : name;
   document.getElementById('contactMailAddr').textContent = email;
+
+  // 本文冒頭（相手の情報）
+  const header = (company ? `${company}\n` : '') + `${name} 様\n\nお世話になっております。\n`;
+  document.getElementById('contactMailHeader').textContent = header;
+
+  document.getElementById('contactMailMessage').value = '';
+  document.getElementById('contactMailSigEdit').style.display = 'none';
+  _renderContactMailSig();
+
   document.getElementById('contactMailModal').classList.remove('hidden');
 }
 
-function _contactMailBody(name) {
-  return encodeURIComponent(`${name}様\n\nお世話になっております。\n\n`);
+function _renderContactMailSig() {
+  const sig = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
+  const el  = document.getElementById('contactMailSigPreview');
+  el.textContent = sig ? `--\n${sig}` : '（署名未設定 — 「署名を編集」から設定できます）';
+  el.style.color = sig ? 'var(--muted)' : '#bbb';
 }
 
-function _doContactMailGmail(email, name) {
-  const e = email || _contactMailTarget.email;
-  const n = name  || _contactMailTarget.name;
-  wnSetMailerPref('gmail');
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  if (isMobile) {
-    const scheme = `googlegmail://co?to=${encodeURIComponent(e)}&body=${_contactMailBody(n)}`;
-    window.location.href = scheme;
-    setTimeout(() => {
-      if (!document.hidden) {
-        window.location.href = `mailto:${e}?body=${_contactMailBody(n)}`;
-      }
-    }, 1500);
+function _buildContactMailBody() {
+  const { name, company } = _contactMailTarget;
+  const header  = (company ? `${company}\n` : '') + `${name} 様\n\nお世話になっております。\n`;
+  const message = document.getElementById('contactMailMessage').value.trim();
+  const sig     = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
+  const parts   = [header];
+  if (message) parts.push(message);
+  if (sig)     parts.push(`--\n${sig}`);
+  return parts.join('\n');
+}
+
+function _doContactMail(mailer) {
+  const { email } = _contactMailTarget;
+  const body = encodeURIComponent(_buildContactMailBody());
+  wnSetMailerPref(mailer);
+
+  if (mailer === 'gmail') {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      window.location.href = `googlegmail://co?to=${encodeURIComponent(email)}&body=${body}`;
+      setTimeout(() => {
+        if (!document.hidden) window.location.href = `mailto:${email}?body=${body}`;
+      }, 1500);
+    } else {
+      window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&body=${body}`, '_blank');
+      wnShowToast('Gmailの作成画面を開きました', 'success');
+    }
   } else {
-    const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(e)}&body=${_contactMailBody(n)}`;
-    window.open(url, '_blank');
-    wnShowToast('Gmailの作成画面を開きました', 'success');
+    window.location.href = `mailto:${email}?body=${body}`;
+    wnShowToast('メールアプリを起動しました', 'success');
   }
-}
-
-function _doContactMailMailto(email, name) {
-  const e = email || _contactMailTarget.email;
-  const n = name  || _contactMailTarget.name;
-  wnSetMailerPref('mailto');
-  window.location.href = `mailto:${e}?body=${_contactMailBody(n)}`;
-  wnShowToast('メールアプリを起動しました', 'success');
 }
 
 /* ────────────────────────────────
@@ -331,14 +365,14 @@ function _renderFilteredContacts() {
           ${c.company_name ? `<span style="margin-right:4px;">${wnEscapeHtml(c.company_name)}</span><span style="margin-right:4px;">·</span>` : ''}${wnEscapeHtml(c.email)}
         </div>
       </div>
-      <button class="btn btn-outline btn-sm contact-mail-btn" data-email="${wnEscapeHtml(c.email)}" data-name="${wnEscapeHtml(c.name)}" style="flex-shrink:0;font-size:11px;padding:4px 8px;color:var(--accent);" title="メールを送る"><i class="fa-solid fa-envelope"></i></button>
+      <button class="btn btn-outline btn-sm contact-mail-btn" data-email="${wnEscapeHtml(c.email)}" data-name="${wnEscapeHtml(c.name)}" data-company="${wnEscapeHtml(c.company_name)}" style="flex-shrink:0;font-size:11px;padding:4px 8px;color:var(--accent);" title="メールを送る"><i class="fa-solid fa-envelope"></i></button>
       <button class="btn btn-outline btn-sm contact-edit-btn" style="flex-shrink:0;font-size:11px;padding:4px 8px;" title="編集"><i class="fa-solid fa-pen"></i></button>
       <button class="btn btn-outline btn-sm contact-del-btn" style="flex-shrink:0;font-size:11px;padding:4px 8px;color:#E17055;" title="削除"><i class="fa-solid fa-trash"></i></button>
     </div>
   `).join('');
 
   list.querySelectorAll('.contact-mail-btn').forEach(btn => {
-    btn.addEventListener('click', () => openContactMail(btn.dataset.email, btn.dataset.name));
+    btn.addEventListener('click', () => openContactMail(btn.dataset.email, btn.dataset.name, btn.dataset.company));
   });
   list.querySelectorAll('.contact-del-btn').forEach(btn => {
     btn.addEventListener('click', () => {

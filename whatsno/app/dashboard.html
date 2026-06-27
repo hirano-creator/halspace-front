@@ -513,22 +513,53 @@
 
 <!-- 連絡先メール起動モーダル -->
 <div class="modal-overlay hidden" id="contactMailModal">
-  <div class="modal" style="max-width:360px;">
+  <div class="modal" style="max-width:480px;">
     <div class="modal-header">
       <span class="modal-title"><i class="fa-solid fa-envelope" style="color:var(--accent);"></i> メールを送る</span>
       <button class="modal-close" id="contactMailModalClose"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    <div style="padding:4px 0 12px;">
-      <p style="font-size:14px;font-weight:700;color:var(--primary);margin-bottom:2px;" id="contactMailName"></p>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;" id="contactMailAddr"></p>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <button class="btn btn-outline" id="contactMailMailtoBtn" style="justify-content:center;">
-          <i class="fa-solid fa-envelope"></i> メールアプリで開く
-        </button>
-        <button class="btn btn-accent" id="contactMailGmailBtn" style="justify-content:center;">
-          <i class="fa-brands fa-google"></i> Gmail で開く
-        </button>
+    <div style="padding:4px 0 8px;">
+
+      <!-- 宛先 -->
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;"><i class="fa-solid fa-at"></i> 宛先</div>
+        <div style="font-size:13px;font-weight:700;color:var(--primary);" id="contactMailName"></div>
+        <div style="font-size:11px;color:var(--muted);" id="contactMailAddr"></div>
       </div>
+
+      <!-- 本文 -->
+      <div style="margin-bottom:8px;">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;"><i class="fa-solid fa-comment"></i> 本文</div>
+        <div id="contactMailHeader"
+          style="font-size:13px;color:var(--primary);background:rgba(0,0,0,.03);border:1px solid var(--border);border-bottom:none;border-radius:6px 6px 0 0;padding:8px 10px;line-height:1.8;white-space:pre-wrap;"></div>
+        <textarea id="contactMailMessage" rows="5" placeholder="メッセージを入力…"
+          style="width:100%;padding:8px 10px;font-size:13px;border:1px solid var(--border);border-top:none;border-bottom:none;border-radius:0;outline:none;resize:vertical;box-sizing:border-box;font-family:inherit;"></textarea>
+        <div id="contactMailSigPreview"
+          style="font-size:12px;color:var(--muted);background:rgba(0,0,0,.03);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;padding:8px 10px;line-height:1.8;white-space:pre-wrap;min-height:36px;"></div>
+      </div>
+
+      <!-- 署名編集 -->
+      <div id="contactMailSigEdit" style="display:none;margin-bottom:8px;">
+        <textarea id="contactMailSigInput" rows="4" placeholder="署名を入力…&#10;例: 株式会社〇〇&#10;山田 太郎&#10;Tel: 000-0000-0000"
+          style="width:100%;padding:8px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;outline:none;resize:vertical;box-sizing:border-box;font-family:inherit;"></textarea>
+        <div style="display:flex;gap:6px;margin-top:4px;">
+          <button class="btn btn-accent btn-sm" id="contactMailSigSaveBtn">保存</button>
+          <button class="btn btn-ghost btn-sm" id="contactMailSigCancelBtn">キャンセル</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="contactMailSigToggleBtn" style="font-size:11px;color:var(--muted);">
+        <i class="fa-solid fa-pen"></i> 署名を編集
+      </button>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="contactMailCancelBtn">キャンセル</button>
+      <button class="btn btn-outline" id="contactMailMailtoBtn">
+        <i class="fa-solid fa-envelope"></i> メールアプリ
+      </button>
+      <button class="btn btn-accent" id="contactMailGmailBtn">
+        <i class="fa-brands fa-google"></i> Gmail
+      </button>
     </div>
   </div>
 </div>
