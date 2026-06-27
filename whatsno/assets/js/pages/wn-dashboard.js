@@ -159,100 +159,15 @@ function initSkillBar() {
 }
 
 /* ────────────────────────────────
-   連絡先メール起動モーダル
+   連絡先メール（emailModalに委譲）
    ──────────────────────────────── */
-const WN_MAIL_SIG_KEY  = 'wn_mail_signature';
-let _contactMailTarget = { email: '', name: '', company: '' };
-
-function initContactMailModal() {
-  const modal    = document.getElementById('contactMailModal');
-  const sigEdit  = document.getElementById('contactMailSigEdit');
-  const closeModal = () => modal.classList.add('hidden');
-
-  document.getElementById('contactMailModalClose')?.addEventListener('click', closeModal);
-  document.getElementById('contactMailCancelBtn')?.addEventListener('click', closeModal);
-
-  document.getElementById('contactMailMailtoBtn')?.addEventListener('click', () => {
-    _doContactMail('mailto'); closeModal();
-  });
-  document.getElementById('contactMailGmailBtn')?.addEventListener('click', () => {
-    _doContactMail('gmail'); closeModal();
-  });
-
-  document.getElementById('contactMailSigToggleBtn')?.addEventListener('click', () => {
-    const open = sigEdit.style.display === 'none';
-    sigEdit.style.display = open ? 'block' : 'none';
-    if (open) document.getElementById('contactMailSigInput').value = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
-  });
-  document.getElementById('contactMailSigSaveBtn')?.addEventListener('click', () => {
-    const sig = document.getElementById('contactMailSigInput').value.trim();
-    localStorage.setItem(WN_MAIL_SIG_KEY, sig);
-    _renderContactMailSig();
-    sigEdit.style.display = 'none';
-  });
-  document.getElementById('contactMailSigCancelBtn')?.addEventListener('click', () => {
-    sigEdit.style.display = 'none';
-  });
-}
+const WN_MAIL_SIG_KEY = 'wn_mail_signature';
 
 function openContactMail(email, name, company) {
-  _contactMailTarget = { email, name: name || '', company: company || '' };
-
-  // 宛先表示
-  document.getElementById('contactMailName').textContent =
-    company ? `${name}　${company}` : name;
-  document.getElementById('contactMailAddr').textContent = email;
-
-  // 本文冒頭（相手の情報）
-  const header = (company ? `${company}\n` : '') + `${name} 様\n\nお世話になっております。\n`;
-  document.getElementById('contactMailHeader').textContent = header;
-
-  document.getElementById('contactMailMessage').value = '';
-  document.getElementById('contactMailSigEdit').style.display = 'none';
-  _renderContactMailSig();
-
-  document.getElementById('contactMailModal').classList.remove('hidden');
+  openEmailModal([], { email, name: name || '', company: company || '' });
 }
 
-function _renderContactMailSig() {
-  const sig = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
-  const el  = document.getElementById('contactMailSigPreview');
-  el.textContent = sig ? `--\n${sig}` : '（署名未設定 — 「署名を編集」から設定できます）';
-  el.style.color = sig ? 'var(--muted)' : '#bbb';
-}
-
-function _buildContactMailBody() {
-  const { name, company } = _contactMailTarget;
-  const header  = (company ? `${company}\n` : '') + `${name} 様\n\nお世話になっております。\n`;
-  const message = document.getElementById('contactMailMessage').value.trim();
-  const sig     = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
-  const parts   = [header];
-  if (message) parts.push(message);
-  if (sig)     parts.push(`--\n${sig}`);
-  return parts.join('\n');
-}
-
-function _doContactMail(mailer) {
-  const { email } = _contactMailTarget;
-  const body = encodeURIComponent(_buildContactMailBody());
-  wnSetMailerPref(mailer);
-
-  if (mailer === 'gmail') {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) {
-      window.location.href = `googlegmail://co?to=${encodeURIComponent(email)}&body=${body}`;
-      setTimeout(() => {
-        if (!document.hidden) window.location.href = `mailto:${email}?body=${body}`;
-      }, 1500);
-    } else {
-      window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&body=${body}`, '_blank');
-      wnShowToast('Gmailの作成画面を開きました', 'success');
-    }
-  } else {
-    window.location.href = `mailto:${email}?body=${body}`;
-    wnShowToast('メールアプリを起動しました', 'success');
-  }
-}
+function initContactMailModal() { /* 廃止 — initEmailModalに統合済み */ }
 
 /* ────────────────────────────────
    連絡先管理モーダル（一覧・追加・編集・削除）
@@ -2790,6 +2705,7 @@ function h(str) {
 let emailModalFiles    = [];   // [{ id, name }]
 let emailChips         = [];  // { email: string }[]
 let emailPregenShares  = null; // [{ id, name, url }] | null
+let emailModalMode     = 'share'; // 'share' | 'contact'
 const emailShareCache  = new Map(); // fileId → Promise<share>（hover先行発行キャッシュ）
 
 function initEmailModal() {
@@ -2832,6 +2748,31 @@ function initEmailModal() {
 
   document.getElementById('emailMailtoBtn').addEventListener('click', doSendEmailMailto);
   document.getElementById('emailGmailBtn').addEventListener('click', doSendEmailGmail);
+
+  // 署名イベント
+  document.getElementById('emailSigToggleBtn')?.addEventListener('click', () => {
+    const editArea = document.getElementById('emailSigEditArea');
+    const open = editArea.style.display === 'none';
+    editArea.style.display = open ? 'block' : 'none';
+    if (open) document.getElementById('emailSigInput').value = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
+  });
+  document.getElementById('emailSigSaveBtn')?.addEventListener('click', () => {
+    const sig = document.getElementById('emailSigInput').value.trim();
+    localStorage.setItem(WN_MAIL_SIG_KEY, sig);
+    _emailRenderSigPreview();
+    document.getElementById('emailSigEditArea').style.display = 'none';
+  });
+  document.getElementById('emailSigCancelBtn')?.addEventListener('click', () => {
+    document.getElementById('emailSigEditArea').style.display = 'none';
+  });
+}
+
+function _emailRenderSigPreview() {
+  const sig = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
+  const el  = document.getElementById('emailSigPreview');
+  if (!el) return;
+  el.textContent = sig || '（未設定）';
+  el.style.color = sig ? 'var(--muted)' : '#bbb';
 }
 
 /* メールボタン hover 時に共有リンクを先行発行してキャッシュ */
@@ -2840,10 +2781,46 @@ function prefetchEmailShare(fileId) {
   emailShareCache.set(fileId, wnCreateShare(fileId, { expiresDays: 30 }));
 }
 
-function openEmailModal(files) {
-  emailModalFiles   = Array.isArray(files) ? files : [files];
-  emailChips        = [];
-  emailPregenShares = null;
+function openEmailModal(files, opts = {}) {
+  // opts: { email, name, company } — 連絡先から開く場合にセット
+  const isContact   = opts && opts.email;
+  emailModalMode    = isContact ? 'contact' : 'share';
+  emailModalFiles   = isContact ? [] : (Array.isArray(files) ? files : [files]);
+  emailPregenShares = isContact ? [] : null;
+
+  // タイトル・ファイルセクション切り替え
+  document.getElementById('emailModalTitle').textContent =
+    isContact ? 'メールを送る' : 'ファイルをメールで共有';
+  document.getElementById('emailFileSection').style.display = isContact ? 'none' : 'block';
+  document.getElementById('emailMessageLabel').textContent  =
+    isContact ? 'メッセージ' : 'メッセージ（任意）';
+
+  // 宛先
+  emailChips = isContact ? [{ email: opts.email }] : [];
+
+  // メッセージ初期値（連絡先モード: 挨拶文テンプレート）
+  if (isContact) {
+    const header = (opts.company ? `${opts.company}\n` : '') + `${opts.name} 様\n\nお世話になっております。\n`;
+    document.getElementById('emailMessage').value = header;
+    document.getElementById('emailMsgCount').textContent = String(header.length);
+  } else {
+    document.getElementById('emailMessage').value  = '';
+    document.getElementById('emailMsgCount').textContent = '0';
+  }
+
+  document.getElementById('emailInput').value    = '';
+  document.getElementById('emailInputError').style.display = 'none';
+  document.getElementById('emailSigEditArea').style.display = 'none';
+  renderEmailChips();
+  _emailRenderSigPreview();
+
+  if (isContact) {
+    // 連絡先モード: リンク生成不要
+    setEmailBtnsLoading(false);
+    document.getElementById('emailModal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('emailMessage').focus(), 100);
+    return;
+  }
 
   // ファイルリスト表示
   const listEl = document.getElementById('emailModalFileList');
@@ -2855,12 +2832,6 @@ function openEmailModal(files) {
         + emailModalFiles.map(f => `<div style="padding-left:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h(f.name)}</div>`).join('');
     }
   }
-
-  document.getElementById('emailInput').value    = '';
-  document.getElementById('emailMessage').value  = '';
-  document.getElementById('emailMsgCount').textContent = '0';
-  document.getElementById('emailInputError').style.display = 'none';
-  renderEmailChips();
 
   // リンク生成中の表示
   _emailLinkShowLoading();
@@ -2999,9 +2970,9 @@ function setEmailBtnsLoading(loading) {
   });
 }
 
-/* 宛先・件名・本文を同期で組み立てる（先行発行済みの URL を使用） */
+/* 宛先・件名・本文を同期で組み立てる */
 function _buildEmailContent() {
-  if (!emailPregenShares?.length) return null;
+  if (emailModalMode !== 'contact' && !emailPregenShares?.length) return null;
 
   const inputEl = document.getElementById('emailInput');
   const pending = inputEl.value.trim().replace(/,$/, '');
@@ -3009,6 +2980,15 @@ function _buildEmailContent() {
     emailChips.push({ email: pending });
     inputEl.value = '';
     renderEmailChips();
+  }
+
+  const to      = emailChips.map(c => c.email).join(',');
+  const sig     = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
+  const sigText = sig ? `\r\n\r\n--\r\n${sig}` : '';
+
+  if (emailModalMode === 'contact') {
+    const body = document.getElementById('emailMessage').value + sigText;
+    return { to, subject: '', body };
   }
 
   const message = document.getElementById('emailMessage').value.trim();
@@ -3025,8 +3005,7 @@ function _buildEmailContent() {
   }
   lines.push('');
   lines.push('※ リンクからダウンロードできます（有効期限：発行から30日）');
-  const body = lines.join('\r\n');
-  const to   = emailChips.map(c => c.email).join(',');
+  const body = lines.join('\r\n') + sigText;
 
   return { to, subject, body };
 }
