@@ -173,10 +173,14 @@
               ? (AA.apiBase() + '/aa/media/' + mediaId + '/raw?token=' + AA.token())
               : url;
             await aaRenderPdf(pdfUrl, el);
-          } else if (wnId) {
+          } else {
             // Office ファイル (PPTX/DOCX/XLSX): 埋め込みサムネイル画像を取得
-            // ZipArchive で docProps/thumbnail.jpeg を抽出するだけ（LibreOffice不要）
-            const thumbRes = await fetch(AA.apiBase() + '/wn/files/' + wnId + '/thumbnail', {
+            // What'sNo由来ファイルは /wn/files/{wnId}/thumbnail、直接投稿は /aa/media/{id}/thumbnail
+            const thumbEndpoint = wnId
+              ? (AA.apiBase() + '/wn/files/' + wnId + '/thumbnail')
+              : (mediaId ? (AA.apiBase() + '/aa/media/' + mediaId + '/thumbnail?token=' + AA.token()) : null);
+            if (!thumbEndpoint) throw new Error('not renderable');
+            const thumbRes = await fetch(thumbEndpoint, {
               headers: { 'Authorization': 'Bearer ' + AA.token() }
             });
             if (!thumbRes.ok) throw new Error('thumbnail ' + thumbRes.status);
@@ -193,9 +197,7 @@
             el.style.minHeight = '';
             el.innerHTML = '';
             el.appendChild(img);
-            img.src = imgUrl; // src は appendChild のあと（onload/onerror を確実に受け取る）
-          } else {
-            throw new Error('not renderable');
+            img.src = imgUrl;
           }
         } catch(e) {
           console.warn('renderDocs', mime, wnId, e.message);
