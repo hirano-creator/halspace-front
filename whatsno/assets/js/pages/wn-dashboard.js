@@ -31,6 +31,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderSidebarUser(currentUser);
   if (isAdmin(currentUser)) document.getElementById('adminLink').style.display = '';
 
+  const _tagsParam = new URLSearchParams(location.search).get('tags');
+  if (_tagsParam) selectedTags = _tagsParam.split(',').map(Number).filter(Boolean);
+
   await loadTags();
   await loadFiles();
   initNav();
@@ -49,6 +52,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   initThumbnailBust();
   initDesktopIntegrationModal();
   initTagManagePanel();
+  initBulkTag();
+  initTagShare();
 });
 
 /* 注釈編集後の新サムネイル取得用：ダッシュボード表示時にメモリキャッシュをリセット
@@ -2104,6 +2109,81 @@ function renderTagManageList() {
 }
 
 /* ────────────────────────────────
+   一括タグ付け
+   ──────────────────────────────── */
+function initBulkTag() {
+  let bulkAllTags = [];
+
+  document.getElementById('bulkTagBtn').addEventListener('click', async () => {
+    const panel = document.getElementById('bulkTagPickerPanel');
+    const isOpen = panel.style.display !== 'none';
+    if (isOpen) { panel.style.display = 'none'; return; }
+    if (!bulkAllTags.length) bulkAllTags = await wnGetTags();
+    renderBulkTagList(bulkAllTags);
+    document.getElementById('bulkTagSearch').value = '';
+    panel.style.display = 'block';
+    document.getElementById('bulkTagSearch').focus();
+  });
+
+  document.getElementById('bulkTagSearch').addEventListener('input', () => {
+    const q = document.getElementById('bulkTagSearch').value.toLowerCase();
+    renderBulkTagList(bulkAllTags.filter(t => t.name.toLowerCase().includes(q)));
+  });
+
+  document.addEventListener('click', e => {
+    const panel = document.getElementById('bulkTagPickerPanel');
+    const btn   = document.getElementById('bulkTagBtn');
+    if (panel && !panel.contains(e.target) && btn && !btn.contains(e.target)) {
+      panel.style.display = 'none';
+    }
+  });
+}
+
+function renderBulkTagList(tags) {
+  const list = document.getElementById('bulkTagList');
+  if (!tags.length) {
+    list.innerHTML = '<span style="font-size:12px;color:var(--muted);">タグがありません</span>';
+    return;
+  }
+  list.innerHTML = tags.map(t =>
+    `<span class="tag tag-selectable" data-tag-id="${t.id}" style="cursor:pointer;margin:2px;">${h(t.name)}</span>`
+  ).join('');
+  list.querySelectorAll('.tag-selectable').forEach(el => {
+    el.addEventListener('click', async () => {
+      const tagId   = Number(el.dataset.tagId);
+      const tagName = el.textContent.trim();
+      document.getElementById('bulkTagPickerPanel').style.display = 'none';
+      const targets = [...selectedIds];
+      let ok = 0;
+      await Promise.all(targets.map(async fid => {
+        const res = await wnAddTag(fid, tagId);
+        if (res) ok++;
+      }));
+      wnShowToast(`${ok}件のファイルに「${tagName}」を追加しました`, ok ? 'success' : 'danger');
+      loadFiles();
+    });
+  });
+}
+
+/* ────────────────────────────────
+   タグ付きURL共有
+   ──────────────────────────────── */
+function initTagShare() {
+  document.getElementById('tagShareBtn')?.addEventListener('click', () => {
+    if (!selectedTags.length) {
+      wnShowToast('タグを選択してからコピーしてください', 'info');
+      return;
+    }
+    const url = new URL(location.href);
+    url.search = '';
+    url.searchParams.set('tags', selectedTags.join(','));
+    navigator.clipboard.writeText(url.toString())
+      .then(() => wnShowToast('リンクをコピーしました', 'success'))
+      .catch(() => wnShowToast('コピーに失敗しました', 'danger'));
+  });
+}
+
+/* ────────────────────────────────
    ファイル削除
    ──────────────────────────────── */
 async function confirmDeleteFile(fileId, fileName) {
@@ -2968,6 +3048,8 @@ function updateMergeActionBar() {
   }
   if (lbl)      lbl.textContent = allPdf ? `${sel.length}件を結合` : '結合';
   if (emailBtn) emailBtn.disabled = selectedIds.length === 0;
+  const bulkTagBtn = document.getElementById('bulkTagBtn');
+  if (bulkTagBtn) bulkTagBtn.disabled = selectedIds.length === 0;
 
   // ファイル選択中はスキル入力モードとしてプレースホルダーを切り替え
   const si = document.getElementById('searchInput');
