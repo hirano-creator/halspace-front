@@ -163,8 +163,8 @@ function initSkillBar() {
    ──────────────────────────────── */
 const WN_MAIL_SIG_KEY = 'wn_mail_signature';
 
-function openContactMail(email, name, company) {
-  openEmailModal([], { email, name: name || '', company: company || '' });
+function openContactMail(email) {
+  openEmailModal([], email);
 }
 
 function initContactMailModal() { /* 廃止 — initEmailModalに統合済み */ }
@@ -2705,7 +2705,6 @@ function h(str) {
 let emailModalFiles    = [];   // [{ id, name }]
 let emailChips         = [];  // { email: string }[]
 let emailPregenShares  = null; // [{ id, name, url }] | null
-let emailModalMode     = 'share'; // 'share' | 'contact'
 const emailShareCache  = new Map(); // fileId → Promise<share>（hover先行発行キャッシュ）
 
 function initEmailModal() {
@@ -2781,44 +2780,27 @@ function prefetchEmailShare(fileId) {
   emailShareCache.set(fileId, wnCreateShare(fileId, { expiresDays: 30 }));
 }
 
-function openEmailModal(files, opts = {}) {
-  // opts: { email, name, company } — 連絡先から開く場合にセット
-  const isContact   = opts && opts.email;
-  emailModalMode    = isContact ? 'contact' : 'share';
-  emailModalFiles   = isContact ? [] : (Array.isArray(files) ? files : [files]);
-  emailPregenShares = isContact ? [] : null;
+function openEmailModal(files, prefillEmail = null) {
+  emailModalFiles   = Array.isArray(files) ? files : (files ? [files] : []);
+  emailPregenShares = null;
+  emailChips        = prefillEmail ? [{ email: prefillEmail }] : [];
 
-  // タイトル・ファイルセクション切り替え
-  document.getElementById('emailModalTitle').textContent =
-    isContact ? 'メールを送る' : 'ファイルをメールで共有';
-  document.getElementById('emailFileSection').style.display = isContact ? 'none' : 'block';
-  document.getElementById('emailMessageLabel').textContent  =
-    isContact ? 'メッセージ' : 'メッセージ（任意）';
-
-  // 宛先
-  emailChips = isContact ? [{ email: opts.email }] : [];
-
-  // メッセージ初期値（連絡先モード: 挨拶文テンプレート）
-  if (isContact) {
-    const header = (opts.company ? `${opts.company}\n` : '') + `${opts.name} 様\n\nお世話になっております。\n`;
-    document.getElementById('emailMessage').value = header;
-    document.getElementById('emailMsgCount').textContent = String(header.length);
-  } else {
-    document.getElementById('emailMessage').value  = '';
-    document.getElementById('emailMsgCount').textContent = '0';
-  }
+  const hasFiles = emailModalFiles.length > 0;
+  document.getElementById('emailFileSection').style.display = hasFiles ? 'block' : 'none';
 
   document.getElementById('emailInput').value    = '';
+  document.getElementById('emailMessage').value  = '';
+  document.getElementById('emailMsgCount').textContent = '0';
   document.getElementById('emailInputError').style.display = 'none';
   document.getElementById('emailSigEditArea').style.display = 'none';
   renderEmailChips();
   _emailRenderSigPreview();
 
-  if (isContact) {
-    // 連絡先モード: リンク生成不要
+  if (!hasFiles) {
+    emailPregenShares = [];
     setEmailBtnsLoading(false);
     document.getElementById('emailModal').classList.remove('hidden');
-    setTimeout(() => document.getElementById('emailMessage').focus(), 100);
+    setTimeout(() => document.getElementById('emailInput').focus(), 100);
     return;
   }
 
@@ -2972,7 +2954,7 @@ function setEmailBtnsLoading(loading) {
 
 /* 宛先・件名・本文を同期で組み立てる */
 function _buildEmailContent() {
-  if (emailModalMode !== 'contact' && !emailPregenShares?.length) return null;
+  if (emailModalFiles.length > 0 && !emailPregenShares?.length) return null;
 
   const inputEl = document.getElementById('emailInput');
   const pending = inputEl.value.trim().replace(/,$/, '');
@@ -2985,13 +2967,12 @@ function _buildEmailContent() {
   const to      = emailChips.map(c => c.email).join(',');
   const sig     = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
   const sigText = sig ? `\r\n\r\n--\r\n${sig}` : '';
+  const message = document.getElementById('emailMessage').value.trim();
 
-  if (emailModalMode === 'contact') {
-    const body = document.getElementById('emailMessage').value + sigText;
-    return { to, subject: '', body };
+  if (emailModalFiles.length === 0) {
+    return { to, subject: '', body: message + sigText };
   }
 
-  const message = document.getElementById('emailMessage').value.trim();
   const subject = emailModalFiles.length === 1
     ? `【What'sNo】${emailModalFiles[0].name} を共有します`
     : `【What'sNo】${emailModalFiles.length}件のファイルを共有します`;
@@ -3005,9 +2986,7 @@ function _buildEmailContent() {
   }
   lines.push('');
   lines.push('※ リンクからダウンロードできます（有効期限：発行から30日）');
-  const body = lines.join('\r\n') + sigText;
-
-  return { to, subject, body };
+  return { to, subject, body: lines.join('\r\n') + sigText };
 }
 
 /* Gmail の作成画面を開く */
