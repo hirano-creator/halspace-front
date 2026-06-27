@@ -268,7 +268,7 @@ function _renderFilteredContacts() {
           ${c.company_name ? `<span style="margin-right:4px;">${wnEscapeHtml(c.company_name)}</span><span style="margin-right:4px;">·</span>` : ''}${wnEscapeHtml(c.email)}
         </div>
       </div>
-      <button class="btn btn-outline btn-sm contact-mail-btn" style="flex-shrink:0;font-size:11px;padding:4px 8px;color:var(--accent);" title="メールを送る"><i class="fa-solid fa-envelope"></i></button>
+      <button class="btn btn-outline btn-sm contact-mail-btn" data-email="${wnEscapeHtml(c.email)}" data-name="${wnEscapeHtml(c.name)}" style="flex-shrink:0;font-size:11px;padding:4px 8px;color:var(--accent);" title="メールを送る"><i class="fa-solid fa-envelope"></i></button>
       <button class="btn btn-outline btn-sm contact-edit-btn" style="flex-shrink:0;font-size:11px;padding:4px 8px;" title="編集"><i class="fa-solid fa-pen"></i></button>
       <button class="btn btn-outline btn-sm contact-del-btn" style="flex-shrink:0;font-size:11px;padding:4px 8px;color:#E17055;" title="削除"><i class="fa-solid fa-trash"></i></button>
     </div>
@@ -276,13 +276,10 @@ function _renderFilteredContacts() {
 
   list.querySelectorAll('.contact-mail-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const row = btn.closest('[data-id]');
-      const c = contacts.find(x => String(x.id) === String(row.dataset.id));
-      if (!c) return;
-      const body = encodeURIComponent(`${c.name}様\n\nお世話になっております。\n\n`);
-      const a = document.createElement('a');
-      a.href = `mailto:${c.email}?body=${body}`;
-      a.click();
+      const email = btn.dataset.email;
+      const name  = btn.dataset.name;
+      const body  = encodeURIComponent(`${name}様\n\nお世話になっております。\n\n`);
+      window.location.href = `mailto:${email}?body=${body}`;
     });
   });
   list.querySelectorAll('.contact-del-btn').forEach(btn => {
