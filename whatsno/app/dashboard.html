@@ -504,6 +504,28 @@
   </div>
 </div>
 
+<!-- 連絡先メール起動モーダル -->
+<div class="modal-overlay hidden" id="contactMailModal">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-envelope" style="color:var(--accent);"></i> メールを送る</span>
+      <button class="modal-close" id="contactMailModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="padding:4px 0 12px;">
+      <p style="font-size:14px;font-weight:700;color:var(--primary);margin-bottom:2px;" id="contactMailName"></p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;" id="contactMailAddr"></p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-outline" id="contactMailMailtoBtn" style="justify-content:center;">
+          <i class="fa-solid fa-envelope"></i> メールアプリで開く
+        </button>
+        <button class="btn btn-accent" id="contactMailGmailBtn" style="justify-content:center;">
+          <i class="fa-brands fa-google"></i> Gmail で開く
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 連絡先管理モーダル -->
 <div class="modal-overlay hidden" id="contactsModal">
   <div class="modal" style="max-width:480px;">

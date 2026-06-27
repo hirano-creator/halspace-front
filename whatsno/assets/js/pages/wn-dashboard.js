@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initNotifications();
   initEmailModal();
   initSkillBar();
+  initContactMailModal();
   initContactsModal();
   initMergeSelect();
   initThumbnailBust();
@@ -155,6 +156,68 @@ function initSkillBar() {
     if (e.key === 'Enter' && !send.disabled) { e.preventDefault(); runSkill(input.value.trim()); }
   });
   send.addEventListener('click', () => { if (!send.disabled) runSkill(input.value.trim()); });
+}
+
+/* ────────────────────────────────
+   連絡先メール起動モーダル
+   ──────────────────────────────── */
+let _contactMailTarget = { email: '', name: '' };
+
+function initContactMailModal() {
+  document.getElementById('contactMailModalClose')?.addEventListener('click', () => {
+    document.getElementById('contactMailModal').classList.add('hidden');
+  });
+  document.getElementById('contactMailMailtoBtn')?.addEventListener('click', () => {
+    _doContactMailMailto();
+    document.getElementById('contactMailModal').classList.add('hidden');
+  });
+  document.getElementById('contactMailGmailBtn')?.addEventListener('click', () => {
+    _doContactMailGmail();
+    document.getElementById('contactMailModal').classList.add('hidden');
+  });
+}
+
+function openContactMail(email, name) {
+  const pref = wnGetMailerPref();
+  if (pref === 'gmail') { _doContactMailGmail(email, name); return; }
+  if (pref === 'mailto') { _doContactMailMailto(email, name); return; }
+  // 未設定: モーダルで選択させる
+  _contactMailTarget = { email, name };
+  document.getElementById('contactMailName').textContent = name;
+  document.getElementById('contactMailAddr').textContent = email;
+  document.getElementById('contactMailModal').classList.remove('hidden');
+}
+
+function _contactMailBody(name) {
+  return encodeURIComponent(`${name}様\n\nお世話になっております。\n\n`);
+}
+
+function _doContactMailGmail(email, name) {
+  const e = email || _contactMailTarget.email;
+  const n = name  || _contactMailTarget.name;
+  wnSetMailerPref('gmail');
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) {
+    const scheme = `googlegmail://co?to=${encodeURIComponent(e)}&body=${_contactMailBody(n)}`;
+    window.location.href = scheme;
+    setTimeout(() => {
+      if (!document.hidden) {
+        window.location.href = `mailto:${e}?body=${_contactMailBody(n)}`;
+      }
+    }, 1500);
+  } else {
+    const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(e)}&body=${_contactMailBody(n)}`;
+    window.open(url, '_blank');
+    wnShowToast('Gmailの作成画面を開きました', 'success');
+  }
+}
+
+function _doContactMailMailto(email, name) {
+  const e = email || _contactMailTarget.email;
+  const n = name  || _contactMailTarget.name;
+  wnSetMailerPref('mailto');
+  window.location.href = `mailto:${e}?body=${_contactMailBody(n)}`;
+  wnShowToast('メールアプリを起動しました', 'success');
 }
 
 /* ────────────────────────────────
@@ -275,12 +338,7 @@ function _renderFilteredContacts() {
   `).join('');
 
   list.querySelectorAll('.contact-mail-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const email = btn.dataset.email;
-      const name  = btn.dataset.name;
-      const body  = encodeURIComponent(`${name}様\n\nお世話になっております。\n\n`);
-      window.location.href = `mailto:${email}?body=${body}`;
-    });
+    btn.addEventListener('click', () => openContactMail(btn.dataset.email, btn.dataset.name));
   });
   list.querySelectorAll('.contact-del-btn').forEach(btn => {
     btn.addEventListener('click', () => {
