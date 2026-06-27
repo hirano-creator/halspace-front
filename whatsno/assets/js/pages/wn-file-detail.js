@@ -2696,7 +2696,6 @@ function renderRelations() {
         <div class="relation-item-meta">
           v${r.version}
           ${r.approval_status === 'approved' ? '<span style="color:#6ee7b7;">✓承認済</span>' : ''}
-          ${r.source === 'ai' ? '<span style="color:var(--accent);">AI</span>' : ''}
         </div>
       </div>
       <button class="relation-item-del" data-relation-id="${r.relation_id}" title="関連を解除">
@@ -2870,7 +2869,7 @@ function renderRelationSuggestions() {
   section.className = 'relation-suggest-section';
   section.innerHTML = `
     <div class="relation-suggest-label">
-      <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--accent);"></i> AI提案
+      <i class="fa-solid fa-magnifying-glass" style="color:var(--muted);"></i> 候補
     </div>
     ${suggestionsCache.map(s => `
       <div class="relation-suggest-item" data-id="${s.id}">
@@ -2879,7 +2878,7 @@ function renderRelationSuggestions() {
         </div>
         <div class="relation-suggest-body">
           <div class="relation-suggest-name" title="${h(s.file_name)}">${h(s.file_name)}</div>
-          <div class="relation-suggest-meta">v${s.version} · 一致度 ${s.score}%</div>
+          <div class="relation-suggest-meta">v${s.version}${s.approval_status === 'approved' ? ' · <span style="color:#6ee7b7;">✓承認済</span>' : ''}</div>
         </div>
         <div class="relation-suggest-actions">
           <button class="btn btn-accent btn-sm suggest-add-btn" data-id="${s.id}" style="font-size:11px;padding:4px 8px;">
