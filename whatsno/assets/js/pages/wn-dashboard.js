@@ -157,6 +157,7 @@ function initSkillBar() {
    ──────────────────────────────── */
 let contactsBusy     = false;
 let contactEditingId = null;
+let allContactsCache = [];
 
 function wnEscapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, m => (
@@ -185,11 +186,16 @@ function initContactsModal() {
   kanaEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); companyEl?.focus(); } });
   companyEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); emailEl?.focus(); } });
   emailEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addContactFromForm(); } });
+
+  const searchEl = document.getElementById('contactSearchInput');
+  searchEl?.addEventListener('input', () => _renderFilteredContacts());
 }
 
 function openContactsModal() {
   document.getElementById('contactsModal').classList.remove('hidden');
   _contactCancelEdit();
+  const searchEl = document.getElementById('contactSearchInput');
+  if (searchEl) searchEl.value = '';
   renderContactsList();
 }
 function closeContactsModal() {
@@ -221,12 +227,29 @@ async function renderContactsList() {
   if (!list) return;
   list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px;"><i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…</div>';
 
-  let contacts = [];
-  try { contacts = await wnGetContacts(); }
+  try { allContactsCache = await wnGetContacts(); }
   catch { list.innerHTML = '<div style="font-size:12px;color:#E17055;padding:8px;">連絡先の取得に失敗しました</div>'; return; }
 
-  if (!contacts.length) {
+  _renderFilteredContacts();
+}
+
+function _renderFilteredContacts() {
+  const list = document.getElementById('contactsList');
+  if (!list) return;
+
+  const q = (document.getElementById('contactSearchInput')?.value ?? '').trim().toLowerCase();
+  const contacts = q
+    ? allContactsCache.filter(c =>
+        [c.name, c.name_kana, c.company_name, c.email].some(v => v && v.toLowerCase().includes(q))
+      )
+    : allContactsCache;
+
+  if (!allContactsCache.length) {
     list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px;">まだ連絡先がありません。上のフォームから追加してください。</div>';
+    return;
+  }
+  if (!contacts.length) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px;">該当する連絡先が見つかりません。</div>';
     return;
   }
 
