@@ -564,7 +564,7 @@ const ThumbCache = (() => {
 const thumbMemCache = {};
 
 /* サムネイル生成バージョン（解像度等を変えたら上げてキャッシュを再生成させる） */
-const THUMB_VER = 'v8';
+const THUMB_VER = 'v9';
 /* Excel/Word サムネイルの描画倍率（論理座標×この倍率で高解像度化） */
 const THUMB_SS = 2;
 
@@ -673,7 +673,7 @@ function wnTrimMargins(canvas, pad = 0.03) {
 
 /* 線画強調: アンシャープマスクで輪郭を立たせ、ガンマで薄くなった線を締める
    （縮小で淡いグレーになった図面の細線をGoogleドライブ風にくっきり見せる） */
-function wnEnhanceLineArt(canvas, amount = 1.1, gamma = 1.45) {
+function wnEnhanceLineArt(canvas, amount = 1.3, gamma = 1.55) {
   try {
     const w = canvas.width, h = canvas.height;
     const ctx  = canvas.getContext('2d');
@@ -1025,18 +1025,21 @@ function drawWordThumbnail(canvas, text) {
 }
 
 function appendImg(iconId, url, opts = {}) {
-  /* 文書系 (PDF/Excel/Word) は object-position:top で先頭(タイトル)を表示。
-     画像/動画は中央クロップのまま。 */
-  const objectPosition = opts.anchor === 'top' ? 'top' : 'center';
+  /* 文書系 (PDF/Excel/Word/DXF) は contain で全体を表示し白背景。
+     画像/動画は中央クロップ (cover) のまま。 */
+  const isDoc = opts.anchor === 'top';
+  const objectFit      = isDoc ? 'contain' : 'cover';
+  const objectPosition = isDoc ? 'top center' : 'center';
 
   /* カードビュー */
   const iconEl = document.getElementById(iconId);
   if (iconEl) {
     const thumb = iconEl.closest('.file-card-thumb');
     if (thumb) {
+      if (isDoc) thumb.style.background = '#fff';
       const img = document.createElement('img');
       img.alt = '';
-      img.style.cssText = `width:100%;height:100%;object-fit:cover;object-position:${objectPosition};display:block;position:absolute;inset:0;border-radius:4px 4px 0 0;`;
+      img.style.cssText = `width:100%;height:100%;object-fit:${objectFit};object-position:${objectPosition};display:block;position:absolute;inset:0;border-radius:4px 4px 0 0;`;
       img.onload = () => { iconEl.style.display = 'none'; thumb.appendChild(img); };
       img.onerror = () => {};
       img.src = url;
@@ -1049,9 +1052,10 @@ function appendImg(iconId, url, opts = {}) {
   if (rowIconEl) {
     const rowThumb = rowIconEl.closest('.file-row-thumb');
     if (rowThumb) {
+      if (isDoc) rowThumb.style.background = '#fff';
       const img = document.createElement('img');
       img.alt = '';
-      img.style.cssText = `width:100%;height:100%;object-fit:cover;object-position:${objectPosition};display:block;border-radius:4px;`;
+      img.style.cssText = `width:100%;height:100%;object-fit:${objectFit};object-position:${objectPosition};display:block;border-radius:4px;`;
       img.onload = () => { rowIconEl.style.display = 'none'; rowThumb.appendChild(img); };
       img.onerror = () => {};
       img.src = url;
