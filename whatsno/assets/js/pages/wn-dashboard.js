@@ -280,7 +280,9 @@ function _renderFilteredContacts() {
       const c = contacts.find(x => String(x.id) === String(row.dataset.id));
       if (!c) return;
       const body = encodeURIComponent(`${c.name}様\n\nお世話になっております。\n\n`);
-      window.location.href = `mailto:${encodeURIComponent(c.email)}?body=${body}`;
+      const a = document.createElement('a');
+      a.href = `mailto:${c.email}?body=${body}`;
+      a.click();
     });
   });
   list.querySelectorAll('.contact-del-btn').forEach(btn => {
