@@ -175,7 +175,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 /* ── 現場用ボイス検索エリア（サイドバー中段） ── */
 .sidebar-voice-area {
   padding: 12px 12px 8px;
-  border-top: 1px solid var(--border);
 }
 .sidebar-voice-btn {
   width: 100%;
@@ -242,7 +241,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 
 .sidebar-bottom {
   padding: 14px 12px;
-  border-top: 1px solid var(--border);
 }
 #sidebarUser {
   display: flex;
@@ -1688,6 +1686,7 @@ tbody tr:last-child { border-bottom: none; }
 /* ── 共通: カードヘッダーのフィルターバーが折り返さないように ── */
 #fileListCard .card-header { flex-wrap: nowrap; }
 .filter-bar { flex-shrink: 0; flex-wrap: nowrap; }
+#tagFilterCard { border: none; }
 
 /* ── ハンバーガー: デフォルト非表示 ── */
 .menu-toggle { display: none; }
