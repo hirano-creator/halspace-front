@@ -109,7 +109,8 @@
           } else if (m.kind === 'image' && m.url) {
             return `<div class="media" style="text-align:center"><img src="${esc(m.url)}" style="max-width:100%;border-radius:12px;display:block" alt="" onerror="this.style.display='none'"></div>`;
           } else if (m.kind === 'video' && m.url) {
-            return `<div class="media"><video src="${esc(m.url)}" controls playsinline preload="metadata" style="width:100%;border-radius:12px"></video></div>`;
+            const vMime = esc(m.mime || 'video/mp4');
+            return `<div class="media"><video controls playsinline preload="metadata" style="width:100%;border-radius:12px"><source src="${esc(m.url)}" type="${vMime}"></video></div>`;
           } else {
             return `<div class="media" data-view="${m.view}" data-kind="${m.kind}" style="min-height:120px"></div>`;
           }

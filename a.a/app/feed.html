@@ -97,7 +97,8 @@
           mediaHtml = `<div class="media" style="aspect-ratio:4/3;overflow:hidden;background:var(--soft)"><img src="${esc(m.url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" onerror="this.parentElement.innerHTML='${thumbIcon('image').replace(/'/g,"\\'")}';this.parentElement.style.display='flex';this.parentElement.style.alignItems='center';this.parentElement.style.justifyContent='center'"></div>`;
         } else if (m.kind === 'video') {
           if (m.url) {
-            mediaHtml = `<div class="media" style="aspect-ratio:4/3;overflow:hidden;background:#000"><video src="${esc(m.url)}" style="width:100%;height:100%;object-fit:contain" controls preload="metadata" playsinline></video></div>`;
+            const vMime = esc(m.mime || 'video/mp4');
+            mediaHtml = `<div class="media" style="aspect-ratio:4/3;overflow:hidden;background:#000"><video style="width:100%;height:100%;object-fit:contain" controls preload="metadata" playsinline><source src="${esc(m.url)}" type="${vMime}"></video></div>`;
           } else if (m.view) {
             // url が未解決（ローカル環境でファイルパス取得待ちなど）の場合は view 経由で遅延取得
             mediaHtml = `<div class="media vidprev" data-view="${esc(m.view)}" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:#000">${thumbIcon('video')}</div>`;
