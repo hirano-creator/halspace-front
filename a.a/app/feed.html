@@ -95,8 +95,15 @@
           mediaHtml = `<div class="media docprev" data-view="${m.view}" data-mime="${esc(m.mime||'')}"${wnAttr} style="min-height:120px;background:var(--soft);cursor:pointer"></div>`;
         } else if (m.kind === 'image' && m.url) {
           mediaHtml = `<div class="media" style="aspect-ratio:4/3;overflow:hidden;background:var(--soft)"><img src="${esc(m.url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" onerror="this.parentElement.innerHTML='${thumbIcon('image').replace(/'/g,"\\'")}';this.parentElement.style.display='flex';this.parentElement.style.alignItems='center';this.parentElement.style.justifyContent='center'"></div>`;
-        } else if (m.kind === 'video' && m.url) {
-          mediaHtml = `<div class="media" style="aspect-ratio:4/3;overflow:hidden;background:#000"><video src="${esc(m.url)}" style="width:100%;height:100%;object-fit:contain" controls preload="metadata" playsinline></video></div>`;
+        } else if (m.kind === 'video') {
+          if (m.url) {
+            mediaHtml = `<div class="media" style="aspect-ratio:4/3;overflow:hidden;background:#000"><video src="${esc(m.url)}" style="width:100%;height:100%;object-fit:contain" controls preload="metadata" playsinline></video></div>`;
+          } else if (m.view) {
+            // url が未解決（ローカル環境でファイルパス取得待ちなど）の場合は view 経由で遅延取得
+            mediaHtml = `<div class="media vidprev" data-view="${esc(m.view)}" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:#000">${thumbIcon('video')}</div>`;
+          } else {
+            mediaHtml = `<div class="media" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:var(--soft)">${thumbIcon('video')}</div>`;
+          }
         } else {
           mediaHtml = `<div class="media" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:var(--soft)">${thumbIcon(m.kind)}</div>`;
         }
@@ -159,6 +166,15 @@
     }
 
     async function renderDocs(){
+      // 動画フォールバック（m.url が空だった場合にview経由で解決）
+      for (const el of document.querySelectorAll('.vidprev[data-view]')) {
+        try {
+          const url = await AA.mediaUrl(el.dataset.view);
+          el.removeAttribute('data-view');
+          el.style.cssText = 'aspect-ratio:4/3;overflow:hidden;background:#000';
+          el.innerHTML = `<video src="${esc(url)}" style="width:100%;height:100%;object-fit:contain" controls preload="metadata" playsinline></video>`;
+        } catch(e) { console.warn('renderDocs video', e.message); }
+      }
       for (const el of document.querySelectorAll('.docprev[data-view]')) {
         const mime = el.dataset.mime || '';
         const wnId = el.dataset.wnid;
