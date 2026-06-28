@@ -12,7 +12,17 @@
     loading = new Promise((res, rej) => {
       const s = document.createElement('script');
       s.src = PDFJS;
-      s.onload = () => { try { g.pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER; } catch (e) {} res(g.pdfjsLib); };
+      s.onload = () => {
+        try {
+          // iOS Safari / mobile Chrome はクロスオリジン Worker を拒否するケースがある。
+          // Blob URL 経由で importScripts する workaround でモバイル互換性を確保する。
+          const blob = new Blob([`importScripts('${WORKER}');`], { type: 'text/javascript' });
+          g.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(blob);
+        } catch (e) {
+          g.pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER;
+        }
+        res(g.pdfjsLib);
+      };
       s.onerror = () => rej(new Error('pdf.jsの読み込みに失敗'));
       document.head.appendChild(s);
     });
@@ -26,7 +36,9 @@
     const page = await pdf.getPage(1);
     const targetW = container.clientWidth || 480;
     const vp0 = page.getViewport({ scale: 1 });
-    const scale = (targetW / vp0.width) * (window.devicePixelRatio || 1);
+    // モバイルの高DPR（3×など）でcanvasが過大になりOOMするため上限2に抑える
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const scale = (targetW / vp0.width) * dpr;
     const vp = page.getViewport({ scale });
     const c = document.createElement('canvas');
     c.width = vp.width; c.height = vp.height;
