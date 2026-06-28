@@ -164,6 +164,7 @@ function initSkillBar() {
 const WN_MAIL_SIG_KEY = 'wn_mail_signature';
 
 function openContactMail(email) {
+  closeContactsModal();
   openEmailModal([], email);
 }
 
