@@ -869,19 +869,39 @@ async function loadOneThumbnail(f) {
         const video = document.createElement('video');
         video.crossOrigin = 'anonymous';
         video.muted = true; video.playsInline = true; video.preload = 'metadata';
-        video.style.cssText = 'display:none;';
+        // display:none だと iOS Safari が動画データを読み込まないため画面外に配置する
+        video.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:320px;height:180px;opacity:0.001;pointer-events:none;';
         document.body.appendChild(video);
-        video.addEventListener('loadedmetadata', () => { video.currentTime = 1; });
-        video.addEventListener('seeked', () => {
+
+        let captured = false;
+        const finish = (b) => {
+          if (captured) return;
+          captured = true;
+          clearTimeout(timer);
+          try { document.body.removeChild(video); } catch {}
+          resolve(b);
+        };
+        // 10秒でタイムアウト（低速モバイル回線でも後続処理を止めない）
+        const timer = setTimeout(() => finish(null), 10000);
+
+        const capture = () => {
+          if (captured) return;
           try {
             const canvas = document.createElement('canvas');
             canvas.width  = video.videoWidth  || 320;
             canvas.height = video.videoHeight || 180;
             canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob(b => { document.body.removeChild(video); resolve(b); }, 'image/jpeg', 0.80);
-          } catch { document.body.removeChild(video); resolve(null); }
-        }, { once: true });
-        video.addEventListener('error', () => { document.body.removeChild(video); resolve(null); }, { once: true });
+            canvas.toBlob(b => finish(b), 'image/jpeg', 0.80);
+          } catch { finish(null); }
+        };
+
+        // loadedmetadata → 0.5秒付近にシーク（1秒だと大きいファイルでRange非対応サーバーに詰まる）
+        video.addEventListener('loadedmetadata', () => { video.currentTime = 0.5; });
+        // seeked: Rangeリクエスト対応サーバーで発火（正常系）
+        video.addEventListener('seeked', capture, { once: true });
+        // loadeddata: Range非対応時のフォールバック（初期バッファ到着時にキャプチャ）
+        video.addEventListener('loadeddata', capture, { once: true });
+        video.addEventListener('error', () => finish(null), { once: true });
         video.src = directUrl;
       });
 
