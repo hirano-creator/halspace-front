@@ -790,13 +790,33 @@ function wnThumbEligible(f) {
       || ['pptx','ppt','pptm'].includes(ext);
 }
 
-/* 同時処理数を絞るキュー（重い動画/Office生成がモバイルでメモリを食い合わないように）。
-   サーバー保存済みなら各処理は極小<img>取得で軽いが、未生成のクライアント生成は
-   重いので並列数を制限する。 */
-const WN_THUMB_MAX = WN_IS_MOBILE ? 2 : 6;
+/* 取得キューの並列数。各タスクは主に軽い fetch/IDB 取得（サーバー保存済みサムネ or
+   キャッシュヒット）なので広めに取り、グリッドを速く埋める。重いクライアント生成だけは
+   別途 wnGenSem で厳しく絞る（モバイルOOM対策）。 */
+const WN_THUMB_MAX = WN_IS_MOBILE ? 8 : 12;
 let   wnThumbActive = 0;
 const wnThumbQueue  = [];
 let   wnThumbObserver = null;
+
+/* 重いクライアント生成（PDF/動画/HEIC等のcanvas処理）専用のセマフォ。
+   取得が並列8でも、実際に生成まで進むタスクはモバイル1/PC3に制限してメモリ枯渇を防ぐ。 */
+function wnMakeSemaphore(max) {
+  let active = 0;
+  const waiters = [];
+  return {
+    async acquire() {
+      if (active < max) { active++; return; }
+      await new Promise(r => waiters.push(r));
+      active++;
+    },
+    release() {
+      active--;
+      const w = waiters.shift();
+      if (w) w();
+    },
+  };
+}
+const wnGenSem = wnMakeSemaphore(WN_IS_MOBILE ? 1 : 3);
 
 function wnPumpThumbs() {
   while (wnThumbActive < WN_THUMB_MAX && wnThumbQueue.length) {
@@ -853,21 +873,26 @@ async function loadOneThumbnail(f) {
 
   const ext      = (f.file_name || '').split('.').pop().toLowerCase();
   const mime     = f.mime_type ?? '';
-  const cacheKey = `thumb_${f.id}_${f.updated_at ?? f.created_at ?? ''}_${THUMB_VER}`;
+  /* 世代(WN_THUMB_GEN)も含める: サーバー世代を上げた時に古いIDBエントリも確実に無効化する */
+  const gen      = (typeof WN_THUMB_GEN !== 'undefined') ? WN_THUMB_GEN : '';
+  const cacheKey = `thumb_${f.id}_${f.updated_at ?? f.created_at ?? ''}_${THUMB_VER}_${gen}`;
 
   /* 文書系 (PDF/Excel/Word) は先頭(タイトル付近)を見せたいので object-position:top */
   const isDoc = (mime === 'application/pdf' || ext === 'pdf'
               || ['xlsx','xls','xlsm','docx','docm'].includes(ext));
   const appendOpts = isDoc ? { anchor: 'top' } : {};
 
-  /* ── 画像ファイルは原画像URLを直接サムネとして使う ──
-     サーバー側でリサイズ・EXIF処理をするよりブラウザに任せたほうが確実。
-     詳細画面と同じURLを使うので向き・内容が常に一致し、コードも最小限になる。
-     CSS(object-fit:cover)がトリミングを担う。IntersectionObserverで遅延ロード済みなので
-     ビューポート外の画像は取得されない。 */
+  /* ── 画像ファイルのハイブリッド表示 ──
+     PC: 原画像URLを直接表示（詳細画面と同じURL＝向き・内容が常に一致し確実）。
+     モバイル: 下の統合フロー（IDB→サーバー400pxサムネ→クライアント生成）へ流し、
+     フル解像度の原画像（数MB）ではなく極小サムネを使って帯域を大幅削減する。
+     CSS(object-fit:cover)がトリミングを担う。遅延ロード済みなので画面外は取得しない。 */
   const isRawImage = mime.startsWith('image/')
     || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext);
-  if (isRawImage) {
+  const isSvg = ext === 'svg' || mime === 'image/svg+xml';
+  /* PC は全画像、モバイルは SVG（ベクター・極小でサーバーGD非対応）だけ原画像直接。
+     それ以外のモバイル画像（JPEG/PNG/HEIC等）は統合フローで400pxサムネ化する。 */
+  if (isRawImage && (!WN_IS_MOBILE || isSvg)) {
     appendImg(iconId, wnPublicViewUrl(f.id));
     return;
   }
@@ -888,21 +913,27 @@ async function loadOneThumbnail(f) {
       return;
     }
 
-    /* ── サーバー保存型サムネイル確認（PDF以外のOffice等）──
-       保存済みなら極小JPEGを <img> で即表示。
-       404（pdf/video/dxf の未生成）なら下のクライアント生成へ進む。 */
-    const serverThumbUrl = await wnProbeServerThumb(f.id, f.updated_at ?? f.created_at);
-    if (serverThumbUrl) {
-      thumbMemCache[cacheKey] = serverThumbUrl;
-      appendImg(iconId, serverThumbUrl, appendOpts);
+    /* ── サーバー保存型サムネイル確認（画像/Office等）──
+       保存済みなら極小JPEGを取得し、IndexedDB へも保存して再訪をゼロ通信化する。
+       404（pdf/video/dxf/HEIC の未生成）なら下のクライアント生成へ進む。 */
+    const serverBlob = await wnFetchServerThumb(f.id, f.updated_at ?? f.created_at);
+    if (serverBlob) {
+      await ThumbCache.evictOld(f.id).catch(() => {});
+      await ThumbCache.set(cacheKey, serverBlob).catch(() => {});  // 永続化＝次回IDBヒット
+      const url = URL.createObjectURL(serverBlob);
+      thumbMemCache[cacheKey] = url;
+      appendImg(iconId, url, appendOpts);
       return;
     }
 
-    /* ── サーバーに無い → クライアント生成（生成後はサーバーへ保存して次回以降即配信） ── */
+    /* ── サーバーに無い → クライアント生成（生成後はサーバーへ保存して次回以降即配信） ──
+       重いcanvas処理はモバイルでメモリを食うため wnGenSem で同時実行数を絞る。 */
     let blob = null;
 
     const directUrl = wnPublicViewUrl(f.id);
 
+    await wnGenSem.acquire();
+    try {
     if (['heic','heif'].includes(ext) || mime === 'image/heic' || mime === 'image/heif') {
       const res = await fetch(directUrl);
       if (!res.ok) return;
@@ -1098,6 +1129,9 @@ async function loadOneThumbnail(f) {
       wnFreeCanvas(canvas, out);
       pdf.destroy?.();
     }
+    } finally {
+      wnGenSem.release();   // 生成セマフォを必ず解放
+    }
 
     if (!blob) return;
 
@@ -1116,22 +1150,23 @@ async function loadOneThumbnail(f) {
   } catch(e) { console.warn('thumb error:', f.file_name, e); }
 }
 
-/* サーバー保存型サムネイルを <img> で読めるか試す。
-   読めれば URL、404等で読めなければ null を返す（即時にクライアント生成へ移る）。
-   URLは g(世代)+t(更新時刻) を含むので、appendImg 側の再読込はキャッシュヒットで二重取得にならない。 */
-function wnProbeServerThumb(fileId, updatedAt) {
-  return new Promise(resolve => {
-    let settled = false;
-    const url = wnThumbUrl(fileId, updatedAt);
-    const img = new Image();
-    const done = (v) => { if (!settled) { settled = true; resolve(v); } };
-    img.onload  = () => done(url);
-    img.onerror = () => done(null);
-    img.src = url;
-    /* サーバーが画像/Officeをその場生成する場合に時間がかかることがあるため
-       8秒で諦めてクライアント生成へ（保険） */
-    setTimeout(() => done(null), 8000);
-  });
+/* サーバー保存型サムネイルを fetch で取得して blob を返す（404・例外・タイムアウトは null）。
+   blob を返すことで呼び出し側が IndexedDB へ永続化でき、再訪をゼロ通信化できる。
+   URLは g(世代)+t(更新時刻) を含むのでHTTPキャッシュも効く。サーバーが画像/Officeを
+   その場生成する場合に時間がかかることがあるため 8 秒で諦めてクライアント生成へ。 */
+async function wnFetchServerThumb(fileId, updatedAt) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const res = await fetch(wnThumbUrl(fileId, updatedAt), { signal: ctl.signal });
+    if (!res.ok) return null;               // 404 → クライアント生成へ
+    const blob = await res.blob();
+    return blob && blob.size > 0 ? blob : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /* Excelサムネイル: 最初のシートをミニ表として描画 */
@@ -1265,6 +1300,7 @@ function appendImg(iconId, url, opts = {}) {
       if (isDoc) thumb.style.background = '#fff';
       const img = document.createElement('img');
       img.alt = '';
+      img.decoding = 'async';   // メインスレッドのデコード待ちを避ける
       img.style.cssText = `width:100%;height:100%;object-fit:${objectFit};object-position:${objectPosition};display:block;position:absolute;inset:0;border-radius:4px 4px 0 0;`;
       img.onload = () => { iconEl.style.display = 'none'; thumb.appendChild(img); };
       img.onerror = () => {};
@@ -1281,6 +1317,7 @@ function appendImg(iconId, url, opts = {}) {
       if (isDoc) rowThumb.style.background = '#fff';
       const img = document.createElement('img');
       img.alt = '';
+      img.decoding = 'async';
       img.style.cssText = `width:100%;height:100%;object-fit:${objectFit};object-position:${objectPosition};display:block;border-radius:4px;`;
       img.onload = () => { rowIconEl.style.display = 'none'; rowThumb.appendChild(img); };
       img.onerror = () => {};
