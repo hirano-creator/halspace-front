@@ -610,7 +610,7 @@ const ThumbCache = (() => {
 const thumbMemCache = {};
 
 /* サムネイル生成バージョン（解像度等を変えたら上げてキャッシュを再生成させる） */
-const THUMB_VER = 'v14'; // 動画は再生ベースでキャプチャ（iOSの黒フレーム対策）
+const THUMB_VER = 'v15'; // サーバー保存型サムネイル導入（即配信＋クライアントは生成→POST保存）
 /* Excel/Word サムネイルの描画倍率（論理座標×この倍率で高解像度化） */
 const THUMB_SS = 2;
 
@@ -878,7 +878,18 @@ async function loadOneThumbnail(f) {
       return;
     }
 
-    /* ── キャッシュなし → 取得・生成 ── */
+    /* ── サーバー保存型サムネイル確認（最優先・最速） ──
+       生成済みなら極小JPEGを <img> で即表示。重いファイル取得・デコードを完全に省略。
+       画像/Office はサーバーがこのGETで生成・保存するため、初回でも以降は即配信になる。
+       404（pdf/heic/video/dxf の未生成）なら下のクライアント生成へ進む。 */
+    const serverThumbUrl = await wnProbeServerThumb(f.id);
+    if (serverThumbUrl) {
+      thumbMemCache[cacheKey] = serverThumbUrl;
+      appendImg(iconId, serverThumbUrl, appendOpts);
+      return;
+    }
+
+    /* ── サーバーに無い → クライアント生成（生成後はサーバーへ保存して次回以降即配信） ── */
     let blob = null;
 
     /* ローカル環境では public-view を直接使い、view エンドポイントの呼び出しを省く */
@@ -1076,9 +1087,12 @@ async function loadOneThumbnail(f) {
 
     if (!blob) return;
 
-    /* ── IndexedDBに保存 ── */
+    /* ── IndexedDBに保存（同一端末の次回用） ── */
     await ThumbCache.evictOld(f.id).catch(() => {});
     await ThumbCache.set(cacheKey, blob).catch(() => {});
+
+    /* ── サーバーへも保存（全端末・全ユーザーの次回を即配信化） ── */
+    wnUploadThumb(f.id, blob);
 
     /* ── 表示 ── */
     const objUrl = URL.createObjectURL(blob);
@@ -1086,6 +1100,24 @@ async function loadOneThumbnail(f) {
     appendImg(iconId, objUrl, appendOpts);
 
   } catch(e) { console.warn('thumb error:', f.file_name, e); }
+}
+
+/* サーバー保存型サムネイルを <img> で読めるか試す。
+   読めれば URL、404等で読めなければ null を返す（即時にクライアント生成へ移る）。
+   immutable キャッシュなので appendImg 側の再読込はキャッシュヒットで二重取得にならない。 */
+function wnProbeServerThumb(fileId) {
+  return new Promise(resolve => {
+    let settled = false;
+    const url = wnThumbUrl(fileId);
+    const img = new Image();
+    const done = (v) => { if (!settled) { settled = true; resolve(v); } };
+    img.onload  = () => done(url);
+    img.onerror = () => done(null);
+    img.src = url;
+    /* サーバーが画像/Officeをその場生成する場合に時間がかかることがあるため
+       8秒で諦めてクライアント生成へ（保険） */
+    setTimeout(() => done(null), 8000);
+  });
 }
 
 /* Excelサムネイル: 最初のシートをミニ表として描画 */

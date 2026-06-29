@@ -9,8 +9,11 @@ const WN_API_BASE = (() => {
 
 async function wnFetch(path, options = {}) {
   const token = localStorage.getItem('space_token');
+  /* FormData の場合は Content-Type を付けない（ブラウザに multipart 境界を
+     付けさせる）。JSON を強制すると multipart が壊れてサーバーが解析できない。 */
+  const isFormData = (typeof FormData !== 'undefined') && (options.body instanceof FormData);
   const headers = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     'Accept': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     ...(options.headers || {}),
@@ -335,6 +338,23 @@ async function wnSemanticSearch(query) {
 function wnPublicViewUrl(fileId) {
   const token = localStorage.getItem('space_token');
   return WN_API_BASE + `/wn/files/${fileId}/public-view` + (token ? `?token=${encodeURIComponent(token)}` : '');
+}
+
+/* 保存型サムネイルURL（<img> で直接読める。未生成なら 404 を返す） */
+function wnThumbUrl(fileId) {
+  const token = localStorage.getItem('space_token');
+  return WN_API_BASE + `/wn/files/${fileId}/thumb` + (token ? `?token=${encodeURIComponent(token)}` : '');
+}
+
+/* クライアント生成サムネ(blob)をサーバーへ保存（pdf/heic/video/dxf 用）。
+   失敗しても表示には影響しないので例外は握りつぶす。 */
+async function wnUploadThumb(fileId, blob) {
+  try {
+    if (!blob) return;
+    const fd = new FormData();
+    fd.append('thumb', blob, 'thumb.jpg');
+    await wnFetch(`/wn/files/${fileId}/thumb`, { method: 'POST', body: fd });
+  } catch (e) { /* 保存失敗は無視（次回再生成される） */ }
 }
 
 /* DXF テキストを取得（Shift-JIS自動判定） */
