@@ -610,7 +610,7 @@ const ThumbCache = (() => {
 const thumbMemCache = {};
 
 /* サムネイル生成バージョン（解像度等を変えたら上げてキャッシュを再生成させる） */
-const THUMB_VER = 'v10'; // video Range対応・モバイルサムネイル修正
+const THUMB_VER = 'v11'; // 動画サムネイル1本ずつ処理・メモリ解放対応
 /* Excel/Word サムネイルの描画倍率（論理座標×この倍率で高解像度化） */
 const THUMB_SS = 2;
 
@@ -747,7 +747,8 @@ function wnEnhanceLineArt(canvas, amount = 1.3, gamma = 1.55) {
 async function loadFileThumbnails() {
   const CONCURRENCY        = 4;          /* 一般ファイルの同時取得数 */
   const OFFICE_CONCURRENCY = 1;          /* Office は1ずつ（API帯域を奪わない） */
-  const OFFICE_MAX_BYTES   = 2 * 1024 * 1024; /* 2MB超のOfficeはサムネ生成スキップ */
+  const OFFICE_MAX_BYTES   = 2 * 1024 * 1024;   /* 2MB超のOfficeはサムネ生成スキップ */
+  const VIDEO_MAX_BYTES    = 200 * 1024 * 1024;  /* 200MB超の動画はサムネ生成スキップ */
 
   const isOffice = (f) => {
     const ext = (f.file_name || '').split('.').pop().toLowerCase();
@@ -755,12 +756,19 @@ async function loadFileThumbnails() {
   };
   /* PowerPoint はサーバー変換済みPDFを使うため、元ファイルのサイズ制限は不要 */
   const isPpt = (f) => ['pptx','ppt','pptm'].includes((f.file_name || '').split('.').pop().toLowerCase());
+  const isVid = (f) => {
+    const ext  = (f.file_name || '').split('.').pop().toLowerCase();
+    const mime = f.mime_type ?? '';
+    return mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext);
+  };
 
   const targets = allFiles.filter(f => {
     const ext  = (f.file_name || '').split('.').pop().toLowerCase();
     const mime = f.mime_type ?? '';
     /* Office で 2MB 超は重すぎてAPIを詰まらせるためスキップ */
     if (isOffice(f) && (f.file_size ?? 0) > OFFICE_MAX_BYTES) return false;
+    /* 動画で 200MB 超はモバイルでクラッシュするためスキップ */
+    if (isVid(f)    && (f.file_size ?? 0) > VIDEO_MAX_BYTES)  return false;
     return mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext)
         || mime === 'application/pdf' || ext === 'pdf'
         || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
@@ -769,12 +777,18 @@ async function loadFileThumbnails() {
         || isPpt(f);
   });
 
-  /* 軽量ファイルとOffice系を分離してスケジュール
-     （PowerPoint も未キャッシュ時はサーバー変換が走るため1つずつ） */
-  const lightTargets  = targets.filter(f => !isOffice(f) && !isPpt(f));
+  /* 動画・画像系・Office系を分離してスケジュール
+     動画は video 要素をDOMに追加してデコードするためメモリを大量消費する。
+     iOS Safari で複数同時実行するとタブがクラッシュするため必ず1本ずつ順番に処理する。 */
+  const videoTargets  = targets.filter(f => isVid(f));
+  const lightTargets  = targets.filter(f => !isVid(f) && !isOffice(f) && !isPpt(f));
   const officeTargets = targets.filter(f => isOffice(f) || isPpt(f));
 
-  /* 軽量ファイル: 並列処理 */
+  /* 動画: 1本ずつ順番に（複数同時はiOS Safariのメモリ不足でクラッシュする） */
+  for (const f of videoTargets) {
+    await loadOneThumbnail(f);
+  }
+  /* 画像/PDF/DXF等: 並列処理 */
   for (let i = 0; i < lightTargets.length; i += CONCURRENCY) {
     await Promise.allSettled(
       lightTargets.slice(i, i + CONCURRENCY).map(f => loadOneThumbnail(f))
@@ -878,11 +892,16 @@ async function loadOneThumbnail(f) {
           if (captured) return;
           captured = true;
           clearTimeout(timer);
-          try { document.body.removeChild(video); } catch {}
+          try {
+            // video.src を空にしてデコーダーバッファを即解放（iOS Safariのメモリ対策）
+            video.src = '';
+            video.load();
+            document.body.removeChild(video);
+          } catch {}
           resolve(b);
         };
-        // 10秒でタイムアウト（低速モバイル回線でも後続処理を止めない）
-        const timer = setTimeout(() => finish(null), 10000);
+        // 6秒でタイムアウト（動画は1本ずつ処理するので短めに）
+        const timer = setTimeout(() => finish(null), 6000);
 
         const capture = () => {
           if (captured) return;
