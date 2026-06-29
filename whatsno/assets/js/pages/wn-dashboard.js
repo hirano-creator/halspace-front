@@ -610,7 +610,7 @@ const ThumbCache = (() => {
 const thumbMemCache = {};
 
 /* サムネイル生成バージョン（解像度等を変えたら上げてキャッシュを再生成させる） */
-const THUMB_VER = 'v16'; // 画像はpublicViewUrl直接表示へ変更（EXIF問題を根本解消）
+const THUMB_VER = 'v17'; // PDFサムネ白背景修正（透過→黒化を根本解消）
 /* Excel/Word サムネイルの描画倍率（論理座標×この倍率で高解像度化） */
 const THUMB_SS = 2;
 
@@ -958,7 +958,10 @@ async function loadOneThumbnail(f) {
       const canvas   = document.createElement('canvas');
       canvas.width   = Math.round(viewport.width);
       canvas.height  = Math.round(viewport.height);
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      const pdfCtx   = canvas.getContext('2d');
+      pdfCtx.fillStyle = '#ffffff'; // 白背景を必ず塗る（透過PDFをJPEG化すると黒になるため）
+      pdfCtx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: pdfCtx, viewport }).promise;
       /* 余白カット → 高品質縮小 → 線画強調 の順で内容を最大限大きく写す */
       const trimmed = wnTrimMargins(canvas);
       const out = wnShrinkCanvas(trimmed, wnThumbTargetLong());
@@ -1085,7 +1088,10 @@ async function loadOneThumbnail(f) {
       const canvas   = document.createElement('canvas');
       canvas.width   = Math.round(viewport.width);
       canvas.height  = Math.round(viewport.height);
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+      const pptCtx   = canvas.getContext('2d');
+      pptCtx.fillStyle = '#ffffff';
+      pptCtx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: pptCtx, viewport }).promise;
       /* スライドは全面デザインが多いので余白カット・線画強調はかけない */
       const out = wnShrinkCanvas(canvas, wnThumbTargetLong());
       blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));

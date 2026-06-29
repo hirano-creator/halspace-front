@@ -344,7 +344,7 @@ function wnPublicViewUrl(fileId) {
    g= はサムネ生成世代（サーバーの WN_THUMB_GEN と揃える。ロジック変更時に上げる）。
    t= はファイル更新時刻。差し替え時にURLが変わり古いサムネを掴まないようにする。
    サーバーは immutable を使わず ETag+再検証で配信するため、万一の誤配信も自己修復する。 */
-const WN_THUMB_GEN = 'g3';
+const WN_THUMB_GEN = 'g4';
 function wnThumbUrl(fileId, updatedAt) {
   const token = localStorage.getItem('space_token');
   const ts = updatedAt ? Date.parse(updatedAt) || '' : '';
