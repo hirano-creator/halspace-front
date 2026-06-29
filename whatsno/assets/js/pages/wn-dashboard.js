@@ -610,7 +610,7 @@ const ThumbCache = (() => {
 const thumbMemCache = {};
 
 /* サムネイル生成バージョン（解像度等を変えたら上げてキャッシュを再生成させる） */
-const THUMB_VER = 'v11'; // 動画サムネイル1本ずつ処理・メモリ解放対応
+const THUMB_VER = 'v12'; // seeked後rAF×2でフレーム待機・黒フレーム修正
 /* Excel/Word サムネイルの描画倍率（論理座標×この倍率で高解像度化） */
 const THUMB_SS = 2;
 
@@ -921,12 +921,12 @@ async function loadOneThumbnail(f) {
           } catch { finish(null); }
         };
 
-        // loadedmetadata → 0.5秒付近にシーク（1秒だと大きいファイルでRange非対応サーバーに詰まる）
         video.addEventListener('loadedmetadata', () => { video.currentTime = 0.5; });
-        // seeked: Rangeリクエスト対応サーバーで発火（正常系）
-        video.addEventListener('seeked', capture, { once: true });
-        // loadeddata: Range非対応時のフォールバック（初期バッファ到着時にキャプチャ）
-        video.addEventListener('loadeddata', capture, { once: true });
+        // seeked 後に rAF ×2 でフレーム描画完了を待つ（seeked直後は黒になるブラウザがある）
+        video.addEventListener('seeked', () => {
+          requestAnimationFrame(() => requestAnimationFrame(capture));
+        }, { once: true });
+        // loadeddata は使わない: PC では seeked より先に time=0（黒）でキャプチャされるため
         video.addEventListener('error', () => finish(null), { once: true });
         video.src = directUrl;
       });
