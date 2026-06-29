@@ -610,12 +610,38 @@ const ThumbCache = (() => {
 const thumbMemCache = {};
 
 /* サムネイル生成バージョン（解像度等を変えたら上げてキャッシュを再生成させる） */
-const THUMB_VER = 'v12'; // seeked後rAF×2でフレーム待機・黒フレーム修正
+const THUMB_VER = 'v13'; // モバイルOOM対策（低解像度・逐次処理・canvas即解放）
 /* Excel/Word サムネイルの描画倍率（論理座標×この倍率で高解像度化） */
 const THUMB_SS = 2;
 
-/* 保存するサムネイルの長辺ピクセル（表示サイズ×DPRに近づけるほど細線が濃く残る） */
+/* iOS / モバイル判定。
+   iOS Safari はタブ毎メモリ上限が厳しく、高解像度canvasのgetImageData/blur
+   や動画デコードを並列実行すると数百MBに達してOOMでタブが落ちる
+   （「問題が繰り返し起きました」）。モバイルでは並列数・描画解像度を絞り、
+   動画は画像の後に1本ずつ処理してピークメモリを抑える。 */
+const WN_IS_MOBILE = (() => {
+  try {
+    const ua = navigator.userAgent || '';
+    const iOS = /iP(hone|ad|od)/.test(ua)
+             || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1); // iPadOS
+    const android = /Android/.test(ua);
+    const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    return iOS || android || (coarse && (window.innerWidth || 0) < 1024);
+  } catch { return false; }
+})();
+
+/* canvas のバッキングストアを即解放（Safari は参照を切っても backing store の
+   解放が遅く、連続生成でメモリが積み上がるため明示的に 0×0 にする）。 */
+function wnFreeCanvas() {
+  for (const c of arguments) {
+    try { if (c) { c.width = 0; c.height = 0; } } catch {}
+  }
+}
+
+/* 保存するサムネイルの長辺ピクセル（表示サイズ×DPRに近づけるほど細線が濃く残る）。
+   モバイルはメモリ優先で 720px 固定（カードは小さく表示されるため実害なし）。 */
 function wnThumbTargetLong() {
+  if (WN_IS_MOBILE) return 720;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   return Math.round(Math.min(1440, Math.max(720, 720 * dpr)));
 }
@@ -663,6 +689,7 @@ async function wnNormalizeImageBlob(blob) {
     bmp.close?.();
     const out = wnShrinkCanvas(canvas, wnThumbTargetLong());  // 既存の高品質段階縮小を再利用
     const re  = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.9));
+    wnFreeCanvas(canvas, out);   // フル解像度canvasを即解放（モバイルOOM対策）
     return re || blob;
   } catch {
     return blob;  // createImageBitmap 非対応や失敗時は元のまま
@@ -745,7 +772,7 @@ function wnEnhanceLineArt(canvas, amount = 1.3, gamma = 1.55) {
 }
 
 async function loadFileThumbnails() {
-  const CONCURRENCY        = 4;          /* 一般ファイルの同時取得数 */
+  const CONCURRENCY        = WN_IS_MOBILE ? 1 : 4;  /* モバイルはOOM回避で1件ずつ */
   const OFFICE_CONCURRENCY = 1;          /* Office は1ずつ（API帯域を奪わない） */
   const OFFICE_MAX_BYTES   = 2 * 1024 * 1024;   /* 2MB超のOfficeはサムネ生成スキップ */
   const VIDEO_MAX_BYTES    = 200 * 1024 * 1024;  /* 200MB超の動画はサムネ生成スキップ */
@@ -778,17 +805,23 @@ async function loadFileThumbnails() {
   });
 
   /* 3種に分離してスケジュール
-     ─ 動画   : video要素のデコードバッファが重いため1本ずつ逐次（iOS Safari OOM対策）
-     ─ 画像系 : 並列（CONCURRENCY=4）
+     ─ 動画   : video要素のデコードバッファが重いため1本ずつ逐次
+     ─ 画像系 : PC=並列(4) / モバイル=逐次(1)
      ─ Office : 1つずつ（サーバー変換が重いため）
-     動画と画像は Promise.all で同時進行させ、PC では画像が動画処理に阻まれないようにする。 */
+     PC は動画(逐次)と画像(並列)を同時進行。モバイルは画像→動画を完全逐次にして
+     ピークメモリを抑える（並列実行はiOS SafariのOOMでタブが落ちるため）。 */
   const videoTargets  = targets.filter(f => isVid(f));
   const lightTargets  = targets.filter(f => !isVid(f) && !isOffice(f) && !isPpt(f));
   const officeTargets = targets.filter(f => isOffice(f) || isPpt(f));
 
+  const breather = WN_IS_MOBILE
+    ? () => new Promise(r => setTimeout(r, 60))   // GCの猶予を与える
+    : () => Promise.resolve();
+
   const runVideos = async () => {
     for (const f of videoTargets) {
-      await loadOneThumbnail(f);          // 1本ずつ逐次（モバイルメモリ対策）
+      await loadOneThumbnail(f);          // 1本ずつ逐次（動画デコードは重い）
+      await breather();
     }
   };
   const runLight = async () => {
@@ -796,11 +829,18 @@ async function loadFileThumbnails() {
       await Promise.allSettled(
         lightTargets.slice(i, i + CONCURRENCY).map(f => loadOneThumbnail(f))
       );
+      await breather();
     }
   };
 
-  // 動画(逐次)と画像(並列)を同時進行。Office はその後。
-  await Promise.all([runVideos(), runLight()]);
+  if (WN_IS_MOBILE) {
+    // モバイル: 画像→動画を完全逐次。動画デコードと画像処理を重ねるとOOMで落ちるため。
+    await runLight();
+    await runVideos();
+  } else {
+    // PC: 動画(逐次)と画像(並列)を同時進行させ、画像が動画処理に阻まれないようにする。
+    await Promise.all([runVideos(), runLight()]);
+  }
 
   for (let i = 0; i < officeTargets.length; i += OFFICE_CONCURRENCY) {
     await Promise.allSettled(
@@ -845,13 +885,33 @@ async function loadOneThumbnail(f) {
     const directUrl = wnPublicViewUrl(f.id);
 
     if (['heic','heif'].includes(ext) || mime === 'image/heic' || mime === 'image/heif') {
-      if (typeof heic2any === 'undefined') return;
       const res = await fetch(directUrl);
       if (!res.ok) return;
-      const buffer = await res.arrayBuffer();
-      let b = await heic2any({ blob: new Blob([buffer], { type: 'image/heic' }), toType: 'image/jpeg', quality: 0.70 });
-      blob = Array.isArray(b) ? b[0] : b;
-      blob = await wnNormalizeImageBlob(blob);   // EXIF 回転を焼き込み
+      const srcBlob = await res.blob();
+
+      /* iOS Safari は HEIC をネイティブデコードできる。重い heic2any(WASM,
+         数十MB) を避けて createImageBitmap で直接縮小し、モバイルOOMを防ぐ。
+         失敗時（Android 等ネイティブ非対応）は heic2any にフォールバック。 */
+      if (typeof createImageBitmap === 'function') {
+        try {
+          const bmp = await createImageBitmap(srcBlob, { imageOrientation: 'from-image' });
+          const c = document.createElement('canvas');
+          c.width = bmp.width; c.height = bmp.height;
+          c.getContext('2d').drawImage(bmp, 0, 0);
+          bmp.close?.();
+          const out = wnShrinkCanvas(c, wnThumbTargetLong());
+          blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.85));
+          wnFreeCanvas(c, out);
+        } catch { blob = null; }
+      }
+
+      if (!blob) {
+        if (typeof heic2any === 'undefined') return;
+        const buffer = await srcBlob.arrayBuffer();
+        let b = await heic2any({ blob: new Blob([buffer], { type: 'image/heic' }), toType: 'image/jpeg', quality: 0.70 });
+        b = Array.isArray(b) ? b[0] : b;
+        blob = await wnNormalizeImageBlob(b);   // EXIF 回転を焼き込み
+      }
 
     } else if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','svg'].includes(ext)) {
       const res = await fetch(directUrl);
@@ -870,10 +930,11 @@ async function loadOneThumbnail(f) {
         standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@3.11.174/standard_fonts/',
       }).promise;
       const page     = await pdf.getPage(1);
-      /* 長辺約2600pxで大きめに描画（スーパーサンプリング）してから
-         高品質縮小で保存サイズへ落とす。図面の細線が濃くはっきり残る */
+      /* 大きめに描画（スーパーサンプリング）してから高品質縮小で保存サイズへ落とす。
+         モバイルは getImageData/blur のメモリが致命的なので長辺を絞る（1400px）。 */
+      const ssLong = WN_IS_MOBILE ? 1400 : 2600;
       const base   = page.getViewport({ scale: 1 });
-      const scale  = Math.min(4, Math.max(1.5, 2600 / Math.max(base.width, base.height)));
+      const scale  = Math.min(WN_IS_MOBILE ? 2 : 4, Math.max(1.5, ssLong / Math.max(base.width, base.height)));
       const viewport = page.getViewport({ scale });
       const canvas   = document.createElement('canvas');
       canvas.width   = Math.round(viewport.width);
@@ -884,6 +945,8 @@ async function loadOneThumbnail(f) {
       const out = wnShrinkCanvas(trimmed, wnThumbTargetLong());
       wnEnhanceLineArt(out);
       blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
+      wnFreeCanvas(canvas, trimmed, out);
+      pdf.destroy?.();   // pdf.js のデコードバッファ・Workerメモリを解放
 
     } else if (mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)) {
       blob = await new Promise(resolve => {
@@ -917,7 +980,7 @@ async function loadOneThumbnail(f) {
             canvas.width  = video.videoWidth  || 320;
             canvas.height = video.videoHeight || 180;
             canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob(b => finish(b), 'image/jpeg', 0.80);
+            canvas.toBlob(b => { wnFreeCanvas(canvas); finish(b); }, 'image/jpeg', 0.80);
           } catch { finish(null); }
         };
 
@@ -942,6 +1005,7 @@ async function loadOneThumbnail(f) {
       const out = wnShrinkCanvas(canvas, wnThumbTargetLong());
       wnEnhanceLineArt(out);
       blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
+      wnFreeCanvas(canvas, out);
 
     } else if (['xlsx','xls','xlsm'].includes(ext)) {
       if (typeof XLSX === 'undefined') return;
@@ -974,8 +1038,9 @@ async function loadOneThumbnail(f) {
       const buffer   = await res.arrayBuffer();
       const pdf      = await pdfjsLib.getDocument({ data: buffer }).promise;
       const page     = await pdf.getPage(1);
+      const ssLong   = WN_IS_MOBILE ? 1400 : 2600;
       const base     = page.getViewport({ scale: 1 });
-      const scale    = Math.min(4, Math.max(1.5, 2600 / Math.max(base.width, base.height)));
+      const scale    = Math.min(WN_IS_MOBILE ? 2 : 4, Math.max(1.5, ssLong / Math.max(base.width, base.height)));
       const viewport = page.getViewport({ scale });
       const canvas   = document.createElement('canvas');
       canvas.width   = Math.round(viewport.width);
@@ -984,6 +1049,8 @@ async function loadOneThumbnail(f) {
       /* スライドは全面デザインが多いので余白カット・線画強調はかけない */
       const out = wnShrinkCanvas(canvas, wnThumbTargetLong());
       blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
+      wnFreeCanvas(canvas, out);
+      pdf.destroy?.();
     }
 
     if (!blob) return;
