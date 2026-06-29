@@ -610,7 +610,7 @@ const ThumbCache = (() => {
 const thumbMemCache = {};
 
 /* サムネイル生成バージョン（解像度等を変えたら上げてキャッシュを再生成させる） */
-const THUMB_VER = 'v13'; // モバイルOOM対策（低解像度・逐次処理・canvas即解放）
+const THUMB_VER = 'v14'; // 動画は再生ベースでキャプチャ（iOSの黒フレーム対策）
 /* Excel/Word サムネイルの描画倍率（論理座標×この倍率で高解像度化） */
 const THUMB_SS = 2;
 
@@ -952,7 +952,11 @@ async function loadOneThumbnail(f) {
       blob = await new Promise(resolve => {
         const video = document.createElement('video');
         video.crossOrigin = 'anonymous';
-        video.muted = true; video.playsInline = true; video.preload = 'metadata';
+        video.muted = true; video.defaultMuted = true;
+        video.playsInline = true; video.preload = 'auto';
+        // iOS Safari は属性が無いとミュート自動再生を許可しないため属性も付与
+        video.setAttribute('muted', '');
+        video.setAttribute('playsinline', '');
         // display:none だと iOS Safari が動画データを読み込まないため画面外に配置する
         video.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:320px;height:180px;opacity:0.001;pointer-events:none;';
         document.body.appendChild(video);
@@ -964,14 +968,16 @@ async function loadOneThumbnail(f) {
           clearTimeout(timer);
           try {
             // video.src を空にしてデコーダーバッファを即解放（iOS Safariのメモリ対策）
+            try { video.pause(); } catch {}
+            video.removeAttribute('src');
             video.src = '';
             video.load();
             document.body.removeChild(video);
           } catch {}
           resolve(b);
         };
-        // 6秒でタイムアウト（動画は1本ずつ処理するので短めに）
-        const timer = setTimeout(() => finish(null), 6000);
+        // 大容量動画のストリーミングを考慮し10秒でタイムアウト
+        const timer = setTimeout(() => finish(null), 10000);
 
         const capture = () => {
           if (captured) return;
@@ -983,13 +989,28 @@ async function loadOneThumbnail(f) {
             canvas.toBlob(b => { wnFreeCanvas(canvas); finish(b); }, 'image/jpeg', 0.80);
           } catch { finish(null); }
         };
+        // rAF×2 でフレーム描画完了を待ってからキャプチャ（直後は黒になる端末がある）
+        const captureSoon = () => requestAnimationFrame(() => requestAnimationFrame(capture));
 
-        video.addEventListener('loadedmetadata', () => { video.currentTime = 0.5; });
-        // seeked 後に rAF ×2 でフレーム描画完了を待つ（seeked直後は黒になるブラウザがある）
-        video.addEventListener('seeked', () => {
-          requestAnimationFrame(() => requestAnimationFrame(capture));
-        }, { once: true });
-        // loadeddata は使わない: PC では seeked より先に time=0（黒）でキャプチャされるため
+        // iOS Safari は「再生」しないと canvas に黒しか描画されない。
+        // ミュート自動再生で実フレームをデコードさせ、currentTime が進んだら
+        // キャプチャして一時停止する。自動再生が拒否された場合は seek にフォールバック。
+        video.addEventListener('loadedmetadata', () => {
+          const seekTo = Math.min(0.5, (video.duration || 1) / 3);
+          const p = video.play();
+          if (p && typeof p.catch === 'function') {
+            p.catch(() => { try { video.currentTime = seekTo; } catch {} });
+          }
+        });
+        // 再生が 0.1 秒以上進んだ実フレームをキャプチャ（正常系・iOS含む）
+        video.addEventListener('timeupdate', () => {
+          if (!captured && video.currentTime >= 0.1) {
+            try { video.pause(); } catch {}
+            captureSoon();
+          }
+        });
+        // seek 経路（自動再生フォールバック / 一部デスクトップ）
+        video.addEventListener('seeked', captureSoon, { once: true });
         video.addEventListener('error', () => finish(null), { once: true });
         video.src = directUrl;
       });
