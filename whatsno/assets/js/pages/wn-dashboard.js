@@ -777,24 +777,31 @@ async function loadFileThumbnails() {
         || isPpt(f);
   });
 
-  /* 動画・画像系・Office系を分離してスケジュール
-     動画は video 要素をDOMに追加してデコードするためメモリを大量消費する。
-     iOS Safari で複数同時実行するとタブがクラッシュするため必ず1本ずつ順番に処理する。 */
+  /* 3種に分離してスケジュール
+     ─ 動画   : video要素のデコードバッファが重いため1本ずつ逐次（iOS Safari OOM対策）
+     ─ 画像系 : 並列（CONCURRENCY=4）
+     ─ Office : 1つずつ（サーバー変換が重いため）
+     動画と画像は Promise.all で同時進行させ、PC では画像が動画処理に阻まれないようにする。 */
   const videoTargets  = targets.filter(f => isVid(f));
   const lightTargets  = targets.filter(f => !isVid(f) && !isOffice(f) && !isPpt(f));
   const officeTargets = targets.filter(f => isOffice(f) || isPpt(f));
 
-  /* 動画: 1本ずつ順番に（複数同時はiOS Safariのメモリ不足でクラッシュする） */
-  for (const f of videoTargets) {
-    await loadOneThumbnail(f);
-  }
-  /* 画像/PDF/DXF等: 並列処理 */
-  for (let i = 0; i < lightTargets.length; i += CONCURRENCY) {
-    await Promise.allSettled(
-      lightTargets.slice(i, i + CONCURRENCY).map(f => loadOneThumbnail(f))
-    );
-  }
-  /* Office: 1つずつ順番に（重いダウンロードでAPIを詰まらせないため） */
+  const runVideos = async () => {
+    for (const f of videoTargets) {
+      await loadOneThumbnail(f);          // 1本ずつ逐次（モバイルメモリ対策）
+    }
+  };
+  const runLight = async () => {
+    for (let i = 0; i < lightTargets.length; i += CONCURRENCY) {
+      await Promise.allSettled(
+        lightTargets.slice(i, i + CONCURRENCY).map(f => loadOneThumbnail(f))
+      );
+    }
+  };
+
+  // 動画(逐次)と画像(並列)を同時進行。Office はその後。
+  await Promise.all([runVideos(), runLight()]);
+
   for (let i = 0; i < officeTargets.length; i += OFFICE_CONCURRENCY) {
     await Promise.allSettled(
       officeTargets.slice(i, i + OFFICE_CONCURRENCY).map(f => loadOneThumbnail(f))
