@@ -889,10 +889,14 @@ async function loadOneThumbnail(f) {
      CSS(object-fit:cover)がトリミングを担う。遅延ロード済みなので画面外は取得しない。 */
   const isRawImage = mime.startsWith('image/')
     || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext);
-  const isSvg = ext === 'svg' || mime === 'image/svg+xml';
-  /* PC は全画像、モバイルは SVG（ベクター・極小でサーバーGD非対応）だけ原画像直接。
-     それ以外のモバイル画像（JPEG/PNG/HEIC等）は統合フローで400pxサムネ化する。 */
-  if (isRawImage && (!WN_IS_MOBILE || isSvg)) {
+  const isSvg  = ext === 'svg' || mime === 'image/svg+xml';
+  const isHeic = ['heic','heif'].includes(ext) || mime === 'image/heic' || mime === 'image/heif';
+  /* 原画像URLを直接表示する条件:
+       PC: SVG/HEIC 以外の画像（JPEG/PNG等はブラウザが確実に表示できる）
+       モバイル: SVG のみ（ベクター・極小でサーバーGD非対応）
+     HEIC は Windows Chrome/Edge 等が <img> でデコードできずアイコン化するため、
+     全環境で統合フロー（クライアント heic2any/ネイティブ生成→JPEG化）へ通す。 */
+  if (isRawImage && !isHeic && (!WN_IS_MOBILE || isSvg)) {
     appendImg(iconId, wnPublicViewUrl(f.id));
     return;
   }
