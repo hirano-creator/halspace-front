@@ -341,13 +341,18 @@ function wnPublicViewUrl(fileId) {
 }
 
 /* 保存型サムネイルURL（<img> で直接読める。未生成なら 404 を返す）。
-   g= はサムネ生成世代。サーバーの WN_THUMB_GEN と揃え、ロジック変更時に上げると
-   immutable キャッシュ済みの古いサムネ（EXIF回転前など）をブラウザに再取得させる。 */
-const WN_THUMB_GEN = 'g2';
-function wnThumbUrl(fileId) {
+   g= はサムネ生成世代（サーバーの WN_THUMB_GEN と揃える。ロジック変更時に上げる）。
+   t= はファイル更新時刻。差し替え時にURLが変わり古いサムネを掴まないようにする。
+   サーバーは immutable を使わず ETag+再検証で配信するため、万一の誤配信も自己修復する。 */
+const WN_THUMB_GEN = 'g3';
+function wnThumbUrl(fileId, updatedAt) {
   const token = localStorage.getItem('space_token');
-  const qs = (token ? `?token=${encodeURIComponent(token)}&` : '?') + `g=${WN_THUMB_GEN}`;
-  return WN_API_BASE + `/wn/files/${fileId}/thumb` + qs;
+  const ts = updatedAt ? Date.parse(updatedAt) || '' : '';
+  const parts = [];
+  if (token) parts.push(`token=${encodeURIComponent(token)}`);
+  parts.push(`g=${WN_THUMB_GEN}`);
+  if (ts) parts.push(`t=${ts}`);
+  return WN_API_BASE + `/wn/files/${fileId}/thumb?` + parts.join('&');
 }
 
 /* クライアント生成サムネ(blob)をサーバーへ保存（pdf/heic/video/dxf 用）。

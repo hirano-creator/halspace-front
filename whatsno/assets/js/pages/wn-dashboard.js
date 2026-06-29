@@ -880,7 +880,7 @@ async function loadOneThumbnail(f) {
        生成済みなら極小JPEGを <img> で即表示。重いファイル取得・デコードを完全に省略。
        画像/Office はサーバーがこのGETで生成・保存するため、初回でも以降は即配信になる。
        404（pdf/heic/video/dxf の未生成）なら下のクライアント生成へ進む。 */
-    const serverThumbUrl = await wnProbeServerThumb(f.id);
+    const serverThumbUrl = await wnProbeServerThumb(f.id, f.updated_at ?? f.created_at);
     if (serverThumbUrl) {
       thumbMemCache[cacheKey] = serverThumbUrl;
       appendImg(iconId, serverThumbUrl, appendOpts);
@@ -1102,11 +1102,11 @@ async function loadOneThumbnail(f) {
 
 /* サーバー保存型サムネイルを <img> で読めるか試す。
    読めれば URL、404等で読めなければ null を返す（即時にクライアント生成へ移る）。
-   immutable キャッシュなので appendImg 側の再読込はキャッシュヒットで二重取得にならない。 */
-function wnProbeServerThumb(fileId) {
+   URLは g(世代)+t(更新時刻) を含むので、appendImg 側の再読込はキャッシュヒットで二重取得にならない。 */
+function wnProbeServerThumb(fileId, updatedAt) {
   return new Promise(resolve => {
     let settled = false;
-    const url = wnThumbUrl(fileId);
+    const url = wnThumbUrl(fileId, updatedAt);
     const img = new Image();
     const done = (v) => { if (!settled) { settled = true; resolve(v); } };
     img.onload  = () => done(url);
