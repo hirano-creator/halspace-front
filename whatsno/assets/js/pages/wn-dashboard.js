@@ -771,82 +771,80 @@ function wnEnhanceLineArt(canvas, amount = 1.3, gamma = 1.55) {
   } catch { /* 失敗してもサムネイル自体は無加工で出す */ }
 }
 
-async function loadFileThumbnails() {
-  const CONCURRENCY        = WN_IS_MOBILE ? 1 : 4;  /* モバイルはOOM回避で1件ずつ */
-  const OFFICE_CONCURRENCY = 1;          /* Office は1ずつ（API帯域を奪わない） */
-  const OFFICE_MAX_BYTES   = 2 * 1024 * 1024;   /* 2MB超のOfficeはサムネ生成スキップ */
-  const VIDEO_MAX_BYTES    = 200 * 1024 * 1024;  /* 200MB超の動画はサムネ生成スキップ */
+/* サムネ生成スキップ閾値（重すぎてモバイルで詰まる/落ちるもの） */
+const OFFICE_MAX_BYTES = 2 * 1024 * 1024;     /* 2MB超のOffice（クライアント生成時のみ） */
+const VIDEO_MAX_BYTES  = 200 * 1024 * 1024;   /* 200MB超の動画 */
 
-  const isOffice = (f) => {
-    const ext = (f.file_name || '').split('.').pop().toLowerCase();
-    return ['xlsx','xls','xlsm','docx','docm'].includes(ext);
-  };
-  /* PowerPoint はサーバー変換済みPDFを使うため、元ファイルのサイズ制限は不要 */
-  const isPpt = (f) => ['pptx','ppt','pptm'].includes((f.file_name || '').split('.').pop().toLowerCase());
-  const isVid = (f) => {
-    const ext  = (f.file_name || '').split('.').pop().toLowerCase();
-    const mime = f.mime_type ?? '';
-    return mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext);
-  };
+function wnThumbEligible(f) {
+  const ext  = (f.file_name || '').split('.').pop().toLowerCase();
+  const mime = f.mime_type ?? '';
+  const isOffice = ['xlsx','xls','xlsm','docx','docm'].includes(ext);
+  const isVid    = mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext);
+  if (isOffice && (f.file_size ?? 0) > OFFICE_MAX_BYTES) return false;
+  if (isVid    && (f.file_size ?? 0) > VIDEO_MAX_BYTES)  return false;
+  return mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext)
+      || mime === 'application/pdf' || ext === 'pdf'
+      || isVid
+      || ext === 'dxf'
+      || isOffice
+      || ['pptx','ppt','pptm'].includes(ext);
+}
 
-  const targets = allFiles.filter(f => {
-    const ext  = (f.file_name || '').split('.').pop().toLowerCase();
-    const mime = f.mime_type ?? '';
-    /* Office で 2MB 超は重すぎてAPIを詰まらせるためスキップ */
-    if (isOffice(f) && (f.file_size ?? 0) > OFFICE_MAX_BYTES) return false;
-    /* 動画で 200MB 超はモバイルでクラッシュするためスキップ */
-    if (isVid(f)    && (f.file_size ?? 0) > VIDEO_MAX_BYTES)  return false;
-    return mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext)
-        || mime === 'application/pdf' || ext === 'pdf'
-        || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
-        || ext === 'dxf'
-        || isOffice(f)
-        || isPpt(f);
-  });
+/* 同時処理数を絞るキュー（重い動画/Office生成がモバイルでメモリを食い合わないように）。
+   サーバー保存済みなら各処理は極小<img>取得で軽いが、未生成のクライアント生成は
+   重いので並列数を制限する。 */
+const WN_THUMB_MAX = WN_IS_MOBILE ? 2 : 6;
+let   wnThumbActive = 0;
+const wnThumbQueue  = [];
+let   wnThumbObserver = null;
 
-  /* 3種に分離してスケジュール
-     ─ 動画   : video要素のデコードバッファが重いため1本ずつ逐次
-     ─ 画像系 : PC=並列(4) / モバイル=逐次(1)
-     ─ Office : 1つずつ（サーバー変換が重いため）
-     PC は動画(逐次)と画像(並列)を同時進行。モバイルは画像→動画を完全逐次にして
-     ピークメモリを抑える（並列実行はiOS SafariのOOMでタブが落ちるため）。 */
-  const videoTargets  = targets.filter(f => isVid(f));
-  const lightTargets  = targets.filter(f => !isVid(f) && !isOffice(f) && !isPpt(f));
-  const officeTargets = targets.filter(f => isOffice(f) || isPpt(f));
-
-  const breather = WN_IS_MOBILE
-    ? () => new Promise(r => setTimeout(r, 60))   // GCの猶予を与える
-    : () => Promise.resolve();
-
-  const runVideos = async () => {
-    for (const f of videoTargets) {
-      await loadOneThumbnail(f);          // 1本ずつ逐次（動画デコードは重い）
-      await breather();
-    }
-  };
-  const runLight = async () => {
-    for (let i = 0; i < lightTargets.length; i += CONCURRENCY) {
-      await Promise.allSettled(
-        lightTargets.slice(i, i + CONCURRENCY).map(f => loadOneThumbnail(f))
-      );
-      await breather();
-    }
-  };
-
-  if (WN_IS_MOBILE) {
-    // モバイル: 画像→動画を完全逐次。動画デコードと画像処理を重ねるとOOMで落ちるため。
-    await runLight();
-    await runVideos();
-  } else {
-    // PC: 動画(逐次)と画像(並列)を同時進行させ、画像が動画処理に阻まれないようにする。
-    await Promise.all([runVideos(), runLight()]);
+function wnPumpThumbs() {
+  while (wnThumbActive < WN_THUMB_MAX && wnThumbQueue.length) {
+    const f = wnThumbQueue.shift();
+    wnThumbActive++;
+    Promise.resolve(loadOneThumbnail(f)).finally(() => {
+      wnThumbActive--;
+      wnPumpThumbs();
+    });
   }
+}
 
-  for (let i = 0; i < officeTargets.length; i += OFFICE_CONCURRENCY) {
-    await Promise.allSettled(
-      officeTargets.slice(i, i + OFFICE_CONCURRENCY).map(f => loadOneThumbnail(f))
-    );
+/* ビューポート遅延ロード:
+   画面に入った（手前400pxの先読み含む）カードのサムネイルだけ生成/取得する。
+   全119件を一括処理していた旧方式では、動画/Officeがキュー後方に回り、
+   モバイルでは表示まで時間がかかっていた。見ているカードを即処理する。 */
+function loadFileThumbnails() {
+  if (wnThumbObserver) { wnThumbObserver.disconnect(); wnThumbObserver = null; }
+  wnThumbQueue.length = 0;
+
+  const byId = new Map(allFiles.map(f => [String(f.id), f]));
+  const seen = new Set();
+
+  const trigger = (el) => {
+    const m = (el.id || '').match(/^thumb-icon-(?:row-)?(.+)$/);
+    if (!m) return;
+    const id = m[1];
+    if (seen.has(id)) return;
+    const f = byId.get(id);
+    if (!f || !wnThumbEligible(f)) return;
+    seen.add(id);
+    wnThumbQueue.push(f);
+    wnPumpThumbs();
+  };
+
+  const icons = document.querySelectorAll('[id^="thumb-icon-"]');
+  if (typeof IntersectionObserver !== 'function') {
+    icons.forEach(trigger);   // 非対応環境は全件（従来動作）
+    return;
   }
+  wnThumbObserver = new IntersectionObserver((entries, obs) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      obs.unobserve(e.target);
+      trigger(e.target);
+    }
+  }, { rootMargin: '400px 0px' });
+  icons.forEach(el => wnThumbObserver.observe(el));
 }
 
 async function loadOneThumbnail(f) {
