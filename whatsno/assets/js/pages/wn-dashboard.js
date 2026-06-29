@@ -610,7 +610,7 @@ const ThumbCache = (() => {
 const thumbMemCache = {};
 
 /* サムネイル生成バージョン（解像度等を変えたら上げてキャッシュを再生成させる） */
-const THUMB_VER = 'v15'; // サーバー保存型サムネイル導入（即配信＋クライアントは生成→POST保存）
+const THUMB_VER = 'v16'; // 画像はpublicViewUrl直接表示へ変更（EXIF問題を根本解消）
 /* Excel/Word サムネイルの描画倍率（論理座標×この倍率で高解像度化） */
 const THUMB_SS = 2;
 
@@ -860,6 +860,18 @@ async function loadOneThumbnail(f) {
               || ['xlsx','xls','xlsm','docx','docm'].includes(ext));
   const appendOpts = isDoc ? { anchor: 'top' } : {};
 
+  /* ── 画像ファイルは原画像URLを直接サムネとして使う ──
+     サーバー側でリサイズ・EXIF処理をするよりブラウザに任せたほうが確実。
+     詳細画面と同じURLを使うので向き・内容が常に一致し、コードも最小限になる。
+     CSS(object-fit:cover)がトリミングを担う。IntersectionObserverで遅延ロード済みなので
+     ビューポート外の画像は取得されない。 */
+  const isRawImage = mime.startsWith('image/')
+    || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext);
+  if (isRawImage) {
+    appendImg(iconId, wnPublicViewUrl(f.id));
+    return;
+  }
+
   try {
     /* ── メモリキャッシュ確認 ── */
     if (thumbMemCache[cacheKey]) {
@@ -876,10 +888,9 @@ async function loadOneThumbnail(f) {
       return;
     }
 
-    /* ── サーバー保存型サムネイル確認（最優先・最速） ──
-       生成済みなら極小JPEGを <img> で即表示。重いファイル取得・デコードを完全に省略。
-       画像/Office はサーバーがこのGETで生成・保存するため、初回でも以降は即配信になる。
-       404（pdf/heic/video/dxf の未生成）なら下のクライアント生成へ進む。 */
+    /* ── サーバー保存型サムネイル確認（PDF以外のOffice等）──
+       保存済みなら極小JPEGを <img> で即表示。
+       404（pdf/video/dxf の未生成）なら下のクライアント生成へ進む。 */
     const serverThumbUrl = await wnProbeServerThumb(f.id, f.updated_at ?? f.created_at);
     if (serverThumbUrl) {
       thumbMemCache[cacheKey] = serverThumbUrl;
@@ -890,7 +901,6 @@ async function loadOneThumbnail(f) {
     /* ── サーバーに無い → クライアント生成（生成後はサーバーへ保存して次回以降即配信） ── */
     let blob = null;
 
-    /* ローカル環境では public-view を直接使い、view エンドポイントの呼び出しを省く */
     const directUrl = wnPublicViewUrl(f.id);
 
     if (['heic','heif'].includes(ext) || mime === 'image/heic' || mime === 'image/heif') {
