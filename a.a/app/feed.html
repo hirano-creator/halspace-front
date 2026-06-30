@@ -99,8 +99,12 @@
         } else if (m.kind === 'video') {
           const vMime = esc(m.mime || 'video/mp4');
           if (m.url) {
-            // サムネイル + 再生ボタンカード（タップで動画プレーヤーに切り替え）
-            mediaHtml = `<div class="media vidcard" data-vid-url="${esc(m.url)}" data-vid-mime="${vMime}" style="aspect-ratio:4/3;overflow:hidden;background:#000;position:relative;cursor:pointer"><img class="vidthumb" style="width:100%;height:100%;object-fit:cover;display:block;visibility:hidden" alt=""><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:60px;height:60px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="26" height="26" fill="#fff"><path d="M6 4l14 8-14 8V4z"/></svg></div></div></div>`;
+            // m.view があればプロキシURL（同一オリジン）でサムネ生成、なければ直URLで試みる
+            const midMatch = (m.view || '').match(/\/media\/(\d+)\/view/);
+            const tAttr = midMatch
+              ? ` data-thumb-url="${esc(AA.apiBase() + '/aa/media/' + midMatch[1] + '/raw?token=' + AA.token())}"`
+              : '';
+            mediaHtml = `<div class="media vidcard" data-vid-url="${esc(m.url)}" data-vid-mime="${vMime}"${tAttr} style="aspect-ratio:4/3;overflow:hidden;background:#000;position:relative;cursor:pointer"><img class="vidthumb" style="width:100%;height:100%;object-fit:cover;display:block;visibility:hidden" alt=""><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:60px;height:60px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="26" height="26" fill="#fff"><path d="M6 4l14 8-14 8V4z"/></svg></div></div></div>`;
           } else if (m.view) {
             // URL未解決: renderDocs で view 経由取得してから vidcard に変換
             mediaHtml = `<div class="media vidprev" data-view="${esc(m.view)}" data-vid-mime="${vMime}" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:#000">${thumbIcon('video')}</div>`;
@@ -173,25 +177,33 @@
       if (el.dataset.vidSetup) return;
       el.dataset.vidSetup = '1';
       const vidUrl = el.dataset.vidUrl;
-      const mime = el.dataset.vidMime || 'video/mp4';
-      el.onclick = () => {
+      // サムネ生成はプロキシURL優先（同一オリジン = CORS 不要）、なければ直URL
+      const thumbSrcUrl = el.dataset.thumbUrl || vidUrl;
+
+      // onclick 直代入ではなく addEventListener を使う（iOS で確実に発火させるため）
+      function playHandler() {
+        el.removeEventListener('click', playHandler);
         el.style.cursor = '';
-        el.onclick = null;
         const video = document.createElement('video');
         video.src = vidUrl;
         video.style.cssText = 'width:100%;height:100%;object-fit:contain';
         video.controls = true;
+        video.autoplay = true;
         video.playsInline = true;
+        video.setAttribute('autoplay', '');
         video.setAttribute('playsinline', '');
         el.innerHTML = '';
         el.appendChild(video);
+        // ユーザーアクション由来のため play() は通るはず。失敗しても controls で手動再生可能。
         video.play().catch(() => {});
-      };
+      }
+      el.addEventListener('click', playHandler);
+
       if (!window.AAVideo) return;
       let urlKey = '';
-      try { urlKey = new URL(vidUrl).pathname.split('/').pop(); } catch {}
-      const key = 'vt_' + (urlKey || vidUrl).replace(/[^a-z0-9]/gi, '_').slice(-40) + '_' + AAVideo.THUMB_VER;
-      AAVideo.loadVideoThumb(vidUrl, key).then(thumbUrl => {
+      try { urlKey = new URL(thumbSrcUrl).pathname.split('/').pop(); } catch {}
+      const key = 'vt_' + (urlKey || thumbSrcUrl).replace(/[^a-z0-9]/gi, '_').slice(-40) + '_' + AAVideo.THUMB_VER;
+      AAVideo.loadVideoThumb(thumbSrcUrl, key).then(thumbUrl => {
         if (!thumbUrl) return;
         const img = el.querySelector('.vidthumb');
         if (!img) { URL.revokeObjectURL(thumbUrl); return; }
@@ -205,11 +217,15 @@
       // 動画: view経由でURL解決してからvidcardに変換
       for (const el of document.querySelectorAll('.vidprev[data-view]')) {
         try {
-          const url = await AA.mediaUrl(el.dataset.view);
-          const mime = el.dataset.vidMime || 'video/mp4';
+          const viewUrl = el.dataset.view;
+          const url = await AA.mediaUrl(viewUrl);
+          const midMatch = viewUrl.match(/\/media\/(\d+)\/view/);
           el.removeAttribute('data-view');
           el.className = el.className.replace('vidprev', 'vidcard').trim();
           el.dataset.vidUrl = url;
+          if (midMatch) {
+            el.dataset.thumbUrl = AA.apiBase() + '/aa/media/' + midMatch[1] + '/raw?token=' + AA.token();
+          }
           el.style.cssText = 'aspect-ratio:4/3;overflow:hidden;background:#000;position:relative;cursor:pointer';
           el.innerHTML = `<img class="vidthumb" style="width:100%;height:100%;object-fit:cover;display:block;visibility:hidden" alt=""><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:60px;height:60px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="26" height="26" fill="#fff"><path d="M6 4l14 8-14 8V4z"/></svg></div></div>`;
           setupVidCard(el);

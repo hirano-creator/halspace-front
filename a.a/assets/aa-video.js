@@ -58,7 +58,8 @@
   function captureVideoThumb(videoUrl) {
     return new Promise(resolve => {
       const video = document.createElement('video');
-      video.crossOrigin    = 'anonymous';
+      // crossOrigin='anonymous' は R2 が CORS 未対応だとロード自体が失敗するため設定しない。
+      // 同一オリジンのプロキシ URL を渡す前提（tainted canvas になっても SecurityError を catch する）。
       video.muted          = true;
       video.defaultMuted   = true;
       video.playsInline    = true;
