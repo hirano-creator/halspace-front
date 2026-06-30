@@ -201,9 +201,10 @@
       // サムネ生成は CORS 対応のプロキシ URL でのみ実施（R2直URLは crossOrigin で失敗するため）
       if (!window.AAVideo || !el.dataset.thumbUrl) return;
       const thumbGenUrl = el.dataset.thumbUrl;
-      let urlKey = '';
-      try { urlKey = new URL(thumbGenUrl).pathname.split('/').pop(); } catch {}
-      const key = 'vt_' + (urlKey || thumbGenUrl).replace(/[^a-z0-9]/gi, '_').slice(-40) + '_' + AAVideo.THUMB_VER;
+      // mediaId をキーにする。pathname末尾は全動画 'raw' で共通になりキャッシュが衝突するため。
+      const midMatch = thumbGenUrl.match(/\/media\/(\d+)\//);
+      const keyId = midMatch ? midMatch[1] : thumbGenUrl.replace(/[^a-z0-9]/gi, '_').slice(-40);
+      const key = 'vt_' + keyId + '_' + AAVideo.THUMB_VER;
       AAVideo.loadVideoThumb(thumbGenUrl, key).then(thumbUrl => {
         if (!thumbUrl) return;
         const img = el.querySelector('.vidthumb');
