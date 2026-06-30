@@ -177,8 +177,6 @@
       if (el.dataset.vidSetup) return;
       el.dataset.vidSetup = '1';
       const vidUrl = el.dataset.vidUrl;
-      // サムネ生成はプロキシURL優先（同一オリジン = CORS 不要）、なければ直URL
-      const thumbSrcUrl = el.dataset.thumbUrl || vidUrl;
 
       // onclick 直代入ではなく addEventListener を使う（iOS で確実に発火させるため）
       function playHandler() {
@@ -199,11 +197,13 @@
       }
       el.addEventListener('click', playHandler);
 
-      if (!window.AAVideo) return;
+      // サムネ生成は CORS 対応のプロキシ URL でのみ実施（R2直URLは crossOrigin で失敗するため）
+      if (!window.AAVideo || !el.dataset.thumbUrl) return;
+      const thumbGenUrl = el.dataset.thumbUrl;
       let urlKey = '';
-      try { urlKey = new URL(thumbSrcUrl).pathname.split('/').pop(); } catch {}
-      const key = 'vt_' + (urlKey || thumbSrcUrl).replace(/[^a-z0-9]/gi, '_').slice(-40) + '_' + AAVideo.THUMB_VER;
-      AAVideo.loadVideoThumb(thumbSrcUrl, key).then(thumbUrl => {
+      try { urlKey = new URL(thumbGenUrl).pathname.split('/').pop(); } catch {}
+      const key = 'vt_' + (urlKey || thumbGenUrl).replace(/[^a-z0-9]/gi, '_').slice(-40) + '_' + AAVideo.THUMB_VER;
+      AAVideo.loadVideoThumb(thumbGenUrl, key).then(thumbUrl => {
         if (!thumbUrl) return;
         const img = el.querySelector('.vidthumb');
         if (!img) { URL.revokeObjectURL(thumbUrl); return; }

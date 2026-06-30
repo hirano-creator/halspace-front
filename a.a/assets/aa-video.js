@@ -58,8 +58,10 @@
   function captureVideoThumb(videoUrl) {
     return new Promise(resolve => {
       const video = document.createElement('video');
-      // crossOrigin='anonymous' は R2 が CORS 未対応だとロード自体が失敗するため設定しない。
-      // 同一オリジンのプロキシ URL を渡す前提（tainted canvas になっても SecurityError を catch する）。
+      // 別オリジン(Railway API)のプロキシ raw URL を読む。crossOrigin を付けないと
+      // canvas が tainted され toBlob() が SecurityError になる。
+      // mediaRaw は Access-Control-Allow-Origin:* を返すので anonymous で CORS が通る。
+      video.crossOrigin    = 'anonymous';
       video.muted          = true;
       video.defaultMuted   = true;
       video.playsInline    = true;
