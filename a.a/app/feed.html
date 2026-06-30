@@ -183,16 +183,17 @@
         el.removeEventListener('click', playHandler);
         el.style.cursor = '';
         const video = document.createElement('video');
-        video.src = vidUrl;
+        // 再生は Range/Content-Type を確実に返すプロキシ raw を優先。
+        // iOS Safari は R2署名URLを再生できないことがある（プロキシは206とMIMEを保証）。
+        video.src = el.dataset.thumbUrl || vidUrl;
         video.style.cssText = 'width:100%;height:100%;object-fit:contain';
         video.controls = true;
-        video.autoplay = true;
         video.playsInline = true;
-        video.setAttribute('autoplay', '');
         video.setAttribute('playsinline', '');
+        video.preload = 'auto';
         el.innerHTML = '';
         el.appendChild(video);
-        // ユーザーアクション由来のため play() は通るはず。失敗しても controls で手動再生可能。
+        // タップ（ユーザージェスチャー）由来のため play() は許可される。失敗時は controls で手動再生可能。
         video.play().catch(() => {});
       }
       el.addEventListener('click', playHandler);
