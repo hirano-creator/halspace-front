@@ -6,7 +6,8 @@ param(
     [string]$Token = ''
 )
 
-Add-Type -AssemblyName System.Windows.Forms
+$interactive = (-not $Token)  # Token未指定 = 対話モード（ダイアログ表示）
+if ($interactive) { Add-Type -AssemblyName System.Windows.Forms }
 
 $appDir       = Join-Path $env:APPDATA 'WhatsNo'
 $uploadScript = Join-Path $appDir 'wn-upload.ps1'
@@ -17,9 +18,14 @@ $srcDir    = Split-Path -Parent $MyInvocation.MyCommand.Path
 $srcUpload = Join-Path $srcDir 'wn-upload.ps1'
 
 if (-not (Test-Path $srcUpload)) {
-    [System.Windows.Forms.MessageBox]::Show(
-        "wn-upload.ps1 が見つかりません。`nwn-install.ps1 と同じフォルダに置いてください。",
-        "What'sNo セットアップ", 'OK', 'Error') | Out-Null
+    if ($interactive) {
+        Add-Type -AssemblyName System.Windows.Forms
+        [System.Windows.Forms.MessageBox]::Show(
+            "wn-upload.ps1 が見つかりません。`nwn-install.ps1 と同じフォルダに置いてください。",
+            "What'sNo セットアップ", 'OK', 'Error') | Out-Null
+    } else {
+        Write-Host "ERROR: wn-upload.ps1 が見つかりません。wn-install.ps1 と同じフォルダに置いてください。" -ForegroundColor Red
+    }
     exit 1
 }
 
@@ -87,6 +93,10 @@ if (Test-Path $handlerScript) {
 }
 
 # ── 完了 ──
-[System.Windows.Forms.MessageBox]::Show(
-    "セットアップが完了しました！`n`nエクスプローラーでファイルを右クリックすると`n「What'sNoに保存」が表示されます。",
-    "What'sNo セットアップ完了", 'OK', 'Information') | Out-Null
+if ($interactive) {
+    [System.Windows.Forms.MessageBox]::Show(
+        "セットアップが完了しました！`n`nエクスプローラーでファイルを右クリックすると`n「What'sNoに保存」が表示されます。",
+        "What'sNo セットアップ完了", 'OK', 'Information') | Out-Null
+} else {
+    Write-Host "セットアップ完了！右クリック →「What'sNoに保存」が使えます。" -ForegroundColor Green
+}
