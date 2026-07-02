@@ -2676,17 +2676,31 @@ async function confirmDeleteFile(fileId, fileName) {
 /* ────────────────────────────────
    行内コメント表示
    ──────────────────────────────── */
+const WN_ROW_COMMENTS_CONCURRENCY = 6; // 同一トークンでの同時リクエスト数を抑え、サーバー側の詰まりを防ぐ
+
 async function loadRowComments(files = allFiles) {
-  // 表示中のファイルのコメントを並列取得
-  await Promise.all(files.map(async (f) => {
+  // コメント0件のファイルはAPIを叩かず空表示にする（一覧の comment_count を利用）。
+  const targets = files.filter(f => {
     const el = document.getElementById(`row-comments-${f.id}`);
-    if (!el) return;
-    // コメント0件のファイルはAPIを叩かず空表示にする（一覧の comment_count を利用）。
-    // 全行で /comments を叩くと1表示で数十リクエストになり 429 を誘発するため。
-    if (!f.comment_count) { renderRowComments(el, f.id, []); return; }
-    const comments = await wnGetComments(f.id);
-    renderRowComments(el, f.id, comments);
-  }));
+    if (!el) return false;
+    if (!f.comment_count) { renderRowComments(el, f.id, []); return false; }
+    return true;
+  });
+
+  // 同時実行数を絞りつつ順次処理（1画面数十件でも一斉リクエストにしない）
+  let cursor = 0;
+  async function worker() {
+    while (cursor < targets.length) {
+      const f = targets[cursor++];
+      const el = document.getElementById(`row-comments-${f.id}`);
+      if (!el) continue;
+      const comments = await wnGetComments(f.id);
+      renderRowComments(el, f.id, comments);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(WN_ROW_COMMENTS_CONCURRENCY, targets.length) }, worker)
+  );
 }
 
 function wnScrollToComment(fileId) {
