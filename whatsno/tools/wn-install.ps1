@@ -39,6 +39,13 @@ if (Test-Path $srcHandler) {
     Copy-Item $srcHandler $handlerScript -Force
 }
 
+# ── wn-sync-server.ps1 を配置（存在する場合） ──
+$srcSyncServer  = Join-Path $srcDir 'wn-sync-server.ps1'
+$syncServerScript = Join-Path $appDir 'wn-sync-server.ps1'
+if (Test-Path $srcSyncServer) {
+    Copy-Item $srcSyncServer $syncServerScript -Force
+}
+
 # ── トークン取得（パラメータ優先、なければ InputBox） ──
 if (-not $Token) {
     $existing = if (Test-Path $configFile) {
@@ -90,6 +97,20 @@ if (Test-Path $handlerScript) {
     Set-ItemProperty -Path $protoBase -Name 'URL Protocol' -Value ''
     $protoCmd = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$handlerScript`" `"%1`""
     Set-ItemProperty -Path "$protoBase\shell\open\command" -Name '(Default)' -Value $protoCmd
+}
+
+# ── 同期サーバーをスケジュールタスクに登録してすぐ起動 ──
+if (Test-Path $syncServerScript) {
+    $taskName = 'WhatsNoSyncServer'
+    Stop-ScheduledTask     -TaskName $taskName -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+
+    $action   = New-ScheduledTaskAction -Execute 'powershell.exe' `
+                    -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$syncServerScript`""
+    $trigger  = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit 0 -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
+    Start-ScheduledTask    -TaskName $taskName
 }
 
 # ── 完了 ──

@@ -9,11 +9,16 @@ $result = [System.Windows.Forms.MessageBox]::Show(
 
 if ($result -ne 'Yes') { exit 0 }
 
+# スケジュールタスク停止・削除
+Stop-ScheduledTask       -TaskName 'WhatsNoSyncServer' -ErrorAction SilentlyContinue
+Unregister-ScheduledTask -TaskName 'WhatsNoSyncServer' -Confirm:$false -ErrorAction SilentlyContinue
+
 # レジストリ削除（HKCU）
 $regBase = 'HKCU:\Software\Classes\*\shell\WhatsNoSave'
-if (Test-Path $regBase) {
-    Remove-Item -Path $regBase -Recurse -Force
-}
+if (Test-Path $regBase) { Remove-Item -Path $regBase -Recurse -Force }
+
+$protoBase = 'HKCU:\Software\Classes\whatsno'
+if (Test-Path $protoBase) { Remove-Item -Path $protoBase -Recurse -Force }
 
 # AppData フォルダ削除
 $appDir = Join-Path $env:APPDATA 'WhatsNo'

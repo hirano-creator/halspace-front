@@ -3881,9 +3881,22 @@ async function executeMerge() {
    ダッシュボード読み込み時に whatsno:// プロトコル経由で
    config.json を最新トークンで更新する（アカウント切り替え対応）
    ──────────────────────────────── */
-function syncDesktopToken() {
+async function syncDesktopToken() {
   const token = localStorage.getItem('space_token');
   if (!token) return;
+
+  // 主: ローカル同期サーバー経由（ログイン時に自動起動 / ユーザー操作不要）
+  try {
+    const res = await fetch('http://localhost:39876/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+      signal: AbortSignal.timeout(1500),
+    });
+    if (res.ok) return;
+  } catch {}
+
+  // 副: whatsno:// プロトコル（サーバー未起動時のフォールバック）
   try {
     const a = document.createElement('a');
     a.href = `whatsno://sync?token=${encodeURIComponent(token)}`;
