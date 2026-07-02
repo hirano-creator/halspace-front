@@ -84,7 +84,9 @@
 
   // ── メディアサムネイル（サーバー保存・全端末共有） ──
   // <img> で直接読めるトークン付きURL。404 = 未生成（クライアントで生成して storeMediaThumb）
-  const mediaThumbUrl = (mediaId) => apiBase() + '/aa/media/' + mediaId + '/thumb?token=' + encodeURIComponent(token());
+  // v= はブラウザキャッシュのバスター（immutable配信のため、生成ロジック修正時に上げる。v2=EXIF回転対応）
+  const AA_THUMB_VER = 2;
+  const mediaThumbUrl = (mediaId) => apiBase() + '/aa/media/' + mediaId + '/thumb?v=' + AA_THUMB_VER + '&token=' + encodeURIComponent(token());
   const storeMediaThumb = (mediaId, blob) => {
     const fd = new FormData();
     fd.append('thumb', blob, 'thumb.jpg');
