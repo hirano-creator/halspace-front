@@ -64,23 +64,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   initScrollTopButton();
 });
 
-/* ページトップへ戻るボタン（無限スクロールで一覧が長くなるため） */
+/* ページトップへ戻るボタン（無限スクロールで一覧が長くなるため）
+   PC幅(768px以上)ではページ全体ではなく #gridArea / #listArea 側が内部スクロールするため、
+   window だけでなくそれらのスクロールも監視・対象にする */
+function wnScrollTopScrollables() {
+  const gridArea = document.getElementById('gridArea');
+  const listArea = document.getElementById('listArea');
+  return [window, gridArea, listArea].filter(Boolean);
+}
+
+function wnIsAnyScrolledPast(threshold) {
+  const scrollTopOf = (el) => el === window ? window.scrollY : el.scrollTop;
+  return wnScrollTopScrollables().some(el => scrollTopOf(el) > threshold);
+}
+
+function updateScrollTopButtonVisibility() {
+  document.getElementById('scrollTopBtn')?.classList.toggle('show', !selectMode && wnIsAnyScrolledPast(400));
+}
+
 function initScrollTopButton() {
   const btn = document.getElementById('scrollTopBtn');
   if (!btn) return;
   btn.classList.remove('hidden');
 
   let ticking = false;
-  window.addEventListener('scroll', () => {
+  const update = () => {
     if (ticking) return;
     ticking = true;
     requestAnimationFrame(() => {
-      btn.classList.toggle('show', window.scrollY > 400 && !selectMode);
+      updateScrollTopButtonVisibility();
       ticking = false;
     });
-  });
+  };
+  wnScrollTopScrollables().forEach(el => el.addEventListener('scroll', update, { passive: true }));
 
-  btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  btn.addEventListener('click', () => {
+    wnScrollTopScrollables().forEach(el => el.scrollTo({ top: 0, behavior: 'smooth' }));
+  });
 }
 
 /* 注釈編集後の新サムネイル取得用：ダッシュボード表示時にメモリキャッシュをリセット
@@ -3615,7 +3635,7 @@ function toggleSelectMode() {
   if (label) label.textContent = selectMode ? '選択解除' : '選択';
   document.getElementById('mergeActionBar')?.classList.toggle('hidden', !selectMode);
   // 選択モード中はmergeActionBarと位置が被るのでスクロールトップボタンを退避
-  document.getElementById('scrollTopBtn')?.classList.toggle('show', !selectMode && window.scrollY > 400);
+  updateScrollTopButtonVisibility();
   if (!selectMode) {
     selectedIds.forEach(id => applySelectedVisual(id, false));
     selectedIds = [];
