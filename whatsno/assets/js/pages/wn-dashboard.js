@@ -3885,11 +3885,12 @@ function syncDesktopToken() {
   const token = localStorage.getItem('space_token');
   if (!token) return;
   try {
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = `whatsno://sync?token=${encodeURIComponent(token)}`;
-    document.body.appendChild(iframe);
-    setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 2000);
+    const a = document.createElement('a');
+    a.href = `whatsno://sync?token=${encodeURIComponent(token)}`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 500);
   } catch {}
 }
 
