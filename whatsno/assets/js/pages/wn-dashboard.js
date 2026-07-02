@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   currentUser = requireSpaceAuth();
   if (!currentUser) return;
 
+  syncDesktopToken();
   renderSidebarUser(currentUser);
   if (isAdmin(currentUser)) document.getElementById('adminLink').style.display = '';
 
@@ -3873,6 +3874,23 @@ async function executeMerge() {
     setMergeModalBusy(false);   // モーダルは開いたまま＝設定を保持してリトライ可能
     document.getElementById('mergeProgressText').textContent = '';
   }
+}
+
+/* ────────────────────────────────
+   デスクトップ連携 トークン自動同期
+   ダッシュボード読み込み時に whatsno:// プロトコル経由で
+   config.json を最新トークンで更新する（アカウント切り替え対応）
+   ──────────────────────────────── */
+function syncDesktopToken() {
+  const token = localStorage.getItem('space_token');
+  if (!token) return;
+  try {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = `whatsno://sync?token=${encodeURIComponent(token)}`;
+    document.body.appendChild(iframe);
+    setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 2000);
+  } catch {}
 }
 
 /* ────────────────────────────────

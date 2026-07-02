@@ -26,6 +26,13 @@ if (-not (Test-Path $srcUpload)) {
 New-Item -ItemType Directory -Force -Path $appDir | Out-Null
 Copy-Item $srcUpload $uploadScript -Force
 
+# ── wn-token-handler.ps1 を配置（存在する場合） ──
+$srcHandler    = Join-Path $srcDir 'wn-token-handler.ps1'
+$handlerScript = Join-Path $appDir 'wn-token-handler.ps1'
+if (Test-Path $srcHandler) {
+    Copy-Item $srcHandler $handlerScript -Force
+}
+
 # ── トークン取得（パラメータ優先、なければ InputBox） ──
 if (-not $Token) {
     $existing = if (Test-Path $configFile) {
@@ -68,6 +75,16 @@ Set-ItemProperty -Path $regBase    -Name '(Default)' -Value "What'sNoに保存"
 Set-ItemProperty -Path $regBase    -Name 'Icon'      -Value 'shell32.dll,13'
 Set-ItemProperty -Path $regBase    -Name 'Position'  -Value 'Top'
 Set-ItemProperty -Path $regCommand -Name '(Default)' -Value $psCmd
+
+# ── whatsno:// プロトコルハンドラ登録（自動トークン同期用） ──
+if (Test-Path $handlerScript) {
+    $protoBase = 'HKCU:\Software\Classes\whatsno'
+    New-Item -Path "$protoBase\shell\open\command" -Force | Out-Null
+    Set-ItemProperty -Path $protoBase -Name '(Default)'    -Value 'URL:WhatsNo Protocol'
+    Set-ItemProperty -Path $protoBase -Name 'URL Protocol' -Value ''
+    $protoCmd = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$handlerScript`" `"%1`""
+    Set-ItemProperty -Path "$protoBase\shell\open\command" -Name '(Default)' -Value $protoCmd
+}
 
 # ── 完了 ──
 [System.Windows.Forms.MessageBox]::Show(
