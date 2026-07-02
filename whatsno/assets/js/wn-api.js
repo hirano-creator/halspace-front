@@ -744,6 +744,23 @@ async function wnBrainMeter() {
   if (!res || !res.ok) throw new Error('meter fetch failed');
   return res.json();
 }
+async function wnBrainNotes() {
+  const res = await wnFetch('/wn/brain/notes');
+  if (!res || !res.ok) return { data: [] };
+  return res.json();
+}
+async function wnBrainAddNote(content) {
+  const res = await wnFetch('/wn/brain/notes', {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  });
+  if (!res || !res.ok) throw { status: res?.status };
+  return res.json();
+}
+async function wnBrainDeleteNote(id) {
+  const res = await wnFetch(`/wn/brain/notes/${id}`, { method: 'DELETE' });
+  return !!(res && res.ok);
+}
 
 function wnShowToast(msg, type = '') {
   const c = document.getElementById('toastContainer');

@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initInput();
   initHistoryPanel();
   initKnowlHelp(user);
+  initNoteModal();
 
   await Promise.all([loadMeter(), loadHistory()]);
 
@@ -55,6 +56,161 @@ function initKnowlHelp(user) {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && modal.classList.contains('open')) hide();
   });
+}
+
+// ─── メモを教えるモーダル ─────────────────────────────────
+function initNoteModal() {
+  const openBtn  = document.getElementById('noteOpenBtn');
+  const modal    = document.getElementById('noteModal');
+  const closeBtn = document.getElementById('noteModalClose');
+  const input    = document.getElementById('noteInput');
+  const count    = document.getElementById('noteInputCount');
+  const saveBtn  = document.getElementById('noteSaveBtn');
+  if (!openBtn || !modal) return;
+
+  const open = () => { modal.classList.add('open'); loadNotes(); };
+  const hide = () => { modal.classList.remove('open'); };
+
+  openBtn.addEventListener('click', open);
+  closeBtn.addEventListener('click', hide);
+  modal.addEventListener('click', e => { if (e.target === modal) hide(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && modal.classList.contains('open')) hide();
+  });
+
+  input.addEventListener('input', () => {
+    count.textContent = `${input.value.length}/2000`;
+    saveBtn.disabled = input.value.trim() === '';
+  });
+
+  saveBtn.addEventListener('click', () => addNote(input, count, saveBtn));
+
+  initNoteVoice(input, count, saveBtn);
+}
+
+async function addNote(input, count, saveBtn) {
+  const content = input.value.trim();
+  if (!content) return;
+
+  saveBtn.disabled = true;
+  const origHtml = saveBtn.innerHTML;
+  saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 登録中…';
+
+  try {
+    await wnBrainAddNote(content);
+    input.value = '';
+    count.textContent = '0/2000';
+    wnShowToast('メモをKnowlに教えました', 'success');
+    await loadNotes();
+    loadMeter();
+  } catch (err) {
+    const msg = err?.status === 429
+      ? 'AI の利用制限に達しました。しばらく経ってからお試しください。'
+      : 'メモの登録に失敗しました。';
+    wnShowToast(msg, 'danger');
+  } finally {
+    saveBtn.innerHTML = origHtml;
+    saveBtn.disabled = input.value.trim() === '';
+  }
+}
+
+async function loadNotes() {
+  const listEl = document.getElementById('noteList');
+  try {
+    const res = await wnBrainNotes();
+    const notes = res.data ?? [];
+    if (!notes.length) {
+      listEl.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0;">まだメモはありません</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    notes.forEach(n => {
+      const item = document.createElement('div');
+      item.className = 'note-item';
+      item.innerHTML =
+        `<div class="note-item-body">` +
+          `<div class="note-item-content">${escHtml(n.content)}</div>` +
+          `<div class="note-item-meta">${escHtml(n.user_name ?? '')} ・ ${formatDate(n.created_at)}</div>` +
+        `</div>` +
+        `<button type="button" class="note-item-delete" title="削除"><i class="fa-solid fa-trash"></i></button>`;
+      item.querySelector('.note-item-delete').addEventListener('click', () => deleteNote(n.id));
+      listEl.appendChild(item);
+    });
+  } catch {
+    listEl.innerHTML = '<div style="font-size:12px;color:var(--muted);">取得失敗</div>';
+  }
+}
+
+async function deleteNote(id) {
+  if (!confirm('このメモを削除しますか？')) return;
+  const ok = await wnBrainDeleteNote(id);
+  if (ok) {
+    wnShowToast('メモを削除しました', 'info');
+    loadNotes();
+    loadMeter();
+  } else {
+    wnShowToast('削除に失敗しました', 'danger');
+  }
+}
+
+// メモ入力欄用の音声入力（質問用とは別に、テキストに書き起こすだけで自動送信はしない）
+function initNoteVoice(input, count, saveBtn) {
+  const btn  = document.getElementById('noteVoiceBtn');
+  const icon = document.getElementById('noteVoiceIcon');
+  if (!btn) return;
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    btn.style.display = 'none';
+    return;
+  }
+
+  const recog = new SpeechRecognition();
+  recog.lang = 'ja-JP';
+  recog.interimResults = true;
+  recog.continuous = false;
+
+  let isRecording = false;
+  let baseText = '';
+
+  btn.addEventListener('click', () => {
+    if (isRecording) {
+      recog.stop();
+    } else {
+      baseText = input.value ? input.value + '\n' : '';
+      recog.start();
+    }
+  });
+
+  recog.onstart = () => {
+    isRecording = true;
+    btn.classList.add('recording');
+    icon.className = 'fa-solid fa-stop';
+  };
+
+  recog.onresult = (e) => {
+    const transcript = Array.from(e.results)
+      .map(r => r[0].transcript)
+      .join('');
+    input.value = correctVoiceQuery(baseText + transcript);
+    count.textContent = `${input.value.length}/2000`;
+    saveBtn.disabled = input.value.trim() === '';
+  };
+
+  recog.onend = () => {
+    isRecording = false;
+    btn.classList.remove('recording');
+    icon.className = 'fa-solid fa-microphone';
+  };
+
+  recog.onerror = (e) => {
+    isRecording = false;
+    btn.classList.remove('recording');
+    icon.className = 'fa-solid fa-microphone';
+    if (e.error !== 'no-speech') {
+      wnShowToast('音声認識エラー: ' + e.error, 'error');
+    }
+  };
 }
 
 // ─── Knowl メーター ───────────────────────────────────────
@@ -158,17 +314,18 @@ function appendAiBubble(answer, sources) {
     const sourcesEl = document.createElement('div');
     sourcesEl.className = 'brain-sources';
     sources.forEach(s => {
-      const tag = document.createElement('a');
+      const isNote = s.type === 'note';
+      const tag = document.createElement(isNote ? 'span' : 'a');
       tag.className = 'brain-source-tag';
-      tag.href = `file-detail.html?id=${s.id}`;
+      if (!isNote) tag.href = `file-detail.html?id=${s.id}`;
 
-      // ページ番号 or シート名（あれば）
+      // ページ番号 or シート名（あれば、メモにはなし）
       const locLabel = buildSourceLocationLabel(s);
       const scoreLabel = (typeof s.score === 'number')
         ? ` <span class="brain-source-score">${Math.round(s.score * 100)}%</span>` : '';
 
       tag.innerHTML =
-        `<i class="fa-solid fa-file-lines"></i> ${escHtml(s.file_name)}`
+        `<i class="fa-solid ${isNote ? 'fa-note-sticky' : 'fa-file-lines'}"></i> ${escHtml(s.file_name)}`
         + (locLabel ? ` <span class="brain-source-loc">${escHtml(locLabel)}</span>` : '')
         + scoreLabel;
 
