@@ -1365,6 +1365,7 @@ function fileCardHtml(f) {
         <span>${wnFormatSize(f.file_size)}</span>
         ${ext ? `<span class="file-card-ext">${ext.toUpperCase()}</span>` : ''}
       </div>
+      ${f.uploader?.name ? `<div class="file-card-uploader"><i class="fa-regular fa-user"></i>${h(f.uploader.name)}</div>` : ''}
       <div class="file-card-actions">
         <span class="file-card-stat" title="閲覧数">
           <i class="fa-regular fa-eye"></i>${f.view_count ?? 0}
@@ -1438,6 +1439,7 @@ function fileRowHtmlClassic(f) {
         ${approvalBadge}
         <span class="file-row-size">${wnFormatSize(f.file_size)}</span>
         <span class="file-row-date">${wnFormatDate(f.created_at)}</span>
+        ${f.uploader?.name ? `<span class="file-row-uploader"><i class="fa-regular fa-user"></i>${h(f.uploader.name)}</span>` : ''}
         <span class="file-row-stat" title="閲覧数">
           <i class="fa-regular fa-eye"></i>${f.view_count ?? 0}
         </span>
@@ -1558,7 +1560,10 @@ function fileRowHtmlIG(f) {
       </div>
     </div>
 
-    <div class="ig-post-date"><i class="fa-regular fa-clock"></i>${wnFormatDate(f.created_at)}</div>
+    <div class="ig-post-date">
+      <i class="fa-regular fa-clock"></i>${wnFormatDate(f.created_at)}
+      ${f.uploader?.name ? `<span class="ig-post-uploader"><i class="fa-regular fa-user"></i>${h(f.uploader.name)}</span>` : ''}
+    </div>
 
     <div class="ig-post-caption">
       <span class="filename">${fnameSafe}</span>
