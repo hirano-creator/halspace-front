@@ -3183,8 +3183,16 @@ function wnFileIconClass(mimeType) {
    ──────────────────────────────── */
 let _emailFileId     = null;
 let _emailFileName   = '';
-let _emailChips      = [];
 let _emailPregenShare = null; // モーダルオープン時に先行発行した共有リンク
+let _allContactsCache = [];   // 登録済み連絡先（オートコンプリート用）
+
+// TO/CC/BCC 共通のチップ状態・要素ID定義
+const emailFieldChips = { to: [], cc: [], bcc: [] }; // field → { email: string }[]
+const EMAIL_FIELD_IDS = {
+  to:  { input: 'emailInput',    addBtn: 'emailAddBtn',    chipList: 'emailChipList',    suggest: 'emailSuggestList',    err: 'emailInputError',    errText: 'emailInputErrorText',    label: '送信先' },
+  cc:  { input: 'emailCcInput',  addBtn: 'emailCcAddBtn',  chipList: 'emailCcChipList',  suggest: 'emailCcSuggestList',  err: 'emailCcInputError',  errText: 'emailCcInputErrorText',  label: 'CC' },
+  bcc: { input: 'emailBccInput', addBtn: 'emailBccAddBtn', chipList: 'emailBccChipList', suggest: 'emailBccSuggestList', err: 'emailBccInputError', errText: 'emailBccInputErrorText', label: 'BCC' },
+};
 
 function initEmailModal() {
   const overlay = document.getElementById('emailModal');
@@ -3194,9 +3202,29 @@ function initEmailModal() {
   document.getElementById('emailCancelBtn').addEventListener('click', closeEmailModal);
   overlay.addEventListener('click', e => { if (e.target === overlay) closeEmailModal(); });
 
-  document.getElementById('emailAddBtn').addEventListener('click', addEmailChip);
-  document.getElementById('emailInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addEmailChip(); }
+  // TO/CC/BCC 共通のチップ入力配線
+  for (const field of Object.keys(EMAIL_FIELD_IDS)) {
+    const ids   = EMAIL_FIELD_IDS[field];
+    const input = document.getElementById(ids.input);
+
+    document.getElementById(ids.addBtn).addEventListener('click', () => addEmailChip(field));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addEmailChip(field); }
+      if (e.key === 'Escape') { _emailHideSuggest(field); }
+    });
+    input.addEventListener('input', () => _emailRenderSuggest(field, input.value.trim()));
+    input.addEventListener('focus', () => _emailRenderSuggest(field, input.value.trim()));
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest(`#${ids.suggest}`) && e.target !== input) _emailHideSuggest(field);
+    });
+  }
+
+  // CC/BCC欄の表示切り替え（普段は隠す）
+  document.getElementById('emailCcBccToggleBtn')?.addEventListener('click', () => {
+    document.getElementById('emailCcSection').classList.remove('hidden');
+    document.getElementById('emailBccSection').classList.remove('hidden');
+    document.getElementById('emailCcBccToggleBtn').classList.add('hidden');
+    document.getElementById('emailCcInput')?.focus();
   });
 
   const msgEl = document.getElementById('emailMessage');
@@ -3218,18 +3246,28 @@ function initEmailModal() {
 }
 
 function openEmailModal(fileId, fileName) {
-  _emailFileId     = fileId;
-  _emailFileName   = fileName;
-  _emailChips      = [];
+  _emailFileId      = fileId;
+  _emailFileName    = fileName;
   _emailPregenShare = null;
+  emailFieldChips.to  = [];
+  emailFieldChips.cc  = [];
+  emailFieldChips.bcc = [];
 
   document.getElementById('emailModalFileNameText').textContent = fileName;
-  document.getElementById('emailInput').value   = '';
   document.getElementById('emailMessage').value = '';
   const count = document.getElementById('emailMsgCount');
   if (count) count.textContent = '0';
-  document.getElementById('emailInputError').style.display = 'none';
-  renderEmailChips();
+  document.getElementById('emailCcSection').classList.add('hidden');
+  document.getElementById('emailBccSection').classList.add('hidden');
+  document.getElementById('emailCcBccToggleBtn').classList.remove('hidden');
+  for (const field of Object.keys(EMAIL_FIELD_IDS)) {
+    const ids = EMAIL_FIELD_IDS[field];
+    document.getElementById(ids.input).value = '';
+    document.getElementById(ids.err).style.display = 'none';
+    renderEmailChips(field);
+    _emailHideSuggest(field);
+  }
+  wnGetContacts().then(list => { _allContactsCache = list; }).catch(() => {});
 
   // リンク生成中の表示
   _emailLinkShowLoading();
@@ -3278,49 +3316,109 @@ function closeEmailModal() {
   document.getElementById('emailModal').classList.add('hidden');
   _emailFileId      = null;
   _emailPregenShare = null;
-  _emailChips       = [];
+  emailFieldChips.to  = [];
+  emailFieldChips.cc  = [];
+  emailFieldChips.bcc = [];
 }
 
-function addEmailChip() {
-  const input   = document.getElementById('emailInput');
-  const errEl   = document.getElementById('emailInputError');
-  const errText = document.getElementById('emailInputErrorText');
-  const val = input.value.trim().replace(/,$/, '');
+function addEmailChip(field = 'to') {
+  const input = document.getElementById(EMAIL_FIELD_IDS[field].input);
+  const val   = input.value.trim().replace(/,$/, '');
   if (!val) return;
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-    errText.textContent = '有効なメールアドレスを入力してください';
-    errEl.style.display = 'flex';
-    return;
+  if (_addEmailToChips(field, val)) {
+    input.value = '';
+    _emailHideSuggest(field);
   }
-  if (_emailChips.some(c => c.email === val)) {
-    errText.textContent = 'すでに追加済みです';
-    errEl.style.display = 'flex';
-    return;
-  }
-  if (_emailChips.length >= 10) {
-    errText.textContent = '送信先は最大10件です';
-    errEl.style.display = 'flex';
-    return;
-  }
-  errEl.style.display = 'none';
-  _emailChips.push({ email: val });
-  input.value = '';
-  renderEmailChips();
   input.focus();
 }
 
-function removeEmailChip(email) {
-  _emailChips = _emailChips.filter(c => c.email !== email);
-  renderEmailChips();
+// バリデーション込みでチップに追加。成功したら true を返す。
+function _addEmailToChips(field, val) {
+  const ids     = EMAIL_FIELD_IDS[field];
+  const chips   = emailFieldChips[field];
+  const errEl   = document.getElementById(ids.err);
+  const errText = document.getElementById(ids.errText);
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+    errText.textContent = '有効なメールアドレスを入力してください';
+    errEl.style.display = 'flex';
+    return false;
+  }
+  if (chips.some(c => c.email === val)) {
+    errText.textContent = 'すでに追加済みです';
+    errEl.style.display = 'flex';
+    return false;
+  }
+  if (chips.length >= 10) {
+    errText.textContent = `${ids.label}は最大10件です`;
+    errEl.style.display = 'flex';
+    return false;
+  }
+
+  errEl.style.display = 'none';
+  chips.push({ email: val });
+  renderEmailChips(field);
+  return true;
 }
 
-function renderEmailChips() {
-  const list = document.getElementById('emailChipList');
-  list.innerHTML = _emailChips.map(c => `
+function removeEmailChip(field, email) {
+  emailFieldChips[field] = emailFieldChips[field].filter(c => c.email !== email);
+  renderEmailChips(field);
+}
+
+// 登録済み連絡先のオートコンプリート候補
+function _emailRenderSuggest(field, query) {
+  const ids = EMAIL_FIELD_IDS[field];
+  const box = document.getElementById(ids.suggest);
+  if (!box) return;
+
+  const addedEmails = new Set(emailFieldChips[field].map(c => c.email));
+  const q = query.toLowerCase();
+  const candidates = _allContactsCache.filter(c => !addedEmails.has(c.email));
+  const matches = q
+    ? candidates.filter(c =>
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.name_kana || '').toLowerCase().includes(q) ||
+        (c.company_name || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q))
+    : candidates;
+
+  if (!matches.length) { _emailHideSuggest(field); return; }
+
+  box.innerHTML = matches.slice(0, 8).map(c => `
+    <div class="email-suggest-item" data-email="${h(c.email)}"
+      style="padding:7px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border);">
+      <div style="font-weight:600;color:var(--primary);">${h(c.name)}${c.company_name ? `　<span style="font-weight:400;color:var(--muted);">${h(c.company_name)}</span>` : ''}</div>
+      <div style="color:var(--muted);">${h(c.email)}</div>
+    </div>
+  `).join('');
+  box.querySelectorAll('.email-suggest-item').forEach(el => {
+    el.addEventListener('mouseenter', () => { el.style.background = 'rgba(33,150,243,.08)'; });
+    el.addEventListener('mouseleave', () => { el.style.background = ''; });
+    el.addEventListener('click', () => {
+      const input = document.getElementById(ids.input);
+      if (_addEmailToChips(field, el.dataset.email)) {
+        input.value = '';
+        _emailHideSuggest(field);
+      }
+      input.focus();
+    });
+  });
+  box.classList.remove('hidden');
+}
+
+function _emailHideSuggest(field) {
+  document.getElementById(EMAIL_FIELD_IDS[field].suggest)?.classList.add('hidden');
+}
+
+function renderEmailChips(field) {
+  const ids  = EMAIL_FIELD_IDS[field];
+  const list = document.getElementById(ids.chipList);
+  list.innerHTML = emailFieldChips[field].map(c => `
     <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(33,150,243,.12);
       color:#1565C0;padding:3px 10px 3px 12px;border-radius:20px;font-size:12px;font-weight:600;">
       ${h(c.email)}
-      <button onclick="removeEmailChip('${h(c.email)}')"
+      <button onclick="removeEmailChip('${field}','${h(c.email)}')"
         style="background:none;border:none;cursor:pointer;color:#1565C0;padding:0;font-size:12px;line-height:1;display:flex;align-items:center;">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -3339,12 +3437,15 @@ function setEmailBtnsLoading(loading) {
 function _buildEmailContent() {
   if (!_emailPregenShare?.url) return null;
 
-  const inputEl = document.getElementById('emailInput');
-  const pending = inputEl.value.trim().replace(/,$/, '');
-  if (pending && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pending) && !_emailChips.some(c => c.email === pending)) {
-    _emailChips.push({ email: pending });
-    inputEl.value = '';
-    renderEmailChips();
+  // 「追加」を押さずに入力欄に残っている値も送信直前に取り込む（TO/CC/BCC共通）
+  for (const field of Object.keys(EMAIL_FIELD_IDS)) {
+    const inputEl = document.getElementById(EMAIL_FIELD_IDS[field].input);
+    const pending = inputEl.value.trim().replace(/,$/, '');
+    if (pending && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pending) && !emailFieldChips[field].some(c => c.email === pending)) {
+      emailFieldChips[field].push({ email: pending });
+      inputEl.value = '';
+      renderEmailChips(field);
+    }
   }
 
   const message = document.getElementById('emailMessage').value.trim();
@@ -3356,9 +3457,11 @@ function _buildEmailContent() {
   lines.push('');
   lines.push('※ リンクからダウンロードできます（有効期限：発行から30日）');
   const body = lines.join('\r\n');
-  const to   = _emailChips.map(c => c.email).join(',');
+  const to   = emailFieldChips.to.map(c => c.email).join(',');
+  const cc   = emailFieldChips.cc.map(c => c.email).join(',');
+  const bcc  = emailFieldChips.bcc.map(c => c.email).join(',');
 
-  return { to, subject, body };
+  return { to, cc, bcc, subject, body };
 }
 
 /* Gmail の作成画面を開く */
@@ -3372,18 +3475,25 @@ function doSendEmailGmail() {
     // アプリ未インストールの場合は 1.5 秒後に mailto にフォールバック
     const gmailScheme = 'googlegmail://co'
       + `?to=${encodeURIComponent(m.to)}`
+      + (m.cc  ? `&cc=${encodeURIComponent(m.cc)}`   : '')
+      + (m.bcc ? `&bcc=${encodeURIComponent(m.bcc)}` : '')
       + `&subject=${encodeURIComponent(m.subject)}`
       + `&body=${encodeURIComponent(m.body)}`;
     window.location.href = gmailScheme;
     setTimeout(() => {
       if (!document.hidden) {
-        window.location.href = `mailto:${m.to}?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
+        window.location.href = `mailto:${m.to}`
+          + `?${m.cc  ? `cc=${encodeURIComponent(m.cc)}&`   : ''}`
+          + `${m.bcc ? `bcc=${encodeURIComponent(m.bcc)}&` : ''}`
+          + `subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
         wnShowToast('メールアプリを起動しました', 'success');
       }
     }, 1500);
   } else {
     const url = 'https://mail.google.com/mail/?view=cm&fs=1'
       + `&to=${encodeURIComponent(m.to)}`
+      + (m.cc  ? `&cc=${encodeURIComponent(m.cc)}`   : '')
+      + (m.bcc ? `&bcc=${encodeURIComponent(m.bcc)}` : '')
       + `&su=${encodeURIComponent(m.subject)}`
       + `&body=${encodeURIComponent(m.body)}`;
     window.open(url, '_blank');
@@ -3396,7 +3506,10 @@ function doSendEmailGmail() {
 function doSendEmailMailto() {
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
-  const url = `mailto:${m.to}?subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
+  const url = `mailto:${m.to}`
+    + `?${m.cc  ? `cc=${encodeURIComponent(m.cc)}&`   : ''}`
+    + `${m.bcc ? `bcc=${encodeURIComponent(m.bcc)}&` : ''}`
+    + `subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
   window.location.href = url;
   wnShowToast('メールアプリを起動しました', 'success');
   closeEmailModal();
