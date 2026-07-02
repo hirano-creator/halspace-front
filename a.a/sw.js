@@ -1,11 +1,12 @@
 /* a.a Service Worker — アプリシェルをキャッシュしてインストール可能化＆高速起動 */
-const CACHE = 'aa-shell-v8';
+const CACHE = 'aa-shell-v9';
 const SHELL = [
   './',
   './index.html',
   './assets/app.css',
   './assets/aa-api.js',
   './assets/aa-pdf.js',
+  './assets/aa-video.js',
   './assets/aa-shell.js',
   './assets/icon.svg',
   './manifest.json',

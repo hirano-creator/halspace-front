@@ -59,7 +59,26 @@
               el.style.minHeight = '';
               el.innerHTML = `<a class="doc" href="${url}" target="_blank" rel="noopener"><div class="dic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div><div class="dt"><b>資料を開く</b><span>${esc(mime)}</span></div></a>`;
             };
-            if (isPdf) {
+            // サーバー保存サムネがあれば即表示（PDF全体のDL/レンダリング不要で高速）
+            const tryServerThumb = async () => {
+              if (!mediaId) return false;
+              const turl = AA.mediaThumbUrl(mediaId);
+              const ok = await new Promise(r => {
+                const i = new Image();
+                i.onload = () => r(true); i.onerror = () => r(false);
+                i.src = turl; setTimeout(() => r(false), 8000);
+              });
+              if (!ok) return false;
+              el.style.minHeight = '';
+              el.innerHTML = `<img src="${turl}" style="width:100%;display:block" alt="">`;
+              el.style.cursor = 'pointer';
+              el.title = '資料を開く';
+              el.onclick = () => window.open(url, '_blank');
+              return true;
+            };
+            if (await tryServerThumb()) {
+              // 保存済みサムネで表示完了
+            } else if (isPdf) {
               try {
                 // R2直URLではなくプロキシ経由（CORS: null origin 対策）
                 const pdfUrl = mediaId

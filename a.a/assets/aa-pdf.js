@@ -33,18 +33,47 @@
   g.aaRenderPdf = async function (url, container) {
     const lib = await loadLib();
     const pdf = await lib.getDocument(url).promise;
-    const page = await pdf.getPage(1);
-    const targetW = container.clientWidth || 480;
-    const vp0 = page.getViewport({ scale: 1 });
-    // モバイルの高DPR（3×など）でcanvasが過大になりOOMするため上限2に抑える
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const scale = (targetW / vp0.width) * dpr;
-    const vp = page.getViewport({ scale });
-    const c = document.createElement('canvas');
-    c.width = vp.width; c.height = vp.height;
-    c.style.width = '100%'; c.style.display = 'block';
-    await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
-    container.innerHTML = '';
-    container.appendChild(c);
+    try {
+      const page = await pdf.getPage(1);
+      const targetW = container.clientWidth || 480;
+      const vp0 = page.getViewport({ scale: 1 });
+      // モバイルの高DPR（3×など）でcanvasが過大になりOOMするため上限2に抑える
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const scale = (targetW / vp0.width) * dpr;
+      const vp = page.getViewport({ scale });
+      const c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      c.style.width = '100%'; c.style.display = 'block';
+      await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      container.innerHTML = '';
+      container.appendChild(c);
+    } finally {
+      try { pdf.destroy(); } catch (e) {}
+    }
+  };
+
+  /** url のPDF1ページ目をサムネイルJPEG blobにして返す（canvasはDOMに残さず即解放） */
+  g.aaPdfThumbBlob = async function (url, targetW) {
+    const lib = await loadLib();
+    const pdf = await lib.getDocument(url).promise;
+    try {
+      const page = await pdf.getPage(1);
+      const vp0 = page.getViewport({ scale: 1 });
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // メモリ上限: 描画幅は最大1000pxに抑える（iOS OOM対策）
+      const w = Math.min((targetW || 480) * dpr, 1000);
+      const vp = page.getViewport({ scale: w / vp0.width });
+      const c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; // 透過PDFがJPEGで黒くならないよう白で埋める
+      ctx.fillRect(0, 0, c.width, c.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.82));
+      c.width = c.height = 0; // backing store 即解放
+      return blob;
+    } finally {
+      try { pdf.destroy(); } catch (e) {}
+    }
   };
 })(window);

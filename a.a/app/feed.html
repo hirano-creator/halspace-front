@@ -94,20 +94,19 @@
           // 資料は非同期サムネイル描画。PPTXはpreview-pdf変換、PDFは直接pdf.js。data-wnidはPPTX変換に使う。
           const wnAttr = p.source_wn_file_id ? ` data-wnid="${p.source_wn_file_id}"` : '';
           mediaHtml = `<div class="media docprev" data-view="${m.view}" data-mime="${esc(m.mime||'')}"${wnAttr} style="min-height:120px;background:var(--soft);cursor:pointer"></div>`;
-        } else if (m.kind === 'image' && m.url) {
-          mediaHtml = `<div class="media" style="aspect-ratio:4/3;overflow:hidden;background:var(--soft)"><img src="${esc(m.url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" onerror="this.parentElement.innerHTML='${thumbIcon('image').replace(/'/g,"\\'")}';this.parentElement.style.display='flex';this.parentElement.style.alignItems='center';this.parentElement.style.justifyContent='center'"></div>`;
+        } else if (m.kind === 'image' && (m.id || m.url)) {
+          // サーバー保存サムネ(小さいJPEG)優先。無ければ原寸URL→それも失敗なら非表示
+          const src = m.id ? AA.mediaThumbUrl(m.id) : m.url;
+          mediaHtml = `<div class="media" style="aspect-ratio:4/3;overflow:hidden;background:var(--soft)"><img src="${esc(src)}" data-full="${esc(m.url||'')}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" onerror="if(this.dataset.full&&!this.dataset.fb){this.dataset.fb=1;this.src=this.dataset.full}else{this.style.display='none'}"></div>`;
         } else if (m.kind === 'video') {
           const vMime = esc(m.mime || 'video/mp4');
-          if (m.url) {
-            // m.view があればプロキシURL（同一オリジン）でサムネ生成、なければ直URLで試みる
-            const midMatch = (m.view || '').match(/\/media\/(\d+)\/view/);
+          // m.view から mediaId を取り出す。再生(プロキシraw)とサムネ(thumb)に使う
+          const midMatch = (m.view || '').match(/\/media\/(\d+)\/view/);
+          if (midMatch || m.url) {
             const tAttr = midMatch
-              ? ` data-thumb-url="${esc(AA.apiBase() + '/aa/media/' + midMatch[1] + '/raw?token=' + AA.token())}"`
+              ? ` data-thumb-url="${esc(AA.apiBase() + '/aa/media/' + midMatch[1] + '/raw?token=' + AA.token())}" data-media-id="${midMatch[1]}"`
               : '';
-            mediaHtml = `<div class="media vidcard" data-vid-url="${esc(m.url)}" data-vid-mime="${vMime}"${tAttr} style="aspect-ratio:4/3;overflow:hidden;background:#000;position:relative;cursor:pointer"><img class="vidthumb" style="width:100%;height:100%;object-fit:cover;display:block;visibility:hidden" alt=""><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:60px;height:60px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="26" height="26" fill="#fff"><path d="M6 4l14 8-14 8V4z"/></svg></div></div></div>`;
-          } else if (m.view) {
-            // URL未解決: renderDocs で view 経由取得してから vidcard に変換
-            mediaHtml = `<div class="media vidprev" data-view="${esc(m.view)}" data-vid-mime="${vMime}" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:#000">${thumbIcon('video')}</div>`;
+            mediaHtml = `<div class="media vidcard" data-vid-url="${esc(m.url||'')}" data-vid-mime="${vMime}"${tAttr} style="aspect-ratio:4/3;overflow:hidden;background:#000;position:relative;cursor:pointer"><img class="vidthumb" style="width:100%;height:100%;object-fit:cover;display:block;visibility:hidden" alt=""><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:60px;height:60px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="26" height="26" fill="#fff"><path d="M6 4l14 8-14 8V4z"/></svg></div></div></div>`;
           } else {
             mediaHtml = `<div class="media" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:var(--soft)">${thumbIcon('video')}</div>`;
           }
@@ -221,80 +220,106 @@
       }
       el.addEventListener('click', playHandler);
 
-      // サムネ生成は CORS 対応のプロキシ URL でのみ実施（R2直URLは crossOrigin で失敗するため）
-      if (!window.AAVideo || !el.dataset.thumbUrl) return;
-      const thumbGenUrl = el.dataset.thumbUrl;
-      // mediaId をキーにする。pathname末尾は全動画 'raw' で共通になりキャッシュが衝突するため。
-      const midMatch = thumbGenUrl.match(/\/media\/(\d+)\//);
-      const keyId = midMatch ? midMatch[1] : thumbGenUrl.replace(/[^a-z0-9]/gi, '_').slice(-40);
-      const key = 'vt_' + keyId + '_' + AAVideo.THUMB_VER;
-      AAVideo.loadVideoThumb(thumbGenUrl, key).then(thumbUrl => {
-        if (!thumbUrl) return;
-        const img = el.querySelector('.vidthumb');
-        if (!img) { URL.revokeObjectURL(thumbUrl); return; }
-        img.onload = () => { img.style.visibility = ''; };
-        img.onerror = () => URL.revokeObjectURL(thumbUrl);
-        img.src = thumbUrl;
-      }).catch(() => {});
+      // サムネ: サーバー保存済みを <img> で即読み込み（高速・動画DL不要）。
+      // 404 なら未保存なので、クライアントで1回だけ生成 → 表示 → サーバーへ保存（全端末向け）。
+      const img = el.querySelector('.vidthumb');
+      const mediaId = el.dataset.mediaId;
+      if (!img || !mediaId) return;
+
+      const thumbEndpoint = AA.mediaThumbUrl(mediaId);
+      img.onload = () => { img.style.visibility = ''; };
+      img.onerror = () => {
+        // サーバー未保存(404)。プロキシ raw から生成して保存する。
+        img.onerror = null;
+        if (!window.AAVideo || !el.dataset.thumbUrl) return;
+        AAVideo.generateThumb(el.dataset.thumbUrl).then(blob => {
+          if (!blob) return;
+          const url = URL.createObjectURL(blob);
+          img.onload = () => { img.style.visibility = ''; URL.revokeObjectURL(url); };
+          img.src = url;
+          AA.storeMediaThumb(mediaId, blob).catch(() => {}); // 全端末向け・fire-and-forget
+        }).catch(() => {});
+      };
+      img.src = thumbEndpoint;
     }
 
-    async function renderDocs(){
-      // 動画: view経由でURL解決してからvidcardに変換
-      for (const el of document.querySelectorAll('.vidprev[data-view]')) {
-        try {
-          const viewUrl = el.dataset.view;
-          const url = await AA.mediaUrl(viewUrl);
-          const midMatch = viewUrl.match(/\/media\/(\d+)\/view/);
-          el.removeAttribute('data-view');
-          el.className = el.className.replace('vidprev', 'vidcard').trim();
-          el.dataset.vidUrl = url;
-          if (midMatch) {
-            el.dataset.thumbUrl = AA.apiBase() + '/aa/media/' + midMatch[1] + '/raw?token=' + AA.token();
-          }
-          el.style.cssText = 'aspect-ratio:4/3;overflow:hidden;background:#000;position:relative;cursor:pointer';
-          el.innerHTML = `<img class="vidthumb" style="width:100%;height:100%;object-fit:cover;display:block;visibility:hidden" alt=""><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:60px;height:60px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="26" height="26" fill="#fff"><path d="M6 4l14 8-14 8V4z"/></svg></div></div>`;
-          setupVidCard(el);
-        } catch(e) { console.warn('renderDocs video', e.message); }
-      }
-      // URLあり動画カードのセットアップ
-      for (const el of document.querySelectorAll('.vidcard[data-vid-url]')) {
-        setupVidCard(el);
-      }
-      for (const el of document.querySelectorAll('.docprev[data-view]')) {
-        const mime = el.dataset.mime || '';
-        const wnId = el.dataset.wnid;
-        const isPdf = mime === 'application/pdf';
-        // view URLからメディアIDを取り出す（R2直接fetchを避けてプロキシ経由にするため）
-        const viewUrl = el.dataset.view;
-        const midMatch = viewUrl.match(/\/media\/(\d+)\/view/);
-        const mediaId = midMatch ? midMatch[1] : null;
-        let url;
-        try {
-          url = await AA.mediaUrl(viewUrl);
-          el.removeAttribute('data-view');
+    function probeImg(url){
+      return new Promise(res => {
+        const i = new Image();
+        i.onload = () => res(true);
+        i.onerror = () => res(false);
+        i.src = url;
+        setTimeout(() => res(false), 8000); // サーバー側生成(画像/Office)に時間がかかる場合の保険
+      });
+    }
 
-          if (isPdf) {
-            // PDF: R2直URLではなくプロキシ経由でfetch（CORS: null origin 対策）
-            const pdfUrl = mediaId
-              ? (AA.apiBase() + '/aa/media/' + mediaId + '/raw?token=' + AA.token())
-              : url;
-            await aaRenderPdf(pdfUrl, el);
-          } else if (mediaId) {
-            // Office ファイル (DOCX/XLSX/PPTX): LibreOffice で PDF 変換→pdf.js で表示
-            // wnId の有無にかかわらず aa/media/{id}/office-pdf を使う（変換結果はR2にキャッシュ済み）
-            const officePdfUrl = AA.apiBase() + '/aa/media/' + mediaId + '/office-pdf?token=' + AA.token();
-            await aaRenderPdf(officePdfUrl, el);
-          } else {
-            throw new Error('not renderable');
-          }
-        } catch(e) {
-          console.warn('renderDocs', mime, wnId, e.message);
-          el.style.minHeight = '';
-          el.innerHTML = docFileCard(mime, url);
-        } finally {
-          if (url) el.onclick = () => window.open(url, '_blank');
-        }
+    // 資料(PDF/Office)カード：サーバー保存サムネ(小さいJPEG)を優先。
+    // 未生成(404)のときだけ初回のみ pdf.js で1ページ目を描画→表示→サーバーへ保存（全端末向け）。
+    async function setupDocCard(el){
+      const mime = el.dataset.mime || '';
+      const viewUrl = el.dataset.view;
+      el.removeAttribute('data-view');
+      const midMatch = (viewUrl || '').match(/\/media\/(\d+)\/view/);
+      const mediaId = midMatch ? midMatch[1] : null;
+      // タップで原本を開く。URL解決はタップ時に遅延（同期でwindowを開いてから遷移＝ポップアップブロック回避）
+      el.onclick = () => {
+        const w = window.open('', '_blank');
+        AA.mediaUrl(viewUrl).then(u => { w.location = u; }).catch(() => { try { w.close(); } catch(e){} });
+      };
+      const showImg = (src) => {
+        el.style.minHeight = '';
+        el.innerHTML = `<img src="${src}" style="width:100%;display:block" alt="">`;
+      };
+      if (mediaId) {
+        const turl = AA.mediaThumbUrl(mediaId);
+        if (await probeImg(turl)) { showImg(turl); return; } // immutableキャッシュ済みなので再読込はヒットする
       }
+      try {
+        if (!mediaId) throw new Error('not renderable');
+        const isPdf = mime === 'application/pdf';
+        // PDFはプロキシraw、OfficeはLibreOffice変換PDF（R2キャッシュ済み）をpdf.jsで描画
+        const pdfUrl = AA.apiBase() + '/aa/media/' + mediaId + (isPdf ? '/raw' : '/office-pdf') + '?token=' + AA.token();
+        const blob = await aaPdfThumbBlob(pdfUrl, el.clientWidth || 480);
+        if (!blob) throw new Error('サムネ生成失敗');
+        showImg(URL.createObjectURL(blob));
+        AA.storeMediaThumb(mediaId, blob).catch(() => {}); // fire-and-forget
+      } catch(e) {
+        console.warn('doc thumb', mime, e.message);
+        el.style.minHeight = '';
+        el.innerHTML = docFileCard(mime, viewUrl);
+      }
+    }
+
+    // ビューポート付近のカードだけメディア処理する（画面外のPDF/動画に触らない＝初期表示速度とiOSメモリ対策）
+    const IS_MOBILE = /iP(hone|ad|od)|Android/.test(navigator.userAgent)
+      || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    const DOC_CONC = IS_MOBILE ? 1 : 4; // pdf.js同時レンダリング上限（iOS OOM防止）
+    let docActive = 0;
+    const docQueue = [];
+    function pumpDocs(){
+      while (docActive < DOC_CONC && docQueue.length) {
+        const job = docQueue.shift();
+        docActive++;
+        Promise.resolve(job()).catch(() => {}).finally(() => { docActive--; pumpDocs(); });
+      }
+    }
+    let mediaIO = null;
+    function renderDocs(){
+      if (mediaIO) mediaIO.disconnect();
+      docQueue.length = 0;
+      const targets = document.querySelectorAll('.docprev[data-view], .vidcard');
+      const start = (el) => {
+        if (el.classList.contains('docprev')) {
+          if (el.dataset.view) { docQueue.push(() => setupDocCard(el)); pumpDocs(); }
+        } else {
+          setupVidCard(el); // サムネ<img>読込は軽量。生成が要る時だけAAVideo側semaphoreで直列化
+        }
+      };
+      if (!('IntersectionObserver' in window)) { targets.forEach(start); return; }
+      mediaIO = new IntersectionObserver((entries, obs) => {
+        entries.forEach(en => { if (en.isIntersecting) { obs.unobserve(en.target); start(en.target); } });
+      }, { rootMargin: '600px 0px' });
+      targets.forEach(el => mediaIO.observe(el));
     }
 
     function bind(){

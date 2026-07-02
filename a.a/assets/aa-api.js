@@ -82,6 +82,15 @@
   const react       = (id, kind) => aaFetch('/aa/posts/' + id + '/reactions', { method: 'POST', body: { kind: kind || 'helpful' } });
   const shareLink   = (id) => aaFetch('/aa/posts/' + id + '/share-link', { method: 'POST' });
 
+  // ── メディアサムネイル（サーバー保存・全端末共有） ──
+  // <img> で直接読めるトークン付きURL。404 = 未生成（クライアントで生成して storeMediaThumb）
+  const mediaThumbUrl = (mediaId) => apiBase() + '/aa/media/' + mediaId + '/thumb?token=' + encodeURIComponent(token());
+  const storeMediaThumb = (mediaId, blob) => {
+    const fd = new FormData();
+    fd.append('thumb', blob, 'thumb.jpg');
+    return aaFetch('/aa/media/' + mediaId + '/thumb', { method: 'POST', body: fd });
+  };
+
   // ── メディア（view→{url} を取得してから表示） ──
   const mediaUrl = async (mediaViewEndpoint) => {
     // formatPost が返す media.view は絶対URL。トークン付きで叩いて {url} を得る
@@ -134,7 +143,7 @@
     apiBase, token, setToken, isAuthed, aaFetch,
     login, logout, me,
     feed, getPost, createPost, publishFromWn, wnFiles, updatePost, updatePostMedia, deletePost,
-    comments, postComment, react, shareLink, mediaUrl,
+    comments, postComment, react, shareLink, mediaUrl, mediaThumbUrl, storeMediaThumb,
     profile, updateProfile, addSkill, deleteSkill,
     notifications, readNotif, readAllNotif,
     admin,

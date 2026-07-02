@@ -149,5 +149,18 @@
     return URL.createObjectURL(blob);
   }
 
-  window.AAVideo = { loadVideoThumb, THUMB_VER };
+  /**
+   * サムネイルJPEG blobを生成して返す（サーバー保存用）。同時生成はセマフォで制限。
+   * @returns {Promise<Blob|null>}
+   */
+  async function generateThumb(videoUrl) {
+    await genSem.acquire();
+    try {
+      return await captureVideoThumb(videoUrl);
+    } finally {
+      genSem.release();
+    }
+  }
+
+  window.AAVideo = { loadVideoThumb, generateThumb, THUMB_VER };
 })();
