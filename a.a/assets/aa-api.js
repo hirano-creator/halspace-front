@@ -16,8 +16,24 @@
   }
 
   function token() { return localStorage.getItem('aa_token') || ''; }
-  function setToken(t) { t ? localStorage.setItem('aa_token', t) : localStorage.removeItem('aa_token'); }
+  function setToken(t) {
+    if (t) { localStorage.setItem('aa_token', t); return; }
+    localStorage.removeItem('aa_token');
+    clearDataCaches(); // ログアウト/認証切れで前ユーザーの表示キャッシュを残さない
+  }
   function isAuthed() { return !!token(); }
+
+  // 各画面の即時表示用キャッシュ（stale-while-revalidate）を全消しする
+  function clearDataCaches() {
+    try {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.indexOf('aa_feed_cache') === 0 || k === 'aa_notif_cache' || k === 'aa_profile_cache' || k === 'aa_me_cache')) keys.push(k);
+      }
+      keys.forEach((k) => localStorage.removeItem(k));
+    } catch (e) {}
+  }
 
   async function aaFetch(path, opts) {
     opts = opts || {};

@@ -139,17 +139,40 @@
       </article>`;
     }
 
-    async function load(){
+    function renderFeed(data){
       const el = document.getElementById('feed');
-      el.innerHTML = '<div class="center">読み込み中…</div>';
+      if (!data || !data.length) { el.innerHTML = '<div class="center">まだ投稿がありません。<br>右下の＋から最初の投稿をしてみましょう。</div>'; return; }
+      el.innerHTML = data.map(postCard).join('');
+      bind();
+      renderDocs();
+    }
+
+    // フィードキャッシュ：前回取得分を即描画→裏で最新取得（stale-while-revalidate）
+    const feedCacheKey = () => 'aa_feed_cache:' + activeCat;
+    let loadSeq = 0; // カテゴリ連打時に古い応答で上書きしない
+
+    async function load(){
+      const seq = ++loadSeq;
+      const el = document.getElementById('feed');
+      // 1) キャッシュがあれば待たずに即描画
+      let cached = null;
+      try { cached = localStorage.getItem(feedCacheKey()); } catch(e){}
+      if (cached) {
+        try { renderFeed(JSON.parse(cached)); } catch(e){ cached = null; }
+      }
+      if (!cached) el.innerHTML = '<div class="center">読み込み中…</div>';
+      // 2) 最新を取得して差し替え（内容が同じなら再描画しない）
       try {
         const r = await AA.feed(activeCat);
-        if (!r.data || !r.data.length) { el.innerHTML = '<div class="center">まだ投稿がありません。<br>右下の＋から最初の投稿をしてみましょう。</div>'; return; }
-        el.innerHTML = r.data.map(postCard).join('');
-        bind();
-        renderDocs();
+        if (seq !== loadSeq) return;
+        const fresh = JSON.stringify(r.data || []);
+        try { localStorage.setItem(feedCacheKey(), fresh); } catch(e){}
+        if (fresh !== cached) renderFeed(r.data || []);
       } catch (e) {
-        el.innerHTML = `<div class="center">読み込みに失敗しました：${esc(e.message)}</div>`;
+        if (seq !== loadSeq) return;
+        if (!AA.isAuthed()) { location.replace('../index.html'); return; }
+        // キャッシュ表示中なら失敗を上書きしない（オフラインでも前回分が読める）
+        if (!cached) el.innerHTML = `<div class="center">読み込みに失敗しました：${esc(e.message)}</div>`;
       }
     }
 

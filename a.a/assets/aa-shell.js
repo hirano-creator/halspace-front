@@ -52,42 +52,54 @@
     if (window.matchMedia('(min-width:1024px)').matches && window.AA && AA.isAuthed()) populate();
   }
 
+  function paintMe(u) {
+    const name = (u.company && u.company.name) || u.name || '';
+    const el = document.getElementById('deckName'); if (el) el.textContent = name;
+    const av = document.getElementById('deckAva'); if (av) av.textContent = (name || '?').trim().charAt(0);
+    // 管理者には「管理」リンクを左ナビに追加
+    const role = u.role || '';
+    if (role === 'super_admin' || role === 'jp_admin') {
+      const nav = document.querySelector('.deck-nav');
+      const postBtn = nav && nav.querySelector('.deck-post');
+      if (nav && postBtn && !nav.querySelector('.navi-admin')) {
+        const a = document.createElement('a');
+        a.className = 'navi navi-admin';
+        a.href = './admin.html';
+        a.innerHTML = svg(ICON.cog) + '管理';
+        nav.insertBefore(a, postBtn);
+      }
+    }
+  }
+  function paintAside(data) {
+    const news = data.filter(p => p.kind === 'news').slice(0, 4);
+    const posts = data.filter(p => p.kind !== 'news')
+      .sort((a, b) => ((b.reactions && b.reactions.helpful) || 0) - ((a.reactions && a.reactions.helpful) || 0))
+      .slice(0, 3);
+    const nEl = document.getElementById('asideNews');
+    if (nEl) nEl.innerHTML = news.map(p =>
+      `<a class="aitem" href="${esc(p.news_url)}" target="_blank" rel="noopener"><span class="atag">${esc(p.category || 'ニュース')}</span><b>${esc(p.news_title)}</b></a>`
+    ).join('') || '<div class="muted">なし</div>';
+    const pEl = document.getElementById('asidePosts');
+    if (pEl) pEl.innerHTML = posts.map(p =>
+      `<a class="aitem col" href="./post.html?id=${p.id}"><b>${esc((p.body || '').slice(0, 42)) || '（メディア投稿）'}</b><span class="muted">${esc(p.company_name || '')} ・ 👍${(p.reactions && p.reactions.helpful) || 0}</span></a>`
+    ).join('') || '<div class="muted">なし</div>';
+  }
+
   async function populate() {
+    // 前回取得分を即描画→裏で最新取得（stale-while-revalidate）
+    try { const c = localStorage.getItem('aa_me_cache'); if (c) paintMe(JSON.parse(c)); } catch (e) {}
+    try { const c = localStorage.getItem('aa_feed_cache:'); if (c) paintAside(JSON.parse(c)); } catch (e) {}
     try {
       const me = await AA.aaFetch('/auth/me');
       const u = me.user || me.data || me;
-      const name = (u.company && u.company.name) || u.name || '';
-      const el = document.getElementById('deckName'); if (el) el.textContent = name;
-      const av = document.getElementById('deckAva'); if (av) av.textContent = (name || '?').trim().charAt(0);
-      // 管理者には「管理」リンクを左ナビに追加
-      const role = u.role || '';
-      if (role === 'super_admin' || role === 'jp_admin') {
-        const nav = document.querySelector('.deck-nav');
-        const postBtn = nav && nav.querySelector('.deck-post');
-        if (nav && postBtn && !nav.querySelector('.navi-admin')) {
-          const a = document.createElement('a');
-          a.className = 'navi navi-admin';
-          a.href = './admin.html';
-          a.innerHTML = svg(ICON.cog) + '管理';
-          nav.insertBefore(a, postBtn);
-        }
-      }
+      try { localStorage.setItem('aa_me_cache', JSON.stringify(u)); } catch (e) {}
+      paintMe(u);
     } catch (e) {}
     try {
       const r = await AA.feed();
       const data = r.data || [];
-      const news = data.filter(p => p.kind === 'news').slice(0, 4);
-      const posts = data.filter(p => p.kind !== 'news')
-        .sort((a, b) => ((b.reactions && b.reactions.helpful) || 0) - ((a.reactions && a.reactions.helpful) || 0))
-        .slice(0, 3);
-      const nEl = document.getElementById('asideNews');
-      if (nEl) nEl.innerHTML = news.map(p =>
-        `<a class="aitem" href="${esc(p.news_url)}" target="_blank" rel="noopener"><span class="atag">${esc(p.category || 'ニュース')}</span><b>${esc(p.news_title)}</b></a>`
-      ).join('') || '<div class="muted">なし</div>';
-      const pEl = document.getElementById('asidePosts');
-      if (pEl) pEl.innerHTML = posts.map(p =>
-        `<a class="aitem col" href="./post.html?id=${p.id}"><b>${esc((p.body || '').slice(0, 42)) || '（メディア投稿）'}</b><span class="muted">${esc(p.company_name || '')} ・ 👍${(p.reactions && p.reactions.helpful) || 0}</span></a>`
-      ).join('') || '<div class="muted">なし</div>';
+      try { localStorage.setItem('aa_feed_cache:', JSON.stringify(data)); } catch (e) {}
+      paintAside(data);
     } catch (e) {}
   }
 

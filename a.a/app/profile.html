@@ -45,9 +45,21 @@
     const root = document.getElementById('body');
 
     async function load(){
-      root.innerHTML = '<div class="center">読み込み中…</div>';
-      try { P = await AA.profile(); renderView(); }
-      catch(e){ root.innerHTML = `<div class="center">${esc(e.message)}</div>`; }
+      // 前回取得分を即描画→裏で最新取得（stale-while-revalidate）
+      let cached = null;
+      try { cached = localStorage.getItem('aa_profile_cache'); } catch(e){}
+      if (cached) { try { P = JSON.parse(cached); renderView(); } catch(e){ cached = null; } }
+      if (!cached) root.innerHTML = '<div class="center">読み込み中…</div>';
+      try {
+        const r = await AA.profile();
+        const fresh = JSON.stringify(r);
+        try { localStorage.setItem('aa_profile_cache', fresh); } catch(e){}
+        if (fresh !== cached) { P = r; renderView(); }
+      }
+      catch(e){
+        if (!AA.isAuthed()) { location.replace('../index.html'); return; }
+        if (!cached) root.innerHTML = `<div class="center">${esc(e.message)}</div>`;
+      }
     }
 
     function head(){

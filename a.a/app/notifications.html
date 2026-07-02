@@ -58,14 +58,24 @@
         ${unread?'<div style="width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:6px"></div>':''}
       </div>`;
     }
+    const renderList = (data) => (data && data.length)
+      ? data.map(row).join('')
+      : '<div class="center">通知はまだありません</div>';
     async function load(){
       const el = document.getElementById('list');
+      // 前回取得分を即描画→裏で最新取得（stale-while-revalidate）
+      let cached = null;
+      try { cached = localStorage.getItem('aa_notif_cache'); } catch(e){}
+      if (cached) { try { el.innerHTML = renderList(JSON.parse(cached)); } catch(e){ cached = null; } }
       try {
         const r = await AA.notifications();
-        el.innerHTML = (r.data && r.data.length)
-          ? r.data.map(row).join('')
-          : '<div class="center">通知はまだありません</div>';
-      } catch(e){ el.innerHTML = `<div class="center">${esc(e.message)}</div>`; }
+        const fresh = JSON.stringify(r.data || []);
+        try { localStorage.setItem('aa_notif_cache', fresh); } catch(e){}
+        if (fresh !== cached) el.innerHTML = renderList(r.data || []);
+      } catch(e){
+        if (!AA.isAuthed()) { location.replace('../index.html'); return; }
+        if (!cached) el.innerHTML = `<div class="center">${esc(e.message)}</div>`;
+      }
     }
     document.getElementById('readAll').onclick = async () => { try { await AA.readAllNotif(); load(); } catch(e){} };
     load();
