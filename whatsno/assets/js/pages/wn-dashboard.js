@@ -2947,6 +2947,12 @@ function initEmailModal() {
   addBtn.addEventListener('click', addEmailChip);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addEmailChip(); }
+    if (e.key === 'Escape') { _emailHideSuggest(); }
+  });
+  input.addEventListener('input', () => _emailRenderSuggest(input.value.trim()));
+  input.addEventListener('focus', () => _emailRenderSuggest(input.value.trim()));
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#emailSuggestList') && e.target !== input) _emailHideSuggest();
   });
 
   msgArea.addEventListener('input', () => {
@@ -3017,6 +3023,8 @@ function openEmailModal(files, prefillEmail = null) {
   document.getElementById('emailSigEditArea').style.display = 'none';
   renderEmailChips();
   _emailRenderSigPreview();
+  _emailHideSuggest();
+  wnGetContacts().then(list => { allContactsCache = list; }).catch(() => {});
 
   if (!hasFiles) {
     emailPregenShares = [];
@@ -3115,24 +3123,32 @@ function addEmailChip() {
   const input = document.getElementById('emailInput');
   const val   = input.value.trim().replace(/,$/, '');
   if (!val) return;
+  if (_addEmailToChips(val)) {
+    input.value = '';
+    _emailHideSuggest();
+  }
+  input.focus();
+}
 
+// バリデーション込みでチップに追加。成功したら true を返す。
+function _addEmailToChips(val) {
   const errEl   = document.getElementById('emailInputError');
   const errText = document.getElementById('emailInputErrorText');
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
     errText.textContent = '有効なメールアドレスを入力してください';
     errEl.style.display = 'flex';
-    return;
+    return false;
   }
   if (emailChips.some(c => c.email === val)) {
     errText.textContent = 'すでに追加済みです';
     errEl.style.display = 'flex';
-    return;
+    return false;
   }
   if (emailChips.length >= 10) {
     errText.textContent = '送信先は最大10件です';
     errEl.style.display = 'flex';
-    return;
+    return false;
   }
 
   errEl.style.display = 'none';
@@ -3143,14 +3159,57 @@ function addEmailChip() {
     skillPendingName = '';
     wnSaveContact(nm, val).catch(() => {});
   }
-  input.value = '';
   renderEmailChips();
-  input.focus();
+  return true;
 }
 
 function removeEmailChip(email) {
   emailChips = emailChips.filter(c => c.email !== email);
   renderEmailChips();
+}
+
+// 登録済み連絡先のオートコンプリート候補
+function _emailRenderSuggest(query) {
+  const box = document.getElementById('emailSuggestList');
+  if (!box) return;
+
+  const addedEmails = new Set(emailChips.map(c => c.email));
+  const q = query.toLowerCase();
+  const candidates = allContactsCache.filter(c => !addedEmails.has(c.email));
+  const matches = q
+    ? candidates.filter(c =>
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.name_kana || '').toLowerCase().includes(q) ||
+        (c.company_name || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q))
+    : candidates;
+
+  if (!matches.length) { _emailHideSuggest(); return; }
+
+  box.innerHTML = matches.slice(0, 8).map(c => `
+    <div class="email-suggest-item" data-email="${h(c.email)}"
+      style="padding:7px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border);">
+      <div style="font-weight:600;color:var(--primary);">${h(c.name)}${c.company_name ? `　<span style="font-weight:400;color:var(--muted);">${h(c.company_name)}</span>` : ''}</div>
+      <div style="color:var(--muted);">${h(c.email)}</div>
+    </div>
+  `).join('');
+  box.querySelectorAll('.email-suggest-item').forEach(el => {
+    el.addEventListener('mouseenter', () => { el.style.background = 'rgba(33,150,243,.08)'; });
+    el.addEventListener('mouseleave', () => { el.style.background = ''; });
+    el.addEventListener('click', () => {
+      const input = document.getElementById('emailInput');
+      if (_addEmailToChips(el.dataset.email)) {
+        input.value = '';
+        _emailHideSuggest();
+      }
+      input.focus();
+    });
+  });
+  box.classList.remove('hidden');
+}
+
+function _emailHideSuggest() {
+  document.getElementById('emailSuggestList')?.classList.add('hidden');
 }
 
 function renderEmailChips() {
