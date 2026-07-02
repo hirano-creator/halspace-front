@@ -1650,7 +1650,6 @@ function fileRowHtmlClassic(f) {
   const iconContent = hasThumb
     ? `<i class="fa-solid ${icon} ${cls}" id="thumb-icon-row-${f.id}"></i>`
     : `<i class="fa-solid ${icon} ${cls}"></i>`;
-  const aiDesc = f.ai_description ? h(f.ai_description) : '';
   const approvalBadge = (() => {
     const s = f.approval_status ?? 'none';
     if (s === 'none') return '';
@@ -1663,7 +1662,6 @@ function fileRowHtmlClassic(f) {
     <div class="file-row-thumb"><span class="wn-select-check" data-check-id="${f.id}"><i class="fa-regular fa-circle"></i></span>${iconContent}</div>
     <div class="file-row-name">
       <div class="file-row-filename">${fnameSafe}</div>
-      ${aiDesc ? `<div class="file-row-ai-desc">${aiDesc}</div>` : ''}
       <div class="file-row-tags">${(f.tags || []).slice(0, 5).map(t =>
         `<span class="tag" style="font-size:10px;padding:2px 7px;line-height:1.4;">${h(t.name)}</span>`
       ).join('')}</div>
@@ -1719,7 +1717,6 @@ function fileRowHtmlIG(f) {
     ? `<i class="fa-solid ${icon} ${cls}" id="thumb-icon-row-${f.id}"></i>`
     : `<i class="fa-solid ${icon} ${cls}"></i>`;
 
-  const aiDesc = f.ai_description ? h(f.ai_description) : '';
   const fnameSafe = h(f.file_name);
 
   const tagList = f.tags || [];
@@ -1802,7 +1799,6 @@ function fileRowHtmlIG(f) {
 
     <div class="ig-post-caption">
       <span class="filename">${fnameSafe}</span>
-      ${aiDesc ? `<span class="desc">${aiDesc}</span>` : ''}
     </div>
 
     ${chipsHtml}

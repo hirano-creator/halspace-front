@@ -72,11 +72,8 @@ async function wnGetFiles(params = {}) {
 }
 
 /* ファイル詳細 */
-async function wnGetFile(id, { skipAi = true } = {}) {
-  /* 既定で AI 生成をスキップしてレスポンスを即時化（重い PDF で詰まる対策）。
-     AI 説明文の再生成が必要な時は skipAi: false で呼び出す */
-  const qs  = skipAi ? '?skip_ai=1' : '';
-  const res = await wnFetch(`/wn/files/${id}${qs}`);
+async function wnGetFile(id) {
+  const res = await wnFetch(`/wn/files/${id}`);
   if (!res || !res.ok) return null;
   return (await res.json()).data ?? null;
 }

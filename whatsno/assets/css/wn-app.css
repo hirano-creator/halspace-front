@@ -1126,15 +1126,6 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 }
 .file-row-name { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; justify-content: center; overflow: hidden; padding: 18px 20px; }
 .file-row-filename { font-size: 16px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.file-row-ai-desc {
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.55;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
 .file-row-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .file-row-meta {
   display: flex; align-items: center; flex-wrap: nowrap;
@@ -1857,9 +1848,6 @@ tbody tr:last-child { border-bottom: none; }
   /* 通知ドロップダウン */
   .notif-dropdown { width: calc(100vw - 20px); right: -10px; }
 
-  /* AI説明1行 */
-  .file-row-ai-desc { -webkit-line-clamp: 1; }
-
   /* ===== モバイル トップバー（1段・PCと同じ余白バランス） =====
      並び: [≡] [検索 … 🎤 ➤] [👤連絡先] [🔔通知]
      送信ボタンは検索バー内に統合。gap=0にして個別マージンで制御 → 検索バーを最大幅に */
@@ -2538,11 +2526,6 @@ tbody tr:last-child { border-bottom: none; }
   display: block; font-weight: 700; color: var(--primary);
   font-size: 14.5px; margin-bottom: 3px;
   word-break: break-all;
-}
-.ig-post-caption .desc {
-  color: var(--text);
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 /* === タグチップ === */

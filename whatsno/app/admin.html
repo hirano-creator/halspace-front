@@ -180,15 +180,15 @@
 
       <!-- タブ3: タグ管理 -->
       <div class="tab-panel" id="tab-tags">
-        <!-- AI要約 一括生成 -->
+        <!-- Knowl学習データ 一括生成 -->
         <div class="card" style="margin-bottom:16px;">
           <div class="card-header">
-            <span class="card-title"><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--accent);"></i> AI要約 一括生成</span>
+            <span class="card-title"><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--accent);"></i> Knowl学習データ 一括生成</span>
           </div>
           <div style="padding:16px;">
             <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
               PDF / Word / Excel / PowerPoint / テキスト系（txt, csv, md）の本文を読み、<br>
-              AI要約とKnowl用の学習インデックスを一括生成します。1件ずつ順番に処理されます。
+              Knowl用の学習インデックスを一括生成します。1件ずつ順番に処理されます。
             </p>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
               <button class="btn btn-accent" id="genDescBtn">
@@ -750,7 +750,7 @@ function initInviteModal() {
   });
 }
 
-/* ── AI要約・Knowl学習 一括生成（1件ずつループ呼び出し） ── */
+/* ── Knowl学習データ 一括生成（1件ずつループ呼び出し） ── */
 function initGenDesc() {
   function escapeHtml(s) {
     const div = document.createElement('div');
@@ -845,7 +845,7 @@ function initGenDesc() {
 
   document.getElementById('genDescBtn').addEventListener('click', () => runGenDesc(false));
   document.getElementById('genDescForceBtn').addEventListener('click', () => {
-    if (confirm('全ファイルのAI要約とKnowl用インデックスを再生成します。時間がかかります。よろしいですか？')) {
+    if (confirm('全ファイルのKnowl用学習インデックスを再生成します。時間がかかります。よろしいですか？')) {
       runGenDesc(true);
     }
   });

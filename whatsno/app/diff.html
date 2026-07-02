@@ -211,10 +211,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('backBtn').href = `file-detail.html?id=${idB}`;
 
-  /* ファイル情報取得（AI要約生成をスキップして高速化） */
+  /* ファイル情報取得 */
   setLoadingMsg('ファイル情報を取得中…');
   const fetchFile = async (id) => {
-    const res = await wnFetch(`/wn/files/${id}?skip_ai=1`);
+    const res = await wnFetch(`/wn/files/${id}`);
     if (!res || !res.ok) return null;
     return (await res.json()).data ?? null;
   };

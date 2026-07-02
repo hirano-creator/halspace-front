@@ -49,8 +49,7 @@ What'sNo を「ファイルを置く場所」から「**自然言語で指示す
 
 ### 2.3 新しい組み込みスキルの追加（低コストで価値が出る順）
 既存の `GeminiService` メソッドを流用できるものから:
-- [ ] **ファイル説明文生成**（`generateDescription()` 流用）
-- [ ] **Q&A / Brain連携**（`answerWithContext()` 流用、「この資料の〇〇を教えて」）
+- [ ] **Q&A / Brain連携**（`answerWithChunkContext()` 流用、「この資料の〇〇を教えて」）
 - [ ] **議事録整形・アクション抽出**（`formatMinutes()` / `extractActions()` 流用、MeetLog連携）
 - [ ] **セマンティック検索**（`embed()`＋既存 `semanticSearch`）
 

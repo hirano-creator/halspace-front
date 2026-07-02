@@ -176,7 +176,6 @@ function renderAll() {
   renderApproval();
   renderPreview();
   renderInfo();
-  renderAiDescription();
   renderTags();
   renderVersions();
   loadComments();
@@ -1707,16 +1706,6 @@ function renderInfo() {
       <span class="info-value">${v}</span>
     </div>
   `).join('');
-}
-
-function renderAiDescription() {
-  const desc = fileData.ai_description;
-  if (!desc) return;
-  const card = document.getElementById('aiDescCard');
-  const text = document.getElementById('aiDescText');
-  if (!card || !text) return;
-  text.textContent = desc;
-  card.style.display = '';
 }
 
 function renderTags() {
