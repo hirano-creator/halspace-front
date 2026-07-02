@@ -1144,6 +1144,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .file-row-meta .btn-sm:hover { color: var(--primary); background: transparent; }
 .file-row-stat { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 3px; }
 .file-row-stat i { font-size: 14px; }
+.wn-page-count-badge { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 3px; }
+.wn-page-count-badge i { font-size: 12px; }
+.wn-page-count-badge .cnt { font-weight: 600; }
 .file-row-meta .like-btn { font-size: 14px; padding: 0; background: transparent; border: 0; color: var(--primary); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
 .file-row-meta .like-btn span { font-size: 12px; color: var(--text); }
 .file-row-meta .like-btn.liked i { color: var(--red); }
@@ -2511,6 +2514,8 @@ tbody tr:last-child { border-bottom: none; }
 .ig-post-actions .ig-view-count { display: inline-flex; align-items: center; gap: 6px; padding: 6px; margin: -6px; font-size: 21px; color: var(--muted); }
 .ig-post-actions .ig-view-count span { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1; }
 .ig-post-actions .right .file-action-btn { font-size: 18px; padding: 6px; margin: -6px; }
+.ig-post-actions .ig-page-count { display: inline-flex; align-items: center; gap: 6px; padding: 6px; margin: -6px; font-size: 18px; color: var(--muted); }
+.ig-post-actions .ig-page-count .cnt { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1; }
 
 /* === 日付行 === */
 .ig-post-date {

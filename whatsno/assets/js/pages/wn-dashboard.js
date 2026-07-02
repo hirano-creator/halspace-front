@@ -508,6 +508,8 @@ function renderFiles() {
 
   // サムネイルを非同期で差し込む（画像・PDF・動画）
   loadFileThumbnails();
+  // PDFのページ数バッジを非同期で差し込む（複数ページのみ表示）
+  loadFilePageCounts();
   // リスト表示時のみコメントを非同期で差し込む
   if (layoutView === 'list') loadRowComments();
 
@@ -797,6 +799,7 @@ const WN_THUMB_MAX = WN_IS_MOBILE ? 8 : 12;
 let   wnThumbActive = 0;
 const wnThumbQueue  = [];
 let   wnThumbObserver = null;
+let   wnPageCountObserver = null;
 
 /* 重いクライアント生成（PDF/動画/HEIC等のcanvas処理）専用のセマフォ。
    取得が並列8でも、実際に生成まで進むタスクはモバイル1/PC3に制限してメモリ枯渇を防ぐ。 */
@@ -865,6 +868,82 @@ function loadFileThumbnails() {
     }
   }, { rootMargin: '400px 0px' });
   icons.forEach(el => wnThumbObserver.observe(el));
+}
+
+/* ────────────────────────────────
+   PDFページ数バッジ（複数ページある場合のみ表示）
+   file-card / file-row / ig-post が画面内に入ったら pdf.js で
+   ドキュメント構造だけ読み、numPages をキャッシュして反映する。
+   ──────────────────────────────── */
+function wnIsPdfFile(f) {
+  const ext = (f.file_name || '').split('.').pop().toLowerCase();
+  return f.mime_type === 'application/pdf' || ext === 'pdf';
+}
+
+function loadFilePageCounts() {
+  if (wnPageCountObserver) { wnPageCountObserver.disconnect(); wnPageCountObserver = null; }
+
+  const byId = new Map(allFiles.map(f => [String(f.id), f]));
+  const seen = new Set();
+
+  const trigger = (el) => {
+    const id = el.dataset.fileId;
+    if (!id || seen.has(id)) return;
+    const f = byId.get(id);
+    if (!f || !wnIsPdfFile(f)) return;
+    seen.add(id);
+    loadOnePageCount(f);
+  };
+
+  const els = document.querySelectorAll('[data-file-id]');
+  if (typeof IntersectionObserver !== 'function') {
+    els.forEach(trigger);
+    return;
+  }
+  wnPageCountObserver = new IntersectionObserver((entries, obs) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      obs.unobserve(e.target);
+      trigger(e.target);
+    }
+  }, { rootMargin: '400px 0px' });
+  els.forEach(el => wnPageCountObserver.observe(el));
+}
+
+async function loadOnePageCount(f) {
+  const cacheKey = `wn_pdf_pages_${f.id}_${f.updated_at ?? f.created_at ?? ''}`;
+  let count = null;
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) count = parseInt(cached, 10);
+  } catch {}
+
+  if (!count) {
+    if (typeof pdfjsLib === 'undefined') return;
+    await wnGenSem.acquire();
+    try {
+      const pdf = await pdfjsLib.getDocument({ url: wnPublicViewUrl(f.id) }).promise;
+      count = pdf.numPages;
+      pdf.destroy?.();
+      try { localStorage.setItem(cacheKey, String(count)); } catch {}
+    } catch { return; } finally {
+      wnGenSem.release();
+    }
+  }
+
+  if (!count || count <= 1) return;
+  document.querySelectorAll(`[data-page-count-id="${f.id}"]`).forEach(el => {
+    el.hidden = false;
+    const cnt = el.querySelector('.cnt');
+    if (cnt) cnt.textContent = count;
+  });
+}
+
+function pageCountBadgeHtml(f, extraClass) {
+  if (!wnIsPdfFile(f)) return '';
+  return `<span class="wn-page-count-badge${extraClass ? ' ' + extraClass : ''}" data-page-count-id="${f.id}" hidden title="ページ数">
+    <i class="fa-regular fa-copy"></i><span class="cnt"></span>
+  </span>`;
 }
 
 async function loadOneThumbnail(f) {
@@ -1390,6 +1469,7 @@ function fileCardHtml(f) {
                 onclick="event.stopPropagation();wnDownload(${f.id})">
           <i class="fa-solid fa-download"></i>
         </button>
+        ${pageCountBadgeHtml(f)}
       </div>
     </div>
   </div>`;
@@ -1463,6 +1543,7 @@ function fileRowHtmlClassic(f) {
                 onclick="event.stopPropagation();wnDownload(${f.id})">
           <i class="fa-solid fa-download"></i>
         </button>
+        ${pageCountBadgeHtml(f)}
       </div>
     </div>
     <div class="file-row-comments" id="row-comments-${f.id}">
@@ -1551,6 +1632,7 @@ function fileRowHtmlIG(f) {
                 onclick="event.stopPropagation();wnDownload(${f.id})">
           <i class="fa-solid fa-download"></i>
         </button>
+        ${pageCountBadgeHtml(f, 'ig-page-count')}
       </div>
       <div class="right">
         <button class="file-action-btn file-action-delete" title="削除"
