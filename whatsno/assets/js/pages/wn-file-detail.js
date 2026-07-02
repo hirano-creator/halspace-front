@@ -3185,6 +3185,7 @@ let _emailFileId     = null;
 let _emailFileName   = '';
 let _emailPregenShare = null; // モーダルオープン時に先行発行した共有リンク
 let _allContactsCache = [];   // 登録済み連絡先（オートコンプリート用）
+const WN_MAIL_SIG_KEY = 'wn_mail_signature';
 
 // TO/CC/BCC 共通のチップ状態・要素ID定義
 const emailFieldChips = { to: [], cc: [], bcc: [] }; // field → { email: string }[]
@@ -3243,6 +3244,31 @@ function initEmailModal() {
 
   document.getElementById('emailMailtoBtn').addEventListener('click', doSendEmailMailto);
   document.getElementById('emailGmailBtn').addEventListener('click', doSendEmailGmail);
+
+  // 署名イベント
+  document.getElementById('emailSigToggleBtn')?.addEventListener('click', () => {
+    const editArea = document.getElementById('emailSigEditArea');
+    const open = editArea.style.display === 'none';
+    editArea.style.display = open ? 'block' : 'none';
+    if (open) document.getElementById('emailSigInput').value = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
+  });
+  document.getElementById('emailSigSaveBtn')?.addEventListener('click', () => {
+    const sig = document.getElementById('emailSigInput').value.trim();
+    localStorage.setItem(WN_MAIL_SIG_KEY, sig);
+    _emailRenderSigPreview();
+    document.getElementById('emailSigEditArea').style.display = 'none';
+  });
+  document.getElementById('emailSigCancelBtn')?.addEventListener('click', () => {
+    document.getElementById('emailSigEditArea').style.display = 'none';
+  });
+}
+
+function _emailRenderSigPreview() {
+  const sig = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
+  const el  = document.getElementById('emailSigPreview');
+  if (!el) return;
+  el.textContent = sig || '（未設定）';
+  el.style.color = sig ? 'var(--muted)' : '#bbb';
 }
 
 function openEmailModal(fileId, fileName) {
@@ -3260,6 +3286,7 @@ function openEmailModal(fileId, fileName) {
   document.getElementById('emailCcSection').classList.add('hidden');
   document.getElementById('emailBccSection').classList.add('hidden');
   document.getElementById('emailCcBccToggleBtn').classList.remove('hidden');
+  document.getElementById('emailSigEditArea').style.display = 'none';
   for (const field of Object.keys(EMAIL_FIELD_IDS)) {
     const ids = EMAIL_FIELD_IDS[field];
     document.getElementById(ids.input).value = '';
@@ -3267,6 +3294,7 @@ function openEmailModal(fileId, fileName) {
     renderEmailChips(field);
     _emailHideSuggest(field);
   }
+  _emailRenderSigPreview();
   wnGetContacts().then(list => { _allContactsCache = list; }).catch(() => {});
 
   // リンク生成中の表示
@@ -3450,13 +3478,15 @@ function _buildEmailContent() {
 
   const message = document.getElementById('emailMessage').value.trim();
   const subject = `【What'sNo】${_emailFileName} を共有します`;
+  const sig     = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
+  const sigText = sig ? `\r\n\r\n--\r\n${sig}` : '';
   const lines = [];
   if (message) { lines.push(message, ''); }
   lines.push('▼ ファイルはこちらからご確認ください');
   lines.push(_emailPregenShare.url);
   lines.push('');
   lines.push('※ リンクからダウンロードできます（有効期限：発行から30日）');
-  const body = lines.join('\r\n');
+  const body = lines.join('\r\n') + sigText;
   const to   = emailFieldChips.to.map(c => c.email).join(',');
   const cc   = emailFieldChips.cc.map(c => c.email).join(',');
   const bcc  = emailFieldChips.bcc.map(c => c.email).join(',');
