@@ -464,7 +464,8 @@ async function loadApproval() {
   table.style.display = 'none';
   empty.classList.add('hidden');
 
-  const filesResult = await wnGetFiles({ approval_status: 'pending' });
+  // 承認待ちは一覧APIのデフォルトページング(60件)に収まらない可能性があるため上限まで要求
+  const filesResult = await wnGetFiles({ approval_status: 'pending', per_page: 120 });
   const files = filesResult.data ?? [];
   loading.style.display = 'none';
   document.getElementById('pendingCount').textContent = files.length ? `${files.length}件` : '';

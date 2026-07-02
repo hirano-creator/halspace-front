@@ -2,8 +2,14 @@
 /* What'sNo ダッシュボード */
 
 let currentUser  = null;
-let allFiles     = [];
+let allFiles     = [];      // 現在読み込み済みのページ分のみ（全件ではない）
 let allTags      = [];
+const WN_PAGE_SIZE  = 60;
+let wnPage          = 1;
+let wnHasMore       = true;
+let wnTotalCount    = 0;
+let wnLoadingMore    = false;
+let wnLoadMoreObserver = null;
 let selectedTags = [];
 let navView      = 'all';   // 'all' | 'mine' | 'recent' | 'liked'
 const LAYOUT_VIEW_STORAGE_KEY = 'wn_layout_view';
@@ -446,9 +452,7 @@ async function runSkill(instruction) {
 /* ────────────────────────────────
    データ取得
    ──────────────────────────────── */
-async function loadFiles() {
-  showLoading(true);
-
+function buildFileListParams() {
   const rawSearch = document.getElementById('searchInput').value.trim();
   const normalizedSearch = rawSearch ? normalizeVoiceQuery(rawSearch) : undefined;
   const params = {
@@ -460,8 +464,16 @@ async function loadFiles() {
   if (navView === 'mine')   params.mine   = 1;
   if (navView === 'recent') params.recent = 1;
   if (navView === 'liked')  params.liked  = 1;
+  return params;
+}
 
-  const result = await wnGetFiles(params);
+/* 1ページ目を取得（検索・タグ・並び替え等が変わった時の「やり直し」） */
+async function loadFiles() {
+  showLoading(true);
+  wnPage    = 1;
+  wnHasMore = true;
+
+  const result = await wnGetFiles({ ...buildFileListParams(), page: 1, per_page: WN_PAGE_SIZE });
   showLoading(false);
 
   if (result.error) {
@@ -474,8 +486,65 @@ async function loadFiles() {
     return;
   }
 
-  allFiles = result.data;
-  renderFiles();
+  allFiles     = result.data;
+  wnTotalCount = result.meta?.total ?? result.data.length;
+  wnHasMore    = result.meta ? result.meta.current_page < result.meta.last_page : false;
+  renderFiles(true);
+}
+
+/* 続きのページを取得して末尾へ追加（無限スクロール） */
+async function loadMoreFiles() {
+  if (wnLoadingMore || !wnHasMore) return;
+  wnLoadingMore = true;
+  toggleLoadMoreSpinner(true);
+
+  const nextPage = wnPage + 1;
+  const result = await wnGetFiles({ ...buildFileListParams(), page: nextPage, per_page: WN_PAGE_SIZE });
+
+  wnLoadingMore = false;
+  toggleLoadMoreSpinner(false);
+
+  if (result.error || !result.data || !result.data.length) {
+    wnHasMore = false;   /* 失敗時は無限リトライを避け、次回の loadFiles() まで停止 */
+    updateLoadMoreSentinel();
+    return;
+  }
+
+  wnPage    = nextPage;
+  wnHasMore = result.meta ? result.meta.current_page < result.meta.last_page : false;
+  allFiles  = allFiles.concat(result.data);
+  renderFiles(false, result.data);
+
+  /* 追加後もまだ画面内に読み込み位置が残っていれば連鎖して次ページを読む
+     （1ページ分がビューポートより短い画面で無限スクロールが止まらないように） */
+  requestAnimationFrame(() => {
+    const sentinel = document.getElementById('loadMoreSentinel');
+    if (!sentinel || !wnHasMore || wnLoadingMore) return;
+    const r = sentinel.getBoundingClientRect();
+    if (r.top < window.innerHeight + 600) loadMoreFiles();
+  });
+}
+
+function toggleLoadMoreSpinner(show) {
+  const sentinel = document.getElementById('loadMoreSentinel');
+  if (sentinel) sentinel.style.visibility = show ? 'visible' : 'hidden';
+}
+
+function ensureLoadMoreObserver() {
+  if (wnLoadMoreObserver || typeof IntersectionObserver !== 'function') return;
+  const sentinel = document.getElementById('loadMoreSentinel');
+  if (!sentinel) return;
+  wnLoadMoreObserver = new IntersectionObserver(entries => {
+    if (entries.some(e => e.isIntersecting)) loadMoreFiles();
+  }, { rootMargin: '600px 0px' });
+  wnLoadMoreObserver.observe(sentinel);
+}
+
+function updateLoadMoreSentinel() {
+  const sentinel = document.getElementById('loadMoreSentinel');
+  if (!sentinel) return;
+  sentinel.classList.toggle('hidden', !wnHasMore);
+  if (wnHasMore) ensureLoadMoreObserver();
 }
 
 async function loadTags() {
@@ -486,7 +555,9 @@ async function loadTags() {
 /* ────────────────────────────────
    描画
    ──────────────────────────────── */
-function renderFiles() {
+/* reset=true: フィルタ変更等でグリッドを丸ごと作り直す（allFiles全体を描画）
+   reset=false: 無限スクロールでの追加読み込み。newItems だけをDOM末尾に追加する */
+function renderFiles(reset = true, newItems = null) {
   const grid  = document.getElementById('fileGrid');
   const rows  = document.getElementById('fileListRows');
   const empty = document.getElementById('emptyMsg');
@@ -494,26 +565,40 @@ function renderFiles() {
 
   const viewLabels = { all: 'すべてのファイル', mine: 'マイファイル', recent: '最近のファイル', liked: 'いいね済み' };
   document.getElementById('areaTitle').textContent = viewLabels[navView] ?? 'すべてのファイル';
-  countLabel.textContent = allFiles.length ? `（${allFiles.length}件）` : '';
+  countLabel.textContent = wnTotalCount ? `（${wnTotalCount}件）` : '';
 
   if (!allFiles.length) {
     grid.innerHTML = '';
     rows.innerHTML = '';
     empty.classList.remove('hidden');
+    updateLoadMoreSentinel();
     return;
   }
   empty.classList.add('hidden');
-  grid.innerHTML = allFiles.map(fileCardHtml).join('');
-  rows.innerHTML = allFiles.map(fileRowHtml).join('');
 
-  // サムネイルを非同期で差し込む（画像・PDF・動画）
-  loadFileThumbnails();
+  const itemsToRender = reset ? allFiles : (newItems ?? []);
+  if (reset) {
+    grid.innerHTML = allFiles.map(fileCardHtml).join('');
+    rows.innerHTML = allFiles.map(fileRowHtml).join('');
+  } else if (itemsToRender.length) {
+    grid.insertAdjacentHTML('beforeend', itemsToRender.map(fileCardHtml).join(''));
+    rows.insertAdjacentHTML('beforeend', itemsToRender.map(fileRowHtml).join(''));
+  }
+
+  // サムネイルを非同期で差し込む（画像・PDF・動画） / reset時は全件、追加時は新規分のみ
+  loadFileThumbnails(itemsToRender, { reset });
   // PDFのページ数バッジを非同期で差し込む（複数ページのみ表示）
-  loadFilePageCounts();
+  loadFilePageCounts(itemsToRender, { reset });
   // リスト表示時のみコメントを非同期で差し込む
-  if (layoutView === 'list') loadRowComments();
+  if (layoutView === 'list') loadRowComments(itemsToRender);
 
-  document.querySelectorAll('[data-file-id]').forEach(el => {
+  // クリック等のイベントは新規追加分（reset時は全件）だけに束ねる。
+  // 既存要素に張り直すと同一要素へのリスナー重複を招くため。
+  const scopeEls = reset
+    ? Array.from(document.querySelectorAll('[data-file-id]'))
+    : itemsToRender.flatMap(f => Array.from(document.querySelectorAll(`[data-file-id="${f.id}"]`)));
+
+  scopeEls.forEach(el => {
     el.addEventListener('click', e => {
       if (e.target.closest('.like-btn') || e.target.closest('.file-action-btn')) return;
       if (selectMode) { toggleMergeSelect(el.dataset.fileId); return; }
@@ -524,7 +609,11 @@ function renderFiles() {
   // 選択モード中の再描画（ソート・フィルタ変更等）でも選択状態を復元
   if (selectMode) selectedIds.forEach(id => applySelectedVisual(id, true));
 
-  document.querySelectorAll('.like-btn[data-id]').forEach(btn => {
+  const likeBtnScope = reset
+    ? Array.from(document.querySelectorAll('.like-btn[data-id]'))
+    : itemsToRender.flatMap(f => Array.from(document.querySelectorAll(`.like-btn[data-id="${f.id}"]`)));
+
+  likeBtnScope.forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
       const res = await wnToggleLike(btn.dataset.id);
@@ -543,6 +632,8 @@ function renderFiles() {
       }
     });
   });
+
+  updateLoadMoreSentinel();
 }
 
 /* ────────────────────────────────
@@ -800,6 +891,10 @@ let   wnThumbActive = 0;
 const wnThumbQueue  = [];
 let   wnThumbObserver = null;
 let   wnPageCountObserver = null;
+let   wnThumbById      = new Map();
+let   wnThumbSeen       = new Set();
+let   wnPageCountById   = new Map();
+let   wnPageCountSeen   = new Set();
 
 /* 重いクライアント生成（PDF/動画/HEIC等のcanvas処理）専用のセマフォ。
    取得が並列8でも、実際に生成まで進むタスクはモバイル1/PC3に制限してメモリ枯渇を防ぐ。 */
@@ -836,37 +931,50 @@ function wnPumpThumbs() {
    画面に入った（手前400pxの先読み含む）カードのサムネイルだけ生成/取得する。
    全119件を一括処理していた旧方式では、動画/Officeがキュー後方に回り、
    モバイルでは表示まで時間がかかっていた。見ているカードを即処理する。 */
-function loadFileThumbnails() {
-  if (wnThumbObserver) { wnThumbObserver.disconnect(); wnThumbObserver = null; }
-  wnThumbQueue.length = 0;
+function wnThumbTrigger(el) {
+  const m = (el.id || '').match(/^thumb-icon-(?:row-)?(.+)$/);
+  if (!m) return;
+  const id = m[1];
+  if (wnThumbSeen.has(id)) return;
+  const f = wnThumbById.get(id);
+  if (!f || !wnThumbEligible(f)) return;
+  wnThumbSeen.add(id);
+  wnThumbQueue.push(f);
+  wnPumpThumbs();
+}
 
-  const byId = new Map(allFiles.map(f => [String(f.id), f]));
-  const seen = new Set();
+/* files: 今回対象にするファイル（無限スクロールでは新規追加分だけ渡す）
+   reset: true ならobserverを作り直して1ページ目から観測しなおす（フィルタ変更等） */
+function loadFileThumbnails(files = allFiles, { reset = true } = {}) {
+  if (reset) {
+    if (wnThumbObserver) { wnThumbObserver.disconnect(); wnThumbObserver = null; }
+    wnThumbQueue.length = 0;
+    wnThumbById = new Map();
+    wnThumbSeen = new Set();
+  }
+  files.forEach(f => wnThumbById.set(String(f.id), f));
 
-  const trigger = (el) => {
-    const m = (el.id || '').match(/^thumb-icon-(?:row-)?(.+)$/);
-    if (!m) return;
-    const id = m[1];
-    if (seen.has(id)) return;
-    const f = byId.get(id);
-    if (!f || !wnThumbEligible(f)) return;
-    seen.add(id);
-    wnThumbQueue.push(f);
-    wnPumpThumbs();
-  };
+  const icons = [];
+  files.forEach(f => {
+    const c = document.getElementById(`thumb-icon-${f.id}`);
+    const r = document.getElementById(`thumb-icon-row-${f.id}`);
+    if (c) icons.push(c);
+    if (r) icons.push(r);
+  });
 
-  const icons = document.querySelectorAll('[id^="thumb-icon-"]');
   if (typeof IntersectionObserver !== 'function') {
-    icons.forEach(trigger);   // 非対応環境は全件（従来動作）
+    icons.forEach(wnThumbTrigger);   // 非対応環境は全件（従来動作）
     return;
   }
-  wnThumbObserver = new IntersectionObserver((entries, obs) => {
-    for (const e of entries) {
-      if (!e.isIntersecting) continue;
-      obs.unobserve(e.target);
-      trigger(e.target);
-    }
-  }, { rootMargin: '400px 0px' });
+  if (!wnThumbObserver) {
+    wnThumbObserver = new IntersectionObserver((entries, obs) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        obs.unobserve(e.target);
+        wnThumbTrigger(e.target);
+      }
+    }, { rootMargin: '400px 0px' });
+  }
   icons.forEach(el => wnThumbObserver.observe(el));
 }
 
@@ -880,33 +988,38 @@ function wnIsPdfFile(f) {
   return f.mime_type === 'application/pdf' || ext === 'pdf';
 }
 
-function loadFilePageCounts() {
-  if (wnPageCountObserver) { wnPageCountObserver.disconnect(); wnPageCountObserver = null; }
+function wnPageCountTrigger(el) {
+  const id = el.dataset.fileId;
+  if (!id || wnPageCountSeen.has(id)) return;
+  const f = wnPageCountById.get(id);
+  if (!f || !wnIsPdfFile(f)) return;
+  wnPageCountSeen.add(id);
+  loadOnePageCount(f);
+}
 
-  const byId = new Map(allFiles.map(f => [String(f.id), f]));
-  const seen = new Set();
+function loadFilePageCounts(files = allFiles, { reset = true } = {}) {
+  if (reset) {
+    if (wnPageCountObserver) { wnPageCountObserver.disconnect(); wnPageCountObserver = null; }
+    wnPageCountById = new Map();
+    wnPageCountSeen = new Set();
+  }
+  files.forEach(f => wnPageCountById.set(String(f.id), f));
 
-  const trigger = (el) => {
-    const id = el.dataset.fileId;
-    if (!id || seen.has(id)) return;
-    const f = byId.get(id);
-    if (!f || !wnIsPdfFile(f)) return;
-    seen.add(id);
-    loadOnePageCount(f);
-  };
+  const els = files.flatMap(f => Array.from(document.querySelectorAll(`[data-file-id="${f.id}"]`)));
 
-  const els = document.querySelectorAll('[data-file-id]');
   if (typeof IntersectionObserver !== 'function') {
-    els.forEach(trigger);
+    els.forEach(wnPageCountTrigger);
     return;
   }
-  wnPageCountObserver = new IntersectionObserver((entries, obs) => {
-    for (const e of entries) {
-      if (!e.isIntersecting) continue;
-      obs.unobserve(e.target);
-      trigger(e.target);
-    }
-  }, { rootMargin: '400px 0px' });
+  if (!wnPageCountObserver) {
+    wnPageCountObserver = new IntersectionObserver((entries, obs) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        obs.unobserve(e.target);
+        wnPageCountTrigger(e.target);
+      }
+    }, { rootMargin: '400px 0px' });
+  }
   els.forEach(el => wnPageCountObserver.observe(el));
 }
 
@@ -2517,6 +2630,7 @@ async function confirmDeleteFile(fileId, fileName) {
   if (ok) {
     wnShowToast('ファイルを削除しました', 'success');
     allFiles = allFiles.filter(f => f.id !== fileId);
+    if (wnTotalCount > 0) wnTotalCount--;
     renderFiles();
   } else {
     wnShowToast('削除に失敗しました', 'danger');
@@ -2526,9 +2640,9 @@ async function confirmDeleteFile(fileId, fileName) {
 /* ────────────────────────────────
    行内コメント表示
    ──────────────────────────────── */
-async function loadRowComments() {
+async function loadRowComments(files = allFiles) {
   // 表示中のファイルのコメントを並列取得
-  await Promise.all(allFiles.map(async (f) => {
+  await Promise.all(files.map(async (f) => {
     const el = document.getElementById(`row-comments-${f.id}`);
     if (!el) return;
     // コメント0件のファイルはAPIを叩かず空表示にする（一覧の comment_count を利用）。

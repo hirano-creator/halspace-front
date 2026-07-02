@@ -31,8 +31,9 @@ async function wnFetch(path, options = {}) {
 }
 
 /* ファイル一覧
-   params: { tag, sort, search, liked, recent, mine, company_id }
-   返り値: { data: [], error: null }  or  { data: null, error: 'msg' }
+   params: { tag, sort, search, liked, recent, mine, company_id, page, per_page }
+   返り値: { data: [], meta: {current_page,last_page,per_page,total}, error: null }
+        or { data: null, meta: null, error: 'msg' }
    - エラーと「本当に空」を区別するため戻り値を構造化
    - 本番APIは単一ワーカーで動作するため、アップロードやAI応答など重い処理が
      スレッドを占有している間は一覧取得が一時的に詰まり、ハング→接続リセット
@@ -57,17 +58,17 @@ async function wnGetFiles(params = {}) {
     try {
       const res = await wnFetch(path, { signal: ctl.signal });
       clearTimeout(timer);
-      if (!res) return { data: null, error: 'auth' };           /* wnFetchが401でリダイレクト済み */
+      if (!res) return { data: null, meta: null, error: 'auth' };           /* wnFetchが401でリダイレクト済み */
       if (res.status >= 500) { lastError = `server-${res.status}`; continue; }   /* 5xxはリトライ */
-      if (!res.ok) return { data: null, error: `http-${res.status}` };           /* 4xxは即返す */
+      if (!res.ok) return { data: null, meta: null, error: `http-${res.status}` };           /* 4xxは即返す */
       const json = await res.json();
-      return { data: json.data ?? [], error: null };
+      return { data: json.data ?? [], meta: json.meta ?? null, error: null };
     } catch (e) {
       clearTimeout(timer);
       lastError = (e && e.name === 'AbortError') ? 'timeout' : 'network';        /* 中断/接続失敗はリトライ */
     }
   }
-  return { data: null, error: lastError };
+  return { data: null, meta: null, error: lastError };
 }
 
 /* ファイル詳細 */
