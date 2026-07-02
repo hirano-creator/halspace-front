@@ -61,7 +61,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   initTagManagePanel();
   initBulkTag();
   initTagShare();
+  initScrollTopButton();
 });
+
+/* ページトップへ戻るボタン（無限スクロールで一覧が長くなるため） */
+function initScrollTopButton() {
+  const btn = document.getElementById('scrollTopBtn');
+  if (!btn) return;
+  btn.classList.remove('hidden');
+
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      btn.classList.toggle('show', window.scrollY > 400 && !selectMode);
+      ticking = false;
+    });
+  });
+
+  btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+}
 
 /* 注釈編集後の新サムネイル取得用：ダッシュボード表示時にメモリキャッシュをリセット
    → IndexedDB の新しいキャッシュが確実に読まれるようにする */
@@ -3594,6 +3614,8 @@ function toggleSelectMode() {
   const label = document.getElementById('selectModeBtnLabel');
   if (label) label.textContent = selectMode ? '選択解除' : '選択';
   document.getElementById('mergeActionBar')?.classList.toggle('hidden', !selectMode);
+  // 選択モード中はmergeActionBarと位置が被るのでスクロールトップボタンを退避
+  document.getElementById('scrollTopBtn')?.classList.toggle('show', !selectMode && window.scrollY > 400);
   if (!selectMode) {
     selectedIds.forEach(id => applySelectedVisual(id, false));
     selectedIds = [];

@@ -14,7 +14,7 @@
   <link rel="dns-prefetch" href="https://halspace-api-production.up.railway.app">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260625j">
+  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260702a">
   <style>
     @media (max-width: 767px) {
       .page-body { padding: 8px 0 72px !important; }
@@ -441,6 +441,11 @@
   </div>
 </nav>
 
+<!-- ページトップへ戻る（無限スクロールで一覧が長くなるため） -->
+<button id="scrollTopBtn" class="scroll-top-btn hidden" title="ページトップへ戻る" aria-label="ページトップへ戻る">
+  <i class="fa-solid fa-arrow-up"></i>
+</button>
+
 <!-- メール送信モーダル -->
 <div class="modal-overlay hidden" id="emailModal">
   <div class="modal" style="max-width:480px;">
@@ -749,7 +754,7 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=6"></script>
 <script src="../assets/js/wn-api.js?v=17"></script>
-<script src="../assets/js/pages/wn-dashboard.js?v=64"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=65"></script>
 
 <script>
 /* ── ボトムナビ ── */

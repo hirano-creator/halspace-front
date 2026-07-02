@@ -2654,6 +2654,29 @@ body.select-mode .ig-post { cursor: pointer; }
   .merge-action-bar { bottom: 60px; }  /* ボトムナビ(60px)の上 */
 }
 
+/* ページトップへ戻る（無限スクロール導入で一覧が長くなるため） */
+.scroll-top-btn {
+  position: fixed;
+  right: 20px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  z-index: 250;
+  width: 44px; height: 44px;
+  border: none; border-radius: 50%;
+  background: var(--accent);
+  color: var(--white);
+  font-size: 16px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.22);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  opacity: 0; visibility: hidden; transform: translateY(8px);
+  transition: opacity .18s ease, transform .18s ease, visibility .18s;
+}
+.scroll-top-btn.show { opacity: 1; visibility: visible; transform: translateY(0); }
+.scroll-top-btn:hover { background: var(--accent-dk); }
+@media (max-width: 767px) {
+  .scroll-top-btn { right: 14px; bottom: calc(72px + env(safe-area-inset-bottom)); }  /* ボトムナビ(60px)の上 */
+}
+
 /* 結合モーダル内の並べ替えリスト */
 #mergeFileList { max-height: 40vh; overflow-y: auto; margin-bottom: 12px; }
 .merge-item {
