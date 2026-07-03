@@ -134,6 +134,27 @@
   };
   const me = () => aaFetch('/auth/me');
 
+  // ── 手動更新（Service Worker/キャッシュを破棄して強制的に最新を取り直す） ──
+  // PWA(ホーム画面起動)はリロードUIが無く、開きっぱなしだと新しいコードに切り替わらないため、
+  // 「アプリを更新」ボタンから明示的にSW登録解除→キャッシュ全消去→キャッシュバスター付きで再読込する。
+  async function forceUpdateApp() {
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+    } catch (e) {}
+    try {
+      if (global.caches) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch (e) {}
+    const url = new URL(location.href);
+    url.searchParams.set('_r', Date.now()); // HTTPキャッシュを確実に迂回させる
+    location.href = url.toString();
+  }
+
   // ── 招待参加 ──
   const inviteValidate = (code) => aaFetch('/aa/invite/validate', { method: 'POST', body: { code } });
   const inviteRegister = (payload) => aaFetch('/aa/invite/register', { method: 'POST', body: payload });
@@ -143,7 +164,7 @@
 
   global.AA = {
     apiBase, token, setToken, isAuthed, aaFetch,
-    login, logout, me,
+    login, logout, me, forceUpdateApp,
     feed, getPost, createPost, publishFromWn, wnFiles, updatePost, updatePostMedia, deletePost,
     comments, postComment, react, shareLink, mediaUrl, mediaThumbUrl, storeMediaThumb,
     profile, updateProfile, addSkill, deleteSkill,
