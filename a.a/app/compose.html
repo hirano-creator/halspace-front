@@ -101,7 +101,7 @@
     const CATS = ['補助金','セミナー','設備紹介','お知らせ','相談'];
     let cat = '設備紹介';
     let isMasked = false;
-    let selectedWn = null; // What'sNoから選んだファイル {id, name}
+    let selectedWn = null; // What'sNoから選んだファイル {id, name, mime_type}
     const files = []; // {file, kind}
 
     function renderCats(){
@@ -125,7 +125,7 @@
     add(document.getElementById('fDoc'),'document');
 
     /* ───── マスク編集（canvas黒塗り／モザイク） ───── */
-    let mImg, mRects = [], mScale = 1, mTargetIdx = -1, mDrawing = null, mMode = 'black';
+    let mImg, mRects = [], mScale = 1, mTargetIdx = -1, mFromWn = false, mDrawing = null, mMode = 'black';
     let mMosaicSize = 16; // モザイクの粗さ(px)。数値が大きいほど粗く＝濃くなる
     const maskModal = document.getElementById('maskModal');
     const maskTitle = document.getElementById('maskTitle');
@@ -136,14 +136,11 @@
     const cv = document.getElementById('maskCanvas');
     const ctx = cv.getContext('2d');
 
-    function openMaskModal(mode){
+    function openMaskEditor(mode, blobUrl){
       mMode = mode;
-      mTargetIdx = files.findIndex(f => f.kind === 'image');
-      if (mTargetIdx < 0) { document.getElementById('msg').textContent = 'マスクする画像を「写真」から追加してください'; return; }
       maskTitle.textContent = mode === 'mosaic' ? 'モザイク' : 'マスク（黒塗り）';
       maskHint.textContent = mode === 'mosaic' ? '隠したい部分を指でなぞってモザイクをかけます。元画像は端末から出ません。' : '隠したい部分を指でなぞって黒塗りします。元画像は端末から出ません。';
       mosaicCtrl.style.display = mode === 'mosaic' ? 'flex' : 'none';
-      const f = files[mTargetIdx];
       const img = new Image();
       img.onload = () => {
         mImg = img; mRects = [];
@@ -153,8 +150,39 @@
         cv.height = Math.round(img.naturalHeight * mScale);
         redraw();
         maskModal.style.display = 'flex';
+        URL.revokeObjectURL(blobUrl);
       };
-      img.src = URL.createObjectURL(f.file);
+      img.onerror = () => {
+        URL.revokeObjectURL(blobUrl);
+        document.getElementById('msg').textContent = '画像の読み込みに失敗しました';
+      };
+      img.src = blobUrl;
+    }
+    // ローカル選択画像は即座に、What'sNoから選んだ画像は実体を取得してから編集モーダルを開く
+    async function openMaskModal(mode){
+      const msg = document.getElementById('msg'); msg.textContent = '';
+      mTargetIdx = files.findIndex(f => f.kind === 'image');
+      if (mTargetIdx >= 0) {
+        mFromWn = false;
+        openMaskEditor(mode, URL.createObjectURL(files[mTargetIdx].file));
+        return;
+      }
+      if (selectedWn && /^image\//.test(selectedWn.mime_type || '')) {
+        mFromWn = true;
+        msg.textContent = '画像を読み込み中…';
+        try {
+          const { url } = await AA.aaFetch('/wn/files/' + selectedWn.id + '/view');
+          const res = await fetch(url);
+          if (!res.ok) throw new Error();
+          const blob = await res.blob();
+          msg.textContent = '';
+          openMaskEditor(mode, URL.createObjectURL(blob));
+        } catch (e) {
+          msg.textContent = '画像の読み込みに失敗しました';
+        }
+        return;
+      }
+      msg.textContent = 'マスクする画像を「写真」から追加してください';
     }
     document.getElementById('maskBtn').onclick = () => openMaskModal('black');
     document.getElementById('mosaicBtn').onclick = () => openMaskModal('mosaic');
@@ -217,8 +245,15 @@
         x: r.x/mScale, y: r.y/mScale, w: r.w/mScale, h: r.h/mScale, mode: r.mode
       }, mScale));
       out.toBlob((blob) => {
-        const masked = new File([blob], 'masked_' + files[mTargetIdx].file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
-        files[mTargetIdx] = { file: masked, kind: 'image', masked: true };
+        const baseName = (mFromWn ? selectedWn.name : files[mTargetIdx].file.name).replace(/\.\w+$/, '');
+        const masked = new File([blob], 'masked_' + baseName + '.jpg', { type: 'image/jpeg' });
+        if (mFromWn) {
+          // マスク済み画像は実体をそのまま送る（元ファイルへの参照は使わない＝マスク前の画像を業界内に晒さない）
+          files.push({ file: masked, kind: 'image', masked: true });
+          selectedWn = null;
+        } else {
+          files[mTargetIdx] = { file: masked, kind: 'image', masked: true };
+        }
         isMasked = true;
         document.getElementById('maskBtn').classList.add('on');
         document.getElementById('mosaicBtn').classList.add('on');
@@ -245,7 +280,8 @@
           </button>`).join('');
         list.querySelectorAll('.wnitem').forEach(b => b.onclick = () => {
           // 選んだら新規投稿ページに戻る。公開は「投稿する」を押したとき。
-          selectedWn = { id: b.dataset.id, name: b.querySelector('b').textContent };
+          const item = items.find(f => String(f.id) === b.dataset.id);
+          selectedWn = { id: b.dataset.id, name: b.querySelector('b').textContent, mime_type: item && item.mime_type };
           wnModal.style.display = 'none';
           renderPreview();
         });
