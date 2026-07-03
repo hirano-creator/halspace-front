@@ -47,7 +47,7 @@
           カメラで撮る
           <input type="file" accept="image/*" capture="user" hidden id="fLogoCam">
         </label>
-        <div id="logoMsg" style="color:#c0392b;font-size:12.5px;text-align:center;min-height:16px"></div>
+        <div id="logoMsg" style="color:#c0392b;font-size:14.5px;text-align:center;min-height:16px"></div>
       </div>
     </div>
   </div>
@@ -111,13 +111,13 @@
         : esc(initial(name||company));
       return `<div style="display:flex;align-items:center;gap:16px">
         <button id="avaBtn" title="アイコンを設定" style="position:relative;width:64px;height:64px;flex:0 0 64px;padding:0;background:none;border-radius:50%;cursor:pointer">
-          <div class="ava" style="width:64px;height:64px;font-size:23px;border-radius:50%;overflow:hidden">${avaInner}</div>
+          <div class="ava" style="width:64px;height:64px;font-size:25px;border-radius:50%;overflow:hidden">${avaInner}</div>
           <span style="position:absolute;right:-2px;bottom:-2px;width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;border:2px solid #fff">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.4"/></svg>
           </span>
         </button>
-        <div><h2 style="font-size:19px;font-weight:800">${esc(name)}</h2>
-        <div style="font-size:12.5px;color:var(--mute);font-weight:500;margin-top:3px">${esc(company)}</div></div>
+        <div><h2 style="font-size:21px;font-weight:800">${esc(name)}</h2>
+        <div style="font-size:14.5px;color:var(--mute);font-weight:500;margin-top:3px">${esc(company)}</div></div>
       </div>`;
     }
     function bindAvatarButton(){
@@ -126,7 +126,7 @@
     }
     function statsRow(){
       const s = P.stats || {};
-      const box = (n,l,acc)=>`<div style="flex:1;text-align:center;background:var(--soft);border-radius:16px;padding:13px 0"><b style="display:block;font-size:18px;font-weight:800${acc?';color:var(--accent)':''}">${n}</b><span style="font-size:10.5px;color:var(--mute)">${l}</span></div>`;
+      const box = (n,l,acc)=>`<div style="flex:1;text-align:center;background:var(--soft);border-radius:16px;padding:13px 0"><b style="display:block;font-size:20px;font-weight:800${acc?';color:var(--accent)':''}">${n}</b><span style="font-size:12.5px;color:var(--mute)">${l}</span></div>`;
       return `<div style="display:flex;gap:10px;margin-top:18px">${box(s.posts??0,'投稿',true)}${box(s.helpful??0,'参考になった')}${box(s.skills??0,'対応領域')}</div>`;
     }
 
@@ -136,16 +136,16 @@
       const isAdmin = P.user?.role === 'super_admin' || P.user?.role === 'jp_admin';
       const skills = P.skills || [];
       const bioHtml = P.bio
-        ? `<p style="font-size:13.5px;line-height:1.8;color:#3a3a42;margin-top:16px;white-space:pre-wrap">${esc(P.bio)}</p>`
-        : `<p style="font-size:13px;line-height:1.7;color:var(--mute);margin-top:16px">会社紹介がまだありません。対応領域や補助金活用の実績を書くと引き合いに繋がります。</p>`;
+        ? `<p style="font-size:15.5px;line-height:1.8;color:#3a3a42;margin-top:16px;white-space:pre-wrap">${esc(P.bio)}</p>`
+        : `<p style="font-size:15px;line-height:1.7;color:var(--mute);margin-top:16px">会社紹介がまだありません。対応領域や補助金活用の実績を書くと引き合いに繋がります。</p>`;
       const skillsHtml = skills.length
         ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">${skills.map(s=>`<span class="chip" style="background:var(--accent-bg);color:var(--accent)">${esc(s.label)}</span>`).join('')}</div>`
         : '';
       const posts = P.posts || [];
       const postsHtml = posts.length
         ? posts.map(p=>`<a class="post" href="./post.html?id=${p.id}" style="display:block;text-decoration:none;color:inherit;border-top:1px solid #eef0f3">
-            <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--mute)">${p.category?`<span class="cat">${esc(p.category)}</span>`:''}${p.media_count?`<span>🖼 ${p.media_count}</span>`:''}<span>👍 ${p.helpful}</span><span>💬 ${p.comment_count}</span></div>
-            <div style="font-size:14px;line-height:1.6;color:#2a2a30;margin-top:6px">${esc((p.body||'（メディア投稿）').slice(0,90))}</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute)">${p.category?`<span class="cat">${esc(p.category)}</span>`:''}${p.media_count?`<span>🖼 ${p.media_count}</span>`:''}<span>👍 ${p.helpful}</span><span>💬 ${p.comment_count}</span></div>
+            <div style="font-size:16px;line-height:1.6;color:#2a2a30;margin-top:6px">${esc((p.body||'（メディア投稿）').slice(0,90))}</div>
           </a>`).join('')
         : '<div class="center" style="padding:24px">まだ投稿がありません。</div>';
 
@@ -159,7 +159,7 @@
           ${isAdmin ? `<a class="btn" href="./admin.html" style="text-decoration:none;margin-top:10px;gap:9px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.5-2.4 1a7 7 0 0 0-2.2-1.3L14 2h-4l-.3 2.6a7 7 0 0 0-2.2 1.3l-2.4-1-2 3.5 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.3l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 2.2 1.3L10 22h4l.3-2.6a7 7 0 0 0 2.2-1.3l2.4 1 2-3.5-2-1.5A7 7 0 0 0 19 12z"/></svg>管理画面へ</a>` : ''}
           <button class="btn" id="updateBtn" style="margin-top:10px;gap:8px;color:var(--mute)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>最新の状態に更新</button>
         </div>
-        <div style="padding:14px 20px 6px;color:var(--mute);font-size:12px;font-weight:700">自分の投稿 ${posts.length}</div>
+        <div style="padding:14px 20px 6px;color:var(--mute);font-size:14px;font-weight:700">自分の投稿 ${posts.length}</div>
         <div>${postsHtml}</div>`;
       document.getElementById('editBtn').onclick = renderEdit;
       document.getElementById('updateBtn').onclick = (e) => {
@@ -177,17 +177,17 @@
       root.innerHTML = `
         <div style="padding:24px 20px">
           ${head()}
-          <div style="font-size:11.5px;color:var(--mute);font-weight:700;margin:18px 2px 6px">会社紹介</div>
+          <div style="font-size:13.5px;color:var(--mute);font-weight:700;margin:18px 2px 6px">会社紹介</div>
           <textarea id="ebio" maxlength="1000" placeholder="例) 板金・レーザー加工が得意な金属加工メーカーです。ものづくり補助金で最新の複合機を導入。小ロット・短納期に対応します。"
-            style="width:100%;min-height:130px;font-size:14.5px;line-height:1.8;outline:none;font-family:var(--sans);resize:none;background:var(--soft);border-radius:14px;padding:13px 14px;border:none">${esc(P.bio||'')}</textarea>
+            style="width:100%;min-height:130px;font-size:16.5px;line-height:1.8;outline:none;font-family:var(--sans);resize:none;background:var(--soft);border-radius:14px;padding:13px 14px;border:none">${esc(P.bio||'')}</textarea>
 
-          <div style="font-size:11.5px;color:var(--mute);font-weight:700;margin:18px 2px 6px">対応領域タグ</div>
+          <div style="font-size:13.5px;color:var(--mute);font-weight:700;margin:18px 2px 6px">対応領域タグ</div>
           <div id="eskills" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
           <div style="display:flex;gap:8px">
             <input class="input" id="skillInput" placeholder="例: レーザー加工" maxlength="60" style="flex:1;height:42px">
             <button class="btn" id="addSkillBtn" style="width:84px;height:42px">追加</button>
           </div>
-          <div id="emsg" style="color:#c0392b;font-size:12.5px;min-height:18px;margin-top:8px"></div>
+          <div id="emsg" style="color:#c0392b;font-size:14.5px;min-height:18px;margin-top:8px"></div>
 
           <div class="react" style="margin-top:14px"><button class="btn" id="ecancel" style="flex:1">完了</button><button class="btn primary" id="esave" style="flex:1">保存</button></div>
         </div>`;
@@ -196,7 +196,7 @@
       function paintSkills(){
         document.getElementById('eskills').innerHTML = skills.length
           ? skills.map(s=>`<span class="chip" style="background:var(--accent-bg);color:var(--accent)">${esc(s.label)} <b data-rm="${s.id}" style="cursor:pointer">×</b></span>`).join('')
-          : '<span style="color:var(--mute);font-size:12.5px">タグ未設定</span>';
+          : '<span style="color:var(--mute);font-size:14.5px">タグ未設定</span>';
         document.querySelectorAll('#eskills [data-rm]').forEach(b=>b.onclick=async()=>{
           const id=+b.dataset.rm;
           try { await AA.deleteSkill(id); const i=skills.findIndex(s=>s.id===id); if(i>=0)skills.splice(i,1); P.skills=skills.slice(); paintSkills(); }

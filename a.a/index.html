@@ -13,23 +13,23 @@
 <title>a.a — ログイン</title>
 <link rel="stylesheet" href="./assets/app.css">
 <style>
-  .join-link{text-align:center;margin-top:20px;font-size:13px;color:var(--mute)}
-  .join-link button{background:none;border:none;color:var(--accent);font-size:13px;font-weight:700;cursor:pointer;padding:0;text-decoration:underline}
+  .join-link{text-align:center;margin-top:20px;font-size:15px;color:var(--mute)}
+  .join-link button{background:none;border:none;color:var(--accent);font-size:15px;font-weight:700;cursor:pointer;padding:0;text-decoration:underline}
   .step{display:none !important}.step.on{display:flex !important}
   /* ログイン画面レイアウト：ロゴ＋フォームを縦中央にまとめる */
   .login{min-height:100vh;display:flex;flex-direction:column;align-items:stretch;justify-content:center;padding:48px 28px 40px !important}
   .login .top{flex:none !important;text-align:center;margin-bottom:36px}
-  .login .logo{font-size:60px}
-  .login .tagline{font-size:13px;margin-top:6px}
+  .login .logo{font-size:62px}
+  .login .tagline{font-size:15px;margin-top:6px}
   /* 入力欄：白背景＋細い枠線、高さを抑える */
-  .login .input{height:46px;font-size:14.5px;background:#fff;border:1px solid #ebebf2;transition:border-color .18s,box-shadow .18s}
+  .login .input{height:46px;font-size:16.5px;background:#fff;border:1px solid #ebebf2;transition:border-color .18s,box-shadow .18s}
   .login .input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(31,72,255,.11);outline:none}
   .login .input::placeholder{color:#b8b8c4}
-  .login .btn{height:48px;font-size:14.5px}
+  .login .btn{height:48px;font-size:16.5px}
   .login .actions{max-width:300px;align-self:center;width:100%}
-  .back-btn{background:none;border:none;font-size:13px;color:var(--mute);cursor:pointer;padding:0;margin-bottom:18px;display:flex;align-items:center;gap:4px}
-  .code-display{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.05em;background:var(--soft);padding:8px 12px;border-radius:10px;margin-bottom:16px;color:var(--ink)}
-  .note-tag{font-size:11.5px;color:var(--mute);margin-bottom:18px}
+  .back-btn{background:none;border:none;font-size:15px;color:var(--mute);cursor:pointer;padding:0;margin-bottom:18px;display:flex;align-items:center;gap:4px}
+  .code-display{font-family:var(--mono);font-size:15px;font-weight:700;letter-spacing:.05em;background:var(--soft);padding:8px 12px;border-radius:10px;margin-bottom:16px;color:var(--ink)}
+  .note-tag{font-size:13.5px;color:var(--mute);margin-bottom:18px}
 </style>
 </head>
 <body>
@@ -59,7 +59,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
           ログインに戻る
         </button>
-        <div style="font-size:14px;font-weight:700;margin-bottom:16px">招待コードを入力</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:16px">招待コードを入力</div>
         <input class="input" id="inviteCode" placeholder="例: AA-7F3K2X" autocomplete="off" style="font-family:var(--mono);letter-spacing:.06em">
         <button class="btn primary" id="checkCodeBtn">確認する</button>
         <div id="codeMsg" class="errmsg"></div>
@@ -71,7 +71,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
           招待コードに戻る
         </button>
-        <div style="font-size:14px;font-weight:700;margin-bottom:4px">参加情報を入力</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px">参加情報を入力</div>
         <div id="codeTag" class="code-display"></div>
         <div id="inviteNote" class="note-tag"></div>
         <input class="input" id="companyName" type="text" placeholder="会社名（例: 山田製作所）" autocomplete="organization">

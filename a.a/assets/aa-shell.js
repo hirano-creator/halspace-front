@@ -130,7 +130,7 @@
       const list = overlay.querySelector('.likers-list');
       list.innerHTML = (data && data.length) ? data.map(u => `
           <div class="likers-row">
-            <div class="ava alt" style="width:32px;height:32px;flex:0 0 32px;font-size:12px">${esc(initial(u.name))}</div>
+            <div class="ava alt" style="width:32px;height:32px;flex:0 0 32px;font-size:14px">${esc(initial(u.name))}</div>
             <div class="likers-who"><b>${esc(u.name || '—')}</b><span>${esc(u.company_name || '')}</span></div>
           </div>`).join('') : '<div class="center" style="padding:24px">まだいいねがありません</div>';
     } catch (e) {
