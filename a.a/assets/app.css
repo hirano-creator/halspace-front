@@ -61,6 +61,14 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
 .rtools .t{display:flex;align-items:center;gap:5px;font-size:12.5px;background:none;color:var(--mute)}
 .rtools .t svg{width:17px;height:17px}
 
+/* フィードのコメントプレビュー（Xの返信プレビュー風） */
+.cprev{margin-top:12px;padding-top:12px;border-top:1px solid #eef0f3;display:flex;flex-direction:column;gap:9px}
+.cprev-row{display:flex;gap:9px;text-decoration:none;color:inherit}
+.cprev-body{min-width:0;font-size:13px;line-height:1.55}
+.cprev-body b{font-weight:700;margin-right:6px}
+.cprev-body span{color:#4a4a60;word-break:break-word}
+.cprev-more{font-size:12.5px;color:var(--mute);text-decoration:none;padding-left:35px}
+
 /* ニュース */
 .news{margin:4px 14px 8px;background:var(--accent-bg);border-radius:22px;padding:18px;display:block;color:inherit;text-decoration:none}
 .news .nh{display:flex;align-items:center;gap:8px;margin-bottom:10px}
