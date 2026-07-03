@@ -166,7 +166,7 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
 
 @media (min-width:1024px){
   body{ background:var(--paper); }
-  .deck{ max-width:1200px; margin:0 auto; display:grid; grid-template-columns:248px minmax(0,1fr) 332px; align-items:start; background:var(--paper); min-height:100vh; }
+  .deck{ max-width:1200px; margin:0 auto; display:grid; grid-template-columns:224px minmax(0,1fr) 332px; align-items:start; background:var(--paper); min-height:100vh; }
   .deck > .wrap{ max-width:none; width:100%; min-height:auto; display:block; min-width:0; }
   .deck > .wrap .scroll, .deck > .wrap .post{ min-width:0; max-width:100%; }
   .deck > .wrap .scroll{ overflow:visible; padding-bottom:40px; }
@@ -174,7 +174,7 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
   .deck > .wrap .appbar .brand{ display:none; }        /* 左ナビにブランドがあるため重複を隠す */
   .tabbar{ display:none !important; }                    /* 下部タブはPCでは出さない */
   .cbar{ position:static; transform:none; width:auto; max-width:none; box-shadow:none; background:transparent;
-    padding:20px 0 32px !important; margin-top:6px; border-top:1px solid #eef0f3; } /* コメント入力は画面下固定ではなく投稿詳細の下に通常表示。上に細い区切り線だけ入れてカードと分離 */
+    padding:20px 18px 32px !important; margin-top:6px; border-top:1px solid #eef0f3; } /* コメント入力は画面下固定ではなく投稿詳細の下に通常表示。左右paddingを.postの18pxに揃えて画像と中央を合わせる */
 
   .deck-nav{ display:flex; flex-direction:column; gap:4px; padding:24px 14px; position:sticky; top:0; height:100vh; }
   .deck-brand{ font-weight:800; font-size:32px; letter-spacing:-.07em; padding:8px 14px 16px; }
@@ -197,8 +197,11 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
   .deck-logout:hover{ background:var(--soft); color:#33333a; }
 
   .deck-aside{ display:flex; flex-direction:column; gap:16px; padding:24px 20px; position:sticky; top:0; height:100vh; overflow:auto; background:var(--paper); }
-  .deck-search{ height:46px; background:var(--soft); border-radius:14px; display:flex; align-items:center; gap:10px; padding:0 16px; color:var(--mute); font-size:16px; }
-  .deck-search svg{ width:18px; height:18px; }
+  .deck-search{ height:46px; background:var(--soft); border-radius:14px; display:flex; align-items:center; gap:10px; padding:0 16px; color:var(--mute); font-size:16px; cursor:text; }
+  .deck-search svg{ width:18px; height:18px; flex:0 0 auto; }
+  .deck-search input{ appearance:none; border:none; outline:none; background:none; flex:1; min-width:0; font-size:16px; color:var(--ink); font-family:inherit; }
+  .deck-search input::placeholder{ color:var(--mute); }
+  .deck-search input::-webkit-search-cancel-button{ -webkit-appearance:none; }
   .deck-aside .panel{ background:var(--paper); border-radius:20px; padding:18px; }
   .deck-aside .panel h4{ font-size:16px; font-weight:800; margin-bottom:10px; }
   .aitem{ display:flex; align-items:flex-start; gap:10px; padding:10px 0; text-decoration:none; color:inherit; }

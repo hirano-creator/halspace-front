@@ -39,9 +39,15 @@
     const a = document.createElement('aside');
     a.className = 'deck-aside';
     a.innerHTML = `
-      <div class="deck-search">${svg(ICON.search)}<span>会社・補助金・投稿を検索</span></div>
-      <div class="panel"><h4>話題のニュース</h4><div id="asideNews"><div class="muted">読み込み中…</div></div></div>
-      <div class="panel"><h4>話題の投稿</h4><div id="asidePosts"><div class="muted">読み込み中…</div></div></div>`;
+      <label class="deck-search">${svg(ICON.search)}<input id="asideSearchInput" type="search" placeholder="会社・補助金・投稿を検索" autocomplete="off"></label>
+      <div class="panel"><h4 id="asideNewsTitle">話題のニュース</h4><div id="asideNews"><div class="muted">読み込み中…</div></div></div>
+      <div class="panel"><h4 id="asidePostsTitle">話題の投稿</h4><div id="asidePosts"><div class="muted">読み込み中…</div></div></div>`;
+    const input = a.querySelector('#asideSearchInput');
+    let t = null;
+    input.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(() => paintAside(feedDataCache, input.value.trim()), 150);
+    });
     return a;
   }
 
@@ -75,11 +81,18 @@
       }
     }
   }
-  function paintAside(data) {
-    const news = data.filter(p => p.kind === 'news').slice(0, 4);
-    const posts = data.filter(p => p.kind !== 'news')
+  let feedDataCache = [];
+  function paintAside(data, query) {
+    feedDataCache = data;
+    const q = (query || '').toLowerCase();
+    const matches = (p) => !q || [p.news_title, p.body, p.category, p.company_name].some(s => (s || '').toLowerCase().indexOf(q) >= 0);
+    const filtered = data.filter(matches);
+    const news = filtered.filter(p => p.kind === 'news').slice(0, 4);
+    const posts = filtered.filter(p => p.kind !== 'news')
       .sort((a, b) => ((b.reactions && b.reactions.helpful) || 0) - ((a.reactions && a.reactions.helpful) || 0))
       .slice(0, 3);
+    const nt = document.getElementById('asideNewsTitle'); if (nt) nt.textContent = q ? '検索結果（ニュース）' : '話題のニュース';
+    const pt = document.getElementById('asidePostsTitle'); if (pt) pt.textContent = q ? '検索結果（投稿）' : '話題の投稿';
     const nEl = document.getElementById('asideNews');
     if (nEl) nEl.innerHTML = news.map(p =>
       `<a class="aitem" href="${esc(p.news_url)}" target="_blank" rel="noopener"><span class="atag">${esc(p.category || 'ニュース')}</span><b>${esc(p.news_title)}</b></a>`
