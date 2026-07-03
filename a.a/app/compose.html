@@ -51,6 +51,9 @@
         <button class="chip" id="maskBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/><rect x="7" y="12" width="5" height="3" fill="currentColor"/></svg>マスク
         </button>
+        <button class="chip" id="mosaicBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/><path d="M8 12h3v3H8zM13 12h3v3h-3z" fill="currentColor" stroke="none"/></svg>モザイク
+        </button>
       </div>
 
       <div style="display:flex;align-items:center;gap:8px;color:var(--mute);font-size:12.5px;margin:12px 2px">
@@ -66,8 +69,13 @@
   <!-- マスク編集モーダル -->
   <div class="overlay" id="maskModal" style="display:none">
     <div class="sheet">
-      <header><span>マスク（黒塗り）</span><button class="x" id="maskClose"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 6L6 18M6 6l12 12"/></svg></button></header>
-      <div class="maskhint">隠したい部分を指でなぞって黒塗りします。元画像は端末から出ません。</div>
+      <header><span id="maskTitle">マスク（黒塗り）</span><button class="x" id="maskClose"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 6L6 18M6 6l12 12"/></svg></button></header>
+      <div class="maskhint" id="maskHint">隠したい部分を指でなぞって黒塗りします。元画像は端末から出ません。</div>
+      <div class="mosaicctrl" id="mosaicCtrl" style="display:none">
+        <span>濃さ</span>
+        <input type="range" id="mosaicSize" min="4" max="40" step="1" value="16">
+        <span class="n" id="mosaicSizeVal">16</span>
+      </div>
       <div class="sbody maskwrap"><canvas class="mask" id="maskCanvas"></canvas></div>
       <footer>
         <button class="btn" id="maskUndo">ひとつ戻す</button>
@@ -116,15 +124,25 @@
     add(document.getElementById('fVideo'),'video');
     add(document.getElementById('fDoc'),'document');
 
-    /* ───── マスク編集（canvas黒塗り） ───── */
-    let mImg, mRects = [], mScale = 1, mTargetIdx = -1, mDrawing = null;
+    /* ───── マスク編集（canvas黒塗り／モザイク） ───── */
+    let mImg, mRects = [], mScale = 1, mTargetIdx = -1, mDrawing = null, mMode = 'black';
+    let mMosaicSize = 16; // モザイクの粗さ(px)。数値が大きいほど粗く＝濃くなる
     const maskModal = document.getElementById('maskModal');
+    const maskTitle = document.getElementById('maskTitle');
+    const maskHint = document.getElementById('maskHint');
+    const mosaicCtrl = document.getElementById('mosaicCtrl');
+    const mosaicSizeInput = document.getElementById('mosaicSize');
+    const mosaicSizeVal = document.getElementById('mosaicSizeVal');
     const cv = document.getElementById('maskCanvas');
     const ctx = cv.getContext('2d');
 
-    document.getElementById('maskBtn').onclick = () => {
+    function openMaskModal(mode){
+      mMode = mode;
       mTargetIdx = files.findIndex(f => f.kind === 'image');
       if (mTargetIdx < 0) { document.getElementById('msg').textContent = 'マスクする画像を「写真」から追加してください'; return; }
+      maskTitle.textContent = mode === 'mosaic' ? 'モザイク' : 'マスク（黒塗り）';
+      maskHint.textContent = mode === 'mosaic' ? '隠したい部分を指でなぞってモザイクをかけます。元画像は端末から出ません。' : '隠したい部分を指でなぞって黒塗りします。元画像は端末から出ません。';
+      mosaicCtrl.style.display = mode === 'mosaic' ? 'flex' : 'none';
       const f = files[mTargetIdx];
       const img = new Image();
       img.onload = () => {
@@ -137,13 +155,35 @@
         maskModal.style.display = 'flex';
       };
       img.src = URL.createObjectURL(f.file);
-    };
+    }
+    document.getElementById('maskBtn').onclick = () => openMaskModal('black');
+    document.getElementById('mosaicBtn').onclick = () => openMaskModal('mosaic');
+    mosaicSizeInput.oninput = () => { mMosaicSize = +mosaicSizeInput.value; mosaicSizeVal.textContent = mMosaicSize; redraw(); };
+
+    // ブロック状に粗くする＝一度小さく縮小してから最近傍補間で拡大描画
+    function pixelate(targetCtx, sourceImg, sx, sy, sw, sh, dx, dy, dw, dh, blockPx){
+      const bw = Math.max(1, Math.round(dw / blockPx));
+      const bh = Math.max(1, Math.round(dh / blockPx));
+      const tmp = document.createElement('canvas');
+      tmp.width = bw; tmp.height = bh;
+      tmp.getContext('2d').drawImage(sourceImg, sx, sy, sw, sh, 0, 0, bw, bh);
+      targetCtx.imageSmoothingEnabled = false;
+      targetCtx.drawImage(tmp, 0, 0, bw, bh, dx, dy, dw, dh);
+      targetCtx.imageSmoothingEnabled = true;
+    }
+    function drawRect(targetCtx, sourceImg, srcScale, r){
+      if (r.mode === 'mosaic') {
+        pixelate(targetCtx, sourceImg, r.x/srcScale, r.y/srcScale, r.w/srcScale, r.h/srcScale, r.x, r.y, r.w, r.h, r.size);
+      } else {
+        targetCtx.fillStyle = '#000';
+        targetCtx.fillRect(r.x, r.y, r.w, r.h);
+      }
+    }
     function redraw(){
       ctx.clearRect(0,0,cv.width,cv.height);
       ctx.drawImage(mImg, 0,0, cv.width, cv.height);
-      ctx.fillStyle = '#000';
-      mRects.forEach(r => ctx.fillRect(r.x, r.y, r.w, r.h));
-      if (mDrawing) { ctx.fillRect(mDrawing.x, mDrawing.y, mDrawing.w, mDrawing.h); }
+      mRects.forEach(r => drawRect(ctx, mImg, mScale, r));
+      if (mDrawing) drawRect(ctx, mImg, mScale, { ...mDrawing, mode: mMode, size: mMosaicSize });
     }
     function pos(e){
       const rect = cv.getBoundingClientRect();
@@ -156,7 +196,7 @@
       mDrawing.w = Math.abs(p.x - mDrawing.sx); mDrawing.h = Math.abs(p.y - mDrawing.sy); redraw(); }
     // window.mouseupはドラッグがcanvas外で終わっても拾うためのグローバル監視。
     // マスク編集を一度も開いていない(mImg未設定)状態で他ボタンをクリックしても発火するのでガード必須。
-    function up(){ if(!mImg || !mDrawing) return; if(mDrawing.w>4 && mDrawing.h>4) mRects.push({x:mDrawing.x,y:mDrawing.y,w:mDrawing.w,h:mDrawing.h}); mDrawing=null; redraw(); }
+    function up(){ if(!mImg || !mDrawing) return; if(mDrawing.w>4 && mDrawing.h>4) mRects.push({x:mDrawing.x,y:mDrawing.y,w:mDrawing.w,h:mDrawing.h,mode:mMode,size:mMosaicSize}); mDrawing=null; redraw(); }
     cv.addEventListener('mousedown',down); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
     cv.addEventListener('touchstart',down,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',up);
 
@@ -169,13 +209,16 @@
       out.width = mImg.naturalWidth; out.height = mImg.naturalHeight;
       const o = out.getContext('2d');
       o.drawImage(mImg, 0, 0);
-      o.fillStyle = '#000';
-      mRects.forEach(r => o.fillRect(r.x/mScale, r.y/mScale, r.w/mScale, r.h/mScale));
+      mRects.forEach(r => drawRect(o, mImg, 1, {
+        x: r.x/mScale, y: r.y/mScale, w: r.w/mScale, h: r.h/mScale,
+        mode: r.mode, size: r.mode === 'mosaic' ? r.size/mScale : r.size
+      }));
       out.toBlob((blob) => {
         const masked = new File([blob], 'masked_' + files[mTargetIdx].file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
         files[mTargetIdx] = { file: masked, kind: 'image', masked: true };
         isMasked = true;
         document.getElementById('maskBtn').classList.add('on');
+        document.getElementById('mosaicBtn').classList.add('on');
         maskModal.style.display = 'none';
         renderPreview();
       }, 'image/jpeg', 0.9);
