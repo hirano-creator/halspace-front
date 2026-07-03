@@ -171,8 +171,7 @@
         mFromWn = true;
         msg.textContent = '画像を読み込み中…';
         try {
-          const { url } = await AA.aaFetch('/wn/files/' + selectedWn.id + '/view');
-          const res = await fetch(url);
+          const res = await fetch(AA.wnFileRawUrl(selectedWn.id));
           if (!res.ok) throw new Error();
           const blob = await res.blob();
           msg.textContent = '';

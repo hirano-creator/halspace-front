@@ -68,6 +68,9 @@
   const createPost = (formData) => aaFetch('/aa/posts', { method: 'POST', body: formData }); // FormData(media[], category, body, is_masked)
   const publishFromWn = (wnFileId, payload) => aaFetch('/aa/posts/from-wn/' + wnFileId, { method: 'POST', body: payload || {} });
   const wnFiles = () => aaFetch('/wn/files'); // What'sNo取り込み用の自社ファイル一覧
+  // What'sNoファイル実体のURL（マスク編集でcanvasに読み込む用）。wn/files/{id}/viewはR2署名URLを直接返すため
+  // 別ドメイン(a.a)からのfetchはR2バケットのCORS許可外で失敗する→APIが中継するrawエンドポイントを使う
+  const wnFileRawUrl = (id) => apiBase() + '/aa/wn-files/' + id + '/raw?token=' + encodeURIComponent(token());
   const updatePost = (id, payload) => aaFetch('/aa/posts/' + id, { method: 'PATCH', body: payload || {} });
   // メディア追加/削除込みの編集：multipartはPATCH不可のため POST + _method=PATCH で送る
   const updatePostMedia = (id, formData) => {
@@ -223,7 +226,7 @@
   global.AA = {
     apiBase, token, setToken, isAuthed, aaFetch,
     login, logout, me, forceUpdateApp,
-    feed, getPost, createPost, publishFromWn, wnFiles, updatePost, updatePostMedia, deletePost,
+    feed, getPost, createPost, publishFromWn, wnFiles, wnFileRawUrl, updatePost, updatePostMedia, deletePost,
     comments, postComment, react, reactionUsers, reactComment, commentReactionUsers, relTime, commentCardHtml, avatarHtml, shareLink, mediaUrl, mediaThumbUrl, storeMediaThumb,
     profile, updateProfile, updateLogo, addSkill, deleteSkill,
     notifications, readNotif, readAllNotif,
