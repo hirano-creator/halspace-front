@@ -182,8 +182,8 @@
     };
 
     async function loadMedia(container){
-      // 各 .media[data-view] の実体URLを取得して表示
-      for (const el of container.querySelectorAll('[data-view]')) {
+      // 各 .media[data-view] の実体URLを取得して表示（メディアごとに独立しているため並列実行）
+      const jobs = [...container.querySelectorAll('[data-view]')].map(async (el) => {
         try {
           const viewUrl = el.dataset.view;
           const midMatch = viewUrl.match(/\/media\/(\d+)\/view/);
@@ -254,13 +254,15 @@
             }
           }
         } catch(e){ el.innerHTML = '<div class="center">メディアを読み込めません</div>'; }
-      }
+      });
+      await Promise.all(jobs);
     }
 
-    async function render(){
+    async function render(preset){
       const root = document.getElementById('detail');
       try {
-        const { data: p } = await AA.getPost(id);
+        // 編集保存直後はレスポンスに最新の投稿データが揃っているため、getPostの再取得はしない
+        const p = preset || (await AA.getPost(id)).data;
         P = p;
         const mediaHtml = (p.media||[]).map(m => {
           if (m.kind === 'document') {
@@ -406,7 +408,7 @@
             });
             if (jobs.length) await Promise.race([AAVideo.warmVideoThumbs(jobs), new Promise(res => setTimeout(res, 8000))]);
           }
-          render();
+          render(r.data);
         }
         catch(e){ emsg.textContent = e.message; btn.textContent = '保存'; btn.disabled = false; }
       };
@@ -430,10 +432,32 @@
       });
     }
 
+    // 投稿レスポンスに新規コメントのデータが揃っているため、全件再取得(loadComments)はせず即座に追記する
+    function appendComment(c){
+      const ctitle = document.getElementById('ctitle');
+      const clist  = document.getElementById('clist');
+      if (!ctitle || !clist) return;
+      if (!clist.querySelector('.ccard')) clist.innerHTML = ''; // 「まだコメントはありません」を消す
+      clist.insertAdjacentHTML('beforeend', AA.commentCardHtml(c));
+      ctitle.textContent = `コメント ${clist.querySelectorAll('.ccard').length}`;
+      const b = clist.querySelector(`[data-creact="${c.id}"]`);
+      if (b) b.onclick = async (ev) => {
+        if (ev.target.closest('.n')) { AA_openLikers(AA.commentReactionUsers(c.id)); return; }
+        try {
+          const r = await AA.reactComment(c.id);
+          b.classList.toggle('on', r.reacted);
+          b.querySelector('.n').textContent = r.count;
+        } catch(e){ alert(e.message); }
+      };
+    }
     document.getElementById('csend').onclick = async () => {
       const inp = document.getElementById('cbody'); const body = inp.value.trim();
       if (!body) return;
-      try { await AA.postComment(id, body); inp.value=''; loadComments(); } catch(e){ alert(e.message); }
+      const btn = document.getElementById('csend');
+      inp.value=''; btn.disabled = true;
+      try { const { data: c } = await AA.postComment(id, body); appendComment(c); }
+      catch(e){ inp.value = body; alert(e.message); }
+      finally { btn.disabled = false; }
     };
     document.getElementById('shareBtn').onclick = async () => {
       try { const r = await AA.shareLink(id);

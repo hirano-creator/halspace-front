@@ -259,7 +259,12 @@
 
       // What'sNoから選んだ場合は from-wn で公開
       if (selectedWn) {
-        try { btn.textContent='公開中…'; btn.disabled=true; await AA.publishFromWn(selectedWn.id, { category: cat, body }); location.href = './feed.html'; }
+        try {
+          btn.textContent='公開中…'; btn.disabled=true;
+          const r = await AA.publishFromWn(selectedWn.id, { category: cat, body });
+          prependToFeedCache(r.data);
+          location.href = './feed.html';
+        }
         catch(e){ msg.textContent = e.message; btn.textContent='投稿する'; btn.disabled=false; }
         return;
       }
@@ -273,11 +278,22 @@
       try {
         btn.textContent='投稿中…'; btn.disabled=true;
         const r = await AA.createPost(fd);
+        prependToFeedCache(r.data);
         await warmVideoThumbs(files, r.data && r.data.media);
         location.href = './feed.html';
       }
       catch(e){ msg.textContent = e.message; btn.textContent='投稿する'; btn.disabled=false; }
     };
+
+    // feed.htmlのキャッシュ(stale-while-revalidate)に投稿を先出しし、遷移直後の再取得を待たず即座に見せる
+    function prependToFeedCache(post){
+      if (!post) return;
+      try {
+        const key = 'aa_feed_cache:'; // フィードのデフォルト表示(すべて)のキャッシュキー
+        const cached = JSON.parse(localStorage.getItem(key) || '[]');
+        localStorage.setItem(key, JSON.stringify([post, ...cached]));
+      } catch(e){}
+    }
 
     // 動画は投稿者の端末に原本があるうちにサムネ生成→保存しておく（遠隔DL不要で高速・全端末が即恩恵）。
     // files[i] と media[i] は送信時と同じ並び順（バックエンドが sort_order=送信順で保存するため）。
