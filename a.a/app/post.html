@@ -263,14 +263,14 @@
       const clist  = document.getElementById('clist');
       if (!ctitle || !clist) return;
       ctitle.textContent = `コメント ${data.length}`;
-      clist.innerHTML = data.map(c => `
-        <div class="post" style="padding:12px 18px">
-          <div class="phead" style="margin:0">
-            <div class="ava alt" style="width:30px;height:30px;flex:0 0 30px;font-size:11px">${esc(initial(c.company_name||c.user_name))}</div>
-            <div class="who"><b>${esc(c.company_name||c.user_name||'—')}</b></div>
-          </div>
-          <div class="ptext" style="margin:6px 0 0;font-size:14px">${esc(c.body)}</div>
-        </div>`).join('') || '<div class="center" style="padding:20px">まだコメントはありません</div>';
+      clist.innerHTML = data.map(c => AA.commentCardHtml(c)).join('') || '<div class="center" style="padding:20px">まだコメントはありません</div>';
+      clist.querySelectorAll('[data-creact]').forEach(b => b.onclick = async () => {
+        try {
+          const r = await AA.reactComment(b.dataset.creact);
+          b.classList.toggle('on', r.reacted);
+          b.querySelector('.n').textContent = r.count;
+        } catch(e){ alert(e.message); }
+      });
     }
 
     document.getElementById('csend').onclick = async () => {

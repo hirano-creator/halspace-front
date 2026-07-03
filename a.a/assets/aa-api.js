@@ -77,10 +77,53 @@
   const deletePost = (id) => aaFetch('/aa/posts/' + id, { method: 'DELETE' });
 
   // ── コメント / リアクション ──
-  const comments    = (id) => aaFetch('/aa/posts/' + id + '/comments');
-  const postComment = (id, body) => aaFetch('/aa/posts/' + id + '/comments', { method: 'POST', body: { body } });
-  const react       = (id, kind) => aaFetch('/aa/posts/' + id + '/reactions', { method: 'POST', body: { kind: kind || 'helpful' } });
-  const shareLink   = (id) => aaFetch('/aa/posts/' + id + '/share-link', { method: 'POST' });
+  const comments      = (id) => aaFetch('/aa/posts/' + id + '/comments');
+  const postComment   = (id, body) => aaFetch('/aa/posts/' + id + '/comments', { method: 'POST', body: { body } });
+  const react         = (id, kind) => aaFetch('/aa/posts/' + id + '/reactions', { method: 'POST', body: { kind: kind || 'helpful' } });
+  const reactComment  = (commentId) => aaFetch('/aa/comments/' + commentId + '/react', { method: 'POST' });
+  const shareLink     = (id) => aaFetch('/aa/posts/' + id + '/share-link', { method: 'POST' });
+
+  // X(旧twitter)風の相対時刻表示（秒→分→時間→日→月日）
+  function relTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const sec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+    if (sec < 60) return 'たった今';
+    const min = Math.floor(sec / 60);
+    if (min < 60) return min + '分';
+    const hour = Math.floor(min / 60);
+    if (hour < 24) return hour + '時間';
+    const day = Math.floor(hour / 24);
+    if (day < 7) return day + '日';
+    const now = new Date();
+    const m = d.getMonth() + 1, dd = d.getDate();
+    return d.getFullYear() === now.getFullYear() ? `${m}月${dd}日` : `${d.getFullYear()}/${m}/${dd}`;
+  }
+
+  // フィードのコメントプレビュー／投稿詳細のコメント一覧で共用するカードHTML（X風：アバター+名前+時刻→本文→いいね）
+  // opts.linkToPost を渡すとカード本体(いいね以外)を投稿詳細へのリンクにする（フィードのプレビュー用）
+  function commentCardHtml(c, opts) {
+    opts = opts || {};
+    const esc = (s) => (s || '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    const name = c.user_name || '—';
+    const initial = (name || '?').trim().charAt(0);
+    const meta = [c.company_name, relTime(c.created_at)].filter(Boolean).join(' · ');
+    const liked = !!c.liked;
+    const thumb = liked
+      ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 11h3.2v10H2z"/><path d="M7 21V11l4.2-8.1a1.7 1.7 0 0 1 3.2 1l-.2 4.2h5a2 2 0 0 1 2 2.4l-1.4 7a2 2 0 0 1-2 1.6H7z"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 11h3.2v10H2z"/><path d="M7 21V11l4.2-8.1a1.7 1.7 0 0 1 3.2 1l-.2 4.2h5a2 2 0 0 1 2 2.4l-1.4 7a2 2 0 0 1-2 1.6H7z"/></svg>';
+    const linkOpen  = opts.linkToPost ? `<a class="ccard-link" href="./post.html?id=${opts.linkToPost}">` : '';
+    const linkClose = opts.linkToPost ? '</a>' : '';
+    return `<div class="ccard" data-cid="${c.id}">
+        <div class="ava alt ccard-ava">${esc(initial)}</div>
+        <div class="ccard-main">
+          ${linkOpen}<div class="ccard-head"><b>${esc(name)}</b>${meta ? `<span class="ctime">${esc(meta)}</span>` : ''}</div>
+          <div class="ccard-text">${esc(c.body)}</div>${linkClose}
+          <button class="ccard-like${liked ? ' on' : ''}" data-creact="${c.id}">${thumb}<span class="n">${c.like_count || 0}</span></button>
+        </div>
+      </div>`;
+  }
 
   // ── メディアサムネイル（サーバー保存・全端末共有） ──
   // <img> で直接読めるトークン付きURL。404 = 未生成（クライアントで生成して storeMediaThumb）
@@ -166,7 +209,7 @@
     apiBase, token, setToken, isAuthed, aaFetch,
     login, logout, me, forceUpdateApp,
     feed, getPost, createPost, publishFromWn, wnFiles, updatePost, updatePostMedia, deletePost,
-    comments, postComment, react, shareLink, mediaUrl, mediaThumbUrl, storeMediaThumb,
+    comments, postComment, react, reactComment, relTime, commentCardHtml, shareLink, mediaUrl, mediaThumbUrl, storeMediaThumb,
     profile, updateProfile, addSkill, deleteSkill,
     notifications, readNotif, readAllNotif,
     admin,

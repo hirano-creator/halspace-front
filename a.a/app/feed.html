@@ -127,14 +127,11 @@
         ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 11h3.2v10H2z"/><path d="M7 21V11l4.2-8.1a1.7 1.7 0 0 1 3.2 1l-.2 4.2h5a2 2 0 0 1 2 2.4l-1.4 7a2 2 0 0 1-2 1.6H7z"/></svg>'
         : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2 11h3.2v10H2z"/><path d="M7 21V11l4.2-8.1a1.7 1.7 0 0 1 3.2 1l-.2 4.2h5a2 2 0 0 1 2 2.4l-1.4 7a2 2 0 0 1-2 1.6H7z"/></svg>';
 
-      // コメントプレビュー：直近3件までを投稿カード直下に表示（Xの返信プレビューのような見た目）
+      // コメントプレビュー：直近3件までを投稿カード直下に表示（Xの返信のような見た目：アバター+名前+時刻→本文→いいね）
       const rc = p.recent_comments || [];
       const commentsHtml = rc.length ? `<div class="cprev">
-          ${rc.map(c => `<a class="cprev-row" href="./post.html?id=${p.id}">
-              <div class="ava alt" style="width:26px;height:26px;flex:0 0 26px;font-size:10px">${esc(initial(c.company_name||c.user_name))}</div>
-              <div class="cprev-body"><b>${esc(c.company_name||c.user_name||'—')}</b><span>${esc(c.body)}</span></div>
-            </a>`).join('')}
-          ${(p.comment_count||0) > rc.length ? `<a class="cprev-more" href="./post.html?id=${p.id}">他${(p.comment_count||0) - rc.length}件のコメントを見る</a>` : ''}
+          ${rc.map(c => AA.commentCardHtml(c, { linkToPost: p.id })).join('')}
+          ${(p.comment_count||0) > rc.length ? `<a class="ccard-more" href="./post.html?id=${p.id}">他${(p.comment_count||0) - rc.length}件のコメントを見る</a>` : ''}
         </div>` : '';
 
       return `<article class="post" data-id="${p.id}">
@@ -391,6 +388,14 @@
           const r = await AA.shareLink(b.dataset.share);
           if (navigator.share) { navigator.share({ url: r.data.url }); }
           else { window.open(r.data.x_url, '_blank'); }
+        } catch(e){ alert(e.message); }
+      });
+      document.querySelectorAll('[data-creact]').forEach(b => b.onclick = async (ev) => {
+        ev.preventDefault();
+        try {
+          const r = await AA.reactComment(b.dataset.creact);
+          b.classList.toggle('on', r.reacted);
+          b.querySelector('.n').textContent = r.count;
         } catch(e){ alert(e.message); }
       });
     }
