@@ -103,13 +103,25 @@
     return d.getFullYear() === now.getFullYear() ? `${m}月${dd}日` : `${d.getFullYear()}/${m}/${dd}`;
   }
 
+  // 会社ロゴ画像があれば円形<img>、無ければ頭文字divを返す（フィード/投稿詳細/コメントで共用）
+  // opts.cls で.avaに追加するクラス（例: 'alt ccard-ava'）を指定できる
+  function avatarHtml(name, company, logoUrl, opts) {
+    opts = opts || {};
+    const esc = (s) => (s || '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    const cls = 'ava' + (opts.cls ? ' ' + opts.cls : '');
+    if (logoUrl) {
+      return `<div class="${cls}" style="overflow:hidden;padding:0"><img src="${esc(logoUrl)}" alt="" style="width:100%;height:100%;object-fit:cover"></div>`;
+    }
+    const initial = (name || company || '?').trim().charAt(0);
+    return `<div class="${cls}">${esc(initial)}</div>`;
+  }
+
   // フィードのコメントプレビュー／投稿詳細のコメント一覧で共用するカードHTML（X風：アバター+名前+時刻→本文→いいね）
   // opts.linkToPost を渡すとカード本体(いいね以外)を投稿詳細へのリンクにする（フィードのプレビュー用）
   function commentCardHtml(c, opts) {
     opts = opts || {};
     const esc = (s) => (s || '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
     const name = c.user_name || '—';
-    const initial = (name || '?').trim().charAt(0);
     const meta = [c.company_name, relTime(c.created_at)].filter(Boolean).join(' · ');
     const liked = !!c.liked;
     const thumb = liked
@@ -118,7 +130,7 @@
     const linkOpen  = opts.linkToPost ? `<a class="ccard-link" href="./post.html?id=${opts.linkToPost}">` : '';
     const linkClose = opts.linkToPost ? '</a>' : '';
     return `<div class="ccard" data-cid="${c.id}">
-        <div class="ava alt ccard-ava">${esc(initial)}</div>
+        ${avatarHtml(name, c.company_name, c.company_logo_url, { cls: 'alt ccard-ava' })}
         <div class="ccard-main">
           ${linkOpen}<div class="ccard-head"><b>${esc(name)}</b>${meta ? `<span class="ctime">${esc(meta)}</span>` : ''}</div>
           <div class="ccard-text">${esc(c.body)}</div>${linkClose}
@@ -212,7 +224,7 @@
     apiBase, token, setToken, isAuthed, aaFetch,
     login, logout, me, forceUpdateApp,
     feed, getPost, createPost, publishFromWn, wnFiles, updatePost, updatePostMedia, deletePost,
-    comments, postComment, react, reactionUsers, reactComment, commentReactionUsers, relTime, commentCardHtml, shareLink, mediaUrl, mediaThumbUrl, storeMediaThumb,
+    comments, postComment, react, reactionUsers, reactComment, commentReactionUsers, relTime, commentCardHtml, avatarHtml, shareLink, mediaUrl, mediaThumbUrl, storeMediaThumb,
     profile, updateProfile, updateLogo, addSkill, deleteSkill,
     notifications, readNotif, readAllNotif,
     admin,
