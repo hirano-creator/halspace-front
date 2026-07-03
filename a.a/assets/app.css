@@ -83,6 +83,12 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
 .fab{width:52px;height:52px;border-radius:18px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 24px -8px rgba(31,72,255,.7);transform:translateY(-8px)}
 .fab svg{width:26px;height:26px}
 
+/* コメント入力バー（投稿詳細）：.tabbarと見た目は同じだがナビではないため別クラス（PCで.tabbarごと消えるのを回避） */
+.cbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:var(--maxw);
+  padding-bottom:env(safe-area-inset-bottom);
+  display:flex;align-items:center;background:#fff;
+  box-shadow:0 -10px 24px -18px rgba(20,30,80,.35);z-index:20}
+
 /* ボタン・入力 */
 .btn{height:52px;border-radius:15px;display:flex;align-items:center;justify-content:center;gap:9px;font-weight:700;font-size:15px;width:100%;background:var(--soft);color:var(--ink)}
 .btn.primary{background:var(--accent);color:#fff;box-shadow:0 14px 26px -10px rgba(31,72,255,.6)}
@@ -115,6 +121,7 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
   .deck > .wrap .appbar{ position:sticky; top:0; }
   .deck > .wrap .appbar .brand{ display:none; }        /* 左ナビにブランドがあるため重複を隠す */
   .tabbar{ display:none !important; }                    /* 下部タブはPCでは出さない */
+  .cbar{ position:static; transform:none; width:auto; max-width:none; box-shadow:none; background:transparent; padding:14px 0 24px !important; } /* コメント入力は画面下固定ではなく投稿詳細の下に通常表示 */
 
   .deck-nav{ display:flex; flex-direction:column; gap:4px; padding:24px 14px; position:sticky; top:0; height:100vh; }
   .deck-brand{ font-weight:800; font-size:30px; letter-spacing:-.07em; padding:8px 14px 16px; }
