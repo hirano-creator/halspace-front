@@ -171,9 +171,13 @@
       targetCtx.drawImage(tmp, 0, 0, bw, bh, dx, dy, dw, dh);
       targetCtx.imageSmoothingEnabled = true;
     }
-    function drawRect(targetCtx, sourceImg, srcScale, r){
+    // 濃さ(mMosaicSize)は矩形ごとに固定せず常に現在値を参照する。
+    // → スライダーを動かすと、位置指定済みのモザイクも含めて全て即座に濃さが変わる。
+    // sizeScale: プレビュー(canvas)ではそのままの値、書き出し(原寸)では mScale で割って同じ見た目の粗さに揃える。
+    function drawRect(targetCtx, sourceImg, srcScale, r, sizeScale = 1){
       if (r.mode === 'mosaic') {
-        pixelate(targetCtx, sourceImg, r.x/srcScale, r.y/srcScale, r.w/srcScale, r.h/srcScale, r.x, r.y, r.w, r.h, r.size);
+        const blockPx = Math.max(1, mMosaicSize / sizeScale);
+        pixelate(targetCtx, sourceImg, r.x/srcScale, r.y/srcScale, r.w/srcScale, r.h/srcScale, r.x, r.y, r.w, r.h, blockPx);
       } else {
         targetCtx.fillStyle = '#000';
         targetCtx.fillRect(r.x, r.y, r.w, r.h);
@@ -183,7 +187,7 @@
       ctx.clearRect(0,0,cv.width,cv.height);
       ctx.drawImage(mImg, 0,0, cv.width, cv.height);
       mRects.forEach(r => drawRect(ctx, mImg, mScale, r));
-      if (mDrawing) drawRect(ctx, mImg, mScale, { ...mDrawing, mode: mMode, size: mMosaicSize });
+      if (mDrawing) drawRect(ctx, mImg, mScale, { ...mDrawing, mode: mMode });
     }
     function pos(e){
       const rect = cv.getBoundingClientRect();
@@ -196,7 +200,7 @@
       mDrawing.w = Math.abs(p.x - mDrawing.sx); mDrawing.h = Math.abs(p.y - mDrawing.sy); redraw(); }
     // window.mouseupはドラッグがcanvas外で終わっても拾うためのグローバル監視。
     // マスク編集を一度も開いていない(mImg未設定)状態で他ボタンをクリックしても発火するのでガード必須。
-    function up(){ if(!mImg || !mDrawing) return; if(mDrawing.w>4 && mDrawing.h>4) mRects.push({x:mDrawing.x,y:mDrawing.y,w:mDrawing.w,h:mDrawing.h,mode:mMode,size:mMosaicSize}); mDrawing=null; redraw(); }
+    function up(){ if(!mImg || !mDrawing) return; if(mDrawing.w>4 && mDrawing.h>4) mRects.push({x:mDrawing.x,y:mDrawing.y,w:mDrawing.w,h:mDrawing.h,mode:mMode}); mDrawing=null; redraw(); }
     cv.addEventListener('mousedown',down); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
     cv.addEventListener('touchstart',down,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',up);
 
@@ -210,9 +214,8 @@
       const o = out.getContext('2d');
       o.drawImage(mImg, 0, 0);
       mRects.forEach(r => drawRect(o, mImg, 1, {
-        x: r.x/mScale, y: r.y/mScale, w: r.w/mScale, h: r.h/mScale,
-        mode: r.mode, size: r.mode === 'mosaic' ? r.size/mScale : r.size
-      }));
+        x: r.x/mScale, y: r.y/mScale, w: r.w/mScale, h: r.h/mScale, mode: r.mode
+      }, mScale));
       out.toBlob((blob) => {
         const masked = new File([blob], 'masked_' + files[mTargetIdx].file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
         files[mTargetIdx] = { file: masked, kind: 'image', masked: true };
