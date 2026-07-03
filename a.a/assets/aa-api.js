@@ -151,6 +151,7 @@
   // ── プロフィール（会社紹介bio・対応領域タグ・自分の投稿・統計） ──
   const profile        = () => aaFetch('/aa/profile');
   const updateProfile  = (bio) => aaFetch('/aa/profile', { method: 'PATCH', body: { bio } });
+  const updateLogo     = (file) => { const fd = new FormData(); fd.append('logo', file); return aaFetch('/aa/profile/logo', { method: 'POST', body: fd }); };
   const addSkill       = (label) => aaFetch('/aa/profile/skills', { method: 'POST', body: { label } });
   const deleteSkill    = (id) => aaFetch('/aa/profile/skills/' + id, { method: 'DELETE' });
 
@@ -212,7 +213,7 @@
     login, logout, me, forceUpdateApp,
     feed, getPost, createPost, publishFromWn, wnFiles, updatePost, updatePostMedia, deletePost,
     comments, postComment, react, reactionUsers, reactComment, commentReactionUsers, relTime, commentCardHtml, shareLink, mediaUrl, mediaThumbUrl, storeMediaThumb,
-    profile, updateProfile, addSkill, deleteSkill,
+    profile, updateProfile, updateLogo, addSkill, deleteSkill,
     notifications, readNotif, readAllNotif,
     admin,
     inviteValidate, inviteRegister, ssoRedeem,

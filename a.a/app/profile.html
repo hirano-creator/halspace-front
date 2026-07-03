@@ -32,6 +32,26 @@
     </nav>
   </div>
 
+  <!-- アイコン設定シート -->
+  <div class="overlay" id="logoSheet" style="display:none">
+    <div class="sheet" style="border-radius:20px;max-width:320px;margin:auto;width:88%">
+      <header>アイコンを設定<button class="icon-btn x" id="logoSheetClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 6L6 18M6 6l12 12"/></svg></button></header>
+      <div class="sbody" style="padding:4px 16px 18px;display:flex;flex-direction:column;gap:10px">
+        <label class="btn" style="cursor:pointer">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          画像を選ぶ
+          <input type="file" accept="image/*" hidden id="fLogoLib">
+        </label>
+        <label class="btn" style="cursor:pointer">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          カメラで撮る
+          <input type="file" accept="image/*" capture="user" hidden id="fLogoCam">
+        </label>
+        <div id="logoMsg" style="color:#c0392b;font-size:12.5px;text-align:center;min-height:16px"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="../assets/aa-api.js"></script>
   <script src="../assets/aa-shell.js"></script>
   <script>
@@ -42,7 +62,28 @@
     document.getElementById('logout').onclick = () => { AA.logout(); location.href='../index.html'; };
 
     let P = null; // プロフィール一式
+    let inEditMode = false;
     const root = document.getElementById('body');
+
+    /* ───── アイコン設定（画像選択／カメラ撮影） ───── */
+    function openLogoSheet(){ document.getElementById('logoMsg').textContent=''; document.getElementById('logoSheet').style.display='flex'; }
+    function closeLogoSheet(){ document.getElementById('logoSheet').style.display='none'; }
+    document.getElementById('logoSheetClose').onclick = closeLogoSheet;
+    document.getElementById('logoSheet').onclick = (e) => { if (e.target.id === 'logoSheet') closeLogoSheet(); };
+
+    async function uploadLogo(file){
+      const msg = document.getElementById('logoMsg');
+      msg.textContent = 'アップロード中…';
+      try {
+        const r = await AA.updateLogo(file);
+        P.logo_url = r.logo_url;
+        try { localStorage.setItem('aa_profile_cache', JSON.stringify(P)); } catch(e){}
+        closeLogoSheet();
+        (inEditMode ? renderEdit : renderView)();
+      } catch(e){ msg.textContent = e.message; }
+    }
+    document.getElementById('fLogoLib').onchange = (e) => { const f = e.target.files[0]; e.target.value=''; if (f) uploadLogo(f); };
+    document.getElementById('fLogoCam').onchange = (e) => { const f = e.target.files[0]; e.target.value=''; if (f) uploadLogo(f); };
 
     async function load(){
       // 前回取得分を即描画→裏で最新取得（stale-while-revalidate）
@@ -65,11 +106,23 @@
     function head(){
       const name = P.user?.name || '';
       const company = P.company?.name || '—';
+      const avaInner = P.logo_url
+        ? `<img src="${esc(P.logo_url)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        : esc(initial(name||company));
       return `<div style="display:flex;align-items:center;gap:16px">
-        <div class="ava" style="width:64px;height:64px;font-size:23px">${esc(initial(name||company))}</div>
+        <button id="avaBtn" title="アイコンを設定" style="position:relative;width:64px;height:64px;flex:0 0 64px;padding:0;background:none;border-radius:50%;cursor:pointer">
+          <div class="ava" style="width:64px;height:64px;font-size:23px;border-radius:50%;overflow:hidden">${avaInner}</div>
+          <span style="position:absolute;right:-2px;bottom:-2px;width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;border:2px solid #fff">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.4"/></svg>
+          </span>
+        </button>
         <div><h2 style="font-size:19px;font-weight:800">${esc(name)}</h2>
         <div style="font-size:12.5px;color:var(--mute);font-weight:500;margin-top:3px">${esc(company)}</div></div>
       </div>`;
+    }
+    function bindAvatarButton(){
+      const btn = document.getElementById('avaBtn');
+      if (btn) btn.onclick = openLogoSheet;
     }
     function statsRow(){
       const s = P.stats || {};
@@ -79,6 +132,7 @@
 
     /* ───── 表示モード ───── */
     function renderView(){
+      inEditMode = false;
       const isAdmin = P.user?.role === 'super_admin' || P.user?.role === 'jp_admin';
       const skills = P.skills || [];
       const bioHtml = P.bio
@@ -113,10 +167,12 @@
         b.disabled = true; b.textContent = '更新中…';
         AA.forceUpdateApp();
       };
+      bindAvatarButton();
     }
 
     /* ───── 編集モード ───── */
     function renderEdit(){
+      inEditMode = true;
       const skills = (P.skills || []).slice();
       root.innerHTML = `
         <div style="padding:24px 20px">
@@ -135,6 +191,7 @@
 
           <div class="react" style="margin-top:14px"><button class="btn" id="ecancel" style="flex:1">完了</button><button class="btn primary" id="esave" style="flex:1">保存</button></div>
         </div>`;
+      bindAvatarButton();
 
       function paintSkills(){
         document.getElementById('eskills').innerHTML = skills.length
