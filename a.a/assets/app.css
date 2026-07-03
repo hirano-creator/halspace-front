@@ -124,9 +124,22 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
 
 /* コメント入力バー（投稿詳細）：.tabbarと見た目は同じだがナビではないため別クラス（PCで.tabbarごと消えるのを回避） */
 .cbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:var(--maxw);
-  padding-bottom:env(safe-area-inset-bottom);
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom));gap:10px;
   display:flex;align-items:center;background:#fff;
   box-shadow:0 -10px 24px -18px rgba(20,30,80,.35);z-index:20}
+.cbar-input{flex:1;min-width:0;height:44px;background:var(--soft);border-radius:999px;
+  padding:0 18px;font-size:16px;font-family:var(--sans);color:var(--ink)}
+.cbar-input::placeholder{color:var(--mute)}
+.cbar-send{flex:0 0 40px;width:40px;height:40px;border-radius:50%;background:var(--soft);
+  color:#c7c9d4;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.cbar-send svg{width:18px;height:18px}
+.cbar-send.on{background:var(--accent);color:#fff;box-shadow:0 8px 16px -6px rgba(31,72,255,.6)}
+
+/* コメント一覧のセクション見出し／空状態 */
+.ctitle{padding:22px 18px 10px;color:var(--ink);font-size:15.5px;font-weight:800}
+.empty-comments{display:flex;flex-direction:column;align-items:center;gap:10px;
+  color:var(--mute);font-size:14.5px;line-height:1.7;text-align:center;padding:34px 20px 40px}
+.empty-comments svg{width:32px;height:32px;color:#dcdee6}
 
 /* ボタン・入力 */
 .btn{height:52px;border-radius:15px;display:flex;align-items:center;justify-content:center;gap:9px;font-weight:700;font-size:17px;width:100%;background:var(--soft);color:var(--ink)}
@@ -160,7 +173,8 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
   .deck > .wrap .appbar{ position:sticky; top:0; }
   .deck > .wrap .appbar .brand{ display:none; }        /* 左ナビにブランドがあるため重複を隠す */
   .tabbar{ display:none !important; }                    /* 下部タブはPCでは出さない */
-  .cbar{ position:static; transform:none; width:auto; max-width:none; box-shadow:none; background:transparent; padding:14px 0 24px !important; } /* コメント入力は画面下固定ではなく投稿詳細の下に通常表示 */
+  .cbar{ position:static; transform:none; width:auto; max-width:none; box-shadow:none; background:transparent;
+    padding:20px 0 32px !important; margin-top:6px; border-top:1px solid #eef0f3; } /* コメント入力は画面下固定ではなく投稿詳細の下に通常表示。上に細い区切り線だけ入れてカードと分離 */
 
   .deck-nav{ display:flex; flex-direction:column; gap:4px; padding:24px 14px; position:sticky; top:0; height:100vh; }
   .deck-brand{ font-weight:800; font-size:32px; letter-spacing:-.07em; padding:8px 14px 16px; }
