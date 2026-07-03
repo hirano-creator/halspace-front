@@ -13,7 +13,8 @@
     bell: '<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
-    cog: '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.5-2.4 1a7 7 0 0 0-2.2-1.3L14 2h-4l-.3 2.6a7 7 0 0 0-2.2 1.3l-2.4-1-2 3.5 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.3l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 2.2 1.3L10 22h4l.3-2.6a7 7 0 0 0 2.2-1.3l2.4 1 2-3.5-2-1.5A7 7 0 0 0 19 12z"/>'
+    cog: '<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.3l2-1.5-2-3.5-2.4 1a7 7 0 0 0-2.2-1.3L14 2h-4l-.3 2.6a7 7 0 0 0-2.2 1.3l-2.4-1-2 3.5 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.3l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 2.2 1.3L10 22h4l.3-2.6a7 7 0 0 0 2.2-1.3l2.4 1 2-3.5-2-1.5A7 7 0 0 0 19 12z"/>',
+    logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>'
   };
   const svg = (d, sw) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw || 1.7}">${d}</svg>`;
 
@@ -27,7 +28,11 @@
       <a class="navi ${page === 'notif' ? 'on' : ''}" href="./notifications.html">${svg(ICON.bell)}通知</a>
       <a class="navi ${page === 'me' ? 'on' : ''}" href="./profile.html">${svg(ICON.user)}プロフィール</a>
       <a class="deck-post" href="./compose.html">${svg(ICON.plus, 2.1)}投稿する</a>
-      <a class="deck-me" href="./profile.html"><span class="ava" id="deckAva">…</span><span class="deck-me-t"><b id="deckName">…</b><span>プロフィール</span></span></a>`;
+      <div class="deck-me">
+        <a class="deck-me-link" href="./profile.html"><span class="ava" id="deckAva">…</span><span class="deck-me-t"><b id="deckName">…</b><span>プロフィール</span></span></a>
+        <button class="deck-logout" id="deckLogout" title="ログアウト">${svg(ICON.logout)}</button>
+      </div>`;
+    n.querySelector('#deckLogout').addEventListener('click', () => { AA.logout(); location.href = '../index.html'; });
     return n;
   }
   function buildAside() {
