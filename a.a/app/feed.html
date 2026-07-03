@@ -376,6 +376,12 @@
     }
 
     function bind(){
+      // カード本体（見出し・本文・画像など）のクリックで投稿詳細へ。
+      // いいね/コメント/シェアや動画再生・資料オープンなど個別の操作は素通り（ev.target.closest で除外）。
+      document.querySelectorAll('.post[data-id]').forEach(art => art.addEventListener('click', (ev) => {
+        if (ev.target.closest('a, button, .vidcard, .docprev')) return;
+        location.href = './post.html?id=' + art.dataset.id;
+      }));
       document.querySelectorAll('[data-react]').forEach(b => b.onclick = async (ev) => {
         if (ev.target.closest('.n')) { AA_openLikers(AA.reactionUsers(b.dataset.react, 'helpful')); return; }
         try {
