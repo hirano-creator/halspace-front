@@ -162,5 +162,32 @@
     }
   }
 
-  window.AAVideo = { loadVideoThumb, generateThumb, THUMB_VER };
+  /**
+   * アップロード直後、投稿者の端末上でローカルファイルからサムネイルを生成しサーバーへ保存する。
+   * ローカルファイル(blob:URL)は既に端末内にあるためネットワークDL不要で高速。
+   * これにより後から見る人は「初回だけ遠隔動画を丸ごとDLして生成」という遅いコールドパスを踏まずに済む。
+   * @param {{file:File, endpoint:string}[]} jobs endpointは storeMediaThumb の完全なURL（token込み）
+   */
+  async function warmVideoThumbs(jobs) {
+    await Promise.all(jobs.map(async ({ file, endpoint }) => {
+      let url;
+      try {
+        url = URL.createObjectURL(file);
+        const blob = await generateThumb(url); // genSemで同時実行を制御（モバイルは直列）
+        if (!blob) return;
+        const fd = new FormData();
+        fd.append('thumb', blob, 'thumb.jpg');
+        // sendBeacon はこの直後の画面遷移(location.href)にも巻き込まれず送信を継続できる
+        if (!(navigator.sendBeacon && navigator.sendBeacon(endpoint, fd))) {
+          await fetch(endpoint, { method: 'POST', body: fd }).catch(() => {});
+        }
+      } catch (e) {
+        // 失敗しても投稿自体は成功済み。閲覧時のフォールバック生成に任せる
+      } finally {
+        if (url) URL.revokeObjectURL(url);
+      }
+    }));
+  }
+
+  window.AAVideo = { loadVideoThumb, generateThumb, warmVideoThumbs, THUMB_VER };
 })();

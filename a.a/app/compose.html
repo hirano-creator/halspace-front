@@ -86,6 +86,7 @@
   </div>
 
   <script src="../assets/aa-api.js"></script>
+  <script src="../assets/aa-video.js"></script>
   <script>
     if (!AA.isAuthed()) location.replace('../index.html');
     const esc = (s)=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -153,7 +154,9 @@
     function move(e){ if(!mDrawing) return; e.preventDefault(); const p = pos(e);
       mDrawing.x = Math.min(p.x, mDrawing.sx); mDrawing.y = Math.min(p.y, mDrawing.sy);
       mDrawing.w = Math.abs(p.x - mDrawing.sx); mDrawing.h = Math.abs(p.y - mDrawing.sy); redraw(); }
-    function up(){ if(mDrawing && mDrawing.w>4 && mDrawing.h>4) mRects.push({x:mDrawing.x,y:mDrawing.y,w:mDrawing.w,h:mDrawing.h}); mDrawing=null; redraw(); }
+    // window.mouseupはドラッグがcanvas外で終わっても拾うためのグローバル監視。
+    // マスク編集を一度も開いていない(mImg未設定)状態で他ボタンをクリックしても発火するのでガード必須。
+    function up(){ if(!mImg || !mDrawing) return; if(mDrawing.w>4 && mDrawing.h>4) mRects.push({x:mDrawing.x,y:mDrawing.y,w:mDrawing.w,h:mDrawing.h}); mDrawing=null; redraw(); }
     cv.addEventListener('mousedown',down); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
     cv.addEventListener('touchstart',down,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',up);
 
@@ -221,9 +224,30 @@
       if (body) fd.append('body', body);
       if (isMasked) fd.append('is_masked', '1');
       files.forEach(f => fd.append('media[]', f.file));
-      try { btn.textContent='投稿中…'; btn.disabled=true; await AA.createPost(fd); location.href = './feed.html'; }
+      try {
+        btn.textContent='投稿中…'; btn.disabled=true;
+        const r = await AA.createPost(fd);
+        await warmVideoThumbs(files, r.data && r.data.media);
+        location.href = './feed.html';
+      }
       catch(e){ msg.textContent = e.message; btn.textContent='投稿する'; btn.disabled=false; }
     };
+
+    // 動画は投稿者の端末に原本があるうちにサムネ生成→保存しておく（遠隔DL不要で高速・全端末が即恩恵）。
+    // files[i] と media[i] は送信時と同じ並び順（バックエンドが sort_order=送信順で保存するため）。
+    async function warmVideoThumbs(sentFiles, media) {
+      if (!window.AAVideo || !media) return;
+      const jobs = [];
+      sentFiles.forEach((f, i) => {
+        const m = media[i];
+        if (f.kind === 'video' && m && m.kind === 'video') {
+          jobs.push({ file: f.file, endpoint: AA.apiBase() + '/aa/media/' + m.id + '/thumb?token=' + encodeURIComponent(AA.token()) });
+        }
+      });
+      if (!jobs.length) return;
+      // 生成に時間がかかっても投稿完了自体は待たせすぎない（失敗時は閲覧時フォールバックに任せる）
+      await Promise.race([AAVideo.warmVideoThumbs(jobs), new Promise(r => setTimeout(r, 8000))]);
+    }
 
     renderCats();
   </script>

@@ -31,6 +31,7 @@
 
   <script src="../assets/aa-api.js"></script>
   <script src="../assets/aa-pdf.js"></script>
+  <script src="../assets/aa-video.js"></script>
   <script src="../assets/aa-shell.js"></script>
   <script>
     if (!AA.isAuthed()) location.replace('../index.html');
@@ -233,7 +234,24 @@
         fd.append('body', document.getElementById('ebody').value.trim());
         removeIds.forEach(mid => fd.append('remove_media_ids[]', mid));
         newFiles.forEach(f => fd.append('media[]', f.file));
-        try { btn.textContent = '保存中…'; btn.disabled = true; await AA.updatePostMedia(id, fd); render(); }
+        try {
+          btn.textContent = '保存中…'; btn.disabled = true;
+          const r = await AA.updatePostMedia(id, fd);
+          // 新規追加分は media 配列の末尾に newFiles と同じ並びで追加される（sort_order=既存最大+送信順）
+          if (window.AAVideo && newFiles.length) {
+            const media = (r.data && r.data.media) || [];
+            const added = media.slice(-newFiles.length);
+            const jobs = [];
+            newFiles.forEach((f, i) => {
+              const m = added[i];
+              if (f.kind === 'video' && m && m.kind === 'video') {
+                jobs.push({ file: f.file, endpoint: AA.apiBase() + '/aa/media/' + m.id + '/thumb?token=' + encodeURIComponent(AA.token()) });
+              }
+            });
+            if (jobs.length) await Promise.race([AAVideo.warmVideoThumbs(jobs), new Promise(res => setTimeout(res, 8000))]);
+          }
+          render();
+        }
         catch(e){ emsg.textContent = e.message; btn.textContent = '保存'; btn.disabled = false; }
       };
     }
