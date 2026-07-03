@@ -108,6 +108,37 @@
     } catch (e) {}
   }
 
+  // 「いいねした人」ボトムシート（投稿の👍・コメントのいいね、どちらの一覧表示からも呼ぶ共通UI）
+  async function openLikers(fetchPromise) {
+    const esc = (s) => (s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const initial = (s) => (s || '?').trim().charAt(0);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'likers-overlay';
+    overlay.innerHTML = `
+      <div class="likers-sheet">
+        <div class="likers-head"><b>いいねした人</b><button class="likers-close" aria-label="閉じる">×</button></div>
+        <div class="likers-list"><div class="center" style="padding:24px">読み込み中…</div></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('.likers-close').onclick = close;
+
+    try {
+      const { data } = await fetchPromise;
+      const list = overlay.querySelector('.likers-list');
+      list.innerHTML = (data && data.length) ? data.map(u => `
+          <div class="likers-row">
+            <div class="ava alt" style="width:32px;height:32px;flex:0 0 32px;font-size:12px">${esc(initial(u.name))}</div>
+            <div class="likers-who"><b>${esc(u.name || '—')}</b><span>${esc(u.company_name || '')}</span></div>
+          </div>`).join('') : '<div class="center" style="padding:24px">まだいいねがありません</div>';
+    } catch (e) {
+      overlay.querySelector('.likers-list').innerHTML = `<div class="center" style="padding:24px">${esc(e.message || '読み込みに失敗しました')}</div>`;
+    }
+  }
+  window.AA_openLikers = openLikers;
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
   else mount();
 })();

@@ -79,6 +79,25 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
 .ccard-like:hover{background:var(--soft)}
 .ccard-like.on{color:var(--ink);font-weight:700}
 .ccard-more{display:block;font-size:12.5px;color:var(--mute);text-decoration:none;padding-top:6px}
+/* いいね数（.n）は別タップ領域：踏みやすいよう軽く余白を確保 */
+.chip .n, .ccard-like .n{padding:2px 3px;border-radius:6px}
+.chip .n:hover, .ccard-like .n:hover{background:rgba(0,0,0,.06)}
+
+/* 「いいねした人」ボトムシート */
+.likers-overlay{position:fixed;inset:0;background:rgba(10,10,10,.45);z-index:100;display:flex;align-items:flex-end;justify-content:center}
+.likers-sheet{width:100%;max-width:var(--maxw);max-height:70vh;background:#fff;border-radius:20px 20px 0 0;display:flex;flex-direction:column;overflow:hidden;animation:likersUp .18s ease-out}
+@keyframes likersUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+.likers-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #eef0f3;font-size:14.5px;font-weight:700}
+.likers-close{width:30px;height:30px;border-radius:50%;background:var(--soft);border:none;font-size:16px;line-height:1;color:var(--mute);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.likers-list{overflow-y:auto;padding:6px 18px 18px}
+.likers-row{display:flex;align-items:center;gap:10px;padding:10px 0}
+.likers-row + .likers-row{border-top:1px solid #eef0f3}
+.likers-who b{display:block;font-size:13.5px;font-weight:700}
+.likers-who span{font-size:11.5px;color:var(--mute)}
+@media (min-width:1024px){
+  .likers-overlay{align-items:center}
+  .likers-sheet{border-radius:20px;max-height:60vh}
+}
 
 /* ニュース */
 .news{margin:4px 14px 8px;background:var(--accent-bg);border-radius:22px;padding:18px;display:block;color:inherit;text-decoration:none}

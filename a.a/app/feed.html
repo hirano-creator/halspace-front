@@ -376,7 +376,8 @@
     }
 
     function bind(){
-      document.querySelectorAll('[data-react]').forEach(b => b.onclick = async () => {
+      document.querySelectorAll('[data-react]').forEach(b => b.onclick = async (ev) => {
+        if (ev.target.closest('.n')) { AA_openLikers(AA.reactionUsers(b.dataset.react, 'helpful')); return; }
         try {
           const r = await AA.react(b.dataset.react, 'helpful');
           b.classList.toggle('on', r.reacted);
@@ -392,6 +393,7 @@
       });
       document.querySelectorAll('[data-creact]').forEach(b => b.onclick = async (ev) => {
         ev.preventDefault();
+        if (ev.target.closest('.n')) { AA_openLikers(AA.commentReactionUsers(b.dataset.creact)); return; }
         try {
           const r = await AA.reactComment(b.dataset.creact);
           b.classList.toggle('on', r.reacted);

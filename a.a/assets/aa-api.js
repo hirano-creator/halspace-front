@@ -80,7 +80,9 @@
   const comments      = (id) => aaFetch('/aa/posts/' + id + '/comments');
   const postComment   = (id, body) => aaFetch('/aa/posts/' + id + '/comments', { method: 'POST', body: { body } });
   const react         = (id, kind) => aaFetch('/aa/posts/' + id + '/reactions', { method: 'POST', body: { kind: kind || 'helpful' } });
+  const reactionUsers = (id, kind) => aaFetch('/aa/posts/' + id + '/reactions/users?kind=' + encodeURIComponent(kind || 'helpful'));
   const reactComment  = (commentId) => aaFetch('/aa/comments/' + commentId + '/react', { method: 'POST' });
+  const commentReactionUsers = (commentId) => aaFetch('/aa/comments/' + commentId + '/react/users');
   const shareLink     = (id) => aaFetch('/aa/posts/' + id + '/share-link', { method: 'POST' });
 
   // X(旧twitter)風の相対時刻表示（秒→分→時間→日→月日）
@@ -209,7 +211,7 @@
     apiBase, token, setToken, isAuthed, aaFetch,
     login, logout, me, forceUpdateApp,
     feed, getPost, createPost, publishFromWn, wnFiles, updatePost, updatePostMedia, deletePost,
-    comments, postComment, react, reactComment, relTime, commentCardHtml, shareLink, mediaUrl, mediaThumbUrl, storeMediaThumb,
+    comments, postComment, react, reactionUsers, reactComment, commentReactionUsers, relTime, commentCardHtml, shareLink, mediaUrl, mediaThumbUrl, storeMediaThumb,
     profile, updateProfile, addSkill, deleteSkill,
     notifications, readNotif, readAllNotif,
     admin,

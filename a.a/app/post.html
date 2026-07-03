@@ -156,9 +156,10 @@
         <div style="padding:8px 18px;color:var(--mute);font-size:12px;font-weight:700" id="ctitle">コメント</div>
         <div id="clist"></div>`;
         loadMedia(root);
-        document.getElementById('reactBtn').onclick = async () => {
-          const r = await AA.react(id,'helpful');
+        document.getElementById('reactBtn').onclick = async (ev) => {
           const b = document.getElementById('reactBtn');
+          if (ev.target.closest('.n')) { AA_openLikers(AA.reactionUsers(id, 'helpful')); return; }
+          const r = await AA.react(id,'helpful');
           b.classList.toggle('on', r.reacted); b.querySelector('.n').textContent = r.count;
         };
         if (p.is_mine) {
@@ -264,7 +265,8 @@
       if (!ctitle || !clist) return;
       ctitle.textContent = `コメント ${data.length}`;
       clist.innerHTML = data.map(c => AA.commentCardHtml(c)).join('') || '<div class="center" style="padding:20px">まだコメントはありません</div>';
-      clist.querySelectorAll('[data-creact]').forEach(b => b.onclick = async () => {
+      clist.querySelectorAll('[data-creact]').forEach(b => b.onclick = async (ev) => {
+        if (ev.target.closest('.n')) { AA_openLikers(AA.commentReactionUsers(b.dataset.creact)); return; }
         try {
           const r = await AA.reactComment(b.dataset.creact);
           b.classList.toggle('on', r.reacted);
