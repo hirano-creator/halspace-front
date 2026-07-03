@@ -24,6 +24,7 @@
 
     <div class="scroll">
       <div class="filterbar" id="filterbar"></div>
+      <button id="newBanner" style="display:none;position:sticky;top:0;z-index:5;width:calc(100% - 32px);margin:0 16px 10px;padding:11px 0;border:none;border-radius:999px;background:var(--accent);color:#fff;font-size:13px;font-weight:700;box-shadow:0 10px 22px -10px rgba(31,72,255,.6)"></button>
       <div id="feed"><div class="center">読み込み中…</div></div>
     </div>
 
@@ -45,6 +46,8 @@
 
     const CATS = ['すべて','補助金','セミナー','設備紹介','お知らせ','相談'];
     let activeCat = '';
+    let topSeenId = null;   // 新着ポーリングの基準＝現在画面先頭の投稿/ニュースid
+    let pendingFresh = null; // 新着バナー用に確保している最新データ（タップで反映）
     const esc = (s) => (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const initial = (s) => (s||'?').trim().charAt(0);
     // ニュースの日付（配信元の公開日、無ければ取得日）を「今日/昨日/N日前/M月D日」で表示
@@ -69,7 +72,11 @@
         const on = val === activeCat ? ' on' : '';
         return `<button class="fchip${on}" data-cat="${esc(val)}">${esc(c)}</button>`;
       }).join('');
-      bar.querySelectorAll('.fchip').forEach(b => b.onclick = () => { activeCat = b.dataset.cat; renderFilter(); load(); });
+      bar.querySelectorAll('.fchip').forEach(b => b.onclick = () => {
+        activeCat = b.dataset.cat; renderFilter(); load();
+        hideNewBanner(); // カテゴリを切り替えたら別の一覧になるので新着基準もリセット
+        topSeenId = null;
+      });
     }
 
     function thumbIcon(kind){
@@ -144,6 +151,7 @@
       el.innerHTML = data.map(postCard).join('');
       bind();
       renderDocs();
+      topSeenId = data[0].id; // 新着ポーリングの基準（画面に今映っている先頭）を追従させる
     }
 
     // フィードキャッシュ：前回取得分を即描画→裏で最新取得（stale-while-revalidate）
@@ -174,6 +182,43 @@
         if (!cached) el.innerHTML = `<div class="center">読み込みに失敗しました：${esc(e.message)}</div>`;
       }
     }
+
+    // ── 新着ポーリング：誰かが新規投稿したら「新着N件」バナーで知らせる（自動では差し替えない） ──
+    // 読んでいる途中でフィードが急に入れ替わると混乱するため、タップした時だけ反映する。
+    function hideNewBanner(){
+      const b = document.getElementById('newBanner');
+      b.style.display = 'none';
+      pendingFresh = null;
+    }
+    function showNewBanner(count, freshData){
+      pendingFresh = freshData;
+      const b = document.getElementById('newBanner');
+      b.textContent = `新着 ${count} 件・タップで表示`;
+      b.style.display = 'block';
+    }
+    document.getElementById('newBanner').onclick = () => {
+      if (!pendingFresh) return;
+      renderFeed(pendingFresh);
+      try { localStorage.setItem(feedCacheKey(), JSON.stringify(pendingFresh)); } catch(e){}
+      hideNewBanner();
+      document.querySelector('.scroll').scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    async function pollNewPosts(){
+      // タブが裏に回っている間は叩かない（電池・API消費の節約）
+      if (document.visibilityState !== 'visible' || topSeenId == null) return;
+      try {
+        const r = await AA.feed(activeCat);
+        const data = r.data || [];
+        if (!data.length) return;
+        const idx = data.findIndex(p => p.id === topSeenId);
+        // idx===0: 変化なし / idx>0: idx件の新着 / idx===-1: 基準が50件より前に流れた(件数不明・とりあえず全部新着扱い)
+        const newCount = idx === 0 ? 0 : (idx > 0 ? idx : data.length);
+        if (newCount > 0) showNewBanner(newCount, data);
+      } catch (e) { /* ポーリング失敗は無視。次回に任せる */ }
+    }
+    setInterval(pollNewPosts, 25000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pollNewPosts(); });
 
     function docFileCard(mime, url) {
       const LBL = {
