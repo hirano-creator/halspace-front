@@ -48,6 +48,8 @@
     let activeCat = '';
     let topSeenId = null;   // 新着ポーリングの基準＝現在画面先頭の投稿/ニュースid
     let pendingFresh = null; // 新着バナー用に確保している最新データ（タップで反映）
+    let lastData = [];      // 直近取得した絞り込み前の全件（検索フィルタの元データ）
+    let searchQuery = '';   // PC版サイド検索欄からの絞り込みキーワード
     const esc = (s) => (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     // ニュースの日付（配信元の公開日、無ければ取得日）を「今日/昨日/N日前/M月D日」で表示
     function fmtNewsDate(iso){
@@ -154,12 +156,31 @@
 
     function renderFeed(data){
       const el = document.getElementById('feed');
-      if (!data || !data.length) { el.innerHTML = '<div class="center">まだ投稿がありません。<br>右下の＋から最初の投稿をしてみましょう。</div>'; return; }
+      if (!data || !data.length) {
+        el.innerHTML = searchQuery
+          ? `<div class="center">「${esc(searchQuery)}」に一致する投稿が見つかりません。</div>`
+          : '<div class="center">まだ投稿がありません。<br>右下の＋から最初の投稿をしてみましょう。</div>';
+        return;
+      }
       el.innerHTML = data.map(postCard).join('');
       bind();
       renderDocs();
-      topSeenId = data[0].id; // 新着ポーリングの基準（画面に今映っている先頭）を追従させる
+      if (!searchQuery) topSeenId = data[0].id; // 検索中は新着ポーリングの基準を動かさない（絞り込み結果の先頭とは無関係なため）
     }
+
+    // PC版サイド検索欄（会社名・カテゴリ・本文・ニュース見出し/要約を対象）
+    function matchesQuery(p, q){
+      const hay = [p.body, p.company_name, p.category, p.news_title, p.news_summary].filter(Boolean).join(' ').toLowerCase();
+      return hay.indexOf(q) >= 0;
+    }
+    function renderFiltered(){
+      const q = searchQuery.toLowerCase();
+      renderFeed(q ? lastData.filter(p => matchesQuery(p, q)) : lastData);
+    }
+    document.addEventListener('aa:search', (e) => {
+      searchQuery = (e.detail || '').trim();
+      renderFiltered();
+    });
 
     // フィードキャッシュ：前回取得分を即描画→裏で最新取得（stale-while-revalidate）
     const feedCacheKey = () => 'aa_feed_cache:' + activeCat;
@@ -172,7 +193,7 @@
       let cached = null;
       try { cached = localStorage.getItem(feedCacheKey()); } catch(e){}
       if (cached) {
-        try { renderFeed(JSON.parse(cached)); } catch(e){ cached = null; }
+        try { lastData = JSON.parse(cached); renderFiltered(); } catch(e){ cached = null; }
       }
       if (!cached) el.innerHTML = '<div class="center">読み込み中…</div>';
       // 2) 最新を取得して差し替え（内容が同じなら再描画しない）
@@ -181,7 +202,7 @@
         if (seq !== loadSeq) return;
         const fresh = JSON.stringify(r.data || []);
         try { localStorage.setItem(feedCacheKey(), fresh); } catch(e){}
-        if (fresh !== cached) renderFeed(r.data || []);
+        if (fresh !== cached) { lastData = r.data || []; renderFiltered(); }
       } catch (e) {
         if (seq !== loadSeq) return;
         if (!AA.isAuthed()) { location.replace('../index.html'); return; }
@@ -205,7 +226,8 @@
     }
     document.getElementById('newBanner').onclick = () => {
       if (!pendingFresh) return;
-      renderFeed(pendingFresh);
+      lastData = pendingFresh;
+      renderFiltered();
       try { localStorage.setItem(feedCacheKey(), JSON.stringify(pendingFresh)); } catch(e){}
       hideNewBanner();
       document.querySelector('.scroll').scrollTo({ top: 0, behavior: 'smooth' });

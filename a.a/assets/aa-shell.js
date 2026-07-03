@@ -46,7 +46,11 @@
     let t = null;
     input.addEventListener('input', () => {
       clearTimeout(t);
-      t = setTimeout(() => paintAside(feedDataCache, input.value.trim()), 150);
+      t = setTimeout(() => {
+        const q = input.value.trim();
+        paintAside(feedDataCache, q);
+        document.dispatchEvent(new CustomEvent('aa:search', { detail: q }));
+      }, 150);
     });
     return a;
   }
