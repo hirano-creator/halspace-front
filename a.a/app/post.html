@@ -29,6 +29,25 @@
     </div>
   </div>
 
+  <!-- マスク編集モーダル（投稿編集画面から使う。既存の画像／新規追加した画像のどちらも対象にできる） -->
+  <div class="overlay" id="maskModal" style="display:none">
+    <div class="sheet">
+      <header><span id="maskTitle">マスク（黒塗り）</span><button class="x" id="maskClose"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 6L6 18M6 6l12 12"/></svg></button></header>
+      <div class="maskhint" id="maskHint">隠したい部分を指でなぞって黒塗りします。元画像は端末から出ません。</div>
+      <div class="mosaicctrl" id="mosaicCtrl" style="display:none">
+        <span>濃さ</span>
+        <input type="range" id="mosaicSize" min="4" max="40" step="1" value="16">
+        <span class="n" id="mosaicSizeVal">16</span>
+      </div>
+      <div class="sbody maskwrap"><canvas class="mask" id="maskCanvas"></canvas></div>
+      <footer>
+        <button class="btn" id="maskUndo">ひとつ戻す</button>
+        <button class="btn" id="maskClear">全消し</button>
+        <button class="btn primary" id="maskApply">適用</button>
+      </footer>
+    </div>
+  </div>
+
   <script src="../assets/aa-api.js"></script>
   <script src="../assets/aa-pdf.js"></script>
   <script src="../assets/aa-video.js"></script>
@@ -40,6 +59,128 @@
     const initial = (s)=>(s||'?').trim().charAt(0);
     const CATS = ['補助金','セミナー','設備紹介','お知らせ','相談'];
     let P = null;
+
+    /* ───── マスク編集（canvas黒塗り／モザイク）：投稿編集画面から使う共通ロジック ─────
+       compose.html（新規投稿）と同じcanvas処理。editEditor()呼び出しごとに editCtx を
+       差し替えることで、対象が「新規追加した画像」か「既存の(サーバー上の)画像」かを切り替える。
+       既存画像は /aa/media/{id}/raw（常にCORS許可 * を返すプロキシ）経由で取得しcanvasを汚染しない。 */
+    let mImg, mRects = [], mScale = 1, mDrawing = null, mMode = 'black', mTarget = null;
+    let mMosaicSize = 16;
+    let editCtx = null;
+    const maskModal = document.getElementById('maskModal');
+    const maskTitle = document.getElementById('maskTitle');
+    const maskHint = document.getElementById('maskHint');
+    const mosaicCtrl = document.getElementById('mosaicCtrl');
+    const mosaicSizeInput = document.getElementById('mosaicSize');
+    const mosaicSizeVal = document.getElementById('mosaicSizeVal');
+    const cv = document.getElementById('maskCanvas');
+    const ctx = cv.getContext('2d');
+
+    async function openMaskModal(mode){
+      if (!editCtx) return;
+      mMode = mode;
+      const newIdx = editCtx.newFiles.findIndex(f => f.kind === 'image');
+      if (newIdx >= 0) {
+        mTarget = { type: 'new', idx: newIdx };
+      } else {
+        const exImg = editCtx.existing.find(m => m.kind === 'image' && !editCtx.removeIds.includes(m.id));
+        mTarget = exImg ? { type: 'existing', media: exImg } : null;
+      }
+      if (!mTarget) { editCtx.showMsg('マスクする画像がありません'); return; }
+
+      maskTitle.textContent = mode === 'mosaic' ? 'モザイク' : 'マスク（黒塗り）';
+      maskHint.textContent = mode === 'mosaic' ? '隠したい部分を指でなぞってモザイクをかけます。元画像は端末から出ません。' : '隠したい部分を指でなぞって黒塗りします。元画像は端末から出ません。';
+      mosaicCtrl.style.display = mode === 'mosaic' ? 'flex' : 'none';
+
+      const img = new Image();
+      const loaded = new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+      if (mTarget.type === 'new') {
+        img.src = URL.createObjectURL(editCtx.newFiles[mTarget.idx].file);
+      } else {
+        img.crossOrigin = 'anonymous'; // rawプロキシは常に Access-Control-Allow-Origin:* を返す
+        img.src = AA.apiBase() + '/aa/media/' + mTarget.media.id + '/raw?token=' + encodeURIComponent(AA.token());
+      }
+      try { await loaded; } catch (e) { editCtx.showMsg('画像を読み込めませんでした'); return; }
+
+      mImg = img; mRects = [];
+      const maxW = Math.min(window.innerWidth - 28, 560);
+      mScale = Math.min(1, maxW / img.naturalWidth);
+      cv.width = Math.round(img.naturalWidth * mScale);
+      cv.height = Math.round(img.naturalHeight * mScale);
+      redraw();
+      maskModal.style.display = 'flex';
+    }
+    mosaicSizeInput.oninput = () => { mMosaicSize = +mosaicSizeInput.value; mosaicSizeVal.textContent = mMosaicSize; redraw(); };
+
+    // ブロック状に粗くする＝一度小さく縮小してから最近傍補間で拡大描画
+    function pixelate(targetCtx, sourceImg, sx, sy, sw, sh, dx, dy, dw, dh, blockPx){
+      const bw = Math.max(1, Math.round(dw / blockPx));
+      const bh = Math.max(1, Math.round(dh / blockPx));
+      const tmp = document.createElement('canvas');
+      tmp.width = bw; tmp.height = bh;
+      tmp.getContext('2d').drawImage(sourceImg, sx, sy, sw, sh, 0, 0, bw, bh);
+      targetCtx.imageSmoothingEnabled = false;
+      targetCtx.drawImage(tmp, 0, 0, bw, bh, dx, dy, dw, dh);
+      targetCtx.imageSmoothingEnabled = true;
+    }
+    // 濃さ(mMosaicSize)は矩形ごとに固定せず常に現在値を参照する→スライダーで全矩形が即座に変わる
+    function drawRect(targetCtx, sourceImg, srcScale, r, sizeScale = 1){
+      if (r.mode === 'mosaic') {
+        const blockPx = Math.max(1, mMosaicSize / sizeScale);
+        pixelate(targetCtx, sourceImg, r.x/srcScale, r.y/srcScale, r.w/srcScale, r.h/srcScale, r.x, r.y, r.w, r.h, blockPx);
+      } else {
+        targetCtx.fillStyle = '#000';
+        targetCtx.fillRect(r.x, r.y, r.w, r.h);
+      }
+    }
+    function redraw(){
+      ctx.clearRect(0,0,cv.width,cv.height);
+      ctx.drawImage(mImg, 0,0, cv.width, cv.height);
+      mRects.forEach(r => drawRect(ctx, mImg, mScale, r));
+      if (mDrawing) drawRect(ctx, mImg, mScale, { ...mDrawing, mode: mMode });
+    }
+    function pos(e){
+      const rect = cv.getBoundingClientRect();
+      const t = e.touches ? e.touches[0] : e;
+      return { x: (t.clientX - rect.left) * (cv.width/rect.width), y: (t.clientY - rect.top) * (cv.height/rect.height) };
+    }
+    function down(e){ e.preventDefault(); const p = pos(e); mDrawing = { x:p.x, y:p.y, w:0, h:0, sx:p.x, sy:p.y }; }
+    function move(e){ if(!mDrawing) return; e.preventDefault(); const p = pos(e);
+      mDrawing.x = Math.min(p.x, mDrawing.sx); mDrawing.y = Math.min(p.y, mDrawing.sy);
+      mDrawing.w = Math.abs(p.x - mDrawing.sx); mDrawing.h = Math.abs(p.y - mDrawing.sy); redraw(); }
+    // window.mouseupはドラッグがcanvas外で終わっても拾うためのグローバル監視。
+    // マスク編集を一度も開いていない(mImg未設定)状態で他ボタンをクリックしても発火するのでガード必須。
+    function up(){ if(!mImg || !mDrawing) return; if(mDrawing.w>4 && mDrawing.h>4) mRects.push({x:mDrawing.x,y:mDrawing.y,w:mDrawing.w,h:mDrawing.h,mode:mMode}); mDrawing=null; redraw(); }
+    cv.addEventListener('mousedown',down); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+    cv.addEventListener('touchstart',down,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',up);
+
+    document.getElementById('maskUndo').onclick = () => { mRects.pop(); redraw(); };
+    document.getElementById('maskClear').onclick = () => { mRects = []; redraw(); };
+    document.getElementById('maskClose').onclick = () => { maskModal.style.display='none'; };
+    document.getElementById('maskApply').onclick = () => {
+      if (!editCtx || !mTarget) return;
+      // 元解像度で合成して書き出し（元画像は送らない）
+      const out = document.createElement('canvas');
+      out.width = mImg.naturalWidth; out.height = mImg.naturalHeight;
+      const o = out.getContext('2d');
+      o.drawImage(mImg, 0, 0);
+      mRects.forEach(r => drawRect(o, mImg, 1, {
+        x: r.x/mScale, y: r.y/mScale, w: r.w/mScale, h: r.h/mScale, mode: r.mode
+      }, mScale));
+      out.toBlob((blob) => {
+        const baseName = mTarget.type === 'new' ? editCtx.newFiles[mTarget.idx].file.name : ('media_' + mTarget.media.id + '.jpg');
+        const masked = new File([blob], 'masked_' + baseName.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+        if (mTarget.type === 'new') {
+          editCtx.newFiles[mTarget.idx] = { file: masked, kind: 'image', masked: true };
+        } else {
+          if (!editCtx.removeIds.includes(mTarget.media.id)) editCtx.removeIds.push(mTarget.media.id);
+          editCtx.newFiles.push({ file: masked, kind: 'image', masked: true });
+        }
+        editCtx.setMasked(true);
+        maskModal.style.display = 'none';
+        editCtx.paintMedia();
+      }, 'image/jpeg', 0.9);
+    };
 
     async function loadMedia(container){
       // 各 .media[data-view] の実体URLを取得して表示
@@ -176,6 +317,7 @@
     function renderEdit(){
       const root = document.getElementById('detail');
       let ecat = P.category;
+      let isMasked = !!P.is_masked;
       const existing = (P.media || []).slice(); // {id,kind,...}
       const removeIds = [];                      // 削除対象の既存メディアid
       const newFiles  = [];                      // 追加メディア {file,kind}
@@ -191,6 +333,8 @@
           <label class="chip" style="cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>写真<input type="file" accept="image/*" multiple hidden id="ePhoto"></label>
           <label class="chip" style="cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>動画<input type="file" accept="video/*" hidden id="eVideo"></label>
           <label class="chip" style="cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>資料<input type="file" accept="application/pdf" hidden id="eDoc"></label>
+          <button class="chip${isMasked?' on':''}" id="eMaskBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/><rect x="7" y="12" width="5" height="3" fill="currentColor"/></svg>マスク</button>
+          <button class="chip${isMasked?' on':''}" id="eMosaicBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/><path d="M8 12h3v3H8zM13 12h3v3h-3z" fill="currentColor" stroke="none"/></svg>モザイク</button>
         </div>
         <div class="react" style="margin-top:14px"><button class="btn" id="ecancel" style="flex:1">取消</button><button class="btn primary" id="esave" style="flex:1">保存</button></div>
         <div id="emsg" style="color:#c0392b;font-size:12.5px;text-align:center;min-height:18px;margin-top:8px"></div>
@@ -201,7 +345,7 @@
           const off = removeIds.includes(m.id);
           return `<span class="chip" style="${off?'opacity:.45;text-decoration:line-through':''}">${mlabel(m.kind)} <b data-ex="${m.id}" style="cursor:pointer" title="${off?'戻す':'削除'}">${off?'↺':'×'}</b></span>`;
         }).join('');
-        const nw = newFiles.map((f,i)=>`<span class="chip" style="background:var(--accent-bg);color:var(--accent)">＋${mlabel(f.kind)}：${esc(f.file.name.slice(0,14))} <b data-nw="${i}" style="cursor:pointer">×</b></span>`).join('');
+        const nw = newFiles.map((f,i)=>`<span class="chip" style="background:var(--accent-bg);color:var(--accent)">${f.masked?'🖤 ':'＋'}${mlabel(f.kind)}：${esc(f.file.name.slice(0,14))} <b data-nw="${i}" style="cursor:pointer">×</b></span>`).join('');
         const em = document.getElementById('emedia');
         em.innerHTML = (ex + nw) || '<span style="color:var(--mute);font-size:12.5px">メディアなし</span>';
         em.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => {
@@ -211,6 +355,17 @@
         });
         em.querySelectorAll('[data-nw]').forEach(b => b.onclick = () => { newFiles.splice(+b.dataset.nw,1); paintMedia(); });
       }
+      editCtx = {
+        existing, removeIds, newFiles, paintMedia,
+        setMasked: (v) => {
+          isMasked = v;
+          document.getElementById('eMaskBtn').classList.add('on');
+          document.getElementById('eMosaicBtn').classList.add('on');
+        },
+        showMsg: (msg) => { document.getElementById('emsg').textContent = msg; },
+      };
+      document.getElementById('eMaskBtn').onclick = () => openMaskModal('black');
+      document.getElementById('eMosaicBtn').onclick = () => openMaskModal('mosaic');
       paintMedia();
 
       root.querySelectorAll('#ecats .fchip').forEach(b => b.onclick = () => {
@@ -233,6 +388,7 @@
         const fd = new FormData();
         fd.append('category', ecat);
         fd.append('body', document.getElementById('ebody').value.trim());
+        fd.append('is_masked', isMasked ? '1' : '0');
         removeIds.forEach(mid => fd.append('remove_media_ids[]', mid));
         newFiles.forEach(f => fd.append('media[]', f.file));
         try {
