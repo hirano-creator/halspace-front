@@ -3637,6 +3637,21 @@ function initMergeSelect() {
     }).filter(Boolean);
     if (files.length > 0) openEmailModal(files);
   });
+  document.getElementById('aaPostSelBtn')?.addEventListener('click', () => {
+    const files = selectedIds.map(id => {
+      const f = allFiles.find(f => String(f.id) === String(id));
+      return f ? { id: f.id, name: f.file_name } : null;
+    }).filter(Boolean);
+    if (files.length > 0) openAaPostModal(files);
+  });
+  document.getElementById('aaPostModalClose')?.addEventListener('click', closeAaPostModal);
+  document.getElementById('aaPostModalCancelBtn')?.addEventListener('click', closeAaPostModal);
+  document.getElementById('aaPostExecBtn')?.addEventListener('click', () => {
+    const btn = document.getElementById('aaPostExecBtn');
+    if (btn.dataset.mode === 'done') closeAaPostModal();
+    else executeAaPost();
+  });
+  document.getElementById('aaPostViewBtn')?.addEventListener('click', wnOpenAaInNewTab);
 }
 
 function toggleSelectMode() {
@@ -3692,6 +3707,8 @@ function updateMergeActionBar() {
   if (emailBtn) emailBtn.disabled = selectedIds.length === 0;
   const bulkTagBtn = document.getElementById('bulkTagBtn');
   if (bulkTagBtn) bulkTagBtn.disabled = selectedIds.length === 0;
+  const aaBtn = document.getElementById('aaPostSelBtn');
+  if (aaBtn) aaBtn.disabled = selectedIds.length === 0;
 
   // ファイル選択中はスキル入力モードとしてプレースホルダーを切り替え
   const si = document.getElementById('searchInput');
@@ -3874,6 +3891,108 @@ async function executeMerge() {
     setMergeModalBusy(false);   // モーダルは開いたまま＝設定を保持してリトライ可能
     document.getElementById('mergeProgressText').textContent = '';
   }
+}
+
+/* ────────────────────────────────
+   a.aへ投稿（選択ファイルを1件=1投稿でa.aへ公開）
+   ──────────────────────────────── */
+let aaPostBusy = false;
+let aaPostTargets = [];   // [{id, name}]
+
+async function openAaPostModal(files) {
+  if (!files || files.length === 0) return;
+
+  // 事前会員チェック（フロント側のUX目的。バックエンドfromWnも同様のチェックで二重防御）
+  const t = await wnGetAaTicket();
+  if (!t || !t.is_member) {
+    wnShowToast('この会社はまだa.aに参加していません', 'warning');
+    return;
+  }
+
+  aaPostTargets = files;
+  aaPostBusy = false;
+  document.getElementById('aaPostFileList').innerHTML =
+    files.map(f => `<div><i class="fa-solid fa-file"></i> ${h(f.name)}</div>`).join('');
+  document.getElementById('aaPostCategory').value = '';
+  document.getElementById('aaPostBody').value = '';
+  document.getElementById('aaPostProgress').style.display = 'none';
+  document.getElementById('aaPostProgressBar').style.width = '0%';
+  document.getElementById('aaPostProgressText').textContent = '';
+  document.getElementById('aaPostErrorList').style.display = 'none';
+  document.getElementById('aaPostErrorList').innerHTML = '';
+  document.getElementById('aaPostResultActions').style.display = 'none';
+  document.getElementById('aaPostExecBtn').dataset.mode = 'post';
+  setAaPostModalBusy(false);
+  document.getElementById('aaPostModal').classList.remove('hidden');
+}
+
+function closeAaPostModal() {
+  if (aaPostBusy) return;   // 投稿中は閉じない
+  document.getElementById('aaPostModal').classList.add('hidden');
+}
+
+function setAaPostModalBusy(busy) {
+  aaPostBusy = busy;
+  const exec = document.getElementById('aaPostExecBtn');
+  exec.disabled = busy;
+  exec.textContent = busy ? '投稿中…' : '投稿する';
+  document.getElementById('aaPostModalClose').disabled = busy;
+  document.getElementById('aaPostModalCancelBtn').disabled = busy;
+  document.getElementById('aaPostCategory').disabled = busy;
+  document.getElementById('aaPostBody').disabled = busy;
+}
+
+async function executeAaPost() {
+  if (aaPostBusy) return;
+  const category = document.getElementById('aaPostCategory').value;
+  if (!category) {
+    wnShowToast('カテゴリを選択してください', 'warning');
+    return;
+  }
+  const body = document.getElementById('aaPostBody').value.trim();
+
+  setAaPostModalBusy(true);
+  const progress = document.getElementById('aaPostProgress');
+  progress.style.display = 'block';
+  const errList = document.getElementById('aaPostErrorList');
+  errList.style.display = 'none';
+  errList.innerHTML = '';
+
+  const total = aaPostTargets.length;
+  let okCount = 0;
+  const failed = [];
+
+  for (let i = 0; i < total; i++) {
+    const f = aaPostTargets[i];
+    document.getElementById('aaPostProgressBar').style.width = `${Math.round((i / total) * 100)}%`;
+    document.getElementById('aaPostProgressText').textContent = `(${i + 1}/${total}) 「${f.name}」を投稿中…`;
+    try {
+      await wnPostToAa(f.id, { category, body });
+      okCount++;
+    } catch (e) {
+      failed.push({ name: f.name, message: e.message || '投稿に失敗しました' });
+    }
+  }
+
+  document.getElementById('aaPostProgressBar').style.width = '100%';
+  document.getElementById('aaPostProgressText').textContent = `${okCount}/${total}件 投稿完了`;
+
+  if (failed.length > 0) {
+    errList.style.display = 'block';
+    errList.innerHTML = failed.map(f => `<div>${h(f.name)}: ${h(f.message)}</div>`).join('');
+    wnShowToast('一部の投稿に失敗しました', 'warning');
+  } else {
+    wnShowToast('a.aへの投稿が完了しました', 'success');
+  }
+
+  if (okCount > 0) {
+    document.getElementById('aaPostResultActions').style.display = 'block';
+  }
+
+  setAaPostModalBusy(false);
+  const exec = document.getElementById('aaPostExecBtn');
+  exec.textContent = '閉じる';
+  exec.dataset.mode = 'done';
 }
 
 /* ────────────────────────────────

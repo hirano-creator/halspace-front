@@ -657,6 +657,42 @@ async function wnSuggestRelations(fileId) {
   return (await res.json()).data ?? [];
 }
 
+/* ── a.a（経営者向け業界SNS）へ投稿 ── */
+const AA_APP_URL = (() => {
+  const h = location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.test')) return 'http://localhost:8080';
+  return 'https://aa-sns.pages.dev';
+})();
+
+/* What'sNoファイルをそのままa.aへ1件投稿（1ファイル=1投稿） */
+async function wnPostToAa(wnFileId, { category, body } = {}) {
+  const res = await wnFetch(`/aa/posts/from-wn/${wnFileId}`, {
+    method: 'POST',
+    body: JSON.stringify({ category: category || null, body: body || '' }),
+  });
+  if (!res || !res.ok) {
+    const err = await res?.json().catch(() => ({}));
+    const e = new Error(err.message || 'a.aへの投稿に失敗しました');
+    e.code = err.code;
+    throw e;
+  }
+  return (await res.json()).data;
+}
+
+/* a.a SSOチケット発行（会員判定の事前チェック・新規タブオープンの両方に使う使い捨てチケット） */
+async function wnGetAaTicket() {
+  const res = await wnFetch('/aa/sso/ticket', { method: 'POST' });
+  if (!res || !res.ok) return null;
+  return res.json(); // { ticket, is_member, expires_in }
+}
+
+/* a.aをSSOで新規タブオープン（ポップアップブロック回避のため、必ずボタンのクリックハンドラから直接呼ぶこと） */
+async function wnOpenAaInNewTab() {
+  const t = await wnGetAaTicket();
+  if (!t || !t.ticket) { wnShowToast('a.aへの連携に失敗しました', 'danger'); return; }
+  window.open(`${AA_APP_URL}/#sso=${encodeURIComponent(t.ticket)}`, '_blank');
+}
+
 /* ──────────────────────────────
    ユーティリティ
    ────────────────────────────── */

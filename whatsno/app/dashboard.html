@@ -316,6 +316,9 @@
       <button class="btn btn-outline btn-sm" id="emailSelBtn" disabled>
         <i class="fa-solid fa-envelope"></i> メールで送る
       </button>
+      <button class="btn btn-outline btn-sm" id="aaPostSelBtn" disabled>
+        <i class="fa-solid fa-bullhorn"></i> a.aへ投稿
+      </button>
       <button class="btn btn-accent btn-sm" id="mergeOpenBtn" disabled>
         <i class="fa-solid fa-object-group"></i> <span id="mergeOpenLabel">結合</span>
       </button>
@@ -610,6 +613,62 @@
   </div>
 </div>
 
+<!-- a.a投稿モーダル -->
+<div class="modal-overlay hidden" id="aaPostModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fa-solid fa-bullhorn" style="color:var(--accent);"></i>
+        a.aへ投稿
+      </span>
+      <button class="modal-close" id="aaPostModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div style="padding:4px 0 8px;">
+      <div id="aaPostFileList" style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.8;"></div>
+
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:4px;">
+          カテゴリ <span style="color:var(--red,#c62828);">必須</span>
+        </label>
+        <select id="aaPostCategory" class="form-input" style="width:100%;padding:8px 10px;box-sizing:border-box;">
+          <option value="">選択してください</option>
+          <option value="補助金">補助金</option>
+          <option value="セミナー">セミナー</option>
+          <option value="設備紹介">設備紹介</option>
+          <option value="お知らせ">お知らせ</option>
+          <option value="相談">相談</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:4px;">コメント（任意）</label>
+        <textarea id="aaPostBody" class="form-input" rows="3"
+          style="width:100%;box-sizing:border-box;resize:vertical;" placeholder="共有したいこと・気づきを書く…"></textarea>
+      </div>
+
+      <div id="aaPostProgress" style="display:none;margin-top:8px;">
+        <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+          <div id="aaPostProgressBar" style="height:100%;width:0%;background:var(--accent);transition:width .2s;"></div>
+        </div>
+        <div id="aaPostProgressText" style="font-size:12px;color:var(--muted);margin-top:4px;"></div>
+      </div>
+      <div id="aaPostErrorList" style="display:none;font-size:12px;color:#c62828;margin-top:8px;line-height:1.7;"></div>
+
+      <div id="aaPostResultActions" style="display:none;margin-top:12px;text-align:center;">
+        <button class="btn btn-accent" id="aaPostViewBtn">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> a.aで見る
+        </button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="aaPostModalCancelBtn">キャンセル</button>
+      <button class="btn btn-accent" id="aaPostExecBtn">投稿する</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- 連絡先管理モーダル -->
 <div class="modal-overlay hidden" id="contactsModal">
@@ -759,8 +818,8 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=6"></script>
-<script src="../assets/js/wn-api.js?v=17"></script>
-<script src="../assets/js/pages/wn-dashboard.js?v=68"></script>
+<script src="../assets/js/wn-api.js?v=18"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=69"></script>
 
 <script>
 /* ── ボトムナビ ── */

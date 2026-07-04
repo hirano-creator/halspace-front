@@ -566,6 +566,9 @@
       <button class="btn btn-outline btn-sm" id="emailShareBtn" title="メールで共有">
         <i class="fa-solid fa-envelope"></i> <span class="btn-label">メール</span>
       </button>
+      <button class="btn btn-outline btn-sm" id="aaPostBtn" title="a.aへ投稿">
+        <i class="fa-solid fa-bullhorn"></i> <span class="btn-label">a.aへ投稿</span>
+      </button>
       <button class="btn btn-outline btn-sm" id="printBtn">
         <i class="fa-solid fa-print"></i> <span class="btn-label">印刷</span>
       </button>
@@ -1148,6 +1151,60 @@
   </div>
 </div>
 
+<!-- a.a投稿モーダル -->
+<div class="modal-overlay hidden" id="aaPostModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <span class="modal-title">
+        <i class="fa-solid fa-bullhorn" style="color:var(--accent);"></i>
+        a.aへ投稿
+      </span>
+      <button class="modal-close" id="aaPostModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div style="padding:4px 0 8px;">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">
+        <i class="fa-solid fa-file" style="margin-right:4px;"></i>
+        <span id="aaPostFileNameText"></span>
+      </p>
+
+      <div style="margin-bottom:12px;">
+        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:4px;">
+          カテゴリ <span style="color:var(--red,#c62828);">必須</span>
+        </label>
+        <select id="aaPostCategory" class="form-input" style="width:100%;padding:8px 10px;box-sizing:border-box;">
+          <option value="">選択してください</option>
+          <option value="補助金">補助金</option>
+          <option value="セミナー">セミナー</option>
+          <option value="設備紹介">設備紹介</option>
+          <option value="お知らせ">お知らせ</option>
+          <option value="相談">相談</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:4px;">コメント（任意）</label>
+        <textarea id="aaPostBody" class="form-input" rows="3"
+          style="width:100%;box-sizing:border-box;resize:vertical;" placeholder="共有したいこと・気づきを書く…"></textarea>
+      </div>
+
+      <div id="aaPostProgressText" style="display:none;font-size:12px;color:var(--muted);margin-top:8px;"></div>
+      <div id="aaPostErrorText" style="display:none;font-size:12px;color:#c62828;margin-top:8px;"></div>
+
+      <div id="aaPostResultActions" style="display:none;margin-top:12px;text-align:center;">
+        <button class="btn btn-accent" id="aaPostViewBtn">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> a.aで見る
+        </button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="aaPostModalCancelBtn">キャンセル</button>
+      <button class="btn btn-accent" id="aaPostExecBtn">投稿する</button>
+    </div>
+  </div>
+</div>
+
 <!-- QRコード生成ライブラリ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <!-- ファイル変換ライブラリ -->
@@ -1161,10 +1218,10 @@
 <!-- SheetEye DXFビューア（埋め込み） -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=6"></script>
-<script src="../assets/js/wn-api.js?v=12"></script>
+<script src="../assets/js/wn-api.js?v=13"></script>
 <script src="../assets/js/wn-preview-cache.js?v=1"></script>
 <script src="../assets/js/wn-sheeteye.js?v=1"></script>
-<script src="../assets/js/pages/wn-file-detail.js?v=41"></script>
+<script src="../assets/js/pages/wn-file-detail.js?v=42"></script>
 <script src="../assets/js/pwa.js?v=5"></script>
 </body>
 </html>

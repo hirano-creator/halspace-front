@@ -137,6 +137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initRightPanelTabs();
   initRelations();
   initEmailModal();
+  initAaPostModal();
 });
 
 /* モバイル時、コメントパネル(.detail-right)を .detail-info-section の前に
@@ -1870,6 +1871,10 @@ function initActions() {
     openEmailModal(fileId, fileData?.file_name ?? '');
   });
 
+  document.getElementById('aaPostBtn')?.addEventListener('click', () => {
+    openAaPostModal(fileId, fileData?.file_name ?? '');
+  });
+
   document.getElementById('printBtn')?.addEventListener('click', async () => {
     const url = await wnGetViewUrl(fileId);
     if (!url) { wnShowToast('ファイルを取得できませんでした', 'danger'); return; }
@@ -3336,6 +3341,96 @@ function closeEmailModal() {
   emailFieldChips.to  = [];
   emailFieldChips.cc  = [];
   emailFieldChips.bcc = [];
+}
+
+/* ────────────────────────────────
+   a.aへ投稿（単一ファイル）
+   ──────────────────────────────── */
+let _aaPostFileId = null;
+let _aaPostBusy   = false;
+
+function initAaPostModal() {
+  document.getElementById('aaPostModalClose')?.addEventListener('click', closeAaPostModal);
+  document.getElementById('aaPostModalCancelBtn')?.addEventListener('click', closeAaPostModal);
+  document.getElementById('aaPostExecBtn')?.addEventListener('click', () => {
+    const btn = document.getElementById('aaPostExecBtn');
+    if (btn.dataset.mode === 'done') closeAaPostModal();
+    else executeAaPost();
+  });
+  document.getElementById('aaPostViewBtn')?.addEventListener('click', wnOpenAaInNewTab);
+}
+
+async function openAaPostModal(fileId, fileName) {
+  // 事前会員チェック（フロント側のUX目的。バックエンドfromWnも同様のチェックで二重防御）
+  const t = await wnGetAaTicket();
+  if (!t || !t.is_member) {
+    wnShowToast('この会社はまだa.aに参加していません', 'warning');
+    return;
+  }
+
+  _aaPostFileId = fileId;
+  _aaPostBusy   = false;
+  document.getElementById('aaPostFileNameText').textContent = fileName;
+  document.getElementById('aaPostCategory').value = '';
+  document.getElementById('aaPostBody').value = '';
+  document.getElementById('aaPostProgressText').style.display = 'none';
+  document.getElementById('aaPostErrorText').style.display = 'none';
+  document.getElementById('aaPostResultActions').style.display = 'none';
+  const exec = document.getElementById('aaPostExecBtn');
+  exec.dataset.mode = 'post';
+  setAaPostModalBusy(false);
+  document.getElementById('aaPostModal').classList.remove('hidden');
+}
+
+function closeAaPostModal() {
+  if (_aaPostBusy) return;   // 投稿中は閉じない
+  document.getElementById('aaPostModal').classList.add('hidden');
+}
+
+function setAaPostModalBusy(busy) {
+  _aaPostBusy = busy;
+  const exec = document.getElementById('aaPostExecBtn');
+  exec.disabled = busy;
+  if (busy) exec.textContent = '投稿中…';
+  document.getElementById('aaPostModalClose').disabled = busy;
+  document.getElementById('aaPostModalCancelBtn').disabled = busy;
+  document.getElementById('aaPostCategory').disabled = busy;
+  document.getElementById('aaPostBody').disabled = busy;
+}
+
+async function executeAaPost() {
+  if (_aaPostBusy) return;
+  const category = document.getElementById('aaPostCategory').value;
+  if (!category) {
+    wnShowToast('カテゴリを選択してください', 'warning');
+    return;
+  }
+  const body = document.getElementById('aaPostBody').value.trim();
+
+  setAaPostModalBusy(true);
+  const progText = document.getElementById('aaPostProgressText');
+  const errText  = document.getElementById('aaPostErrorText');
+  progText.style.display = 'block';
+  progText.textContent = '投稿中…';
+  errText.style.display = 'none';
+
+  try {
+    await wnPostToAa(_aaPostFileId, { category, body });
+    progText.textContent = '投稿が完了しました';
+    document.getElementById('aaPostResultActions').style.display = 'block';
+    wnShowToast('a.aへの投稿が完了しました', 'success');
+    setAaPostModalBusy(false);
+    const exec = document.getElementById('aaPostExecBtn');
+    exec.textContent = '閉じる';
+    exec.dataset.mode = 'done';
+  } catch (e) {
+    progText.style.display = 'none';
+    errText.style.display = 'block';
+    errText.textContent = e.message || '投稿に失敗しました';
+    wnShowToast(e.message || 'a.aへの投稿に失敗しました', 'danger');
+    setAaPostModalBusy(false);
+    document.getElementById('aaPostExecBtn').textContent = '投稿する';
+  }
 }
 
 function addEmailChip(field = 'to') {
