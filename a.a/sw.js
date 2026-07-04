@@ -1,5 +1,5 @@
 /* a.a Service Worker — アプリシェルをキャッシュしてインストール可能化＆高速起動 */
-const CACHE = 'aa-shell-v9';
+const CACHE = 'aa-shell-v10';
 const SHELL = [
   './',
   './index.html',
@@ -51,5 +51,34 @@ self.addEventListener('fetch', (e) => {
       caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
       return res;
     }).catch(() => caches.match('./index.html')))
+  );
+});
+
+/* ── ブラウザPush通知 ── */
+self.addEventListener('push', (e) => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch (err) {}
+  const title = data.title || 'a.a';
+  const url = data.url || './notifications.html';
+  e.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || '',
+      icon: './assets/icon-192.png',
+      badge: './assets/icon-192.png',
+      data: { url },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = new URL(e.notification.data && e.notification.data.url || './notifications.html', self.location.href).href;
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const c of clients) {
+        if (c.url === url && 'focus' in c) return c.focus();
+      }
+      return self.clients.openWindow(url);
+    })
   );
 });

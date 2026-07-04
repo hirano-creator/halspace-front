@@ -21,6 +21,11 @@
       <button class="icon-btn" id="readAll" title="すべて既読"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 6L9 17l-5-5"/></svg></button>
     </header>
 
+    <div id="pushBanner" style="display:none;padding:14px 18px;border-bottom:1px solid var(--soft)">
+      <div id="pushBannerText" style="font-size:13.5px;color:var(--mute);margin-bottom:10px"></div>
+      <button id="pushBannerBtn" class="btn" style="height:44px;font-size:15px"></button>
+    </div>
+
     <div class="scroll" id="list"><div class="center">読み込み中…</div></div>
 
     <nav class="tabbar">
@@ -79,6 +84,40 @@
     }
     document.getElementById('readAll').onclick = async () => { try { await AA.readAllNotif(); load(); } catch(e){} };
     load();
+
+    // ── ブラウザPush通知の許可バナー ──
+    async function refreshPushBanner(){
+      const banner = document.getElementById('pushBanner');
+      const text = document.getElementById('pushBannerText');
+      const btn = document.getElementById('pushBannerBtn');
+      let state;
+      try { state = await AA.pushState(); } catch(e){ return; }
+      if (state === 'unsupported' || state === 'denied') { banner.style.display = 'none'; return; }
+      banner.style.display = 'block';
+      if (state === 'ios-needs-install') {
+        text.textContent = 'iPhoneでプッシュ通知を受け取るには、まずこのアプリをホーム画面に追加してください。';
+        btn.style.display = 'none';
+        return;
+      }
+      btn.style.display = 'flex';
+      if (state === 'subscribed') {
+        text.textContent = 'この端末でプッシュ通知が有効です。';
+        btn.textContent = '通知をオフにする';
+        btn.className = 'btn';
+        btn.onclick = async () => { btn.disabled = true; try { await AA.disablePush(); } catch(e){} btn.disabled = false; refreshPushBanner(); };
+      } else {
+        text.textContent = 'コメントやいいねをアプリを閉じていても通知で受け取れます。';
+        btn.textContent = 'プッシュ通知を有効にする';
+        btn.className = 'btn primary';
+        btn.onclick = async () => {
+          btn.disabled = true;
+          try { await AA.enablePush(); } catch(e){ alert(e.message || '有効化に失敗しました'); }
+          btn.disabled = false;
+          refreshPushBanner();
+        };
+      }
+    }
+    refreshPushBanner();
   </script>
 </body>
 </html>

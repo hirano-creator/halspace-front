@@ -6,8 +6,8 @@
 - **バックエンド = What'sNo APIを拡張**（ローカル `c:\laragon\www\solid-api` / 本番 halspace-api on Railway）。認証・R2・サムネ・Geminiの既存基盤を再利用。
 - 既存 `wn_*` テーブルは**変更しない**。会社横断の公開レイヤ `aa_*` を新設。
 - フィードに **ユーザー投稿＋自動ニュース** を混在。SNS(X/Instagram)は **後から個別シェア**。
-- 通知は **アプリ内のみ**（MVP）。
-- **PWA**：`manifest.json`＋`sw.js`（v7）でホーム画面追加→standalone起動。
+- 通知は **アプリ内通知＋ブラウザPush通知**（Web Push/VAPID、`aa_push_subscriptions`）。`AaNotificationService::notify()`から両方発火。iOSはホーム画面追加（standalone）が前提。
+- **PWA**：`manifest.json`＋`sw.js`（v10）でホーム画面追加→standalone起動。`sw.js`に`push`/`notificationclick`ハンドラあり。
 
 ## 設計の核心：専用レイヤ aa_* を新設
 既存 What'sNo は全テーブルが `company_id` の**社内スコープ**、投稿実体 `wn_files` は `storage_path` 必須で**ファイル前提**（テキスト投稿不可）。改造すると社内機能に副作用。
@@ -69,6 +69,8 @@
 | GET | `/aa/notifications` | ✅ | 通知一覧 |
 | POST | `/aa/notifications/{id}/read` | ✅ | 既読 |
 | POST | `/aa/notifications/read-all` | ✅ | 全既読 |
+| POST | `/aa/push-subscriptions` | ✅ | ブラウザPush購読登録（PushSubscription.toJSON()） |
+| DELETE | `/aa/push-subscriptions` | ✅ | ブラウザPush購読解除 |
 | GET | `/aa/admin/stats` | 管理者 | ダッシュボード統計 |
 | GET/PATCH/DELETE | `/aa/admin/posts{...}` | 管理者 | 投稿モデレーション |
 | GET/POST | `/aa/admin/news{...}` | 管理者 | ニュース管理・手動インポート |

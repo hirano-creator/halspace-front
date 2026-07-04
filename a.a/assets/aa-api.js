@@ -175,6 +175,66 @@
   const readNotif     = (id) => aaFetch('/aa/notifications/' + id + '/read', { method: 'POST' });
   const readAllNotif  = () => aaFetch('/aa/notifications/read-all', { method: 'POST' });
 
+  // ── ブラウザPush通知（Web Push / VAPID） ──
+  // 公開鍵は秘密情報ではない（ブラウザのPushManager.subscribeにそのまま渡す値）ため静的に埋め込む
+  const VAPID_PUBLIC_KEY = 'BJYiqGgSFkoxQbdRS1MlLH3mq89SwZV6o86T7jVBEKiZtyXjG4Pd4Y7XZZGbGzFg7puSvUXOTK03_gbaV4_XsRE';
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+  }
+
+  function pushSupported() {
+    return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  }
+
+  // iOS SafariはPWAをホーム画面に追加していないとPush通知を購読できない
+  function iosNeedsHomeScreenInstall() {
+    const ua = navigator.userAgent;
+    const isIos = /iPad|iPhone|iPod/.test(ua) && !global.MSStream;
+    const isStandalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+    return isIos && !isStandalone;
+  }
+
+  // 'unsupported' | 'ios-needs-install' | 'denied' | 'subscribed' | 'unsubscribed'
+  async function pushState() {
+    if (!pushSupported()) return 'unsupported';
+    if (iosNeedsHomeScreenInstall()) return 'ios-needs-install';
+    if (Notification.permission === 'denied') return 'denied';
+    const reg = await navigator.serviceWorker.ready.catch(() => null);
+    if (!reg) return 'unsupported';
+    const sub = await reg.pushManager.getSubscription();
+    return sub ? 'subscribed' : 'unsubscribed';
+  }
+
+  async function enablePush() {
+    if (!pushSupported()) throw new Error('この端末・ブラウザはブラウザ通知に対応していません');
+    if (iosNeedsHomeScreenInstall()) throw new Error('iPhoneでは「ホーム画面に追加」してから有効化できます');
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') throw new Error('通知が許可されませんでした');
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+    await aaFetch('/aa/push-subscriptions', { method: 'POST', body: sub.toJSON() });
+  }
+
+  async function disablePush() {
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.ready.catch(() => null);
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    await aaFetch('/aa/push-subscriptions', { method: 'DELETE', body: { endpoint: sub.endpoint } });
+    await sub.unsubscribe();
+  }
+
   // ── 管理者 ──
   const admin = {
     stats:        () => aaFetch('/aa/admin/stats'),
@@ -230,6 +290,7 @@
     comments, postComment, react, reactionUsers, reactComment, commentReactionUsers, relTime, commentCardHtml, avatarHtml, shareLink, mediaUrl, mediaThumbUrl, storeMediaThumb,
     profile, updateProfile, updateLogo, addSkill, deleteSkill,
     notifications, readNotif, readAllNotif,
+    pushState, enablePush, disablePush,
     admin,
     inviteValidate, inviteRegister, ssoRedeem,
   };
