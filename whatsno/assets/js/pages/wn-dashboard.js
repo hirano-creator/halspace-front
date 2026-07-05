@@ -3983,6 +3983,13 @@ async function executeAaPost() {
    config.json を最新トークンで更新する（アカウント切り替え対応）
    ──────────────────────────────── */
 async function syncDesktopToken() {
+  // デスクトップ連携はPC専用。モバイルでは whatsno:// プロトコルが未登録のため
+  // 「ページを開けません。アドレスが無効です」警告が毎回出てしまう → 何もしない
+  // （iPadOSはMacを名乗るため maxTouchPoints でも判定）
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isMobile) return;
+
   const token = localStorage.getItem('space_token');
   if (!token) return;
 
