@@ -201,9 +201,9 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
 
   .deck-aside{ display:flex; flex-direction:column; gap:16px; padding:24px 20px; position:sticky; top:0; height:100vh; overflow:auto; background:var(--paper); scrollbar-width:none; }
   .deck-aside::-webkit-scrollbar{ display:none; }
-  .deck-search{ height:52px; background:var(--soft); border-radius:14px; display:flex; align-items:center; gap:10px; padding:0 16px; color:var(--mute); font-size:16px; cursor:text; }
-  .deck-search svg{ width:18px; height:18px; flex:0 0 auto; }
-  .deck-search input{ appearance:none; border:none; outline:none; background:none; flex:1; min-width:0; font-size:16px; color:var(--ink); font-family:inherit; }
+  .deck-search{ height:58px; background:var(--soft); border-radius:18px; display:flex; align-items:center; gap:10px; padding:0 18px; color:var(--mute); font-size:16.5px; cursor:text; }
+  .deck-search svg{ width:20px; height:20px; flex:0 0 auto; }
+  .deck-search input{ appearance:none; border:none; outline:none; background:none; flex:1; min-width:0; font-size:16.5px; color:var(--ink); font-family:inherit; }
   .deck-search input::placeholder{ color:var(--mute); }
   .deck-search input::-webkit-search-cancel-button{ -webkit-appearance:none; }
   .deck-aside .panel{ background:var(--paper); border-radius:20px; padding:18px; }
