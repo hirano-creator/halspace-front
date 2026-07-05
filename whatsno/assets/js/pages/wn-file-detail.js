@@ -3583,36 +3583,18 @@ function doSendEmailGmail() {
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
 
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  if (isMobile) {
-    // モバイルは googlegmail:// アプリURLスキームを試みる
-    // アプリ未インストールの場合は 1.5 秒後に mailto にフォールバック
-    const gmailScheme = 'googlegmail://co'
-      + `?to=${encodeURIComponent(m.to)}`
-      + (m.cc  ? `&cc=${encodeURIComponent(m.cc)}`   : '')
-      + (m.bcc ? `&bcc=${encodeURIComponent(m.bcc)}` : '')
-      + `&subject=${encodeURIComponent(m.subject)}`
-      + `&body=${encodeURIComponent(m.body)}`;
-    window.location.href = gmailScheme;
-    setTimeout(() => {
-      if (!document.hidden) {
-        window.location.href = `mailto:${m.to}`
-          + `?${m.cc  ? `cc=${encodeURIComponent(m.cc)}&`   : ''}`
-          + `${m.bcc ? `bcc=${encodeURIComponent(m.bcc)}&` : ''}`
-          + `subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
-        wnShowToast('メールアプリを起動しました', 'success');
-      }
-    }, 1500);
-  } else {
-    const url = 'https://mail.google.com/mail/?view=cm&fs=1'
-      + `&to=${encodeURIComponent(m.to)}`
-      + (m.cc  ? `&cc=${encodeURIComponent(m.cc)}`   : '')
-      + (m.bcc ? `&bcc=${encodeURIComponent(m.bcc)}` : '')
-      + `&su=${encodeURIComponent(m.subject)}`
-      + `&body=${encodeURIComponent(m.body)}`;
-    window.open(url, '_blank');
-    wnShowToast('Gmailの作成画面を開きました', 'success');
-  }
+  // googlegmail:// スキームはアプリ未インストール時やアプリ内ブラウザで
+  // 「アドレスが無効です」警告が出るため使わない。Web版のURLなら
+  // AndroidはGmailアプリに引き継がれ、iOSはWeb版が開き警告は出ない。
+  const url = 'https://mail.google.com/mail/?view=cm&fs=1'
+    + `&to=${encodeURIComponent(m.to)}`
+    + (m.cc  ? `&cc=${encodeURIComponent(m.cc)}`   : '')
+    + (m.bcc ? `&bcc=${encodeURIComponent(m.bcc)}` : '')
+    + `&su=${encodeURIComponent(m.subject)}`
+    + `&body=${encodeURIComponent(m.body)}`;
+  const w = window.open(url, '_blank');
+  if (!w) window.location.href = url;   // ポップアップ不可のアプリ内ブラウザ対策
+  wnShowToast('Gmailの作成画面を開きました', 'success');
   closeEmailModal();
 }
 
