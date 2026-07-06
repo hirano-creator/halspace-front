@@ -15,6 +15,13 @@
     return 'https://halspace-api-production.up.railway.app/api';
   }
 
+  // Service Worker登録：従来index.htmlのみで行っていたが、通知ページ等index.htmlを
+  // 経由せず直接開かれた場合に一度も登録されずPush通知が使えない問題があったため、
+  // 全ページで読み込まれるこのファイルで確実に登録する（重複登録しても無害）。
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+
   function token() { return localStorage.getItem('aa_token') || ''; }
   function setToken(t) {
     if (t) { localStorage.setItem('aa_token', t); return; }
