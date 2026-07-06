@@ -201,7 +201,7 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
 
   .deck-aside{ display:flex; flex-direction:column; gap:16px; padding:24px 20px; position:sticky; top:0; height:100vh; overflow:auto; background:var(--paper); scrollbar-width:none; }
   .deck-aside::-webkit-scrollbar{ display:none; }
-  .deck-search{ width:100%; height:52px; background:var(--soft); border-radius:16px; display:flex; align-items:center; gap:12px; padding:0 20px; color:var(--mute); font-size:17px; cursor:text; box-shadow:inset 0 0 0 1px rgba(20,30,80,.06); }
+  .deck-search{ width:200px; height:48px; flex:0 0 auto; background:var(--soft); border-radius:16px; display:flex; align-items:center; gap:12px; padding:0 20px; color:var(--mute); font-size:17px; cursor:text; box-shadow:inset 0 0 0 1px rgba(20,30,80,.06); }
   .deck-search:focus-within{ box-shadow:inset 0 0 0 2px var(--accent); } /* 幅/高さは変えず枠線だけで表現（クリック・入力時にサイズが動くのを防ぐ） */
   .deck-search svg{ width:21px; height:21px; flex:0 0 auto; }
   .deck-search input{ appearance:none; border:none; outline:none; background:none; flex:1; min-width:0; width:100%; height:100%; font-size:17px; color:var(--ink); font-family:inherit; }
