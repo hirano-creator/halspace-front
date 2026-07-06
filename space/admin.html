@@ -1385,6 +1385,7 @@ function renderUserTable() {
             <button class="action-menu-btn" onclick="toggleActionMenu(this)"><i class="fa-solid fa-ellipsis"></i></button>
             <div class="action-dropdown">
               <button class="action-dropdown-item" onclick="openEditUser(${u.id})"><i class="fa-solid fa-pen"></i> 編集</button>
+              ${u.id !== currentUser.id ? `<button class="action-dropdown-item danger" onclick="deleteUser(${u.id})"><i class="fa-solid fa-trash"></i> 削除</button>` : ''}
             </div>
           </div>
         </td>
@@ -1409,6 +1410,23 @@ async function toggleUserStatus(id, active) {
     if (idx >= 0) usersCache[idx].is_active = active;
     showToast(active ? 'ユーザーを有効にしました' : 'ユーザーを無効にしました', active ? 'success' : 'default');
   } else { showToast('更新に失敗しました', 'danger'); }
+}
+
+async function deleteUser(id) {
+  closeAllActionMenus();
+  const u = usersCache.find(x => x.id === id);
+  if (!u) return;
+  if (!confirm(`「${u.name}」を削除しますか？この操作は元に戻せません。`)) return;
+
+  const res = await apiFetch(`/admin/users/${id}`, { method: 'DELETE' });
+  if (res?.ok) {
+    usersCache = usersCache.filter(x => x.id !== id);
+    renderUserTable();
+    showToast('ユーザーを削除しました', 'success');
+  } else {
+    const err = await res?.json().catch(() => ({}));
+    showToast(err.message || '削除に失敗しました', 'danger');
+  }
 }
 
 function openAddUser() {
