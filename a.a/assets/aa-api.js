@@ -198,13 +198,26 @@
     return isIos && !isStandalone;
   }
 
-  // 'unsupported' | 'ios-needs-install' | 'denied' | 'subscribed' | 'unsubscribed'
+  // navigator.serviceWorker.readyはSW更新が中途半端な状態だと永久に解決しないことがあるため、
+  // まずgetRegistration()で即座に確認し、無ければタイムアウト付きでreadyを待つ（無限ハング防止）
+  async function activeRegistration(timeoutMs) {
+    if (!('serviceWorker' in navigator)) return null;
+    const existing = await navigator.serviceWorker.getRegistration().catch(() => null);
+    if (existing && existing.active) return existing;
+    const viaReady = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs || 4000)),
+    ]).catch(() => null);
+    return viaReady || existing || null;
+  }
+
+  // 'unsupported' | 'ios-needs-install' | 'denied' | 'sw-not-ready' | 'subscribed' | 'unsubscribed'
   async function pushState() {
     if (!pushSupported()) return 'unsupported';
     if (iosNeedsHomeScreenInstall()) return 'ios-needs-install';
     if (Notification.permission === 'denied') return 'denied';
-    const reg = await navigator.serviceWorker.ready.catch(() => null);
-    if (!reg) return 'unsupported';
+    const reg = await activeRegistration();
+    if (!reg) return 'sw-not-ready';
     const sub = await reg.pushManager.getSubscription();
     return sub ? 'subscribed' : 'unsubscribed';
   }
@@ -214,7 +227,8 @@
     if (iosNeedsHomeScreenInstall()) throw new Error('iPhoneでは「ホーム画面に追加」してから有効化できます');
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') throw new Error('通知が許可されませんでした');
-    const reg = await navigator.serviceWorker.ready;
+    const reg = await activeRegistration();
+    if (!reg) throw new Error('アプリの初期化に時間がかかっています。アプリを一度完全に終了してから開き直してください');
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
       sub = await reg.pushManager.subscribe({
@@ -226,8 +240,7 @@
   }
 
   async function disablePush() {
-    if (!('serviceWorker' in navigator)) return;
-    const reg = await navigator.serviceWorker.ready.catch(() => null);
+    const reg = await activeRegistration(1000);
     if (!reg) return;
     const sub = await reg.pushManager.getSubscription();
     if (!sub) return;

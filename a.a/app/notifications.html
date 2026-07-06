@@ -109,6 +109,11 @@
         btn.style.display = 'none';
         return;
       }
+      if (state === 'sw-not-ready') {
+        text.textContent = 'アプリの初期化に時間がかかっています。アプリを一度完全に終了してから開き直してください。';
+        btn.style.display = 'none';
+        return;
+      }
       if (state === 'ios-needs-install') {
         text.textContent = 'iPhoneでプッシュ通知を受け取るには、まずこのアプリをホーム画面に追加してください。';
         btn.style.display = 'none';
