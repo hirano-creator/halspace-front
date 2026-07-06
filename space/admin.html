@@ -632,7 +632,7 @@
                 <th>コード</th>
                 <th>会社名</th>
                 <th>プラン</th>
-                <th>利用アプリ</th>
+                <th>契約アプリ</th>
                 <th>ユーザー</th>
                 <th>月額</th>
                 <th>契約終了</th>
@@ -676,12 +676,13 @@
                 <th>メール</th>
                 <th>会社</th>
                 <th>ロール</th>
+                <th>利用アプリ</th>
                 <th>最終ログイン</th>
                 <th>状態</th>
                 <th></th>
               </tr></thead>
               <tbody id="userTableBody">
-                <tr class="loading-row"><td colspan="7"><span class="spinner"></span></td></tr>
+                <tr class="loading-row"><td colspan="8"><span class="spinner"></span></td></tr>
               </tbody>
             </table>
           </div>
@@ -878,6 +879,11 @@
             <option value="super_admin">Super Admin</option>
           </select>
         </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">利用アプリ</label>
+        <div class="form-hint">この会社が契約しているアプリの範囲内で、ユーザーごとに利用可否を設定できます。</div>
+        <div id="userAppsContainer" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:6px;"></div>
       </div>
       <div id="userModalPwArea" style="display:none;">
         <div class="form-group">
@@ -1358,7 +1364,7 @@ function renderUserTable() {
 
   const tbody = document.getElementById('userTableBody');
   if (!sliced.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">該当するユーザーがいません</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">該当するユーザーがいません</td></tr>';
   } else {
     tbody.innerHTML = sliced.map(u => `
       <tr data-user-id="${u.id}">
@@ -1371,6 +1377,7 @@ function renderUserTable() {
         <td style="color:var(--muted);font-size:12px;">${h(u.email)}</td>
         <td style="font-size:12px;">${h(u.company?.name ?? '—')}</td>
         <td>${roleBadge(u.role)}</td>
+        <td><div class="app-chips">${(u.effective_apps ?? []).map(appChip).join('')}</div></td>
         <td style="font-size:11px;color:var(--muted);">${u.last_login_at ?? '—'}</td>
         <td>
           <label class="toggle">
@@ -1427,6 +1434,36 @@ async function deleteUser(id) {
   }
 }
 
+/* ── ユーザーごとの利用アプリ設定（会社の契約範囲内でのみ選択可） ── */
+function renderUserAppsCheckboxes(companyId, checkedApps) {
+  const company    = companiesCache.find(c => c.id == companyId);
+  const companyApps = company?.apps_enabled ?? [];
+  const apps = (typeof APP_CATALOG !== 'undefined' ? APP_CATALOG : [])
+    .filter(a => a.id !== 'future' && companyApps.includes(a.id));
+  // 未設定（null）の場合は会社の契約アプリをすべて継承している状態として表示する
+  const checked = checkedApps ?? companyApps;
+  const container = document.getElementById('userAppsContainer');
+  if (!container) return;
+  if (!apps.length) {
+    container.innerHTML = '<span style="font-size:12px;color:var(--muted);">この会社に契約アプリがありません</span>';
+    return;
+  }
+  container.innerHTML = apps.map(app => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+      <input type="checkbox" class="userAppCheckbox" value="${app.id}" ${checked.includes(app.id) ? 'checked' : ''}>
+      ${h(app.name)}
+    </label>
+  `).join('');
+}
+
+function collectUserApps() {
+  return Array.from(document.querySelectorAll('.userAppCheckbox:checked')).map(el => el.value);
+}
+
+document.getElementById('userModalCompany')?.addEventListener('change', function() {
+  renderUserAppsCheckboxes(this.value, null);
+});
+
 function openAddUser() {
   document.getElementById('userModalId').value    = '';
   document.getElementById('userModalTitle').textContent = 'ユーザーを追加';
@@ -1436,16 +1473,19 @@ function openAddUser() {
   document.getElementById('userModalPwArea').style.display = 'none';
   document.getElementById('userModalError').style.display  = 'none';
   document.getElementById('userModalSave').style.display   = '';
-  if (!companiesCache.length) loadCompanies().then(() => buildUserCompanyFilter(companiesCache));
-  else buildUserCompanyFilter(companiesCache);
-  // jp_adminは自分の会社に固定
   const compSel = document.getElementById('userModalCompany');
-  if (!isSuperAdmin) {
-    compSel.innerHTML = `<option value="${currentUser.company_id}">${h(currentUser.company || '自社')}</option>`;
-    compSel.disabled = true;
-  } else {
-    compSel.disabled = false;
-  }
+  const setupCompanyAndApps = () => {
+    // jp_adminは自分の会社に固定
+    if (!isSuperAdmin) {
+      compSel.innerHTML = `<option value="${currentUser.company_id}">${h(currentUser.company || '自社')}</option>`;
+      compSel.disabled = true;
+    } else {
+      compSel.disabled = false;
+    }
+    renderUserAppsCheckboxes(compSel.value, null);
+  };
+  if (!companiesCache.length) loadCompanies().then(() => { buildUserCompanyFilter(companiesCache); setupCompanyAndApps(); });
+  else { buildUserCompanyFilter(companiesCache); setupCompanyAndApps(); }
   openModal('userModal');
 }
 
@@ -1465,6 +1505,7 @@ async function openEditUser(id) {
   document.getElementById('userModalCompany').value = u.company_id;
   // jp_adminは自分の会社のみ編集可
   document.getElementById('userModalCompany').disabled = !isSuperAdmin;
+  renderUserAppsCheckboxes(u.company_id, u.apps_enabled);
   openModal('userModal');
 
   // 仮パスワードが未変更のまま残っていれば再表示する（顧客が変更済みなら404で何も表示しない）
@@ -1481,6 +1522,7 @@ document.getElementById('userModalSave').addEventListener('click', async () => {
   const name  = document.getElementById('userModalName').value.trim();
   const email = document.getElementById('userModalEmail').value.trim();
   const role  = document.getElementById('userModalRole').value;
+  const apps_enabled = collectUserApps();
   const errEl = document.getElementById('userModalError');
   errEl.style.display = 'none';
 
@@ -1489,7 +1531,7 @@ document.getElementById('userModalSave').addEventListener('click', async () => {
   if (id) {
     // 編集
     const res = await apiFetch(`/admin/users/${id}`, {
-      method: 'PATCH', body: JSON.stringify({ name, role }),
+      method: 'PATCH', body: JSON.stringify({ name, role, apps_enabled }),
     });
     if (res?.ok) {
       closeModal('userModal');
@@ -1503,7 +1545,7 @@ document.getElementById('userModalSave').addEventListener('click', async () => {
   } else {
     // 新規
     const res = await apiFetch('/admin/users', {
-      method: 'POST', body: JSON.stringify({ name, email, role }),
+      method: 'POST', body: JSON.stringify({ name, email, role, apps_enabled }),
     });
     if (res?.ok) {
       const data = await res.json();
