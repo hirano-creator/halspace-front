@@ -91,9 +91,24 @@
       const text = document.getElementById('pushBannerText');
       const btn = document.getElementById('pushBannerBtn');
       let state;
-      try { state = await AA.pushState(); } catch(e){ return; }
-      if (state === 'unsupported' || state === 'denied') { banner.style.display = 'none'; return; }
+      try { state = await AA.pushState(); }
+      catch(e){
+        banner.style.display = 'block';
+        text.textContent = '通知機能の確認に失敗しました：' + (e && e.message ? e.message : e);
+        btn.style.display = 'none';
+        return;
+      }
       banner.style.display = 'block';
+      if (state === 'unsupported') {
+        text.textContent = 'この端末・ブラウザはブラウザ通知に対応していません。';
+        btn.style.display = 'none';
+        return;
+      }
+      if (state === 'denied') {
+        text.textContent = '通知がブロックされています。ブラウザ（iPhoneは設定アプリ）のサイト設定から通知を許可にしてください。';
+        btn.style.display = 'none';
+        return;
+      }
       if (state === 'ios-needs-install') {
         text.textContent = 'iPhoneでプッシュ通知を受け取るには、まずこのアプリをホーム画面に追加してください。';
         btn.style.display = 'none';
