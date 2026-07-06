@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!user) return;
 
   // 管理者以外はダッシュボードへ
-  if (user.role !== 'jp_admin' && user.role !== 'super_admin') {
+  if (user.role !== 'admin' && user.role !== 'super_admin') {
     location.href = 'dashboard.html';
     return;
   }

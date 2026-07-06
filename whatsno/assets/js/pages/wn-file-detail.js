@@ -247,7 +247,7 @@ function renderApproval() {
   const status  = fileData.approval_status ?? 'none';
   const badge   = wnApprovalBadge(status);
   const isOwner = currentUser && fileData.uploader && fileData.uploader.id === currentUser.id;
-  const isAdmin = currentUser && ['jp_admin','super_admin'].includes(currentUser.role);
+  const isAdmin = currentUser && ['admin','super_admin'].includes(currentUser.role);
 
   // アクションバーのバッジ
   const badgeEl = document.getElementById('approvalBadge');
@@ -1996,7 +1996,7 @@ async function loadComments() {
     list.innerHTML = '<p style="font-size:13px;color:var(--muted);">まだコメントはありません</p>';
     return;
   }
-  const isAdmin = currentUser && ['jp_admin', 'super_admin'].includes(currentUser.role);
+  const isAdmin = currentUser && ['admin', 'super_admin'].includes(currentUser.role);
   list.innerHTML = comments.map(c => {
     const isMine  = currentUser && c.user && c.user.id === currentUser.id;
     const canEdit = isMine;

@@ -16,7 +16,8 @@ const STATUS_LABEL = {
 };
 const PRIORITY_LABEL = { urgent:'緊急', high:'高', normal:'通常', low:'低' };
 const PLAN_LABEL = { trial:'トライアル', standard:'スタンダード', pro:'プロ' };
-const ROLE_LABEL = { jp_client:'発注担当', id_modeler:'モデラー', jp_admin:'管理者', super_admin:'スーパー管理者' };
+const ROLE_LABEL = { general:'一般会員', admin:'管理者', super_admin:'スーパー管理者' };
+const SOLID_TYPE_LABEL = { jp_client:'発注担当', id_modeler:'モデラー' };
 
 /* ── インメモリキャッシュ ── */
 let allProjects  = [];
@@ -440,11 +441,13 @@ async function loadUsers() {
 }
 
 function renderUsers() {
-  const cFilter = document.getElementById('filterUserCompany').value;
-  const rFilter = document.getElementById('filterUserRole').value;
+  const cFilter  = document.getElementById('filterUserCompany').value;
+  const rFilter  = document.getElementById('filterUserRole').value;
+  const stFilter = document.getElementById('filterUserSolidType').value;
   let us = allUsers;
   if (cFilter) us = us.filter(u => String(u.company_id) === cFilter);
   if (rFilter) us = us.filter(u => u.role === rFilter);
+  if (stFilter) us = us.filter(u => u.solid_type === stFilter);
 
   const tbody = document.getElementById('userBody');
   if (!us.length) {
@@ -457,7 +460,10 @@ function renderUsers() {
       <td style="font-weight:600;">${u.name}</td>
       <td style="font-size:13px;color:var(--muted);">${u.email}</td>
       <td style="font-size:13px;">${u.company_name??'—'}</td>
-      <td><span class="user-role-badge role-${u.role}">${ROLE_LABEL[u.role]??u.role}</span></td>
+      <td>
+        <span class="user-role-badge role-${u.role}">${ROLE_LABEL[u.role]??u.role}</span>
+        ${u.solid_type ? `<span class="user-role-badge solid-type-${u.solid_type}">${SOLID_TYPE_LABEL[u.solid_type]??u.solid_type}</span>` : ''}
+      </td>
       <td style="font-size:13px;">${u.country === 'JP' ? '🇯🇵 日本' : '🇮🇩 インドネシア'}</td>
       <td style="font-size:12px;color:var(--muted);">${u.last_login_at||'—'}</td>
     </tr>`).join('');
@@ -465,6 +471,7 @@ function renderUsers() {
 
 document.getElementById('filterUserCompany').addEventListener('change', renderUsers);
 document.getElementById('filterUserRole').addEventListener('change', renderUsers);
+document.getElementById('filterUserSolidType').addEventListener('change', renderUsers);
 
 /* ユーザー行クリック → 編集モーダル */
 let editingUserId = null;
@@ -484,6 +491,7 @@ async function openEditUserModal(userId) {
   document.getElementById('editUserModalTitle').textContent = u.name + ' の設定';
   document.getElementById('editUserId').value = userId;
   document.getElementById('editUserRole').value = u.role;
+  document.getElementById('editUserSolidType').value = u.solid_type ?? '';
 
   // 通知設定を取得
   const data = await api.get(`/admin/users/${userId}/notification-settings`);
@@ -532,6 +540,7 @@ document.getElementById('editAddExtraEmailBtn').addEventListener('click', () => 
 document.getElementById('editUserModalSubmit').addEventListener('click', async () => {
   if (!editingUserId) return;
   const role = document.getElementById('editUserRole').value;
+  const solidType = document.getElementById('editUserSolidType').value || null;
   const validEmails = editExtraEmails.filter(e => e.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim()));
 
   const btn = document.getElementById('editUserModalSubmit');
@@ -539,10 +548,10 @@ document.getElementById('editUserModalSubmit').addEventListener('click', async (
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
   try {
-    // ロール変更
-    await api.patch(`/admin/users/${editingUserId}`, { role });
+    // ロール・種別変更
+    await api.patch(`/admin/users/${editingUserId}`, { role, solid_type: solidType });
     const idx = allUsers.findIndex(u => u.id === editingUserId);
-    if (idx !== -1) allUsers[idx].role = role;
+    if (idx !== -1) { allUsers[idx].role = role; allUsers[idx].solid_type = solidType; }
 
     // 通知設定保存
     await api.patch(`/admin/users/${editingUserId}/notification-settings`, {
@@ -572,7 +581,8 @@ function openInviteModal() {
   document.getElementById('inviteName').disabled  = false;
   document.getElementById('inviteEmail').disabled = false;
   document.getElementById('inviteCompany').disabled = false;
-  document.getElementById('inviteRole').value = 'jp_client';
+  document.getElementById('inviteRole').value = 'general';
+  document.getElementById('inviteSolidType').value = '';
   document.getElementById('userModalSubmit').innerHTML =
     '<i class="fa-solid fa-paper-plane"></i> ユーザーを追加する';
   document.getElementById('userModal').classList.remove('hidden');
@@ -593,6 +603,7 @@ document.getElementById('userModalSubmit').addEventListener('click', async () =>
   const email   = document.getElementById('inviteEmail').value.trim();
   const compSel = document.getElementById('inviteCompany');
   const role    = document.getElementById('inviteRole').value;
+  const solidType = document.getElementById('inviteSolidType').value || null;
 
   const btn = document.getElementById('userModalSubmit');
   btn.disabled = true;
@@ -602,9 +613,9 @@ document.getElementById('userModalSubmit').addEventListener('click', async () =>
   try {
     if (editingUserId !== null) {
       /* ── ロール変更 ── */
-      const data = await api.patch(`/admin/users/${editingUserId}`, { role });
+      const data = await api.patch(`/admin/users/${editingUserId}`, { role, solid_type: solidType });
       const idx = allUsers.findIndex(u => u.id === editingUserId);
-      if (idx !== -1) allUsers[idx].role = role;
+      if (idx !== -1) { allUsers[idx].role = role; allUsers[idx].solid_type = solidType; }
       document.getElementById('userModal').classList.add('hidden');
       document.getElementById('inviteName').disabled  = false;
       document.getElementById('inviteEmail').disabled = false;
@@ -615,11 +626,11 @@ document.getElementById('userModalSubmit').addEventListener('click', async () =>
     } else {
       /* ── ユーザー追加 ── */
       if (!name || !email) { showToast('名前とメールアドレスは必須です', 'danger'); return; }
-      const country = role === 'id_modeler' ? 'ID' : 'JP';
+      const country = solidType === 'id_modeler' ? 'ID' : 'JP';
       const data = await api.post('/admin/users', {
         name, email,
         password: 'password',  // 初期パスワード（実運用では変更必須）
-        role, country,
+        role, solid_type: solidType, country,
         company_id: Number(compSel.value),
       });
       allUsers.push(data.user);

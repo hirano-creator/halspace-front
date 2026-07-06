@@ -137,10 +137,10 @@ const MOCK = {
     { id:3, file_type:'model_3d', file_name:'安全カバー_v1.stp', file_size:3450000, uploaded_by:'Budi Santoso', created_at:'2025-04-23' },
   ],
   comments: [
-    { id:1, channel:'client',  user:'山田 太郎',   role:'jp_client',  body:'板厚4.5mmで間違いありません。溶接部の仕上げはグラインダー仕上げをお願いします。', created_at:'2025-04-20 10:32', image:null },
-    { id:2, channel:'client',  user:'管理者 花子', role:'jp_admin',   body:'承知しました。モデラーに伝えます。', created_at:'2025-04-20 10:45', image:null },
-    { id:3, channel:'modeler', user:'管理者 花子', role:'jp_admin',   body:'グラインダー仕上げ・t4.5 SS400 で進めてください。', created_at:'2025-04-21 09:00', image:null },
-    { id:4, channel:'modeler', user:'Budi Santoso', role:'id_modeler', body:'Understood. We will proceed with t4.5 SS400 and grinder finishing on weld seams.', created_at:'2025-04-21 09:15', image:null },
+    { id:1, channel:'client',  user:'山田 太郎',   role:'general', solid_type:'jp_client', body:'板厚4.5mmで間違いありません。溶接部の仕上げはグラインダー仕上げをお願いします。', created_at:'2025-04-20 10:32', image:null },
+    { id:2, channel:'client',  user:'管理者 花子', role:'admin',   body:'承知しました。モデラーに伝えます。', created_at:'2025-04-20 10:45', image:null },
+    { id:3, channel:'modeler', user:'管理者 花子', role:'admin',   body:'グラインダー仕上げ・t4.5 SS400 で進めてください。', created_at:'2025-04-21 09:00', image:null },
+    { id:4, channel:'modeler', user:'Budi Santoso', role:'general', solid_type:'id_modeler', body:'Understood. We will proceed with t4.5 SS400 and grinder finishing on weld seams.', created_at:'2025-04-21 09:15', image:null },
   ],
   companies: [
     { id:1, name:'株式会社ABC製作所', slug:'abc-mfg', plan:'standard', is_active:true, users:3, projects:12 },

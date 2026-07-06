@@ -133,7 +133,7 @@
     /* ───── 表示モード ───── */
     function renderView(){
       inEditMode = false;
-      const isAdmin = P.user?.role === 'super_admin' || P.user?.role === 'jp_admin';
+      const isAdmin = P.user?.role === 'super_admin' || P.user?.role === 'admin';
       const skills = P.skills || [];
       const bioHtml = P.bio
         ? `<p style="font-size:15.5px;line-height:1.8;color:#3a3a42;margin-top:16px;white-space:pre-wrap">${esc(P.bio)}</p>`

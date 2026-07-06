@@ -33,11 +33,12 @@
     .company-actions{display:flex;gap:8px;flex-wrap:wrap;}
 
     /* ユーザーリスト */
-    .user-role-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;}
-    .role-jp_client   {background:rgba(116,185,255,.2);color:var(--blue);}
-    .role-id_modeler  {background:rgba(253,203,110,.25);color:#9d6a00;}
-    .role-jp_admin    {background:rgba(0,184,148,.2);color:var(--accent);}
+    .user-role-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:4px;}
+    .role-general     {background:rgba(116,185,255,.2);color:var(--blue);}
+    .role-admin       {background:rgba(0,184,148,.2);color:var(--accent);}
     .role-super_admin {background:rgba(255,107,53,.2);color:var(--primary);}
+    .solid-type-jp_client  {background:rgba(116,185,255,.15);color:var(--blue);}
+    .solid-type-id_modeler {background:rgba(253,203,110,.25);color:#9d6a00;}
 
     /* 削除管理 */
     .expire-item{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);}
@@ -211,10 +212,14 @@
             </select>
             <select class="form-select" id="filterUserRole" style="max-width:160px;">
               <option value="">全ロール</option>
+              <option value="general">一般会員</option>
+              <option value="admin">管理者</option>
+              <option value="super_admin">スーパー管理者</option>
+            </select>
+            <select class="form-select" id="filterUserSolidType" style="max-width:160px;">
+              <option value="">全種別（発注者/モデラー）</option>
               <option value="jp_client">発注担当</option>
               <option value="id_modeler">モデラー</option>
-              <option value="jp_admin">管理者</option>
-              <option value="super_admin">スーパー管理者</option>
             </select>
           </div>
           <div class="table-wrap">
@@ -377,11 +382,18 @@
       <div class="form-group">
         <label class="form-label">ロール <span class="req">*</span></label>
         <select class="form-select" id="inviteRole">
-          <option value="jp_client">発注担当（日本）</option>
-          <option value="id_modeler">モデラー（インドネシア）</option>
-          <option value="jp_admin">管理者</option>
+          <option value="general">一般会員</option>
+          <option value="admin">管理者</option>
         </select>
       </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">発注者/モデラー種別<span style="font-size:10px;color:var(--muted);">（SOLID内での立場。空欄可）</span></label>
+      <select class="form-select" id="inviteSolidType">
+        <option value="">— なし —</option>
+        <option value="jp_client">発注担当（日本）</option>
+        <option value="id_modeler">モデラー（インドネシア）</option>
+      </select>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" id="userModalClose2">キャンセル</button>
@@ -403,10 +415,17 @@
     <div class="form-group">
       <label class="form-label">ロール</label>
       <select class="form-select" id="editUserRole">
+        <option value="general">一般会員</option>
+        <option value="admin">管理者</option>
+        <option value="super_admin">スーパー管理者</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">発注者/モデラー種別<span style="font-size:10px;color:var(--muted);">（SOLID内での立場。空欄可）</span></label>
+      <select class="form-select" id="editUserSolidType">
+        <option value="">— なし —</option>
         <option value="jp_client">発注担当（日本）</option>
         <option value="id_modeler">モデラー（インドネシア）</option>
-        <option value="jp_admin">管理者</option>
-        <option value="super_admin">スーパー管理者</option>
       </select>
     </div>
     <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px;">

@@ -24,10 +24,10 @@ function solidLogout() {
   location.href = '../../space/apps.html';
 }
 
-/* ロールチェック */
-function isAdmin(user)   { return ['jp_admin','super_admin'].includes(user?.role); }
-function isModeler(user) { return user?.role === 'id_modeler'; }
-function isClient(user)  { return user?.role === 'jp_client'; }
+/* ロールチェック（role=サイト権限、solid_type=発注者/モデラー種別） */
+function isAdmin(user)   { return ['admin','super_admin'].includes(user?.role); }
+function isModeler(user) { return user?.solid_type === 'id_modeler'; }
+function isClient(user)  { return user?.solid_type === 'jp_client'; }
 
 /* ハンバーガーメニュー（モバイル用サイドバー開閉） */
 function initMobileMenu() {
@@ -66,12 +66,16 @@ function renderSidebarUser(user) {
     <div class="sidebar-avatar">${user.name.charAt(0)}</div>
     <div class="sidebar-user-info">
       <span class="sidebar-user-name">${user.name}</span>
-      <span class="sidebar-user-role">${roleLabel(user.role)}</span>
+      <span class="sidebar-user-role">${roleLabel(user.role, user.solid_type)}</span>
     </div>`;
 }
-function roleLabel(role) {
-  return { jp_client:'発注担当', id_modeler:'モデラー',
-           jp_admin:'管理者', super_admin:'スーパー管理者' }[role] || role;
+/* role=サイト権限、solidType=発注者/モデラー種別（solidアプリ内でのみ意味を持つ） */
+function roleLabel(role, solidType) {
+  if (role === 'super_admin') return 'スーパー管理者';
+  if (role === 'admin') return '管理者';
+  if (solidType === 'jp_client') return '発注担当';
+  if (solidType === 'id_modeler') return 'モデラー';
+  return '一般会員';
 }
 
 /* DOMロード後にモバイルメニューを自動初期化 */

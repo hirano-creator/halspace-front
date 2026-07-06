@@ -73,7 +73,7 @@
     const av = document.getElementById('deckAva'); if (av) av.textContent = (name || '?').trim().charAt(0);
     // 管理者には「管理」リンクを左ナビに追加
     const role = u.role || '';
-    if (role === 'super_admin' || role === 'jp_admin') {
+    if (role === 'super_admin' || role === 'admin') {
       const nav = document.querySelector('.deck-nav');
       const postBtn = nav && nav.querySelector('.deck-post');
       if (nav && postBtn && !nav.querySelector('.navi-admin')) {

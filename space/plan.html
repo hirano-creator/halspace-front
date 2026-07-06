@@ -697,7 +697,7 @@ GET    /api/admin/audit-logs/export → CSV出力</pre>
     <div class="subsection-title">権限マトリクス</div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>操作</th><th>jp_client</th><th>id_modeler</th><th>jp_admin</th><th>super_admin</th></tr></thead>
+        <thead><tr><th>操作</th><th>発注者<br>(solid_type: jp_client)</th><th>モデラー<br>(solid_type: id_modeler)</th><th>admin</th><th>super_admin</th></tr></thead>
         <tbody>
           <tr><td>自社プロジェクト閲覧</td><td class="allow">✅</td><td class="allow">✅(担当分)</td><td class="allow">✅(全社)</td><td class="allow">✅</td></tr>
           <tr><td>発注作成</td><td class="allow">✅</td><td class="deny">❌</td><td class="allow">✅</td><td class="allow">✅</td></tr>

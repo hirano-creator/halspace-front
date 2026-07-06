@@ -520,9 +520,9 @@ function initChatTabs() {
   });
 }
 
-function avatarCls(role) {
-  if (role === 'jp_admin')   return 'chat-avatar-admin';
-  if (role === 'id_modeler') return 'chat-avatar-modeler';
+function avatarCls(role, solidType) {
+  if (role === 'admin')          return 'chat-avatar-admin';
+  if (solidType === 'id_modeler') return 'chat-avatar-modeler';
   return '';
 }
 
@@ -561,6 +561,7 @@ function renderChat() {
         : '';
     const textHtml = c.body ? `<div>${escapeHtml(c.body)}</div>` : '';
     const role = c.user_role ?? c.role ?? '';
+    const solidType = c.user_solid_type ?? c.solid_type ?? '';
     const canDel = Number(c.user_id) === Number(user.id) || isAdmin(user);
     const delBtn = canDel
       ? `<button class="chat-del-btn" data-comment-id="${c.id}" title="削除"><i class="fa-solid fa-trash-can"></i></button>`
@@ -568,17 +569,17 @@ function renderChat() {
 
     return `${divider}
     <div class="chat-msg${isMine?' mine':''}">
-      ${!isMine ? `<div class="chat-avatar ${avatarCls(role)}">${userName.charAt(0)}</div>` : ''}
+      ${!isMine ? `<div class="chat-avatar ${avatarCls(role, solidType)}">${userName.charAt(0)}</div>` : ''}
       <div class="chat-bubble-wrap">
         <div class="chat-meta">
           <span class="chat-meta-name">${isMine ? 'あなた' : userName}</span>
-          <span>${roleLabel(role)}</span>
+          <span>${roleLabel(role, solidType)}</span>
           <span>${(c.created_at||'').split(' ')[1] || c.created_at || ''}</span>
           ${delBtn}
         </div>
         <div class="chat-bubble">${textHtml}${imgHtml}</div>
       </div>
-      ${isMine ? `<div class="chat-avatar ${avatarCls(role)}">${userName.charAt(0)}</div>` : ''}
+      ${isMine ? `<div class="chat-avatar ${avatarCls(role, solidType)}">${userName.charAt(0)}</div>` : ''}
     </div>`;
   }).join('');
 
@@ -760,6 +761,11 @@ async function setFileReviewStatus(fileId, status) {
     const data = await api.patch(`/files/${fileId}/review-status`, { review_status: status });
     const f = project.files.find(x => x.id === fileId);
     if (f) Object.assign(f, data?.file ?? { review_status: status });
+    // ファイル納品でプロジェクトステータスが進んだ場合（例: → 発注者確認）も反映
+    if (data?.project_status && data.project_status !== project.status) {
+      project.status = data.project_status;
+      renderInfo();
+    }
     renderFiles();
     renderTimeline();
   } catch (err) {

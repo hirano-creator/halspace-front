@@ -191,13 +191,13 @@
       document.querySelectorAll('[data-utoggle]').forEach(b=>b.onclick=async()=>{ await AA.admin.toggleUser(b.dataset.utoggle); renderMembers(); });
     }
 
-    // 権限チェック（super_admin / jp_admin のみ）
+    // 権限チェック（super_admin / admin のみ）
     (async () => {
       try {
         const r = await AA.me();
         const u = r.user || r.data || r;
         const role = u.role || '';
-        if (role !== 'super_admin' && role !== 'jp_admin') {
+        if (role !== 'super_admin' && role !== 'admin') {
           document.querySelector('.wrap').innerHTML = '<header class="appbar"><button class="icon-btn" onclick="location.href=\'./feed.html\'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M15 18l-6-6 6-6"/></svg></button><div class="title">管理</div><span style="width:40px"></span></header><div class="deny">この画面は管理者のみ利用できます。</div>';
           return;
         }

@@ -6,17 +6,17 @@ const SPACE_API = (location.hostname === 'localhost' || location.hostname === '1
   : 'https://halspace-api-production.up.railway.app/api';
 
 /* ===== モックユーザーデータ（⑨でAPI接続に置き換える） =====
-   URLパラメータ ?role=jp_admin / id_modeler で切り替え可能   */
+   URLパラメータ ?role=client / modeler / admin で切り替え可能   */
 const MOCK_USERS = {
-  jp_client: { id: 1, name: '山田 太郎', email: 'yamada@abc-mfg.co.jp',
-               role: 'jp_client', company: '株式会社ABC製作所',
-               apps: ['solid'], token: 'mock-token-jp-client' },
-  id_modeler: { id: 2, name: 'Budi Santoso', email: 'budi@halspace.id',
-                role: 'id_modeler', company: 'HaLSpace Indonesia',
-                apps: ['solid'], token: 'mock-token-id-modeler' },
-  jp_admin:   { id: 3, name: '管理者 花子', email: 'admin@halspace.co.jp',
-                role: 'jp_admin', company: '株式会社HaLSpace',
-                apps: ['solid', 'whatsno', 'meetlog', '3d-datashop'], token: 'mock-token-jp-admin' },
+  client: { id: 1, name: '山田 太郎', email: 'yamada@abc-mfg.co.jp',
+            role: 'general', solid_type: 'jp_client', company: '株式会社ABC製作所',
+            apps: ['solid'], token: 'mock-token-client' },
+  modeler: { id: 2, name: 'Budi Santoso', email: 'budi@halspace.id',
+             role: 'general', solid_type: 'id_modeler', company: 'HaLSpace Indonesia',
+             apps: ['solid'], token: 'mock-token-modeler' },
+  admin:   { id: 3, name: '管理者 花子', email: 'admin@halspace.co.jp',
+             role: 'admin', company: '株式会社HaLSpace',
+             apps: ['solid', 'whatsno', 'meetlog', '3d-datashop'], token: 'mock-token-admin' },
 };
 
 const APP_CATALOG = [
@@ -86,7 +86,7 @@ function requireAuth(redirectTo = 'login.html') {
 /* ===== ログインページ ===== */
 const loginForm = document.getElementById('loginForm');
 if (loginForm) {
-  /* モック用: URLパラメータ ?role=jp_admin でロール変更 */
+  /* モック用: URLパラメータ ?role=admin でロール変更 */
   const roleParam = new URLSearchParams(location.search).get('role');
   if (roleParam && MOCK_USERS[roleParam]) {
     document.getElementById('email').value    = MOCK_USERS[roleParam].email;
@@ -147,9 +147,9 @@ if (loginForm) {
 
   /* クイックログインボタン（実APIで認証） */
   const QUICK_CREDS = {
-    jp_client:  { email: 'sato@sample-seizo.co.jp',  password: 'password' },
-    id_modeler: { email: 'budi@halspace.co.jp',       password: 'password' },
-    jp_admin:   { email: 'admin@halspace.co.jp',      password: 'password' },
+    client:  { email: 'sato@sample-seizo.co.jp',  password: 'password' },
+    modeler: { email: 'budi@halspace.co.jp',       password: 'password' },
+    admin:   { email: 'admin@halspace.co.jp',      password: 'password' },
   };
   document.querySelectorAll('.quick-login-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -261,7 +261,7 @@ if (appsGrid) {
     : GREETINGS[Math.floor(Date.now() / 86400000) % GREETINGS.length](n);
   document.getElementById('welcomeMsg').textContent = welcomeText;
 
-  if (['jp_admin', 'super_admin'].includes(user.role)) {
+  if (['admin', 'super_admin'].includes(user.role)) {
     document.getElementById('adminLink').style.display = '';
   }
 

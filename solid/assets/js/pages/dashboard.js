@@ -22,7 +22,7 @@ if (user) {
     if (adminNav) adminNav.style.display = '';
   }
 
-  /* jp_client は担当モデラー列・フィルタを非表示 */
+  /* 発注者（管理者でもモデラーでもない一般会員）は担当モデラー列・フィルタを非表示 */
   if (!isAdmin(user) && !isModeler(user)) {
     const modelerCol = document.getElementById('modelerCol');
     if (modelerCol) modelerCol.style.display = 'none';

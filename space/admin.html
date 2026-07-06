@@ -657,9 +657,8 @@
             </select>
             <select class="form-input" id="userRoleFilter">
               <option value="">すべてのロール</option>
-              <option value="jp_client">発注担当</option>
-              <option value="id_modeler">モデラー</option>
-              <option value="jp_admin">管理者</option>
+              <option value="general">一般会員</option>
+              <option value="admin">管理者</option>
               <option value="super_admin">Super Admin</option>
             </select>
             <select class="form-input" id="userStatusFilter">
@@ -873,9 +872,8 @@
         <div class="form-group">
           <label class="form-label">ロール <span style="color:var(--red);">*</span></label>
           <select class="form-input" id="userModalRole">
-            <option value="jp_client">発注担当（jp_client）</option>
-            <option value="id_modeler">モデラー（id_modeler）</option>
-            <option value="jp_admin">管理者（jp_admin）</option>
+            <option value="general">一般会員（general）</option>
+            <option value="admin">管理者（admin）</option>
             <option value="super_admin">Super Admin</option>
           </select>
         </div>
@@ -923,7 +921,7 @@ const API = (() => {
 
 /* ── 認証チェック ── */
 const currentUser = getAuth();
-if (!currentUser || !['jp_admin','super_admin'].includes(currentUser.role)) {
+if (!currentUser || !['admin','super_admin'].includes(currentUser.role)) {
   location.href = 'apps.html';
 }
 const isSuperAdmin = currentUser.role === 'super_admin';
@@ -935,7 +933,7 @@ document.getElementById('sidebarUserRole').textContent = roleLabel(currentUser.r
 if (isSuperAdmin) {
   document.getElementById('sidebarSystem').style.display = '';
 } else {
-  // jp_adminは会社管理非表示
+  // adminは会社管理非表示
   document.getElementById('sidebarCompanySection').querySelector('[data-section="companies"]').style.display = 'none';
 }
 
@@ -1469,13 +1467,13 @@ function openAddUser() {
   document.getElementById('userModalTitle').textContent = 'ユーザーを追加';
   document.getElementById('userModalName').value  = '';
   document.getElementById('userModalEmail').value = '';
-  document.getElementById('userModalRole').value  = 'jp_client';
+  document.getElementById('userModalRole').value  = 'general';
   document.getElementById('userModalPwArea').style.display = 'none';
   document.getElementById('userModalError').style.display  = 'none';
   document.getElementById('userModalSave').style.display   = '';
   const compSel = document.getElementById('userModalCompany');
   const setupCompanyAndApps = () => {
-    // jp_adminは自分の会社に固定
+    // adminは自分の会社に固定
     if (!isSuperAdmin) {
       compSel.innerHTML = `<option value="${currentUser.company_id}">${h(currentUser.company || '自社')}</option>`;
       compSel.disabled = true;
@@ -1503,7 +1501,7 @@ async function openEditUser(id) {
   document.getElementById('userModalSave').style.display   = '';
   buildUserCompanyFilter(companiesCache);
   document.getElementById('userModalCompany').value = u.company_id;
-  // jp_adminは自分の会社のみ編集可
+  // adminは自分の会社のみ編集可
   document.getElementById('userModalCompany').disabled = !isSuperAdmin;
   renderUserAppsCheckboxes(u.company_id, u.apps_enabled);
   openModal('userModal');
@@ -1741,7 +1739,7 @@ function planBadge(plan) {
   return `<span class="badge ${map[plan] ?? 'badge-gray'}">${lbl[plan] ?? plan}</span>`;
 }
 function roleBadge(role) {
-  const map = { jp_client: ['badge-blue','発注担当'], id_modeler: ['badge-orange','モデラー'], jp_admin: ['badge-purple','管理者'], super_admin: ['badge-red','Super Admin'] };
+  const map = { general: ['badge-blue','一般会員'], admin: ['badge-purple','管理者'], super_admin: ['badge-red','Super Admin'] };
   const [cls, lbl] = map[role] ?? ['badge-gray', role];
   return `<span class="badge ${cls}">${lbl}</span>`;
 }
@@ -1756,7 +1754,7 @@ function appChip(app) {
   return `<span class="app-chip ${map[app] ?? ''}">${lbl[app] ?? app}</span>`;
 }
 function roleLabel(role) {
-  return { jp_client:'発注担当', id_modeler:'モデラー', jp_admin:'管理者', super_admin:'Super Admin' }[role] ?? role;
+  return { general:'一般会員', admin:'管理者', super_admin:'Super Admin' }[role] ?? role;
 }
 function formatDt(iso) {
   if (!iso) return '—';

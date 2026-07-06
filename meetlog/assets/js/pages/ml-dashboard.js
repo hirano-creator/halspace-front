@@ -47,7 +47,7 @@ function renderSidebarUser(user) {
 }
 
 function initAdminLinks(user) {
-  const isAdmin = user.role === 'jp_admin' || user.role === 'super_admin';
+  const isAdmin = user.role === 'admin' || user.role === 'super_admin';
   ['adminTemplateLink', 'adminLink'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = isAdmin ? '' : 'none';
