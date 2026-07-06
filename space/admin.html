@@ -1640,15 +1640,34 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 });
 
 function toggleActionMenu(btn) {
+  const dropdown = btn.nextElementSibling;
+  const wasOpen = dropdown.classList.contains('open');
   closeAllActionMenus();
-  btn.nextElementSibling.classList.toggle('open');
+  if (wasOpen) return;
+  dropdown.classList.add('open');
+  positionActionDropdown(btn, dropdown);
+}
+function positionActionDropdown(btn, dropdown) {
+  const btnRect = btn.getBoundingClientRect();
+  const ddRect = dropdown.getBoundingClientRect();
+  const openUpward = window.innerHeight - btnRect.bottom < ddRect.height + 8 && btnRect.top >= ddRect.height + 8;
+  dropdown.style.position = 'fixed';
+  dropdown.style.left = Math.max(4, btnRect.right - ddRect.width) + 'px';
+  dropdown.style.top = (openUpward ? btnRect.top - ddRect.height - 4 : btnRect.bottom + 4) + 'px';
 }
 function closeAllActionMenus() {
-  document.querySelectorAll('.action-dropdown.open').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.action-dropdown.open').forEach(d => {
+    d.classList.remove('open');
+    d.style.position = '';
+    d.style.left = '';
+    d.style.top = '';
+  });
 }
 document.addEventListener('click', e => {
   if (!e.target.closest('.action-menu')) closeAllActionMenus();
 });
+document.addEventListener('scroll', () => closeAllActionMenus(), true);
+window.addEventListener('resize', () => closeAllActionMenus());
 
 function renderPagination(wrapperId, current, total, onPage) {
   const wrap = document.getElementById(wrapperId);
