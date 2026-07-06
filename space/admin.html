@@ -888,7 +888,7 @@
             <input type="text" class="form-input" id="userModalPw" readonly style="font-family:monospace;background:var(--bg);">
             <button class="btn btn-outline btn-sm" id="userModalPwCopy"><i class="fa-solid fa-copy"></i></button>
           </div>
-          <div class="form-hint">ユーザーに伝えてください。後から確認することはできません。</div>
+          <div class="form-hint" id="userModalPwHint">ユーザーに伝えてください。</div>
         </div>
       </div>
       <div class="form-error show" id="userModalError" style="display:none;"></div>
@@ -1419,6 +1419,7 @@ function openAddUser() {
   document.getElementById('userModalRole').value  = 'jp_client';
   document.getElementById('userModalPwArea').style.display = 'none';
   document.getElementById('userModalError').style.display  = 'none';
+  document.getElementById('userModalSave').style.display   = '';
   if (!companiesCache.length) loadCompanies().then(() => buildUserCompanyFilter(companiesCache));
   else buildUserCompanyFilter(companiesCache);
   // jp_adminは自分の会社に固定
@@ -1432,7 +1433,7 @@ function openAddUser() {
   openModal('userModal');
 }
 
-function openEditUser(id) {
+async function openEditUser(id) {
   closeAllActionMenus();
   const u = usersCache.find(x => x.id === id);
   if (!u) return;
@@ -1443,11 +1444,20 @@ function openEditUser(id) {
   document.getElementById('userModalRole').value  = u.role;
   document.getElementById('userModalPwArea').style.display = 'none';
   document.getElementById('userModalError').style.display  = 'none';
+  document.getElementById('userModalSave').style.display   = '';
   buildUserCompanyFilter(companiesCache);
   document.getElementById('userModalCompany').value = u.company_id;
   // jp_adminは自分の会社のみ編集可
   document.getElementById('userModalCompany').disabled = !isSuperAdmin;
   openModal('userModal');
+
+  // 仮パスワードが未変更のまま残っていれば再表示する（顧客が変更済みなら404で何も表示しない）
+  const res = await apiFetch(`/admin/users/${id}/temp-password`);
+  if (res?.ok) {
+    const data = await res.json();
+    document.getElementById('userModalPw').value = data.temp_password ?? '';
+    document.getElementById('userModalPwArea').style.display = '';
+  }
 }
 
 document.getElementById('userModalSave').addEventListener('click', async () => {
