@@ -51,7 +51,7 @@
     let lastData = [];      // 直近取得した絞り込み前の全件（検索フィルタの元データ）
     let searchQuery = '';   // PC版サイド検索欄からの絞り込みキーワード
     const esc = (s) => (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-    // ニュースの日付（配信元の公開日、無ければ取得日）を「今日/昨日/N日前/M月D日」で表示
+    // ニュースの配信元公開日を「今日/昨日/N日前/M月D日」で表示
     function fmtNewsDate(iso){
       if (!iso) return '';
       const d = new Date(iso);
@@ -64,6 +64,20 @@
       if (days < 7) return days + '日前';
       const m = d.getMonth()+1, day = d.getDate();
       return d.getFullYear() === today.getFullYear() ? `${m}月${day}日` : `${d.getFullYear()}/${m}/${day}`;
+    }
+    // a.aがこのニュースを取り込んだ日時（1日3回配信のどの回か区別できるよう時刻まで表示）
+    function fmtFetchDate(iso){
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      const today = new Date(); today.setHours(0,0,0,0);
+      const dd = new Date(d); dd.setHours(0,0,0,0);
+      const days = Math.round((today - dd) / 86400000);
+      const hm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      if (days <= 0) return `今日${hm}`;
+      if (days === 1) return `昨日${hm}`;
+      const m = d.getMonth()+1, day = d.getDate();
+      return `${m}月${day}日${hm}`;
     }
 
     function renderFilter(){
@@ -88,9 +102,10 @@
     function postCard(p){
       // ニュース
       if (p.kind === 'news') {
-        const ndate = fmtNewsDate(p.news_published_at || p.created_at);
+        const ndate = fmtNewsDate(p.news_published_at);
+        const fdate = fmtFetchDate(p.created_at);
         return `<a class="news" href="${esc(p.news_url)}" target="_blank" rel="noopener">
-          <div class="nh"><span class="nbadge">ニュース</span><span class="src">${esc(p.news_source)}</span>${ndate?`<span class="ndate">${esc(ndate)}</span>`:''}<span class="ncat">${esc(p.category)}</span></div>
+          <div class="nh"><span class="nbadge">ニュース</span><span class="src">${esc(p.news_source)}</span>${ndate?`<span class="ndate">${esc(ndate)}</span>`:''}${fdate?`<span class="ndate">取得 ${esc(fdate)}</span>`:''}<span class="ncat">${esc(p.category)}</span></div>
           <h3>${esc(p.news_title)}</h3>${p.news_summary?`<p>${esc(p.news_summary)}</p>`:''}
         </a>`;
       }

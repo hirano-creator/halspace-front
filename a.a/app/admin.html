@@ -57,6 +57,14 @@
   <script>
     if (!AA.isAuthed()) location.replace('../index.html');
     const esc = (s)=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    // a.aがニュースを取り込んだ日時を「M/D H:MM」で表示（1日3回配信のどの回か区別できるよう時刻まで出す）
+    function fmtDateTime(iso){
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      const hm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      return `${d.getMonth()+1}/${d.getDate()} ${hm}`;
+    }
     const TABS = [['stats','ダッシュボード'],['posts','投稿'],['news','ニュース'],['members','メンバー']];
     let tab = 'stats';
     const sec = () => document.getElementById('sec');
@@ -117,7 +125,7 @@
       const [{data:news},{data:feeds}] = await Promise.all([AA.admin.news(), AA.admin.feeds()]);
       const newsList = news.slice(0,20).map(n=>`
         <div class="row">
-          <div class="grow"><b>${esc(n.news_title)}</b><small>${esc(n.news_source||'')} ・ ${esc(n.category||'')}</small></div>
+          <div class="grow"><b>${esc(n.news_title)}</b><small>${esc(n.news_source||'')} ・ ${esc(n.category||'')} ・ 取得 ${esc(fmtDateTime(n.created_at))}</small></div>
           <span class="badge ${n.status==='hidden'?'off':'ok'}">${n.status==='hidden'?'非表示':'公開'}</span>
           <button class="mini" data-ntoggle="${n.id}" data-to="${n.status==='hidden'?'published':'hidden'}">${n.status==='hidden'?'再公開':'非表示'}</button>
         </div>`).join('') || '<div class="center" style="padding:16px">ニュースなし</div>';
