@@ -156,7 +156,7 @@ if (!fileId) {
     '<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><strong>ファイルIDが指定されていません</strong></div>';
 } else {
   // 認証チェック（未ログインならログイン画面へ）
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   if (!token) {
     location.href = '../../space/login.html';
   }
@@ -360,7 +360,7 @@ async function _open3D(file, content, loading, toolbar, ext) {
    - ローカルストレージ: ファイル本体を直接返す → そのまま .arrayBuffer()
    - R2等外部ストレージ: { url: "..." } JSON → 署名付きURLにfetchしてarrayBuffer() */
 async function _fetchFileBuffer(apiUrl) {
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   const r = await fetch(apiUrl, {
     headers: { 'Accept': '*/*', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
   });

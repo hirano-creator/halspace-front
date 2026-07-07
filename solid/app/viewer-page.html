@@ -101,7 +101,7 @@ function showError(msg) {
 }
 
 function fetchWithAuth(url) {
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   return fetch(url, {
     headers: { 'Accept': '*/*', ...(token ? { 'Authorization': 'Bearer ' + token } : {}) },
   });

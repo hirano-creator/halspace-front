@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function requireAuth() {
   if (typeof solidRequireAuth === 'function') return solidRequireAuth();
-  const raw = localStorage.getItem('space_user');
+  const raw = sessionStorage.getItem('space_user');
   if (!raw) { location.href = '../../../space/login.html'; return null; }
   return JSON.parse(raw);
 }

@@ -709,7 +709,7 @@ function renderAuditPager(meta) {
 
 document.getElementById('logSearchBtn').addEventListener('click', () => loadAudit(1));
 document.getElementById('logExportBtn').addEventListener('click', () => {
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   window.open(`${WN_API_BASE}/admin/audit-logs/export?token=${encodeURIComponent(token)}`, '_blank');
 });
 

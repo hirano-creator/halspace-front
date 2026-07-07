@@ -2,27 +2,12 @@
 
 /* ===== 共通ユーティリティ ===== */
 function getAuth() {
-  const raw = localStorage.getItem('space_user');
+  const raw = sessionStorage.getItem('space_user');
   return raw ? JSON.parse(raw) : null;
 }
 
-/* 別タブ/別ウィンドウで別アカウントへログインし直された場合の対策。
-   space_userはHaLSpace全アプリ共通でlocalStorageを共有しているため、
-   他タブでの再ログインを検知せず放置すると、このタブが古いユーザー情報のまま
-   操作され続け、後で不可解に別人のアカウントへ切り替わったように見えてしまう。 */
-window.addEventListener('storage', (e) => {
-  if (e.key !== 'space_user' || !e.oldValue || !e.newValue) return;
-  try {
-    const oldUser = JSON.parse(e.oldValue);
-    const newUser = JSON.parse(e.newValue);
-    if (oldUser.id !== newUser.id) {
-      alert('別のアカウントでログインされたため、画面を再読み込みします。');
-      location.reload();
-    }
-  } catch {
-    /* JSONパース失敗時は何もしない */
-  }
-});
+/* ログイン情報はタブごとに独立したsessionStorageに保存しているため、
+   別タブで別アカウントにログインしても、このタブのセッションには影響しない。 */
 
 function getParam(key) {
   return new URLSearchParams(location.search).get(key) || '';

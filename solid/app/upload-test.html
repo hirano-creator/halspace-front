@@ -11,7 +11,7 @@
 
 <script>
 const API_BASE = 'http://127.0.0.1:8000/api';
-const TOKEN = localStorage.getItem('space_token');
+const TOKEN = sessionStorage.getItem('space_token');
 
 function log(msg) {
   document.getElementById('log').textContent += msg + '\n';

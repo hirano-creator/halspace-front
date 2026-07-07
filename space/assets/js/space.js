@@ -66,39 +66,19 @@ const APP_CATALOG = [
 
 /* ===== ユーティリティ ===== */
 function saveAuth(user) {
-  localStorage.setItem('space_token', user.token);
-  localStorage.setItem('space_user',  JSON.stringify(user));
+  sessionStorage.setItem('space_token', user.token);
+  sessionStorage.setItem('space_user',  JSON.stringify(user));
 }
 function getAuth() {
-  const raw = localStorage.getItem('space_user');
+  const raw = sessionStorage.getItem('space_user');
   return raw ? JSON.parse(raw) : null;
 }
 function clearAuth() {
-  localStorage.removeItem('space_token');
-  localStorage.removeItem('space_user');
+  sessionStorage.removeItem('space_token');
+  sessionStorage.removeItem('space_user');
 }
-
-/* 別タブ/別ウィンドウで別アカウントへログインし直された場合の対策。
-   localStorageは同一オリジンの全タブで共有されるため、あるタブで別ユーザーとして
-   ログインすると、既に開いている他のタブのログイン状態まで書き換わってしまう。
-   何もしないと、そのタブは古い（＝もう自分のものではない）ユーザーの情報や画面のまま
-   操作され続け、後で不可解に別人のアカウントへ切り替わったように見えてしまう
-   （お客様の不信感につながる）。storageイベント（他タブでの変更時のみ発火）で
-   ユーザーIDの変化を検知し、即座に再読み込みして状態を安全に同期する。
-   oldValue/newValueが無い場合（ログイン/ログアウト単体）は誤検知を避けて対象外。 */
-window.addEventListener('storage', (e) => {
-  if (e.key !== 'space_user' || !e.oldValue || !e.newValue) return;
-  try {
-    const oldUser = JSON.parse(e.oldValue);
-    const newUser = JSON.parse(e.newValue);
-    if (oldUser.id !== newUser.id) {
-      alert('別のアカウントでログインされたため、画面を再読み込みします。');
-      location.reload();
-    }
-  } catch {
-    /* JSONパース失敗時は何もしない */
-  }
-});
+/* ログイン情報はタブごとに独立したsessionStorageに保存しているため、
+   別タブで別アカウントにログインしても、このタブのセッションには影響しない。 */
 function requireAuth(redirectTo = 'login.html') {
   const user = getAuth();
   if (!user) { location.href = redirectTo; return null; }

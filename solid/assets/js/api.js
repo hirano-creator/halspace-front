@@ -9,7 +9,7 @@ const API_BASE = (() => {
 })();
 
 async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
 
   /* モックトークンの場合はAPIを叩かずエラーにする */
   if (token && token.startsWith('mock-token')) {

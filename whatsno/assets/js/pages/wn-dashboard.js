@@ -3990,7 +3990,7 @@ async function syncDesktopToken() {
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   if (isMobile) return;
 
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   if (!token) return;
 
   // 主: ローカル同期サーバー経由（ログイン時に自動起動 / ユーザー操作不要）
@@ -4027,7 +4027,7 @@ function initDesktopIntegrationModal() {
   const copyBtn    = document.getElementById('desktopTokenCopy');
 
   function buildCommand() {
-    const token = localStorage.getItem('space_token') || '';
+    const token = sessionStorage.getItem('space_token') || '';
     return `powershell -ExecutionPolicy Bypass -File ".\\wn-install.ps1" -Token "${token}"`;
   }
 

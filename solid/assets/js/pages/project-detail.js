@@ -433,7 +433,7 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
       const fid      = Number(btn.dataset.fileId);
       const fileName = btn.dataset.fileName;
       try {
-        const token = localStorage.getItem('space_token');
+        const token = sessionStorage.getItem('space_token');
         const res = await fetch(`${API_BASE}/files/${fid}/download`, {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         });
@@ -463,7 +463,7 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
 
 /* FormData用fetch */
 async function apiFetchForm(path, formData) {
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   const res = await fetch(API_BASE + path, {
     method: 'POST',
     headers: {
@@ -617,7 +617,7 @@ function loadAuthImages(container) {
       return;
     }
     try {
-      const token = localStorage.getItem('space_token');
+      const token = sessionStorage.getItem('space_token');
       const res = await fetch(url, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
       });

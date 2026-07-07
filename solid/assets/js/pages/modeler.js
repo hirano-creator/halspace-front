@@ -199,7 +199,7 @@ document.getElementById('uploadSubmitBtn').addEventListener('click', async () =>
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> アップロード中...';
 
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   let errors = [];
   const uploadedIds = [];
 

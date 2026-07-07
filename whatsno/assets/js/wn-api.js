@@ -7,26 +7,11 @@ const WN_API_BASE = (() => {
   return 'https://halspace-api-production.up.railway.app/api';
 })();
 
-/* 別タブ/別ウィンドウで別アカウントへログインし直された場合の対策。
-   space_userはHaLSpace全アプリ共通でlocalStorageを共有しているため、
-   他タブでの再ログインを検知せず放置すると、このタブが古いユーザー情報のまま
-   操作され続け、後で不可解に別人のアカウントへ切り替わったように見えてしまう。 */
-window.addEventListener('storage', (e) => {
-  if (e.key !== 'space_user' || !e.oldValue || !e.newValue) return;
-  try {
-    const oldUser = JSON.parse(e.oldValue);
-    const newUser = JSON.parse(e.newValue);
-    if (oldUser.id !== newUser.id) {
-      alert('別のアカウントでログインされたため、画面を再読み込みします。');
-      location.reload();
-    }
-  } catch {
-    /* JSONパース失敗時は何もしない */
-  }
-});
+/* ログイン情報はタブごとに独立したsessionStorageに保存しているため、
+   別タブで別アカウントにログインしても、このタブのセッションには影響しない。 */
 
 async function wnFetch(path, options = {}) {
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   /* FormData の場合は Content-Type を付けない（ブラウザに multipart 境界を
      付けさせる）。JSON を強制すると multipart が壊れてサーバーが解析できない。 */
   const isFormData = (typeof FormData !== 'undefined') && (options.body instanceof FormData);
@@ -40,8 +25,8 @@ async function wnFetch(path, options = {}) {
   if (res.status === 401) {
     /* モックトークンはAPIが401を返して当然 — リダイレクトしない */
     if (token && token.startsWith('mock-token')) return null;
-    localStorage.removeItem('space_token');
-    localStorage.removeItem('space_user');
+    sessionStorage.removeItem('space_token');
+    sessionStorage.removeItem('space_user');
     location.href = '../../../space/login.html';
     return null;
   }
@@ -101,7 +86,7 @@ async function wnGetFile(id) {
    - サーバー側は Content-Type が multipart 以外なら X-File-Name ヘッダーで名前を受け取る
    - ネットワーク系エラーは指数バックオフで最大3回リトライ（wnOverwriteFile と同方針） */
 async function wnUploadFile(file, { onProgress } = {}) {
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
 
   // ArrayBuffer 経由で Blob に変換（iOS Safari の File 参照無効化対策）
   const buffer = await file.arrayBuffer();
@@ -123,7 +108,7 @@ async function wnUploadFile(file, { onProgress } = {}) {
     };
     xhr.onload = () => {
       if (xhr.status === 401) {
-        localStorage.removeItem('space_token');
+        sessionStorage.removeItem('space_token');
         location.href = '../../../space/login.html';
         return;
       }
@@ -161,7 +146,7 @@ async function wnUploadFile(file, { onProgress } = {}) {
 
 /* 既存ファイルの内容を上書き（新バージョンを作らない） */
 async function wnOverwriteFile(id, file) {
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   const buffer = await file.arrayBuffer();
   const blob = new Blob([buffer], { type: file.type || 'application/octet-stream' });
 
@@ -180,7 +165,7 @@ async function wnOverwriteFile(id, file) {
     xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
     xhr.onload = () => {
       if (xhr.status === 401) {
-        localStorage.removeItem('space_token');
+        sessionStorage.removeItem('space_token');
         location.href = '../../../space/login.html';
         return;
       }
@@ -352,7 +337,7 @@ async function wnSemanticSearch(query) {
 
 /* public-view プロキシURL（認証トークン付き） */
 function wnPublicViewUrl(fileId) {
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   return WN_API_BASE + `/wn/files/${fileId}/public-view` + (token ? `?token=${encodeURIComponent(token)}` : '');
 }
 
@@ -362,7 +347,7 @@ function wnPublicViewUrl(fileId) {
    サーバーは immutable を使わず ETag+再検証で配信するため、万一の誤配信も自己修復する。 */
 const WN_THUMB_GEN = 'g4';
 function wnThumbUrl(fileId, updatedAt) {
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   const ts = updatedAt ? Date.parse(updatedAt) || '' : '';
   const parts = [];
   if (token) parts.push(`token=${encodeURIComponent(token)}`);
@@ -446,7 +431,7 @@ async function wnFetchFileBuffer(fileId, { onProgress, timeoutMs = 120000 } = {}
 function wnOfficeViewerUrl(fileId) {
   const h = location.hostname;
   if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.test')) return null;
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   if (!token) return null;
   const proxyUrl = WN_API_BASE + `/wn/files/${fileId}/public-view?token=${encodeURIComponent(token)}`;
   return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(proxyUrl)}`;
@@ -466,7 +451,7 @@ async function wnDeleteFile(fileId) {
 
 /* ダウンロード */
 function wnDownload(fileId) {
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   const a = document.createElement('a');
   a.href = WN_API_BASE + `/wn/files/${fileId}/download` +
            (token ? `?token=${encodeURIComponent(token)}` : '');

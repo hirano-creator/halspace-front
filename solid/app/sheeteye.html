@@ -135,7 +135,7 @@
     return text;
   }
 
-  var token = localStorage.getItem('space_token');
+  var token = sessionStorage.getItem('space_token');
   fetch(API_BASE + '/files/' + fileId + '/view', {
     headers: token ? { 'Authorization': 'Bearer ' + token } : {},
   }).then(function (res) {

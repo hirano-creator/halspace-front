@@ -1069,7 +1069,7 @@ const Viewer = (() => {
   }
 
   function _fetchWithAuth(url) {
-    const token = localStorage.getItem('space_token');
+    const token = sessionStorage.getItem('space_token');
     return fetch(url, {
       headers: {
         'Accept': '*/*',

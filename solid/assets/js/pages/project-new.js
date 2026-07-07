@@ -71,7 +71,7 @@ function renderConfirm() {
 
 /* ── ファイルアップロード（FormData、fetch直接） ── */
 async function uploadFile(projectId, file) {
-  const token = localStorage.getItem('space_token');
+  const token = sessionStorage.getItem('space_token');
   const ext = file.name.split('.').pop().toLowerCase();
   const fileType = ['dxf', 'dwg'].includes(ext) ? 'drawing_dxf'
                  : ext === 'pdf'                 ? 'drawing_pdf'
