@@ -659,7 +659,7 @@
               <option value="">すべてのロール</option>
               <option value="general">一般会員</option>
               <option value="admin">管理者</option>
-              <option value="super_admin">Super Admin</option>
+              <option value="super_admin" id="userRoleFilterSuperAdminOpt">Super Admin</option>
             </select>
             <select class="form-input" id="userStatusFilter">
               <option value="">すべての状態</option>
@@ -943,6 +943,9 @@ if (isSuperAdmin) {
   document.getElementById('userModalRoleSuperAdminOpt')?.remove();
   const roleNote = document.getElementById('userModalRoleNote');
   if (roleNote) roleNote.style.display = '';
+  // adminは自社のみの一覧のため会社フィルタは不要、ロールフィルタからSuper Adminも除去
+  document.getElementById('userCompanyFilter')?.remove();
+  document.getElementById('userRoleFilterSuperAdminOpt')?.remove();
 }
 
 /* ── fetch ヘルパー ── */
