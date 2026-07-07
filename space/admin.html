@@ -874,8 +874,11 @@
           <select class="form-input" id="userModalRole">
             <option value="general">一般会員（general）</option>
             <option value="admin">管理者（admin）</option>
-            <option value="super_admin">Super Admin</option>
+            <option value="super_admin" id="userModalRoleSuperAdminOpt">Super Admin</option>
           </select>
+          <div id="userModalRoleNote" style="display:none;font-size:11px;color:var(--muted);margin-top:4px;">
+            管理者が付与できるロールは「一般会員」「管理者」までです。Super Adminはサイト運営者にご依頼ください。
+          </div>
         </div>
       </div>
       <div class="form-group">
@@ -933,8 +936,13 @@ document.getElementById('sidebarUserRole').textContent = roleLabel(currentUser.r
 if (isSuperAdmin) {
   document.getElementById('sidebarSystem').style.display = '';
 } else {
-  // adminは会社管理非表示
+  // adminは会社管理・ダッシュボード非表示（自社のユーザー管理・監査ログのみ）
   document.getElementById('sidebarCompanySection').querySelector('[data-section="companies"]').style.display = 'none';
+  document.querySelector('[data-section="dashboard"]').style.display = 'none';
+  // adminはSuper Adminを付与できない
+  document.getElementById('userModalRoleSuperAdminOpt')?.remove();
+  const roleNote = document.getElementById('userModalRoleNote');
+  if (roleNote) roleNote.style.display = '';
 }
 
 /* ── fetch ヘルパー ── */
@@ -1786,7 +1794,7 @@ document.getElementById('menuToggle').addEventListener('click', () => {
 _backdrop.addEventListener('click', closeSidebar);
 
 /* ── 初期化 ── */
-loadDashboard();
+switchSection(isSuperAdmin ? 'dashboard' : 'users');
 </script>
 </body>
 </html>
