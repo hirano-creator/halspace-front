@@ -14,9 +14,11 @@ if (user) {
     if (label && name) label.textContent = name;
   }
 
-  /* 管理者：会社フィルタ・管理リンク表示 */
-  if (isAdmin(user)) {
+  /* 管理者・モデラー：会社フィルタ表示（管理リンクは管理者のみ） */
+  if (isAdmin(user) || isModeler(user)) {
     document.getElementById('companyFilter').style.display = '';
+  }
+  if (isAdmin(user)) {
     document.getElementById('adminLink').style.display     = '';
     const adminNav = document.getElementById('adminNav');
     if (adminNav) adminNav.style.display = '';
@@ -30,7 +32,9 @@ if (user) {
     document.getElementById('modelerFilter').style.display = '';
   }
 
-  /* ── 会社フィルタ選択肢 ── */
+  /* ── 会社フィルタ選択肢 ──
+     モデラーは/admin/companiesにアクセスできない（管理者専用API）ため、
+     モデラー向けの選択肢はloadProjects()内でプロジェクトデータから生成する。 */
   async function loadCompanyFilter() {
     if (!isAdmin(user)) return;
     try {
@@ -51,13 +55,33 @@ if (user) {
 
   /* ── プロジェクト取得 ── */
   async function loadProjects() {
+    const cf = document.getElementById('companyFilter')?.value;
     try {
-      const cf = document.getElementById('companyFilter')?.value;
       const params = cf ? `?company_id=${cf}` : '';
       const data = await api.get('/projects' + params);
       allProjects = data?.projects ?? MOCK.projects;
     } catch {
       allProjects = MOCK.projects;
+    }
+    /* モデラー：会社フィルタの選択肢を更新。
+       絞り込み済みのallProjectsからは全社分の選択肢を復元できないため、
+       会社フィルタが未選択（＝全件取得）のときだけ選択肢を作り直す。
+       /admin/companiesは管理者専用APIのためモデラーは呼べない。 */
+    if (isModeler(user) && !isAdmin(user) && !cf) {
+      const sel = document.getElementById('companyFilter');
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">すべての会社</option>';
+      const companies = [...new Map(
+        allProjects
+          .filter(p => p.company_id != null)
+          .map(p => [p.company_id, p.company_name ?? p.company])
+      ).entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'ja'));
+      companies.forEach(([id, name]) => {
+        const opt = document.createElement('option');
+        opt.value = id; opt.textContent = name;
+        if (String(id) === cur) opt.selected = true;
+        sel.appendChild(opt);
+      });
     }
     /* モデラーフィルタの選択肢を更新 */
     if (isAdmin(user) || isModeler(user)) {
