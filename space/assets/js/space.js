@@ -125,7 +125,7 @@ if (loginForm) {
       const u = data.user;
       saveAuth({
         id: u.id, name: u.name, email: u.email,
-        role: u.role, company: u.company_name,
+        role: u.role, company: u.company_name, company_id: u.company_id,
         apps: u.apps_enabled ?? ['solid'],
         token: data.token,
       });
