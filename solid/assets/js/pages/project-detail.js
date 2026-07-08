@@ -269,13 +269,14 @@ function renderFiles() {
   const saveFolderBtnEl = document.getElementById('saveFolderBtn');
   if (saveFolderBtnEl && !saveFolderBtnEl.dataset.bound) {
     saveFolderBtnEl.dataset.bound = '1';
-    saveFolderBtnEl.addEventListener('click', saveModelFilesToFolder);
+    saveFolderBtnEl.addEventListener('click', () =>
+      saveFilesToLocalFolder(visibleModelFilesForBulk(), project.project_code || `project-${projId}`));
   }
 
   const zipAllBtnEl = document.getElementById('zipAllBtn');
   if (zipAllBtnEl && !zipAllBtnEl.dataset.bound) {
     zipAllBtnEl.dataset.bound = '1';
-    zipAllBtnEl.addEventListener('click', downloadModelFilesAsZip);
+    zipAllBtnEl.addEventListener('click', () => downloadFilesAsZip(visibleModelFilesForBulk()));
   }
 }
 
@@ -292,15 +293,21 @@ async function uploadModelItemsAndRefresh(items) {
   }
 }
 
-/* 発注者: 可視状態の3Dモデルをフォルダ構造ごとローカルへ直接保存（Chrome/Edge） */
-async function saveModelFilesToFolder() {
+/* 発注者に見えている3Dモデルファイル一覧（一括DL・全体保存の対象） */
+function visibleModelFilesForBulk() {
   const modelFiles = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
-  const visibleFiles = isClient(user)
+  return isClient(user)
     ? modelFiles.filter(f =>
         f.review_status === 'delivered' ||
         (['approved','delivered'].includes(project.status) && f.review_status === 'ok'))
     : modelFiles;
-  if (!visibleFiles.length) return;
+}
+
+/* 指定ファイル群をローカルへ直接保存（Chrome/Edge, File System Access API）。
+   wrapperNameを渡すと「保存先/wrapperName/relative_path...」に、省略時は
+   「保存先/relative_path...」にそのまま書き込む（フォルダ単体保存でトップ階層が二重にならないように）。*/
+async function saveFilesToLocalFolder(files, wrapperName) {
+  if (!files.length) return;
 
   let rootHandle;
   try {
@@ -311,15 +318,16 @@ async function saveModelFilesToFolder() {
     return;
   }
 
-  const baseName = project.project_code || `project-${projId}`;
-  const baseHandle = await rootHandle.getDirectoryHandle(baseName, { create: true });
+  const baseHandle = wrapperName
+    ? await rootHandle.getDirectoryHandle(wrapperName, { create: true })
+    : rootHandle;
   const progressEl = document.getElementById('modelFolderSaveProgress');
   const token = sessionStorage.getItem('space_token');
-  progressEl.style.display = '';
+  if (progressEl) progressEl.style.display = '';
 
   let done = 0;
-  for (const f of visibleFiles) {
-    progressEl.textContent = `${done} / ${visibleFiles.length} 件保存中: ${f.file_name}`;
+  for (const f of files) {
+    if (progressEl) progressEl.textContent = `${done} / ${files.length} 件保存中: ${f.file_name}`;
     const segs = (f.relative_path || f.file_name).split('/').filter(Boolean);
     let dirHandle = baseHandle;
     for (const seg of segs.slice(0, -1)) {
@@ -339,23 +347,18 @@ async function saveModelFilesToFolder() {
     done++;
   }
 
-  progressEl.textContent = `${done} / ${visibleFiles.length} 件保存しました`;
+  if (progressEl) {
+    progressEl.textContent = `${done} / ${files.length} 件保存しました`;
+    setTimeout(() => { progressEl.style.display = 'none'; }, 4000);
+  }
   showToast('フォルダへの保存が完了しました', 'success');
-  setTimeout(() => { progressEl.style.display = 'none'; }, 4000);
 }
 
-/* 発注者: 可視状態の3Dモデルをzipにまとめてダウンロード */
-function downloadModelFilesAsZip() {
-  const modelFiles = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
-  const visibleFiles = isClient(user)
-    ? modelFiles.filter(f =>
-        f.review_status === 'delivered' ||
-        (['approved','delivered'].includes(project.status) && f.review_status === 'ok'))
-    : modelFiles;
-  if (!visibleFiles.length) return;
-
+/* 指定ファイル群をzipにまとめてダウンロード（サーバー側でrelative_path構造を保持） */
+function downloadFilesAsZip(files) {
+  if (!files.length) return;
   const token = sessionStorage.getItem('space_token');
-  const ids = visibleFiles.map(f => f.id).join(',');
+  const ids = files.map(f => f.id).join(',');
   const url = `${API_BASE}/projects/${projId}/files/zip?token=${encodeURIComponent(token || '')}&ids=${ids}`;
   const a = document.createElement('a');
   a.href = url;
@@ -373,35 +376,33 @@ function fileDirOf(f) {
   return f.relative_path ? f.relative_path.split('/').slice(0, -1).join('/') : '';
 }
 
+function fileTopDirOf(f) {
+  return f.relative_path ? f.relative_path.split('/')[0] : null;
+}
+
+/* フォルダ行の開閉状態（area.id::トップフォルダ名 をキーに再描画をまたいで保持。初期値は折りたたみ） */
+const expandedFolderKeys = new Set();
+
 function renderFileSection(area, files, canDelete, showAdminBtns = false, showModelerBtns = false) {
   if (!files.length) {
     area.innerHTML = '<p style="color:var(--muted);padding:12px 0;font-size:13px;">ファイルがありません</p>';
     return;
   }
 
-  // フォルダアップロードされたファイルはフォルダ単位でまとめ、見出し行を挟んで表示する
-  const sortedFiles = [...files].sort((a, b) => {
-    const da = fileDirOf(a), db = fileDirOf(b);
-    if (da !== db) return da.localeCompare(db);
-    return (a.relative_path || a.file_name).localeCompare(b.relative_path || b.file_name);
+  // トップレベルフォルダ単位でまとめる。フォルダに属さない単発アップロードはそのまま並べる
+  const rootFiles = [];
+  const folderGroups = new Map(); // topDir -> files[]
+  files.forEach(f => {
+    const top = fileTopDirOf(f);
+    if (!top) { rootFiles.push(f); return; }
+    if (!folderGroups.has(top)) folderGroups.set(top, []);
+    folderGroups.get(top).push(f);
   });
+  rootFiles.sort((a, b) => a.file_name.localeCompare(b.file_name));
+  folderGroups.forEach(list => list.sort((a, b) => (a.relative_path || '').localeCompare(b.relative_path || '')));
+  const folderEntries = [...folderGroups.entries()];
 
-  let prevDir = null;
-  area.innerHTML = sortedFiles.map(f => {
-    const dir = fileDirOf(f);
-    const depth = dir ? dir.split('/').length : 0;
-    let folderHeader = '';
-    if (dir !== prevDir) {
-      prevDir = dir;
-      if (dir) {
-        folderHeader = `<div class="file-tree-folder" style="padding-left:${(depth - 1) * 18}px;font-size:12px;
-          color:var(--muted);margin:10px 0 4px;display:flex;align-items:center;gap:5px;">
-          <i class="fa-solid fa-folder"></i>${dir}
-        </div>`;
-      }
-    }
-    const itemIndent = dir ? `margin-left:${depth * 18}px;` : '';
-
+  function renderFileItem(f, indentPx) {
     const ext = f.file_name.split('.').pop().toLowerCase();
     const canPreview = ['pdf', 'dxf', 'dwg', 'stl', 'stp', 'step'].includes(ext);
 
@@ -454,8 +455,8 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
       </button>` : '')
       : '';
 
-    return `${folderHeader}
-    <div class="upload-file-item" data-file-id="${f.id}" style="${itemIndent}">
+    return `
+    <div class="upload-file-item" data-file-id="${f.id}" style="margin-left:${indentPx}px;">
       <div class="file-item-main">
         ${getFileIcon(f.file_name)}
         <div class="file-item-info">
@@ -483,7 +484,94 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
         </button>` : ''}
       </div>
     </div>`;
+  }
+
+  /* フォルダ内は、トップフォルダより下のサブパスごとに見出し（非開閉）を挟んで表示 */
+  function renderFolderBody(topDir, groupFiles) {
+    let prevSub = null;
+    return groupFiles.map(f => {
+      const fullDir = fileDirOf(f);
+      const subDir = fullDir.length > topDir.length ? fullDir.slice(topDir.length + 1) : '';
+      const depth = subDir ? subDir.split('/').length : 0;
+      let subHeader = '';
+      if (subDir !== prevSub) {
+        prevSub = subDir;
+        if (subDir) {
+          subHeader = `<div style="padding-left:${depth * 18}px;font-size:11px;color:var(--muted);
+            margin:8px 0 3px;display:flex;align-items:center;gap:5px;">
+            <i class="fa-solid fa-folder"></i>${subDir}
+          </div>`;
+        }
+      }
+      return subHeader + renderFileItem(f, (depth + 1) * 18);
+    }).join('');
+  }
+
+  let html = rootFiles.map(f => renderFileItem(f, 0)).join('');
+
+  html += folderEntries.map(([topDir, groupFiles]) => {
+    const isOpen = expandedFolderKeys.has(`${area.id}::${topDir}`);
+    const totalSize = groupFiles.reduce((s, f) => s + (f.file_size || 0), 0);
+    return `
+    <div class="file-tree-group" style="margin:8px 0;">
+      <div class="file-tree-folder-row" style="display:flex;align-items:center;gap:8px;padding:10px 12px;
+           border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);">
+        <i class="fa-solid ${isOpen ? 'fa-chevron-down' : 'fa-chevron-right'} folder-toggle-icon"
+           style="font-size:11px;color:var(--muted);width:12px;"></i>
+        <i class="fa-solid fa-folder" style="color:var(--accent);"></i>
+        <div style="flex:1;font-size:13px;font-weight:600;">${topDir}</div>
+        <div style="font-size:12px;color:var(--muted);">${groupFiles.length}件 · ${formatBytes(totalSize)}</div>
+        <button class="btn btn-ghost btn-sm folder-save-btn" title="このフォルダを保存"
+                style="${'showDirectoryPicker' in window ? '' : 'display:none;'}">
+          <i class="fa-solid fa-folder-tree"></i>
+        </button>
+        <button class="btn btn-ghost btn-sm folder-zip-btn" title="このフォルダをzipダウンロード">
+          <i class="fa-solid fa-file-zipper"></i>
+        </button>
+      </div>
+      <div class="file-tree-group-body" style="display:${isOpen ? '' : 'none'};padding-top:6px;">
+        ${renderFolderBody(topDir, groupFiles)}
+      </div>
+    </div>`;
   }).join('');
+
+  area.innerHTML = html;
+
+  // フォルダ行の開閉トグル（保存・zipボタンのクリックは伝播させない）
+  area.querySelectorAll('.file-tree-folder-row').forEach((row, idx) => {
+    row.addEventListener('click', e => {
+      if (e.target.closest('button')) return;
+      const [topDir] = folderEntries[idx];
+      const key = `${area.id}::${topDir}`;
+      const body = row.nextElementSibling;
+      const icon = row.querySelector('.folder-toggle-icon');
+      if (expandedFolderKeys.has(key)) {
+        expandedFolderKeys.delete(key);
+        body.style.display = 'none';
+        icon.classList.replace('fa-chevron-down', 'fa-chevron-right');
+      } else {
+        expandedFolderKeys.add(key);
+        body.style.display = '';
+        icon.classList.replace('fa-chevron-right', 'fa-chevron-down');
+      }
+    });
+  });
+
+  // フォルダ単位の保存・zipダウンロード
+  area.querySelectorAll('.folder-save-btn').forEach((btn, idx) => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const [, groupFiles] = folderEntries[idx];
+      saveFilesToLocalFolder(groupFiles);
+    });
+  });
+  area.querySelectorAll('.folder-zip-btn').forEach((btn, idx) => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const [, groupFiles] = folderEntries[idx];
+      downloadFilesAsZip(groupFiles);
+    });
+  });
 
   area.querySelectorAll('.file-review-ok-btn').forEach(btn => {
     btn.addEventListener('click', () => {
