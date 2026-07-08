@@ -22,6 +22,8 @@ if (user) {
     document.getElementById('adminLink').style.display     = '';
     const adminNav = document.getElementById('adminNav');
     if (adminNav) adminNav.style.display = '';
+    const deleteCol = document.getElementById('deleteCol');
+    if (deleteCol) deleteCol.style.display = '';
   }
 
   /* 発注者（管理者でもモデラーでもない一般会員）は担当モデラー列・フィルタを非表示 */
@@ -210,10 +212,33 @@ if (user) {
         <td style="white-space:nowrap;"><span class="priority-${p.priority}">${PRIORITY_LABEL[p.priority]||p.priority}</span></td>
         <td style="font-size:13px;white-space:nowrap;${isAlert?'color:var(--danger);font-weight:700;':''}">${p.deadline_requested||'—'}</td>
         <td style="font-size:13px;white-space:nowrap;">${replyCell}</td>
-        ${isAdmin(user) || isModeler(user) ? `<td style="font-size:13px;white-space:nowrap;">${modelerName||'<span style="color:var(--muted)">未割当</span>'}</td>` : ''}`;
+        ${isAdmin(user) || isModeler(user) ? `<td style="font-size:13px;white-space:nowrap;">${modelerName||'<span style="color:var(--muted)">未割当</span>'}</td>` : ''}
+        ${isAdmin(user) ? `<td style="text-align:center;white-space:nowrap;">
+          <button class="row-delete-btn" data-id="${p.id}" title="削除">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </td>` : ''}`;
+      if (isAdmin(user)) {
+        tr.querySelector('.row-delete-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteProject(p.id, p.project_code);
+        });
+      }
       tbody.appendChild(tr);
     });
     renderSummary(allProjects);
+  }
+
+  /* ── プロジェクト削除 ── */
+  async function deleteProject(id, code) {
+    if (!confirm('本当に削除してよろしいですか？')) return;
+    try {
+      await api.delete(`/projects/${id}`);
+      showToast(`${code} を削除しました`, 'success');
+      await loadProjects();
+    } catch (err) {
+      showToast('削除に失敗しました: ' + err.message, 'danger');
+    }
   }
 
   /* サマリーカードのクリックでフィルタ */

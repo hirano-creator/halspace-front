@@ -243,6 +243,20 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .btn-full { width: 100%; justify-content: center; }
 .btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
 
+/* テーブル行の削除アイコンボタン */
+.row-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+  transition: all var(--trans);
+}
+.row-delete-btn:hover { color: var(--white); background: var(--danger); }
+
 /* ホバー時に補足説明を出すツールチップ（data-tooltip属性のテキストを表示） */
 .tooltip-hint { position: relative; }
 .tooltip-hint::after {
