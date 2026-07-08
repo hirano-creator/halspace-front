@@ -71,6 +71,29 @@
         <div id="infoTable" class="info-grid"></div>
       </div>
 
+      <!-- 図面・参考資料 -->
+      <div class="card mb-16">
+        <div class="card-header">
+          <span class="card-title"><i class="fa-solid fa-file-lines text-blue"></i> 図面・参考資料</span>
+          <div style="position:relative;display:inline-block;">
+            <button class="btn btn-blue btn-sm" id="uploadDrawingBtn">
+              <i class="fa-solid fa-plus"></i> 資料を追加
+            </button>
+            <div id="uploadDrawingMenu" class="upload-model-menu">
+              <button type="button" class="upload-model-menu-item" id="uploadDrawingMenuFile">
+                <i class="fa-solid fa-file"></i> ファイルを選択
+              </button>
+              <button type="button" class="upload-model-menu-item" id="uploadDrawingMenuFolder">
+                <i class="fa-solid fa-folder-open"></i> フォルダを選択
+              </button>
+            </div>
+          </div>
+          <input type="file" id="drawingFileInput" multiple style="display:none">
+          <input type="file" id="drawingFolderInput" webkitdirectory style="display:none">
+        </div>
+        <div id="drawingFileArea"></div>
+      </div>
+
       <!-- ステータスタイムライン -->
       <div class="card mb-16">
         <div class="timeline" id="timeline"></div>
@@ -165,29 +188,6 @@
               <span class="card-title"><i class="fa-solid fa-calendar-check text-blue"></i> 希望納期・納期確認</span>
             </div>
             <div id="deadlinePanel"></div>
-          </div>
-
-          <!-- 図面・参考資料 -->
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title"><i class="fa-solid fa-file-lines text-blue"></i> 図面・参考資料</span>
-              <div style="position:relative;display:inline-block;">
-                <button class="btn btn-blue btn-sm" id="uploadDrawingBtn">
-                  <i class="fa-solid fa-plus"></i> 資料を追加
-                </button>
-                <div id="uploadDrawingMenu" class="upload-model-menu">
-                  <button type="button" class="upload-model-menu-item" id="uploadDrawingMenuFile">
-                    <i class="fa-solid fa-file"></i> ファイルを選択
-                  </button>
-                  <button type="button" class="upload-model-menu-item" id="uploadDrawingMenuFolder">
-                    <i class="fa-solid fa-folder-open"></i> フォルダを選択
-                  </button>
-                </div>
-              </div>
-              <input type="file" id="drawingFileInput" multiple style="display:none">
-              <input type="file" id="drawingFolderInput" webkitdirectory style="display:none">
-            </div>
-            <div id="drawingFileArea"></div>
           </div>
 
           <!-- 修正依頼ファイル -->
