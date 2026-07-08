@@ -1094,6 +1094,28 @@ tbody tr:last-child { border-bottom: none; }
   align-items: start;
 }
 
+/* プロジェクト情報（横長グリッド） */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px 20px;
+}
+.info-item {
+  min-width: 0;
+}
+.info-item-wide {
+  grid-column: 1 / -1;
+}
+.info-item-label {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.info-item-value {
+  font-size: 14px;
+  word-break: break-word;
+}
+
 /* =====================
    レスポンシブ
    ===================== */
@@ -1105,6 +1127,8 @@ tbody tr:last-child { border-bottom: none; }
   /* project-detail: 2カラム → 1カラム */
   .detail-layout { grid-template-columns: 1fr !important; }
   .chat-card { position: static !important; top: auto !important; }
+
+  .info-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* ── タブレット縦 (〜960px) ── */
@@ -1114,6 +1138,8 @@ tbody tr:last-child { border-bottom: none; }
 
   /* チャットの高さをコンテンツに合わせる */
   .chat-messages { max-height: 520px; }
+
+  .info-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ── モバイル (〜768px) ── */
@@ -1268,11 +1294,8 @@ tbody tr:last-child { border-bottom: none; }
   .deadline-grid-3 { grid-template-columns: 1fr !important; }
   .deadline-grid-2 { grid-template-columns: 1fr !important; }
 
-  /* プロジェクト情報テーブル → キーバリュー縦並び */
-  #infoTable tbody tr { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding: 8px 0; }
-  #infoTable tbody tr:last-child { border-bottom: none; }
-  #infoTable tbody td { display: block; padding: 1px 0; font-size: 13px; }
-  #infoTable tbody td:first-child { color: var(--muted); font-size: 11px; font-weight: 700; min-width: 96px; margin-right: 8px; padding-top: 4px; }
+  /* プロジェクト情報グリッド → 1カラム */
+  .info-grid { grid-template-columns: 1fr !important; }
 
   /* アクションバーをモバイルで縦スタック */
   #adminReviewBar  .flex,

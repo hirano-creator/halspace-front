@@ -128,15 +128,22 @@ function renderInfo() {
     ['納品日', project.delivered_at || '—'],
     ['優先度', `<span class="priority-${project.priority}">${{urgent:'緊急',high:'高',normal:'通常',low:'低'}[project.priority]||project.priority}</span>`],
   ];
-  if (project.description) rows.push(['説明', `<span style="white-space:pre-wrap;font-size:13px;">${escapeHtml(project.description)}</span>`]);
-  if (project.spec_note)   rows.push(['仕様・備考', `<span style="white-space:pre-wrap;font-size:13px;">${escapeHtml(project.spec_note)}</span>`]);
+  const longRows = [];
+  if (project.description) longRows.push(['説明', `<span style="white-space:pre-wrap;font-size:13px;">${escapeHtml(project.description)}</span>`]);
+  if (project.spec_note)   longRows.push(['仕様・備考', `<span style="white-space:pre-wrap;font-size:13px;">${escapeHtml(project.spec_note)}</span>`]);
 
-  document.getElementById('infoTable').innerHTML = rows.map(([k, v]) =>
-    `<tr style="border-bottom:1px solid var(--border);">
-       <td style="padding:10px 0;color:var(--muted);width:140px;font-size:13px;vertical-align:top;">${k}</td>
-       <td style="padding:10px 0;font-size:14px;">${v}</td>
-     </tr>`).join('');
+  const itemHtml = ([k, v]) =>
+    `<div class="info-item">
+       <div class="info-item-label">${k}</div>
+       <div class="info-item-value">${v}</div>
+     </div>`;
 
+  document.getElementById('infoTable').innerHTML =
+    rows.map(itemHtml).join('') +
+    longRows.map(r => `<div class="info-item info-item-wide">
+       <div class="info-item-label">${r[0]}</div>
+       <div class="info-item-value">${r[1]}</div>
+     </div>`).join('');
 }
 
 /* ── ファイル一覧 ── */
