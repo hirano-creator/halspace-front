@@ -214,31 +214,45 @@ function renderFiles() {
   saveFolderBtn.style.display = (canBulkDownload && 'showDirectoryPicker' in window) ? '' : 'none';
   zipAllBtn.style.display = canBulkDownload ? '' : 'none';
 
-  /* 図面・参考資料の追加（全ロール共通）*/
+  /* 図面・参考資料の追加（全ロール共通、ファイル/フォルダ両対応）*/
+  const uploadDrawingBtn = document.getElementById('uploadDrawingBtn');
+  const uploadDrawingMenu = document.getElementById('uploadDrawingMenu');
+  if (uploadDrawingBtn && !uploadDrawingBtn.dataset.bound) {
+    uploadDrawingBtn.dataset.bound = '1';
+    uploadDrawingBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      uploadDrawingMenu.classList.toggle('open');
+    });
+    document.getElementById('uploadDrawingMenuFile').addEventListener('click', () => {
+      uploadDrawingMenu.classList.remove('open');
+      document.getElementById('drawingFileInput').click();
+    });
+    document.getElementById('uploadDrawingMenuFolder').addEventListener('click', () => {
+      uploadDrawingMenu.classList.remove('open');
+      document.getElementById('drawingFolderInput').click();
+    });
+    document.addEventListener('click', () => uploadDrawingMenu.classList.remove('open'));
+  }
+
   const drawingInput = document.getElementById('drawingFileInput');
   if (drawingInput && !drawingInput.dataset.bound) {
     drawingInput.dataset.bound = '1';
     drawingInput.addEventListener('change', async e => {
-      const files = Array.from(e.target.files);
-      if (!files.length) return;
-      for (const file of files) {
-        const ext = file.name.split('.').pop().toLowerCase();
-        const fileType = ['dxf', 'dwg'].includes(ext) ? 'drawing_dxf'
-                       : ext === 'pdf'                ? 'drawing_pdf'
-                       : 'reference';
-        const fd = new FormData();
-        fd.append('file', file);
-        fd.append('file_type', fileType);
-        try {
-          const data = await apiFetchForm(`/projects/${projId}/files`, fd);
-          project.files = [...(project.files ?? []), data.file];
-          renderFiles();
-          showToast(`${file.name} を追加しました`, 'success');
-        } catch {
-          showToast(`${file.name} のアップロードに失敗しました`, 'danger');
-        }
-      }
+      const items = Array.from(e.target.files).map(f => ({ file: f, relativePath: '' }));
       e.target.value = '';
+      if (!items.length) return;
+      await uploadDrawingItemsAndRefresh(items);
+    });
+  }
+
+  const drawingFolderInput = document.getElementById('drawingFolderInput');
+  if (drawingFolderInput && !drawingFolderInput.dataset.bound) {
+    drawingFolderInput.dataset.bound = '1';
+    drawingFolderInput.addEventListener('change', async e => {
+      const items = filesFromDirectoryInput(e.target);
+      e.target.value = '';
+      if (!items.length) return;
+      await uploadDrawingItemsAndRefresh(items);
     });
   }
 
@@ -306,6 +320,29 @@ async function uploadModelItemsAndRefresh(items) {
     project.files = [...(project.files ?? []), ...uploaded];
     renderFiles();
     showToast(`${uploaded.length}件のファイルをアップロードしました`, 'success');
+  }
+  if (errors.length) {
+    showToast(`アップロードに失敗しました: ${errors.join(', ')}`, 'danger');
+  }
+}
+
+/* 図面・参考資料の拡張子からfile_typeを判定 */
+function resolveDrawingFileType(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  return ['dxf', 'dwg'].includes(ext) ? 'drawing_dxf'
+       : ext === 'pdf'                ? 'drawing_pdf'
+       : 'reference';
+}
+
+/* 図面・参考資料をアップロードし、画面へ反映する */
+async function uploadDrawingItemsAndRefresh(items) {
+  const { uploaded, errors } = await uploadItemsSequential(projId, items, {
+    fileType: item => resolveDrawingFileType(item.file),
+  });
+  if (uploaded.length) {
+    project.files = [...(project.files ?? []), ...uploaded];
+    renderFiles();
+    showToast(`${uploaded.length}件のファイルを追加しました`, 'success');
   }
   if (errors.length) {
     showToast(`アップロードに失敗しました: ${errors.join(', ')}`, 'danger');
