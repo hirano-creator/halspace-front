@@ -1300,8 +1300,7 @@ tbody tr:last-child { border-bottom: none; }
   /* アクションバーをモバイルで縦スタック */
   #adminReviewBar  .flex,
   #clientReviewBar .flex,
-  #modelerActionBar .flex,
-  #cancelBar .flex { flex-direction: column; align-items: flex-start !important; gap: 8px !important; }
+  #modelerActionBar .flex { flex-direction: column; align-items: flex-start !important; gap: 8px !important; }
 }
 
 /* ── スマートフォン小 (〜480px) ── */
