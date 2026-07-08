@@ -167,7 +167,7 @@ function uploadItemsSequential(projectId, items, { fileType = 'model_3d', onProg
     return new Promise(resolve => {
       const fd = new FormData();
       fd.append('file', item.file);
-      fd.append('file_type', fileType);
+      fd.append('file_type', typeof fileType === 'function' ? fileType(item) : fileType);
       if (item.relativePath) fd.append('relative_path', item.relativePath);
 
       const xhr = new XMLHttpRequest();

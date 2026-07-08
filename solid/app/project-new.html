@@ -65,10 +65,18 @@
         </div>
         <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
           <i class="fa-solid fa-cloud-arrow-up"></i>
-          <p class="upload-zone-text">ここにファイルをドロップ、またはクリックして選択</p>
-          <p class="upload-zone-sub">対応形式: DXF, PDF（1ファイル最大500MB）</p>
+          <p class="upload-zone-text">ここにファイル／フォルダをドロップ、またはクリックして選択</p>
+          <p class="upload-zone-sub">対応形式: DXF, PDF（1ファイル最大100MB）</p>
         </div>
         <input type="file" id="fileInput" multiple accept=".dxf,.pdf" style="display:none">
+        <input type="file" id="folderInput" webkitdirectory style="display:none">
+
+        <div style="text-align:center;margin:12px 0;">
+          <button type="button" class="btn btn-sm btn-outline" id="folderPickBtn">
+            <i class="fa-solid fa-folder-open"></i> フォルダを選択
+          </button>
+        </div>
+
         <div class="upload-file-list" id="fileList"></div>
         <div class="mt-24 flex" style="justify-content:flex-end;">
           <button class="btn btn-primary" id="step1Next" disabled>
@@ -117,6 +125,14 @@
 
         <!-- 確認サマリー -->
         <div style="background:var(--bg);border-radius:10px;padding:20px;margin-top:8px;" id="confirmSummary"></div>
+
+        <div id="submitUploadProgress" style="display:none;margin-top:16px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px;">
+            <span id="submitUploadProgressCount">0 / 0 ファイル</span>
+            <span id="submitUploadProgressName"></span>
+          </div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="submitUploadProgressFill" style="width:0%"></div></div>
+        </div>
 
         <div class="mt-24 flex gap-12" style="justify-content:flex-end;">
           <button class="btn btn-outline" id="step2Back">

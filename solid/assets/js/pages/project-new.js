@@ -6,9 +6,67 @@ renderSidebarUser(user);
 if (isAdmin(user)) document.getElementById('adminLink').style.display = '';
 
 /* ウィザード管理（2ステップ） */
-const uploader = initDropzone('uploadZone', 'fileInput', 'fileList', files => {
-  document.getElementById('step1Next').disabled = files.length === 0;
+const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
+let pendingItems = []; // {file, relativePath}[]
+
+/* ドラッグ&ドロップ（フォルダ対応） */
+const dropZone = document.getElementById('uploadZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', async e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  addItems(await collectDroppedItems(e.dataTransfer));
 });
+document.getElementById('fileInput').addEventListener('change', e => {
+  addItems(Array.from(e.target.files).map(f => ({ file: f, relativePath: '' })));
+  e.target.value = '';
+});
+document.getElementById('folderPickBtn').addEventListener('click', () => {
+  document.getElementById('folderInput').click();
+});
+document.getElementById('folderInput').addEventListener('change', e => {
+  addItems(filesFromDirectoryInput(e.target));
+  e.target.value = '';
+});
+
+function addItems(items) {
+  let oversized = 0;
+  items.forEach(({ file, relativePath }) => {
+    if (file.size > MAX_UPLOAD_SIZE) { oversized++; return; }
+    if (!pendingItems.find(x => x.file.name === file.name && x.file.size === file.size && x.relativePath === relativePath)) {
+      pendingItems.push({ file, relativePath });
+    }
+  });
+  if (oversized > 0) {
+    showToast(`100MBを超えるファイルを${oversized}件スキップしました`, 'danger');
+  }
+  renderFileList();
+}
+
+function renderFileList() {
+  const list = document.getElementById('fileList');
+  list.innerHTML = pendingItems.map((item, i) => `
+    <div class="upload-file-item">
+      ${getFileIcon(item.file.name)}
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;">${item.file.name}</div>
+        <div style="font-size:12px;color:var(--muted);">
+          ${item.relativePath ? item.relativePath.split('/').slice(0, -1).join('/') + ' · ' : ''}${formatBytes(item.file.size)}
+        </div>
+      </div>
+      <button class="upload-file-remove" data-idx="${i}"><i class="fa-solid fa-xmark"></i></button>
+    </div>`).join('');
+
+  list.querySelectorAll('.upload-file-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pendingItems.splice(Number(btn.dataset.idx), 1);
+      renderFileList();
+    });
+  });
+
+  document.getElementById('step1Next').disabled = pendingItems.length === 0;
+}
 
 function goStep(n) {
   [1, 2].forEach(i => {
@@ -46,7 +104,7 @@ document.getElementById('step2Back').addEventListener('click', () => goStep(1));
 });
 
 function renderConfirm() {
-  const files    = uploader.getFiles();
+  const files    = pendingItems.map(it => it.file);
   const title    = document.getElementById('projTitle').value || '（未入力）';
   const deadline = document.getElementById('projDeadline').value || '—';
   const priority = document.getElementById('projPriority').value;
@@ -69,33 +127,12 @@ function renderConfirm() {
     </table>`;
 }
 
-/* ── ファイルアップロード（FormData、fetch直接） ── */
-async function uploadFile(projectId, file) {
-  const token = sessionStorage.getItem('space_token');
+/* ── ファイル種別判定 ── */
+function resolveDrawingFileType(file) {
   const ext = file.name.split('.').pop().toLowerCase();
-  const fileType = ['dxf', 'dwg'].includes(ext) ? 'drawing_dxf'
-                 : ext === 'pdf'                 ? 'drawing_pdf'
-                 : 'reference';
-
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('file_type', fileType);
-
-  const res = await fetch(`${API_BASE}/projects/${projectId}/files`, {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      /* Content-Type は設定しない → ブラウザが multipart/form-data を自動設定 */
-    },
-    body: fd,
-  });
-
-  if (!res.ok) {
-    const errBody = await res.text();
-    throw new Error(`ファイルアップロード失敗 (${res.status}): ${errBody}`);
-  }
-  return res.json();
+  return ['dxf', 'dwg'].includes(ext) ? 'drawing_dxf'
+       : ext === 'pdf'                ? 'drawing_pdf'
+       : 'reference';
 }
 
 /* ── 発注確定 ── */
@@ -129,23 +166,26 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     return;
   }
 
-  /* ── Step2: ファイルアップロード ── */
-  const files = uploader.getFiles();
-  let uploadErrors = [];
+  /* ── Step2: ファイルアップロード（直列） ── */
+  if (pendingItems.length > 0) {
+    const progressWrap  = document.getElementById('submitUploadProgress');
+    const progressCount = document.getElementById('submitUploadProgressCount');
+    const progressName  = document.getElementById('submitUploadProgressName');
+    const progressFill  = document.getElementById('submitUploadProgressFill');
+    progressWrap.style.display = '';
 
-  for (let i = 0; i < files.length; i++) {
-    /* プログレスバーアニメーション開始（完了を待たない） */
-    uploader.simulateUpload(i, () => {});
+    const { errors } = await uploadItemsSequential(newProjId, pendingItems, {
+      fileType: item => resolveDrawingFileType(item.file),
+      onProgress: ({ doneCount, total, currentName, doneBytes, totalBytes }) => {
+        progressCount.textContent = `${doneCount} / ${total} ファイル`;
+        progressName.textContent = currentName;
+        progressFill.style.width = totalBytes ? `${Math.round((doneBytes / totalBytes) * 100)}%` : '0%';
+      },
+    });
 
-    try {
-      await uploadFile(newProjId, files[i]);
-    } catch (err) {
-      uploadErrors.push(files[i].name);
+    if (errors.length > 0) {
+      showToast(`一部ファイルのアップロードに失敗しました: ${errors.join(', ')}`, 'warning');
     }
-  }
-
-  if (uploadErrors.length > 0) {
-    showToast(`一部ファイルのアップロードに失敗しました: ${uploadErrors.join(', ')}`, 'warning');
   }
 
   /* ── 完了 ── */
