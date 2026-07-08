@@ -275,6 +275,37 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   transform: translateY(0);
 }
 
+/* アップロードボタンの「ファイル/フォルダ選択」メニュー */
+.upload-model-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.15);
+  padding: 6px;
+  z-index: 40;
+}
+.upload-model-menu.open { display: block; }
+.upload-model-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.upload-model-menu-item:hover { background: rgba(0,0,0,.05); color: var(--primary); }
+
 /* カード */
 .card {
   background: var(--bg-card);

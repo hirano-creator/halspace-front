@@ -118,15 +118,20 @@
             <div class="card-header">
               <span class="card-title"><i class="fa-solid fa-cube" style="color:var(--accent)"></i> 3Dモデル・制作データ</span>
               <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                <!-- モデラー用アップロードボタン -->
-                <button class="btn btn-blue btn-sm" id="uploadModelBtn" style="display:none;"
-                        onclick="document.getElementById('modelFileInput').click()">
-                  <i class="fa-solid fa-upload"></i> 3Dデータをアップロード
-                </button>
-                <button class="btn btn-outline btn-sm" id="uploadModelFolderBtn" style="display:none;"
-                        onclick="document.getElementById('modelFolderInput').click()">
-                  <i class="fa-solid fa-folder-open"></i> フォルダをアップロード
-                </button>
+                <!-- モデラー用アップロードボタン（クリックでファイル/フォルダ選択メニューを表示） -->
+                <div style="position:relative;display:inline-block;" id="uploadModelBtnWrap">
+                  <button class="btn btn-blue btn-sm" id="uploadModelBtn" style="display:none;">
+                    <i class="fa-solid fa-upload"></i> アップロード
+                  </button>
+                  <div id="uploadModelMenu" class="upload-model-menu">
+                    <button type="button" class="upload-model-menu-item" id="uploadModelMenuFile">
+                      <i class="fa-solid fa-file"></i> ファイルを選択
+                    </button>
+                    <button type="button" class="upload-model-menu-item" id="uploadModelMenuFolder">
+                      <i class="fa-solid fa-folder-open"></i> フォルダを選択
+                    </button>
+                  </div>
+                </div>
                 <input type="file" id="modelFileInput" accept=".stp,.step,.stl,.obj,.iges,.fbx,.sldprt,.sldasm,.slddrw,.dxf" multiple style="display:none">
                 <input type="file" id="modelFolderInput" webkitdirectory style="display:none">
                 <!-- 発注者用: フォルダごと保存 / zip一括ダウンロード -->

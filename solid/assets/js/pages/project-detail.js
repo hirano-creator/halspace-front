@@ -206,7 +206,6 @@ function renderFiles() {
   const canUploadModel = isModeler(user)
     && ['in_progress', 'revision_requested', 'review_pending'].includes(project.status);
   document.getElementById('uploadModelBtn').style.display = canUploadModel ? '' : 'none';
-  document.getElementById('uploadModelFolderBtn').style.display = canUploadModel ? '' : 'none';
 
   // 発注者用: フォルダごと保存 / zip一括ダウンロード
   const saveFolderBtn = document.getElementById('saveFolderBtn');
@@ -241,6 +240,26 @@ function renderFiles() {
       }
       e.target.value = '';
     });
+  }
+
+  /* アップロードボタン: クリックで「ファイルを選択/フォルダを選択」メニューを開閉 */
+  const uploadModelBtn = document.getElementById('uploadModelBtn');
+  const uploadModelMenu = document.getElementById('uploadModelMenu');
+  if (uploadModelBtn && !uploadModelBtn.dataset.bound) {
+    uploadModelBtn.dataset.bound = '1';
+    uploadModelBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      uploadModelMenu.classList.toggle('open');
+    });
+    document.getElementById('uploadModelMenuFile').addEventListener('click', () => {
+      uploadModelMenu.classList.remove('open');
+      document.getElementById('modelFileInput').click();
+    });
+    document.getElementById('uploadModelMenuFolder').addEventListener('click', () => {
+      uploadModelMenu.classList.remove('open');
+      document.getElementById('modelFolderInput').click();
+    });
+    document.addEventListener('click', () => uploadModelMenu.classList.remove('open'));
   }
 
   /* モデラー用ファイルアップロード（アップロードボタンから直接追加する場合）*/
