@@ -243,6 +243,38 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .btn-full { width: 100%; justify-content: center; }
 .btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
 
+/* ホバー時に補足説明を出すツールチップ（data-tooltip属性のテキストを表示） */
+.tooltip-hint { position: relative; }
+.tooltip-hint::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  max-width: 260px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--dark, #1a1a1a);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: normal;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity .15s, transform .15s;
+  pointer-events: none;
+  z-index: 50;
+  box-shadow: 0 4px 12px rgba(0,0,0,.2);
+}
+.tooltip-hint:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
 /* カード */
 .card {
   background: var(--bg-card);

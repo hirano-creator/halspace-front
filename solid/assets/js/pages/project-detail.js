@@ -521,7 +521,8 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
         <i class="fa-solid fa-folder" style="color:var(--accent);"></i>
         <div style="flex:1;font-size:13px;font-weight:600;">${topDir}</div>
         <div style="font-size:12px;color:var(--muted);">${groupFiles.length}件 · ${formatBytes(totalSize)}</div>
-        <button class="btn btn-ghost btn-sm folder-save-btn" title="このフォルダを保存"
+        <button class="btn btn-ghost btn-sm folder-save-btn tooltip-hint"
+                data-tooltip="クリック後に表示されるフォルダ選択画面で、デスクトップ・ドキュメント・ダウンロード自体は選択できません。その中のサブフォルダ（または新規作成したフォルダ）を選んでください。"
                 style="${'showDirectoryPicker' in window ? '' : 'display:none;'}">
           <i class="fa-solid fa-folder-tree"></i>
         </button>
