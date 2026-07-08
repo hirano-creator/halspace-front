@@ -203,12 +203,17 @@ function renderFiles() {
   updateAdminReviewBarState();
 
   // モデラーのアップロードボタン: in_progress / revision_requested / review_pending
-  const uploadBtn = document.getElementById('uploadModelBtn');
-  if (isModeler(user) && ['in_progress', 'revision_requested', 'review_pending'].includes(project.status)) {
-    uploadBtn.style.display = '';
-  } else {
-    uploadBtn.style.display = 'none';
-  }
+  const canUploadModel = isModeler(user)
+    && ['in_progress', 'revision_requested', 'review_pending'].includes(project.status);
+  document.getElementById('uploadModelBtn').style.display = canUploadModel ? '' : 'none';
+  document.getElementById('uploadModelFolderBtn').style.display = canUploadModel ? '' : 'none';
+
+  // 発注者用: フォルダごと保存 / zip一括ダウンロード
+  const saveFolderBtn = document.getElementById('saveFolderBtn');
+  const zipAllBtn      = document.getElementById('zipAllBtn');
+  const canBulkDownload = isClient(user) && visibleModelFiles.length > 0;
+  saveFolderBtn.style.display = (canBulkDownload && 'showDirectoryPicker' in window) ? '' : 'none';
+  zipAllBtn.style.display = canBulkDownload ? '' : 'none';
 
   /* 図面・参考資料の追加（全ロール共通）*/
   const drawingInput = document.getElementById('drawingFileInput');
@@ -243,24 +248,118 @@ function renderFiles() {
   if (modelInput && !modelInput.dataset.bound) {
     modelInput.dataset.bound = '1';
     modelInput.addEventListener('change', async e => {
-      const files = Array.from(e.target.files);
-      if (!files.length) return;
-      for (const file of files) {
-        const fd = new FormData();
-        fd.append('file', file);
-        fd.append('file_type', 'model_3d');
-        try {
-          const data = await apiFetchForm(`/projects/${projId}/files`, fd);
-          project.files = [...(project.files ?? []), data.file];
-          renderFiles();
-          showToast(`${file.name} をアップロードしました`, 'success');
-        } catch {
-          showToast(`${file.name} のアップロードに失敗しました`, 'danger');
-        }
-      }
+      const items = Array.from(e.target.files).map(f => ({ file: f, relativePath: '' }));
       e.target.value = '';
+      if (!items.length) return;
+      await uploadModelItemsAndRefresh(items);
     });
   }
+
+  const modelFolderInput = document.getElementById('modelFolderInput');
+  if (modelFolderInput && !modelFolderInput.dataset.bound) {
+    modelFolderInput.dataset.bound = '1';
+    modelFolderInput.addEventListener('change', async e => {
+      const items = filesFromDirectoryInput(e.target);
+      e.target.value = '';
+      if (!items.length) return;
+      await uploadModelItemsAndRefresh(items);
+    });
+  }
+
+  const saveFolderBtnEl = document.getElementById('saveFolderBtn');
+  if (saveFolderBtnEl && !saveFolderBtnEl.dataset.bound) {
+    saveFolderBtnEl.dataset.bound = '1';
+    saveFolderBtnEl.addEventListener('click', saveModelFilesToFolder);
+  }
+
+  const zipAllBtnEl = document.getElementById('zipAllBtn');
+  if (zipAllBtnEl && !zipAllBtnEl.dataset.bound) {
+    zipAllBtnEl.dataset.bound = '1';
+    zipAllBtnEl.addEventListener('click', downloadModelFilesAsZip);
+  }
+}
+
+/* 3Dデータをアップロードし、file-type別に検査依頼前(pending)のまま画面へ反映する */
+async function uploadModelItemsAndRefresh(items) {
+  const { uploaded, errors } = await uploadItemsSequential(projId, items, { fileType: 'model_3d' });
+  if (uploaded.length) {
+    project.files = [...(project.files ?? []), ...uploaded];
+    renderFiles();
+    showToast(`${uploaded.length}件のファイルをアップロードしました`, 'success');
+  }
+  if (errors.length) {
+    showToast(`アップロードに失敗しました: ${errors.join(', ')}`, 'danger');
+  }
+}
+
+/* 発注者: 可視状態の3Dモデルをフォルダ構造ごとローカルへ直接保存（Chrome/Edge） */
+async function saveModelFilesToFolder() {
+  const modelFiles = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
+  const visibleFiles = isClient(user)
+    ? modelFiles.filter(f =>
+        f.review_status === 'delivered' ||
+        (['approved','delivered'].includes(project.status) && f.review_status === 'ok'))
+    : modelFiles;
+  if (!visibleFiles.length) return;
+
+  let rootHandle;
+  try {
+    rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+  } catch (err) {
+    if (err?.name === 'AbortError') return;
+    showToast('保存先フォルダの選択に失敗しました', 'danger');
+    return;
+  }
+
+  const baseName = project.project_code || `project-${projId}`;
+  const baseHandle = await rootHandle.getDirectoryHandle(baseName, { create: true });
+  const progressEl = document.getElementById('modelFolderSaveProgress');
+  const token = sessionStorage.getItem('space_token');
+  progressEl.style.display = '';
+
+  let done = 0;
+  for (const f of visibleFiles) {
+    progressEl.textContent = `${done} / ${visibleFiles.length} 件保存中: ${f.file_name}`;
+    const segs = (f.relative_path || f.file_name).split('/').filter(Boolean);
+    let dirHandle = baseHandle;
+    for (const seg of segs.slice(0, -1)) {
+      dirHandle = await dirHandle.getDirectoryHandle(seg, { create: true });
+    }
+    try {
+      const res = await fetch(`${API_BASE}/files/${f.id}/raw`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+      const fileHandle = await dirHandle.getFileHandle(segs.at(-1), { create: true });
+      const writable = await fileHandle.createWritable();
+      await res.body.pipeTo(writable);
+    } catch (err) {
+      showToast(`${f.file_name} の保存に失敗しました`, 'danger');
+    }
+    done++;
+  }
+
+  progressEl.textContent = `${done} / ${visibleFiles.length} 件保存しました`;
+  showToast('フォルダへの保存が完了しました', 'success');
+  setTimeout(() => { progressEl.style.display = 'none'; }, 4000);
+}
+
+/* 発注者: 可視状態の3Dモデルをzipにまとめてダウンロード */
+function downloadModelFilesAsZip() {
+  const modelFiles = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
+  const visibleFiles = isClient(user)
+    ? modelFiles.filter(f =>
+        f.review_status === 'delivered' ||
+        (['approved','delivered'].includes(project.status) && f.review_status === 'ok'))
+    : modelFiles;
+  if (!visibleFiles.length) return;
+
+  const token = sessionStorage.getItem('space_token');
+  const ids = visibleFiles.map(f => f.id).join(',');
+  const url = `${API_BASE}/projects/${projId}/files/zip?token=${encodeURIComponent(token || '')}&ids=${ids}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.click();
 }
 
 const REVIEW_BADGE = {
@@ -270,13 +369,39 @@ const REVIEW_BADGE = {
   delivered: '<span class="badge badge-delivered" style="font-size:11px;margin-right:4px;"><i class="fa-solid fa-truck" style="margin-right:3px;"></i>納品済み</span>',
 };
 
+function fileDirOf(f) {
+  return f.relative_path ? f.relative_path.split('/').slice(0, -1).join('/') : '';
+}
+
 function renderFileSection(area, files, canDelete, showAdminBtns = false, showModelerBtns = false) {
   if (!files.length) {
     area.innerHTML = '<p style="color:var(--muted);padding:12px 0;font-size:13px;">ファイルがありません</p>';
     return;
   }
 
-  area.innerHTML = files.map(f => {
+  // フォルダアップロードされたファイルはフォルダ単位でまとめ、見出し行を挟んで表示する
+  const sortedFiles = [...files].sort((a, b) => {
+    const da = fileDirOf(a), db = fileDirOf(b);
+    if (da !== db) return da.localeCompare(db);
+    return (a.relative_path || a.file_name).localeCompare(b.relative_path || b.file_name);
+  });
+
+  let prevDir = null;
+  area.innerHTML = sortedFiles.map(f => {
+    const dir = fileDirOf(f);
+    const depth = dir ? dir.split('/').length : 0;
+    let folderHeader = '';
+    if (dir !== prevDir) {
+      prevDir = dir;
+      if (dir) {
+        folderHeader = `<div class="file-tree-folder" style="padding-left:${(depth - 1) * 18}px;font-size:12px;
+          color:var(--muted);margin:10px 0 4px;display:flex;align-items:center;gap:5px;">
+          <i class="fa-solid fa-folder"></i>${dir}
+        </div>`;
+      }
+    }
+    const itemIndent = dir ? `margin-left:${depth * 18}px;` : '';
+
     const ext = f.file_name.split('.').pop().toLowerCase();
     const canPreview = ['pdf', 'dxf', 'dwg', 'stl', 'stp', 'step'].includes(ext);
 
@@ -329,8 +454,8 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
       </button>` : '')
       : '';
 
-    return `
-    <div class="upload-file-item" data-file-id="${f.id}">
+    return `${folderHeader}
+    <div class="upload-file-item" data-file-id="${f.id}" style="${itemIndent}">
       <div class="file-item-main">
         ${getFileIcon(f.file_name)}
         <div class="file-item-info">
@@ -817,6 +942,8 @@ let submitNewFiles = [];
 function openSubmitModelModal() {
   submitNewFiles = [];
   document.getElementById('submitNewFilePreview').innerHTML = '';
+  document.getElementById('submitModelProgress').style.display = 'none';
+  document.getElementById('submitModelProgressFill').style.width = '0%';
 
   // 検査依頼の対象となる model_3d / delivery ファイルをチェックリストに表示
   // （検査OK・納品済みのファイルは再依頼不要のため除外）
@@ -859,15 +986,22 @@ document.getElementById('submitModelBtn')?.addEventListener('click', openSubmitM
   document.getElementById(id)?.addEventListener('click', () =>
     document.getElementById('submitModelModal').classList.add('hidden')));
 
-// 新規ファイル追加プレビュー
-document.getElementById('submitNewFileInput')?.addEventListener('change', e => {
-  submitNewFiles = [...submitNewFiles, ...Array.from(e.target.files)];
+// 新規ファイル追加プレビュー（単発選択・フォルダ選択共通）
+function addSubmitNewItems(items) {
+  let skipped = 0;
+  items.forEach(({ file, relativePath }) => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (![...SOLID_3D_EXTS, 'dxf', 'pdf'].includes(ext)) { skipped++; return; }
+    submitNewFiles.push({ file, relativePath });
+  });
+  if (skipped > 0) showToast(`対応外の形式のファイルを${skipped}件スキップしました`, 'warning');
+
   const preview = document.getElementById('submitNewFilePreview');
-  preview.innerHTML = submitNewFiles.map((f, i) => `
+  preview.innerHTML = submitNewFiles.map((item, i) => `
     <span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface);
                  border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px;">
       <i class="fa-solid fa-file" style="color:var(--muted);font-size:10px;"></i>
-      ${f.name}
+      ${item.relativePath || item.file.name}
       <button data-rm="${i}" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:0 2px;">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -875,10 +1009,18 @@ document.getElementById('submitNewFileInput')?.addEventListener('change', e => {
   preview.querySelectorAll('[data-rm]').forEach(btn =>
     btn.addEventListener('click', () => {
       submitNewFiles.splice(Number(btn.dataset.rm), 1);
-      document.getElementById('submitNewFileInput').dispatchEvent(new Event('change'));
+      addSubmitNewItems([]);
     }));
-  e.target.value = '';
   updateSubmitConfirmBtn();
+}
+
+document.getElementById('submitNewFileInput')?.addEventListener('change', e => {
+  addSubmitNewItems(Array.from(e.target.files).map(f => ({ file: f, relativePath: '' })));
+  e.target.value = '';
+});
+document.getElementById('submitNewFolderInput')?.addEventListener('change', e => {
+  addSubmitNewItems(filesFromDirectoryInput(e.target));
+  e.target.value = '';
 });
 
 document.getElementById('submitModelConfirmBtn')?.addEventListener('click', async () => {
@@ -890,18 +1032,27 @@ document.getElementById('submitModelConfirmBtn')?.addEventListener('click', asyn
     return;
   }
 
-  // 新規ファイルをアップロード
+  // 新規ファイルを直列アップロード（Sanctumの行ロック競合を避けるため並列化しない）
   const newIds = [];
-  for (const file of submitNewFiles) {
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('file_type', 'model_3d');
-    try {
-      const data = await apiFetchForm(`/projects/${projId}/files`, fd);
-      project.files = [...(project.files ?? []), data.file];
-      newIds.push(data.file.id);
-    } catch {
-      showToast(`${file.name} のアップロードに失敗しました`, 'danger');
+  if (submitNewFiles.length > 0) {
+    const progressWrap  = document.getElementById('submitModelProgress');
+    const progressCount = document.getElementById('submitModelProgressCount');
+    const progressName  = document.getElementById('submitModelProgressName');
+    const progressFill  = document.getElementById('submitModelProgressFill');
+    progressWrap.style.display = '';
+
+    const { uploaded, errors } = await uploadItemsSequential(projId, submitNewFiles, {
+      fileType: 'model_3d',
+      onProgress: ({ doneCount, total, currentName, doneBytes, totalBytes }) => {
+        progressCount.textContent = `${doneCount} / ${total} ファイル`;
+        progressName.textContent = currentName;
+        progressFill.style.width = totalBytes ? `${Math.round((doneBytes / totalBytes) * 100)}%` : '0%';
+      },
+    });
+    project.files = [...(project.files ?? []), ...uploaded];
+    newIds.push(...uploaded.map(f => f.id));
+    if (errors.length) {
+      showToast(`アップロードに失敗しました: ${errors.join(', ')}`, 'danger');
       return;
     }
   }

@@ -117,18 +117,33 @@
           <div class="card" id="modelFileCard">
             <div class="card-header">
               <span class="card-title"><i class="fa-solid fa-cube" style="color:var(--accent)"></i> 3Dモデル・制作データ</span>
-              <!-- モデラー用アップロードボタン -->
-              <button class="btn btn-blue btn-sm" id="uploadModelBtn" style="display:none;"
-                      onclick="document.getElementById('modelFileInput').click()">
-                <i class="fa-solid fa-upload"></i> 3Dデータをアップロード
-              </button>
-              <input type="file" id="modelFileInput" accept=".stp,.step,.stl,.obj,.iges,.fbx,.dxf" multiple style="display:none">
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <!-- モデラー用アップロードボタン -->
+                <button class="btn btn-blue btn-sm" id="uploadModelBtn" style="display:none;"
+                        onclick="document.getElementById('modelFileInput').click()">
+                  <i class="fa-solid fa-upload"></i> 3Dデータをアップロード
+                </button>
+                <button class="btn btn-outline btn-sm" id="uploadModelFolderBtn" style="display:none;"
+                        onclick="document.getElementById('modelFolderInput').click()">
+                  <i class="fa-solid fa-folder-open"></i> フォルダをアップロード
+                </button>
+                <input type="file" id="modelFileInput" accept=".stp,.step,.stl,.obj,.iges,.fbx,.sldprt,.sldasm,.slddrw,.dxf" multiple style="display:none">
+                <input type="file" id="modelFolderInput" webkitdirectory style="display:none">
+                <!-- 発注者用: フォルダごと保存 / zip一括ダウンロード -->
+                <button class="btn btn-outline btn-sm" id="saveFolderBtn" style="display:none;">
+                  <i class="fa-solid fa-folder-tree"></i> フォルダごと保存
+                </button>
+                <button class="btn btn-outline btn-sm" id="zipAllBtn" style="display:none;">
+                  <i class="fa-solid fa-file-zipper"></i> zip一括ダウンロード
+                </button>
+              </div>
             </div>
             <!-- 発注者には approved 以降のみ表示される旨のメッセージ -->
             <div id="modelFileLockedMsg" style="display:none;padding:20px 0;text-align:center;color:var(--muted);font-size:13px;">
               <i class="fa-solid fa-lock" style="font-size:20px;margin-bottom:8px;display:block;"></i>
               検査が完了したデータから順次公開されます
             </div>
+            <div id="modelFolderSaveProgress" style="display:none;padding:8px 0;font-size:12px;color:var(--muted);"></div>
             <div id="modelFileArea"></div>
           </div>
 
@@ -294,11 +309,24 @@
     </div>
     <!-- 新規アップロード追加 -->
     <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:4px;">
-      <label class="btn btn-outline btn-sm" for="submitNewFileInput" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
-        <i class="fa-solid fa-plus"></i> 新しいファイルを追加
-      </label>
-      <input type="file" id="submitNewFileInput" accept=".stp,.step,.stl,.obj,.iges,.fbx,.dxf,.pdf" multiple style="display:none">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <label class="btn btn-outline btn-sm" for="submitNewFileInput" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-plus"></i> 新しいファイルを追加
+        </label>
+        <label class="btn btn-outline btn-sm" for="submitNewFolderInput" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-folder-open"></i> フォルダを追加
+        </label>
+      </div>
+      <input type="file" id="submitNewFileInput" accept=".stp,.step,.stl,.obj,.iges,.fbx,.sldprt,.sldasm,.slddrw,.dxf,.pdf" multiple style="display:none">
+      <input type="file" id="submitNewFolderInput" webkitdirectory style="display:none">
       <div id="submitNewFilePreview" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+      <div id="submitModelProgress" style="display:none;margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px;">
+          <span id="submitModelProgressCount">0 / 0 ファイル</span>
+          <span id="submitModelProgressName"></span>
+        </div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="submitModelProgressFill" style="width:0%"></div></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" id="submitModelModalClose2">キャンセル</button>

@@ -127,6 +127,8 @@ function openUploadModal(projectId, projectTitle) {
   document.getElementById('uploadModalProject').textContent = `対象: ${projectTitle}`;
   document.getElementById('modalFileList').innerHTML = '';
   document.getElementById('uploadSubmitBtn').disabled = true;
+  document.getElementById('modalUploadProgress').style.display = 'none';
+  document.getElementById('modalUploadProgressFill').style.width = '0%';
   document.getElementById('uploadModal').classList.remove('hidden');
 }
 
@@ -140,43 +142,55 @@ function closeUploadModal() {
   document.getElementById(id).addEventListener('click', closeUploadModal)
 );
 
-/* ドラッグ&ドロップ */
+/* ドラッグ&ドロップ（フォルダ対応） */
 const dropZone = document.getElementById('modalUploadZone');
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', e => {
+dropZone.addEventListener('drop', async e => {
   e.preventDefault();
   dropZone.classList.remove('dragover');
-  addFiles(Array.from(e.dataTransfer.files));
+  addItems(await collectDroppedItems(e.dataTransfer));
 });
 document.getElementById('modalFileInput').addEventListener('change', e => {
-  addFiles(Array.from(e.target.files));
+  addItems(Array.from(e.target.files).map(f => ({ file: f, relativePath: '' })));
+  e.target.value = '';
+});
+document.getElementById('modalFolderPickBtn').addEventListener('click', () => {
+  document.getElementById('modalFolderInput').click();
+});
+document.getElementById('modalFolderInput').addEventListener('change', e => {
+  addItems(filesFromDirectoryInput(e.target));
   e.target.value = '';
 });
 
-function addFiles(files) {
-  const allowed = ['stp', 'step', 'stl', 'obj', 'iges', 'fbx'];
-  files.forEach(f => {
-    const ext = f.name.split('.').pop().toLowerCase();
-    if (!allowed.includes(ext)) {
-      showToast(`${f.name} は対応外の形式です`, 'danger');
+function addItems(items) {
+  let skipped = 0;
+  items.forEach(({ file, relativePath }) => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!SOLID_3D_EXTS.includes(ext)) {
+      skipped++;
       return;
     }
-    if (!pendingFiles.find(x => x.name === f.name && x.size === f.size)) {
-      pendingFiles.push(f);
+    if (!pendingFiles.find(x => x.file.name === file.name && x.file.size === file.size && x.relativePath === relativePath)) {
+      pendingFiles.push({ file, relativePath });
     }
   });
+  if (skipped > 0) {
+    showToast(`対応外の形式のファイルを${skipped}件スキップしました`, 'warning');
+  }
   renderModalFileList();
 }
 
 function renderModalFileList() {
   const list = document.getElementById('modalFileList');
-  list.innerHTML = pendingFiles.map((f, i) => `
+  list.innerHTML = pendingFiles.map((item, i) => `
     <div class="upload-file-item">
       <i class="fa-solid fa-cube file-type-icon file-type-3d"></i>
       <div style="flex:1;">
-        <div style="font-size:13px;font-weight:600;">${f.name}</div>
-        <div style="font-size:12px;color:var(--muted);">${formatBytes(f.size)}</div>
+        <div style="font-size:13px;font-weight:600;">${item.file.name}</div>
+        <div style="font-size:12px;color:var(--muted);">
+          ${item.relativePath ? item.relativePath.split('/').slice(0, -1).join('/') + ' · ' : ''}${formatBytes(item.file.size)}
+        </div>
       </div>
       <button class="upload-file-remove" data-idx="${i}"><i class="fa-solid fa-xmark"></i></button>
     </div>`).join('');
@@ -199,38 +213,25 @@ document.getElementById('uploadSubmitBtn').addEventListener('click', async () =>
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> アップロード中...';
 
-  const token = sessionStorage.getItem('space_token');
-  let errors = [];
-  const uploadedIds = [];
+  const progressWrap  = document.getElementById('modalUploadProgress');
+  const progressCount = document.getElementById('modalUploadProgressCount');
+  const progressName  = document.getElementById('modalUploadProgressName');
+  const progressFill  = document.getElementById('modalUploadProgressFill');
+  progressWrap.style.display = '';
 
-  for (const file of pendingFiles) {
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('file_type', 'model_3d');
-    try {
-      const res = await fetch(`${API_BASE}/projects/${uploadTargetId}/files`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-        body: fd,
-      });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`${res.status}: ${body}`);
-      }
-      const data = await res.json();
-      if (data?.file?.id) uploadedIds.push(data.file.id);
-    } catch (err) {
-      errors.push(file.name);
-    }
-  }
+  const { uploaded, errors } = await uploadItemsSequential(uploadTargetId, pendingFiles, {
+    fileType: 'model_3d',
+    onProgress: ({ doneCount, total, currentName, doneBytes, totalBytes }) => {
+      progressCount.textContent = `${doneCount} / ${total} ファイル`;
+      progressName.textContent = currentName;
+      progressFill.style.width = totalBytes ? `${Math.round((doneBytes / totalBytes) * 100)}%` : '0%';
+    },
+  });
 
   // アップロードしたファイルをファイル単位で検査依頼（submitted）にする
-  for (const id of uploadedIds) {
+  for (const f of uploaded) {
     try {
-      await api.patch(`/files/${id}/review-status`, { review_status: 'submitted' });
+      await api.patch(`/files/${f.id}/review-status`, { review_status: 'submitted' });
     } catch {}
   }
 

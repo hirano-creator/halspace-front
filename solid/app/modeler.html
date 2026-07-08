@@ -112,14 +112,29 @@
 
       <!-- ドロップゾーン -->
       <div class="upload-zone" id="modalUploadZone" onclick="document.getElementById('modalFileInput').click()"
-           style="padding:24px;margin-bottom:12px;">
+           style="padding:24px;margin-bottom:8px;">
         <i class="fa-solid fa-cube" style="font-size:28px;color:var(--blue);margin-bottom:8px;"></i>
-        <p class="upload-zone-text">3Dファイルをドロップ、またはクリックして選択</p>
-        <p class="upload-zone-sub">対応形式: STP, STEP, STL, OBJ, IGES, FBX（最大500MB）</p>
+        <p class="upload-zone-text">ファイル／フォルダをドロップ、またはクリックして選択</p>
+        <p class="upload-zone-sub">対応形式: STP, STEP, STL, OBJ, IGES, FBX, SLDPRT, SLDASM, SLDDRW（1ファイル最大100MB）</p>
       </div>
-      <input type="file" id="modalFileInput" accept=".stp,.step,.stl,.obj,.iges,.fbx" multiple style="display:none">
+      <input type="file" id="modalFileInput" accept=".stp,.step,.stl,.obj,.iges,.fbx,.sldprt,.sldasm,.slddrw" multiple style="display:none">
+      <input type="file" id="modalFolderInput" webkitdirectory style="display:none">
+
+      <div style="text-align:center;margin-bottom:12px;">
+        <button type="button" class="btn btn-sm btn-outline" id="modalFolderPickBtn">
+          <i class="fa-solid fa-folder-open"></i> フォルダを選択
+        </button>
+      </div>
 
       <div id="modalFileList" class="upload-file-list"></div>
+
+      <div id="modalUploadProgress" style="display:none;margin-top:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px;">
+          <span id="modalUploadProgressCount">0 / 0 ファイル</span>
+          <span id="modalUploadProgressName"></span>
+        </div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="modalUploadProgressFill" style="width:0%"></div></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" id="uploadModalClose2">キャンセル</button>
