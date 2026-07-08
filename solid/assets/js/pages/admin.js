@@ -85,8 +85,8 @@ function renderProjects() {
       ? '<i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);margin-left:4px;" title="期限3日以内"></i>' : '';
     return `<tr style="cursor:pointer;" onclick="location.href='project-detail.html?id=${p.id}'">
       <td><code style="color:var(--blue);font-size:12px;">${p.project_code}</code></td>
-      <td>
-        <span style="font-weight:600;">${p.title}</span>
+      <td style="max-width:260px;">
+        <span class="project-title-clamp" style="font-weight:600;">${p.title}</span>
         <div style="font-size:11px;color:var(--muted);margin-top:2px;">${p.company_name ?? '—'}</div>
       </td>
       <td style="font-size:13px;color:var(--muted);">${p.modeler_name ?? '<span style="color:#ccc;">未割当</span>'}</td>

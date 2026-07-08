@@ -201,10 +201,10 @@ if (user) {
       tr.innerHTML = `
         <td style="font-size:13px;color:var(--muted);white-space:nowrap;">${(p.created_at||'—').slice(0,10)}</td>
         <td style="white-space:nowrap;"><code style="font-size:12px;color:var(--blue);">${p.project_code}</code></td>
-        <td style="min-width:120px;">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span style="font-weight:600;color:var(--dark);">${p.title}</span>
-            ${isAlert ? '<i class="fa-solid fa-triangle-exclamation text-danger" title="期限間近"></i>' : ''}
+        <td style="min-width:160px;max-width:260px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span class="project-title-clamp" style="font-weight:600;color:var(--dark);">${p.title}</span>
+            ${isAlert ? '<i class="fa-solid fa-triangle-exclamation text-danger" style="flex-shrink:0;" title="期限間近"></i>' : ''}
           </div>
           ${(isAdmin(user) || isModeler(user)) ? `<span class="project-company-label" style="font-size:11px;color:var(--muted);">${companyName}</span>` : ''}
         </td>
