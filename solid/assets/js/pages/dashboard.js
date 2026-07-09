@@ -22,6 +22,10 @@ if (user) {
     document.getElementById('adminLink').style.display     = '';
     const adminNav = document.getElementById('adminNav');
     if (adminNav) adminNav.style.display = '';
+  }
+
+  /* 削除ボタン列：管理者・発注者（一般会員）に表示。モデラーは対象外 */
+  if (isAdmin(user) || isClient(user)) {
     const deleteCol = document.getElementById('deleteCol');
     if (deleteCol) deleteCol.style.display = '';
   }
@@ -213,12 +217,12 @@ if (user) {
         <td style="font-size:13px;white-space:nowrap;${isAlert?'color:var(--danger);font-weight:700;':''}">${p.deadline_requested||'—'}</td>
         <td style="font-size:13px;white-space:nowrap;">${replyCell}</td>
         ${isAdmin(user) || isModeler(user) ? `<td style="font-size:13px;white-space:nowrap;">${modelerName||'<span style="color:var(--muted)">未割当</span>'}</td>` : ''}
-        ${isAdmin(user) ? `<td style="text-align:center;white-space:nowrap;">
+        ${(isAdmin(user) || isClient(user)) ? `<td style="text-align:center;white-space:nowrap;">
           <button class="row-delete-btn" data-id="${p.id}" title="削除">
             <i class="fa-solid fa-trash-can"></i>
           </button>
         </td>` : ''}`;
-      if (isAdmin(user)) {
+      if (isAdmin(user) || isClient(user)) {
         tr.querySelector('.row-delete-btn').addEventListener('click', (e) => {
           e.stopPropagation();
           deleteProject(p.id, p.project_code);
