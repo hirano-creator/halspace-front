@@ -29,12 +29,15 @@ document.getElementById('folderInput').addEventListener('change', e => {
   addItems(filesFromDirectoryInput(e.target));
   e.target.value = '';
 });
+document.getElementById('wnPickBtn').addEventListener('click', () => {
+  openWnPicker({ onConfirm: addWnItems });
+});
 
 function addItems(items) {
   let oversized = 0;
   items.forEach(({ file, relativePath }) => {
     if (file.size > MAX_UPLOAD_SIZE) { oversized++; return; }
-    if (!pendingItems.find(x => x.file.name === file.name && x.file.size === file.size && x.relativePath === relativePath)) {
+    if (!pendingItems.find(x => x.file && x.file.name === file.name && x.file.size === file.size && x.relativePath === relativePath)) {
       pendingItems.push({ file, relativePath });
     }
   });
@@ -44,15 +47,30 @@ function addItems(items) {
   renderFileList();
 }
 
+/* What'sNoピッカーで選択されたファイルをpendingItemsに追加（wnFile.idで重複排除） */
+function addWnItems(wnFiles) {
+  let added = 0;
+  wnFiles.forEach(wnFile => {
+    if (!pendingItems.find(x => x.wnFile && x.wnFile.id === wnFile.id)) {
+      pendingItems.push({ wnFile, relativePath: '' });
+      added++;
+    }
+  });
+  if (added > 0) renderFileList();
+}
+
+function fileNameOf(item) { return item.file ? item.file.name : item.wnFile.file_name; }
+function fileSizeOf(item) { return item.file ? item.file.size : item.wnFile.file_size; }
+
 function renderFileList() {
   const list = document.getElementById('fileList');
   list.innerHTML = pendingItems.map((item, i) => `
     <div class="upload-file-item">
-      ${getFileIcon(item.file.name)}
+      ${getFileIcon(fileNameOf(item))}
       <div style="flex:1;">
-        <div style="font-size:13px;font-weight:600;">${item.file.name}</div>
+        <div style="font-size:13px;font-weight:600;">${fileNameOf(item)}${item.wnFile ? ' <span style="font-weight:400;color:var(--blue);">(What\'sNo)</span>' : ''}</div>
         <div style="font-size:12px;color:var(--muted);">
-          ${item.relativePath ? item.relativePath.split('/').slice(0, -1).join('/') + ' · ' : ''}${formatBytes(item.file.size)}
+          ${item.relativePath ? item.relativePath.split('/').slice(0, -1).join('/') + ' · ' : ''}${formatBytes(fileSizeOf(item))}
         </div>
       </div>
       <button class="upload-file-remove" data-idx="${i}"><i class="fa-solid fa-xmark"></i></button>
@@ -104,7 +122,6 @@ document.getElementById('step2Back').addEventListener('click', () => goStep(1));
 });
 
 function renderConfirm() {
-  const files    = pendingItems.map(it => it.file);
   const title    = document.getElementById('projTitle').value || '（未入力）';
   const deadline = document.getElementById('projDeadline').value || '—';
   const priority = document.getElementById('projPriority').value;
@@ -123,13 +140,13 @@ function renderConfirm() {
       <tr><td style="padding:8px 0;color:var(--muted);vertical-align:top;">備考</td>
           <td style="white-space:pre-wrap;font-size:13px;">${desc}</td></tr>
       <tr><td style="padding:8px 0;color:var(--muted);vertical-align:top;">添付ファイル</td>
-          <td>${files.map(f => `<div style="font-size:13px;">${getFileIcon(f.name)} ${f.name}</div>`).join('') || '—'}</td></tr>
+          <td>${pendingItems.map(it => `<div style="font-size:13px;">${getFileIcon(fileNameOf(it))} ${fileNameOf(it)}</div>`).join('') || '—'}</td></tr>
     </table>`;
 }
 
 /* ── ファイル種別判定 ── */
-function resolveDrawingFileType(file) {
-  const ext = file.name.split('.').pop().toLowerCase();
+function resolveDrawingFileType(name) {
+  const ext = name.split('.').pop().toLowerCase();
   return ['dxf', 'dwg'].includes(ext) ? 'drawing_dxf'
        : ext === 'pdf'                ? 'drawing_pdf'
        : 'reference';
@@ -166,16 +183,36 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     return;
   }
 
-  /* ── Step2: ファイルアップロード（直列） ── */
-  if (pendingItems.length > 0) {
+  /* ── Step2: What'sNo由来ファイルの紐付け（直列） ── */
+  const wnItems = pendingItems.filter(it => it.wnFile);
+  if (wnItems.length > 0) {
+    const wnErrors = [];
+    for (const it of wnItems) {
+      try {
+        await api.post(`/projects/${newProjId}/files/from-wn`, {
+          wn_file_id: it.wnFile.id,
+          file_type: resolveDrawingFileType(it.wnFile.file_name),
+        });
+      } catch (err) {
+        wnErrors.push(it.wnFile.file_name);
+      }
+    }
+    if (wnErrors.length > 0) {
+      showToast(`What'sNoファイルの追加に失敗しました: ${wnErrors.join(', ')}`, 'warning');
+    }
+  }
+
+  /* ── Step2: ローカルファイルアップロード（直列） ── */
+  const localItems = pendingItems.filter(it => it.file);
+  if (localItems.length > 0) {
     const progressWrap  = document.getElementById('submitUploadProgress');
     const progressCount = document.getElementById('submitUploadProgressCount');
     const progressName  = document.getElementById('submitUploadProgressName');
     const progressFill  = document.getElementById('submitUploadProgressFill');
     progressWrap.style.display = '';
 
-    const { errors } = await uploadItemsSequential(newProjId, pendingItems, {
-      fileType: item => resolveDrawingFileType(item.file),
+    const { errors } = await uploadItemsSequential(newProjId, localItems, {
+      fileType: item => resolveDrawingFileType(item.file.name),
       onProgress: ({ doneCount, total, currentName, doneBytes, totalBytes }) => {
         progressCount.textContent = `${doneCount} / ${total} ファイル`;
         progressName.textContent = currentName;

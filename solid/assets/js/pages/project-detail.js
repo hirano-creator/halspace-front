@@ -238,6 +238,10 @@ function renderFiles() {
       uploadDrawingMenu.classList.remove('open');
       document.getElementById('drawingFolderInput').click();
     });
+    document.getElementById('uploadDrawingMenuWn').addEventListener('click', () => {
+      uploadDrawingMenu.classList.remove('open');
+      openWnPicker({ onConfirm: attachWnFilesAndRefresh });
+    });
     document.addEventListener('click', () => uploadDrawingMenu.classList.remove('open'));
   }
 
@@ -353,6 +357,31 @@ async function uploadDrawingItemsAndRefresh(items) {
   }
   if (errors.length) {
     showToast(`アップロードに失敗しました: ${errors.join(', ')}`, 'danger');
+  }
+}
+
+/* What'sNoから選択されたファイルをプロジェクトの図面・参考資料として紐付け、画面へ反映する */
+async function attachWnFilesAndRefresh(wnFiles) {
+  const uploaded = [];
+  const errors = [];
+  for (const wnFile of wnFiles) {
+    try {
+      const data = await api.post(`/projects/${projId}/files/from-wn`, {
+        wn_file_id: wnFile.id,
+        file_type: resolveDrawingFileType({ name: wnFile.file_name }),
+      });
+      if (data?.file?.id) uploaded.push(data.file);
+    } catch {
+      errors.push(wnFile.file_name);
+    }
+  }
+  if (uploaded.length) {
+    project.files = [...(project.files ?? []), ...uploaded];
+    renderFiles();
+    showToast(`${uploaded.length}件のファイルを追加しました`, 'success');
+  }
+  if (errors.length) {
+    showToast(`What'sNoファイルの追加に失敗しました: ${errors.join(', ')}`, 'danger');
   }
 }
 

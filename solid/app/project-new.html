@@ -71,9 +71,12 @@
         <input type="file" id="fileInput" multiple accept=".dxf,.pdf" style="display:none">
         <input type="file" id="folderInput" webkitdirectory style="display:none">
 
-        <div style="text-align:center;margin:12px 0;">
+        <div style="text-align:center;margin:12px 0;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
           <button type="button" class="btn btn-sm btn-outline" id="folderPickBtn">
             <i class="fa-solid fa-folder-open"></i> フォルダを選択
+          </button>
+          <button type="button" class="btn btn-sm btn-outline" id="wnPickBtn">
+            <i class="fa-solid fa-cloud"></i> What'sNoから選択
           </button>
         </div>
 
@@ -153,6 +156,7 @@
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/api.js"></script>
 <script src="../assets/js/uploader.js"></script>
+<script src="../assets/js/wn-picker.js"></script>
 <script src="../assets/js/pages/project-new.js"></script>
 </body>
 </html>
