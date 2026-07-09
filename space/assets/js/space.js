@@ -73,6 +73,15 @@ function getAuth() {
   const raw = sessionStorage.getItem('space_user');
   return raw ? JSON.parse(raw) : null;
 }
+/* 自分自身のプロフィール更新など、ログイン後に変わったフィールドだけを
+   sessionStorageのキャッシュへ反映する（再ログインなしで即時反映するため） */
+function patchAuthUser(patch) {
+  const user = getAuth();
+  if (!user) return null;
+  Object.assign(user, patch);
+  sessionStorage.setItem('space_user', JSON.stringify(user));
+  return user;
+}
 function clearAuth() {
   sessionStorage.removeItem('space_token');
   sessionStorage.removeItem('space_user');

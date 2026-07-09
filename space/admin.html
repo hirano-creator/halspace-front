@@ -1547,6 +1547,19 @@ document.getElementById('userModalSave').addEventListener('click', async () => {
       closeModal('userModal');
       showToast('ユーザー情報を更新しました', 'success');
       loadUsers();
+      // 自分自身を編集した場合、サイドバー等の表示をログイン情報の再取得なしで即時反映する
+      if (String(id) === String(currentUser.id)) {
+        const data = await res.json().catch(() => null);
+        const updated = data?.user;
+        if (updated) {
+          patchAuthUser({ name: updated.name, role: updated.role, solid_type: updated.solid_type });
+          currentUser.name = updated.name;
+          currentUser.role = updated.role;
+          document.getElementById('sidebarAvatar').textContent  = updated.name.charAt(0);
+          document.getElementById('sidebarUserName').textContent = updated.name;
+          document.getElementById('sidebarUserRole').textContent = roleLabel(updated.role);
+        }
+      }
     } else {
       const err = await res?.json().catch(() => ({}));
       errEl.textContent = err.message || '更新に失敗しました';
