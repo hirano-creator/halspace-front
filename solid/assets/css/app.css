@@ -674,7 +674,7 @@ tbody tr:last-child { border-bottom: none; }
 /* =====================
    チャットルーム
    ===================== */
-.chat-card { display:flex; flex-direction:column; padding:0; overflow:hidden; }
+.chat-card { display:flex; flex-direction:column; padding:0; overflow:hidden; max-height: calc(100vh - 100px); }
 .chat-card .card-header { padding:16px 20px 12px; flex-shrink:0; }
 
 /* チャンネルタブ */
@@ -711,8 +711,7 @@ tbody tr:last-child { border-bottom: none; }
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 420px;
-  max-height: 640px;
+  min-height: 200px;
   background: #f8fafc;
 }
 
@@ -1190,7 +1189,7 @@ tbody tr:last-child { border-bottom: none; }
 
   /* project-detail: 2カラム → 1カラム */
   .detail-layout { grid-template-columns: 1fr !important; }
-  .chat-card { position: static !important; top: auto !important; }
+  .chat-card { position: static !important; top: auto !important; max-height: none; }
 
   .info-grid { grid-template-columns: repeat(3, 1fr); }
 }
