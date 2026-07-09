@@ -795,7 +795,7 @@ async function apiFetchForm(path, formData) {
 
 function canAccessChannel(ch) {
   if (isAdmin(user)) return true;
-  if (ch === 'client')  return isClient(user);
+  if (ch === 'client')  return !isModeler(user);
   if (ch === 'modeler') return isModeler(user);
   return false;
 }
@@ -811,7 +811,8 @@ function initChatTabs() {
     tabs.querySelector('[data-ch="client"]').style.display = 'none';
     currentChannel = 'modeler';
   }
-  if (isClient(user)) {
+  /* solid_typeが未設定の既存ユーザーもいるため isClient() ではなく !isModeler() で判定する */
+  if (!isAdmin(user) && !isModeler(user)) {
     modelerTab.style.display = 'none';
   }
 
@@ -1379,7 +1380,7 @@ function renderDeadlinePanel() {
   const deadlineVal = project.deadline_requested || project.deadline_at || '—';
 
   /* ── 発注者ビュー ── */
-  if (isClient(user)) {
+  if (!isModeler(user) && !isAdmin(user)) {
     let html = `
       <div style="display:flex;align-items:center;gap:16px;padding:12px 0;flex-wrap:wrap;">
         <div style="flex:1;min-width:160px;">
