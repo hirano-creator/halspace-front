@@ -826,6 +826,23 @@ function initChatTabs() {
   });
 }
 
+/* チャットカードの高さを実際のビューポート残り分に合わせる
+   （sticky固定前はカードの上端が画面上部より下にあるため、
+   固定のcalc(100vh - 100px)だけでは入力欄が画面外にはみ出すことがある） */
+function adjustChatCardHeight() {
+  const card = document.querySelector('.chat-card');
+  if (!card) return;
+  if (window.innerWidth <= 1024) {
+    card.style.height = '';
+    return;
+  }
+  const top = card.getBoundingClientRect().top;
+  const available = window.innerHeight - top - 20;
+  card.style.height = Math.max(300, available) + 'px';
+}
+window.addEventListener('resize', adjustChatCardHeight);
+window.addEventListener('scroll', adjustChatCardHeight, { passive: true });
+
 function avatarCls(role, solidType) {
   if (role === 'admin')          return 'chat-avatar-admin';
   if (solidType === 'id_modeler') return 'chat-avatar-modeler';
@@ -1582,6 +1599,7 @@ async function init() {
     } catch {}
   }
   await loadProject();
+  adjustChatCardHeight();
 
   // ほぼリアルタイム更新: 3秒ごとに軽量version APIをポーリングし、
   // 変化があったときだけ詳細を再取得して差分単位で再描画する
