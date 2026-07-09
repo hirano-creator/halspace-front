@@ -7,8 +7,8 @@ if (user) {
   let allProjects = [];
   let activeCardFilter = ''; // サマリーカードによる絞り込み
 
-  /* 発注者：top-barに会社名表示 */
-  if (!isAdmin(user) && !isModeler(user)) {
+  /* top-barに会社名表示（発注者・管理者・モデラー共通。自社名が無いユーザーは非表示のまま） */
+  {
     const label = document.getElementById('companyLabel');
     const name = user.company_name ?? user.company;
     if (label && name) label.textContent = name;
