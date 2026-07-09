@@ -97,15 +97,10 @@ function goStep(n) {
   document.getElementById('wLine1').className = 'wizard-line' + (n > 1 ? ' done' : '');
 }
 
-/* 希望納期の初期値（最短3営業日後）を設定 */
+/* 希望納期の初期値（最短翌日）を設定 */
 function applyDefaultDeadline() {
   const minDate = new Date();
-  let added = 0;
-  while (added < 3) {
-    minDate.setDate(minDate.getDate() + 1);
-    const dow = minDate.getDay();
-    if (dow !== 0 && dow !== 6) added++;
-  }
+  minDate.setDate(minDate.getDate() + 1);
   const minStr = minDate.toISOString().split('T')[0];
   const deadlineEl = document.getElementById('projDeadline');
   deadlineEl.min = minStr;
