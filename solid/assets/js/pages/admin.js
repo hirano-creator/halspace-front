@@ -9,18 +9,10 @@ if (!isAdmin(user)) {
   location.href = 'dashboard.html';
 }
 
-const STATUS_LABEL = {
-  draft:'下書き', submitted:'提出済み', in_progress:'モデリング中',
-  review_pending:'検査待ち', revision_requested:'修正依頼中',
-  approved:'承認済み', delivered:'納品完了', cancelled:'キャンセル',
-};
-const PRIORITY_LABEL = { urgent:'緊急', high:'高', normal:'通常', low:'低' };
-const PLAN_LABEL = { trial:'トライアル', standard:'スタンダード', pro:'プロ' };
 const ROLE_LABEL = { general:'一般会員', admin:'管理者', super_admin:'スーパー管理者' };
 const SOLID_TYPE_LABEL = { jp_client:'発注担当', id_modeler:'モデラー' };
 
 /* ── インメモリキャッシュ ── */
-let allProjects  = [];
 let allCompanies = [];
 let allUsers     = [];
 
@@ -39,11 +31,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 /* ============================================================
    ユーティリティ
    ============================================================ */
-function isNearDeadline(dateStr) {
-  if (!dateStr) return false;
-  const diff = (new Date(dateStr) - new Date()) / 86400000;
-  return diff >= 0 && diff <= 3;
-}
 function daysUntil(dateStr) {
   return Math.ceil((new Date(dateStr) - new Date()) / 86400000);
 }
@@ -55,89 +42,7 @@ function formatBytesAdmin(bytes) {
 }
 
 /* ============================================================
-   タブ1: 全プロジェクト
-   ============================================================ */
-async function loadProjects() {
-  try {
-    const data = await api.get('/projects');
-    allProjects = data?.projects ?? [];
-  } catch {
-    allProjects = (MOCK?.projects ?? []);
-  }
-  populateCompanyFilter('filterCompany', allCompanies);
-  renderProjects();
-}
-
-function renderProjects() {
-  const cFilter = document.getElementById('filterCompany').value;
-  const sFilter = document.getElementById('filterStatus').value;
-  let ps = allProjects;
-  if (cFilter) ps = ps.filter(p => String(p.company_id) === cFilter);
-  if (sFilter) ps = ps.filter(p => p.status === sFilter);
-
-  const tbody = document.getElementById('adminProjectBody');
-  if (!ps.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px;">該当するプロジェクトがありません</td></tr>';
-    return;
-  }
-  tbody.innerHTML = ps.map(p => {
-    const deadlineAlert = isNearDeadline(p.deadline_at) && !['approved','delivered','cancelled'].includes(p.status)
-      ? '<i class="fa-solid fa-triangle-exclamation" style="color:var(--danger);margin-left:4px;" title="期限3日以内"></i>' : '';
-    return `<tr style="cursor:pointer;" onclick="location.href='project-detail.html?id=${p.id}'">
-      <td><code style="color:var(--blue);font-size:12px;">${p.project_code}</code></td>
-      <td style="max-width:260px;">
-        <span class="project-title-clamp" style="font-weight:600;">${p.title}</span>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${p.company_name ?? '—'}</div>
-      </td>
-      <td style="font-size:13px;color:var(--muted);">${p.modeler_name ?? '<span style="color:#ccc;">未割当</span>'}</td>
-      <td><span class="badge badge-${p.status}">${STATUS_LABEL[p.status]||p.status}</span></td>
-      <td><span class="priority-${p.priority}">${PRIORITY_LABEL[p.priority]||p.priority}</span></td>
-      <td style="font-size:13px;">${p.deadline_at||'—'}${deadlineAlert}</td>
-    </tr>`;
-  }).join('');
-}
-
-document.getElementById('filterCompany').addEventListener('change', renderProjects);
-document.getElementById('filterStatus').addEventListener('change', renderProjects);
-
-/* ステータス変更モーダル */
-let editingProjectId = null;
-document.getElementById('adminProjectBody').addEventListener('click', e => {
-  const btn = e.target.closest('[data-status-id]');
-  if (!btn) return;
-  editingProjectId = Number(btn.dataset.statusId);
-  const proj = allProjects.find(p => p.id === editingProjectId);
-  if (!proj) return;
-  document.getElementById('statusModalDesc').textContent = `「${proj.title}」のステータスを変更します。`;
-  document.getElementById('statusSelect').value = proj.status;
-  document.getElementById('statusModal').classList.remove('hidden');
-});
-['statusModalClose','statusModalClose2'].forEach(id =>
-  document.getElementById(id).addEventListener('click', () =>
-    document.getElementById('statusModal').classList.add('hidden')));
-
-document.getElementById('statusModalSubmit').addEventListener('click', async () => {
-  const newStatus = document.getElementById('statusSelect').value;
-  const btn = document.getElementById('statusModalSubmit');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-  try {
-    await api.patch(`/projects/${editingProjectId}/status`, { status: newStatus });
-    const idx = allProjects.findIndex(p => p.id === editingProjectId);
-    if (idx !== -1) allProjects[idx].status = newStatus;
-    document.getElementById('statusModal').classList.add('hidden');
-    renderProjects();
-    showToast('ステータスを変更しました', 'success');
-  } catch (err) {
-    showToast('変更に失敗しました: ' + err.message, 'danger');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-pen"></i> 変更する';
-  }
-});
-
-/* ============================================================
-   タブ2: 会社管理
+   会社データ取得（ユーザー管理タブの会社フィルタ・招待用に使用）
    ============================================================ */
 async function loadCompanies() {
   try {
@@ -146,289 +51,12 @@ async function loadCompanies() {
   } catch {
     allCompanies = (MOCK?.companies ?? []);
   }
-  renderCompanies();
-  renderContractWarningBanner();
-  populateCompanyFilter('filterCompany', allCompanies);
   populateCompanyFilter('filterUserCompany', allCompanies);
   populateInviteCompany(allCompanies);
 }
 
-function renderContractWarningBanner() {
-  const warnings = allCompanies.filter(c => c.contract_expiry_warning);
-  const existing = document.getElementById('contractWarningBanner');
-  if (existing) existing.remove();
-  if (!warnings.length) return;
-
-  const names = warnings.map(c => {
-    const days = c.contract_days_left ?? '?';
-    return `<strong>${c.name}</strong>（残り ${days} 日）`;
-  }).join('、');
-
-  const banner = document.createElement('div');
-  banner.id = 'contractWarningBanner';
-  banner.style.cssText = `
-    background:rgba(253,203,110,.2);border:1px solid #fdcb6e;border-radius:10px;
-    padding:12px 16px;margin-bottom:20px;display:flex;align-items:flex-start;gap:10px;
-    font-size:13px;color:#7d5200;
-  `;
-  banner.innerHTML = `
-    <i class="fa-solid fa-triangle-exclamation" style="font-size:16px;color:#e17055;flex-shrink:0;margin-top:1px;"></i>
-    <div>
-      <strong>年間契約の更新期限が近づいています</strong><br>
-      <span style="font-size:12px;">${names} — 請求手続きをお忘れなく。</span>
-    </div>`;
-
-  const tabPane = document.getElementById('tab-companies');
-  tabPane.insertBefore(banner, tabPane.firstChild);
-}
-
-const BILLING_LABEL = { subscription:'月次サブスク', annual:'年間契約' };
-
-function formatPrice(price) {
-  if (!price && price !== 0) return '—';
-  return '¥' + Number(price).toLocaleString('ja-JP');
-}
-
-function contractExpiryBadge(c) {
-  if (c.billing_type !== 'annual' || !c.contract_end_date) return '';
-  const days = Math.ceil((new Date(c.contract_end_date) - new Date()) / 86400000);
-  if (days < 0) {
-    return `<div style="margin-top:8px;padding:6px 10px;border-radius:8px;background:rgba(225,112,85,.12);
-            color:var(--danger);font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px;">
-              <i class="fa-solid fa-circle-exclamation"></i>
-              契約期限切れ（${c.contract_end_date}）
-            </div>`;
-  }
-  if (days <= 30) {
-    return `<div style="margin-top:8px;padding:6px 10px;border-radius:8px;background:rgba(253,203,110,.2);
-            color:#b8690f;font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px;">
-              <i class="fa-solid fa-triangle-exclamation"></i>
-              契約終了まで残り ${days} 日（${c.contract_end_date}）— 請求確認を忘れずに
-            </div>`;
-  }
-  return `<div style="margin-top:8px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;">
-            <i class="fa-solid fa-calendar-check"></i> 契約終了: ${c.contract_end_date}（残り ${days} 日）
-          </div>`;
-}
-
-function renderCompanies() {
-  const grid = document.getElementById('companyGrid');
-
-  // 警告ありを先頭に
-  const sorted = [...allCompanies].sort((a, b) => {
-    const wa = a.contract_expiry_warning ? 0 : 1;
-    const wb = b.contract_expiry_warning ? 0 : 1;
-    return wa - wb;
-  });
-
-  grid.innerHTML = sorted.map(c => `
-    <div class="company-card ${c.is_active ? '' : 'inactive'}">
-      <div class="company-card-head">
-        <div>
-          <div class="company-name">${c.name}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px;">/${c.slug}</div>
-        </div>
-        <span class="plan-badge plan-${c.plan}">${PLAN_LABEL[c.plan]??c.plan}</span>
-      </div>
-      <div class="company-meta">
-        <span><i class="fa-solid fa-users" style="font-size:11px;"></i> ${c.users_count??c.users??0}人</span>
-        <span><i class="fa-solid fa-folder" style="font-size:11px;"></i> ${c.projects_count??c.projects??0}件</span>
-        <span style="margin-left:auto;">
-          ${c.is_active
-            ? '<span style="color:var(--accent);font-weight:700;font-size:12px;"><i class="fa-solid fa-circle" style="font-size:8px;"></i> 有効</span>'
-            : '<span style="color:var(--muted);font-size:12px;"><i class="fa-solid fa-circle" style="font-size:8px;"></i> 無効</span>'}
-        </span>
-      </div>
-      <!-- 契約情報 -->
-      <div style="border-top:1px solid var(--border);margin:10px 0;padding-top:10px;display:flex;flex-direction:column;gap:4px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:11px;color:var(--muted);">
-            <i class="fa-solid fa-rotate" style="font-size:10px;"></i>
-            ${BILLING_LABEL[c.billing_type] ?? '—'}
-          </span>
-          <span style="font-size:13px;font-weight:700;color:var(--dark);">${formatPrice(c.price)}</span>
-        </div>
-        ${c.contract_date ? `<div style="font-size:11px;color:var(--muted);"><i class="fa-solid fa-calendar-day" style="font-size:10px;"></i> 契約開始: ${c.contract_date}</div>` : ''}
-        ${contractExpiryBadge(c)}
-      </div>
-      <div class="company-actions">
-        <button class="btn btn-outline btn-sm" data-edit-company="${c.id}">
-          <i class="fa-solid fa-pen"></i> 編集
-        </button>
-        <button class="btn btn-ghost btn-sm" data-toggle-company="${c.id}" data-active="${c.is_active?'1':'0'}"
-                style="color:${c.is_active?'var(--danger)':'var(--accent)'};">
-          <i class="fa-solid fa-${c.is_active?'ban':'circle-check'}"></i>
-          ${c.is_active ? '無効化' : '有効化'}
-        </button>
-      </div>
-    </div>`).join('');
-
-  /* プラン統計 */
-  const planColors = { trial:'#fdcb6e', standard:'#0984E3', pro:'#00B894' };
-  const planDesc   = { trial:'無料お試し期間', standard:'標準プラン', pro:'フルプラン' };
-  const plans = ['trial','standard','pro'];
-  const total = allCompanies.length || 1;
-  const counts = Object.fromEntries(plans.map(p => [p, allCompanies.filter(c => c.plan === p).length]));
-  const active = allCompanies.filter(c => c.is_active).length;
-  const inactive = allCompanies.length - active;
-
-  /* ドーナツチャート用 SVG arc
-     stroke-dashoffset で各セグメントの開始位置をずらす方式（rotate不要） */
-  function donutArc(counts, colors, r, stroke) {
-    const cx = 60, cy = 60;
-    const circumference = 2 * Math.PI * r;
-    const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
-    let accumulated = 0; // 12時スタート = dashoffset を circumference/4 から始める
-    return Object.entries(counts).map(([key, val]) => {
-      const pct  = val / total;
-      const dash = circumference * pct;
-      // dashoffset: circumference/4 引くと12時スタート、前の累積分を引く
-      const offset = circumference * (0.25 - accumulated);
-      const arc = `<circle cx="${cx}" cy="${cy}" r="${r}"
-        fill="none" stroke="${colors[key]}" stroke-width="${stroke}"
-        stroke-dasharray="${dash.toFixed(2)} ${(circumference - dash).toFixed(2)}"
-        stroke-dashoffset="${offset.toFixed(2)}"
-        style="transition:stroke-dasharray .6s ease;"/>`;
-      accumulated += pct;
-      return arc;
-    }).join('');
-  }
-
-  const arcs = donutArc(counts, planColors, 42, 18);
-
-  document.getElementById('planStats').innerHTML = `
-    <div style="display:flex;align-items:center;gap:32px;padding:16px 8px;flex-wrap:wrap;">
-      <!-- ドーナツチャート -->
-      <div style="flex-shrink:0;position:relative;">
-        <svg width="120" height="120" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="42" fill="none" stroke="var(--border)" stroke-width="18"/>
-          ${arcs}
-          <text x="60" y="55" text-anchor="middle" font-size="22" font-weight="700" fill="var(--dark)">${allCompanies.length}</text>
-          <text x="60" y="71" text-anchor="middle" font-size="10" fill="var(--muted)">社</text>
-        </svg>
-      </div>
-      <!-- プラン別カード -->
-      <div style="flex:1;min-width:220px;">
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
-          ${plans.map(p => `
-          <div style="background:var(--bg);border-radius:10px;padding:12px 10px;text-align:center;">
-            <div style="font-size:22px;font-weight:800;color:${planColors[p]};">${counts[p]}</div>
-            <div style="font-size:11px;font-weight:700;color:${planColors[p]};margin:2px 0;">${PLAN_LABEL[p]}</div>
-            <div style="font-size:10px;color:var(--muted);">${planDesc[p]}</div>
-          </div>`).join('')}
-        </div>
-        <!-- アクティブ/非アクティブ -->
-        <div style="display:flex;gap:16px;padding-top:10px;border-top:1px solid var(--border);">
-          <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
-            <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;"></span>
-            <span style="color:var(--muted);">有効</span>
-            <span style="font-weight:700;color:var(--dark);">${active}社</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
-            <span style="width:8px;height:8px;border-radius:50%;background:#b2bec3;display:inline-block;"></span>
-            <span style="color:var(--muted);">無効</span>
-            <span style="font-weight:700;color:var(--dark);">${inactive}社</span>
-          </div>
-          <div style="margin-left:auto;font-size:11px;color:var(--muted);">合計 ${allCompanies.length} 社</div>
-        </div>
-      </div>
-    </div>`;
-}
-
-document.getElementById('companyGrid').addEventListener('click', async e => {
-  const editBtn   = e.target.closest('[data-edit-company]');
-  const toggleBtn = e.target.closest('[data-toggle-company]');
-
-  if (editBtn) {
-    const c = allCompanies.find(c => c.id === Number(editBtn.dataset.editCompany));
-    if (!c) return;
-    openCompanyModal(c);
-  }
-
-  if (toggleBtn) {
-    const cid      = Number(toggleBtn.dataset.toggleCompany);
-    const isActive = toggleBtn.dataset.active === '1';
-    try {
-      const data = await api.patch(`/admin/companies/${cid}`, { is_active: !isActive });
-      const idx = allCompanies.findIndex(c => c.id === cid);
-      if (idx !== -1) allCompanies[idx] = { ...allCompanies[idx], ...data.company };
-      renderCompanies();
-      showToast(`${allCompanies.find(c=>c.id===cid)?.name} を${!isActive?'有効化':'無効化'}しました`, !isActive?'success':'warning');
-    } catch (err) {
-      showToast('更新に失敗しました: ' + err.message, 'danger');
-    }
-  }
-});
-
-function openCompanyModal(c = null) {
-  document.getElementById('companyModalTitle').textContent = c ? '会社を編集' : '会社を追加';
-  document.getElementById('companyName').value             = c?.name ?? '';
-  document.getElementById('companySlug').value             = c?.slug ?? '';
-  document.getElementById('companyPlan').value             = c?.plan ?? 'trial';
-  document.getElementById('companyBillingType').value      = c?.billing_type ?? 'subscription';
-  document.getElementById('companyPrice').value            = c?.price ?? 150000;
-  document.getElementById('companyContractDate').value     = c?.contract_date ?? '';
-  document.getElementById('companyContractEndDate').value  = c?.contract_end_date ?? '';
-  const modal = document.getElementById('companyModal');
-  if (c) modal.dataset.editId = c.id; else delete modal.dataset.editId;
-  updateContractEndRow();
-  modal.classList.remove('hidden');
-}
-
-function updateContractEndRow() {
-  const isAnnual = document.getElementById('companyBillingType').value === 'annual';
-  document.getElementById('contractEndRow').style.display = isAnnual ? '' : 'none';
-  document.getElementById('companyPriceLabel').textContent = isAnnual ? '年額（円）' : '月額（円）';
-}
-
-document.getElementById('companyBillingType').addEventListener('change', updateContractEndRow);
-
-document.getElementById('addCompanyBtn').addEventListener('click', () => openCompanyModal());
-
-['companyModalClose','companyModalClose2'].forEach(id =>
-  document.getElementById(id).addEventListener('click', () =>
-    document.getElementById('companyModal').classList.add('hidden')));
-
-document.getElementById('companyModalSubmit').addEventListener('click', async () => {
-  const name        = document.getElementById('companyName').value.trim();
-  const plan        = document.getElementById('companyPlan').value;
-  const billingType = document.getElementById('companyBillingType').value;
-  const price       = parseInt(document.getElementById('companyPrice').value, 10) || 0;
-  const contractDate    = document.getElementById('companyContractDate').value || null;
-  const contractEndDate = document.getElementById('companyContractEndDate').value || null;
-  if (!name) { showToast('会社名は必須です', 'danger'); return; }
-
-  const editId = document.getElementById('companyModal').dataset.editId;
-  const btn = document.getElementById('companyModalSubmit');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-
-  const payload = { name, plan, billing_type: billingType, price, contract_date: contractDate, contract_end_date: contractEndDate };
-
-  try {
-    if (editId) {
-      const data = await api.patch(`/admin/companies/${editId}`, payload);
-      const idx = allCompanies.findIndex(c => c.id === Number(editId));
-      if (idx !== -1) allCompanies[idx] = { ...allCompanies[idx], ...data.company };
-      showToast('会社情報を更新しました', 'success');
-    } else {
-      const data = await api.post('/admin/companies', payload);
-      allCompanies.push(data.company);
-      showToast('会社を追加しました', 'success');
-    }
-    document.getElementById('companyModal').classList.add('hidden');
-    renderCompanies();
-    populateInviteCompany(allCompanies);
-  } catch (err) {
-    showToast('保存に失敗しました: ' + err.message, 'danger');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-check"></i> 保存';
-  }
-});
-
 /* ============================================================
-   タブ3: ユーザー管理
+   タブ1: ユーザー管理
    ============================================================ */
 async function loadUsers() {
   try {
@@ -647,7 +275,7 @@ document.getElementById('userModalSubmit').addEventListener('click', async () =>
 });
 
 /* ============================================================
-   タブ4: 自動削除管理
+   タブ2: 自動削除管理
    ============================================================ */
 async function loadCleanup() {
   try {
@@ -735,13 +363,10 @@ function populateInviteCompany(companies) {
 }
 
 /* ============================================================
-   初期化（会社 → プロジェクト・ユーザー・削除管理を並行ロード）
+   初期化（会社 → ユーザー・削除管理を並行ロード）
    ============================================================ */
 async function init() {
   await loadCompanies();
-  await Promise.all([loadProjects(), loadUsers(), loadCleanup()]);
+  await Promise.all([loadUsers(), loadCleanup()]);
 }
 init();
-
-// タブ表示中は30秒ごと＋タブ復帰時に即時、プロジェクト一覧を自動更新
-startAutoRefresh(loadProjects, 30000);

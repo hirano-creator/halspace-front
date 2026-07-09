@@ -63,9 +63,6 @@
       .expire-countdown{text-align:left;}
     }
     @media(max-width:480px){
-      /* 全プロジェクトテーブル: 担当モデラー(3列目)・優先度(5列目)を非表示 */
-      #adminProjectTable th:nth-child(3),#adminProjectTable td:nth-child(3),
-      #adminProjectTable th:nth-child(5),#adminProjectTable td:nth-child(5){display:none;}
       /* ユーザーテーブル: 登録日(1)・メール(3)・国(6)・最終ログイン(7)を非表示 */
       #adminUserTable th:nth-child(1),#adminUserTable td:nth-child(1),
       #adminUserTable th:nth-child(3),#adminUserTable td:nth-child(3),
@@ -127,13 +124,7 @@
     <div class="page-body">
       <!-- タブバー -->
       <div class="tab-bar">
-        <button class="tab-btn active" data-tab="projects">
-          <i class="fa-solid fa-folder-open"></i> 全プロジェクト
-        </button>
-        <button class="tab-btn" data-tab="companies">
-          <i class="fa-solid fa-building"></i> 会社管理
-        </button>
-        <button class="tab-btn" data-tab="users">
+        <button class="tab-btn active" data-tab="users">
           <i class="fa-solid fa-users"></i> ユーザー管理
         </button>
         <button class="tab-btn" data-tab="cleanup">
@@ -141,63 +132,8 @@
         </button>
       </div>
 
-      <!-- タブ1: 全プロジェクト -->
-      <div class="tab-pane active" id="tab-projects">
-        <div class="card">
-          <div class="card-header" style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;">
-            <span class="card-title" style="flex-shrink:0;">全プロジェクト一覧</span>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;align-items:center;">
-              <select class="form-select" id="filterCompany" style="width:180px;">
-                <option value="">全会社</option>
-              </select>
-              <select class="form-select" id="filterStatus" style="width:160px;">
-                <option value="">全ステータス</option>
-                <option value="submitted">提出済み</option>
-                <option value="in_progress">モデリング中</option>
-                <option value="review_pending">検査待ち</option>
-                <option value="revision_requested">修正依頼中</option>
-                <option value="approved">承認済み</option>
-                <option value="delivered">納品完了</option>
-              </select>
-            </div>
-          </div>
-          <div class="table-wrap">
-            <table id="adminProjectTable">
-              <thead>
-                <tr>
-                  <th>コード</th>
-                  <th>タイトル</th>
-                  <th>担当モデラー</th>
-                  <th>ステータス</th>
-                  <th>優先度</th>
-                  <th>期限</th>
-                </tr>
-              </thead>
-              <tbody id="adminProjectBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- タブ2: 会社管理 -->
-      <div class="tab-pane" id="tab-companies">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-          <h3 style="font-size:16px;font-weight:700;">登録会社一覧</h3>
-          <button class="btn btn-primary btn-sm" id="addCompanyBtn">
-            <i class="fa-solid fa-plus"></i> 会社を追加
-          </button>
-        </div>
-        <div class="company-grid" id="companyGrid"></div>
-
-        <!-- 統計サマリー -->
-        <div class="card" style="margin-top:24px;">
-          <div class="card-header"><span class="card-title">プラン別状況</span></div>
-          <div id="planStats"></div>
-        </div>
-      </div>
-
-      <!-- タブ3: ユーザー管理 -->
-      <div class="tab-pane" id="tab-users">
+      <!-- タブ1: ユーザー管理 -->
+      <div class="tab-pane active" id="tab-users">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
           <h3 style="font-size:16px;font-weight:700;">ユーザー一覧</h3>
           <button class="btn btn-primary btn-sm" id="inviteUserBtn">
@@ -241,7 +177,7 @@
         </div>
       </div>
 
-      <!-- タブ4: 自動削除管理 -->
+      <!-- タブ2: 自動削除管理 -->
       <div class="tab-pane" id="tab-cleanup">
         <div class="summary-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px;">
           <div class="summary-card">
@@ -287,72 +223,6 @@
           </p>
         </div>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- 会社追加モーダル -->
-<div class="modal-overlay hidden" id="companyModal">
-  <div class="modal" style="max-width:560px;">
-    <div class="modal-header">
-      <span class="modal-title" id="companyModalTitle">会社を追加</span>
-      <button class="modal-close" id="companyModalClose"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">会社名 <span class="req">*</span></label>
-      <input type="text" class="form-input" id="companyName" placeholder="株式会社〇〇製作所">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">スラッグ <span class="req">*</span></label>
-        <input type="text" class="form-input" id="companySlug" placeholder="abc-mfg">
-      </div>
-      <div class="form-group">
-        <label class="form-label">プラン</label>
-        <select class="form-select" id="companyPlan">
-          <option value="trial">トライアル</option>
-          <option value="standard">スタンダード</option>
-          <option value="pro">プロ</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- 契約情報セクション -->
-    <div style="border-top:1px solid var(--border);margin:16px 0 12px;padding-top:14px;">
-      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:12px;letter-spacing:.04em;">
-        <i class="fa-solid fa-file-contract"></i> 契約情報
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">契約開始日</label>
-          <input type="date" class="form-input" id="companyContractDate">
-        </div>
-        <div class="form-group">
-          <label class="form-label">請求方式</label>
-          <select class="form-select" id="companyBillingType">
-            <option value="subscription">月次サブスク</option>
-            <option value="annual">年間契約</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label" id="companyPriceLabel">月額（円）</label>
-        <input type="number" class="form-input" id="companyPrice" placeholder="150000" min="0" step="1000">
-      </div>
-      <div id="contractEndRow">
-        <div class="form-group">
-          <label class="form-label">契約終了日 <span style="font-size:10px;color:var(--muted);">（年間契約の場合）</span></label>
-          <input type="date" class="form-input" id="companyContractEndDate">
-        </div>
-      </div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn btn-outline" id="companyModalClose2">キャンセル</button>
-      <button class="btn btn-primary" id="companyModalSubmit">
-        <i class="fa-solid fa-check"></i> 保存
-      </button>
     </div>
   </div>
 </div>
@@ -464,35 +334,6 @@
       <button class="btn btn-outline" id="editUserModalCancel">キャンセル</button>
       <button class="btn btn-primary" id="editUserModalSubmit">
         <i class="fa-solid fa-floppy-disk"></i> 保存
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- ステータス強制変更モーダル -->
-<div class="modal-overlay hidden" id="statusModal">
-  <div class="modal" style="max-width:420px;">
-    <div class="modal-header">
-      <span class="modal-title">ステータスを変更</span>
-      <button class="modal-close" id="statusModalClose"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;" id="statusModalDesc"></p>
-    <div class="form-group">
-      <label class="form-label">新しいステータス</label>
-      <select class="form-select" id="statusSelect">
-        <option value="submitted">提出済み（未着手）</option>
-        <option value="in_progress">モデリング中</option>
-        <option value="review_pending">検査待ち</option>
-        <option value="revision_requested">修正依頼中</option>
-        <option value="approved">承認済み</option>
-        <option value="delivered">納品完了</option>
-        <option value="cancelled">キャンセル</option>
-      </select>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" id="statusModalClose2">キャンセル</button>
-      <button class="btn btn-warning" id="statusModalSubmit" style="background:var(--warning);color:var(--dark);">
-        <i class="fa-solid fa-pen"></i> 変更する
       </button>
     </div>
   </div>
