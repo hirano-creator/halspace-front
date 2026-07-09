@@ -19,7 +19,7 @@
   --shadow-sm: 0 2px 8px rgba(0,0,0,.06);
   --shadow-md: 0 8px 24px rgba(0,0,0,.10);
   --radius:    10px;
-  --radius-lg: 16px;
+  --radius-lg: 8px;
   --trans:     0.25s ease;
 
   /* ステータスカラー */
@@ -1376,7 +1376,7 @@ tbody tr:last-child { border-bottom: none; }
 
   .top-bar-title { font-size: 14px; }
   .page-body { padding: 10px; }
-  .card { padding: 12px; border-radius: var(--radius); }
+  .card { padding: 12px; border-radius: 5px; }
 
   /* ダッシュボードテーブル: 依頼日(1)・優先度(5)・希望納期(6)・回答納期(7)・担当モデラー(8)を非表示 */
   /* → プロジェクトコード(2)・タイトル(3)・ステータス(4)のみ表示 */
