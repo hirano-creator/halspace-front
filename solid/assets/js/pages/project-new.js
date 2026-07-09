@@ -97,8 +97,8 @@ function goStep(n) {
   document.getElementById('wLine1').className = 'wizard-line' + (n > 1 ? ' done' : '');
 }
 
-/* Step1 → 2 */
-document.getElementById('step1Next').addEventListener('click', () => {
+/* 希望納期の初期値（最短3営業日後）を設定 */
+function applyDefaultDeadline() {
   const minDate = new Date();
   let added = 0;
   while (added < 3) {
@@ -110,9 +110,33 @@ document.getElementById('step1Next').addEventListener('click', () => {
   const deadlineEl = document.getElementById('projDeadline');
   deadlineEl.min = minStr;
   if (!deadlineEl.value) deadlineEl.value = minStr;
+}
+
+/* Step1 → 2 */
+document.getElementById('step1Next').addEventListener('click', () => {
+  applyDefaultDeadline();
   goStep(2);
   renderConfirm();
 });
+
+/* What'sNoのファイル詳細画面から「SOLIDへ発注」で遷移してきた場合、
+   対象ファイルを自動添付してStep2（内容入力）へ直接進む */
+const wnFileIdParam = new URLSearchParams(location.search).get('wn_file_id');
+if (wnFileIdParam) {
+  (async () => {
+    try {
+      const res = await api.get(`/wn/files/${wnFileIdParam}`);
+      const wnFile = res?.data;
+      if (!wnFile) throw new Error('ファイルが見つかりません');
+      addWnItems([wnFile]);
+      applyDefaultDeadline();
+      goStep(2);
+      renderConfirm();
+    } catch (err) {
+      showToast(`What'sNoファイルの取得に失敗しました: ${err.message}`, 'danger');
+    }
+  })();
+}
 
 document.getElementById('step2Back').addEventListener('click', () => goStep(1));
 

@@ -1875,6 +1875,20 @@ function initActions() {
     openAaPostModal(fileId, fileData?.file_name ?? '');
   });
 
+  /* SOLIDへ発注（同一オリジンの兄弟アプリ。space_tokenはsessionStorage共有でそのまま使える） */
+  const solidOrderBtn = document.getElementById('solidOrderBtn');
+  if (solidOrderBtn) {
+    const hasSolid = !!getSpaceUser()?.apps?.includes('solid');
+    if (hasSolid) {
+      solidOrderBtn.addEventListener('click', () => {
+        location.href = `../../solid/app/project-new.html?wn_file_id=${fileId}`;
+      });
+    } else {
+      solidOrderBtn.disabled = true;
+      solidOrderBtn.title = 'SOLID未契約です（3Dモデル制作の発注にはSOLIDとの契約が必要です）';
+    }
+  }
+
   document.getElementById('printBtn')?.addEventListener('click', async () => {
     const url = await wnGetViewUrl(fileId);
     if (!url) { wnShowToast('ファイルを取得できませんでした', 'danger'); return; }
