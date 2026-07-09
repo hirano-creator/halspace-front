@@ -71,81 +71,81 @@
         <div id="infoTable" class="info-grid"></div>
       </div>
 
-      <!-- 図面・参考資料 -->
-      <div class="card mb-16">
-        <div class="card-header">
-          <span class="card-title"><i class="fa-solid fa-file-lines text-blue"></i> 図面・参考資料</span>
-          <div style="position:relative;display:inline-block;">
-            <button class="btn btn-blue btn-sm" id="uploadDrawingBtn">
-              <i class="fa-solid fa-plus"></i> 資料を追加
-            </button>
-            <div id="uploadDrawingMenu" class="upload-model-menu">
-              <button type="button" class="upload-model-menu-item" id="uploadDrawingMenuFile">
-                <i class="fa-solid fa-file"></i> ファイルを選択
-              </button>
-              <button type="button" class="upload-model-menu-item" id="uploadDrawingMenuFolder">
-                <i class="fa-solid fa-folder-open"></i> フォルダを選択
-              </button>
-              <button type="button" class="upload-model-menu-item" id="uploadDrawingMenuWn">
-                <i class="fa-solid fa-cloud"></i> What'sNoから選択
-              </button>
-            </div>
-          </div>
-          <input type="file" id="drawingFileInput" multiple style="display:none">
-          <input type="file" id="drawingFolderInput" webkitdirectory style="display:none">
-        </div>
-        <div id="drawingFileArea"></div>
-      </div>
-
-      <!-- ステータスタイムライン -->
-      <div class="card mb-16">
-        <div class="timeline" id="timeline"></div>
-        <!-- 管理者検査アクションバー（review_pending × 管理者のみ） -->
-        <div id="adminReviewBar" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
-          <div class="flex gap-12 flex-wrap" style="align-items:center;">
-            <button class="btn btn-success btn-sm" id="adminPublishBtn" disabled style="opacity:0.5;">
-              <i class="fa-solid fa-check-circle"></i> 検査完了・発注者へ公開
-            </button>
-            <span style="color:var(--muted);font-size:13px;align-self:center;">
-              各ファイルに <strong>OK</strong> / <strong>修正依頼</strong> を設定してから公開してください。
-              OKにしたファイルは <strong>納品</strong> ボタンで1件ずつ先行納品もできます。
-            </span>
-          </div>
-        </div>
-        <!-- 発注者確認アクションバー（approved × 発注者のみ） -->
-        <div id="clientReviewBar" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
-          <div class="flex gap-12 flex-wrap" style="align-items:center;">
-            <button class="btn btn-success btn-sm" id="clientApproveBtn">
-              <i class="fa-solid fa-thumbs-up"></i> 納品を承認する
-            </button>
-            <span style="color:var(--muted);font-size:13px;align-self:center;">
-              3Dデータをご確認のうえ納品を承認してください。
-            </span>
-          </div>
-        </div>
-        <!-- モデラー用アクションバー -->
-        <div id="modelerActionBar" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
-          <div class="flex gap-12 flex-wrap" style="align-items:center;">
-            <button class="btn btn-primary btn-sm" id="startModelingBtn" style="display:none;">
-              <i class="fa-solid fa-play"></i> モデリング開始
-            </button>
-            <button class="btn btn-success btn-sm" id="submitModelBtn" style="display:none;">
-              <i class="fa-solid fa-paper-plane"></i> 完成・提出（検査依頼）
-            </button>
-            <button class="btn btn-outline btn-sm" id="resumeModelingBtn" style="display:none;">
-              <i class="fa-solid fa-rotate-left"></i> モデリング再開
-            </button>
-          </div>
-        </div>
-      </div>
-
       <!-- 2カラムレイアウト -->
       <div class="detail-layout">
 
         <!-- 左カラム -->
         <div style="display:flex;flex-direction:column;gap:5px;">
 
-          <!-- 3Dモデル・制作データ（最上部） -->
+          <!-- 図面・参考資料 -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-file-lines text-blue"></i> 図面・参考資料</span>
+              <div style="position:relative;display:inline-block;">
+                <button class="btn btn-blue btn-sm" id="uploadDrawingBtn">
+                  <i class="fa-solid fa-plus"></i> 資料を追加
+                </button>
+                <div id="uploadDrawingMenu" class="upload-model-menu">
+                  <button type="button" class="upload-model-menu-item" id="uploadDrawingMenuFile">
+                    <i class="fa-solid fa-file"></i> ファイルを選択
+                  </button>
+                  <button type="button" class="upload-model-menu-item" id="uploadDrawingMenuFolder">
+                    <i class="fa-solid fa-folder-open"></i> フォルダを選択
+                  </button>
+                  <button type="button" class="upload-model-menu-item" id="uploadDrawingMenuWn">
+                    <i class="fa-solid fa-cloud"></i> What'sNoから選択
+                  </button>
+                </div>
+              </div>
+              <input type="file" id="drawingFileInput" multiple style="display:none">
+              <input type="file" id="drawingFolderInput" webkitdirectory style="display:none">
+            </div>
+            <div id="drawingFileArea"></div>
+          </div>
+
+          <!-- ステータスタイムライン -->
+          <div class="card">
+            <div class="timeline" id="timeline"></div>
+            <!-- 管理者検査アクションバー（review_pending × 管理者のみ） -->
+            <div id="adminReviewBar" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
+              <div class="flex gap-12 flex-wrap" style="align-items:center;">
+                <button class="btn btn-success btn-sm" id="adminPublishBtn" disabled style="opacity:0.5;">
+                  <i class="fa-solid fa-check-circle"></i> 検査完了・発注者へ公開
+                </button>
+                <span style="color:var(--muted);font-size:13px;align-self:center;">
+                  各ファイルに <strong>OK</strong> / <strong>修正依頼</strong> を設定してから公開してください。
+                  OKにしたファイルは <strong>納品</strong> ボタンで1件ずつ先行納品もできます。
+                </span>
+              </div>
+            </div>
+            <!-- 発注者確認アクションバー（approved × 発注者のみ） -->
+            <div id="clientReviewBar" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
+              <div class="flex gap-12 flex-wrap" style="align-items:center;">
+                <button class="btn btn-success btn-sm" id="clientApproveBtn">
+                  <i class="fa-solid fa-thumbs-up"></i> 納品を承認する
+                </button>
+                <span style="color:var(--muted);font-size:13px;align-self:center;">
+                  3Dデータをご確認のうえ納品を承認してください。
+                </span>
+              </div>
+            </div>
+            <!-- モデラー用アクションバー -->
+            <div id="modelerActionBar" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
+              <div class="flex gap-12 flex-wrap" style="align-items:center;">
+                <button class="btn btn-primary btn-sm" id="startModelingBtn" style="display:none;">
+                  <i class="fa-solid fa-play"></i> モデリング開始
+                </button>
+                <button class="btn btn-success btn-sm" id="submitModelBtn" style="display:none;">
+                  <i class="fa-solid fa-paper-plane"></i> 完成・提出（検査依頼）
+                </button>
+                <button class="btn btn-outline btn-sm" id="resumeModelingBtn" style="display:none;">
+                  <i class="fa-solid fa-rotate-left"></i> モデリング再開
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3Dモデル・制作データ -->
           <div class="card" id="modelFileCard">
             <div class="card-header">
               <span class="card-title"><i class="fa-solid fa-cube" style="color:var(--accent)"></i> 3Dモデル・制作データ</span>

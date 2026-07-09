@@ -1260,7 +1260,7 @@ tbody tr:last-child { border-bottom: none; }
   .form-row { grid-template-columns: 1fr; }
 
   /* サマリーグリッド（inline styleで3列固定されているページも上書き） */
-  .summary-grid { grid-template-columns: 1fr 1fr !important; gap: 10px; margin-bottom: 16px; }
+  .summary-grid { grid-template-columns: 1fr 1fr !important; gap: 5px; margin-bottom: 5px; }
   .summary-card { padding: 14px 16px; gap: 12px; }
   .summary-icon { width: 40px; height: 40px; font-size: 16px; }
   .summary-num  { font-size: 22px; }
