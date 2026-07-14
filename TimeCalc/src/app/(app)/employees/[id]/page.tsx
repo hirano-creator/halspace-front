@@ -14,7 +14,7 @@ import {
   minutesToHHMM,
   periodRange,
 } from "@/lib/utils/time";
-import { Badge, Card, PageHeader, StatCard, buttonSecondaryClass } from "@/components/ui";
+import { Badge, Card, PageHeader, StatCard } from "@/components/ui";
 import { MonthPicker } from "@/components/month-picker";
 import { AttendanceEditor, type DailyRow } from "./attendance-editor";
 
@@ -129,11 +129,8 @@ export default async function EmployeeDetailPage({
         title={employee.name}
         description={`社員番号 ${employee.employeeCode} ・ ${employee.department?.name ?? "部署未設定"} ・ 時給 ${formatYen(employee.hourlyWage)}`}
         action={
-          <form method="get" className="flex items-center gap-2">
+          <form method="get">
             <MonthPicker defaultValue={month} />
-            <button type="submit" className={buttonSecondaryClass}>
-              表示
-            </button>
           </form>
         }
       />
