@@ -5,12 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:netlify": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
-    "netlify:build": "node scripts/gen-postgres-schema.mjs && prisma generate --schema prisma/schema.postgres.prisma && prisma db push --schema prisma/schema.postgres.prisma && next build",
+    "netlify:build": "node scripts/gen-postgres-schema.mjs && prisma generate --schema prisma/schema.postgres.prisma && prisma db push --schema prisma/schema.postgres.prisma && next build --webpack",
     "db:seed:prod": "node scripts/gen-postgres-schema.mjs && prisma generate --schema prisma/schema.postgres.prisma && node prisma/seed.mjs"
   },
   "prisma": {

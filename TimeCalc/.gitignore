@@ -56,3 +56,6 @@ next-env.d.ts
 
 # 実データを含むサンプルCSV（gitに含めない）
 samples/
+
+# netlify deploy時にDenoが生成する残骸
+deno.lock

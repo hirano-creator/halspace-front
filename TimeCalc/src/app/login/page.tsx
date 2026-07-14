@@ -1,15 +1,14 @@
-"use client";
-
 // ログイン画面
+// ログイン済みの場合は勤怠一覧へリダイレクトする
+// （以前はmiddlewareで行っていたが、proxy化に伴いページ側でチェックする形にした）
 
-import { useActionState } from "react";
-import { loginAction, type LoginState } from "./actions";
-import { buttonPrimaryClass, inputClass, labelClass } from "@/components/ui";
+import { redirect } from "next/navigation";
+import { getSessionUser } from "@/lib/auth/session";
+import { LoginForm } from "./login-form";
 
-const initialState: LoginState = { error: null };
-
-export default function LoginPage() {
-  const [state, formAction, pending] = useActionState(loginAction, initialState);
+export default async function LoginPage() {
+  const user = await getSessionUser();
+  if (user) redirect("/attendance");
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -20,45 +19,7 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-xl border border-border bg-surface p-8 shadow-sm">
-          <form action={formAction} className="space-y-5">
-            <div>
-              <label htmlFor="identifier" className={labelClass}>
-                社員番号 または メールアドレス
-              </label>
-              <input
-                id="identifier"
-                name="identifier"
-                type="text"
-                autoComplete="username"
-                required
-                className={inputClass}
-                placeholder="0001"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className={labelClass}>
-                パスワード
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className={inputClass}
-              />
-            </div>
-
-            {state.error && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
-                {state.error}
-              </p>
-            )}
-
-            <button type="submit" disabled={pending} className={`${buttonPrimaryClass} w-full`}>
-              {pending ? "ログイン中..." : "ログイン"}
-            </button>
-          </form>
+          <LoginForm />
         </div>
 
         <p className="mt-6 text-center text-xs text-muted">株式会社ヒラノ</p>
