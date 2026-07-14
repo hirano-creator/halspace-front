@@ -8,8 +8,16 @@ import { prisma } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  // DBまで起こすのは JST 8:00〜17:59 のみ。
+  // Neon無料枠（月100 CU時間）を超えないよう、それ以外の時間帯は
+  // 関数コンテナだけ温めてDBは自動休止に任せる（初回クリックが+1秒程度になる）。
+  const jstHour = (new Date().getUTCHours() + 9) % 24;
+  if (jstHour < 8 || jstHour >= 18) {
+    return Response.json({ ok: true, dbMs: null });
+  }
+
   // dbMs で「接続再利用が効いているか」を外から診断できるようにしておく
-  // （再利用時は数百ms未満、毎回再接続だと1秒前後になる）
+  // （再利用時は数十ms未満、毎回再接続だと1秒前後になる＝リージョン不一致のサイン）
   const started = Date.now();
   await prisma.$queryRaw`SELECT 1`;
   const dbMs = Date.now() - started;
