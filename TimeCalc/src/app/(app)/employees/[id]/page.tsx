@@ -33,10 +33,15 @@ export default async function EmployeeDetailPage({
   const { id } = await params;
   const sp = await searchParams;
 
-  const employee = await prisma.user.findUnique({
-    where: { id },
-    include: { department: true },
-  });
+  // DB往復を減らすため、互いに依存しない取得は並列で行う
+  const [employee, rules, roleLabels] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id },
+      include: { department: true },
+    }),
+    getWorkRules(),
+    getRoleLabels(),
+  ]);
   if (!employee) notFound();
   if (!canViewEmployee(viewer, employee)) redirect("/attendance");
 
@@ -45,8 +50,6 @@ export default async function EmployeeDetailPage({
     can(viewer.role, "editAttendance") &&
     (can(viewer.role, "viewAllEmployees") ||
       (viewer.departmentId !== null && viewer.departmentId === employee.departmentId));
-
-  const [rules, roleLabels] = await Promise.all([getWorkRules(), getRoleLabels()]);
   const month = /^\d{4}-\d{2}$/.test(sp.month ?? "")
     ? sp.month!
     : currentPeriod(rules.closingDay);

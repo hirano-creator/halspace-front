@@ -64,12 +64,14 @@ export async function getMonthlyAttendance(
   viewer: SessionUser,
   yearMonth: string,
   filter?: { userId?: string; departmentId?: string; query?: string },
+  // 呼び出し元が取得済みならDB往復を省くため受け取れるようにする
+  knownRules?: WorkRuleSettings,
 ): Promise<{
   rows: AttendanceWithCalc[];
   rules: WorkRuleSettings;
   period: { start: string; end: string };
 }> {
-  const rules = await getWorkRules();
+  const rules = knownRules ?? (await getWorkRules());
   const period = periodRange(yearMonth, rules.closingDay);
 
   const userWhere: Prisma.UserWhereInput = {
@@ -127,8 +129,9 @@ export async function getMonthlySummaries(
   viewer: SessionUser,
   yearMonth: string,
   filter?: { departmentId?: string; query?: string },
+  knownRules?: WorkRuleSettings,
 ): Promise<EmployeeMonthlySummary[]> {
-  const { rows } = await getMonthlyAttendance(viewer, yearMonth, filter);
+  const { rows } = await getMonthlyAttendance(viewer, yearMonth, filter, knownRules);
 
   const byUser = new Map<
     string,

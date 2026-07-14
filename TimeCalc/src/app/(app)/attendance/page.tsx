@@ -39,7 +39,11 @@ export default async function AttendancePage({
   const user = await requireUser();
   const params = await searchParams;
 
-  const rules = await getWorkRules();
+  // DB往復を減らすため、互いに依存しない取得は並列で行う
+  const [rules, departments] = await Promise.all([
+    getWorkRules(),
+    prisma.department.findMany({ orderBy: { name: "asc" } }),
+  ]);
   const month = /^\d{4}-\d{2}$/.test(params.month ?? "")
     ? params.month!
     : currentPeriod(rules.closingDay);
@@ -47,10 +51,7 @@ export default async function AttendancePage({
   const query = params.q?.trim() || undefined;
   const departmentId = params.department || undefined;
 
-  const [summaries, departments] = await Promise.all([
-    getMonthlySummaries(user, month, { departmentId, query }),
-    prisma.department.findMany({ orderBy: { name: "asc" } }),
-  ]);
+  const summaries = await getMonthlySummaries(user, month, { departmentId, query }, rules);
   const [year, monthNum] = month.split("-").map(Number);
 
   const canExport = can(user.role, "exportCsv");
