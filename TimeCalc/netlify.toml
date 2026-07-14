@@ -1,0 +1,14 @@
+# Netlify デプロイ設定
+#
+# 前提:
+# - Netlify の環境変数に以下を設定すること
+#     DATABASE_URL   : PostgreSQL の接続文字列（Neon / Railway など）
+#     SESSION_SECRET : セッションJWTの署名鍵（十分に長いランダム値）
+# - リポジトリのルートがモノレポの場合、サイト設定の Base directory を
+#   "TimeCalc" にすること（この netlify.toml が読まれるようになる）
+
+[build]
+  command = "npm run netlify:build"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

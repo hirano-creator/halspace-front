@@ -1,0 +1,58 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# netlify
+.netlify
+
+# database (ローカルSQLite)
+prisma/dev.db
+prisma/dev.db-journal
+
+# ビルド時に自動生成されるPostgreSQL用スキーマ
+prisma/schema.postgres.prisma
+
+# 移行用の一時データ・ログ（パスワードハッシュ等の実データを含むため厳禁）
+scripts/local-data-dump.json
+scripts/server.log
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# 実データを含むサンプルCSV（gitに含めない）
+samples/

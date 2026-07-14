@@ -1,0 +1,84 @@
+// TimeCalc データベーススキーマ
+//
+// 本番環境へ移行する際は provider を "postgresql" に変更し、
+// DATABASE_URL を PostgreSQL の接続文字列に差し替えて
+// `npx prisma migrate deploy` を実行する。
+
+generator client {
+  provider = "prisma-client-js"
+  // native: ローカル開発用 / rhel-openssl-3.0.x: Netlify Functions (AWS Lambda) 用
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 部署
+model Department {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+}
+
+// 社員（ログインユーザー兼務）
+// role: ADMIN(管理者) | HR(総務) | MANAGER(工場長) | EMPLOYEE(一般社員)
+model User {
+  id           String      @id @default(cuid())
+  employeeCode String      @unique // 社員番号
+  name         String
+  email        String?     @unique
+  passwordHash String
+  role         String      @default("EMPLOYEE")
+  hourlyWage   Int         @default(0) // 時給（円）。金額計算に使用
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  attendances Attendance[]
+  imports     ImportHistory[]
+}
+
+// 勤怠打刻データ（生データのみ保持する）
+// 勤務時間・残業時間などの計算結果は保存せず、表示時に設定値から算出する。
+// これにより設定変更のみで過去分も含めた勤務ルール変更が可能になる。
+model Attendance {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date         String // "YYYY-MM-DD"
+  clockIn      String // "HH:mm"
+  clockOut     String // "HH:mm"
+  breakMinutes Int      @default(0) // 休憩時間（分）
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([date])
+}
+
+// CSV取込履歴
+model ImportHistory {
+  id           String   @id @default(cuid())
+  fileName     String
+  rowCount     Int // 取込成功行数
+  errorCount   Int // エラー行数
+  errors       String? // エラー内容（JSON文字列）
+  importedById String?
+  importedBy   User?    @relation(fields: [importedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+}
+
+// アプリケーション設定（key-value、値はJSON文字列）
+// key: "workRules"（勤務ルール） | "csvMapping"（CSV列マッピング）
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
