@@ -95,6 +95,7 @@
 
   <script src="../assets/aa-api.js"></script>
   <script src="../assets/aa-video.js"></script>
+  <script src="../assets/aa-pdf.js"></script>
   <script>
     if (!AA.isAuthed()) location.replace('../index.html');
     const esc = (s)=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -125,7 +126,7 @@
     add(document.getElementById('fDoc'),'document');
 
     /* ───── マスク編集（canvas黒塗り／モザイク） ───── */
-    let mImg, mRects = [], mScale = 1, mTargetIdx = -1, mFromWn = false, mDrawing = null, mMode = 'black';
+    let mImg, mRects = [], mScale = 1, mTargetIdx = -1, mFromWn = false, mFromDoc = false, mDrawing = null, mMode = 'black';
     let mMosaicSize = 16; // モザイクの粗さ(px)。数値が大きいほど粗く＝濃くなる
     const maskModal = document.getElementById('maskModal');
     const maskTitle = document.getElementById('maskTitle');
@@ -138,8 +139,10 @@
 
     function openMaskEditor(mode, blobUrl){
       mMode = mode;
-      maskTitle.textContent = mode === 'mosaic' ? 'モザイク' : 'マスク（黒塗り）';
-      maskHint.textContent = mode === 'mosaic' ? '隠したい部分を指でなぞってモザイクをかけます。元画像は端末から出ません。' : '隠したい部分を指でなぞって黒塗りします。元画像は端末から出ません。';
+      const src = mFromDoc ? '資料（1ページ目）' : '画像';
+      maskTitle.textContent = (mode === 'mosaic' ? 'モザイク' : 'マスク（黒塗り）') + (mFromDoc ? ' — 資料1ページ目' : '');
+      maskHint.textContent = (mode === 'mosaic' ? `隠したい部分を指でなぞってモザイクをかけます。元${src}は端末から出ません。` : `隠したい部分を指でなぞって黒塗りします。元${src}は端末から出ません。`)
+        + (mFromDoc ? ' 適用すると資料は1ページ目のみのマスク済み画像として投稿されます。' : '');
       mosaicCtrl.style.display = mode === 'mosaic' ? 'flex' : 'none';
       const img = new Image();
       img.onload = () => {
@@ -158,30 +161,56 @@
       };
       img.src = blobUrl;
     }
-    // ローカル選択画像は即座に、What'sNoから選んだ画像は実体を取得してから編集モーダルを開く
+    // PDFはpdf.jsで1ページ目をJPEG化してから編集（元Blob URLは使い終わったら即revoke）
+    async function pdfFirstPageBlobUrl(fileOrBlob){
+      const srcUrl = URL.createObjectURL(fileOrBlob);
+      try {
+        const blob = await aaPdfThumbBlob(srcUrl, window.innerWidth);
+        return URL.createObjectURL(blob);
+      } finally {
+        URL.revokeObjectURL(srcUrl);
+      }
+    }
+    // ローカル選択の画像・資料(PDF)は即座に、What'sNoから選んだ画像・PDFは実体を取得してから編集モーダルを開く
     async function openMaskModal(mode){
       const msg = document.getElementById('msg'); msg.textContent = '';
-      mTargetIdx = files.findIndex(f => f.kind === 'image');
+      mTargetIdx = files.findIndex(f => f.kind === 'image' || f.kind === 'document');
       if (mTargetIdx >= 0) {
         mFromWn = false;
-        openMaskEditor(mode, URL.createObjectURL(files[mTargetIdx].file));
-        return;
-      }
-      if (selectedWn && /^image\//.test(selectedWn.mime_type || '')) {
-        mFromWn = true;
-        msg.textContent = '画像を読み込み中…';
+        const target = files[mTargetIdx];
+        mFromDoc = target.kind === 'document';
+        if (!mFromDoc) { openMaskEditor(mode, URL.createObjectURL(target.file)); return; }
+        msg.textContent = '資料を読み込み中…';
         try {
-          const res = await fetch(AA.wnFileRawUrl(selectedWn.id));
-          if (!res.ok) throw new Error();
-          const blob = await res.blob();
+          const blobUrl = await pdfFirstPageBlobUrl(target.file);
           msg.textContent = '';
-          openMaskEditor(mode, URL.createObjectURL(blob));
+          openMaskEditor(mode, blobUrl);
         } catch (e) {
-          msg.textContent = '画像の読み込みに失敗しました';
+          msg.textContent = '資料の読み込みに失敗しました';
         }
         return;
       }
-      msg.textContent = 'マスクする画像を「写真」から追加してください';
+      if (selectedWn) {
+        const isImg = /^image\//.test(selectedWn.mime_type || '');
+        const isPdf = selectedWn.mime_type === 'application/pdf';
+        if (isImg || isPdf) {
+          mFromWn = true;
+          mFromDoc = isPdf;
+          msg.textContent = (isPdf ? '資料' : '画像') + 'を読み込み中…';
+          try {
+            const res = await fetch(AA.wnFileRawUrl(selectedWn.id));
+            if (!res.ok) throw new Error();
+            const rawBlob = await res.blob();
+            const blobUrl = isPdf ? await pdfFirstPageBlobUrl(rawBlob) : URL.createObjectURL(rawBlob);
+            msg.textContent = '';
+            openMaskEditor(mode, blobUrl);
+          } catch (e) {
+            msg.textContent = (isPdf ? '資料' : '画像') + 'の読み込みに失敗しました';
+          }
+          return;
+        }
+      }
+      msg.textContent = 'マスクする画像・資料(PDF)を「写真」または「資料」から追加してください';
     }
     document.getElementById('maskBtn').onclick = () => openMaskModal('black');
     document.getElementById('mosaicBtn').onclick = () => openMaskModal('mosaic');
@@ -236,6 +265,7 @@
     document.getElementById('maskClose').onclick = () => { maskModal.style.display='none'; };
     document.getElementById('maskApply').onclick = () => {
       // 元解像度で合成して書き出し（元画像は送らない）
+      // 資料(PDF)由来の場合も出力はkind:'image'に統一＝1ページ目のみのマスク済み画像として投稿される
       const out = document.createElement('canvas');
       out.width = mImg.naturalWidth; out.height = mImg.naturalHeight;
       const o = out.getContext('2d');

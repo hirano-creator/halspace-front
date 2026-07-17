@@ -79,7 +79,7 @@
        compose.html（新規投稿）と同じcanvas処理。editEditor()呼び出しごとに editCtx を
        差し替えることで、対象が「新規追加した画像」か「既存の(サーバー上の)画像」かを切り替える。
        既存画像は /aa/media/{id}/raw（常にCORS許可 * を返すプロキシ）経由で取得しcanvasを汚染しない。 */
-    let mImg, mRects = [], mScale = 1, mDrawing = null, mMode = 'black', mTarget = null;
+    let mImg, mRects = [], mScale = 1, mDrawing = null, mMode = 'black', mTarget = null, mFromDoc = false;
     let mMosaicSize = 16;
     let editCtx = null;
     const maskModal = document.getElementById('maskModal');
@@ -91,31 +91,51 @@
     const cv = document.getElementById('maskCanvas');
     const ctx = cv.getContext('2d');
 
+    // PDFはpdf.jsで1ページ目をJPEG化してから編集（元Blob URLは使い終わったら即revoke）
+    async function pdfFirstPageBlobUrl(fileOrBlob){
+      const srcUrl = URL.createObjectURL(fileOrBlob);
+      try {
+        const blob = await aaPdfThumbBlob(srcUrl, window.innerWidth);
+        return URL.createObjectURL(blob);
+      } finally {
+        URL.revokeObjectURL(srcUrl);
+      }
+    }
+
     async function openMaskModal(mode){
       if (!editCtx) return;
       mMode = mode;
-      const newIdx = editCtx.newFiles.findIndex(f => f.kind === 'image');
+      const newIdx = editCtx.newFiles.findIndex(f => f.kind === 'image' || f.kind === 'document');
       if (newIdx >= 0) {
         mTarget = { type: 'new', idx: newIdx };
       } else {
-        const exImg = editCtx.existing.find(m => m.kind === 'image' && !editCtx.removeIds.includes(m.id));
-        mTarget = exImg ? { type: 'existing', media: exImg } : null;
+        const exMedia = editCtx.existing.find(m => (m.kind === 'image' || m.kind === 'document') && !editCtx.removeIds.includes(m.id));
+        mTarget = exMedia ? { type: 'existing', media: exMedia } : null;
       }
-      if (!mTarget) { editCtx.showMsg('マスクする画像がありません'); return; }
+      if (!mTarget) { editCtx.showMsg('マスクする画像・資料がありません'); return; }
+      mFromDoc = (mTarget.type === 'new' ? editCtx.newFiles[mTarget.idx].kind : mTarget.media.kind) === 'document';
 
-      maskTitle.textContent = mode === 'mosaic' ? 'モザイク' : 'マスク（黒塗り）';
-      maskHint.textContent = mode === 'mosaic' ? '隠したい部分を指でなぞってモザイクをかけます。元画像は端末から出ません。' : '隠したい部分を指でなぞって黒塗りします。元画像は端末から出ません。';
+      const src = mFromDoc ? '資料（1ページ目）' : '画像';
+      maskTitle.textContent = (mode === 'mosaic' ? 'モザイク' : 'マスク（黒塗り）') + (mFromDoc ? ' — 資料1ページ目' : '');
+      maskHint.textContent = (mode === 'mosaic' ? `隠したい部分を指でなぞってモザイクをかけます。元${src}は端末から出ません。` : `隠したい部分を指でなぞって黒塗りします。元${src}は端末から出ません。`)
+        + (mFromDoc ? ' 適用すると資料は1ページ目のみのマスク済み画像として投稿されます。' : '');
       mosaicCtrl.style.display = mode === 'mosaic' ? 'flex' : 'none';
 
       const img = new Image();
       const loaded = new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
-      if (mTarget.type === 'new') {
-        img.src = URL.createObjectURL(editCtx.newFiles[mTarget.idx].file);
-      } else {
-        img.crossOrigin = 'anonymous'; // rawプロキシは常に Access-Control-Allow-Origin:* を返す
-        img.src = AA.apiBase() + '/aa/media/' + mTarget.media.id + '/raw?token=' + encodeURIComponent(AA.token());
-      }
-      try { await loaded; } catch (e) { editCtx.showMsg('画像を読み込めませんでした'); return; }
+      try {
+        if (mFromDoc) {
+          img.src = mTarget.type === 'new'
+            ? await pdfFirstPageBlobUrl(editCtx.newFiles[mTarget.idx].file)
+            : URL.createObjectURL(await aaPdfThumbBlob(AA.apiBase() + '/aa/media/' + mTarget.media.id + '/raw?token=' + AA.token(), window.innerWidth));
+        } else if (mTarget.type === 'new') {
+          img.src = URL.createObjectURL(editCtx.newFiles[mTarget.idx].file);
+        } else {
+          img.crossOrigin = 'anonymous'; // rawプロキシは常に Access-Control-Allow-Origin:* を返す
+          img.src = AA.apiBase() + '/aa/media/' + mTarget.media.id + '/raw?token=' + encodeURIComponent(AA.token());
+        }
+      } catch (e) { editCtx.showMsg((mFromDoc ? '資料' : '画像') + 'を読み込めませんでした'); return; }
+      try { await loaded; } catch (e) { editCtx.showMsg((mFromDoc ? '資料' : '画像') + 'を読み込めませんでした'); return; }
 
       mImg = img; mRects = [];
       const maxW = Math.min(window.innerWidth - 28, 560);
@@ -175,6 +195,7 @@
     document.getElementById('maskApply').onclick = () => {
       if (!editCtx || !mTarget) return;
       // 元解像度で合成して書き出し（元画像は送らない）
+      // 資料(PDF)由来の場合も出力はkind:'image'に統一＝1ページ目のみのマスク済み画像として保存される
       const out = document.createElement('canvas');
       out.width = mImg.naturalWidth; out.height = mImg.naturalHeight;
       const o = out.getContext('2d');
