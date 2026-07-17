@@ -361,6 +361,7 @@ input { font-family: inherit; }
 .app-icon-whatsno { background: linear-gradient(135deg,#ede9fe,#f3f0ff); color: #7c3aed; }
 .app-icon-meetlog { background: linear-gradient(135deg,#fce7f3,#fdf2f8); color: #db2777; }
 .app-icon-datashop{ background: linear-gradient(135deg,#d1fae5,#ecfdf5); color: #059669; }
+.app-icon-aa      { background: linear-gradient(135deg,#dbe4ff,#eef2ff); color: #1f48ff; }
 .app-icon-future  { background: rgba(0,0,0,.04); color: #aeaeb2; }
 
 /* カードテキスト */
