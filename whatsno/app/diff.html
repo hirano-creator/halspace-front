@@ -43,7 +43,9 @@
     .diff-ver-b { background: #E8F5E9; color: #2E7D32; }
     /* 任意2ファイル比較モード: A=青系 / B=オレンジ系（差分色の赤/緑と紛れないように） */
     .diff-ver-fa { background: #E3F2FD; color: #1565C0; }
-    .diff-ver-fb { background: #FFF3E0; color: #E65100; }
+    /* Blue 800(#1565C0)と同じ濃さ階層のDeep Orange 800を使う。
+       900(#E65100)は彩度が高く、同じfont-weightでも青より太く/濃く見えてしまう */
+    .diff-ver-fb { background: #FFF3E0; color: #D84315; }
     .diff-mode-btn {
       padding: 5px 12px; border: 1.5px solid var(--border); border-radius: 6px;
       background: var(--white); font-size: 12px; cursor: pointer; transition: all .15s;
@@ -81,7 +83,7 @@
     .diff-panel-label.old { background: rgba(198,40,40,.08); color: #C62828; }
     .diff-panel-label.new { background: rgba(46,125,50,.08); color: #2E7D32; }
     .diff-panel-label.fa  { background: rgba(21,101,192,.08); color: #1565C0; }
-    .diff-panel-label.fb  { background: rgba(230,81,0,.08); color: #E65100; }
+    .diff-panel-label.fb  { background: rgba(216,67,21,.08); color: #D84315; }
     .diff-canvas-wrap {
       display: flex; flex-direction: column; align-items: center;
       gap: 10px; padding: 10px;
@@ -124,7 +126,7 @@
       font-size: 11px; font-weight: 700; z-index: 5; pointer-events: none;
     }
     .swipe-tag.a { left: 8px;  background: rgba(21,101,192,.85); color: #fff; }
-    .swipe-tag.b { right: 8px; background: rgba(230,81,0,.85);  color: #fff; }
+    .swipe-tag.b { right: 8px; background: rgba(216,67,21,.85); color: #fff; }
 
     /* ズーム率トースト */
     #cmpZoomLabel {
