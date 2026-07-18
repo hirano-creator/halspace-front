@@ -5,6 +5,13 @@ const SPACE_API = (location.hostname === 'localhost' || location.hostname === '1
   ? 'http://127.0.0.1:8000/api'
   : 'https://halspace-api-production.up.railway.app/api';
 
+/* a.aは同一オリジンの兄弟アプリ（solid/whatsno/meetlog等）と違い、本番は別オリジン
+   （aa-sns.pages.dev）のCloudflare Pagesなので、相対パス遷移ではログインが引き継がれない。
+   ローカルはリポジトリ内の兄弟ディレクトリとして相対パスで配信されているのでそのまま使う。 */
+const AA_FRONTEND = (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.endsWith('.test'))
+  ? '../a.a/index.html'
+  : 'https://aa-sns.pages.dev/index.html';
+
 /* ===== モックユーザーデータ（⑨でAPI接続に置き換える） =====
    URLパラメータ ?role=client / modeler / admin で切り替え可能   */
 const MOCK_USERS = {
@@ -98,6 +105,23 @@ function requireAuth(redirectTo = 'login.html') {
   const user = getAuth();
   if (!user) { location.href = redirectTo; return null; }
   return user;
+}
+
+/* a.aは別オリジンなのでSSOチケットを発行して引き継ぐ（他アプリ同様「そのまま入れる」ため）。
+   チケット発行に失敗した場合（モックユーザー等）はa.aの通常ログイン画面へフォールバック。 */
+async function openAa() {
+  const token = sessionStorage.getItem('space_token');
+  try {
+    const res = await fetch(`${SPACE_API}/aa/sso/ticket`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+    });
+    if (!res.ok) throw new Error('ticket failed');
+    const data = await res.json();
+    location.href = `${AA_FRONTEND}#sso=${encodeURIComponent(data.ticket)}`;
+  } catch {
+    location.href = AA_FRONTEND;
+  }
 }
 
 /* ===== ログインページ ===== */
@@ -299,7 +323,10 @@ if (appsGrid) {
         ${enabled && !isFuture ? '利用中' : '近日公開'}
       </span>`;
     if (enabled && !isFuture && app.url) {
-      card.addEventListener('click', () => { location.href = app.url; });
+      card.addEventListener('click', () => {
+        if (app.id === 'aa') { openAa(); return; }
+        location.href = app.url;
+      });
     }
     appsGrid.appendChild(card);
   });
