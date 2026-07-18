@@ -3,9 +3,10 @@
 (function () {
   'use strict';
   const path = location.pathname;
-  const page = path.endsWith('/feed.html') ? 'home'
-    : path.endsWith('/notifications.html') ? 'notif'
-    : path.endsWith('/profile.html') ? 'me' : '';
+  // 本番(Cloudflare Pages)は .html を拡張子なしURLへ自動リダイレクトするため、両方にマッチさせる
+  const page = /\/feed(\.html)?$/.test(path) ? 'home'
+    : /\/notifications(\.html)?$/.test(path) ? 'notif'
+    : /\/profile(\.html)?$/.test(path) ? 'me' : '';
   const esc = (s) => (s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const ICON = {
     home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
