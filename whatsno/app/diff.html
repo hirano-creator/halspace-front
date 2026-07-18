@@ -275,8 +275,23 @@ function sideLabel(side) {
 const wordDel = () => isFilesMode ? 'Aのみ' : '削除';
 const wordAdd = () => isFilesMode ? 'Bのみ' : '追加';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+/* CDN障害等でpdf.jsが読めなくても後続コードは動かす（PDF比較時に明示エラーを出す） */
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+/* 安全網: 予期しない例外で「スピナーが回り続けるだけ」の沈黙状態にしない */
+window.addEventListener('error', e => {
+  if (isLoadingVisible()) showError('エラーが発生しました: ' + (e.message || '不明なエラー'));
+});
+window.addEventListener('unhandledrejection', e => {
+  if (isLoadingVisible()) showError('エラーが発生しました: ' + (e.reason?.message || e.reason || '不明なエラー'));
+});
+function isLoadingVisible() {
+  const el = document.getElementById('diffLoading');
+  return !!el && el.style.display !== 'none';
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   if (!idA || !idB) { showError('比較するファイルが指定されていません'); return; }
@@ -320,6 +335,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (!kindA || !kindB || kindA !== kindB) {
     showError('この組み合わせは比較できません（PDF・画像は相互に比較可、DXFはDXF同士のみ）');
+    return;
+  }
+
+  /* 必要ライブラリの読み込み確認（CDN障害時に原因を明示する） */
+  if (kindA === 'raster' && (extOf(fileA) === 'pdf' || extOf(fileB) === 'pdf') && typeof pdfjsLib === 'undefined') {
+    showError('PDF表示ライブラリの読み込みに失敗しました。ネットワークを確認してページを再読み込みしてください');
+    return;
+  }
+  if (kindA === 'dxf' && typeof DxfParser === 'undefined') {
+    showError('DXF解析ライブラリの読み込みに失敗しました。ネットワークを確認してページを再読み込みしてください');
     return;
   }
 
@@ -376,11 +401,16 @@ async function renderMode() {
 async function loadRasterPages() {
   if (pagesA.length || pagesB.length) return;
   const load = async (id, url, file, side) => {
-    if (extOf(file) === 'pdf') {
-      const doc = await pdfjsLib.getDocument(url).promise;
-      return renderPdfToImages(doc, side);
+    try {
+      if (extOf(file) === 'pdf') {
+        const doc = await pdfjsLib.getDocument(url).promise;
+        return await renderPdfToImages(doc, side);
+      }
+      return [await renderImageToCanvas(id, side)];
+    } catch (err) {
+      /* どちらのファイルで失敗したか分かるようにする */
+      throw new Error(`「${file.file_name}」: ${err.message}`);
     }
-    return [await renderImageToCanvas(id, side)];
   };
   [pagesA, pagesB] = await Promise.all([
     load(idA, urlA, fileA, 'a'),
@@ -1036,24 +1066,40 @@ async function fetchDxfText(fileId) {
 }
 
 /* ────────────────── ユーティリティ ────────────────── */
+/* 読み込み監視: 90秒進捗がなければタイムアウト表示（進捗のたびにリセットされる） */
+let loadingWatchdog = null;
+
 function setLoadingMsg(msg) {
   const el = document.getElementById('loadingMsg');
   if (el) el.textContent = msg;
-  document.getElementById('diffLoading').style.display = '';
+  const loading = document.getElementById('diffLoading');
+  if (loading) loading.style.display = '';
+  clearTimeout(loadingWatchdog);
+  loadingWatchdog = setTimeout(() => {
+    if (isLoadingVisible()) showError('読み込みに時間がかかりすぎています。通信状況を確認して再読み込みしてください');
+  }, 90000);
 }
 
 function hideLoading() {
-  document.getElementById('diffLoading').style.display = 'none';
+  clearTimeout(loadingWatchdog);
+  const loading = document.getElementById('diffLoading');
+  if (loading) loading.style.display = 'none';
 }
 
 function showError(msg) {
-  document.getElementById('diffLoading').style.display = 'none';
+  clearTimeout(loadingWatchdog);
+  const loading = document.getElementById('diffLoading');
+  if (loading) loading.style.display = 'none';
   const body = document.getElementById('diffBody');
+  if (!body) return;
   body.innerHTML = `
     <div class="diff-error">
       <i class="fa-solid fa-triangle-exclamation"></i>
-      <p style="font-size:14px;">${msg}</p>
-      <a href="javascript:history.back()" class="btn btn-outline btn-sm">戻る</a>
+      <p style="font-size:14px;max-width:80%;text-align:center;">${msg}</p>
+      <div style="display:flex;gap:10px;">
+        <a href="javascript:location.reload()" class="btn btn-accent btn-sm">再読み込み</a>
+        <a href="javascript:history.back()" class="btn btn-outline btn-sm">戻る</a>
+      </div>
     </div>`;
 }
 
