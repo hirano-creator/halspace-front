@@ -22,7 +22,15 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
 .icon-btn svg{width:22px;height:22px}
 
 /* スクロール領域 */
-.scroll{flex:1;overflow-y:auto;padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom) + 12px)}
+.scroll{flex:1;overflow-y:auto;overscroll-behavior-y:contain;position:relative;padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom) + 12px)}
+
+/* プルダウン更新（PWA/ホーム画面追加時はブラウザ標準のバウンス更新が効かないため独自実装） */
+.ptr-indicator{position:absolute;left:0;right:0;top:0;height:56px;margin-top:-56px;
+  display:flex;align-items:center;justify-content:center;color:var(--mute);opacity:0;pointer-events:none;z-index:6}
+.ptr-indicator svg{width:22px;height:22px;transition:transform .15s}
+.ptr-indicator.ready{color:var(--accent)}
+.ptr-indicator.spin svg{animation:ptrSpin .7s linear infinite}
+@keyframes ptrSpin{to{transform:rotate(360deg)}}
 
 /* カテゴリ絞り込み */
 .filterbar{display:flex;gap:8px;padding:4px 16px 12px;overflow-x:auto}

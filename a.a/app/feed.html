@@ -444,6 +444,11 @@
       });
     }
 
+    document.addEventListener('aa:pull-refresh', (e) => {
+      hideNewBanner();
+      Promise.resolve(load()).finally(e.detail.done);
+    });
+
     renderFilter();
     load();
   </script>

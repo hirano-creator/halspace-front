@@ -65,6 +65,66 @@
     deck.appendChild(wrap);
     deck.appendChild(buildAside());
     if (window.matchMedia('(min-width:1024px)').matches && window.AA && AA.isAuthed()) populate();
+    if (page === 'home' || page === 'notif' || page === 'me') initPullToRefresh();
+  }
+
+  // 一覧系画面（ホーム/通知/プロフィール）だけに適用。フォーム画面(投稿作成等)は誤操作防止のため対象外。
+  // 各ページは document.addEventListener('aa:pull-refresh', e => ...().finally(e.detail.done)) で応答する。
+  function initPullToRefresh() {
+    const scroll = document.querySelector('.scroll');
+    if (!scroll || !('ontouchstart' in window)) return;
+    const THRESHOLD = 68, MAX_PULL = 100;
+    let startY = 0, pulling = false, dragging = false, refreshing = false, dist = 0;
+
+    const ind = document.createElement('div');
+    ind.className = 'ptr-indicator';
+    ind.innerHTML = svg('<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/>', 2);
+    scroll.insertBefore(ind, scroll.firstChild);
+
+    function setDist(d, animate) {
+      dist = d;
+      ind.style.transition = animate ? 'transform .2s, opacity .2s' : '';
+      ind.style.transform = `translateY(${d}px)`;
+      ind.style.opacity = String(Math.min(d / THRESHOLD, 1));
+      ind.classList.toggle('ready', d >= THRESHOLD);
+    }
+    function reset() {
+      setDist(0, true);
+      ind.classList.remove('spin');
+    }
+    function triggerRefresh() {
+      refreshing = true;
+      setDist(THRESHOLD, true);
+      ind.classList.add('spin');
+      let done = false;
+      const finish = () => { if (done) return; done = true; refreshing = false; reset(); };
+      document.dispatchEvent(new CustomEvent('aa:pull-refresh', { detail: { done: finish } }));
+      setTimeout(finish, 5000); // 応答が来なくても放置しない安全弁
+    }
+
+    scroll.addEventListener('touchstart', (e) => {
+      if (refreshing || scroll.scrollTop > 0) { pulling = false; return; }
+      startY = e.touches[0].clientY;
+      pulling = true; dragging = false;
+    }, { passive: true });
+
+    scroll.addEventListener('touchmove', (e) => {
+      if (!pulling || refreshing) return;
+      const dy = e.touches[0].clientY - startY;
+      if (dy <= 0 || scroll.scrollTop > 0) { pulling = false; return; }
+      dragging = true;
+      e.preventDefault();
+      setDist(Math.min(dy * 0.5, MAX_PULL), false);
+    }, { passive: false });
+
+    scroll.addEventListener('touchend', () => {
+      if (!pulling) return;
+      pulling = false;
+      if (!dragging) return;
+      dragging = false;
+      if (dist >= THRESHOLD) triggerRefresh(); else reset();
+    });
+    scroll.addEventListener('touchcancel', () => { if (dragging) reset(); pulling = false; dragging = false; });
   }
 
   function paintMe(u) {

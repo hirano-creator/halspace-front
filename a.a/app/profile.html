@@ -224,6 +224,7 @@
       };
     }
 
+    document.addEventListener('aa:pull-refresh', (e) => { Promise.resolve(load()).finally(e.detail.done); });
     load();
   </script>
 </body>

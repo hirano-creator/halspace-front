@@ -83,6 +83,7 @@
       }
     }
     document.getElementById('readAll').onclick = async () => { try { await AA.readAllNotif(); load(); } catch(e){} };
+    document.addEventListener('aa:pull-refresh', (e) => { Promise.resolve(load()).finally(e.detail.done); });
     load();
 
     // ── ブラウザPush通知の許可バナー ──
