@@ -1612,11 +1612,11 @@ function fileCardHtml(f) {
         </button>
         <button class="file-action-btn" title="メールで共有"
                 onmouseenter="prefetchEmailShare(${f.id})"
-                onclick="event.stopPropagation();openEmailModal([{id:${f.id},name:'${h(f.file_name)}'}])">
+                onclick="event.stopPropagation();openEmailModal([{id:${f.id},name:'${jsq(f.file_name)}'}])">
           <i class="fa-solid fa-envelope"></i>
         </button>
         <button class="file-action-btn file-action-delete" title="削除"
-                onclick="event.stopPropagation();confirmDeleteFile(${f.id},'${h(f.file_name)}')">
+                onclick="event.stopPropagation();confirmDeleteFile(${f.id},'${jsq(f.file_name)}')">
           <i class="fa-solid fa-trash"></i>
         </button>
         <button class="file-action-btn" title="ダウンロード"
@@ -1684,11 +1684,11 @@ function fileRowHtmlClassic(f) {
         </button>
         <button class="btn btn-ghost btn-sm" title="メールで共有"
                 onmouseenter="prefetchEmailShare(${f.id})"
-                onclick="event.stopPropagation();openEmailModal([{id:${f.id},name:'${fnameSafe}'}])">
+                onclick="event.stopPropagation();openEmailModal([{id:${f.id},name:'${jsq(f.file_name)}'}])">
           <i class="fa-solid fa-envelope"></i>
         </button>
         <button class="btn btn-ghost btn-sm" title="削除"
-                onclick="event.stopPropagation();confirmDeleteFile(${f.id},'${fnameSafe}')">
+                onclick="event.stopPropagation();confirmDeleteFile(${f.id},'${jsq(f.file_name)}')">
           <i class="fa-solid fa-trash"></i>
         </button>
         <button class="btn btn-ghost btn-sm" title="ダウンロード"
@@ -1776,7 +1776,7 @@ function fileRowHtmlIG(f) {
         </button>
         <button class="file-action-btn" title="メールで共有"
                 onmouseenter="prefetchEmailShare(${f.id})"
-                onclick="event.stopPropagation();openEmailModal([{id:${f.id},name:'${fnameSafe}'}])">
+                onclick="event.stopPropagation();openEmailModal([{id:${f.id},name:'${jsq(f.file_name)}'}])">
           <i class="fa-regular fa-envelope"></i>
         </button>
         <button class="file-action-btn" title="ダウンロード"
@@ -1787,7 +1787,7 @@ function fileRowHtmlIG(f) {
       </div>
       <div class="right">
         <button class="file-action-btn file-action-delete" title="削除"
-                onclick="event.stopPropagation();confirmDeleteFile(${f.id},'${fnameSafe}')">
+                onclick="event.stopPropagation();confirmDeleteFile(${f.id},'${jsq(f.file_name)}')">
           <i class="fa-solid fa-trash"></i>
         </button>
       </div>
@@ -3173,6 +3173,22 @@ function h(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+/* インラインの onclick 内で、シングルクォートで囲うJS文字列リテラルとして安全に埋め込む。
+   h() は " しかエスケープしないため ' でJS文字列を抜けられてしまう（XSS）。
+   ここでは \ と ' をバックスラッシュ退避し、その後にHTML属性用のエスケープを施す。
+   ※ インラインハンドラは「HTMLデコード → JS解釈」の順なので、' はHTMLエンティティ化ではなく
+     バックスラッシュ退避でないと防げない点に注意。 */
+function jsq(str) {
+  return String(str ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\r?\n/g, '\\n')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 /* ────────────────────────────────
    メール送信モーダル
    ──────────────────────────────── */
@@ -3503,7 +3519,7 @@ function renderEmailChips(field) {
     <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(33,150,243,.12);
       color:#1565C0;padding:3px 10px 3px 12px;border-radius:20px;font-size:12px;font-weight:600;">
       ${h(c.email)}
-      <button onclick="removeEmailChip('${field}','${h(c.email)}')"
+      <button onclick="removeEmailChip('${jsq(field)}','${jsq(c.email)}')"
         style="background:none;border:none;cursor:pointer;color:#1565C0;font-size:12px;padding:0;line-height:1;display:flex;align-items:center;">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -3605,6 +3621,20 @@ function wnIsPdf(f) {
   return ext === 'pdf' || f.mime_type === 'application/pdf';
 }
 
+const WN_COMPARE_IMG_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+
+// 比較可否: raster(PDF/画像)同士は混在OK、DXFはDXF同士のみ
+function wnIsComparable(fA, fB) {
+  const kind = f => {
+    const ext = (f.file_name || '').split('.').pop().toLowerCase();
+    if (ext === 'pdf' || WN_COMPARE_IMG_EXTS.includes(ext)) return 'raster';
+    if (ext === 'dxf') return 'dxf';
+    return null;
+  };
+  const kA = kind(fA), kB = kind(fB);
+  return kA !== null && kA === kB;
+}
+
 function initMergeSelect() {
   document.getElementById('selectModeBtn')?.addEventListener('click', toggleSelectMode);
   document.getElementById('mergeCancelBtn')?.addEventListener('click', () => { if (selectMode) toggleSelectMode(); });
@@ -3634,6 +3664,13 @@ function initMergeSelect() {
     else executeAaPost();
   });
   document.getElementById('aaPostViewBtn')?.addEventListener('click', wnOpenAaInNewTab);
+  document.getElementById('compareSelBtn')?.addEventListener('click', () => {
+    if (selectedIds.length !== 2) return;
+    const sel = selectedIds.map(id => allFiles.find(f => String(f.id) === String(id))).filter(Boolean);
+    if (sel.length !== 2 || !wnIsComparable(sel[0], sel[1])) return;
+    // 選択順を保持: 1番目=A、2番目=B
+    location.href = `diff.html?a=${encodeURIComponent(selectedIds[0])}&b=${encodeURIComponent(selectedIds[1])}&type=files`;
+  });
 }
 
 function toggleSelectMode() {
@@ -3691,6 +3728,13 @@ function updateMergeActionBar() {
   if (bulkTagBtn) bulkTagBtn.disabled = selectedIds.length === 0;
   const aaBtn = document.getElementById('aaPostSelBtn');
   if (aaBtn) aaBtn.disabled = selectedIds.length === 0;
+  // 比較は「ちょうど2件 かつ 比較可能な組み合わせ」のときだけ有効
+  const cmpBtn = document.getElementById('compareSelBtn');
+  if (cmpBtn) {
+    const comparable = sel.length === 2 && selectedIds.length === 2 && wnIsComparable(sel[0], sel[1]);
+    cmpBtn.disabled = !comparable;
+    cmpBtn.title    = comparable ? '' : 'PDF/画像同士、またはDXF同士を2つ選択すると比較できます';
+  }
 
   // ファイル選択中はスキル入力モードとしてプレースホルダーを切り替え
   const si = document.getElementById('searchInput');
