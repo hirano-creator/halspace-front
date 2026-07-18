@@ -31,7 +31,7 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
 .fchip.on{background:var(--ink);color:#fff}
 
 /* 投稿カード */
-.post{padding:18px 18px 22px}
+.post{padding:18px 18px 50px}
 #feed .post{cursor:pointer}
 .phead{display:flex;align-items:center;gap:11px;margin-bottom:12px}
 .ava{width:38px;height:38px;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex:0 0 38px}
