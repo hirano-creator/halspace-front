@@ -147,6 +147,21 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
 .btn.primary{background:var(--accent);color:#fff;box-shadow:0 14px 26px -10px rgba(31,72,255,.6)}
 .input{height:52px;background:var(--soft);border-radius:15px;display:flex;align-items:center;padding:0 16px;width:100%;font-size:17px;font-family:var(--sans);color:var(--ink)}
 
+/* 音声入力 */
+@keyframes voicePulseRing{0%{box-shadow:0 0 0 0 rgba(31,72,255,.35)}70%{box-shadow:0 0 0 10px rgba(31,72,255,0)}100%{box-shadow:0 0 0 0 rgba(31,72,255,0)}}
+.voice-btn{margin-top:10px;background:var(--soft);color:var(--ink)}
+.voice-btn svg{width:18px;height:18px}
+.voice-btn.listening{background:var(--accent-bg);color:var(--accent);animation:voicePulseRing 1.6s ease-out infinite}
+.voice-interim{font-size:13px;color:var(--mute);text-align:center;margin-top:6px;line-height:1.5}
+.voice-interim:empty{display:none}
+
+.cbar-field{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.cbar-field .cbar-input{flex:none;width:100%}
+.cbar-field .voice-interim{margin:0 4px;text-align:left;font-size:12.5px}
+.cbar-mic{flex:0 0 40px;width:40px;height:40px;border-radius:50%;background:var(--soft);color:#c7c9d4;display:flex;align-items:center;justify-content:center}
+.cbar-mic svg{width:18px;height:18px}
+.cbar-mic.listening{background:var(--accent-bg);color:var(--accent);animation:voicePulseRing 1.6s ease-out infinite}
+
 /* ログイン */
 .login{flex:1;display:flex;flex-direction:column;padding:0 28px;min-height:100vh}
 .login .top{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}

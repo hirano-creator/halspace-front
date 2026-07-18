@@ -62,6 +62,11 @@
       </div>
 
       <button class="btn primary" id="submit" style="margin-top:6px">投稿する</button>
+      <button class="btn voice-btn" id="voiceBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v4"/><path d="M9 22h6"/></svg>
+        <span id="voiceBtnLabel">音声で入力</span>
+      </button>
+      <div class="voice-interim" id="voiceInterim"></div>
       <div id="msg" style="color:#c0392b;font-size:14.5px;text-align:center;min-height:18px;margin-top:8px"></div>
     </div>
   </div>
@@ -96,6 +101,7 @@
   <script src="../assets/aa-api.js"></script>
   <script src="../assets/aa-video.js"></script>
   <script src="../assets/aa-pdf.js"></script>
+  <script src="../assets/aa-voice.js"></script>
   <script>
     if (!AA.isAuthed()) location.replace('../index.html');
     const esc = (s)=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -377,6 +383,15 @@
     }
 
     renderCats();
+
+    if (window.AAVoice) {
+      AAVoice.attach({
+        button: document.getElementById('voiceBtn'),
+        target: document.getElementById('body'),
+        interimEl: document.getElementById('voiceInterim'),
+        onState: (on) => { document.getElementById('voiceBtnLabel').textContent = on ? '認識中… タップで停止' : '音声で入力'; },
+      });
+    }
   </script>
 </body>
 </html>
