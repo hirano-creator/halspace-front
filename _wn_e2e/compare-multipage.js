@@ -129,11 +129,11 @@ const pageStream = (label, extra = '') =>
     layout.panelH <= layout.bodyH + 2 && layout.scrollable, JSON.stringify(layout));
   check('並列: canvasがパネル幅以内', layout.canvasW <= layout.panelW, `canvasW=${layout.canvasW} panelW=${layout.panelW}`);
 
-  /* スクロール同期 */
+  /* スクロールは左右独立（マウスがある側だけ動く。もう片方は動かない） */
   await page.evaluate(() => { document.getElementById('panelA').scrollTop = 500; });
   await page.waitForTimeout(200);
-  const syncTop = await page.evaluate(() => document.getElementById('panelB').scrollTop);
-  check('並列: スクロール同期', Math.abs(syncTop - 500) < 5, `panelB.scrollTop=${syncTop}`);
+  const indepTop = await page.evaluate(() => document.getElementById('panelB').scrollTop);
+  check('並列: スクロールは左右独立(Bは動かない)', indepTop === 0, `panelB.scrollTop=${indepTop}`);
 
   /* ズーム→等倍戻しでフィット表示を維持できるか */
   await page.mouse.move(400, 400);

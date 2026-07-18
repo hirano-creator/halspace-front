@@ -449,7 +449,7 @@ async function renderRasterDiff() {
         if (pagesA[i]) { setPageStyle(pagesA[i]); document.getElementById('canvasWrapA').appendChild(pagesA[i]); }
         if (pagesB[i]) { setPageStyle(pagesB[i]); document.getElementById('canvasWrapB').appendChild(pagesB[i]); }
       }
-      syncScroll('panelA', 'panelB');
+      /* スクロール/パンはマウスがある側だけを動かす（両側同期はしない） */
       setupCmpView([document.getElementById('panelA'), document.getElementById('panelB')]);
 
     } else if (currentMode === 'overlay') {
@@ -633,10 +633,10 @@ function buildSwipePage(canvasB, canvasA) {
   return container;
 }
 
-/* ── 同期ズーム・パン ──
-   ズームは各ページ要素(.cmp-zoom)のCSS幅を基準幅×倍率にする方式。
-   パンはネイティブスクロール値の操作なので、並列モードは既存の syncScroll が
-   そのまま左右同期になる。 */
+/* ── ズーム・パン ──
+   ズームは各ページ要素(.cmp-zoom)のCSS幅を基準幅×倍率にする方式（拡大率は左右共通）。
+   スクロール/パンはネイティブスクロール値の操作で、各コンテナ独立
+   （マウスがある側だけが動く。左右同期はしない）。 */
 let cmpZoom = 1;
 let cmpContainers = [];
 const CMP_ZOOM_MIN = 1, CMP_ZOOM_MAX = 5;
@@ -846,22 +846,6 @@ function updateOverlayOpacity(pct) {
   });
 }
 
-function syncScroll(idA, idB) {
-  const a = document.getElementById(idA);
-  const b = document.getElementById(idB);
-  if (!a || !b) return;
-  let locked = false;
-  const sync = (from, to) => () => {
-    if (locked) return;
-    locked = true;
-    to.scrollTop  = from.scrollTop;
-    to.scrollLeft = from.scrollLeft;
-    locked = false;
-  };
-  a.addEventListener('scroll', sync(a, b));
-  b.addEventListener('scroll', sync(b, a));
-}
-
 /* ────────────────── DXF 差分 ────────────────── */
 async function renderDxfDiff() {
   setLoadingMsg('DXFを読み込み中…');
@@ -933,7 +917,7 @@ function renderDxfSideBySide(textA, textB, entA, entB) {
     wnRenderDxf(document.getElementById('dxfCanvasA'), textA);
     wnRenderDxf(document.getElementById('dxfCanvasB'), textB);
   }
-  syncScroll('panelA', 'panelB');
+  /* スクロール/パンはマウスがある側だけを動かす（両側同期はしない） */
 }
 
 function renderDxfHighlight(entA, entB) {
