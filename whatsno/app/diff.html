@@ -67,6 +67,9 @@
     .diff-panel {
       overflow: auto; border-right: 1px solid var(--border);
       display: flex; flex-direction: column;
+      /* グリッド子のmin-size:autoを解除。無いと大きなcanvasの固有幅で
+         列が1fr(半分)を超えて膨張し、max-width:100%が効かなくなる */
+      min-width: 0; min-height: 0;
     }
     .diff-panel:last-child { border-right: none; }
     .diff-panel-label {
@@ -610,8 +613,9 @@ function setupCmpView(containers) {
   cmpContainers = containers.filter(Boolean);
   cmpContainers.forEach(initCmpPan);
   document.querySelectorAll('.cmp-zoom').forEach(el => {
+    /* 基準幅=フィット表示時の幅（max-width:100%でパネルに収まった状態で測る） */
     el.style.width = '';
-    el.style.maxWidth = '';
+    el.style.maxWidth = '100%';
     el.dataset.baseW = el.getBoundingClientRect().width || el.width || 0;
   });
   applyCmpZoom();
@@ -636,7 +640,8 @@ function applyCmpZoom() {
   document.querySelectorAll('.cmp-zoom').forEach(el => {
     const base = parseFloat(el.dataset.baseW || '0');
     if (!base) return;
-    if (cmpZoom === 1) { el.style.width = ''; el.style.maxWidth = ''; }
+    /* 等倍時はフィット表示（max-width:100%を維持したまま）に戻す */
+    if (cmpZoom === 1) { el.style.width = ''; el.style.maxWidth = '100%'; }
     else { el.style.width = Math.round(base * cmpZoom) + 'px'; el.style.maxWidth = 'none'; }
   });
   document.querySelectorAll('.diff-canvas-wrap, .diff-overlay-wrap')
