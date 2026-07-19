@@ -77,6 +77,10 @@
     .diff-panel-label {
       position: sticky; top: 0; z-index: 5;
       padding: 20px 14px; font-size: 11px; font-weight: 700;
+      /* line-height を明示しないとファイル名に含まれる文字（全角記号など）が
+         フォールバックフォントで描画され、その行高メトリクスの違いで
+         A/Bの帯の高さがずれる。数値指定で高さをフォントに依存させない */
+      line-height: 1.3;
       display: flex; align-items: center; gap: 6px;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }

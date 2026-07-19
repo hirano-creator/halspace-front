@@ -434,6 +434,29 @@ function check(name, ok, detail = '') {
     await page.close();
   }
 
+  /* ════ 7. 全角記号入りファイル名でA/Bラベル帯の高さが揃うこと ════
+     (line-height:normal だと全角記号がフォールバックフォントで描画され、
+     行高メトリクスの違いでA/Bの帯の高さがずれた実バグの再発防止) */
+  {
+    const page = await ctx.newPage();
+    await page.route('**/api/wn/**', r => r.fulfill({ json: { data: [] } }));
+    await page.route('**/api/wn/files/101', r => r.fulfill({ json: { data: { id: 101, file_name: '06-0341見積依頼書.png', version: 1 } } }));
+    await page.route('**/api/wn/files/102', r => r.fulfill({ json: { data: { id: 102, file_name: 'A_44101_NDC_MCMO16-6000_【再見積り】起動装置格納箱_260623.png', version: 1 } } }));
+    await page.route('**/api/wn/files/101/view', r => r.fulfill({ json: { url: 'http://127.0.0.1:8765/__zenkaku_a.png' } }));
+    await page.route('**/api/wn/files/102/view', r => r.fulfill({ json: { url: 'http://127.0.0.1:8765/__zenkaku_b.png' } }));
+    await page.route('**/__zenkaku_a.png', r => r.fulfill({ contentType: 'image/png', body: bufA }));
+    await page.route('**/__zenkaku_b.png', r => r.fulfill({ contentType: 'image/png', body: bufB }));
+    await page.goto(`${BASE}/app/diff.html?a=101&b=102&type=files`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.getElementById('diffLoading').style.display === 'none', { timeout: 15000 });
+    await page.waitForTimeout(300);
+    const heights = await page.evaluate(() => ({
+      a: document.querySelector('#panelA .diff-panel-label').getBoundingClientRect().height,
+      b: document.querySelector('#panelB .diff-panel-label').getBoundingClientRect().height,
+    }));
+    check('全角記号入りファイル名でもA/Bラベル帯の高さが一致', Math.abs(heights.a - heights.b) < 0.5, JSON.stringify(heights));
+    await page.close();
+  }
+
   await browser.close();
   const fails = results.filter(r => !r.ok);
   console.log(`\n==== 結果: ${results.length - fails.length}/${results.length} PASS ====`);
