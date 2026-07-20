@@ -196,6 +196,10 @@ const WN_API_BASE = (() => {
 })();
 
 const shareToken = new URLSearchParams(location.search).get('token') || location.pathname.split('/').pop();
+// パスワード認証を通過した証明（resolveShareが返す署名付きグラント）。
+// パスワード保護共有では、実体（view/download）にこれを付けないと弾かれる。
+let accessGrant = null;
+const grantQuery = () => accessGrant ? `&g=${encodeURIComponent(accessGrant)}` : '';
 
 function esc(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -277,6 +281,7 @@ function renderPasswordForm(errorMsg = '') {
     document.getElementById('pwSubmit').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 確認中…';
     const { status, data } = await fetchShare(pw);
     if (status === 200 && data?.data) {
+      accessGrant = data.access_grant ?? null;
       renderFile(data.data);
     } else {
       renderPasswordForm('パスワードが正しくありません');
@@ -319,7 +324,7 @@ function renderFile(file) {
         </div>
       </div>
       <div class="btn-group">
-        <a href="${WN_API_BASE}/wn/files/${file.id}/download?share_token=${encodeURIComponent(shareToken)}"
+        <a href="${WN_API_BASE}/wn/files/${file.id}/download?share_token=${encodeURIComponent(shareToken)}${grantQuery()}"
           class="btn btn-accent" target="_blank">
           <i class="fa-solid fa-download"></i> ダウンロード
         </a>
@@ -350,7 +355,7 @@ function renderFile(file) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…';
 
-    const viewRes = await fetch(WN_API_BASE + `/wn/files/${file.id}/view?share_token=${encodeURIComponent(shareToken)}`, {
+    const viewRes = await fetch(WN_API_BASE + `/wn/files/${file.id}/view?share_token=${encodeURIComponent(shareToken)}${grantQuery()}`, {
       headers: { 'Accept': 'application/json' },
     });
     btn.disabled = false;
@@ -406,6 +411,7 @@ async function init() {
   const { status, data } = await fetchShare();
 
   if (status === 200 && data?.data) {
+    accessGrant = data.access_grant ?? null;
     renderFile(data.data);
   } else if (status === 403 && data?.requires_password) {
     renderPasswordForm();

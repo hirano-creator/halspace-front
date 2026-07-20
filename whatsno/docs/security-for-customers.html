@@ -1,0 +1,374 @@
+<title>What'sNo セキュリティのご説明</title>
+<style>
+  /* ─────────────────────────────────────────────────────────
+     デザイントークン（配色・タイポ）。テーマはトークンだけ差し替える。
+     アクセント＝信頼の deep teal。良好/注意は意味色として別に確保。
+     ───────────────────────────────────────────────────────── */
+  :root{
+    --paper:#eef2f6;      /* 背景（外側） */
+    --card:#ffffff;       /* カード面 */
+    --ink:#16232f;        /* 主要テキスト（青みのある近黒） */
+    --muted:#5a6b7a;      /* 補助テキスト（青みグレー） */
+    --line:#d5dee6;       /* 罫線 */
+    --accent:#0f7f86;     /* アクセント（teal） */
+    --accent-weak:#dcefef;
+    --good:#1f9d6b;       /* 守られている */
+    --good-weak:#e0f3ea;
+    --warn:#c1791b;       /* 以前の弱点・注意 */
+    --warn-weak:#f6ecd8;
+    --danger:#c0503f;
+    --danger-weak:#f6e2de;
+    --shadow:0 1px 2px rgba(16,35,47,.06),0 8px 28px rgba(16,35,47,.07);
+    --radius:14px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#0c141c; --card:#111e29; --ink:#e8eef3; --muted:#93a4b3;
+      --line:#243646; --accent:#38b3ba; --accent-weak:#123138;
+      --good:#43c489; --good-weak:#123026; --warn:#dba24a; --warn-weak:#2e2413;
+      --danger:#e0796a; --danger-weak:#2e1a16;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --paper:#eef2f6; --card:#ffffff; --ink:#16232f; --muted:#5a6b7a; --line:#d5dee6;
+    --accent:#0f7f86; --accent-weak:#dcefef; --good:#1f9d6b; --good-weak:#e0f3ea;
+    --warn:#c1791b; --warn-weak:#f6ecd8; --danger:#c0503f; --danger-weak:#f6e2de;
+    --shadow:0 1px 2px rgba(16,35,47,.06),0 8px 28px rgba(16,35,47,.07);
+  }
+  :root[data-theme="dark"]{
+    --paper:#0c141c; --card:#111e29; --ink:#e8eef3; --muted:#93a4b3; --line:#243646;
+    --accent:#38b3ba; --accent-weak:#123138; --good:#43c489; --good-weak:#123026;
+    --warn:#dba24a; --warn-weak:#2e2413; --danger:#e0796a; --danger-weak:#2e1a16;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  .wrap{
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Noto Sans JP",Meiryo,system-ui,sans-serif;
+    color:var(--ink); background:var(--paper); margin:0;
+    line-height:1.75; letter-spacing:.01em;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{max-width:860px; margin:0 auto; padding:0 20px 96px}
+  p{margin:0 0 1em}
+  strong{font-weight:700}
+  .lead{color:var(--muted)}
+
+  /* ── ヘッダー ── */
+  .masthead{padding:64px 0 40px; border-bottom:1px solid var(--line)}
+  .eyebrow{
+    font-size:12px; font-weight:700; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--accent); margin:0 0 18px;
+  }
+  .masthead h1{
+    font-size:clamp(30px,5.5vw,46px); line-height:1.2; margin:0 0 18px;
+    font-weight:800; letter-spacing:.005em; text-wrap:balance;
+  }
+  .masthead .sub{font-size:clamp(16px,2.4vw,19px); color:var(--muted); max-width:56ch; text-wrap:balance}
+  .stamp{
+    display:inline-flex; align-items:center; gap:9px; margin-top:26px;
+    padding:8px 15px; border:1px solid var(--line); border-radius:999px;
+    background:var(--card); font-size:13px; color:var(--muted); box-shadow:var(--shadow);
+  }
+  .stamp .dot{width:8px;height:8px;border-radius:50%;background:var(--good)}
+
+  /* ── セクション ── */
+  section{padding:52px 0; border-bottom:1px solid var(--line)}
+  section:last-of-type{border-bottom:0}
+  .sec-no{font-size:12px;font-weight:700;letter-spacing:.2em;color:var(--accent);text-transform:uppercase}
+  h2{font-size:clamp(22px,3.6vw,30px); line-height:1.3; margin:10px 0 14px; font-weight:800; text-wrap:balance}
+  h3{font-size:17px; margin:0 0 6px; font-weight:700}
+
+  /* ── データの流れ図 ── */
+  .flow{
+    display:grid; grid-template-columns:1fr; gap:14px; margin:28px 0 8px;
+  }
+  @media(min-width:680px){ .flow{grid-template-columns:repeat(3,1fr); align-items:stretch} }
+  .node{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px 18px; box-shadow:var(--shadow); position:relative; display:flex; flex-direction:column; gap:6px;
+  }
+  .node .ic{font-size:26px; line-height:1}
+  .node h3{margin:4px 0 2px}
+  .node p{font-size:13.5px; color:var(--muted); margin:0}
+  .flow .arrow{
+    display:flex; align-items:center; justify-content:center; color:var(--accent);
+    font-weight:800; font-size:20px;
+  }
+  .lock-rail{
+    margin:16px 0 0; padding:13px 16px; border-radius:12px; background:var(--accent-weak);
+    color:var(--ink); font-size:13.5px; display:flex; gap:10px; align-items:flex-start;
+    border:1px solid color-mix(in srgb,var(--accent) 30%, transparent);
+  }
+  .lock-rail b{color:var(--accent)}
+
+  /* ── 柱カード ── */
+  .pillars{display:grid; grid-template-columns:1fr; gap:16px; margin-top:28px}
+  @media(min-width:640px){ .pillars{grid-template-columns:1fr 1fr} }
+  .pillar{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:22px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:8px;
+  }
+  .pillar .badge{
+    width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+    background:var(--accent-weak); color:var(--accent); font-size:19px; margin-bottom:2px;
+  }
+  .pillar p{font-size:14px; color:var(--muted); margin:0}
+  .pillar .cmt{
+    margin-top:auto; font-size:12.5px; color:var(--ink);
+    border-top:1px dashed var(--line); padding-top:10px;
+  }
+  .cmt::before{content:"💬 "; }
+
+  /* ── Before / After 図 ── */
+  .improve{display:flex; flex-direction:column; gap:22px; margin-top:26px}
+  .imp{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); overflow:hidden;
+  }
+  .imp-head{padding:18px 22px 4px}
+  .imp-head .tag{
+    display:inline-block; font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--accent); margin-bottom:8px;
+  }
+  .imp-head h3{font-size:18px}
+  .imp-head p{font-size:14px; color:var(--muted); margin:6px 0 0}
+  .ba{display:grid; grid-template-columns:1fr; gap:1px; background:var(--line); margin-top:16px}
+  @media(min-width:600px){ .ba{grid-template-columns:1fr 1fr} }
+  .ba > div{background:var(--card); padding:18px 22px}
+  .ba .label{font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:10px}
+  .ba .before .label{color:var(--warn)}
+  .ba .after .label{color:var(--good)}
+  .step{
+    display:flex; gap:10px; align-items:flex-start; font-size:13.5px; margin-bottom:9px; color:var(--ink);
+  }
+  .step:last-child{margin-bottom:0}
+  .step .mk{flex:none; width:20px;height:20px;border-radius:50%; display:grid;place-items:center; font-size:11px; font-weight:800; margin-top:2px}
+  .before .mk{background:var(--warn-weak); color:var(--warn)}
+  .after .mk{background:var(--good-weak); color:var(--good)}
+  .step .x{background:var(--danger-weak); color:var(--danger)}
+
+  /* ── お願いリスト ── */
+  .asks{display:grid; gap:12px; margin-top:24px}
+  .ask{
+    display:flex; gap:14px; align-items:flex-start;
+    background:var(--card); border:1px solid var(--line); border-left:3px solid var(--accent);
+    border-radius:10px; padding:16px 18px; box-shadow:var(--shadow);
+  }
+  .ask .n{flex:none; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; font-size:15px}
+  .ask h3{font-size:15px; margin:0 0 3px}
+  .ask p{font-size:13.5px; color:var(--muted); margin:0}
+
+  .note{font-size:12.5px; color:var(--muted); margin-top:30px; padding-top:18px; border-top:1px solid var(--line)}
+  a{color:var(--accent)}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:4px}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+<div class="page">
+
+  <header class="masthead">
+    <p class="eyebrow">What'sNo &nbsp;/&nbsp; セキュリティのご説明</p>
+    <h1>お預かりしたデータを、<br>どう守っているか。</h1>
+    <p class="sub">What'sNo は、図面やファイルをお預かりして共有するサービスです。お客様の大切なデータを守るために私たちが行っている仕組みを、専門用語をできるだけ避けて、図とコメントでご説明します。</p>
+    <span class="stamp"><span class="dot"></span>本書は 2026年7月 時点のセキュリティ対策をまとめたものです</span>
+  </header>
+
+  <!-- ── 1. 全体像 ── -->
+  <section>
+    <span class="sec-no">01 &nbsp;全体像</span>
+    <h2>データが通る道すじと、その守り</h2>
+    <p class="lead">お客様が画面で操作してから、ファイルが安全に保管されるまでの流れです。それぞれの区間に「鍵」がかかっています。</p>
+
+    <div class="flow">
+      <div class="node">
+        <span class="ic">🧑‍💻</span>
+        <h3>お客様の画面</h3>
+        <p>ブラウザ／アプリ。ログインした本人だけが操作できます。</p>
+      </div>
+      <div class="arrow" aria-hidden="true">🔒→</div>
+      <div class="node">
+        <span class="ic">🛡️</span>
+        <h3>What'sNo サーバー</h3>
+        <p>本人確認（認証）と権限チェックを行う関所。ここを通らないとデータには触れません。</p>
+      </div>
+      <div class="arrow" aria-hidden="true">🔒→</div>
+      <div class="node">
+        <span class="ic">🗄️</span>
+        <h3>暗号化された保管庫</h3>
+        <p>ファイルは会社ごとに分けて、暗号化された領域に保管します。</p>
+      </div>
+    </div>
+
+    <div class="lock-rail">
+      <span>🔐</span>
+      <div><b>通信はすべて暗号化（HTTPS）</b>。お客様の画面とサーバーの間を流れるデータは、途中で盗み見られないよう常に暗号化されています。パスワードやファイルの中身が、そのままネットワークを流れることはありません。</div>
+    </div>
+  </section>
+
+  <!-- ── 2. 6つの柱 ── -->
+  <section>
+    <span class="sec-no">02 &nbsp;基本の守り</span>
+    <h2>セキュリティを支える6つの柱</h2>
+    <p class="lead">What'sNo は、次の6つの仕組みを重ねてデータを守っています。1つが破られても、次の壁が働く「多重の守り」です。</p>
+
+    <div class="pillars">
+      <div class="pillar">
+        <span class="badge">🏢</span>
+        <h3>会社ごとの完全分離</h3>
+        <p>データは会社（テナント）単位で区切られています。他社のファイルは一覧にも検索にも一切出てきません。</p>
+        <p class="cmt">すべてのデータ取得に「あなたの会社のものか？」という条件を必ず付けています。</p>
+      </div>
+      <div class="pillar">
+        <span class="badge">🔑</span>
+        <h3>ログインの保護</h3>
+        <p>パスワードは元に戻せない形（ハッシュ化）で保存。私たち運営者もお客様の生パスワードは見られません。</p>
+        <p class="cmt">総当たり（何度も推測する攻撃）に備え、短時間に失敗が続くと自動でブロックします。</p>
+      </div>
+      <div class="pillar">
+        <span class="badge">🎫</span>
+        <h3>権限のチェック</h3>
+        <p>「見る・編集・削除・承認」など操作ごとに権限を確認。本人と管理者だけが実行できます。</p>
+        <p class="cmt">たとえばコメント削除は投稿者本人か管理者のみ、と操作単位で判定しています。</p>
+      </div>
+      <div class="pillar">
+        <span class="badge">🔗</span>
+        <h3>安全な共有リンク</h3>
+        <p>社外共有リンクは推測できない長いランダム文字列。<strong>有効期限・アクセス回数・パスワード</strong>を設定できます。</p>
+        <p class="cmt">パスワードを付けたリンクは、リンクを知っているだけでは中身を開けません（後述）。</p>
+      </div>
+      <div class="pillar">
+        <span class="badge">📄</span>
+        <h3>ファイルの安全な取り扱い</h3>
+        <p>ファイル名やコメントに悪意ある仕掛けが混ざっていても、画面上で無害な文字として扱います。</p>
+        <p class="cmt">ブラウザに種類を勝手に推測させない設定で、なりすまし表示も防いでいます。</p>
+      </div>
+      <div class="pillar">
+        <span class="badge">📝</span>
+        <h3>操作の記録（監査ログ）</h3>
+        <p>ログイン・ログアウト・パスワード変更などの重要操作は、日時・IPとともに記録しています。</p>
+        <p class="cmt">万が一のときに「いつ・誰が・どこから」を後から追跡できます。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 3. 今回の強化 ── -->
+  <section>
+    <span class="sec-no">03 &nbsp;今回のセキュリティ強化</span>
+    <h2>さらに堅くした、3つのポイント</h2>
+    <p class="lead">今回のセキュリティ点検で見つかった弱点を、次のとおり修正しました。それぞれ「以前」と「これから」を図でご説明します。</p>
+
+    <div class="improve">
+
+      <!-- 3-1 共有パスワード -->
+      <div class="imp">
+        <div class="imp-head">
+          <span class="tag">強化 01 — 共有リンクのパスワード</span>
+          <h3>パスワード付きリンクを、ファイルの中身まで守る</h3>
+          <p>パスワードを設定した共有リンクで、パスワードを知らなくてもファイル本体を取得できてしまう経路がありました。ここを塞ぎました。</p>
+        </div>
+        <div class="ba">
+          <div class="before">
+            <div class="label">以前の動き</div>
+            <div class="step"><span class="mk">1</span><span>リンクを開くとパスワード入力を求められる</span></div>
+            <div class="step"><span class="mk x">✕</span><span>しかしダウンロード用の直リンクは、パスワードを確認せずファイルを返していた</span></div>
+            <div class="step"><span class="mk x">✕</span><span>＝リンクさえ知っていればパスワードを回避できる状態</span></div>
+          </div>
+          <div class="after">
+            <div class="label">これからの動き</div>
+            <div class="step"><span class="mk">1</span><span>正しいパスワードを入れて初めて「通行証」が発行される</span></div>
+            <div class="step"><span class="mk">2</span><span>ファイルの表示もダウンロードも、この通行証がないと拒否</span></div>
+            <div class="step"><span class="mk">✓</span><span>通行証は短時間で失効。パスワードそのものはURLに残しません</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3-2 総当たり -->
+      <div class="imp">
+        <div class="imp-head">
+          <span class="tag">強化 02 — 総当たり攻撃対策</span>
+          <h3>パスワードの「片っ端から試す」攻撃をブロック</h3>
+          <p>ログインと共有リンクのパスワード入力に、回数の上限を設けました。機械的に何万回も試す攻撃が通用しなくなります。</p>
+        </div>
+        <div class="ba">
+          <div class="before">
+            <div class="label">以前の動き</div>
+            <div class="step"><span class="mk x">✕</span><span>間違えても何度でも即座に再入力できた</span></div>
+            <div class="step"><span class="mk x">✕</span><span>自動プログラムで大量に試行される余地があった</span></div>
+          </div>
+          <div class="after">
+            <div class="label">これからの動き</div>
+            <div class="step"><span class="mk">✓</span><span>短時間に失敗が続くと、一定時間その相手をブロック</span></div>
+            <div class="step"><span class="mk">✓</span><span>通常のお客様の入力速度なら影響はありません</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3-3 XSS -->
+      <div class="imp">
+        <div class="imp-head">
+          <span class="tag">強化 03 — 不正なファイル名対策</span>
+          <h3>ファイル名に仕込んだ「わな」が動かないように</h3>
+          <p>ファイル名に特殊な記号を紛れ込ませて、他の利用者の画面で不正なプログラムを動かす手口（XSS）を防ぎました。</p>
+        </div>
+        <div class="ba">
+          <div class="before">
+            <div class="label">以前の動き</div>
+            <div class="step"><span class="mk x">✕</span><span>細工したファイル名の一部が、ボタン操作の“命令”として解釈され得た</span></div>
+            <div class="step"><span class="mk x">✕</span><span>同じ会社の別の人がそのボタンを押すと、意図しない処理が走る恐れ</span></div>
+          </div>
+          <div class="after">
+            <div class="label">これからの動き</div>
+            <div class="step"><span class="mk">✓</span><span>ファイル名は常に「ただの文字」として無害化してから表示</span></div>
+            <div class="step"><span class="mk">✓</span><span>どんな記号を含んでいても、命令として動くことはありません</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── 4. お願い ── -->
+  <section>
+    <span class="sec-no">04 &nbsp;お客様へのお願い</span>
+    <h2>より安全にお使いいただくために</h2>
+    <p class="lead">仕組み側の守りに加えて、次の点にご協力いただけると、さらに安心してお使いいただけます。</p>
+
+    <div class="asks">
+      <div class="ask">
+        <span class="n">01</span>
+        <div>
+          <h3>大切なファイルの共有リンクにはパスワードを</h3>
+          <p>社外へリンクを送る際は、有効期限と併せてパスワードの設定をおすすめします。リンクが転送されても中身は守られます。</p>
+        </div>
+      </div>
+      <div class="ask">
+        <span class="n">02</span>
+        <div>
+          <h3>推測されにくいログインパスワードを</h3>
+          <p>他サービスと使い回さない、8文字以上の複雑なパスワードを設定してください。設定画面からいつでも変更できます。</p>
+        </div>
+      </div>
+      <div class="ask">
+        <span class="n">03</span>
+        <div>
+          <h3>共有リンクの送り先にご注意を</h3>
+          <p>リンクを知っている人はアクセスできます（パスワード設定時はパスワードも必要）。宛先の間違いにご注意ください。不要になったリンクは削除できます。</p>
+        </div>
+      </div>
+      <div class="ask">
+        <span class="n">04</span>
+        <div>
+          <h3>共用パソコンではログアウトを</h3>
+          <p>ログイン状態はブラウザのタブごとに独立しています。共用の端末では、離席時にログアウトをお願いします。</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="note">本書はセキュリティ対策の概要をお客様向けにご説明するものです。攻撃の具体的な手口の詳細は、悪用を防ぐため記載していません。セキュリティに関するご質問・ご懸念は、担当窓口までお気軽にお問い合わせください。私たちは継続的に点検と改善を行っています。</p>
+  </section>
+
+</div>
+</div>

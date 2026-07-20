@@ -2785,6 +2785,19 @@ function h(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+/* インライン onclick 内でシングルクォート文字列として安全に埋め込む用。
+   h() は ' を素通しするためJS文字列を抜けられる（XSS）。詳細は wn-dashboard.js の同名関数参照。 */
+function jsq(str) {
+  return String(str ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\r?\n/g, '\\n')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 /* ─────────────────────────────────
    右パネル タブ切替
    ───────────────────────────────── */
@@ -3544,7 +3557,7 @@ function renderEmailChips(field) {
     <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(33,150,243,.12);
       color:#1565C0;padding:3px 10px 3px 12px;border-radius:20px;font-size:12px;font-weight:600;">
       ${h(c.email)}
-      <button onclick="removeEmailChip('${field}','${h(c.email)}')"
+      <button onclick="removeEmailChip('${jsq(field)}','${jsq(c.email)}')"
         style="background:none;border:none;cursor:pointer;color:#1565C0;padding:0;font-size:12px;line-height:1;display:flex;align-items:center;">
         <i class="fa-solid fa-xmark"></i>
       </button>
