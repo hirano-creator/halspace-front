@@ -457,6 +457,60 @@ function check(name, ok, detail = '') {
     await page.close();
   }
 
+  /* ════ 8. サイズ差が大きいPDF×画像でもA/Bラベル帯の高さが揃うこと ════
+     実バグ: .diff-panel は overflow:auto な flex コンテナのため、非置換要素
+     (ラベルdiv)の自動最小高さが0扱いになり、コンテンツ合計がパネル高を超える
+     （縦長PDF等）場面でラベルだけが0まで潰れていた。flex-shrink:0で修正した。
+     A/Bの内容量に大きな差がないと再現しないため、意図的に縦長PDF×横長画像にする */
+  {
+    const makePdf = (stream) => {
+      const objs = [];
+      objs[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+      objs[2] = '<< /Type /Pages /Kids [3 0 R] /Count 1 >>';
+      objs[3] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R >>';
+      objs[4] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+      let out = '%PDF-1.4\n';
+      const offsets = [];
+      for (let i = 1; i <= 4; i++) { offsets[i] = out.length; out += `${i} 0 obj\n${objs[i]}\nendobj\n`; }
+      const xrefPos = out.length;
+      out += 'xref\n0 5\n0000000000 65535 f \n';
+      for (let i = 1; i <= 4; i++) out += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+      out += `trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`;
+      return Buffer.from(out, 'latin1');
+    };
+    const pdfTall = makePdf('4 w 40 40 500 750 re S');
+
+    const genPage3 = await ctx.newPage();
+    await genPage3.goto('about:blank');
+    const wideImg = await genPage3.evaluate(() => {
+      const c = document.createElement('canvas'); c.width = 1600; c.height = 900;
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 1600, 900);
+      g.strokeRect(500, 300, 600, 400);
+      return c.toDataURL('image/png').split(',')[1];
+    });
+    await genPage3.close();
+    const wideBuf = Buffer.from(wideImg, 'base64');
+
+    const page = await ctx.newPage();
+    await page.route('**/api/wn/**', r => r.fulfill({ json: { data: [] } }));
+    await page.route('**/api/wn/files/301', r => r.fulfill({ json: { data: { id: 301, file_name: '縦長図面.pdf', version: 1 } } }));
+    await page.route('**/api/wn/files/302', r => r.fulfill({ json: { data: { id: 302, file_name: 'image (1).png', version: 1 } } }));
+    await page.route('**/api/wn/files/301/view', r => r.fulfill({ json: { url: 'http://127.0.0.1:8765/__tall.pdf' } }));
+    await page.route('**/api/wn/files/302/view', r => r.fulfill({ json: { url: 'http://127.0.0.1:8765/__wide.png' } }));
+    await page.route('**/__tall.pdf', r => r.fulfill({ contentType: 'application/pdf', body: pdfTall }));
+    await page.route('**/__wide.png', r => r.fulfill({ contentType: 'image/png', body: wideBuf }));
+    await page.goto(`${BASE}/app/diff.html?a=301&b=302&type=files`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.getElementById('diffLoading').style.display === 'none', { timeout: 15000 });
+    await page.waitForTimeout(400);
+    const bigDiff = await page.evaluate(() => ({
+      a: document.querySelector('#panelA .diff-panel-label').offsetHeight,
+      b: document.querySelector('#panelB .diff-panel-label').offsetHeight,
+    }));
+    check('縦長PDF×横長画像(サイズ差大)でもA/Bラベル帯の高さが一致',
+      bigDiff.a === bigDiff.b && bigDiff.a > 0, JSON.stringify(bigDiff));
+    await page.close();
+  }
+
   await browser.close();
   const fails = results.filter(r => !r.ok);
   console.log(`\n==== 結果: ${results.length - fails.length}/${results.length} PASS ====`);

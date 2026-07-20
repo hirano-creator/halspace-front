@@ -76,18 +76,22 @@
     .diff-panel:last-child { border-right: none; }
     .diff-panel-label {
       position: sticky; top: 0; z-index: 5;
-      padding: 20px 14px; font-size: 11px; font-weight: 700;
-      /* line-height を明示しないとファイル名に含まれる文字（全角記号など）が
-         フォールバックフォントで描画され、その行高メトリクスの違いで
-         A/Bの帯の高さがずれる。数値指定で高さをフォントに依存させない */
-      line-height: 1.3;
+      height: 54px; box-sizing: border-box;
+      /* flex-shrink:0 が必須。.diff-panel は overflow:auto なフレックスコンテナのため、
+         非置換要素であるこのラベルの自動最小高さは 0 扱いになる。ページ側(canvas)は
+         置換要素で本来のサイズを保とうとするため、縮小が必要な場面（PDFが縦長で
+         コンテンツの合計がパネルの高さを超える等）でラベルだけが0まで潰れてしまう */
+      flex-shrink: 0;
+      padding: 0 14px; font-size: 11px; font-weight: 700;
       display: flex; align-items: center; gap: 6px;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .diff-panel-label.old { background: rgba(198,40,40,.08); color: #C62828; }
     .diff-panel-label.new { background: rgba(46,125,50,.08); color: #2E7D32; }
-    .diff-panel-label.fa  { background: rgba(21,101,192,.08); color: #1565C0; }
-    .diff-panel-label.fb  { background: rgba(216,67,21,.08); color: #D84315; }
+    /* クラス名は「fa」ではなく「cmp-a」にする（.fa はFont Awesomeライブラリ自身の
+       予約クラスと衝突し、font-family等が奪われてレイアウトが崩れるため） */
+    .diff-panel-label.cmp-a { background: rgba(21,101,192,.08); color: #1565C0; }
+    .diff-panel-label.cmp-b { background: rgba(216,67,21,.08); color: #D84315; }
     .diff-canvas-wrap {
       display: flex; flex-direction: column; align-items: center;
       gap: 10px; padding: 10px;
@@ -434,8 +438,8 @@ async function renderRasterDiff() {
     hideLoading();
 
     if (currentMode === 'side') {
-      const clsA = isFilesMode ? 'fa' : 'old';
-      const clsB = isFilesMode ? 'fb' : 'new';
+      const clsA = isFilesMode ? 'cmp-a' : 'old';
+      const clsB = isFilesMode ? 'cmp-b' : 'new';
       body.innerHTML = `
         <div class="diff-side-by-side">
           <div class="diff-panel" id="panelA">
@@ -902,8 +906,8 @@ function renderDxfSideBySide(textA, textB, entA, entB) {
   const keysB = new Set(entB.map(entityKey));
   const added   = entB.filter(e => !keysA.has(entityKey(e)));
   const removed = entA.filter(e => !keysB.has(entityKey(e)));
-  const clsA = isFilesMode ? 'fa' : 'old';
-  const clsB = isFilesMode ? 'fb' : 'new';
+  const clsA = isFilesMode ? 'cmp-a' : 'old';
+  const clsB = isFilesMode ? 'cmp-b' : 'new';
 
   body.innerHTML = `
     <div class="diff-side-by-side">
