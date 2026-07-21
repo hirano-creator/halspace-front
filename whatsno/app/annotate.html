@@ -207,7 +207,7 @@
       overflow: auto;
       overscroll-behavior: contain; /* スクロールが端に達しても親要素に連鎖しない */
       display: flex; align-items: center; justify-content: center;
-      padding: 24px;
+      padding: 24px 24px 84px;
       background: #2a2a2a;
     }
     .canvas-wrap {
@@ -438,7 +438,7 @@
         top: 48px;
         right: 0;
         bottom: 260px;
-        padding: 10px;
+        padding: 10px 10px 70px;
       }
 
       /* ── ツールバー: 下部固定パネル ── */
@@ -1004,6 +1004,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
+/* canvasArea の実際のpadding（フローティングズームバー分の下部余白を含む）を取得 */
+function canvasAreaPadX() {
+  const cs = getComputedStyle(document.getElementById('canvasArea'));
+  return parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+}
+function canvasAreaPadY() {
+  const cs = getComputedStyle(document.getElementById('canvasArea'));
+  return parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+}
+
 /* ────── PDF 読み込み ────── */
 async function loadPdf() {
   const url = wnPublicViewUrl(fileId);
@@ -1018,9 +1028,8 @@ async function loadPdf() {
 
   /* canvasArea の実寸を使う（モバイルでは toolbar が下部に来るためレイアウトが異なる） */
   const canvasArea = document.getElementById('canvasArea');
-  const padding    = 32;
-  const areaW = Math.max(canvasArea.clientWidth  - padding, 100);
-  const areaH = Math.max(canvasArea.clientHeight - padding, 100);
+  const areaW = Math.max(canvasArea.clientWidth  - canvasAreaPadX(), 100);
+  const areaH = Math.max(canvasArea.clientHeight - canvasAreaPadY(), 100);
 
   // fitScale: ページ全体がエリアに収まる最大スケール（幅・高さ両方考慮）
   fitScale    = Math.min(areaW / baseVP.width, areaH / baseVP.height);
@@ -1212,9 +1221,8 @@ async function applyPdfViewRotation(delta) {
   }
 
   const canvasArea = document.getElementById('canvasArea');
-  const padding    = 32;
-  const areaW      = Math.max(canvasArea.clientWidth  - padding, 100);
-  const areaH      = Math.max(canvasArea.clientHeight - padding, 100);
+  const areaW      = Math.max(canvasArea.clientWidth  - canvasAreaPadX(), 100);
+  const areaH      = Math.max(canvasArea.clientHeight - canvasAreaPadY(), 100);
 
   fitScale    = Math.min(areaW / baseW, areaH / baseH);
   normalScale = areaW / baseW;
@@ -1397,9 +1405,8 @@ function setupImageMode(img) {
   const natW = img.naturalWidth, natH = img.naturalHeight;
 
   const canvasArea = document.getElementById('canvasArea');
-  const padding    = 32;
-  const areaW = Math.max(canvasArea.clientWidth  - padding, 100);
-  const areaH = Math.max(canvasArea.clientHeight - padding, 100);
+  const areaW = Math.max(canvasArea.clientWidth  - canvasAreaPadX(), 100);
+  const areaH = Math.max(canvasArea.clientHeight - canvasAreaPadY(), 100);
 
   pdfViewRotation = 0;
   fitScale    = Math.min(areaW / natW, areaH / natH);
