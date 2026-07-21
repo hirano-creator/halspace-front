@@ -476,15 +476,18 @@
       .zoom-btn { height: 32px; font-size: 12px; }
       .zoom-step-btn { width: 26px; height: 26px; font-size: 15px; }
       #zoomLabel { font-size: 11px; }
-      #pdfFloatBar { bottom: 10px; }
+      /* モバイルは下部ツールバー(260px)の上に固定表示、左右対称なので中央ずらしは不要 */
+      #pdfFloatBar { bottom: 270px; transform: translateX(-50%); }
     }
 
     /* ── フローティングPDFコントロールバー ── */
+    /* position:fixed でビューポートに固定し、canvas-area のスクロール/ズームに追従させない */
     #pdfFloatBar {
-      position: absolute;
+      position: fixed;
       bottom: 20px;
       left: 50%;
-      transform: translateX(-50%);
+      /* 右側ツールバー(330px)分だけ中心をずらして、キャンバス表示領域の中央に合わせる */
+      transform: translateX(calc(-50% - 165px));
       background: rgba(28,28,28,.88);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
