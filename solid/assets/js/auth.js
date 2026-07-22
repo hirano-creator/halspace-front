@@ -30,6 +30,32 @@ function spaceLogout() {
 function solidLogout() {
   location.href = '../../space/apps.html';
 }
+
+/* Space.appを経由せず直接SOLIDにログインできるURLをクリップボードにコピー。
+   社外パートナー等への共有用。ページ側にtoast基盤が無くても動くよう自前で表示する。 */
+function copyStandaloneUrl() {
+  const url = location.origin + '/solid/login.html';
+  const done = ok => solidToast(ok ? 'SOLIDの独立ログインURLをコピーしました' : ('コピーに失敗しました。手動でコピーしてください: ' + url), ok);
+
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url).then(() => done(true)).catch(() => done(false));
+  } else {
+    done(false);
+  }
+}
+function solidToast(msg, ok = true) {
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = `
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: ${ok ? '#1a1a2e' : '#e53e3e'}; color: #fff;
+    padding: 10px 18px; border-radius: 8px; font-size: 13px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.25); z-index: 9999;
+    max-width: 90vw; text-align: center;
+  `;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
 /* ログイン情報はタブごとに独立したsessionStorageに保存しているため、
    別タブで別アカウントにログインしても、このタブのセッションには影響しない。 */
 
