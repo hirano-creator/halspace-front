@@ -1,0 +1,26 @@
+{
+  "name": "SOLID",
+  "short_name": "SOLID",
+  "description": "DXF・PDF図面から3Dモデルを受発注 | by HaLSpace",
+  "start_url": "/solid/login.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#e8451a",
+  "theme_color": "#FF6B35",
+  "icons": [
+    {
+      "src": "/solid/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/solid/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business"],
+  "lang": "ja"
+}
