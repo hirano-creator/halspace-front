@@ -465,6 +465,9 @@
         apps: u.apps_enabled,
         token: data.token,
       }));
+      /* このページから直接ログインしたことを記録し、SOLID内では
+         「アプリ選択に戻る」の代わりに「ログアウト」を出せるようにする */
+      sessionStorage.setItem('solid_standalone', '1');
       location.href = 'app/dashboard.html';
 
     } catch (ex) {

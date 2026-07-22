@@ -24,11 +24,16 @@ function requireSpaceAuth() {
 function spaceLogout() {
   sessionStorage.removeItem('space_token');
   sessionStorage.removeItem('space_user');
+  sessionStorage.removeItem('solid_standalone');
   location.href = loginUrl();
 }
 /* SOLIDアプリから抜けてSpaceアプリ選択画面に戻る（トークンはそのまま残す） */
 function solidLogout() {
   location.href = '../../space/apps.html';
+}
+/* solid/login.htmlから直接ログインしたタブかどうか（Space.app経由なら false） */
+function isStandaloneLogin() {
+  return sessionStorage.getItem('solid_standalone') === '1';
 }
 
 /* Space.appを経由せず直接SOLIDにログインできるURLをクリップボードにコピー。
@@ -103,6 +108,16 @@ function renderSidebarUser(user) {
       <span class="sidebar-user-name">${user.name}</span>
       <span class="sidebar-user-role">${roleLabel(user.role, user.solid_type)}</span>
     </div>`;
+
+  /* 独立URLから直接ログインした場合は「アプリ選択に戻る」に意味が無いため、
+     ログアウトボタンに差し替える */
+  const back   = document.getElementById('btnBackToApps');
+  const logout = document.getElementById('btnStandaloneLogout');
+  if (back && logout) {
+    const standalone = isStandaloneLogin();
+    back.style.display   = standalone ? 'none' : '';
+    logout.style.display = standalone ? '' : 'none';
+  }
 }
 /* role=サイト権限、solidType=発注者/モデラー種別（solidアプリ内でのみ意味を持つ） */
 function roleLabel(role, solidType) {

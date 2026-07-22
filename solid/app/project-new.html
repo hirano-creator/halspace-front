@@ -30,8 +30,11 @@
       <button class="btn-sidebar-copylink" type="button" onclick="copyStandaloneUrl()" title="Space.appを経由せず直接ログインできるURLをコピー">
         <i class="fa-solid fa-link"></i> 独立URLをコピー
       </button>
-      <button class="btn-sidebar-logout" onclick="solidLogout()">
+      <button class="btn-sidebar-logout" id="btnBackToApps" onclick="solidLogout()">
         <i class="fa-solid fa-arrow-left"></i> アプリ選択に戻る
+      </button>
+      <button class="btn-sidebar-logout" id="btnStandaloneLogout" onclick="spaceLogout()" style="display:none">
+        <i class="fa-solid fa-right-from-bracket"></i> ログアウト
       </button>
     </div>
   </aside>
