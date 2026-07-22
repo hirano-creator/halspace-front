@@ -155,10 +155,10 @@ if (!fileId) {
   document.getElementById('initialLoading').outerHTML =
     '<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><strong>ファイルIDが指定されていません</strong></div>';
 } else {
-  // 認証チェック（未ログインならログイン画面へ）
+  // 認証チェック（未ログインならSOLID独自ログイン画面へ）
   const token = sessionStorage.getItem('space_token');
   if (!token) {
-    location.href = '../../space/login.html';
+    location.href = '../login.html';
   }
 
   // ヘッダー情報をURLパラメータから先行設定

@@ -6,10 +6,17 @@ function getSpaceUser() {
   const raw = sessionStorage.getItem('space_user');
   return raw ? JSON.parse(raw) : null;
 }
+/* このファイルはWhat'sNo/MeetLog等からも直接importされる共通ファイルのため、
+   ログイン画面のリダイレクト先は実行中のページがSOLID配下かどうかで分岐する。
+   SOLIDページ（solid/app/*.html）はSOLID独自ログイン（solid/login.html）へ、
+   それ以外のアプリは従来通りSpace.appのログイン画面へ。 */
+function loginUrl() {
+  return location.pathname.includes('/solid/') ? '../login.html' : '../../space/login.html';
+}
 function requireSpaceAuth() {
   const user = getSpaceUser();
   if (!user) {
-    location.href = '../../space/login.html';
+    location.href = loginUrl();
     return null;
   }
   return user;
@@ -17,7 +24,7 @@ function requireSpaceAuth() {
 function spaceLogout() {
   sessionStorage.removeItem('space_token');
   sessionStorage.removeItem('space_user');
-  location.href = '../../space/login.html';
+  location.href = loginUrl();
 }
 /* SOLIDアプリから抜けてSpaceアプリ選択画面に戻る（トークンはそのまま残す） */
 function solidLogout() {
