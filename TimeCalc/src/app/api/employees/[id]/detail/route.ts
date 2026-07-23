@@ -8,13 +8,30 @@ import { canViewEmployee } from "@/lib/auth/guard";
 import { can, toRole } from "@/lib/auth/roles";
 import { calcDaily, calcDailyPay, formatYen, summarize } from "@/lib/attendance/calculator";
 import {
+  deriveDailyFromEvents,
+  fixedBreakMinutesOf,
+  outingsFromEvents,
+  outingIntervalsFromEvents,
+  totalOutingMinutes,
+  type ClockEventType,
+} from "@/lib/attendance/clock";
+import {
   getAllWorkRules,
   getCompanyIdForDepartment,
   getDisplaySettings,
   getRoleLabels,
   workRulesFor,
 } from "@/lib/settings";
-import { currentPeriod, datesInRange, formatPeriodRange, minutesToHHMM, periodRange } from "@/lib/utils/time";
+import {
+  currentPeriod,
+  datesInRange,
+  formatPeriodRange,
+  minutesToHHMM,
+  periodRange,
+  timeToMinutes,
+  toJst,
+  todayString,
+} from "@/lib/utils/time";
 import type { DailyRow } from "@/app/(app)/employees/[id]/attendance-editor";
 import type { AttendanceLogRow, EmployeeDetailResponse } from "@/app/(app)/employees/[id]/types";
 
@@ -52,10 +69,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const month = /^\d{4}-\d{2}$/.test(monthParam ?? "") ? monthParam! : currentPeriod(rules.closingDay);
   const period = periodRange(month, rules.closingDay);
 
-  const [records, logs] = await Promise.all([
+  const [records, events, requests, logs] = await Promise.all([
     prisma.attendance.findMany({
       where: { userId: id, date: { gte: period.start, lte: period.end } },
       orderBy: { date: "asc" },
+    }),
+    prisma.clockEvent.findMany({
+      where: { userId: id, date: { gte: period.start, lte: period.end } },
+      orderBy: { timestamp: "asc" },
+    }),
+    prisma.correctionRequest.findMany({
+      where: { userId: id, date: { gte: period.start, lte: period.end } },
     }),
     prisma.attendanceLog.findMany({
       where: { userId: id, date: { gte: period.start, lte: period.end } },
@@ -66,6 +90,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   ]);
 
   const recordByDate = new Map(records.map((r) => [r.date, r]));
+  const eventsByDate = new Map<string, { type: ClockEventType; time: string }[]>();
+  for (const e of events) {
+    const list = eventsByDate.get(e.date) ?? [];
+    list.push({ type: e.type as ClockEventType, time: e.time });
+    eventsByDate.set(e.date, list);
+  }
+  const pendingDates = new Set(
+    requests.filter((r) => r.status === "PENDING").map((r) => r.date),
+  );
+  const today = todayString();
+  const fixedBreak = fixedBreakMinutesOf(rules);
 
   const rows: DailyRow[] = [];
   const calcResults = [];
@@ -97,6 +132,47 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       monthTotal.workMinutes += calc.normalMinutes + (calc.earlyMinutes - earlyOvertime);
     }
 
+    // 外出・戻り・実外出・控除外出・未退勤の算出はマイページ（/api/my）と同一ロジック。
+    // 確定記録（source !== "CLOCK"）はその確定値、打刻のみの日は ClockEvent から求める。
+    const dayEvents = eventsByDate.get(date) ?? [];
+    const derived = record ? null : deriveDailyFromEvents(dayEvents);
+    const isOpen = !record && derived?.status === "open" && date < today;
+
+    let outingStartLabel: string;
+    let outingEndLabel: string;
+    if (record && record.source !== "CLOCK") {
+      outingStartLabel = record.outingStart ?? "-";
+      outingEndLabel = record.outingEnd ?? "-";
+    } else {
+      const outing = outingsFromEvents(dayEvents);
+      outingStartLabel =
+        outing.count > 0
+          ? outing.count > 1
+            ? `${outing.firstStart}(${outing.count}回)`
+            : outing.firstStart!
+          : "-";
+      outingEndLabel = outing.count > 0 ? outing.lastEnd! : "-";
+    }
+
+    // 「実外出」＝実際に外出した時間、「控除外出」＝勤務時間から差し引く分（固定休憩を除いた残り）。
+    let actualOutingMinutes = 0;
+    let deductibleOutingMinutes = 0;
+    if (record) {
+      if (record.source === "CSV") {
+        actualOutingMinutes = record.breakMinutes;
+        deductibleOutingMinutes = record.breakMinutes;
+      } else {
+        deductibleOutingMinutes = Math.max(0, record.breakMinutes - fixedBreak);
+        if (record.source === "CLOCK") {
+          actualOutingMinutes = totalOutingMinutes(outingIntervalsFromEvents(dayEvents));
+        } else if (record.outingStart && record.outingEnd) {
+          const start = timeToMinutes(record.outingStart) ?? 0;
+          const end = timeToMinutes(record.outingEnd) ?? 0;
+          actualOutingMinutes = Math.max(0, end - start);
+        }
+      }
+    }
+
     rows.push({
       attendanceId: record?.id ?? null,
       date,
@@ -108,13 +184,22 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       note: record?.note ?? null,
       roundedClockInLabel: record ? (ok ? calc.roundedClockIn : "-") : "-",
       roundedClockOutLabel: record ? (ok ? calc.roundedClockOut : "-") : "-",
-      workLabel: ok ? minutesToHHMM(calc.totalMinutes) : "-",
+      outingStartLabel,
+      outingEndLabel,
+      actualOutingLabel: record ? minutesToHHMM(actualOutingMinutes) : "-",
+      deductibleOutingLabel: record ? minutesToHHMM(deductibleOutingMinutes) : "-",
+      workLabel: ok
+        ? minutesToHHMM(calc.normalMinutes + (calc.earlyPremiumApplies ? 0 : calc.earlyMinutes))
+        : "-",
       earlyOvertimeLabel: ok ? minutesToHHMM(calc.earlyPremiumApplies ? calc.earlyMinutes : 0) : "-",
       overtimeLabel: ok ? minutesToHHMM(calc.overtimeMinutes) : "-",
       lateMinutes: ok ? calc.lateMinutes : 0,
       earlyLeaveMinutes: ok ? calc.earlyLeaveMinutes : 0,
       lateReason: record?.lateReason ?? null,
       earlyLeaveReason: record?.earlyLeaveReason ?? null,
+      isOpen,
+      isToday: date === today,
+      hasPendingRequest: pendingDates.has(date),
       baseAmountLabel: pay && ok ? formatYen(pay.basePay) : "-",
       premiumAmountLabel: pay && ok ? formatYen(pay.premiumPay) : "-",
       totalPayLabel: pay && ok ? formatYen(pay.totalPay) : "-",
@@ -133,7 +218,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     after: log.after,
     note: log.note,
     actorName: log.actor?.name ?? null,
-    createdAtLabel: `${log.createdAt.getFullYear()}/${log.createdAt.getMonth() + 1}/${log.createdAt.getDate()}`,
+    createdAtLabel: (() => { const j = toJst(log.createdAt); return `${j.getUTCFullYear()}/${j.getUTCMonth() + 1}/${j.getUTCDate()}`; })(),
   }));
 
   const body: EmployeeDetailResponse = {

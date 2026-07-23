@@ -9,8 +9,11 @@ import { deleteAttendanceAction, saveAttendanceAction } from "./client-actions";
 import type { AttendanceEditState } from "./types";
 import { Badge, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "@/components/ui";
 
-// 列数が多いため、共通のtdClass/thClassより余白を詰めた専用クラスを使う
-const th = "px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted";
+// 列数が多いため、共通のtdClass/thClassより余白を詰めた専用クラスを使う。
+// text-align はデフォルトの左寄せに任せ、中央/右寄せにしたい列だけ
+// text-center / text-right を個別に足す（ここに text-left を入れると
+// 後続の text-center 指定と衝突して中央揃えが効かなくなる）。
+const th = "px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted";
 const td = "px-2 py-2 text-sm whitespace-nowrap";
 
 export interface DailyRow {
@@ -26,7 +29,15 @@ export interface DailyRow {
   roundedClockInLabel: string;
   /** 退勤時間（実退勤に丸めルールを適用した時刻）の表示。データなしは "-" */
   roundedClockOutLabel: string;
-  /** 勤務時間（出勤時間〜退勤時間、丸め後の合計）の表示 例 "7:33" */
+  /** 外出（複数回ある日は最初の外出開始。"12:00(2回)"のように回数付き）。データなしは "-" */
+  outingStartLabel: string;
+  /** 戻り（複数回ある日は最後の戻り）。データなしは "-" */
+  outingEndLabel: string;
+  /** 実外出（実際に外出していた時間）の表示。データなしは "-" */
+  actualOutingLabel: string;
+  /** 控除外出（休憩時間帯との重複を除き、勤務時間から差し引かれる時間）の表示。データなしは "-" */
+  deductibleOutingLabel: string;
+  /** 勤務時間（早出残業・残業を除いた実働。マイページの「勤務時間」列と揃えた値） */
   workLabel: string;
   /** 早出残業（18:00以降まで勤務した日の早出時間）の表示。対象外の日は "0:00" */
   earlyOvertimeLabel: string;
@@ -38,6 +49,11 @@ export interface DailyRow {
   earlyLeaveMinutes: number;
   lateReason: string | null;
   earlyLeaveReason: string | null;
+  /** 打刻はあるが退勤が確定していない過去日（押し忘れ疑い） */
+  isOpen: boolean;
+  isToday: boolean;
+  /** この日の承認待ち修正申請があるか */
+  hasPendingRequest: boolean;
   /** 金額（通常時給分）の表示 例 "¥9,060" */
   baseAmountLabel: string;
   /** 残業代（割増分）の表示 例 "¥1,500" */
@@ -194,11 +210,12 @@ export function AttendanceEditor({
   onChanged?: () => void;
 }) {
   const [editingDate, setEditingDate] = useState<string | null>(null);
-  // 日付/実出勤/実退勤/出勤/退勤/勤務/早出残業/残業/遅刻・早退/(金額/残業代/支給額)/操作
-  const columnCount = showMoney ? 13 : 10;
+  // マイページと同じ列構成に統一：
+  // 日付/実出勤/実退勤/出勤/退勤/外出/戻り/実外出/控除外出/勤務時間/早出残業/残業/備考/(金額/残業代/支給額)/操作
+  const columnCount = showMoney ? 17 : 14;
 
   return (
-    <table className="w-full text-sm">
+    <table className={`w-full text-sm ${showMoney ? "min-w-[1240px]" : "min-w-[960px]"}`}>
       <thead className="border-b border-border bg-gray-50/50">
         <tr>
           <th className={th}>日付</th>
@@ -206,14 +223,18 @@ export function AttendanceEditor({
           <th className={th}>実退勤</th>
           <th className={th}>出勤</th>
           <th className={th}>退勤</th>
-          <th className={`${th} text-right`}>勤務</th>
+          <th className={th}>外出</th>
+          <th className={th}>戻り</th>
+          <th className={`${th} text-right`}>実外出</th>
+          <th className={`${th} text-right`}>控除外出</th>
+          <th className={`${th} text-right`}>勤務時間</th>
           <th className={`${th} text-right`}>早出残業</th>
           <th className={`${th} text-right`}>残業</th>
-          <th className={th}>遅刻・早退</th>
+          <th className={`${th} text-center`}>備考</th>
           {showMoney && <th className={`${th} text-right`}>金額</th>}
           {showMoney && <th className={`${th} text-right`}>残業代</th>}
           {showMoney && <th className={`${th} text-right`}>支給額</th>}
-          <th className={`${th} text-right`}>{editable ? "操作" : ""}</th>
+          <th className={`${th} text-center`}>{editable ? "操作" : ""}</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-border">
@@ -233,10 +254,22 @@ export function AttendanceEditor({
             ) : (
               <>
                 <td className={`${td} ${row.isWeekend ? "text-muted" : ""}`}>{row.dayLabel}</td>
-                <td className={td}>{row.attendanceId ? row.clockIn : "-"}</td>
-                <td className={td}>{row.attendanceId ? row.clockOut : "-"}</td>
-                <td className={td}>{row.roundedClockInLabel}</td>
-                <td className={td}>{row.roundedClockOutLabel}</td>
+                <td className={`${td} font-mono tabular-nums`}>
+                  {row.attendanceId ? row.clockIn : "-"}
+                </td>
+                <td className={`${td} font-mono tabular-nums`}>
+                  {row.attendanceId ? row.clockOut : "-"}
+                </td>
+                <td className={`${td} font-mono tabular-nums text-muted`}>
+                  {row.roundedClockInLabel}
+                </td>
+                <td className={`${td} font-mono tabular-nums text-muted`}>
+                  {row.roundedClockOutLabel}
+                </td>
+                <td className={`${td} font-mono tabular-nums text-muted`}>{row.outingStartLabel}</td>
+                <td className={`${td} font-mono tabular-nums text-muted`}>{row.outingEndLabel}</td>
+                <td className={`${td} text-right`}>{row.actualOutingLabel}</td>
+                <td className={`${td} text-right`}>{row.deductibleOutingLabel}</td>
                 <td className={`${td} text-right`}>
                   {row.error ? (
                     <span className="text-xs text-red-600" title={row.error}>
@@ -264,22 +297,18 @@ export function AttendanceEditor({
                 >
                   {row.overtimeLabel}
                 </td>
-                <td className={td}>
-                  <span className="flex flex-wrap gap-1">
-                    {row.lateMinutes > 0 && (
-                      <span title={row.lateReason ?? undefined}>
-                        <Badge tone="amber">
-                          遅刻{row.lateMinutes}分{row.lateReason ? " ※" : ""}
-                        </Badge>
-                      </span>
+                <td className={`${td} max-w-56 whitespace-normal text-center text-xs text-muted`}>
+                  <span className="flex flex-wrap items-center justify-center gap-1">
+                    {row.isOpen && <Badge tone="red">未退勤</Badge>}
+                    {row.isToday && !row.attendanceId && !row.isOpen && (
+                      <span className="text-xs text-muted">本日</span>
                     )}
+                    {row.lateMinutes > 0 && <Badge tone="amber">遅刻 {row.lateMinutes}分</Badge>}
                     {row.earlyLeaveMinutes > 0 && (
-                      <span title={row.earlyLeaveReason ?? undefined}>
-                        <Badge tone="amber">
-                          早退{row.earlyLeaveMinutes}分{row.earlyLeaveReason ? " ※" : ""}
-                        </Badge>
-                      </span>
+                      <Badge tone="amber">早退 {row.earlyLeaveMinutes}分</Badge>
                     )}
+                    {row.hasPendingRequest && <Badge tone="purple">申請中</Badge>}
+                    <span>{[row.lateReason, row.earlyLeaveReason].filter(Boolean).join(" / ")}</span>
                   </span>
                 </td>
                 {showMoney && <td className={`${td} text-right`}>{row.baseAmountLabel}</td>}
@@ -287,7 +316,7 @@ export function AttendanceEditor({
                 {showMoney && (
                   <td className={`${td} text-right font-semibold`}>{row.totalPayLabel}</td>
                 )}
-                <td className={`${td} text-right`}>
+                <td className={`${td} text-center`}>
                   {editable && (
                     <span className="whitespace-nowrap">
                       <button
