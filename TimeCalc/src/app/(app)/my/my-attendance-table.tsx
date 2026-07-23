@@ -255,7 +255,7 @@ export function MyAttendanceTable({
           <th className={`${th} text-right`}>早出残業</th>
           <th className={`${th} text-right`}>残業</th>
           <th className={`${th} text-center`}>備考</th>
-          <th className={`${th} text-right`}>操作</th>
+          <th className={`${th} text-center`}>操作</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-border">
@@ -325,7 +325,7 @@ export function MyAttendanceTable({
                     <span>{[row.lateReason, row.earlyLeaveReason].filter(Boolean).join(" / ")}</span>
                   </span>
                 </td>
-                <td className={`${td} text-right`}>
+                <td className={`${td} text-center`}>
                   {(selfEditMode !== "none" ||
                     (row.hasRecord && (row.lateMinutes > 0 || row.earlyLeaveMinutes > 0))) && (
                     <button
