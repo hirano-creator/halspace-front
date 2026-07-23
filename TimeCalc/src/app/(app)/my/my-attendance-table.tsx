@@ -13,7 +13,10 @@ import type { MyActionState } from "./types";
 import type { SelfEditMode } from "@/lib/auth/features";
 import { Badge, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "@/components/ui";
 
-const th = "px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted";
+// ヘッダー共通クラス。text-align はデフォルトの左寄せに任せ、中央/右寄せにしたい
+// 列だけ text-center / text-right を個別に足す（ここに text-left を入れると
+// 後続の text-center 指定と衝突し、中央揃えが効かなくなる）。
+const th = "px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted";
 const td = "px-2 py-2 text-sm whitespace-nowrap";
 const COLUMN_COUNT = 14;
 
