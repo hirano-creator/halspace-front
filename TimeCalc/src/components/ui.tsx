@@ -33,7 +33,7 @@ export function PageHeader({
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {description && <p className="mt-1 text-sm text-muted">{description}</p>}
       </div>
-      {action && <div>{action}</div>}
+      {action && <div className="w-full sm:w-auto">{action}</div>}
     </div>
   );
 }

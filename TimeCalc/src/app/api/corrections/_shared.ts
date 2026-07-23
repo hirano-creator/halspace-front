@@ -4,9 +4,12 @@ import { prisma } from "@/lib/db";
 import { requireApiPermission } from "@/lib/auth/api-guard";
 import { can } from "@/lib/auth/roles";
 import type { SessionUser } from "@/lib/auth/session";
+import { toJst } from "@/lib/utils/time";
 
 export function formatDateTime(d: Date): string {
-  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  // UTC保存の日時を JST で表示する（サーバーのTZに依存しない）
+  const j = toJst(d);
+  return `${j.getUTCFullYear()}/${j.getUTCMonth() + 1}/${j.getUTCDate()} ${String(j.getUTCHours()).padStart(2, "0")}:${String(j.getUTCMinutes()).padStart(2, "0")}`;
 }
 
 /** 申請を取得し、レビュー可能か検証する（店長は自部署のみ） */

@@ -81,21 +81,35 @@ export function daysInMonth(yearMonth: string): number {
   return new Date(y, m, 0).getDate();
 }
 
-/** 今日の日付を "YYYY-MM-DD"（ローカル時刻）で返す */
-export function todayString(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+// アプリのタイムゾーンは日本時間(JST)固定。
+// Cloudflare Workers のように TZ 環境変数が効かず常に UTC で動く実行環境でも
+// 打刻時刻・日付が9時間ずれないよう、現在時刻は明示的に JST で解釈する。
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+/**
+ * 絶対時刻を JST へ平行移動した Date を返す（getUTC* 系メソッドで JST の
+ * 年・月・日・時・分が読める）。引数省略で現在時刻。
+ * DB の createdAt など UTC 保存の Date を JST 表示する用途にも使える。
+ */
+export function toJst(d: Date = new Date()): Date {
+  return new Date(d.getTime() + JST_OFFSET_MS);
 }
 
-/** 今月を "YYYY-MM"（ローカル時刻）で返す */
+/** 今日の日付を "YYYY-MM-DD"（JST）で返す */
+export function todayString(): string {
+  const now = toJst();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`;
+}
+
+/** 今月を "YYYY-MM"（JST）で返す */
 export function currentYearMonth(): string {
   return todayString().slice(0, 7);
 }
 
-/** 現在時刻を "HH:mm"（ローカル時刻）で返す */
+/** 現在時刻を "HH:mm"（JST）で返す */
 export function nowTimeString(): string {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const now = toJst();
+  return `${String(now.getUTCHours()).padStart(2, "0")}:${String(now.getUTCMinutes()).padStart(2, "0")}`;
 }
 
 /** Date を "YYYY-MM-DD" に変換する（ローカル時刻） */
