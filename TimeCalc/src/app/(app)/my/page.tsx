@@ -110,7 +110,7 @@ export default function MyPage() {
         </div>
       )}
 
-      <Card className="max-h-[65vh] overflow-auto p-0">
+      <Card className="isolate max-h-[65vh] overflow-auto overscroll-contain p-0">
         <MyAttendanceTable rows={data.rows} selfEditMode={data.selfEditMode} onSaved={refetch} />
       </Card>
 
