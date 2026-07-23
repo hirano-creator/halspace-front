@@ -239,7 +239,7 @@ export function MyAttendanceTable({
   const [openDate, setOpenDate] = useState<string | null>(null);
 
   return (
-    <table className="w-full min-w-[1180px] text-sm">
+    <table className="w-full min-w-[960px] text-sm">
       <thead className="border-b border-border bg-gray-50/50">
         <tr>
           <th className={th}>日付</th>
@@ -254,7 +254,7 @@ export function MyAttendanceTable({
           <th className={`${th} text-right`}>勤務時間</th>
           <th className={`${th} text-right`}>早出残業</th>
           <th className={`${th} text-right`}>残業</th>
-          <th className={th}>備考</th>
+          <th className={`${th} text-center`}>備考</th>
           <th className={`${th} text-right`}>操作</th>
         </tr>
       </thead>
@@ -311,8 +311,8 @@ export function MyAttendanceTable({
                 >
                   {row.overtimeLabel}
                 </td>
-                <td className={`${td} max-w-56 whitespace-normal text-xs text-muted`}>
-                  <span className="flex flex-wrap items-center gap-1">
+                <td className={`${td} max-w-56 whitespace-normal text-center text-xs text-muted`}>
+                  <span className="flex flex-wrap items-center justify-center gap-1">
                     {row.isOpen && <Badge tone="red">未退勤</Badge>}
                     {row.isToday && !row.hasRecord && !row.isOpen && (
                       <span className="text-xs text-muted">本日</span>
