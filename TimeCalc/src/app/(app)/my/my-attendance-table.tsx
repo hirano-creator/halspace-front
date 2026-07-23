@@ -16,7 +16,8 @@ import { Badge, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "@/c
 // ヘッダー共通クラス。text-align はデフォルトの左寄せに任せ、中央/右寄せにしたい
 // 列だけ text-center / text-right を個別に足す（ここに text-left を入れると
 // 後続の text-center 指定と衝突し、中央揃えが効かなくなる）。
-const th = "px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted";
+const th =
+  "sticky top-0 z-10 border-b border-border bg-gray-50 px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted";
 const td = "px-2 py-2 text-sm whitespace-nowrap";
 const COLUMN_COUNT = 14;
 
@@ -243,7 +244,7 @@ export function MyAttendanceTable({
 
   return (
     <table className="w-full min-w-[960px] text-sm">
-      <thead className="border-b border-border bg-gray-50/50">
+      <thead>
         <tr>
           <th className={th}>日付</th>
           <th className={th}>実出勤</th>

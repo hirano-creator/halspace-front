@@ -58,7 +58,7 @@ export default function MyPage() {
         title="マイページ"
         description={`${data.me.name} ・ ${data.me.departmentName ?? "部署未設定"} ・ ${data.year}年${data.monthNum}月度（${data.periodRangeLabel}）`}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
             <form method="get">
               <MonthPicker defaultValue={data.month} />
             </form>
@@ -110,7 +110,7 @@ export default function MyPage() {
         </div>
       )}
 
-      <Card className="overflow-x-auto p-0">
+      <Card className="max-h-[65vh] overflow-auto p-0">
         <MyAttendanceTable rows={data.rows} selfEditMode={data.selfEditMode} onSaved={refetch} />
       </Card>
 
