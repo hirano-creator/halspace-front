@@ -29,10 +29,29 @@ export interface WorkRuleSettings {
   /** 早出の計算対象開始時刻（"HH:mm"）。これより前の勤務は集計対象外 */
   earlyWorkStart: string;
   /**
+   * 残業が発生する実働時間のしきい値（分）。早出・通常・残業候補（休憩控除後）の
+   * 合計がこの時間を超えた分だけを残業として扱い、超えなければ残業候補も通常勤務に
+   * 繰り入れる（例: 定時8時間・8:00→ しきい値480分の場合、11:00〜19:00 休憩60分は
+   * 実働7時間のため残業なし。9:00〜19:00 休憩60分は実働9時間のため1時間が残業）。
+   * 0を指定すると、残業開始時刻（overtimeStart）以降の勤務をすべて残業として扱う
+   * 従来どおりの判定になる。
+   */
+  overtimeThresholdMinutes: number;
+  /**
    * 締め日（1〜31）。「6月」= 前月締め日翌日〜当月締め日 の期間になる。
    * 例: 25 → 6月度 = 5/26〜6/25。31を指定すると暦月（1日〜末日）扱い。
    */
   closingDay: number;
+  /**
+   * 休憩開始時刻（"HH:mm"）。打刻・本人修正・修正申請で1日の休憩・外出（分）を
+   * 算出する際、休憩時間帯（breakStart〜breakEnd）に「固定休憩＋外出時間」として
+   * 加算される。外出がこの時間帯と重なる場合は重なった分を控除対象から除き、
+   * 休憩と外出を二重に差し引かないようにする。
+   * CSV取込データ（列の実測値をそのまま使う）には適用しない。
+   */
+  breakStart: string;
+  /** 休憩終了時刻（"HH:mm"） */
+  breakEnd: string;
 }
 
 /** 勤務ルールの初期値 */
@@ -54,7 +73,10 @@ export const DEFAULT_WORK_RULES: WorkRuleSettings = {
   earlyPremiumRate: 0.25,
   overtimeRoundingMinutes: 30,
   earlyWorkStart: "05:00",
+  overtimeThresholdMinutes: 480,
   closingDay: 25,
+  breakStart: "12:00",
+  breakEnd: "13:00",
 };
 
 /** 1日分の金額計算結果（すべて円・整数） */
@@ -79,7 +101,7 @@ export interface DailyPay {
 }
 
 /** 月次の金額集計 */
-export interface MonthlyPaySummary extends DailyPay {}
+export type MonthlyPaySummary = DailyPay;
 
 /** 1日分の勤怠計算入力 */
 export interface DailyAttendanceInput {
@@ -119,6 +141,13 @@ export interface DailyCalcResult {
   roundedClockOut: string;
   /** 総勤務時間（早出＋通常＋残業、すべて丸め後） */
   totalMinutes: number;
+  /**
+   * 遅刻時間（分）。実出勤が季節の始業時刻より後の場合のみ正の値。
+   * 判定は丸め前の実打刻で行う（16:11→16:00等の丸めの影響を受けない）。
+   */
+  lateMinutes: number;
+  /** 早退時間（分）。実退勤が季節の終業時刻より前の場合のみ正の値。判定は実打刻基準 */
+  earlyLeaveMinutes: number;
   /** 入力不備等のエラー（正常時はnull） */
   error: string | null;
 }
@@ -140,6 +169,14 @@ export interface MonthlySummary {
   overtimeMinutes: number;
   /** 総勤務時間（分） */
   totalMinutes: number;
+  /** 遅刻回数（日数） */
+  lateCount: number;
+  /** 遅刻時間の合計（分） */
+  lateMinutes: number;
+  /** 早退回数（日数） */
+  earlyLeaveCount: number;
+  /** 早退時間の合計（分） */
+  earlyLeaveMinutes: number;
 }
 
 /** CSV列マッピング設定（Square CSVの列名 → システム項目） */

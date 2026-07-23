@@ -1,26 +1,47 @@
+"use client";
+
 // 社員の新規登録 ※管理者のみ
 
-import { prisma } from "@/lib/db";
-import { requirePermission } from "@/lib/auth/guard";
-import { getRoleLabels } from "@/lib/settings";
+import { useEffect, useState } from "react";
+import { useRequireAuth } from "@/lib/auth/client";
+import { apiFetchJson } from "@/lib/auth/api-fetch";
 import { Card, PageHeader } from "@/components/ui";
 import { EmployeeForm } from "../employee-form";
+import type { FormOptionsResponse } from "../types";
 
-export const dynamic = "force-dynamic";
+export default function NewEmployeePage() {
+  const { status: authStatus } = useRequireAuth();
+  const [options, setOptions] = useState<FormOptionsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-export default async function NewEmployeePage() {
-  await requirePermission("manageEmployees");
+  useEffect(() => {
+    if (authStatus !== "authenticated") return;
+    let cancelled = false;
+    apiFetchJson<FormOptionsResponse>("/api/employees/form-options")
+      .then((res) => {
+        if (!cancelled) setOptions(res);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus]);
 
-  const [departments, roleLabels] = await Promise.all([
-    prisma.department.findMany({ orderBy: { name: "asc" } }),
-    getRoleLabels(),
-  ]);
+  if (authStatus === "unauthenticated") return null;
+  if (authStatus === "loading" || !options) {
+    return <p className="py-8 text-center text-sm text-muted">読み込み中...</p>;
+  }
+  if (error) {
+    return <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>;
+  }
 
   return (
     <>
       <PageHeader title="社員を登録" />
       <Card className="max-w-2xl">
-        <EmployeeForm departments={departments} roleLabels={roleLabels} />
+        <EmployeeForm departments={options.departments} roleLabels={options.roleLabels} showMoney={options.showMoney} />
       </Card>
     </>
   );

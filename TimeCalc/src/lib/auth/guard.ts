@@ -1,22 +1,9 @@
-// サーバーコンポーネント / Server Action 用の認可ガード
+// 認可判定の純粋関数
+// ログイン必須チェック・権限チェックは Route Handler 側の requireApiUser/requireApiPermission
+// （src/lib/auth/api-guard.ts）が担う。ここには複数箇所から使う判定ロジックのみ残す。
 
-import { redirect } from "next/navigation";
-import { can, type Permission } from "./roles";
-import { getSessionUser, type SessionUser } from "./session";
-
-/** ログイン必須。未ログインならログイン画面へリダイレクトする */
-export async function requireUser(): Promise<SessionUser> {
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
-  return user;
-}
-
-/** 指定権限が必須。権限がなければ勤怠一覧へリダイレクトする */
-export async function requirePermission(permission: Permission): Promise<SessionUser> {
-  const user = await requireUser();
-  if (!can(user.role, permission)) redirect("/attendance");
-  return user;
-}
+import { can } from "./roles";
+import type { SessionUser } from "./session";
 
 /**
  * 対象社員の勤怠を閲覧できるか判定する。

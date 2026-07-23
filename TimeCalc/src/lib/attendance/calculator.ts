@@ -59,6 +59,8 @@ const emptyResult = (
   roundedClockIn: rawClockIn,
   roundedClockOut: rawClockOut,
   totalMinutes: 0,
+  lateMinutes: 0,
+  earlyLeaveMinutes: 0,
   error,
 });
 
@@ -79,6 +81,12 @@ const emptyResult = (
  *
  * 冬季の終業(16:00)〜残業開始(18:00)は通常勤務扱いのため、
  * 通常勤務の上限は季節の終業時刻ではなく残業開始時刻とする。
+ *
+ * 実働8時間ルール:
+ * 残業開始時刻以降の勤務（残業候補）は、早出・通常勤務との合計が
+ * overtimeThresholdMinutes（既定8時間=480分）を超えた分だけを残業として扱う。
+ * 超えない場合は残業候補を通常勤務に繰り入れる
+ * （例: 11:00〜19:00 休憩60分 → 実働7時間のため残業なし）。
  */
 export function calcDaily(input: DailyAttendanceInput, rules: WorkRuleSettings): DailyCalcResult {
   const season = seasonOf(input.date, rules);
@@ -120,14 +128,33 @@ export function calcDaily(input: DailyAttendanceInput, rules: WorkRuleSettings):
   // 通常勤務: 始業〜残業開始。休憩は通常勤務から控除する（マイナスにはしない）
   const normalRaw = valid ? overlapMinutes(workStart, overtimeStart, clockIn, clockOut) : 0;
   const breakMinutes = Math.max(0, input.breakMinutes || 0);
-  const normalMinutes = Math.max(0, normalRaw - breakMinutes);
+  const normalBeforeThreshold = Math.max(0, normalRaw - breakMinutes);
 
   const overtimeRawMinutes = overlapMinutes(overtimeStart, 48 * 60, clockInRaw, clockOutRaw);
-  const overtimeMinutes = valid ? overlapMinutes(overtimeStart, 48 * 60, clockIn, clockOut) : 0;
+  const overtimeCandidateMinutes = valid
+    ? overlapMinutes(overtimeStart, 48 * 60, clockIn, clockOut)
+    : 0;
+
+  // 実働8時間ルール: 早出・通常・残業候補（休憩控除後）の合計が
+  // overtimeThresholdMinutes を超えた分だけを残業として扱う。超えなければ
+  // 残業候補（残業開始時刻以降の勤務）も通常勤務に繰り入れる
+  // （例: 11:00〜19:00 休憩60分 → 実働7時間のため残業なし）。
+  const workedMinutes = earlyMinutes + normalBeforeThreshold + overtimeCandidateMinutes;
+  const overtimeMinutes = Math.max(
+    0,
+    Math.min(overtimeCandidateMinutes, workedMinutes - rules.overtimeThresholdMinutes),
+  );
+  const normalMinutes = normalBeforeThreshold + (overtimeCandidateMinutes - overtimeMinutes);
 
   // 早出の割増は「丸め後の退勤が残業開始時刻（18:00）以降の日」のみ適用。
   // 例: 8:00〜18:05 → 早出1時間は割増 / 8:00〜16:00 → 早出1時間は通常時給
   const earlyPremiumApplies = clockOut >= overtimeStart;
+
+  // 遅刻・早退の自動判定（丸め前の実打刻と季節の始業・終業時刻を比較する）。
+  // 終業時刻の設定が不正な場合は早退判定をスキップする（勤務計算は続行）
+  const workEnd = timeToMinutes(seasonRule.workEnd);
+  const lateMinutes = Math.max(0, clockInRaw - workStart);
+  const earlyLeaveMinutes = workEnd === null ? 0 : Math.max(0, workEnd - clockOutRaw);
 
   return {
     season,
@@ -140,6 +167,8 @@ export function calcDaily(input: DailyAttendanceInput, rules: WorkRuleSettings):
     roundedClockIn: minutesToTime(clockIn),
     roundedClockOut: minutesToTime(clockOut),
     totalMinutes: earlyMinutes + normalMinutes + overtimeMinutes,
+    lateMinutes,
+    earlyLeaveMinutes,
     error: null,
   };
 }
@@ -203,5 +232,9 @@ export function summarize(results: DailyCalcResult[]): MonthlySummary {
     normalMinutes: valid.reduce((sum, r) => sum + r.normalMinutes, 0),
     overtimeMinutes: valid.reduce((sum, r) => sum + r.overtimeMinutes, 0),
     totalMinutes: valid.reduce((sum, r) => sum + r.totalMinutes, 0),
+    lateCount: valid.filter((r) => r.lateMinutes > 0).length,
+    lateMinutes: valid.reduce((sum, r) => sum + r.lateMinutes, 0),
+    earlyLeaveCount: valid.filter((r) => r.earlyLeaveMinutes > 0).length,
+    earlyLeaveMinutes: valid.reduce((sum, r) => sum + r.earlyLeaveMinutes, 0),
   };
 }

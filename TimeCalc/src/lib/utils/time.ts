@@ -92,6 +92,12 @@ export function currentYearMonth(): string {
   return todayString().slice(0, 7);
 }
 
+/** 現在時刻を "HH:mm"（ローカル時刻）で返す */
+export function nowTimeString(): string {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+
 /** Date を "YYYY-MM-DD" に変換する（ローカル時刻） */
 function toDateString(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

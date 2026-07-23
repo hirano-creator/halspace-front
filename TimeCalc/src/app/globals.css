@@ -29,3 +29,14 @@ body {
     sans-serif;
   font-feature-settings: "palt";
 }
+
+/* 印刷時はサイドバー・モバイルヘッダー等の操作UIを隠す（打刻QRコードの印刷用） */
+@media print {
+  aside,
+  header {
+    display: none;
+  }
+  main {
+    margin-left: 0 !important;
+  }
+}

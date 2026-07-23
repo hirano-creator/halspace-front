@@ -59,3 +59,15 @@ samples/
 
 # netlify deploy時にDenoが生成する残骸
 deno.lock
+
+# Cloudflare (OpenNext / wrangler)
+/.open-next/
+/.wrangler/
+# wrangler types が生成するバインディング型定義（再生成可能）
+worker-configuration.d.ts
+# Prisma prisma-client generator の生成物（prisma generate で再生成）
+/src/generated/
+# ローカル開発用の環境変数（SESSION_SECRET など）
+.dev.vars
+# D1へ流すために生成する一時DDL
+/d1-schema.sql

@@ -1,14 +1,36 @@
-// ログイン画面
-// ログイン済みの場合は勤怠一覧へリダイレクトする
-// （以前はmiddlewareで行っていたが、proxy化に伴いページ側でチェックする形にした）
+"use client";
 
-import { redirect } from "next/navigation";
-import { getSessionUser } from "@/lib/auth/session";
+// ログイン画面
+// ログイン済みの場合はマイページ（またはredirect指定先）へリダイレクトする
+
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/lib/auth/client";
 import { LoginForm } from "./login-form";
 
-export default async function LoginPage() {
-  const user = await getSessionUser();
-  if (user) redirect("/attendance");
+/** オープンリダイレクト対策: "/"始まりの相対パスのみ許可する */
+function safeRedirect(target: string | null): string {
+  if (target && target.startsWith("/") && !target.startsWith("//")) return target;
+  return "/my";
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
+  const { status } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = safeRedirect(searchParams.get("redirect"));
+
+  useEffect(() => {
+    if (status === "authenticated") router.replace(redirectTo);
+  }, [status, router, redirectTo]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -19,7 +41,7 @@ export default async function LoginPage() {
         </div>
 
         <div className="rounded-xl border border-border bg-surface p-8 shadow-sm">
-          <LoginForm />
+          <LoginForm redirectTo={redirectTo} />
         </div>
 
         <p className="mt-6 text-center text-xs text-muted">株式会社ヒラノ</p>

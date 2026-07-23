@@ -4,9 +4,12 @@
 // ドラッグ＆ドロップ → 文字コード自動判定 → 列マッピング → プレビュー → 取込
 
 import Papa from "papaparse";
+import Link from "next/link";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import type { CsvMappingSettings } from "@/lib/attendance/types";
-import { importCsvAction, type ImportResult, type ImportRow } from "./actions";
+import { readFileWithEncoding } from "@/lib/utils/file-encoding";
+import { importCsvAction } from "./client-actions";
+import type { ImportResult, ImportRow } from "./types";
 import {
   Card,
   buttonPrimaryClass,
@@ -32,33 +35,14 @@ const FIELD_DEFS: { key: keyof CsvMappingSettings; label: string; required: bool
   { key: "breakMinutes", label: "休憩（整数=分/小数=時間）", required: false },
 ];
 
-/**
- * 文字コードを自動判定して読み込む。
- * SquareのエクスポートはUTF-16 LE（BOM付き・タブ区切り）のため、
- * BOMを最優先で判定し、なければUTF-8→Shift_JISの順に試す。
- */
-async function readFileWithEncoding(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-
-  // BOMによる判定（UTF-16 LE / UTF-16 BE / UTF-8）
-  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
-    return new TextDecoder("utf-16le").decode(buffer);
-  }
-  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
-    return new TextDecoder("utf-16be").decode(buffer);
-  }
-
-  const utf8 = new TextDecoder("utf-8").decode(buffer);
-  if (!utf8.includes("�")) return utf8;
-  try {
-    return new TextDecoder("shift_jis").decode(buffer);
-  } catch {
-    return utf8; // Shift_JIS非対応環境ではUTF-8の結果を使う
-  }
-}
-
-export function ImportClient({ initialMapping }: { initialMapping: CsvMappingSettings }) {
+export function ImportClient({
+  initialMapping,
+  onImported,
+}: {
+  initialMapping: CsvMappingSettings;
+  /** 取込成功後に呼ぶ（取込履歴の再取得トリガー用） */
+  onImported?: () => void;
+}) {
   const [csv, setCsv] = useState<ParsedCsv | null>(null);
   const [mapping, setMapping] = useState<CsvMappingSettings>(initialMapping);
   const [dragOver, setDragOver] = useState(false);
@@ -133,7 +117,10 @@ export function ImportClient({ initialMapping }: { initialMapping: CsvMappingSet
           mapping,
         });
         setResult(res);
-        if (res.ok) setCsv(null);
+        if (res.ok) {
+          setCsv(null);
+          onImported?.();
+        }
       } catch (e) {
         console.error(e);
         setResult({
@@ -203,9 +190,9 @@ export function ImportClient({ initialMapping }: { initialMapping: CsvMappingSet
             <div className="mt-3 rounded-lg bg-amber-50 px-4 py-3 text-sm">
               <p className="font-medium text-amber-800">
                 以下の社員をCSVから自動登録しました。
-                <a href="/employees" className="ml-1 text-primary underline">
+                <Link href="/employees" className="ml-1 text-primary underline">
                   社員管理
-                </a>
+                </Link>
                 で時給を設定してください（時給0円のままだと金額が計算されません）
               </p>
               <ul className="mt-2 space-y-0.5 text-amber-700">

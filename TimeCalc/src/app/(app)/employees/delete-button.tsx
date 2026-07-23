@@ -2,19 +2,30 @@
 
 // 社員削除ボタン（確認ダイアログ付き）
 
-import { useActionState } from "react";
-import { deleteEmployeeAction, type EmployeeDeleteState } from "./actions";
+import { useActionState, useEffect } from "react";
+import { deleteEmployeeAction } from "./client-actions";
+import type { EmployeeDeleteState } from "./types";
 
 const initialState: EmployeeDeleteState = { error: null };
 
 export function DeleteEmployeeButton({
   employeeId,
   employeeName,
+  onDeleted,
 }: {
   employeeId: string;
   employeeName: string;
+  /** 削除成功後に呼ぶ（一覧の再取得トリガー用） */
+  onDeleted?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(deleteEmployeeAction, initialState);
+
+  useEffect(() => {
+    // useActionStateは送信のたびに新しいオブジェクトを返すため、initialStateと異なる
+    // 参照になった時点＝1回以上送信済みと判定できる（successフィールドが無い型のため）
+    if (state !== initialState && state.error === null) onDeleted?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   return (
     <form

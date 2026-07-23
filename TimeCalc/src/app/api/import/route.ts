@@ -1,69 +1,52 @@
-"use server";
+// CSV取込画面の初期データ取得（GET）と取込実行（POST）
+// 旧 import/page.tsx（Server Component）・ import/actions.ts の importCsvAction をそのまま移植
 
-// CSV取込の Server Action
-
-import { revalidatePath } from "next/cache";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requirePermission, requireUser } from "@/lib/auth/guard";
+import { requireApiPermission } from "@/lib/auth/api-guard";
 import { hashPassword } from "@/lib/auth/password";
-import { can } from "@/lib/auth/roles";
-import { saveCsvMapping } from "@/lib/settings";
+import { getCsvMapping, saveCsvMapping } from "@/lib/settings";
 import { normalizeDate, timeToMinutes, minutesToTime } from "@/lib/utils/time";
-import type { CsvMappingSettings } from "@/lib/attendance/types";
+import type {
+  ImportHistoryRow,
+  ImportPageResponse,
+  ImportPayload,
+  ImportResult,
+} from "@/app/(app)/import/types";
 
-export interface DeleteHistoryState {
-  error: string | null;
-}
+export async function GET(request: Request) {
+  const auth = await requireApiPermission(request, "importCsv");
+  if (!auth.ok) return auth.response;
 
-/**
- * 取込履歴のログ1件を削除する。
- * これは履歴の記録を消すだけで、その取込で登録された勤怠データ自体は削除されない
- * （取込履歴と勤怠データの間に紐付けがなく、取り消しはできない設計のため）。
- */
-export async function deleteImportHistoryAction(
-  _prev: DeleteHistoryState,
-  formData: FormData,
-): Promise<DeleteHistoryState> {
-  await requirePermission("importCsv");
+  const [mapping, histories] = await Promise.all([
+    getCsvMapping(),
+    prisma.importHistory.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: { importedBy: true },
+    }),
+  ]);
 
-  const id = String(formData.get("id") ?? "");
-  try {
-    await prisma.importHistory.delete({ where: { id } });
-  } catch (e) {
-    console.error("取込履歴削除エラー:", e);
-    return { error: "履歴の削除に失敗しました" };
-  }
+  const historyRows: ImportHistoryRow[] = histories.map((h) => {
+    let errors: string[] = [];
+    try {
+      errors = h.errors ? (JSON.parse(h.errors) as string[]) : [];
+    } catch {
+      /* 不正なJSONは無視 */
+    }
+    return {
+      id: h.id,
+      createdAtLabel: h.createdAt.toLocaleString("ja-JP"),
+      fileName: h.fileName,
+      importedByName: h.importedBy?.name ?? null,
+      rowCount: h.rowCount,
+      errorCount: h.errorCount,
+      errors,
+    };
+  });
 
-  revalidatePath("/import");
-  return { error: null };
-}
-
-/** クライアントでマッピング適用済みの1行 */
-export interface ImportRow {
-  /** 元CSVの行番号（エラー表示用、1始まり） */
-  line: number;
-  employeeCode: string;
-  name: string;
-  date: string;
-  clockIn: string;
-  clockOut: string;
-  breakMinutes: string;
-}
-
-export interface ImportPayload {
-  fileName: string;
-  rows: ImportRow[];
-  /** 今回使用した列マッピング（次回のデフォルトとして保存する） */
-  mapping: CsvMappingSettings;
-}
-
-export interface ImportResult {
-  ok: boolean;
-  message: string;
-  importedCount: number;
-  /** 自動登録された新規社員（社員番号と氏名） */
-  createdEmployees: { employeeCode: string; name: string }[];
-  errors: string[];
+  const body: ImportPageResponse = { mapping, histories: historyRows };
+  return NextResponse.json(body);
 }
 
 const MAX_ROWS = 5000;
@@ -72,23 +55,39 @@ const MAX_ROWS = 5000;
  * CSVの行データを検証して勤怠として取り込む。
  * 同一社員・同一日付の既存データは上書きする。
  */
-export async function importCsvAction(payload: ImportPayload): Promise<ImportResult> {
-  const user = await requireUser();
-  if (!can(user.role, "importCsv")) {
-    return { ok: false, message: "CSV取込の権限がありません", importedCount: 0, createdEmployees: [], errors: [] };
+export async function POST(request: Request) {
+  const auth = await requireApiPermission(request, "importCsv");
+  if (!auth.ok) return auth.response;
+  const user = auth.user;
+
+  const payload = (await request.json().catch(() => null)) as ImportPayload | null;
+  if (!payload || !Array.isArray(payload.rows)) {
+    return NextResponse.json<ImportResult>({
+      ok: false,
+      message: "リクエストの形式が不正です",
+      importedCount: 0,
+      createdEmployees: [],
+      errors: [],
+    });
   }
 
   if (!payload.rows.length) {
-    return { ok: false, message: "取込対象の行がありません", importedCount: 0, createdEmployees: [], errors: [] };
+    return NextResponse.json<ImportResult>({
+      ok: false,
+      message: "取込対象の行がありません",
+      importedCount: 0,
+      createdEmployees: [],
+      errors: [],
+    });
   }
   if (payload.rows.length > MAX_ROWS) {
-    return {
+    return NextResponse.json<ImportResult>({
       ok: false,
       message: `一度に取り込めるのは${MAX_ROWS}行までです`,
       importedCount: 0,
       createdEmployees: [],
       errors: [],
-    };
+    });
   }
 
   const errors: string[] = [];
@@ -96,11 +95,7 @@ export async function importCsvAction(payload: ImportPayload): Promise<ImportRes
   // 社員番号 → ユーザーID の対応表を先に引いておく
   const SKIP_CODES = ["合計", "総計"]; // Squareエクスポート末尾の集計行
   const codes = [
-    ...new Set(
-      payload.rows
-        .map((r) => r.employeeCode.trim())
-        .filter((c) => c && !SKIP_CODES.includes(c)),
-    ),
+    ...new Set(payload.rows.map((r) => r.employeeCode.trim()).filter((c) => c && !SKIP_CODES.includes(c))),
   ];
   const users = await prisma.user.findMany({
     where: { employeeCode: { in: codes } },
@@ -109,7 +104,6 @@ export async function importCsvAction(payload: ImportPayload): Promise<ImportRes
   const userIdByCode = new Map(users.map((u) => [u.employeeCode, u.id]));
 
   // 未登録の社員番号はCSVの氏名で自動登録する（一般社員・時給未設定）
-  // パスワードはランダム値で作成し、ログインさせる場合は社員管理で設定し直す
   const createdEmployees: { employeeCode: string; name: string }[] = [];
   for (const code of codes) {
     if (userIdByCode.has(code)) continue;
@@ -134,13 +128,8 @@ export async function importCsvAction(payload: ImportPayload): Promise<ImportRes
     }
   }
 
-  const validRows: {
-    userId: string;
-    date: string;
-    clockIn: string;
-    clockOut: string;
-    breakMinutes: number;
-  }[] = [];
+  const validRows: { userId: string; date: string; clockIn: string; clockOut: string; breakMinutes: number }[] =
+    [];
 
   for (const row of payload.rows) {
     const code = row.employeeCode.trim();
@@ -148,7 +137,6 @@ export async function importCsvAction(payload: ImportPayload): Promise<ImportRes
     const inMin = timeToMinutes(row.clockIn);
     const outMin = timeToMinutes(row.clockOut);
 
-    // Squareエクスポート末尾の集計行はスキップ（エラー扱いにしない）
     if (SKIP_CODES.includes(code)) continue;
 
     if (!code) {
@@ -165,14 +153,10 @@ export async function importCsvAction(payload: ImportPayload): Promise<ImportRes
       continue;
     }
     if (inMin === null || outMin === null) {
-      errors.push(
-        `${row.line}行目: 時刻「${row.clockIn}〜${row.clockOut}」を解釈できません`,
-      );
+      errors.push(`${row.line}行目: 時刻「${row.clockIn}〜${row.clockOut}」を解釈できません`);
       continue;
     }
 
-    // 休憩の解釈: 整数=分（例 "60"）、小数=時間（例 "0.5" → 30分）、
-    // "HH:mm" 形式も許容。空は0分
     let breakMinutes = 0;
     const rawBreak = row.breakMinutes.trim();
     if (rawBreak) {
@@ -190,42 +174,30 @@ export async function importCsvAction(payload: ImportPayload): Promise<ImportRes
       }
     }
 
-    validRows.push({
-      userId,
-      date,
-      clockIn: minutesToTime(inMin),
-      clockOut: minutesToTime(outMin),
-      breakMinutes,
-    });
+    validRows.push({ userId, date, clockIn: minutesToTime(inMin), clockOut: minutesToTime(outMin), breakMinutes });
   }
 
-  // 取込実行（同一社員・同一日付は上書き）
   let importedCount = 0;
   try {
     for (const row of validRows) {
       await prisma.attendance.upsert({
         where: { userId_date: { userId: row.userId, date: row.date } },
-        update: {
-          clockIn: row.clockIn,
-          clockOut: row.clockOut,
-          breakMinutes: row.breakMinutes,
-        },
+        update: { clockIn: row.clockIn, clockOut: row.clockOut, breakMinutes: row.breakMinutes },
         create: row,
       });
       importedCount++;
     }
   } catch (e) {
     console.error("CSV取込エラー:", e);
-    return {
+    return NextResponse.json<ImportResult>({
       ok: false,
       message: `取込中にエラーが発生しました（${importedCount}件まで取込済み）`,
       importedCount,
       createdEmployees,
       errors,
-    };
+    });
   }
 
-  // 履歴を記録し、使用したマッピングを次回デフォルトとして保存
   await prisma.importHistory.create({
     data: {
       fileName: payload.fileName,
@@ -237,19 +209,15 @@ export async function importCsvAction(payload: ImportPayload): Promise<ImportRes
   });
   await saveCsvMapping(payload.mapping);
 
-  revalidatePath("/attendance");
-  revalidatePath("/import");
-  revalidatePath("/employees");
-
   const parts = [`${importedCount}件を取り込みました`];
   if (createdEmployees.length) parts.push(`新規社員${createdEmployees.length}名を自動登録`);
   if (errors.length) parts.push(`${errors.length}件はエラーのためスキップ`);
 
-  return {
+  return NextResponse.json<ImportResult>({
     ok: true,
     message: parts.length > 1 ? `${parts[0]}（${parts.slice(1).join("・")}）` : parts[0],
     importedCount,
     createdEmployees,
     errors,
-  };
+  });
 }

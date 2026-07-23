@@ -1,0 +1,22 @@
+{
+  // OpenNext がビルドした Worker を Cloudflare にデプロイするための設定。
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "timecalc",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-01",
+  // Node.js 互換フラグ。qr.ts の Node crypto（randomBytes/createHmac）と bcryptjs に必要。
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Cloudflare D1。binding 名 "DB" は src/lib/db.ts の env.DB に対応。
+  // database_id は `wrangler d1 create timecalc` 実行後に出力される値へ差し替える。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "timecalc",
+      "database_id": "442889a5-753d-46c3-a0be-ac23cb082e44"
+    }
+  ]
+}

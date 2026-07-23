@@ -1,14 +1,50 @@
 "use client";
 
-// ログインフォーム（クライアント側の状態管理のみ担当）
+// ログインフォーム
+//
+// タブごとに独立したセッションにするため、Server Action(Cookie依存)ではなく
+// /api/auth/login をfetchで叩き、トークンをAuthProvider経由でsessionStorageに保存する。
 
 import { useActionState } from "react";
-import { loginAction, type LoginState } from "./actions";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth/client";
+import type { SessionUser } from "@/lib/auth/session";
 import { buttonPrimaryClass, inputClass, labelClass } from "@/components/ui";
+
+interface LoginState {
+  error: string | null;
+}
 
 const initialState: LoginState = { error: null };
 
-export function LoginForm() {
+export function LoginForm({ redirectTo }: { redirectTo?: string }) {
+  const router = useRouter();
+  const { login } = useAuth();
+
+  async function loginAction(_prev: LoginState, formData: FormData): Promise<LoginState> {
+    const identifier = String(formData.get("identifier") ?? "").trim();
+    const password = String(formData.get("password") ?? "");
+
+    if (!identifier || !password) {
+      return { error: "社員番号（またはメールアドレス）とパスワードを入力してください" };
+    }
+
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier, password }),
+    });
+    const data = (await res.json()) as { error?: string; token: string; user: SessionUser };
+
+    if (!res.ok) {
+      return { error: data.error ?? "ログインに失敗しました" };
+    }
+
+    login(data.token, data.user);
+    router.push(redirectTo ?? "/my");
+    return { error: null };
+  }
+
   const [state, formAction, pending] = useActionState(loginAction, initialState);
 
   return (

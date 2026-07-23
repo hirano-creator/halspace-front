@@ -1,14 +1,13 @@
-// セッション管理（JWT + httpOnly Cookie）
+// セッション管理（JWT）
 //
-// jose による署名付きJWTをCookieに保持する。
-// middleware（Edgeランタイム）からも利用するため、Node専用APIは使わない。
+// jose による署名付きJWTを発行・検証する。トークンはクライアント側で
+// sessionStorage に保持され、タブごとに独立したセッションになる
+// （Route Handler は Authorization: Bearer ヘッダーで受け取る）。
 
 import { SignJWT, jwtVerify } from "jose";
-import { cookies } from "next/headers";
 import type { Role } from "./roles";
 import { toRole } from "./roles";
 
-export const SESSION_COOKIE = "timecalc_session";
 const SESSION_DURATION_SEC = 60 * 60 * 12; // 12時間
 
 export interface SessionUser {
@@ -18,6 +17,8 @@ export interface SessionUser {
   name: string;
   role: Role;
   departmentId: string | null;
+  /** false ならこのユーザーは打刻時のGPS判定をスキップする */
+  gpsCheckEnabled: boolean;
 }
 
 function getSecret(): Uint8Array {
@@ -35,6 +36,7 @@ export async function createSessionToken(user: SessionUser): Promise<string> {
     name: user.name,
     role: user.role,
     departmentId: user.departmentId,
+    gpsCheckEnabled: user.gpsCheckEnabled,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.id)
@@ -54,35 +56,9 @@ export async function verifySessionToken(token: string): Promise<SessionUser | n
       name: String(payload.name ?? ""),
       role: toRole(String(payload.role ?? "")),
       departmentId: payload.departmentId ? String(payload.departmentId) : null,
+      gpsCheckEnabled: payload.gpsCheckEnabled !== false,
     };
   } catch {
     return null;
   }
-}
-
-/** ログイン成功時にセッションCookieを設定する */
-export async function setSessionCookie(user: SessionUser): Promise<void> {
-  const token = await createSessionToken(user);
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: SESSION_DURATION_SEC,
-    path: "/",
-  });
-}
-
-/** セッションCookieを破棄する（ログアウト） */
-export async function clearSessionCookie(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE);
-}
-
-/** 現在のリクエストのセッションユーザーを取得する（未ログインは null） */
-export async function getSessionUser(): Promise<SessionUser | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  return verifySessionToken(token);
 }

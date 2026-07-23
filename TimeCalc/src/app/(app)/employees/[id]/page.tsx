@@ -1,180 +1,169 @@
+"use client";
+
 // 社員詳細（締め期間の日別勤務・残業・金額の一覧と月度合計）
 
-import { notFound, redirect } from "next/navigation";
-import { prisma } from "@/lib/db";
-import { requireUser, canViewEmployee } from "@/lib/auth/guard";
-import { can, toRole } from "@/lib/auth/roles";
-import { calcDaily, calcDailyPay, formatYen, summarize } from "@/lib/attendance/calculator";
-import { getRoleLabels, getWorkRules } from "@/lib/settings";
-import {
-  currentPeriod,
-  datesInRange,
-  formatMinutes,
-  formatPeriodRange,
-  minutesToHHMM,
-  periodRange,
-} from "@/lib/utils/time";
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useRequireAuth } from "@/lib/auth/client";
+import { apiFetchJson } from "@/lib/auth/api-fetch";
+import { formatYen } from "@/lib/attendance/calculator";
+import { formatMinutes } from "@/lib/utils/time";
 import { Badge, Card, PageHeader, StatCard } from "@/components/ui";
 import { MonthPicker } from "@/components/month-picker";
-import { AttendanceEditor, type DailyRow } from "./attendance-editor";
+import { AttendanceEditor } from "./attendance-editor";
+import type { EmployeeDetailResponse } from "./types";
 
-export const dynamic = "force-dynamic";
-
-const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
-
-export default async function EmployeeDetailPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ month?: string }>;
-}) {
-  const viewer = await requireUser();
-  const { id } = await params;
-  const sp = await searchParams;
-
-  // DB往復を減らすため、互いに依存しない取得は並列で行う
-  const [employee, rules, roleLabels] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id },
-      include: { department: true },
-    }),
-    getWorkRules(),
-    getRoleLabels(),
-  ]);
-  if (!employee) notFound();
-  if (!canViewEmployee(viewer, employee)) redirect("/attendance");
-
-  // 編集可否: 権限 + （店長は自部署のみ）
-  const editable =
-    can(viewer.role, "editAttendance") &&
-    (can(viewer.role, "viewAllEmployees") ||
-      (viewer.departmentId !== null && viewer.departmentId === employee.departmentId));
-  const month = /^\d{4}-\d{2}$/.test(sp.month ?? "")
-    ? sp.month!
-    : currentPeriod(rules.closingDay);
-  const period = periodRange(month, rules.closingDay);
-
-  const records = await prisma.attendance.findMany({
-    where: { userId: id, date: { gte: period.start, lte: period.end } },
-    orderBy: { date: "asc" },
-  });
-
-  const recordByDate = new Map(records.map((r) => [r.date, r]));
-
-  // 締め期間の全日についてカレンダー行を作る（打刻がない日は空行）
-  const rows: DailyRow[] = [];
-  const calcResults = [];
-  const payTotal = { basePay: 0, premiumPay: 0, totalPay: 0 };
-  // カード集計用: 勤務時間は早出残業・残業を含まない（＝通常勤務＋割増なしの早出）
-  const monthTotal = { workMinutes: 0, earlyOvertimeMinutes: 0, overtimeMinutes: 0 };
-
-  for (const date of datesInRange(period.start, period.end)) {
-    const [y, m, d] = date.split("-").map(Number);
-    const weekday = new Date(y, m - 1, d).getDay();
-    const record = recordByDate.get(date);
-    const calc = record
-      ? calcDaily(
-          {
-            date,
-            clockIn: record.clockIn,
-            clockOut: record.clockOut,
-            breakMinutes: record.breakMinutes,
-          },
-          rules,
-        )
-      : null;
-    const pay = calc ? calcDailyPay(calc, employee.hourlyWage, rules) : null;
-    const ok = calc && !calc.error;
-    if (calc) calcResults.push(calc);
-    if (pay && ok) {
-      payTotal.basePay += pay.basePay;
-      payTotal.premiumPay += pay.premiumPay;
-      payTotal.totalPay += pay.totalPay;
+/** 修正履歴の変更内容を「前 → 後」で表示する */
+function formatLogChange(before: string | null, after: string | null): string {
+  const fmt = (json: string | null): string => {
+    if (!json) return "なし";
+    try {
+      const v = JSON.parse(json) as { clockIn?: string; clockOut?: string; breakMinutes?: number };
+      return `${v.clockIn ?? "?"}〜${v.clockOut ?? "?"}・休憩${v.breakMinutes ?? 0}分`;
+    } catch {
+      return "?";
     }
-    if (calc && ok) {
-      const earlyOvertime = calc.earlyPremiumApplies ? calc.earlyMinutes : 0;
-      monthTotal.earlyOvertimeMinutes += earlyOvertime;
-      monthTotal.overtimeMinutes += calc.overtimeMinutes;
-      // 勤務時間 = 通常勤務 ＋ 割増対象外の早出（早出残業・残業は含まない）
-      monthTotal.workMinutes += calc.normalMinutes + (calc.earlyMinutes - earlyOvertime);
-    }
+  };
+  return `${fmt(before)} → ${fmt(after)}`;
+}
 
-    rows.push({
-      attendanceId: record?.id ?? null,
-      date,
-      dayLabel: `${m}/${d}(${WEEKDAYS[weekday]})`,
-      isWeekend: weekday === 0 || weekday === 6,
-      clockIn: record?.clockIn ?? "08:00",
-      clockOut: record?.clockOut ?? "17:00",
-      breakMinutes: record?.breakMinutes ?? 60,
-      note: record?.note ?? null,
-      roundedClockInLabel: record ? (ok ? calc.roundedClockIn : "-") : "-",
-      roundedClockOutLabel: record ? (ok ? calc.roundedClockOut : "-") : "-",
-      workLabel: ok ? minutesToHHMM(calc.totalMinutes) : "-",
-      earlyOvertimeLabel: ok
-        ? minutesToHHMM(calc.earlyPremiumApplies ? calc.earlyMinutes : 0)
-        : "-",
-      overtimeLabel: ok ? minutesToHHMM(calc.overtimeMinutes) : "-",
-      baseAmountLabel: pay && ok ? formatYen(pay.basePay) : "-",
-      premiumAmountLabel: pay && ok ? formatYen(pay.premiumPay) : "-",
-      totalPayLabel: pay && ok ? formatYen(pay.totalPay) : "-",
-      error: calc?.error ?? null,
-    });
+export default function EmployeeDetailPage() {
+  const { status: authStatus } = useRequireAuth();
+  const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const month = searchParams.get("month") ?? "";
+
+  const [data, setData] = useState<EmployeeDetailResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refetch = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  useEffect(() => {
+    if (authStatus !== "authenticated") return;
+    const qs = new URLSearchParams();
+    if (month) qs.set("month", month);
+
+    let cancelled = false;
+    apiFetchJson<EmployeeDetailResponse>(`/api/employees/${params.id}/detail?${qs.toString()}`)
+      .then((res) => {
+        if (!cancelled) setData(res);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus, params.id, month, refreshKey]);
+
+  if (authStatus === "unauthenticated") return null;
+  if (authStatus === "loading" || !data) {
+    return <p className="py-8 text-center text-sm text-muted">読み込み中...</p>;
+  }
+  if (error) {
+    return <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>;
   }
 
-  const summary = summarize(calcResults);
-  const [year, monthNum] = month.split("-").map(Number);
+  const showMoney = data.showMoney;
 
   return (
     <>
       <PageHeader
-        title={employee.name}
-        description={`社員番号 ${employee.employeeCode} ・ ${employee.department?.name ?? "部署未設定"} ・ 時給 ${formatYen(employee.hourlyWage)}`}
+        title={data.employee.name}
+        description={`社員番号 ${data.employee.employeeCode} ・ ${data.employee.departmentName ?? "部署未設定"}${showMoney ? ` ・ 時給 ${formatYen(data.employee.hourlyWage)}` : ""}`}
         action={
           <form method="get">
-            <MonthPicker defaultValue={month} />
+            <MonthPicker defaultValue={data.month} />
           </form>
         }
       />
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Badge tone={employee.isActive ? "green" : "red"}>
-          {employee.isActive ? "在籍中" : "退職済"}
+        <Badge tone={data.employee.isActive ? "green" : "red"}>
+          {data.employee.isActive ? "在籍中" : "退職済"}
         </Badge>
-        <Badge tone="purple">{roleLabels[toRole(employee.role)]}</Badge>
+        <Badge tone="purple">{data.roleLabels[data.employee.role]}</Badge>
         <Badge tone="gray">
-          {year}年{monthNum}月度（{formatPeriodRange(period)}・締め{rules.closingDay}日）
+          {data.year}年{data.monthNum}月度（{data.periodRangeLabel}・締め{data.closingDay}日）
         </Badge>
-        {employee.hourlyWage === 0 && (
+        {showMoney && data.employee.hourlyWage === 0 && (
           <Badge tone="amber">時給未設定（金額は¥0になります）</Badge>
         )}
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="勤務日数" value={`${summary.workDays}日`} />
-        <StatCard label="勤務時間" value={formatMinutes(monthTotal.workMinutes)} />
+      <div
+        className={`mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 ${showMoney ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}
+      >
+        <StatCard label="勤務日数" value={`${data.summary.workDays}日`} />
+        <StatCard label="勤務時間" value={formatMinutes(data.monthTotal.workMinutes)} />
+        <StatCard label="早出残業" value={formatMinutes(data.monthTotal.earlyOvertimeMinutes)} tone="amber" />
+        <StatCard label="残業時間" value={formatMinutes(data.monthTotal.overtimeMinutes)} tone="amber" />
         <StatCard
-          label="早出残業"
-          value={formatMinutes(monthTotal.earlyOvertimeMinutes)}
-          tone="amber"
+          label="遅刻・早退"
+          value={`${data.summary.lateCount}・${data.summary.earlyLeaveCount}回`}
+          sub={
+            data.summary.lateMinutes + data.summary.earlyLeaveMinutes > 0
+              ? `計${formatMinutes(data.summary.lateMinutes + data.summary.earlyLeaveMinutes)}`
+              : undefined
+          }
+          tone={data.summary.lateCount + data.summary.earlyLeaveCount > 0 ? "amber" : "default"}
         />
-        <StatCard
-          label="残業時間"
-          value={formatMinutes(monthTotal.overtimeMinutes)}
-          tone="amber"
-        />
-        <StatCard
-          label="支給額（概算）"
-          value={formatYen(payTotal.totalPay)}
-          sub={`金額 ${formatYen(payTotal.basePay)} ＋ 残業代 ${formatYen(payTotal.premiumPay)}`}
-          tone="primary"
-        />
+        {showMoney && (
+          <StatCard
+            label="支給額（概算）"
+            value={formatYen(data.payTotal.totalPay)}
+            sub={`金額 ${formatYen(data.payTotal.basePay)} ＋ 残業代 ${formatYen(data.payTotal.premiumPay)}`}
+            tone="primary"
+          />
+        )}
       </div>
 
       <Card className="overflow-x-auto p-0">
-        <AttendanceEditor userId={employee.id} rows={rows} editable={editable} />
+        <AttendanceEditor
+          userId={data.employee.id}
+          rows={data.rows}
+          editable={data.editable}
+          showMoney={showMoney}
+          onChanged={refetch}
+        />
       </Card>
+
+      {data.logs.length > 0 && (
+        <Card className="mt-6">
+          <h2 className="mb-2 text-sm font-semibold text-muted">修正履歴（この月度・直近30件）</h2>
+          <ul className="divide-y divide-border">
+            {data.logs.map((log) => (
+              <li key={log.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
+                <span className="font-medium">{log.date}</span>
+                <Badge
+                  tone={
+                    log.action === "DELETE" || log.action === "REJECT"
+                      ? "red"
+                      : log.action === "APPROVE"
+                        ? "green"
+                        : "gray"
+                  }
+                >
+                  {log.action === "EDIT"
+                    ? "修正"
+                    : log.action === "DELETE"
+                      ? "削除"
+                      : log.action === "APPROVE"
+                        ? "申請承認"
+                        : "申請却下"}
+                </Badge>
+                <span className="font-mono text-xs tabular-nums text-muted">
+                  {formatLogChange(log.before, log.after)}
+                </span>
+                <span className="text-xs text-muted">
+                  {log.actorName ?? "（削除済みユーザー）"} ・ {log.createdAtLabel}
+                </span>
+                {log.note && <span className="text-xs text-muted">（{log.note}）</span>}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
     </>
   );
 }

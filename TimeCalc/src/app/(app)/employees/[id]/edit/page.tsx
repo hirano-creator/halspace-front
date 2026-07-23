@@ -1,47 +1,60 @@
+"use client";
+
 // 社員情報の編集 ※管理者のみ
 
-import { notFound } from "next/navigation";
-import { prisma } from "@/lib/db";
-import { requirePermission } from "@/lib/auth/guard";
-import { toRole } from "@/lib/auth/roles";
-import { getRoleLabels } from "@/lib/settings";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useRequireAuth } from "@/lib/auth/client";
+import { apiFetchJson } from "@/lib/auth/api-fetch";
 import { Card, PageHeader } from "@/components/ui";
 import { EmployeeForm } from "../../employee-form";
+import type { EmployeeDetailValues, FormOptionsResponse } from "../../types";
 
-export const dynamic = "force-dynamic";
+export default function EditEmployeePage() {
+  const { status: authStatus } = useRequireAuth();
+  const params = useParams<{ id: string }>();
 
-export default async function EditEmployeePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  await requirePermission("manageEmployees");
-  const { id } = await params;
+  const [options, setOptions] = useState<FormOptionsResponse | null>(null);
+  const [employee, setEmployee] = useState<EmployeeDetailValues | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const [employee, departments, roleLabels] = await Promise.all([
-    prisma.user.findUnique({ where: { id } }),
-    prisma.department.findMany({ orderBy: { name: "asc" } }),
-    getRoleLabels(),
-  ]);
-  if (!employee) notFound();
+  useEffect(() => {
+    if (authStatus !== "authenticated") return;
+    let cancelled = false;
+    Promise.all([
+      apiFetchJson<FormOptionsResponse>("/api/employees/form-options"),
+      apiFetchJson<EmployeeDetailValues>(`/api/employees/${params.id}`),
+    ])
+      .then(([opt, emp]) => {
+        if (cancelled) return;
+        setOptions(opt);
+        setEmployee(emp);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus, params.id]);
+
+  if (authStatus === "unauthenticated") return null;
+  if (authStatus === "loading" || !options || !employee) {
+    return <p className="py-8 text-center text-sm text-muted">読み込み中...</p>;
+  }
+  if (error) {
+    return <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>;
+  }
 
   return (
     <>
       <PageHeader title="社員情報を編集" description={`社員番号 ${employee.employeeCode}`} />
       <Card className="max-w-2xl">
         <EmployeeForm
-          departments={departments}
-          roleLabels={roleLabels}
-          values={{
-            id: employee.id,
-            employeeCode: employee.employeeCode,
-            name: employee.name,
-            email: employee.email ?? "",
-            role: toRole(employee.role),
-            hourlyWage: employee.hourlyWage,
-            departmentId: employee.departmentId ?? "",
-            isActive: employee.isActive,
-          }}
+          departments={options.departments}
+          roleLabels={options.roleLabels}
+          showMoney={options.showMoney}
+          values={employee}
         />
       </Card>
     </>

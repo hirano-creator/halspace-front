@@ -15,16 +15,27 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
+  // グループ会社（設定画面の会社選択タブに表示される）
+  const companyNames = ["ヒラノ", "HaLSpace", "tws", "HKT", "affect"];
+  const companies = {};
+  for (const name of companyNames) {
+    companies[name] = await prisma.company.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    });
+  }
+
   // 部署
   const manufacturing = await prisma.department.upsert({
     where: { name: "製造部" },
     update: {},
-    create: { name: "製造部" },
+    create: { name: "製造部", companyId: companies["ヒラノ"].id },
   });
   const general = await prisma.department.upsert({
     where: { name: "総務部" },
     update: {},
-    create: { name: "総務部" },
+    create: { name: "総務部", companyId: companies["ヒラノ"].id },
   });
 
   const minimal = process.env.SEED_MINIMAL === "1";

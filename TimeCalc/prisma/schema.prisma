@@ -5,9 +5,14 @@
 // `npx prisma migrate deploy` を実行する。
 
 generator client {
-  provider = "prisma-client-js"
-  // native: ローカル開発用 / rhel-openssl-3.0.x: Netlify Functions (AWS Lambda) 用
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  // Cloudflare D1（Workers）向けの新 generator。runtime="cloudflare" により
+  // WASM を ESM import する形で生成され、OpenNext/wrangler がバンドルに含められる
+  // （旧 prisma-client-js + adapter では query_compiler_bg.wasm がバンドル漏れする）。
+  // 生成物は src/generated/prisma に出力し、アプリからはそこを import する。
+  // Netlify + Neon 経路は prisma/schema.postgres.prisma 側で別管理。
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  runtime  = "cloudflare"
 }
 
 datasource db {
@@ -15,33 +20,77 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 部署
-model Department {
+// 会社（グループ会社。部署の上位階層）
+model Company {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  departments Department[]
+  settings    CompanySetting[]
+}
+
+// 会社ごとの設定（key-value、値はJSON文字列）
+// key: "workRules"（勤務ルール） | "roleLabels"（権限表示名） | "displaySettings"（表示設定）
+// 会社に保存がないキーは共通設定（Setting テーブル）→デフォルト値の順でフォールバックする
+model CompanySetting {
   id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  key       String
+  value     String
   updatedAt DateTime @updatedAt
-  users     User[]
+
+  @@unique([companyId, key])
+}
+
+// 部署（= 店舗）
+model Department {
+  id                  String       @id @default(cuid())
+  name                String       @unique
+  companyId           String? // 所属するグループ会社（未設定可）
+  company             Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  latitude            Float? // 店舗の緯度（GPS打刻判定用。未設定ならGPS判定をスキップ）
+  longitude           Float? // 店舗の経度
+  allowedRadiusMeters Int? // 打刻を許可する半径（m）。latitude/longitudeとセットで設定
+  dailyQrEnabled      Boolean      @default(false) // trueの場合、打刻QRのURLに当日限り有効なトークンを要求する
+  standardQrEnabled   Boolean      @default(true) // 標準QR（4ボタン）をQR表示画面に表示するか
+  attendQrEnabled     Boolean      @default(true) // 出勤・退勤QRをQR表示画面に表示するか
+  outingQrEnabled     Boolean      @default(true) // 外出・戻りQRをQR表示画面に表示するか
+  kioskKey            String?      @unique // キオスク表示用の秘密キー（NULL=未発行）。URL: /qr/[kioskKey]
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  users               User[]
+  clockEvents         ClockEvent[]
 }
 
 // 社員（ログインユーザー兼務）
 // role: ADMIN(管理者) | HR(総務) | MANAGER(工場長) | EMPLOYEE(一般社員)
 model User {
-  id           String      @id @default(cuid())
-  employeeCode String      @unique // 社員番号
-  name         String
-  email        String?     @unique
-  passwordHash String
-  role         String      @default("EMPLOYEE")
-  hourlyWage   Int         @default(0) // 時給（円）。金額計算に使用
-  departmentId String?
-  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  isActive     Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id              String      @id @default(cuid())
+  employeeCode    String      @unique // 社員番号
+  name            String
+  email           String?     @unique
+  passwordHash    String
+  role            String      @default("EMPLOYEE")
+  hourlyWage      Int         @default(0) // 時給（円）。金額計算に使用
+  departmentId    String?
+  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  isActive        Boolean     @default(true)
+  gpsCheckEnabled Boolean     @default(true) // false の場合、このユーザーは打刻時のGPS判定をスキップする
+  // スタッフ単位の機能設定の上書き値（JSON文字列）。
+  // 未設定キーはデフォルト値が適用される（src/lib/auth/features.ts）
+  featureOverrides String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
-  attendances Attendance[]
-  imports     ImportHistory[]
+  attendances         Attendance[]
+  imports             ImportHistory[]
+  clockEvents         ClockEvent[]
+  correctionRequests  CorrectionRequest[] @relation("correctionRequests")
+  reviewedCorrections CorrectionRequest[] @relation("reviewedCorrections")
+  attendanceLogs      AttendanceLog[]     @relation("attendanceLogs")
+  actedLogs           AttendanceLog[]     @relation("actedLogs")
 }
 
 // 勤怠打刻データ（生データのみ保持する）
@@ -54,13 +103,39 @@ model Attendance {
   date         String // "YYYY-MM-DD"
   clockIn      String // "HH:mm"
   clockOut     String // "HH:mm"
-  breakMinutes Int      @default(0) // 休憩時間（分）
+  breakMinutes Int      @default(0) // 休憩時間（分。固定休憩＋外出時間の合算）
+  outingStart  String? // 外出開始 "HH:mm"（本人修正・修正申請由来のみ。CSV取込・打刻由来はnull）
+  outingEnd    String? // 外出終了（戻り）"HH:mm"
   note         String?
+  lateReason   String? // 遅刻理由（本人・管理者が後から記入可。打刻時の理由からも自動転記）
+  earlyLeaveReason String? // 早退理由（同上）
+  source       String   @default("MANUAL") // "MANUAL" | "CSV" | "CLOCK"（どの経路で書かれたかの表示用。計算には使わない）
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@unique([userId, date])
   @@index([date])
+}
+
+// 打刻の生ログ（真実源泉）。出勤/退勤/外出/戻りの1回のタップ = 1レコード
+model ClockEvent {
+  id             String      @id @default(cuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           String // "IN"(出勤) | "OUT"(退勤) | "OUT_START"(外出) | "OUT_END"(戻り)
+  reason         String? // 打刻時に本人が入力した理由（遅刻・外出理由など）
+  timestamp      DateTime    @default(now()) // 実打刻の瞬間
+  date           String // 打刻時点のローカル日付 "YYYY-MM-DD"（打刻時に確定・以後不変）
+  time           String // 打刻時点のローカル時刻 "HH:mm"（打刻時に確定・以後不変）
+  latitude       Float? // 打刻時の現在地
+  longitude      Float?
+  distanceMeters Float? // 判定対象店舗との距離（参考値として保存）
+  departmentId   String? // 判定に使った部署（QR経由なら店舗、それ以外は本人の所属部署）
+  department     Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdAt      DateTime    @default(now())
+
+  @@index([userId, date])
+  @@index([userId, timestamp])
 }
 
 // CSV取込履歴
@@ -75,8 +150,49 @@ model ImportHistory {
   createdAt    DateTime @default(now())
 }
 
+// 打刻修正申請（押し忘れ・誤打刻を本人が申請し、管理者/店長の承認で Attendance に反映する）
+model CorrectionRequest {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation("correctionRequests", fields: [userId], references: [id], onDelete: Cascade)
+  date         String // 対象日 "YYYY-MM-DD"
+  clockIn      String // 修正後の出勤 "HH:mm"
+  clockOut     String // 修正後の退勤 "HH:mm"
+  breakMinutes Int       @default(0) // 修正後の休憩・外出（分。固定休憩＋外出時間の合算）
+  outingStart  String? // 外出開始 "HH:mm"
+  outingEnd    String? // 外出終了（戻り）"HH:mm"
+  reason       String // 申請理由（必須）
+  status       String    @default("PENDING") // "PENDING" | "APPROVED" | "REJECTED"
+  reviewedById String?
+  reviewedBy   User?     @relation("reviewedCorrections", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewNote   String? // 承認・却下時のコメント
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status])
+  @@index([userId, date])
+}
+
+// 勤怠の修正履歴（誰が・いつ・どの日の勤怠をどう変えたか）
+model AttendanceLog {
+  id        String   @id @default(cuid())
+  userId    String // 対象社員
+  user      User     @relation("attendanceLogs", fields: [userId], references: [id], onDelete: Cascade)
+  date      String // 対象日 "YYYY-MM-DD"
+  actorId   String? // 操作した人（退職などで削除された場合は null）
+  actor     User?    @relation("actedLogs", fields: [actorId], references: [id], onDelete: SetNull)
+  action    String // "EDIT" | "DELETE" | "APPROVE" | "REJECT"
+  before    String? // 変更前の {clockIn, clockOut, breakMinutes} JSON（新規追加時は null）
+  after     String? // 変更後の JSON（削除時は null）
+  note      String? // 申請理由・却下理由など
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
 // アプリケーション設定（key-value、値はJSON文字列）
-// key: "workRules"（勤務ルール） | "csvMapping"（CSV列マッピング）
+// key: "workRules"（勤務ルール） | "csvMapping"（CSV列マッピング） | "roleLabels"（権限表示名） | "displaySettings"（表示設定）
 model Setting {
   key       String   @id
   value     String
