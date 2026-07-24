@@ -16,6 +16,45 @@ import { Badge, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "@/c
 const th = "px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted";
 const td = "px-2 py-2 text-sm whitespace-nowrap";
 
+// 列幅。table-fixed と組み合わせて、ヘッダーとデータ行の列位置を確実に一致させる
+// （table-layout:auto のままだと列幅がブラウザ任せになり、ヘッダーと中身がずれる）。
+// 金額3列（金額/残業代/支給額）の有無で列数が変わるため2パターン持つ。合計は各100%。
+const COL_WIDTHS = [
+  "w-[8%]", // 日付
+  "w-[7%]", // 実出勤
+  "w-[7%]", // 実退勤
+  "w-[7%]", // 出勤
+  "w-[7%]", // 退勤
+  "w-[6%]", // 外出
+  "w-[6%]", // 戻り
+  "w-[7%]", // 実外出
+  "w-[8%]", // 控除外出
+  "w-[8%]", // 勤務時間
+  "w-[7%]", // 早出残業
+  "w-[6%]", // 残業
+  "w-[9%]", // 備考
+  "w-[7%]", // 操作
+];
+const COL_WIDTHS_WITH_MONEY = [
+  "w-[7%]", // 日付
+  "w-[6%]", // 実出勤
+  "w-[6%]", // 実退勤
+  "w-[6%]", // 出勤
+  "w-[6%]", // 退勤
+  "w-[5%]", // 外出
+  "w-[5%]", // 戻り
+  "w-[6%]", // 実外出
+  "w-[7%]", // 控除外出
+  "w-[7%]", // 勤務時間
+  "w-[6%]", // 早出残業
+  "w-[5%]", // 残業
+  "w-[6%]", // 備考
+  "w-[6%]", // 金額
+  "w-[5%]", // 残業代
+  "w-[5%]", // 支給額
+  "w-[6%]", // 操作
+];
+
 export interface DailyRow {
   attendanceId: string | null; // 打刻がない日は null
   date: string; // "YYYY-MM-DD"
@@ -215,16 +254,23 @@ export function AttendanceEditor({
   const columnCount = showMoney ? 17 : 14;
 
   return (
-    <table className={`w-full text-sm ${showMoney ? "min-w-[1240px]" : "min-w-[960px]"}`}>
+    <table
+      className={`w-full table-fixed text-sm ${showMoney ? "min-w-[1240px]" : "min-w-[960px]"}`}
+    >
+      <colgroup>
+        {(showMoney ? COL_WIDTHS_WITH_MONEY : COL_WIDTHS).map((w, i) => (
+          <col key={i} className={w} />
+        ))}
+      </colgroup>
       <thead className="border-b border-border bg-gray-50/50">
         <tr>
-          <th className={th}>日付</th>
-          <th className={th}>実出勤</th>
-          <th className={th}>実退勤</th>
-          <th className={th}>出勤</th>
-          <th className={th}>退勤</th>
-          <th className={th}>外出</th>
-          <th className={th}>戻り</th>
+          <th className={`${th} text-center`}>日付</th>
+          <th className={`${th} text-right`}>実出勤</th>
+          <th className={`${th} text-right`}>実退勤</th>
+          <th className={`${th} text-right`}>出勤</th>
+          <th className={`${th} text-right`}>退勤</th>
+          <th className={`${th} text-right`}>外出</th>
+          <th className={`${th} text-right`}>戻り</th>
           <th className={`${th} text-right`}>実外出</th>
           <th className={`${th} text-right`}>控除外出</th>
           <th className={`${th} text-right`}>勤務時間</th>
@@ -253,21 +299,27 @@ export function AttendanceEditor({
               />
             ) : (
               <>
-                <td className={`${td} ${row.isWeekend ? "text-muted" : ""}`}>{row.dayLabel}</td>
-                <td className={`${td} font-mono tabular-nums`}>
+                <td className={`${td} text-center ${row.isWeekend ? "text-muted" : ""}`}>
+                  {row.dayLabel}
+                </td>
+                <td className={`${td} text-right font-mono tabular-nums`}>
                   {row.attendanceId ? row.clockIn : "-"}
                 </td>
-                <td className={`${td} font-mono tabular-nums`}>
+                <td className={`${td} text-right font-mono tabular-nums`}>
                   {row.attendanceId ? row.clockOut : "-"}
                 </td>
-                <td className={`${td} font-mono tabular-nums text-muted`}>
+                <td className={`${td} text-right font-mono tabular-nums text-muted`}>
                   {row.roundedClockInLabel}
                 </td>
-                <td className={`${td} font-mono tabular-nums text-muted`}>
+                <td className={`${td} text-right font-mono tabular-nums text-muted`}>
                   {row.roundedClockOutLabel}
                 </td>
-                <td className={`${td} font-mono tabular-nums text-muted`}>{row.outingStartLabel}</td>
-                <td className={`${td} font-mono tabular-nums text-muted`}>{row.outingEndLabel}</td>
+                <td className={`${td} text-right font-mono tabular-nums text-muted`}>
+                  {row.outingStartLabel}
+                </td>
+                <td className={`${td} text-right font-mono tabular-nums text-muted`}>
+                  {row.outingEndLabel}
+                </td>
                 <td className={`${td} text-right`}>{row.actualOutingLabel}</td>
                 <td className={`${td} text-right`}>{row.deductibleOutingLabel}</td>
                 <td className={`${td} text-right`}>
