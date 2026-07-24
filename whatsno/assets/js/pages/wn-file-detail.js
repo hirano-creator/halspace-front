@@ -12,6 +12,11 @@ let pdfPreviewRot  = 0;   // ビューア側追加回転: 0 | 90 | 180 | 270
 let pdfViewMode    = 'single';  // 'single' | 'grid'
 let pdfGridRendered = false;    // グリッド描画済みフラグ（回転時に無効化）
 
+/* ── グリッド：ページ選択モード ── */
+let pdfGridSelectMode = false;
+let pdfGridSelectedPages = new Set();  // 1-indexed ページ番号
+let pdfGridCellRefs = new Map();       // n -> { box, chk } （全選択トグル用）
+
 let _activePdfRenderTask = null;  // 現在実行中のPDFレンダリングタスク（タイムアウト制御用）
 let _pdfLoadGeneration   = 0;     // loadPdfPreview の呼び出し世代番号（古い呼び出しを無効化）
 
@@ -679,7 +684,39 @@ async function setPdfViewMode(mode) {
       toggle.innerHTML = '<i class="fa-solid fa-table-cells"></i>';
       toggle.title = '全ページを一覧表示';
     }
+    /* 単ページ表示に戻る際は選択モードも解除 */
+    if (pdfGridSelectMode) {
+      pdfGridSelectMode = false;
+      pdfGridSelectedPages.clear();
+      document.getElementById('pdfGridSelectBar')?.remove();
+      updateGridSelectToggleBtn();
+    }
   }
+}
+
+/* 選択トグルボタンのアクティブ表示を更新 */
+function updateGridSelectToggleBtn() {
+  const btn = document.getElementById('pdfGridSelectToggle');
+  if (!btn) return;
+  btn.style.color = pdfGridSelectMode ? '#4FC3F7' : '#fff';
+  btn.title = pdfGridSelectMode ? '選択モードを終了' : 'ページを選択';
+}
+
+/* 選択モードのON/OFF切り替え */
+async function togglePdfGridSelectMode() {
+  if (pdfViewMode !== 'grid') {
+    await setPdfViewMode('grid');
+  }
+  pdfGridSelectMode = !pdfGridSelectMode;
+  if (!pdfGridSelectMode) pdfGridSelectedPages.clear();
+  pdfGridRendered = false;
+  await renderPdfGrid();
+  /* renderPdfGrid() は再構築のたびに display:none から書き直すため、
+     既にグリッド表示中だった場合はここで block に戻す必要がある */
+  const grid = document.getElementById('pdfGridContainer');
+  if (grid) grid.style.display = 'block';
+  updateGridSelectToggleBtn();
+  updateGridSelectToolbar();
 }
 
 /* 全ページをグリッド描画（ページ数が少ない場合は高さフィットの大表示） */
@@ -694,6 +731,7 @@ async function renderPdfGrid() {
     area.appendChild(grid);
   }
   if (pdfGridRendered) return;
+  pdfGridCellRefs.clear();
 
   const total   = pdfPreviewDoc.numPages;
   const areaW   = area.clientWidth  || 900;
@@ -735,9 +773,19 @@ async function renderPdfGrid() {
         `<span style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.6);` +
         `color:#fff;font-size:11px;border-radius:10px;padding:2px 8px;">p.${n}</span>`;
       cell.appendChild(wrap);
+      const chk = createGridSelectCheckbox(n);
+      wrap.appendChild(chk);
+      pdfGridCellRefs.set(n, { box: wrap, chk });
+      const selected = pdfGridSelectedPages.has(n);
+      if (selected) wrap.style.outline = '3px solid #1976d2';
       cell.addEventListener('mouseenter', () => wrap.style.outline = '3px solid #1976d2');
-      cell.addEventListener('mouseleave', () => wrap.style.outline = 'none');
+      cell.addEventListener('mouseleave', () =>
+        wrap.style.outline = pdfGridSelectedPages.has(n) ? '3px solid #1976d2' : 'none');
       cell.addEventListener('click', async () => {
+        if (pdfGridSelectMode) {
+          setGridPageSelected(n, !pdfGridSelectedPages.has(n));
+          return;
+        }
         pdfPreviewPage = n;
         await setPdfViewMode('single');
         await reRenderPdfPreviewPage();
@@ -782,9 +830,19 @@ async function renderPdfGrid() {
         '<canvas style="display:block;width:100%;height:auto;"></canvas>' +
         `<span style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,.6);` +
         `color:#fff;font-size:11px;border-radius:10px;padding:2px 8px;">p.${n}</span>`;
+      const chk = createGridSelectCheckbox(n);
+      cell.appendChild(chk);
+      pdfGridCellRefs.set(n, { box: cell, chk });
+      const selected = pdfGridSelectedPages.has(n);
+      if (selected) cell.style.outline = '3px solid #1976d2';
       cell.addEventListener('mouseenter', () => cell.style.outline = '3px solid #1976d2');
-      cell.addEventListener('mouseleave', () => cell.style.outline = 'none');
+      cell.addEventListener('mouseleave', () =>
+        cell.style.outline = pdfGridSelectedPages.has(n) ? '3px solid #1976d2' : 'none');
       cell.addEventListener('click', async () => {
+        if (pdfGridSelectMode) {
+          setGridPageSelected(n, !pdfGridSelectedPages.has(n));
+          return;
+        }
         pdfPreviewPage = n;
         await setPdfViewMode('single');
         await reRenderPdfPreviewPage();
@@ -806,6 +864,343 @@ async function renderPdfGrid() {
     }
   }   /* end if(bigMode)/else */
   pdfGridRendered = true;
+}
+
+/* グリッドセル用のチェックボックス（選択モード時のみ表示） */
+function createGridSelectCheckbox(n) {
+  const chk = document.createElement('div');
+  chk.className = 'pdf-grid-chk';
+  chk.dataset.page = n;
+  const selected = pdfGridSelectedPages.has(n);
+  chk.style.cssText = [
+    'position:absolute', 'top:6px', 'left:6px', 'width:22px', 'height:22px',
+    'border-radius:5px', 'border:2px solid #1976d2', 'z-index:2', 'cursor:pointer',
+    'display:' + (pdfGridSelectMode ? 'flex' : 'none'), 'align-items:center', 'justify-content:center',
+    'background:' + (selected ? '#1976d2' : 'rgba(255,255,255,.9)'),
+  ].join(';');
+  chk.innerHTML = selected ? '<i class="fa-solid fa-check" style="color:#fff;font-size:13px;"></i>' : '';
+  return chk;
+}
+
+/* ページの選択状態を更新（Set＋見た目の両方） */
+function setGridPageSelected(n, selected) {
+  if (selected) pdfGridSelectedPages.add(n);
+  else pdfGridSelectedPages.delete(n);
+
+  const ref = pdfGridCellRefs.get(n);
+  if (ref) {
+    ref.box.style.outline = selected ? '3px solid #1976d2' : 'none';
+    ref.chk.style.background = selected ? '#1976d2' : 'rgba(255,255,255,.9)';
+    ref.chk.innerHTML = selected ? '<i class="fa-solid fa-check" style="color:#fff;font-size:13px;"></i>' : '';
+  }
+  updateGridSelectToolbar();
+}
+
+/* 全選択／全解除トグル */
+function selectAllGridPages() {
+  const total = pdfPreviewDoc?.numPages || 0;
+  const selectAll = pdfGridSelectedPages.size !== total;
+  for (let n = 1; n <= total; n++) setGridPageSelected(n, selectAll);
+}
+
+/* 選択中フローティングツールバーの生成・更新 */
+function updateGridSelectToolbar() {
+  let bar = document.getElementById('pdfGridSelectBar');
+  if (!pdfGridSelectMode) { bar?.remove(); return; }
+
+  const area = document.getElementById('previewArea');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'pdfGridSelectBar';
+    area.appendChild(bar);
+  }
+  bar.style.cssText = [
+    'position:absolute', 'bottom:16px', 'left:50%', 'transform:translateX(-50%)',
+    'max-width:calc(100% - 24px)',
+    'background:rgba(0,0,0,.78)', 'backdrop-filter:blur(6px)', 'border-radius:20px',
+    'padding:8px 12px', 'display:flex', 'align-items:center', 'justify-content:center',
+    'flex-wrap:wrap', 'gap:4px 6px',
+    'z-index:20', 'color:#fff', 'font-size:13px', 'box-shadow:0 4px 20px rgba(0,0,0,.4)',
+  ].join(';');
+
+  const count    = pdfGridSelectedPages.size;
+  const total    = pdfPreviewDoc?.numPages || 0;
+  const disabled = count === 0;
+  const hasSolid = !!getSpaceUser()?.apps?.includes('solid');
+  const btnStyle = [
+    'background:none', 'border:none', 'color:#fff', 'cursor:pointer', 'font-size:13px',
+    'padding:6px 9px', 'border-radius:14px', 'display:inline-flex', 'align-items:center', 'gap:5px',
+    'white-space:nowrap', 'transition:background .15s',
+  ].join(';');
+  const disabledExtra = disabled ? 'opacity:.4;pointer-events:none;' : '';
+  const solidExtra    = (disabled || !hasSolid) ? 'opacity:.4;pointer-events:none;' : '';
+  const sep = '<span style="width:1px;height:18px;background:rgba(255,255,255,.25);"></span>';
+
+  bar.innerHTML = `
+    <span style="white-space:nowrap;">${count} / ${total} 選択中</span>
+    <button id="gridSelAll" style="${btnStyle}">${count === total && total > 0 ? '全解除' : 'すべて選択'}</button>
+    ${sep}
+    <button id="gridSelPrint" style="${btnStyle}${disabledExtra}"><i class="fa-solid fa-print"></i> 印刷</button>
+    <button id="gridSelDl" style="${btnStyle}${disabledExtra}"><i class="fa-solid fa-download"></i> DL</button>
+    <button id="gridSelSave" style="${btnStyle}${disabledExtra}"><i class="fa-solid fa-floppy-disk"></i> 新規保存</button>
+    ${sep}
+    <button id="gridSelAa" style="${btnStyle}${disabledExtra}"><i class="fa-solid fa-share-nodes"></i> a.a</button>
+    <button id="gridSelSolid" style="${btnStyle}${solidExtra}" title="${hasSolid ? '選択ページでSOLIDに発注' : 'SOLID未契約です'}"><i class="fa-solid fa-cube"></i> SOLID</button>
+    <button id="gridSelEmail" style="${btnStyle}${disabledExtra}"><i class="fa-solid fa-envelope"></i> メール</button>
+    ${sep}
+    <button id="gridSelRotate" style="${btnStyle}${disabledExtra}"><i class="fa-solid fa-rotate-right"></i> 回転</button>
+    <button id="gridSelDelete" style="${btnStyle}${disabledExtra}color:#ff8a80;"><i class="fa-solid fa-trash"></i> 削除</button>
+    ${sep}
+    <button id="gridSelCancel" style="${btnStyle}" title="選択モードを終了"><i class="fa-solid fa-xmark"></i></button>
+  `;
+  bar.querySelectorAll('button').forEach(b => {
+    b.addEventListener('mouseenter', () => b.style.background = 'rgba(255,255,255,.2)');
+    b.addEventListener('mouseleave', () => b.style.background = 'none');
+  });
+  bar.querySelector('#gridSelAll').addEventListener('click', () => selectAllGridPages());
+  bar.querySelector('#gridSelPrint').addEventListener('click', () => printSelectedPdfPages());
+  bar.querySelector('#gridSelDl').addEventListener('click', () => downloadSelectedPdfPages());
+  bar.querySelector('#gridSelSave').addEventListener('click', () => saveSelectedPagesAndOpen());
+  bar.querySelector('#gridSelAa').addEventListener('click', () => postSelectedPagesToAa());
+  bar.querySelector('#gridSelSolid').addEventListener('click', () => orderSelectedPagesToSolid());
+  bar.querySelector('#gridSelEmail').addEventListener('click', () => emailSelectedPages());
+  bar.querySelector('#gridSelRotate').addEventListener('click', () => rotateSelectedPdfPages());
+  bar.querySelector('#gridSelDelete').addEventListener('click', () => deleteSelectedPdfPages());
+  bar.querySelector('#gridSelCancel').addEventListener('click', () => togglePdfGridSelectMode());
+}
+
+/* 選択ページを元PDFから完全に削除して上書き保存 */
+async function deleteSelectedPdfPages() {
+  const total = pdfPreviewDoc?.numPages || 0;
+  const selected = [...pdfGridSelectedPages].sort((a, b) => a - b);
+  if (!selected.length) return;
+  if (selected.length >= total) {
+    wnShowToast('全ページは削除できません（最低1ページは残してください）', 'danger');
+    return;
+  }
+  if (typeof PDFLib === 'undefined') { wnShowToast('pdf-libが読み込まれていません', 'danger'); return; }
+  if (!confirm(`${selected.length} ページを完全に削除して元PDFに上書き保存します。よろしいですか？\n（削除したページは元に戻せません）`)) return;
+
+  const deleteBtn = document.getElementById('gridSelDelete');
+  if (deleteBtn) { deleteBtn.disabled = true; deleteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+
+  try {
+    const buffer = await fetchFileBuffer();
+    const srcDoc = await PDFLib.PDFDocument.load(buffer, { ignoreEncryption: true });
+    const keepIdx = [];
+    for (let i = 0; i < total; i++) {
+      if (!pdfGridSelectedPages.has(i + 1)) keepIdx.push(i);
+    }
+    const newDoc = await PDFLib.PDFDocument.create();
+    const copied = await newDoc.copyPages(srcDoc, keepIdx);
+    copied.forEach(p => newDoc.addPage(p));
+    const bytes = await newDoc.save();
+    const blob  = new Blob([bytes], { type: 'application/pdf' });
+    const file  = new File([blob], fileData.file_name, { type: 'application/pdf' });
+
+    const res = await wnOverwriteFile(fileId, file);
+    if (!res?.data) throw new Error('保存に失敗しました');
+
+    await preGeneratePdfThumb(res.data.updated_at).catch(() => {});
+    wnShowToast(`${selected.length} ページを削除しました`, 'success');
+    setTimeout(() => location.reload(), 600);
+  } catch (e) {
+    console.error('pdf delete pages error:', e);
+    wnShowToast('削除エラー: ' + e.message, 'danger');
+    if (deleteBtn) { deleteBtn.disabled = false; deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i> 削除'; }
+  }
+}
+
+/* 選択ページのみを含む新規PDF Blobを生成（元ファイルは変更しない） */
+async function buildSelectedPagesPdfBlob() {
+  if (typeof PDFLib === 'undefined') throw new Error('pdf-libが読み込まれていません');
+  const selected = [...pdfGridSelectedPages].sort((a, b) => a - b);
+  if (!selected.length) throw new Error('ページが選択されていません');
+
+  const buffer = await fetchFileBuffer();
+  const srcDoc = await PDFLib.PDFDocument.load(buffer, { ignoreEncryption: true });
+  const newDoc = await PDFLib.PDFDocument.create();
+  const copied = await newDoc.copyPages(srcDoc, selected.map(n => n - 1));
+  copied.forEach(p => newDoc.addPage(p));
+  const bytes = await newDoc.save();
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
+/* 選択ページ番号を "p1-3_5" のようにまとめてラベル化 */
+function summarizeSelectedPagesLabel() {
+  const pages = [...pdfGridSelectedPages].sort((a, b) => a - b);
+  const parts = [];
+  let start = pages[0], prev = pages[0];
+  for (let i = 1; i <= pages.length; i++) {
+    const cur = pages[i];
+    if (cur === prev + 1) { prev = cur; continue; }
+    parts.push(start === prev ? `${start}` : `${start}-${prev}`);
+    start = prev = cur;
+  }
+  return 'p' + parts.join('_');
+}
+
+/* 選択ページのみダウンロード（元ファイルは変更しない） */
+async function downloadSelectedPdfPages() {
+  const dlBtn = document.getElementById('gridSelDl');
+  const orig  = dlBtn?.innerHTML;
+  if (dlBtn) { dlBtn.disabled = true; dlBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+  try {
+    const blob = await buildSelectedPagesPdfBlob();
+    const baseName = fileData.file_name.replace(/\.pdf$/i, '');
+    downloadBlob(blob, `${baseName}_${summarizeSelectedPagesLabel()}.pdf`);
+  } catch (e) {
+    console.error('pdf download selected pages error:', e);
+    wnShowToast('ダウンロードエラー: ' + e.message, 'danger');
+  } finally {
+    if (dlBtn) { dlBtn.disabled = false; dlBtn.innerHTML = orig; }
+  }
+}
+
+/* 選択ページのみ印刷（ブラウザの印刷ダイアログを開く、元ファイルは変更しない） */
+async function printSelectedPdfPages() {
+  const printBtn = document.getElementById('gridSelPrint');
+  const orig     = printBtn?.innerHTML;
+  if (printBtn) { printBtn.disabled = true; printBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+  try {
+    const blob = await buildSelectedPagesPdfBlob();
+    const url  = URL.createObjectURL(blob);
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    iframe.onload = () => {
+      const cleanup = () => { iframe.remove(); URL.revokeObjectURL(url); };
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (e) {
+        console.error('print iframe error:', e);
+        wnShowToast('印刷ダイアログを開けませんでした', 'danger');
+        cleanup();
+        return;
+      }
+      iframe.contentWindow.addEventListener('afterprint', cleanup, { once: true });
+      setTimeout(cleanup, 60_000);
+    };
+  } catch (e) {
+    console.error('pdf print selected pages error:', e);
+    wnShowToast('印刷エラー: ' + e.message, 'danger');
+  } finally {
+    if (printBtn) { printBtn.disabled = false; printBtn.innerHTML = orig; }
+  }
+}
+
+/* 選択ページのみを新規What'sNoファイルとしてアップロードし、作成されたファイルデータを返す。
+   a.a投稿・SOLID発注・メール共有はいずれも「実在するWhat'sNoファイルID」を起点にするため、
+   その土台としてこの関数を共有する。 */
+async function saveSelectedPagesAsNewFile() {
+  const blob = await buildSelectedPagesPdfBlob();
+  const baseName = fileData.file_name.replace(/\.pdf$/i, '');
+  const newName  = `${baseName}_${summarizeSelectedPagesLabel()}.pdf`;
+  const file = new File([blob], newName, { type: 'application/pdf' });
+  const res  = await wnUploadFile(file);
+  if (!res?.data) throw new Error('保存に失敗しました');
+  return res.data;
+}
+
+/* ボタンをスピナー表示にして処理を実行する共通ラッパー */
+async function _withGridBtnBusy(btnId, fn) {
+  const btn  = document.getElementById(btnId);
+  const orig = btn?.innerHTML;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+  try { return await fn(); }
+  finally { if (btn) { btn.disabled = false; btn.innerHTML = orig; } }
+}
+
+/* 選択ページを新規ファイルとして保存し、その詳細ページを開くか確認 */
+async function saveSelectedPagesAndOpen() {
+  const selected = pdfGridSelectedPages.size;
+  if (!selected) return;
+  try {
+    const data = await _withGridBtnBusy('gridSelSave', saveSelectedPagesAsNewFile);
+    wnShowToast(`${selected} ページを新規ファイルとして保存しました`, 'success');
+    if (confirm('保存したファイルを開きますか？')) {
+      location.href = `file-detail.html?id=${data.id}`;
+    }
+  } catch (e) {
+    console.error('save selected pages error:', e);
+    wnShowToast('保存エラー: ' + e.message, 'danger');
+  }
+}
+
+/* 選択ページを新規ファイル化してからa.a投稿モーダルを開く */
+async function postSelectedPagesToAa() {
+  if (!pdfGridSelectedPages.size) return;
+  try {
+    const data = await _withGridBtnBusy('gridSelAa', saveSelectedPagesAsNewFile);
+    wnShowToast('選択ページを保存しました。a.aへの投稿内容を入力してください', 'info');
+    openAaPostModal(data.id, data.file_name);
+  } catch (e) {
+    console.error('a.a post selected pages error:', e);
+    wnShowToast('保存エラー: ' + e.message, 'danger');
+  }
+}
+
+/* 選択ページを新規ファイル化してからSOLIDの発注画面へ遷移 */
+async function orderSelectedPagesToSolid() {
+  if (!pdfGridSelectedPages.size) return;
+  const hasSolid = !!getSpaceUser()?.apps?.includes('solid');
+  if (!hasSolid) {
+    wnShowToast('SOLID未契約です（3Dモデル制作の発注にはSOLIDとの契約が必要です）', 'warning');
+    return;
+  }
+  try {
+    const data = await _withGridBtnBusy('gridSelSolid', saveSelectedPagesAsNewFile);
+    location.href = `../../solid/app/project-new.html?wn_file_id=${data.id}`;
+  } catch (e) {
+    console.error('solid order selected pages error:', e);
+    wnShowToast('保存エラー: ' + e.message, 'danger');
+  }
+}
+
+/* 選択ページを新規ファイル化してからメール共有モーダルを開く */
+async function emailSelectedPages() {
+  if (!pdfGridSelectedPages.size) return;
+  try {
+    const data = await _withGridBtnBusy('gridSelEmail', saveSelectedPagesAsNewFile);
+    wnShowToast('選択ページを保存しました。共有先を入力してください', 'info');
+    openEmailModal(data.id, data.file_name);
+  } catch (e) {
+    console.error('email selected pages error:', e);
+    wnShowToast('保存エラー: ' + e.message, 'danger');
+  }
+}
+
+/* 選択ページのみを右90°回転して元PDFに上書き保存（個別ページ回転） */
+async function rotateSelectedPdfPages() {
+  const selected = [...pdfGridSelectedPages].sort((a, b) => a - b);
+  if (!selected.length) return;
+  if (typeof PDFLib === 'undefined') { wnShowToast('pdf-libが読み込まれていません', 'danger'); return; }
+  if (!confirm(`${selected.length} ページを右90°回転して元PDFに上書き保存します。よろしいですか？`)) return;
+
+  try {
+    await _withGridBtnBusy('gridSelRotate', async () => {
+      const buffer = await fetchFileBuffer();
+      const doc    = await PDFLib.PDFDocument.load(buffer, { ignoreEncryption: true });
+      const pages  = doc.getPages();
+      selected.forEach(n => {
+        const pg  = pages[n - 1];
+        const cur = pg.getRotation?.()?.angle ?? 0;
+        pg.setRotation(PDFLib.degrees((cur + 90) % 360));
+      });
+      const bytes = await doc.save();
+      const file  = new File([new Blob([bytes], { type: 'application/pdf' })], fileData.file_name, { type: 'application/pdf' });
+      const res   = await wnOverwriteFile(fileId, file);
+      if (!res?.data) throw new Error('保存に失敗しました');
+      await preGeneratePdfThumb(res.data.updated_at).catch(() => {});
+    });
+    wnShowToast(`${selected.length} ページを回転しました`, 'success');
+    setTimeout(() => location.reload(), 600);
+  } catch (e) {
+    console.error('rotate selected pages error:', e);
+    wnShowToast('回転エラー: ' + e.message, 'danger');
+  }
 }
 
 /* PDF プレビューの現在ページを回転付きで再描画 */
@@ -889,6 +1284,9 @@ function addPdfRotateOverlay() {
     ${multiPage ? `
     <button id="pdfViewToggle" title="全ページを一覧表示" style="${btnStyle}">
       <i class="fa-solid fa-table-cells"></i>
+    </button>
+    <button id="pdfGridSelectToggle" title="ページを選択" style="${btnStyle}">
+      <i class="fa-regular fa-square-check"></i>
     </button>` : ''}
     ${rotSavable ? `
     <span id="pdfRotSaveSep" style="${sepStyle};display:none;"></span>
@@ -928,6 +1326,8 @@ function addPdfRotateOverlay() {
   bar.querySelector('#pdfViewToggle')?.addEventListener('click', () =>
     setPdfViewMode(pdfViewMode === 'grid' ? 'single' : 'grid'));
   bar.querySelector('#pdfRotSave')?.addEventListener('click', () => savePdfRotation());
+  bar.querySelector('#pdfGridSelectToggle')?.addEventListener('click', () => togglePdfGridSelectMode());
+  updateGridSelectToggleBtn();
 }
 
 /* 現在のビューア回転を全ページに焼き込んで元PDFを上書き保存する */
