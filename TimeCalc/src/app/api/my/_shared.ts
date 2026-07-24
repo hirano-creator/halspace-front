@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { resolveFeatures } from "@/lib/auth/features";
 import { getAllWorkRules, workRulesFor } from "@/lib/settings";
 import { normalizeDate, nowTimeString, timeToMinutes, todayString } from "@/lib/utils/time";
-import { fixedBreakMinutesOf, splitOutingMinutes } from "@/lib/attendance/clock";
+import { fixedBreakMinutesFor, splitOutingMinutes } from "@/lib/attendance/clock";
 import type { WorkRuleSettings } from "@/lib/attendance/types";
 
 /** 本人の機能設定をDBの最新値から解決する */
@@ -37,7 +37,8 @@ export interface ParsedCorrection {
 /**
  * 修正フォームの入力を解析する。休憩は個別入力させず、
  * 「外出」「戻り」の時刻から算出した外出時間に、会社の固定休憩時間を加算したものを
- * breakMinutes とする（外出は任意入力、未入力なら固定休憩のみ）。
+ * breakMinutes とする（外出は任意入力、未入力なら固定休憩のみ）。固定休憩は勤務時間帯と
+ * 休憩時間帯が重なった分だけ加算する（休憩をまたがない半日勤務では控除しない）。
  * 外出が会社の休憩時間帯（breakStart〜breakEnd）と重なる場合は、重なった分を
  * 控除対象から除き、休憩と外出を二重に差し引かないようにする。
  * 退勤はまだ確定していない日（退勤前に出勤のみ修正したい等）を考慮し、
@@ -95,7 +96,7 @@ export function parseCorrectionForm(
       ? splitOutingMinutes([{ start: outingStart, end: outingEnd }], rules.breakStart, rules.breakEnd)
           .deductibleMinutes
       : 0;
-  const breakMinutes = fixedBreakMinutesOf(rules) + deductibleOutingMinutes;
+  const breakMinutes = fixedBreakMinutesFor(rules, clockIn, clockOut) + deductibleOutingMinutes;
 
   return { date, clockIn, clockOut, breakMinutes, outingStart, outingEnd };
 }

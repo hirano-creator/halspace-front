@@ -9,7 +9,7 @@ import { can, toRole } from "@/lib/auth/roles";
 import { calcDaily, calcDailyPay, formatYen, summarize } from "@/lib/attendance/calculator";
 import {
   deriveDailyFromEvents,
-  fixedBreakMinutesOf,
+  fixedBreakMinutesFor,
   outingsFromEvents,
   outingIntervalsFromEvents,
   totalOutingMinutes,
@@ -100,7 +100,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     requests.filter((r) => r.status === "PENDING").map((r) => r.date),
   );
   const today = todayString();
-  const fixedBreak = fixedBreakMinutesOf(rules);
 
   const rows: DailyRow[] = [];
   const calcResults = [];
@@ -162,7 +161,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         actualOutingMinutes = record.breakMinutes;
         deductibleOutingMinutes = record.breakMinutes;
       } else {
-        deductibleOutingMinutes = Math.max(0, record.breakMinutes - fixedBreak);
+        deductibleOutingMinutes = Math.max(
+          0,
+          record.breakMinutes - fixedBreakMinutesFor(rules, record.clockIn, record.clockOut),
+        );
         if (record.source === "CLOCK") {
           actualOutingMinutes = totalOutingMinutes(outingIntervalsFromEvents(dayEvents));
         } else if (record.outingStart && record.outingEnd) {

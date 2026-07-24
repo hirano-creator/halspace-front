@@ -8,7 +8,7 @@ import { resolveFeatures } from "@/lib/auth/features";
 import { calcDaily, summarize } from "@/lib/attendance/calculator";
 import {
   deriveDailyFromEvents,
-  fixedBreakMinutesOf,
+  fixedBreakMinutesFor,
   outingsFromEvents,
   outingIntervalsFromEvents,
   totalOutingMinutes,
@@ -132,7 +132,10 @@ export async function GET(request: Request) {
         actualOutingMinutes = record.breakMinutes;
         deductibleOutingMinutes = record.breakMinutes;
       } else {
-        deductibleOutingMinutes = Math.max(0, record.breakMinutes - fixedBreakMinutesOf(rules));
+        deductibleOutingMinutes = Math.max(
+          0,
+          record.breakMinutes - fixedBreakMinutesFor(rules, record.clockIn, record.clockOut),
+        );
         if (record.source === "CLOCK") {
           actualOutingMinutes = totalOutingMinutes(
             outingIntervalsFromEvents(eventsByDate.get(date) ?? []),

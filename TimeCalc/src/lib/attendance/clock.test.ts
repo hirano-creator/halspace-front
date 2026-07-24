@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   deriveDailyFromEvents,
-  fixedBreakMinutesOf,
+  fixedBreakMinutesFor,
   outingIntervalsFromEvents,
   splitOutingMinutes,
 } from "./clock";
@@ -186,9 +186,28 @@ describe("deriveDailyFromEvents", () => {
   });
 });
 
-describe("fixedBreakMinutesOf", () => {
-  it("休憩開始・終了から分数を算出する", () => {
-    expect(fixedBreakMinutesOf({ breakStart: "12:00", breakEnd: "13:00" })).toBe(60);
+describe("fixedBreakMinutesFor", () => {
+  const rules = { breakStart: "12:00", breakEnd: "13:00" };
+
+  it("休憩時間帯をまたぐ勤務は休憩の全時間を控除する", () => {
+    expect(fixedBreakMinutesFor(rules, "09:00", "18:00")).toBe(60);
+  });
+
+  it("休憩前に退勤する半日勤務は控除しない", () => {
+    expect(fixedBreakMinutesFor(rules, "07:30", "11:00")).toBe(0);
+  });
+
+  it("休憩後に出勤する勤務は控除しない", () => {
+    expect(fixedBreakMinutesFor(rules, "13:00", "18:00")).toBe(0);
+  });
+
+  it("休憩時間帯と一部だけ重なる勤務は重なった分のみ控除する", () => {
+    expect(fixedBreakMinutesFor(rules, "09:00", "12:30")).toBe(30);
+    expect(fixedBreakMinutesFor(rules, "12:15", "18:00")).toBe(45);
+  });
+
+  it("退勤が未確定の日は0を返す", () => {
+    expect(fixedBreakMinutesFor(rules, "09:00", null)).toBe(0);
   });
 });
 

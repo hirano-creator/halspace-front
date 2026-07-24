@@ -6,12 +6,26 @@
 
 import { timeToMinutes } from "@/lib/utils/time";
 
-/** 休憩開始・終了時刻から固定休憩時間（分）を算出する */
-export function fixedBreakMinutesOf(rules: { breakStart: string; breakEnd: string }): number {
-  const start = timeToMinutes(rules.breakStart);
-  const end = timeToMinutes(rules.breakEnd);
-  if (start === null || end === null) return 0;
-  return Math.max(0, end - start);
+/**
+ * その日に控除する固定休憩時間（分）を算出する。
+ *
+ * 会社の休憩時間帯（breakStart〜breakEnd）と、その日の勤務時間帯（clockIn〜clockOut）が
+ * 重なった分だけを控除する。休憩時間帯にかからない勤務（例: 休憩12:00〜13:00に対して
+ * 7:30〜11:00の半日勤務）は休憩を取っていないため控除しない。一部だけ重なる場合
+ * （例: 9:00〜12:30）は重なった分（30分）のみ控除する。
+ * 退勤が未確定（clockOut が null）の日は0を返す（その日は勤務時間を計算しないため）。
+ */
+export function fixedBreakMinutesFor(
+  rules: { breakStart: string; breakEnd: string },
+  clockIn: string,
+  clockOut: string | null,
+): number {
+  const breakStart = timeToMinutes(rules.breakStart);
+  const breakEnd = timeToMinutes(rules.breakEnd);
+  const workStart = timeToMinutes(clockIn);
+  const workEnd = timeToMinutes(clockOut);
+  if (breakStart === null || breakEnd === null || workStart === null || workEnd === null) return 0;
+  return Math.max(0, Math.min(workEnd, breakEnd) - Math.max(workStart, breakStart));
 }
 
 export type ClockEventType = "IN" | "OUT" | "OUT_START" | "OUT_END";

@@ -5,7 +5,7 @@ import { getAllWorkRules, workRulesFor } from "@/lib/settings";
 import { todayString } from "@/lib/utils/time";
 import {
   deriveDailyFromEvents,
-  fixedBreakMinutesOf,
+  fixedBreakMinutesFor,
   outingIntervalsFromEvents,
   phaseOfLastEvent,
   splitOutingMinutes,
@@ -179,7 +179,8 @@ export async function deriveAndSaveAttendance(userId: string, date: string): Pro
     rules.breakStart,
     rules.breakEnd,
   );
-  const breakMinutes = fixedBreakMinutesOf(rules) + deductibleMinutes;
+  const breakMinutes =
+    fixedBreakMinutesFor(rules, derived.clockIn, derived.clockOut) + deductibleMinutes;
 
   const firstInReason = events.find((e) => e.type === "IN")?.reason ?? null;
   const lastOutReason = [...events].reverse().find((e) => e.type === "OUT")?.reason ?? null;
