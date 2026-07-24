@@ -2633,8 +2633,57 @@ body.select-mode .ig-post { cursor: pointer; }
 .merge-action-bar .merge-sel-count {
   margin-right: auto; font-size: 13px; font-weight: 700; color: var(--primary);
 }
+/* PC/タブレット: 従来どおり1行に並べる（ラッパーは透過させる） */
+.mab-head, .mab-actions { display: contents; }
+.mab-t-sm, .mab-icon-sm { display: none; }
+
+/* 一括タグ付けピッカー（アクションバーの上にポップ） */
+.mab-tag-panel {
+  position: absolute; bottom: calc(100% + 8px); left: 0;
+  background: var(--white); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px; min-width: 240px; z-index: 300;
+  box-shadow: 0 4px 16px rgba(0,0,0,.2);
+}
+
 @media (max-width: 767px) {
-  .merge-action-bar { bottom: 60px; }  /* ボトムナビ(60px)の上 */
+  /* スマホ: 上段=件数+キャンセル / 下段=アクション5等分グリッド の2段構成。
+     選択モード中はボトムナビを隠し、このバーが置き換わる（二重の下部バーを防ぐ） */
+  body.select-mode .bottom-nav { display: none; }
+  body.select-mode .page-body  { padding-bottom: 140px; }
+  body.select-mode .toast-container { bottom: 148px; }
+  /* 上部ツールバー: 「選択解除」でボタンが伸びてタイトルが「す…」まで潰れるため、
+     選択モード中は上部の選択ボタンを隠す
+     （解除は下部バーの「✕ キャンセル」に集約） */
+  body.select-mode #selectModeBtn { display: none; }
+
+  .merge-action-bar {
+    bottom: 0;
+    flex-direction: column; align-items: stretch;
+    gap: 8px; padding: 8px 10px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+  .mab-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .merge-action-bar .merge-sel-count { margin-right: 0; font-size: 13px; }
+  .mab-head .btn { padding: 5px 10px; font-size: 12px; }
+
+  .mab-actions {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px;
+  }
+  .mab-actions .btn {
+    display: flex; flex-direction: column; justify-content: center;
+    gap: 4px; padding: 8px 2px;
+    font-size: 10px; line-height: 1.2; letter-spacing: 0;
+    min-width: 0; white-space: nowrap; overflow: hidden;
+  }
+  .mab-actions .btn i { font-size: 17px; }
+  .mab-actions .mab-t { display: none; }
+  .mab-actions .mab-t-sm { display: block; }
+  .mab-icon-sm { display: inline-block; }
+
+  /* タグピッカーは画面幅いっぱいに */
+  .mab-tag-panel { left: 10px; right: 10px; min-width: 0; }
 }
 
 /* ページトップへ戻る（無限スクロール導入で一覧が長くなるため） */
