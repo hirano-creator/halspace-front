@@ -5,6 +5,8 @@ interface TimelineEvent {
   type: string;
   time: string;
   reason?: string | null;
+  /** 打刻ログではなく修正後の勤怠の時刻を表示している */
+  corrected?: boolean;
 }
 
 const TYPE_STYLES: Record<string, { label: string; className: string }> = {
@@ -31,6 +33,11 @@ export function Timeline({ events }: { events: TimelineEvent[] }) {
               {style.label}
             </span>
             <span className="font-mono tabular-nums">{e.time}</span>
+            {e.corrected && (
+              <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-muted">
+                修正済み
+              </span>
+            )}
             {e.reason && <span className="truncate text-xs text-muted">{e.reason}</span>}
           </li>
         );

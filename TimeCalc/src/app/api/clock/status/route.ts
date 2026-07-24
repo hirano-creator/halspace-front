@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth/api-guard";
 import { resolveFeatures } from "@/lib/auth/features";
-import { getClockStatus, getTodayTimeline } from "@/lib/attendance/clock-service";
+import { getClockStatus, getTimelineWithCorrections } from "@/lib/attendance/clock-service";
 import { todayString } from "@/lib/utils/time";
 import { dailyQrToken, toQrKind } from "@/lib/qr";
 import type { ClockStatusResponse } from "@/app/(app)/clock/types";
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
   const [status, events, department, me] = await Promise.all([
     getClockStatus(viewer.id),
-    getTodayTimeline(viewer.id, todayString()),
+    getTimelineWithCorrections(viewer.id, todayString()),
     departmentId ? prisma.department.findUnique({ where: { id: departmentId } }) : null,
     prisma.user.findUnique({ where: { id: viewer.id } }),
   ]);
@@ -57,7 +57,13 @@ export async function GET(request: Request) {
       canOutStart: status.canOutStart,
       canOutEnd: status.canOutEnd,
     },
-    events: events.map((e) => ({ id: e.id, type: e.type, time: e.time, reason: e.reason })),
+    events: events.map((e) => ({
+      id: e.id,
+      type: e.type,
+      time: e.time,
+      reason: e.reason,
+      corrected: e.corrected,
+    })),
     qrKind,
     requestedDeptId,
     qrTokenError,

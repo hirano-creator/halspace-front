@@ -84,6 +84,73 @@ export async function getTodayTimeline(userId: string, date: string = todayStrin
   });
 }
 
+export interface TimelineEntry {
+  id: string;
+  type: ClockEventType;
+  time: string;
+  reason: string | null;
+  /** 打刻ログの時刻ではなく、修正後の勤怠（Attendance）の時刻を表示している */
+  corrected: boolean;
+}
+
+/**
+ * 指定日のタイムラインを「確定している勤怠（Attendance）」で上書きして返す。
+ *
+ * 修正申請の承認・管理者による勤怠編集は Attendance のみを更新し、
+ * 打刻ログ（ClockEvent）は監査用に元の時刻のまま残す。そのため打刻ログをそのまま
+ * 表示すると、修正が反映されず本人には「直っていない」ように見えてしまう。
+ * ここで Attendance の値を優先し、打刻がないぶん（退勤忘れを管理者が補完した等）は
+ * 行を補って表示する。
+ *
+ * Attendance は1日1組（出勤・退勤・外出・戻り）しか保持しないため、
+ * 導出（deriveDailyFromEvents）と同じ対応付けで
+ * 最初のIN / 最後のOUT / 最初のOUT_START / 最後のOUT_END を上書き対象とする。
+ */
+export async function getTimelineWithCorrections(
+  userId: string,
+  date: string = todayString(),
+): Promise<TimelineEntry[]> {
+  const [events, attendance] = await Promise.all([
+    getTodayTimeline(userId, date),
+    prisma.attendance.findUnique({ where: { userId_date: { userId, date } } }),
+  ]);
+
+  const entries: TimelineEntry[] = events.map((e) => ({
+    id: e.id,
+    type: e.type as ClockEventType,
+    time: e.time,
+    reason: e.reason,
+    corrected: false,
+  }));
+
+  if (!attendance) return entries;
+
+  // [種別, 確定値, 対象が「最後の」打刻か（false = 最初の打刻）]
+  const slots: [ClockEventType, string | null, boolean][] = [
+    ["IN", attendance.clockIn, false],
+    ["OUT_START", attendance.outingStart, false],
+    ["OUT_END", attendance.outingEnd, true],
+    ["OUT", attendance.clockOut, true],
+  ];
+
+  for (const [type, fixed, useLast] of slots) {
+    if (!fixed) continue;
+    const matched = entries.filter((e) => e.type === type);
+    const target = useLast ? matched[matched.length - 1] : matched[0];
+    if (target) {
+      if (target.time !== fixed) {
+        target.time = fixed;
+        target.corrected = true;
+      }
+    } else {
+      // 打刻がないのに勤怠側に時刻がある（退勤忘れの補完・CSV取込など）→ 行を補う
+      entries.push({ id: `${type}-corrected`, type, time: fixed, reason: null, corrected: true });
+    }
+  }
+
+  return entries.sort((a, b) => a.time.localeCompare(b.time));
+}
+
 /**
  * 指定日の打刻イベントから1日分の勤怠を導出し、確定していれば Attendance に書き戻す。
  * 未退勤（status:"open"、外出中を含む）の場合は書き戻さない

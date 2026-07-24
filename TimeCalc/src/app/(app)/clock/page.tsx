@@ -64,6 +64,16 @@ export default function ClockPage() {
     };
   }, [authStatus, dept, token, kind, refreshKey]);
 
+  // 別画面で勤怠が修正されている可能性があるため、タブに戻ったタイミングで取り直す
+  useEffect(() => {
+    if (authStatus !== "authenticated") return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refetch();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [authStatus, refetch]);
+
   if (authStatus === "unauthenticated") return null;
   if (authStatus === "loading" || !data) {
     return <p className="py-8 text-center text-sm text-muted">読み込み中...</p>;

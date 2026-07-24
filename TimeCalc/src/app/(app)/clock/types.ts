@@ -43,7 +43,14 @@ export interface ClockStatusResponse {
     canOutStart: boolean;
     canOutEnd: boolean;
   };
-  events: { id: string; type: string; time: string; reason: string | null }[];
+  events: {
+    id: string;
+    type: string;
+    time: string;
+    reason: string | null;
+    /** 修正申請の承認・管理者編集による修正後の時刻を表示している */
+    corrected: boolean;
+  }[];
   qrKind: "attend" | "outing" | null;
   requestedDeptId: string | null;
   qrTokenError: string | null;
