@@ -89,6 +89,24 @@ Set-ItemProperty -Path $regBase    -Name 'Icon'      -Value 'shell32.dll,13'
 Set-ItemProperty -Path $regBase    -Name 'Position'  -Value 'Top'
 Set-ItemProperty -Path $regCommand -Name '(Default)' -Value $psCmd
 
+# ── 「What'sNoを開く」登録（アプリをブラウザで開くだけ・保存とは別） ──
+# ファイル上／フォルダ背景／デスクトップ背景の3か所に登録する
+$appUrl  = 'https://space-apps.pages.dev/whatsno/app/dashboard.html'
+$openCmd = "rundll32.exe url.dll,FileProtocolHandler $appUrl"
+$openRoots = @(
+    'HKCU:\Software\Classes\*\shell\WhatsNoOpen'                       # ファイルを右クリック
+    'HKCU:\Software\Classes\Directory\Background\shell\WhatsNoOpen'    # フォルダ内の背景を右クリック
+    'HKCU:\Software\Classes\DesktopBackground\shell\WhatsNoOpen'       # デスクトップの背景を右クリック
+)
+foreach ($openBase in $openRoots) {
+    $openCommand = "$openBase\command"
+    New-Item -Path $openBase    -Force | Out-Null
+    New-Item -Path $openCommand -Force | Out-Null
+    Set-ItemProperty -Path $openBase    -Name '(Default)' -Value "What'sNoを開く"
+    Set-ItemProperty -Path $openBase    -Name 'Icon'      -Value 'shell32.dll,220'
+    Set-ItemProperty -Path $openCommand -Name '(Default)' -Value $openCmd
+}
+
 # ── whatsno:// プロトコルハンドラ登録（自動トークン同期用） ──
 if (Test-Path $handlerScript) {
     $protoBase = 'HKCU:\Software\Classes\whatsno'
@@ -116,8 +134,8 @@ if (Test-Path $syncServerScript) {
 # ── 完了 ──
 if ($interactive) {
     [System.Windows.Forms.MessageBox]::Show(
-        "セットアップが完了しました！`n`nエクスプローラーでファイルを右クリックすると`n「What'sNoに保存」が表示されます。",
+        "セットアップが完了しました！`n`n・ファイルを右クリック →「What'sNoに保存」`n・ファイル／デスクトップの背景を右クリック →「What'sNoを開く」",
         "What'sNo セットアップ完了", 'OK', 'Information') | Out-Null
 } else {
-    Write-Host "セットアップ完了！右クリック →「What'sNoに保存」が使えます。" -ForegroundColor Green
+    Write-Host "セットアップ完了！右クリック →「What'sNoに保存」/「What'sNoを開く」が使えます。" -ForegroundColor Green
 }
