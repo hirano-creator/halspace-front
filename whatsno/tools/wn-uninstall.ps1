@@ -17,6 +17,16 @@ Unregister-ScheduledTask -TaskName 'WhatsNoSyncServer' -Confirm:$false -ErrorAct
 $regBase = 'HKCU:\Software\Classes\*\shell\WhatsNoSave'
 if (Test-Path $regBase) { Remove-Item -Path $regBase -Recurse -Force }
 
+# 「What'sNoを開く」削除（3か所）
+$openRoots = @(
+    'HKCU:\Software\Classes\*\shell\WhatsNoOpen'
+    'HKCU:\Software\Classes\Directory\Background\shell\WhatsNoOpen'
+    'HKCU:\Software\Classes\DesktopBackground\shell\WhatsNoOpen'
+)
+foreach ($openBase in $openRoots) {
+    if (Test-Path $openBase) { Remove-Item -Path $openBase -Recurse -Force }
+}
+
 $protoBase = 'HKCU:\Software\Classes\whatsno'
 if (Test-Path $protoBase) { Remove-Item -Path $protoBase -Recurse -Force }
 
