@@ -263,12 +263,12 @@ export function MyAttendanceTable({
       <thead>
         <tr>
           <th className={th}>日付</th>
-          <th className={th}>実出勤</th>
-          <th className={th}>実退勤</th>
-          <th className={th}>出勤</th>
-          <th className={th}>退勤</th>
-          <th className={th}>外出</th>
-          <th className={th}>戻り</th>
+          <th className={`${th} text-right`}>実出勤</th>
+          <th className={`${th} text-right`}>実退勤</th>
+          <th className={`${th} text-right`}>出勤</th>
+          <th className={`${th} text-right`}>退勤</th>
+          <th className={`${th} text-right`}>外出</th>
+          <th className={`${th} text-right`}>戻り</th>
           <th className={`${th} text-right`}>実外出</th>
           <th className={`${th} text-right`}>控除外出</th>
           <th className={`${th} text-right`}>勤務時間</th>
@@ -294,18 +294,20 @@ export function MyAttendanceTable({
             ) : (
               <>
                 <td className={`${td} ${row.isWeekend ? "text-muted" : ""}`}>{row.dayLabel}</td>
-                <td className={`${td} font-mono tabular-nums`}>{row.clockInLabel}</td>
-                <td className={`${td} font-mono tabular-nums`}>{row.clockOutLabel}</td>
-                <td className={`${td} font-mono tabular-nums text-muted`}>
+                <td className={`${td} text-right font-mono tabular-nums`}>{row.clockInLabel}</td>
+                <td className={`${td} text-right font-mono tabular-nums`}>{row.clockOutLabel}</td>
+                <td className={`${td} text-right font-mono tabular-nums text-muted`}>
                   {row.roundedClockInLabel}
                 </td>
-                <td className={`${td} font-mono tabular-nums text-muted`}>
+                <td className={`${td} text-right font-mono tabular-nums text-muted`}>
                   {row.roundedClockOutLabel}
                 </td>
-                <td className={`${td} font-mono tabular-nums text-muted`}>
+                <td className={`${td} text-right font-mono tabular-nums text-muted`}>
                   {row.outingStartLabel}
                 </td>
-                <td className={`${td} font-mono tabular-nums text-muted`}>{row.outingEndLabel}</td>
+                <td className={`${td} text-right font-mono tabular-nums text-muted`}>
+                  {row.outingEndLabel}
+                </td>
                 <td className={`${td} text-right`}>{row.actualOutingLabel}</td>
                 <td className={`${td} text-right`}>{row.deductibleOutingLabel}</td>
                 <td className={`${td} text-right`}>
