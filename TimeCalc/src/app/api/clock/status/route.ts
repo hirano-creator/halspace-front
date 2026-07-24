@@ -32,8 +32,13 @@ export async function GET(request: Request) {
   ]);
   const features = resolveFeatures(me?.featureOverrides);
 
+  // 自由打刻の設定で、かつQR経由（?dept=）でアクセスしていない場合は、
+  // 所属部署の日替わりQR設定があっても個人設定（自由打刻）を優先し、トークン検証を行わない
+  const bypassDailyQrCheck = features.clockMode === "free" && !requestedDeptId;
+
   // 日替わりQRが有効な部署は、当日分のトークンと一致しない限り打刻させない
   const qrTokenError =
+    !bypassDailyQrCheck &&
     department?.dailyQrEnabled &&
     (!tokenParam || tokenParam !== dailyQrToken(department.id, todayString()))
       ? "このQRコードは本日分ではありません。店舗に表示されている最新のQRコードを読み取ってください"

@@ -29,9 +29,13 @@ export async function resolveClockDepartment(
     ? await prisma.department.findUnique({ where: { id: departmentId } })
     : null;
 
+  // 自由打刻の設定で、かつQR経由（requestedDepartmentId）でアクセスしていない場合は、
+  // 所属部署の日替わりQR設定があっても個人設定（自由打刻）を優先し、トークン検証を行わない
+  const bypassDailyQrCheck = clockMode === "free" && !requestedDepartmentId;
+
   // 日替わりQRが有効な部署は、フォーム送信時にも当日分のトークンを再検証する
   // （クライアント側の表示チェックだけでは、URLを保存して翌日以降に直接送信されると素通りしてしまうため）
-  if (department?.dailyQrEnabled) {
+  if (!bypassDailyQrCheck && department?.dailyQrEnabled) {
     if (!token || token !== dailyQrToken(department.id, todayString())) {
       return {
         ok: false,
