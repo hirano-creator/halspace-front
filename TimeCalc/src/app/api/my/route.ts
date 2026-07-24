@@ -153,9 +153,9 @@ export async function GET(request: Request) {
       dayLabel: `${m}/${d}(${WEEKDAYS[weekday]})`,
       isWeekend: weekday === 0 || weekday === 6,
       hasRecord: !!record,
-      clockIn: record?.clockIn ?? openIn ?? "09:00",
-      // 退勤が未確定（record.clockOutがnull）の日は、編集フォームに架空の時刻を
-      // 埋めず空欄のままにする（記録が全く無い日のみ典型的な終業時刻を仮置きする）
+      // 出退勤が未確定（record側がnull）の日は、編集フォームに架空の時刻を埋めず
+      // 空欄のままにする（記録が全く無い日のみ典型的な始業・終業時刻を仮置きする）
+      clockIn: record ? (record.clockIn ?? "") : (openIn ?? "09:00"),
       clockOut: record ? (record.clockOut ?? "") : "18:00",
       breakMinutes: record?.breakMinutes ?? 60,
       outingStart: record?.outingStart ?? "",

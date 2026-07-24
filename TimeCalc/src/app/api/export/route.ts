@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
         r.userName,
         r.departmentName ?? "",
         r.date,
-        r.clockIn,
+        r.clockIn ?? "",
         r.clockOut ?? "",
         r.calc.error ? "" : r.calc.roundedClockIn,
         r.calc.error ? "" : r.calc.roundedClockOut,

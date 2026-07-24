@@ -38,6 +38,6 @@ export async function checkEditable(request: Request, targetUserId: string): Pro
 }
 
 /** 修正履歴用に勤怠の主要項目をJSON化する */
-export function attendanceSnapshot(a: { clockIn: string; clockOut: string | null; breakMinutes: number }): string {
+export function attendanceSnapshot(a: { clockIn: string | null; clockOut: string | null; breakMinutes: number }): string {
   return JSON.stringify({ clockIn: a.clockIn, clockOut: a.clockOut, breakMinutes: a.breakMinutes });
 }

@@ -17,22 +17,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const formData = await request.formData();
   const rawDate = String(formData.get("date") ?? "");
-  const clockIn = String(formData.get("clockIn") ?? "").trim();
+  const clockInRaw = String(formData.get("clockIn") ?? "").trim();
   const clockOutRaw = String(formData.get("clockOut") ?? "").trim();
   const breakMinutes = Number(formData.get("breakMinutes") ?? 0);
   const note = String(formData.get("note") ?? "").trim() || null;
 
   const date = normalizeDate(rawDate);
   if (!date) return NextResponse.json<AttendanceEditState>({ error: "日付の形式が不正です", success: false });
+  // まだ確定していない日（退勤前に出勤のみ修正したい、誤打刻を取り消したい等）を考慮し、
+  // 出勤・退勤とも未入力を許容する。ただし両方空では記録として意味がないため拒否する
+  if (!clockInRaw && !clockOutRaw) {
+    return NextResponse.json<AttendanceEditState>({
+      error: "出勤・退勤のどちらも未入力です（記録を消す場合は削除してください）",
+      success: false,
+    });
+  }
+  const clockIn = clockInRaw || null;
+  const clockOut = clockOutRaw || null;
   const inMinutes = timeToMinutes(clockIn);
-  if (inMinutes === null) {
+  if (clockIn !== null && inMinutes === null) {
     return NextResponse.json<AttendanceEditState>({
       error: "出勤時刻は HH:mm 形式で入力してください",
       success: false,
     });
   }
-  // 退勤はまだ確定していない日（退勤前に出勤のみ修正したい等）を考慮し、未入力を許容する
-  const clockOut = clockOutRaw || null;
   const outMinutes = timeToMinutes(clockOut);
   if (clockOut !== null && outMinutes === null) {
     return NextResponse.json<AttendanceEditState>({
@@ -42,7 +50,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   if (date === todayString()) {
     const nowMinutes = timeToMinutes(nowTimeString())!;
-    if (inMinutes > nowMinutes || (outMinutes !== null && outMinutes > nowMinutes)) {
+    if ((inMinutes !== null && inMinutes > nowMinutes) || (outMinutes !== null && outMinutes > nowMinutes)) {
       return NextResponse.json<AttendanceEditState>({
         error: "本日のまだ来ていない時刻は指定できません",
         success: false,
@@ -61,8 +69,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await prisma.$transaction([
       prisma.attendance.upsert({
         where: { userId_date: { userId, date } },
-        update: { clockIn, clockOut, breakMinutes, note },
-        create: { userId, date, clockIn, clockOut, breakMinutes, note },
+        // 人が直した記録は打刻由来（CLOCK）ではなくなるため source も更新する
+        // （打刻画面が「修正で取り消された打刻」を判別するのに使う）
+        update: { clockIn, clockOut, breakMinutes, note, source: "MANUAL" },
+        create: { userId, date, clockIn, clockOut, breakMinutes, note, source: "MANUAL" },
       }),
       prisma.attendanceLog.create({
         data: {

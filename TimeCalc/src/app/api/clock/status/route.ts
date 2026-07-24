@@ -63,6 +63,7 @@ export async function GET(request: Request) {
       time: e.time,
       reason: e.reason,
       corrected: e.corrected,
+      cancelled: e.cancelled,
     })),
     qrKind,
     requestedDeptId,

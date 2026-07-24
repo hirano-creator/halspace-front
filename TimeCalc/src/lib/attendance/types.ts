@@ -107,8 +107,8 @@ export type MonthlyPaySummary = DailyPay;
 export interface DailyAttendanceInput {
   /** 日付 "YYYY-MM-DD" */
   date: string;
-  /** 出勤時刻 "HH:mm" */
-  clockIn: string;
+  /** 出勤時刻 "HH:mm"。未出勤（未入力）の日は null */
+  clockIn: string | null;
   /** 退勤時刻 "HH:mm"。未退勤（未入力）の日は null */
   clockOut: string | null;
   /** 休憩時間（分） */

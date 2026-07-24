@@ -13,11 +13,11 @@ import { timeToMinutes } from "@/lib/utils/time";
  * 重なった分だけを控除する。休憩時間帯にかからない勤務（例: 休憩12:00〜13:00に対して
  * 7:30〜11:00の半日勤務）は休憩を取っていないため控除しない。一部だけ重なる場合
  * （例: 9:00〜12:30）は重なった分（30分）のみ控除する。
- * 退勤が未確定（clockOut が null）の日は0を返す（その日は勤務時間を計算しないため）。
+ * 出勤・退勤が未確定（null）の日は0を返す（その日は勤務時間を計算しないため）。
  */
 export function fixedBreakMinutesFor(
   rules: { breakStart: string; breakEnd: string },
-  clockIn: string,
+  clockIn: string | null,
   clockOut: string | null,
 ): number {
   const breakStart = timeToMinutes(rules.breakStart);
@@ -141,6 +141,107 @@ export function deriveDailyFromEvents(events: RawClockEvent[]): DailyClockDeriva
     clockOut,
     breakMinutes: Math.max(0, spanMinutes - workedMinutes),
   };
+}
+
+export interface RawTimelineEvent {
+  id: string;
+  type: ClockEventType;
+  time: string;
+  reason: string | null;
+}
+
+export interface TimelineEntry extends RawTimelineEvent {
+  /** 打刻ログの時刻ではなく、修正後の勤怠（Attendance）の時刻を表示している */
+  corrected: boolean;
+  /** 修正で取り消された打刻（例: 退勤を「未退勤」に直した日の退勤打刻） */
+  cancelled: boolean;
+}
+
+/** タイムラインへの反映に必要な勤怠（Attendance）の項目 */
+export interface TimelineAttendance {
+  clockIn: string | null;
+  clockOut: string | null;
+  outingStart: string | null;
+  outingEnd: string | null;
+  /** "MANUAL" | "CSV" | "CLOCK"（"CLOCK" は打刻からの自動導出） */
+  source: string;
+}
+
+/**
+ * 打刻ログのタイムラインに、確定している勤怠（Attendance）の修正内容を反映する。
+ *
+ * 修正申請の承認・管理者による勤怠編集は Attendance のみを更新し、打刻ログ
+ * （ClockEvent）は監査用に元の時刻のまま残す。そのため打刻ログをそのまま表示すると、
+ * 修正が反映されず本人には「直っていない」ように見えてしまう。
+ *
+ * Attendance は1日1組（出勤・退勤・外出・戻り）しか保持しないため、導出
+ * （deriveDailyFromEvents）と同じ対応付けで
+ * 最初のIN / 最後のOUT / 最初のOUT_START / 最後のOUT_END を反映対象とする。
+ * - 時刻が違えば上書きし、corrected を立てる
+ * - 打刻がないのに勤怠側に時刻がある（退勤忘れの補完・CSV取込など）→ 行を補う
+ * - 「未出勤・未退勤に直す」修正（clockIn / clockOut = null）は時刻の上書きでは
+ *   表せないため、対応する打刻を cancelled にする。ただし打刻から自動導出した
+ *   だけの勤怠（source: "CLOCK"）の null は未確定を意味するだけなので取消としない
+ */
+export function applyAttendanceToTimeline(
+  events: RawTimelineEvent[],
+  attendance: TimelineAttendance | null,
+): TimelineEntry[] {
+  const entries: TimelineEntry[] = events.map((e) => ({
+    ...e,
+    corrected: false,
+    cancelled: false,
+  }));
+
+  if (!attendance) return entries;
+
+  /** 該当種別の打刻のうち、勤怠の1組に対応する1件を返す（useLast = 最後の打刻を対応させる） */
+  const pick = (type: ClockEventType, useLast: boolean) => {
+    const matched = entries.filter((e) => e.type === type);
+    return useLast ? matched[matched.length - 1] : matched[0];
+  };
+
+  // [種別, 確定値, 対象が「最後の」打刻か（false = 最初の打刻）]
+  const slots: [ClockEventType, string | null, boolean][] = [
+    ["IN", attendance.clockIn, false],
+    ["OUT_START", attendance.outingStart, false],
+    ["OUT_END", attendance.outingEnd, true],
+    ["OUT", attendance.clockOut, true],
+  ];
+
+  for (const [type, fixed, useLast] of slots) {
+    if (!fixed) continue;
+    const target = pick(type, useLast);
+    if (target) {
+      if (target.time !== fixed) {
+        target.time = fixed;
+        target.corrected = true;
+      }
+    } else {
+      entries.push({
+        id: `${type}-corrected`,
+        type,
+        time: fixed,
+        reason: null,
+        corrected: true,
+        cancelled: false,
+      });
+    }
+  }
+
+  // 人が「未出勤」「未退勤」に直した日は、その打刻が取り消されたものとして反映する
+  if (attendance.source !== "CLOCK") {
+    if (!attendance.clockIn) {
+      const firstIn = pick("IN", false);
+      if (firstIn) firstIn.cancelled = true;
+    }
+    if (!attendance.clockOut) {
+      const lastOut = pick("OUT", true);
+      if (lastOut) lastOut.cancelled = true;
+    }
+  }
+
+  return entries.sort((a, b) => a.time.localeCompare(b.time));
 }
 
 export interface OutingSummary {

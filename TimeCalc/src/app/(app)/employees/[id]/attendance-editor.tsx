@@ -60,7 +60,7 @@ export interface DailyRow {
   date: string; // "YYYY-MM-DD"
   dayLabel: string; // "1(水)" など
   isWeekend: boolean;
-  clockIn: string; // 実出勤（編集フォームの初期値にも使用）
+  clockIn: string; // 実出勤（編集フォームの初期値にも使用）。未出勤の日は空文字
   clockOut: string; // 実退勤（編集フォームの初期値にも使用）。未退勤の日は空文字
   breakMinutes: number;
   note: string | null;
@@ -120,6 +120,7 @@ function RowEditForm({
   onSaved?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(saveAttendanceAction, initialState);
+  const clockInRef = useRef<HTMLInputElement>(null);
   const clockOutRef = useRef<HTMLInputElement>(null);
 
   // 保存成功時に編集モードを閉じる
@@ -146,13 +147,24 @@ function RowEditForm({
         <input type="hidden" name="userId" value={userId} />
         <input type="hidden" name="date" value={row.date} />
         <div>
-          <label className="mb-1 block text-xs text-muted">実出勤</label>
+          <label className="mb-1 flex items-center justify-between gap-2 text-xs text-muted">
+            <span>実出勤</span>
+            <button
+              type="button"
+              onClick={() => {
+                if (clockInRef.current) clockInRef.current.value = "";
+              }}
+              className="text-primary hover:underline"
+            >
+              未出勤にする
+            </button>
+          </label>
           <input
+            ref={clockInRef}
             type="time"
             name="clockIn"
             defaultValue={row.clockIn}
             max={maxTime}
-            required
             className={inputClass}
           />
         </div>
@@ -315,7 +327,7 @@ export function AttendanceEditor({
                   {row.dayLabel}
                 </td>
                 <td className={`${td} text-right font-mono tabular-nums`}>
-                  {row.attendanceId ? row.clockIn : "-"}
+                  {row.attendanceId && row.clockIn ? row.clockIn : "-"}
                 </td>
                 <td className={`${td} text-right font-mono tabular-nums`}>
                   {row.attendanceId && row.clockOut ? row.clockOut : "-"}

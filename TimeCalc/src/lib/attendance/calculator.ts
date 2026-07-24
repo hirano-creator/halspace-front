@@ -46,7 +46,7 @@ function ceilToUnit(minutes: number, unitMinutes: number): number {
 const emptyResult = (
   season: "summer" | "winter",
   error: string,
-  rawClockIn: string,
+  rawClockIn: string | null,
   rawClockOut: string | null,
 ): DailyCalcResult => ({
   season,
@@ -56,7 +56,7 @@ const emptyResult = (
   overtimeMinutes: 0,
   overtimeRawMinutes: 0,
   earlyPremiumApplies: false,
-  roundedClockIn: rawClockIn,
+  roundedClockIn: rawClockIn ?? "",
   roundedClockOut: rawClockOut ?? "",
   totalMinutes: 0,
   lateMinutes: 0,
@@ -98,10 +98,14 @@ export function calcDaily(input: DailyAttendanceInput, rules: WorkRuleSettings):
   const overtimeStart = timeToMinutes(rules.overtimeStart);
   const earlyWorkStart = timeToMinutes(rules.earlyWorkStart);
 
-  if (clockOutRaw === null) {
+  // 未入力（null・空欄）と、入力はあるが形式が不正なケースは分けて知らせる
+  if (input.clockIn === null || input.clockIn === "") {
+    return emptyResult(season, "出勤時刻が未入力です", input.clockIn, input.clockOut);
+  }
+  if (input.clockOut === null || input.clockOut === "") {
     return emptyResult(season, "退勤時刻が未入力です", input.clockIn, input.clockOut);
   }
-  if (clockInRaw === null) {
+  if (clockInRaw === null || clockOutRaw === null) {
     return emptyResult(season, "打刻時刻の形式が不正です", input.clockIn, input.clockOut);
   }
   if (workStart === null || overtimeStart === null || earlyWorkStart === null) {

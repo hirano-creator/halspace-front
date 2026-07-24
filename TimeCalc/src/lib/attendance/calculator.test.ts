@@ -193,6 +193,26 @@ describe("calcDaily 異常系", () => {
     );
     expect(r.error).not.toBeNull();
   });
+
+  it("未出勤（出勤が未入力）は未確定として扱い、未入力である旨を知らせる", () => {
+    const r = calcDaily(
+      { date: "2026-07-01", clockIn: null, clockOut: "18:00", breakMinutes: 0 },
+      rules,
+    );
+    expect(r.error).toBe("出勤時刻が未入力です");
+    expect(r.totalMinutes).toBe(0);
+    expect(r.roundedClockIn).toBe("");
+  });
+
+  it("未退勤（退勤が未入力）は未確定として扱い、未入力である旨を知らせる", () => {
+    const r = calcDaily(
+      { date: "2026-07-01", clockIn: "09:00", clockOut: null, breakMinutes: 0 },
+      rules,
+    );
+    expect(r.error).toBe("退勤時刻が未入力です");
+    expect(r.totalMinutes).toBe(0);
+    expect(r.roundedClockOut).toBe("");
+  });
 });
 
 describe("calcDailyPay（時給1200円・割増25%、金額＝基本給／残業代＝割増分で二重計上なし）", () => {

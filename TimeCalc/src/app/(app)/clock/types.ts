@@ -50,6 +50,8 @@ export interface ClockStatusResponse {
     reason: string | null;
     /** 修正申請の承認・管理者編集による修正後の時刻を表示している */
     corrected: boolean;
+    /** 修正で取り消された打刻（「未出勤」「未退勤」に直した日の出退勤打刻） */
+    cancelled: boolean;
   }[];
   qrKind: "attend" | "outing" | null;
   requestedDeptId: string | null;

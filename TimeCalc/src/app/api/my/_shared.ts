@@ -25,7 +25,8 @@ export async function myWorkRules(userId: string) {
 
 export interface ParsedCorrection {
   date: string;
-  clockIn: string;
+  /** 未出勤（未入力）の場合は null */
+  clockIn: string | null;
   /** 未退勤（未入力）の場合は null */
   clockOut: string | null;
   /** 固定休憩＋外出時間の合算（分） */
@@ -41,34 +42,38 @@ export interface ParsedCorrection {
  * 休憩時間帯が重なった分だけ加算する（休憩をまたがない半日勤務では控除しない）。
  * 外出が会社の休憩時間帯（breakStart〜breakEnd）と重なる場合は、重なった分を
  * 控除対象から除き、休憩と外出を二重に差し引かないようにする。
- * 退勤はまだ確定していない日（退勤前に出勤のみ修正したい等）を考慮し、
- * 未入力（空欄）を許容する（その場合 clockOut は null になり、勤務時間等は
- * 「エラー行」＝未確定として表示される）。
+ * 出勤・退勤はまだ確定していない日（退勤前に出勤のみ修正したい、誤打刻を取り消したい等）を
+ * 考慮し、どちらも未入力（空欄）を許容する（その場合 null になり、勤務時間等は
+ * 「エラー行」＝未確定として表示される）。ただし両方とも空では記録として意味がないため拒否する。
  */
 export function parseCorrectionForm(
   formData: FormData,
   rules: WorkRuleSettings,
 ): ParsedCorrection | string {
   const date = normalizeDate(String(formData.get("date") ?? ""));
-  const clockIn = String(formData.get("clockIn") ?? "").trim();
+  const clockInRaw = String(formData.get("clockIn") ?? "").trim();
   const clockOutRaw = String(formData.get("clockOut") ?? "").trim();
   const outingStartRaw = String(formData.get("outingStart") ?? "").trim();
   const outingEndRaw = String(formData.get("outingEnd") ?? "").trim();
 
   if (!date) return "日付の形式が不正です";
   if (date > todayString()) return "未来の日付は指定できません";
+  if (!clockInRaw && !clockOutRaw) {
+    return "出勤・退勤のどちらも未入力です（記録を消す場合は削除してください）";
+  }
+  const clockIn = clockInRaw || null;
+  const clockOut = clockOutRaw || null;
   const inMinutes = timeToMinutes(clockIn);
-  if (inMinutes === null) {
+  if (clockIn !== null && inMinutes === null) {
     return "出勤時刻は HH:mm 形式で入力してください";
   }
-  const clockOut = clockOutRaw || null;
   const outMinutes = timeToMinutes(clockOut);
   if (clockOut !== null && outMinutes === null) {
     return "退勤時刻は HH:mm 形式で入力してください";
   }
   if (date === todayString()) {
     const nowMinutes = timeToMinutes(nowTimeString())!;
-    if (inMinutes > nowMinutes || (outMinutes !== null && outMinutes > nowMinutes)) {
+    if ((inMinutes !== null && inMinutes > nowMinutes) || (outMinutes !== null && outMinutes > nowMinutes)) {
       return "本日のまだ来ていない時刻は指定できません";
     }
   }

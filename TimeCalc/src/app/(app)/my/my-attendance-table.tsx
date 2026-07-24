@@ -26,8 +26,8 @@ export interface MyDailyRow {
   dayLabel: string; // "7/1(水)" など
   isWeekend: boolean;
   hasRecord: boolean;
-  clockIn: string; // 編集フォームの初期値
-  clockOut: string;
+  clockIn: string; // 編集フォームの初期値（未出勤の日は空文字）
+  clockOut: string; // 同上（未退勤の日は空文字）
   breakMinutes: number;
   /** 外出・戻りの編集フォーム初期値（未入力は空文字）。ClockEvent由来の日は空文字のまま */
   outingStart: string;
@@ -83,6 +83,7 @@ function RowDetailForm({
 }) {
   const editAction = selfEditMode === "direct" ? selfSaveAttendanceAction : createCorrectionAction;
   const [editState, editFormAction, editPending] = useActionState(editAction, initialState);
+  const clockInRef = useRef<HTMLInputElement>(null);
   const clockOutRef = useRef<HTMLInputElement>(null);
   const [reasonState, reasonFormAction, reasonPending] = useActionState(
     saveMyReasonAction,
@@ -118,13 +119,24 @@ function RowDetailForm({
                 : "時刻の修正申請（管理者の承認後に反映されます）"}
             </p>
             <div>
-              <label className="mb-1 block text-xs text-muted">出勤</label>
+              <label className="mb-1 flex items-center justify-between gap-2 text-xs text-muted">
+                <span>出勤</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (clockInRef.current) clockInRef.current.value = "";
+                  }}
+                  className="text-primary hover:underline"
+                >
+                  未出勤にする
+                </button>
+              </label>
               <input
+                ref={clockInRef}
                 type="time"
                 name="clockIn"
                 defaultValue={row.clockIn}
                 max={maxTime}
-                required
                 className={inputClass}
               />
             </div>

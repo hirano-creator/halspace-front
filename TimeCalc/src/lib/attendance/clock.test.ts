@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyAttendanceToTimeline,
   deriveDailyFromEvents,
   fixedBreakMinutesFor,
   outingIntervalsFromEvents,
   splitOutingMinutes,
+  type RawTimelineEvent,
+  type TimelineAttendance,
 } from "./clock";
 
 describe("deriveDailyFromEvents", () => {
@@ -281,5 +284,121 @@ describe("splitOutingMinutes（外出時間と休憩時間帯の重複除去）"
     );
     expect(actualMinutes).toBe(75);
     expect(deductibleMinutes).toBe(45);
+  });
+});
+
+describe("applyAttendanceToTimeline", () => {
+  const ev = (id: string, type: RawTimelineEvent["type"], time: string): RawTimelineEvent => ({
+    id,
+    type,
+    time,
+    reason: null,
+  });
+  const attendance = (a: Partial<TimelineAttendance>): TimelineAttendance => ({
+    clockIn: "09:00",
+    clockOut: null,
+    outingStart: null,
+    outingEnd: null,
+    source: "MANUAL",
+    ...a,
+  });
+
+  it("勤怠が未登録なら打刻ログをそのまま返す", () => {
+    const entries = applyAttendanceToTimeline([ev("1", "IN", "09:03")], null);
+    expect(entries).toEqual([
+      { id: "1", type: "IN", time: "09:03", reason: null, corrected: false, cancelled: false },
+    ]);
+  });
+
+  it("修正された時刻で上書きし corrected を立てる", () => {
+    const entries = applyAttendanceToTimeline(
+      [ev("1", "IN", "09:03"), ev("2", "OUT", "18:07")],
+      attendance({ clockIn: "09:00", clockOut: "18:00" }),
+    );
+    expect(entries.map((e) => [e.time, e.corrected])).toEqual([
+      ["09:00", true],
+      ["18:00", true],
+    ]);
+  });
+
+  it("時刻が同じ打刻には corrected を立てない", () => {
+    const entries = applyAttendanceToTimeline(
+      [ev("1", "IN", "09:00"), ev("2", "OUT", "18:00")],
+      attendance({ clockIn: "09:00", clockOut: "18:00" }),
+    );
+    expect(entries.every((e) => !e.corrected)).toBe(true);
+  });
+
+  it("退勤を「未退勤」に直した日は退勤打刻を取消にする", () => {
+    // 出勤07:14 → 誤って退勤11:06 → 再出勤11:22、その後 未退勤 に修正した日
+    const entries = applyAttendanceToTimeline(
+      [ev("1", "IN", "07:14"), ev("2", "OUT", "11:06"), ev("3", "IN", "11:22")],
+      attendance({ clockIn: "07:14", clockOut: null }),
+    );
+    expect(entries.map((e) => [e.type, e.time, e.cancelled])).toEqual([
+      ["IN", "07:14", false],
+      ["OUT", "11:06", true],
+      ["IN", "11:22", false],
+    ]);
+  });
+
+  it("出勤を「未出勤」に直した日は出勤打刻を取消にする", () => {
+    const entries = applyAttendanceToTimeline(
+      [ev("1", "IN", "07:14"), ev("2", "OUT", "18:00")],
+      attendance({ clockIn: null, clockOut: "18:00" }),
+    );
+    expect(entries.map((e) => [e.type, e.cancelled])).toEqual([
+      ["IN", true],
+      ["OUT", false],
+    ]);
+  });
+
+  it("打刻から自動導出しただけの未確定（source: CLOCK）は取消にしない", () => {
+    const entries = applyAttendanceToTimeline(
+      [ev("1", "IN", "09:00"), ev("2", "OUT", "12:00"), ev("3", "IN", "13:00")],
+      attendance({ clockIn: "09:00", clockOut: null, source: "CLOCK" }),
+    );
+    expect(entries.every((e) => !e.cancelled)).toBe(true);
+  });
+
+  it("打刻がないのに勤怠に時刻がある場合は行を補う（退勤忘れの補完など）", () => {
+    const entries = applyAttendanceToTimeline(
+      [ev("1", "IN", "09:00")],
+      attendance({ clockIn: "09:00", clockOut: "18:00" }),
+    );
+    expect(entries.map((e) => [e.type, e.time, e.corrected])).toEqual([
+      ["IN", "09:00", false],
+      ["OUT", "18:00", true],
+    ]);
+  });
+
+  it("中抜けがある日は最初のIN・最後のOUTだけを反映対象にする", () => {
+    const entries = applyAttendanceToTimeline(
+      [
+        ev("1", "IN", "09:03"),
+        ev("2", "OUT", "12:00"),
+        ev("3", "IN", "13:00"),
+        ev("4", "OUT", "18:07"),
+      ],
+      attendance({ clockIn: "09:00", clockOut: "18:00" }),
+    );
+    expect(entries.map((e) => [e.time, e.corrected])).toEqual([
+      ["09:00", true],
+      ["12:00", false],
+      ["13:00", false],
+      ["18:00", true],
+    ]);
+  });
+
+  it("外出・戻りも修正後の時刻を反映する", () => {
+    const entries = applyAttendanceToTimeline(
+      [ev("1", "IN", "09:00"), ev("2", "OUT_START", "12:05"), ev("3", "OUT_END", "12:55")],
+      attendance({ clockIn: "09:00", outingStart: "12:00", outingEnd: "13:00" }),
+    );
+    expect(entries.map((e) => [e.type, e.time, e.corrected])).toEqual([
+      ["IN", "09:00", false],
+      ["OUT_START", "12:00", true],
+      ["OUT_END", "13:00", true],
+    ]);
   });
 });

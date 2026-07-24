@@ -39,7 +39,7 @@ export interface AttendanceWithCalc {
   employeeCode: string;
   departmentName: string | null;
   date: string;
-  clockIn: string;
+  clockIn: string | null;
   clockOut: string | null;
   breakMinutes: number;
   note: string | null;

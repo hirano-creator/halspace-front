@@ -11,7 +11,7 @@ export interface ResolvedRow {
   id: string;
   userName: string;
   date: string;
-  clockIn: string;
+  clockIn: string | null;
   clockOut: string | null;
   breakMinutes: number;
   status: string; // "APPROVED" | "REJECTED"
