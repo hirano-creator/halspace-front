@@ -262,7 +262,7 @@ export function MyAttendanceTable({
       </colgroup>
       <thead>
         <tr>
-          <th className={th}>日付</th>
+          <th className={`${th} text-center`}>日付</th>
           <th className={`${th} text-right`}>実出勤</th>
           <th className={`${th} text-right`}>実退勤</th>
           <th className={`${th} text-right`}>出勤</th>
@@ -293,7 +293,9 @@ export function MyAttendanceTable({
               />
             ) : (
               <>
-                <td className={`${td} ${row.isWeekend ? "text-muted" : ""}`}>{row.dayLabel}</td>
+                <td className={`${td} text-center ${row.isWeekend ? "text-muted" : ""}`}>
+                  {row.dayLabel}
+                </td>
                 <td className={`${td} text-right font-mono tabular-nums`}>{row.clockInLabel}</td>
                 <td className={`${td} text-right font-mono tabular-nums`}>{row.clockOutLabel}</td>
                 <td className={`${td} text-right font-mono tabular-nums text-muted`}>
