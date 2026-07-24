@@ -3,7 +3,7 @@
 // マイページの日別勤怠テーブル
 // 遅刻・早退・未退勤のバッジ表示と、修正申請（または本人直接修正）・理由記入の入口を兼ねる。
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
   createCorrectionAction,
   saveMyReasonAction,
@@ -83,6 +83,7 @@ function RowDetailForm({
 }) {
   const editAction = selfEditMode === "direct" ? selfSaveAttendanceAction : createCorrectionAction;
   const [editState, editFormAction, editPending] = useActionState(editAction, initialState);
+  const clockOutRef = useRef<HTMLInputElement>(null);
   const [reasonState, reasonFormAction, reasonPending] = useActionState(
     saveMyReasonAction,
     initialState,
@@ -128,13 +129,24 @@ function RowDetailForm({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted">退勤</label>
+              <label className="mb-1 flex items-center justify-between gap-2 text-xs text-muted">
+                <span>退勤</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (clockOutRef.current) clockOutRef.current.value = "";
+                  }}
+                  className="text-primary hover:underline"
+                >
+                  未退勤にする
+                </button>
+              </label>
               <input
+                ref={clockOutRef}
                 type="time"
                 name="clockOut"
                 defaultValue={row.clockOut}
                 max={maxTime}
-                required
                 className={inputClass}
               />
             </div>

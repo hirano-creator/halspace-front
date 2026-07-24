@@ -102,7 +102,7 @@ model Attendance {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   date         String // "YYYY-MM-DD"
   clockIn      String // "HH:mm"
-  clockOut     String // "HH:mm"
+  clockOut     String? // "HH:mm"（未退勤の場合はnull。退勤前に出勤のみ修正したいケースに対応）
   breakMinutes Int      @default(0) // 休憩時間（分。固定休憩＋外出時間の合算）
   outingStart  String? // 外出開始 "HH:mm"（本人修正・修正申請由来のみ。CSV取込・打刻由来はnull）
   outingEnd    String? // 外出終了（戻り）"HH:mm"
@@ -157,7 +157,7 @@ model CorrectionRequest {
   user         User      @relation("correctionRequests", fields: [userId], references: [id], onDelete: Cascade)
   date         String // 対象日 "YYYY-MM-DD"
   clockIn      String // 修正後の出勤 "HH:mm"
-  clockOut     String // 修正後の退勤 "HH:mm"
+  clockOut     String? // 修正後の退勤 "HH:mm"（未退勤のまま出勤のみ修正申請する場合はnull）
   breakMinutes Int       @default(0) // 修正後の休憩・外出（分。固定休憩＋外出時間の合算）
   outingStart  String? // 外出開始 "HH:mm"
   outingEnd    String? // 外出終了（戻り）"HH:mm"

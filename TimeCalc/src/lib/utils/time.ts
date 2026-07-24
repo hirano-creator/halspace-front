@@ -5,7 +5,8 @@
  * "8:00" のような1桁時、"8:19:25 JST" のような秒・タイムゾーン付き
  * （Squareエクスポート形式）にも対応。不正な形式は null を返す。
  */
-export function timeToMinutes(time: string): number | null {
+export function timeToMinutes(time: string | null | undefined): number | null {
+  if (!time) return null;
   const m = /^(\d{1,2}):(\d{2})(?::\d{2})?(?:\s+[A-Za-z]+)?$/.exec(time.trim());
   if (!m) return null;
   const hours = Number(m[1]);

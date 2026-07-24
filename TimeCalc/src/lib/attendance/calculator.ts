@@ -47,7 +47,7 @@ const emptyResult = (
   season: "summer" | "winter",
   error: string,
   rawClockIn: string,
-  rawClockOut: string,
+  rawClockOut: string | null,
 ): DailyCalcResult => ({
   season,
   earlyMinutes: 0,
@@ -57,7 +57,7 @@ const emptyResult = (
   overtimeRawMinutes: 0,
   earlyPremiumApplies: false,
   roundedClockIn: rawClockIn,
-  roundedClockOut: rawClockOut,
+  roundedClockOut: rawClockOut ?? "",
   totalMinutes: 0,
   lateMinutes: 0,
   earlyLeaveMinutes: 0,
@@ -98,7 +98,10 @@ export function calcDaily(input: DailyAttendanceInput, rules: WorkRuleSettings):
   const overtimeStart = timeToMinutes(rules.overtimeStart);
   const earlyWorkStart = timeToMinutes(rules.earlyWorkStart);
 
-  if (clockInRaw === null || clockOutRaw === null) {
+  if (clockOutRaw === null) {
+    return emptyResult(season, "退勤時刻が未入力です", input.clockIn, input.clockOut);
+  }
+  if (clockInRaw === null) {
     return emptyResult(season, "打刻時刻の形式が不正です", input.clockIn, input.clockOut);
   }
   if (workStart === null || overtimeStart === null || earlyWorkStart === null) {

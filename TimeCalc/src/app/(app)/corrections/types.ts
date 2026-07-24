@@ -12,7 +12,7 @@ export interface ResolvedRow {
   userName: string;
   date: string;
   clockIn: string;
-  clockOut: string;
+  clockOut: string | null;
   breakMinutes: number;
   status: string; // "APPROVED" | "REJECTED"
   reviewedByName: string | null;

@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
         r.departmentName ?? "",
         r.date,
         r.clockIn,
-        r.clockOut,
+        r.clockOut ?? "",
         r.calc.error ? "" : r.calc.roundedClockIn,
         r.calc.error ? "" : r.calc.roundedClockOut,
         r.breakMinutes,

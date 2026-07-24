@@ -4,7 +4,7 @@
 // 「日付・実出勤・実退勤・出勤時間・退勤時間・勤務時間・早出残業・残業時間・金額・残業代・支給額」を1行で見せる表。
 // 編集権限がある場合は行の修正・追加・削除が可能。
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { deleteAttendanceAction, saveAttendanceAction } from "./client-actions";
 import type { AttendanceEditState } from "./types";
 import { Badge, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "@/components/ui";
@@ -61,7 +61,7 @@ export interface DailyRow {
   dayLabel: string; // "1(水)" など
   isWeekend: boolean;
   clockIn: string; // 実出勤（編集フォームの初期値にも使用）
-  clockOut: string; // 実退勤（編集フォームの初期値にも使用）
+  clockOut: string; // 実退勤（編集フォームの初期値にも使用）。未退勤の日は空文字
   breakMinutes: number;
   note: string | null;
   /** 出勤時間（実出勤に丸めルールを適用した時刻）の表示。データなしは "-" */
@@ -120,6 +120,7 @@ function RowEditForm({
   onSaved?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(saveAttendanceAction, initialState);
+  const clockOutRef = useRef<HTMLInputElement>(null);
 
   // 保存成功時に編集モードを閉じる
   useEffect(() => {
@@ -156,13 +157,24 @@ function RowEditForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-muted">実退勤</label>
+          <label className="mb-1 flex items-center justify-between gap-2 text-xs text-muted">
+            <span>実退勤</span>
+            <button
+              type="button"
+              onClick={() => {
+                if (clockOutRef.current) clockOutRef.current.value = "";
+              }}
+              className="text-primary hover:underline"
+            >
+              未退勤にする
+            </button>
+          </label>
           <input
+            ref={clockOutRef}
             type="time"
             name="clockOut"
             defaultValue={row.clockOut}
             max={maxTime}
-            required
             className={inputClass}
           />
         </div>
@@ -306,7 +318,7 @@ export function AttendanceEditor({
                   {row.attendanceId ? row.clockIn : "-"}
                 </td>
                 <td className={`${td} text-right font-mono tabular-nums`}>
-                  {row.attendanceId ? row.clockOut : "-"}
+                  {row.attendanceId && row.clockOut ? row.clockOut : "-"}
                 </td>
                 <td className={`${td} text-right font-mono tabular-nums text-muted`}>
                   {row.roundedClockInLabel}

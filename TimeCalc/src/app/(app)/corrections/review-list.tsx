@@ -14,12 +14,13 @@ export interface ReviewRow {
   departmentName: string | null;
   date: string;
   clockIn: string;
-  clockOut: string;
+  /** 未退勤のまま出勤のみ修正申請した場合は null */
+  clockOut: string | null;
   breakMinutes: number;
   reason: string;
   createdAt: string; // 表示用
   /** 現在の勤怠（比較表示用。なければ null = 未退勤・打刻なし日の申請） */
-  current: { clockIn: string; clockOut: string; breakMinutes: number } | null;
+  current: { clockIn: string; clockOut: string | null; breakMinutes: number } | null;
 }
 
 const initialState: ReviewState = { error: null, success: false };
@@ -61,14 +62,14 @@ function ReviewCard({ row, onResolved }: { row: ReviewRow; onResolved?: () => vo
           <span className="text-xs text-muted">現在: </span>
           <span className="font-mono tabular-nums">
             {row.current
-              ? `${row.current.clockIn}〜${row.current.clockOut}・休憩${row.current.breakMinutes}分`
+              ? `${row.current.clockIn}〜${row.current.clockOut ?? "未退勤"}・休憩${row.current.breakMinutes}分`
               : "記録なし（未退勤・打刻漏れ）"}
           </span>
         </span>
         <span>
           <span className="text-xs text-muted">申請: </span>
           <span className="font-mono font-semibold tabular-nums text-primary">
-            {row.clockIn}〜{row.clockOut}・休憩{row.breakMinutes}分
+            {row.clockIn}〜{row.clockOut ?? "未退勤"}・休憩{row.breakMinutes}分
           </span>
         </span>
       </div>

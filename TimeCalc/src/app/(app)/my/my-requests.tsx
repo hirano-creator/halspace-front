@@ -11,7 +11,7 @@ export interface MyRequestRow {
   id: string;
   date: string;
   clockIn: string;
-  clockOut: string;
+  clockOut: string | null;
   breakMinutes: number;
   reason: string;
   status: string; // "PENDING" | "APPROVED" | "REJECTED"
@@ -74,7 +74,7 @@ export function MyRequests({
           <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm">
             <span className="font-medium">{r.date}</span>
             <span className="font-mono text-xs tabular-nums text-muted">
-              {r.clockIn}〜{r.clockOut}・休憩{r.breakMinutes}分
+              {r.clockIn}〜{r.clockOut ?? "未退勤"}・休憩{r.breakMinutes}分
             </span>
             <Badge tone={badge.tone}>{badge.label}</Badge>
             <span className="min-w-0 flex-1 truncate text-xs text-muted">{r.reason}</span>

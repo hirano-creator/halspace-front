@@ -18,23 +18,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const formData = await request.formData();
   const rawDate = String(formData.get("date") ?? "");
   const clockIn = String(formData.get("clockIn") ?? "").trim();
-  const clockOut = String(formData.get("clockOut") ?? "").trim();
+  const clockOutRaw = String(formData.get("clockOut") ?? "").trim();
   const breakMinutes = Number(formData.get("breakMinutes") ?? 0);
   const note = String(formData.get("note") ?? "").trim() || null;
 
   const date = normalizeDate(rawDate);
   if (!date) return NextResponse.json<AttendanceEditState>({ error: "日付の形式が不正です", success: false });
   const inMinutes = timeToMinutes(clockIn);
-  const outMinutes = timeToMinutes(clockOut);
-  if (inMinutes === null || outMinutes === null) {
+  if (inMinutes === null) {
     return NextResponse.json<AttendanceEditState>({
-      error: "時刻は HH:mm 形式で入力してください",
+      error: "出勤時刻は HH:mm 形式で入力してください",
+      success: false,
+    });
+  }
+  // 退勤はまだ確定していない日（退勤前に出勤のみ修正したい等）を考慮し、未入力を許容する
+  const clockOut = clockOutRaw || null;
+  const outMinutes = timeToMinutes(clockOut);
+  if (clockOut !== null && outMinutes === null) {
+    return NextResponse.json<AttendanceEditState>({
+      error: "退勤時刻は HH:mm 形式で入力してください",
       success: false,
     });
   }
   if (date === todayString()) {
     const nowMinutes = timeToMinutes(nowTimeString())!;
-    if (inMinutes > nowMinutes || outMinutes > nowMinutes) {
+    if (inMinutes > nowMinutes || (outMinutes !== null && outMinutes > nowMinutes)) {
       return NextResponse.json<AttendanceEditState>({
         error: "本日のまだ来ていない時刻は指定できません",
         success: false,

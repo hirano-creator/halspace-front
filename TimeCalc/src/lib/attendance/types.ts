@@ -109,8 +109,8 @@ export interface DailyAttendanceInput {
   date: string;
   /** 出勤時刻 "HH:mm" */
   clockIn: string;
-  /** 退勤時刻 "HH:mm" */
-  clockOut: string;
+  /** 退勤時刻 "HH:mm"。未退勤（未入力）の日は null */
+  clockOut: string | null;
   /** 休憩時間（分） */
   breakMinutes: number;
 }

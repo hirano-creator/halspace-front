@@ -26,7 +26,8 @@ export async function myWorkRules(userId: string) {
 export interface ParsedCorrection {
   date: string;
   clockIn: string;
-  clockOut: string;
+  /** 未退勤（未入力）の場合は null */
+  clockOut: string | null;
   /** 固定休憩＋外出時間の合算（分） */
   breakMinutes: number;
   outingStart: string | null;
@@ -39,6 +40,9 @@ export interface ParsedCorrection {
  * breakMinutes とする（外出は任意入力、未入力なら固定休憩のみ）。
  * 外出が会社の休憩時間帯（breakStart〜breakEnd）と重なる場合は、重なった分を
  * 控除対象から除き、休憩と外出を二重に差し引かないようにする。
+ * 退勤はまだ確定していない日（退勤前に出勤のみ修正したい等）を考慮し、
+ * 未入力（空欄）を許容する（その場合 clockOut は null になり、勤務時間等は
+ * 「エラー行」＝未確定として表示される）。
  */
 export function parseCorrectionForm(
   formData: FormData,
@@ -46,20 +50,24 @@ export function parseCorrectionForm(
 ): ParsedCorrection | string {
   const date = normalizeDate(String(formData.get("date") ?? ""));
   const clockIn = String(formData.get("clockIn") ?? "").trim();
-  const clockOut = String(formData.get("clockOut") ?? "").trim();
+  const clockOutRaw = String(formData.get("clockOut") ?? "").trim();
   const outingStartRaw = String(formData.get("outingStart") ?? "").trim();
   const outingEndRaw = String(formData.get("outingEnd") ?? "").trim();
 
   if (!date) return "日付の形式が不正です";
   if (date > todayString()) return "未来の日付は指定できません";
   const inMinutes = timeToMinutes(clockIn);
+  if (inMinutes === null) {
+    return "出勤時刻は HH:mm 形式で入力してください";
+  }
+  const clockOut = clockOutRaw || null;
   const outMinutes = timeToMinutes(clockOut);
-  if (inMinutes === null || outMinutes === null) {
-    return "時刻は HH:mm 形式で入力してください";
+  if (clockOut !== null && outMinutes === null) {
+    return "退勤時刻は HH:mm 形式で入力してください";
   }
   if (date === todayString()) {
     const nowMinutes = timeToMinutes(nowTimeString())!;
-    if (inMinutes > nowMinutes || outMinutes > nowMinutes) {
+    if (inMinutes > nowMinutes || (outMinutes !== null && outMinutes > nowMinutes)) {
       return "本日のまだ来ていない時刻は指定できません";
     }
   }

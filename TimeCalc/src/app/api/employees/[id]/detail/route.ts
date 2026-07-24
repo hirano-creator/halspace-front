@@ -179,7 +179,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       dayLabel: `${m}/${d}(${WEEKDAYS[weekday]})`,
       isWeekend: weekday === 0 || weekday === 6,
       clockIn: record?.clockIn ?? "08:00",
-      clockOut: record?.clockOut ?? "17:00",
+      // 退勤が未確定（record.clockOutがnull）の日は編集フォームを空欄のままにする
+      clockOut: record ? (record.clockOut ?? "") : "17:00",
       breakMinutes: record?.breakMinutes ?? 60,
       note: record?.note ?? null,
       roundedClockInLabel: record ? (ok ? calc.roundedClockIn : "-") : "-",

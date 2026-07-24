@@ -62,7 +62,7 @@ export default function CorrectionsPage() {
                 <span className="font-medium">{r.userName}</span>
                 <span>{r.date}</span>
                 <span className="font-mono text-xs tabular-nums text-muted">
-                  {r.clockIn}〜{r.clockOut}・休憩{r.breakMinutes}分
+                  {r.clockIn}〜{r.clockOut ?? "未退勤"}・休憩{r.breakMinutes}分
                 </span>
                 <Badge tone={r.status === "APPROVED" ? "green" : "red"}>
                   {r.status === "APPROVED" ? "承認済み" : "却下"}
