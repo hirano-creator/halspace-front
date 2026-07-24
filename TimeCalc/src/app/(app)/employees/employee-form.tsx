@@ -271,6 +271,21 @@ export function EmployeeForm({
               マイページに月次集計（勤務時間・遅刻回数など）を表示する
             </label>
           </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="companyAttendance"
+                defaultChecked={values?.features.companyAttendance ?? false}
+                className="h-4 w-4 rounded border-border accent-[var(--primary)]"
+              />
+              同じ会社の他のスタッフの勤怠を閲覧・修正できる
+            </label>
+            <p className="mt-1 ml-6 text-xs text-muted">
+              一般社員のままでも、所属部署と同じ会社（グループ会社）のスタッフの勤怠一覧・修正・修正申請の承認ができるようになります。会社が異なるスタッフや、部署が未設定で会社を特定できない場合は対象外です（設定変更後は本人が再ログインすると反映されます）
+            </p>
+          </div>
         </div>
       </fieldset>
 

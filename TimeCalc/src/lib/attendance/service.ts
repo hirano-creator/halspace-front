@@ -3,7 +3,7 @@
 
 import { prisma } from "@/lib/db";
 import { getAllWorkRules, workRulesFor, type CompanyWorkRules } from "@/lib/settings";
-import { can } from "@/lib/auth/roles";
+import { attendanceScope } from "@/lib/auth/guard";
 import { periodRange } from "@/lib/utils/time";
 import type { SessionUser } from "@/lib/auth/session";
 import { calcDaily, calcDailyPay, summarize } from "./calculator";
@@ -17,14 +17,18 @@ import type { Prisma } from "@/generated/prisma/client";
 
 /** 閲覧者が見られる社員を絞る Prisma の where 条件を返す */
 export function visibleUsersWhere(viewer: SessionUser): Prisma.UserWhereInput {
-  if (can(viewer.role, "viewAllEmployees")) return {};
-  if (can(viewer.role, "viewDepartment")) {
-    // 自部署（部署未設定の場合は自分のみ）
-    return viewer.departmentId
-      ? { departmentId: viewer.departmentId }
-      : { id: viewer.id };
+  switch (attendanceScope(viewer)) {
+    case "all":
+      return {};
+    case "company":
+      // 同じ会社（所属部署が属するグループ会社）に属する社員
+      return { department: { companyId: viewer.companyId } };
+    case "department":
+      // 自部署（部署未設定の場合は自分のみ）
+      return viewer.departmentId ? { departmentId: viewer.departmentId } : { id: viewer.id };
+    case "self":
+      return { id: viewer.id };
   }
-  return { id: viewer.id };
 }
 
 /** 勤怠1件と計算結果のペア */

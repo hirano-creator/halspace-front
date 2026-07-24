@@ -8,6 +8,8 @@ import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSessionToken, type SessionUser } from "@/lib/auth/session";
 import { toRole } from "@/lib/auth/roles";
+import { resolveFeatures } from "@/lib/auth/features";
+import { getCompanyIdForDepartment } from "@/lib/settings";
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as
@@ -41,7 +43,9 @@ export async function POST(request: Request) {
     name: user.name,
     role: toRole(user.role),
     departmentId: user.departmentId,
+    companyId: await getCompanyIdForDepartment(user.departmentId),
     gpsCheckEnabled: user.gpsCheckEnabled,
+    companyAttendance: resolveFeatures(user.featureOverrides).companyAttendance,
   };
 
   const token = await createSessionToken(sessionUser);

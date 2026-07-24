@@ -35,6 +35,7 @@ export function parseEmployeeForm(formData: FormData): EmployeeInput | string {
     selfEdit,
     clockMode: toClockMode(formData.get("clockMode")),
     showMonthlySummary: formData.get("showMonthlySummary") === "on",
+    companyAttendance: formData.get("companyAttendance") === "on",
   });
 
   if (!employeeCode) return "社員番号を入力してください";

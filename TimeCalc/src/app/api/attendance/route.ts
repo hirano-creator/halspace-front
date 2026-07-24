@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth/api-guard";
 import { can } from "@/lib/auth/roles";
+import { attendanceScope } from "@/lib/auth/guard";
 import { getMonthlySummaries } from "@/lib/attendance/service";
 import { getAllWorkRules, getCompanyIdForDepartment, getDisplaySettings, workRulesFor } from "@/lib/settings";
 import { currentPeriod, formatPeriodRange, periodRange } from "@/lib/utils/time";
@@ -44,7 +45,8 @@ export async function GET(request: Request) {
     closingDay: rules.closingDay,
     hasCompanyRules: allRules.byCompany.size > 0,
     canExport: can(user.role, "exportCsv"),
-    showFilters: can(user.role, "viewAllEmployees"),
+    // 会社/部署の絞り込みフィルタは、複数人を横断して見られる範囲のときだけ出す
+    showFilters: attendanceScope(user) === "all" || attendanceScope(user) === "company",
     showMoney: display.showMoney,
     companies: companies.map((c) => ({ id: c.id, name: c.name })),
     departments: departments.map((d) => ({

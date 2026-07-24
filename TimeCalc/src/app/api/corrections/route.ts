@@ -3,16 +3,20 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireApiPermission } from "@/lib/auth/api-guard";
+import { requireApiUser } from "@/lib/auth/api-guard";
+import { canEditOthersAttendance } from "@/lib/auth/guard";
 import { visibleUsersWhere } from "@/lib/attendance/service";
 import type { ReviewRow } from "@/app/(app)/corrections/review-list";
 import type { CorrectionsPageResponse, ResolvedRow } from "@/app/(app)/corrections/types";
 import { formatDateTime } from "./_shared";
 
 export async function GET(request: Request) {
-  const auth = await requireApiPermission(request, "editAttendance");
+  const auth = await requireApiUser(request);
   if (!auth.ok) return auth.response;
   const viewer = auth.user;
+  if (!canEditOthersAttendance(viewer)) {
+    return NextResponse.json({ error: "権限がありません" }, { status: 403 });
+  }
 
   const [pending, resolved] = await Promise.all([
     prisma.correctionRequest.findMany({

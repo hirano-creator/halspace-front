@@ -17,8 +17,12 @@ export interface SessionUser {
   name: string;
   role: Role;
   departmentId: string | null;
+  /** 所属部署が属するグループ会社のID（会社単位の勤怠閲覧範囲の判定に使う） */
+  companyId: string | null;
   /** false ならこのユーザーは打刻時のGPS判定をスキップする */
   gpsCheckEnabled: boolean;
+  /** true なら同じ会社の他スタッフの勤怠を閲覧・修正できる（ロールに依らず個別付与） */
+  companyAttendance: boolean;
 }
 
 function getSecret(): Uint8Array {
@@ -36,7 +40,9 @@ export async function createSessionToken(user: SessionUser): Promise<string> {
     name: user.name,
     role: user.role,
     departmentId: user.departmentId,
+    companyId: user.companyId,
     gpsCheckEnabled: user.gpsCheckEnabled,
+    companyAttendance: user.companyAttendance,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.id)
@@ -56,7 +62,9 @@ export async function verifySessionToken(token: string): Promise<SessionUser | n
       name: String(payload.name ?? ""),
       role: toRole(String(payload.role ?? "")),
       departmentId: payload.departmentId ? String(payload.departmentId) : null,
+      companyId: payload.companyId ? String(payload.companyId) : null,
       gpsCheckEnabled: payload.gpsCheckEnabled !== false,
+      companyAttendance: payload.companyAttendance === true,
     };
   } catch {
     return null;

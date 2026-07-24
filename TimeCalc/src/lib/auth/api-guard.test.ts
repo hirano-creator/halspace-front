@@ -12,7 +12,9 @@ const adminUser: SessionUser = {
   name: "管理者",
   role: "ADMIN",
   departmentId: null,
+  companyId: null,
   gpsCheckEnabled: true,
+  companyAttendance: false,
 };
 
 const employeeUser: SessionUser = {
@@ -21,7 +23,9 @@ const employeeUser: SessionUser = {
   name: "一般社員",
   role: "EMPLOYEE",
   departmentId: "dept-1",
+  companyId: "company-1",
   gpsCheckEnabled: true,
+  companyAttendance: false,
 };
 
 function requestWithToken(token?: string): Request {

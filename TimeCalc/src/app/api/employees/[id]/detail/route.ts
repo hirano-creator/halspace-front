@@ -4,8 +4,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth/api-guard";
-import { canViewEmployee } from "@/lib/auth/guard";
-import { can, toRole } from "@/lib/auth/roles";
+import { canEditOthersAttendance, canViewEmployee } from "@/lib/auth/guard";
+import { toRole } from "@/lib/auth/roles";
 import { calcDaily, calcDailyPay, formatYen, summarize } from "@/lib/attendance/calculator";
 import {
   deriveDailyFromEvents,
@@ -55,17 +55,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   ]);
   if (!employee) return NextResponse.json({ error: "対象の社員が見つかりません" }, { status: 404 });
 
-  if (!canViewEmployee(viewer, employee)) {
+  const employeeCompanyId = employee.department?.companyId ?? null;
+  const targetScope = {
+    id: employee.id,
+    departmentId: employee.departmentId,
+    companyId: employeeCompanyId,
+  };
+  if (!canViewEmployee(viewer, targetScope)) {
     return NextResponse.json({ error: "この社員の勤怠を閲覧する権限がありません" }, { status: 403 });
   }
 
   const rules = workRulesFor(allRules, employee.department?.companyId);
   const showMoney = display.showMoney;
 
-  const editable =
-    can(viewer.role, "editAttendance") &&
-    (can(viewer.role, "viewAllEmployees") ||
-      (viewer.departmentId !== null && viewer.departmentId === employee.departmentId));
+  const editable = canEditOthersAttendance(viewer) && canViewEmployee(viewer, targetScope);
   const month = /^\d{4}-\d{2}$/.test(monthParam ?? "") ? monthParam! : currentPeriod(rules.closingDay);
   const period = periodRange(month, rules.closingDay);
 

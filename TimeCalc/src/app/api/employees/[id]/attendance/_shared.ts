@@ -1,9 +1,9 @@
 // /api/employees/[id]/attendance/* の各Route Handlerが共有するロジック
 
-import type { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireApiPermission } from "@/lib/auth/api-guard";
-import { can } from "@/lib/auth/roles";
+import { requireApiUser } from "@/lib/auth/api-guard";
+import { canEditOthersAttendance, canViewEmployee } from "@/lib/auth/guard";
 
 export type EditableCheck =
   | { ok: true; viewerId: string }
@@ -12,17 +12,27 @@ export type EditableCheck =
 
 /** 対象社員の勤怠を編集できるか検証する（可なら操作者IDを、不可ならレスポンスかエラー理由を返す） */
 export async function checkEditable(request: Request, targetUserId: string): Promise<EditableCheck> {
-  const auth = await requireApiPermission(request, "editAttendance");
+  const auth = await requireApiUser(request);
   if (!auth.ok) return { ok: false, response: auth.response };
   const viewer = auth.user;
+  if (!canEditOthersAttendance(viewer)) {
+    return { ok: false, response: NextResponse.json({ error: "権限がありません" }, { status: 403 }) };
+  }
 
-  const target = await prisma.user.findUnique({ where: { id: targetUserId } });
+  const target = await prisma.user.findUnique({
+    where: { id: targetUserId },
+    include: { department: true },
+  });
   if (!target) return { ok: false, error: "対象の社員が見つかりません" };
 
-  if (!can(viewer.role, "viewAllEmployees")) {
-    if (!viewer.departmentId || viewer.departmentId !== target.departmentId) {
-      return { ok: false, error: "自部署以外の勤怠は修正できません" };
-    }
+  if (
+    !canViewEmployee(viewer, {
+      id: target.id,
+      departmentId: target.departmentId,
+      companyId: target.department?.companyId ?? null,
+    })
+  ) {
+    return { ok: false, error: "担当範囲外の勤怠は修正できません" };
   }
   return { ok: true, viewerId: viewer.id };
 }

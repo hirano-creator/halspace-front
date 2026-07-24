@@ -11,7 +11,9 @@ const sampleUser: SessionUser = {
   name: "山田太郎",
   role: "EMPLOYEE",
   departmentId: "dept-1",
+  companyId: "company-1",
   gpsCheckEnabled: true,
+  companyAttendance: false,
 };
 
 describe("createSessionToken / verifySessionToken", () => {

@@ -32,12 +32,18 @@ export interface FeatureSettings {
   clockMode: ClockMode;
   /** マイページに月次集計（勤務時間・遅刻回数など）を表示する */
   showMonthlySummary: boolean;
+  /**
+   * 同じ会社（所属部署が属するグループ会社）の他スタッフの勤怠を閲覧・修正できる。
+   * 一般社員のロールのままでも、店長相当の会社内閲覧・修正権限を個別に付与するためのフラグ。
+   */
+  companyAttendance: boolean;
 }
 
 export const DEFAULT_FEATURES: FeatureSettings = {
   selfEdit: "request",
   clockMode: "free",
   showMonthlySummary: true,
+  companyAttendance: false,
 };
 
 /** User.featureOverrides のJSON文字列を FeatureSettings に解決する（不正値はデフォルト） */
@@ -64,6 +70,10 @@ export function resolveFeatures(featureOverrides: string | null | undefined): Fe
         typeof parsed.showMonthlySummary === "boolean"
           ? parsed.showMonthlySummary
           : DEFAULT_FEATURES.showMonthlySummary,
+      companyAttendance:
+        typeof parsed.companyAttendance === "boolean"
+          ? parsed.companyAttendance
+          : DEFAULT_FEATURES.companyAttendance,
     };
   } catch {
     return { ...DEFAULT_FEATURES };
@@ -79,6 +89,9 @@ export function serializeFeatures(features: FeatureSettings): string | null {
   }
   if (features.showMonthlySummary !== DEFAULT_FEATURES.showMonthlySummary) {
     overrides.showMonthlySummary = features.showMonthlySummary;
+  }
+  if (features.companyAttendance !== DEFAULT_FEATURES.companyAttendance) {
+    overrides.companyAttendance = features.companyAttendance;
   }
   return Object.keys(overrides).length === 0 ? null : JSON.stringify(overrides);
 }

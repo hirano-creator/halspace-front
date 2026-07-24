@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useAuth, useRequireAuth } from "@/lib/auth/client";
 import { apiFetchJson } from "@/lib/auth/api-fetch";
 import { can } from "@/lib/auth/roles";
+import { attendanceScope } from "@/lib/auth/guard";
 import { SidebarNav, type NavItem } from "@/components/sidebar";
 import { MobileNav } from "@/components/mobile-nav";
 import type { NavResponse } from "./types";
@@ -46,7 +47,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     { href: "/my", label: "マイページ", icon: "🏠" },
     { href: "/clock", label: "打刻", icon: "⏱" },
   ];
-  if (can(user.role, "viewDepartment")) {
+  // 自分以外の勤怠を見られる範囲（店長=自部署 / 会社権限=自社 / 管理者=全社）があれば表示する
+  if (attendanceScope(user) !== "self") {
     items.push({ href: "/attendance", label: "勤怠一覧", icon: "🗓" });
     items.push({ href: "/corrections", label: "修正申請", icon: "📝", badge: pendingCorrections });
   }
