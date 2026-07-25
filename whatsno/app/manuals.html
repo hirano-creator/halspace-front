@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1E3A5F">
+  <title>マニュアル — What'sNo</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="apple-touch-icon" sizes="180x180" href="../assets/icons/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260725a">
+  <style>
+    .m-wrap { max-width: 1080px; margin: 0 auto; padding: 16px 16px calc(28px + env(safe-area-inset-bottom)); }
+    .m-head { display: flex; align-items: center; gap: 12px; padding: 8px 0 18px; }
+    .m-back { width: 38px; height: 38px; flex: none; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; color: var(--primary); text-decoration: none; font-size: 17px; transition: background .15s; }
+    .m-back:hover { background: var(--bg); }
+    .m-title { font-size: 20px; font-weight: 800; color: var(--primary); line-height: 1.2; }
+    .m-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .m-new-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px;
+      border: none; border-radius: var(--radius); background: var(--accent); color: #fff; font-size: 14px;
+      font-weight: 700; cursor: pointer; font-family: inherit; transition: background .15s; white-space: nowrap; }
+    .m-new-btn:hover { background: var(--accent-dk); }
+
+    .m-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+    .m-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+      overflow: hidden; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; cursor: pointer;
+      transition: box-shadow .15s, transform .15s; text-decoration: none; }
+    .m-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .m-cover { height: 120px; position: relative; display: grid; place-items: center; overflow: hidden;
+      background: linear-gradient(135deg, #1a3a5c, #0a2540); color: #fff; font-size: 30px; }
+    .m-cover img { width: 100%; height: 100%; object-fit: cover; }
+    .m-badge { position: absolute; top: 8px; left: 8px; font-size: 10.5px; font-weight: 700; padding: 3px 9px;
+      border-radius: 100px; color: #fff; }
+    .m-badge.draft { background: rgba(105,115,134,.9); }
+    .m-badge.pub   { background: rgba(26,156,107,.92); }
+    .m-steps { position: absolute; bottom: 8px; right: 8px; font-size: 10.5px; font-weight: 600; padding: 3px 9px;
+      border-radius: 100px; background: rgba(10,37,64,.6); color: #fff; }
+    .m-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .m-name { font-size: 14.5px; font-weight: 700; color: var(--primary); line-height: 1.4; }
+    .m-meta { font-size: 12px; color: var(--muted); margin-top: auto; display: flex; align-items: center; gap: 8px; }
+    .m-edit { color: var(--muted); font-size: 13px; padding: 2px 6px; border-radius: 6px; margin-left: auto; }
+    .m-edit:hover { color: var(--accent); background: var(--bg); }
+
+    .m-empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .m-empty .ei { font-size: 44px; color: var(--border); }
+    .m-empty .et { font-size: 15px; font-weight: 700; color: var(--primary); margin-top: 14px; }
+    .m-empty .es { font-size: 13px; margin-top: 6px; }
+
+    /* 新規作成モーダル */
+    .m-overlay { position: fixed; inset: 0; background: rgba(10,37,64,.5); display: none; align-items: center;
+      justify-content: center; z-index: 100; padding: 20px; }
+    .m-overlay.show { display: flex; }
+    .m-modal { background: #fff; border-radius: var(--radius-lg); width: 100%; max-width: 420px; padding: 22px;
+      box-shadow: var(--shadow-md); }
+    .m-modal h3 { margin: 0 0 4px; font-size: 17px; font-weight: 800; color: var(--primary); }
+    .m-modal p  { margin: 0 0 16px; font-size: 12.5px; color: var(--muted); }
+    .m-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .04em; }
+    .m-input { width: 100%; margin-top: 6px; padding: 11px 13px; border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: 14px; font-family: inherit; box-sizing: border-box; }
+    .m-input:focus { outline: none; border-color: var(--accent); }
+    .m-modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .m-modal-actions button { flex: 1; padding: 12px; border-radius: var(--radius); font-size: 14px; font-weight: 700;
+      cursor: pointer; font-family: inherit; border: 1px solid var(--border); }
+    .m-cancel { background: #fff; color: var(--primary); }
+    .m-cancel:hover { border-color: var(--accent); color: var(--accent); }
+    .m-create { background: var(--accent); color: #fff; border-color: var(--accent) !important; }
+    .m-create:hover { background: var(--accent-dk); }
+    .m-create:disabled { opacity: .5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+<div class="m-wrap">
+  <div class="m-head">
+    <a href="dashboard.html" class="m-back" aria-label="戻る"><i class="fa-solid fa-arrow-left"></i></a>
+    <div>
+      <div class="m-title">マニュアル</div>
+      <div class="m-sub">工場の作業手順・保守点検・安全手順をまとめて共有</div>
+    </div>
+    <button class="m-new-btn" id="newBtn"><i class="fa-solid fa-plus"></i> 新規マニュアル</button>
+  </div>
+
+  <div id="listArea"></div>
+</div>
+
+<!-- 新規作成モーダル -->
+<div class="m-overlay" id="newModal">
+  <div class="m-modal">
+    <h3>新規マニュアル</h3>
+    <p>タイトルを入力すると編集画面が開きます</p>
+    <label class="m-label" for="newTitle">タイトル</label>
+    <input class="m-input" id="newTitle" type="text" placeholder="例: 集塵機フィルター交換手順" maxlength="200" autocomplete="off">
+    <div class="m-modal-actions">
+      <button class="m-cancel" id="cancelBtn">キャンセル</button>
+      <button class="m-create" id="createBtn">作成して編集</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="../../solid/assets/js/auth.js?v=6"></script>
+<script src="../assets/js/wn-api.js?v=13"></script>
+<script>
+'use strict';
+/* マニュアル一覧画面 */
+const user = requireSpaceAuth();
+if (!user) throw new Error('未認証');
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+function coverHtml(m) {
+  const badge = m.status === 'published'
+    ? '<span class="m-badge pub">公開中</span>'
+    : '<span class="m-badge draft">下書き</span>';
+  const steps = `<span class="m-steps">${m.step_count}ステップ</span>`;
+  let inner = '<i class="fa-solid fa-book"></i>';
+  if (m.cover && m.cover.id) {
+    inner = `<img src="${wnThumbUrl(m.cover.id, m.cover.updated_at)}" alt="" loading="lazy"
+      onerror="this.parentElement.innerHTML='<i class=&quot;fa-solid fa-book&quot;></i>'+this.parentElement.dataset.overlay">`;
+  }
+  return `<div class="m-cover" data-overlay="${badge}${steps}">${inner}${badge}${steps}</div>`;
+}
+
+function renderManuals(manuals) {
+  const area = document.getElementById('listArea');
+  if (!manuals.length) {
+    area.innerHTML = `
+      <div class="m-empty">
+        <div class="ei"><i class="fa-solid fa-book-open"></i></div>
+        <div class="et">まだマニュアルがありません</div>
+        <div class="es">「新規マニュアル」から、スマホで撮った写真を並べるだけで作れます</div>
+      </div>`;
+    return;
+  }
+  const cards = manuals.map(m => `
+    <a class="m-card" href="manual-view.html?id=${m.id}">
+      ${coverHtml(m)}
+      <div class="m-body">
+        <div class="m-name">${escapeHtml(m.title)}</div>
+        <div class="m-meta">
+          <span>${wnFormatDate(m.updated_at)}</span>
+          <span class="m-edit" title="編集"
+            onclick="event.preventDefault();event.stopPropagation();location.href='manual-edit.html?id=${m.id}'">
+            <i class="fa-solid fa-pen"></i> 編集
+          </span>
+        </div>
+      </div>
+    </a>`).join('');
+  area.innerHTML = `<div class="m-grid">${cards}</div>`;
+}
+
+async function load() {
+  const manuals = await wnGetManuals();
+  renderManuals(manuals);
+}
+
+/* 新規作成モーダル */
+const modal = document.getElementById('newModal');
+const titleInput = document.getElementById('newTitle');
+function openModal()  { modal.classList.add('show'); titleInput.value = ''; setTimeout(() => titleInput.focus(), 50); }
+function closeModal() { modal.classList.remove('show'); }
+
+async function createManual() {
+  const title = titleInput.value.trim();
+  if (!title) { titleInput.focus(); return; }
+  const btn = document.getElementById('createBtn');
+  btn.disabled = true; btn.textContent = '作成中…';
+  try {
+    const m = await wnCreateManual(title);
+    location.href = `manual-edit.html?id=${m.id}`;
+  } catch (e) {
+    wnShowToast(e.message || '作成に失敗しました', 'danger');
+    btn.disabled = false; btn.textContent = '作成して編集';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('newBtn').addEventListener('click', openModal);
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  document.getElementById('createBtn').addEventListener('click', createManual);
+  titleInput.addEventListener('keydown', e => { if (e.key === 'Enter') createManual(); });
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  load();
+});
+</script>
+</body>
+</html>

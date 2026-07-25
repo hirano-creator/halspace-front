@@ -660,6 +660,76 @@ async function wnSuggestRelations(fileId) {
   return (await res.json()).data ?? [];
 }
 
+/* ── マニュアル（工場向け手順書・会社単位） ── */
+async function wnGetManuals() {
+  const res = await wnFetch('/wn/manuals');
+  if (!res || !res.ok) return [];
+  return (await res.json()).data ?? [];
+}
+async function wnGetManual(id) {
+  const res = await wnFetch(`/wn/manuals/${id}`);
+  if (!res || !res.ok) return null;
+  return (await res.json()).data ?? null;
+}
+async function wnCreateManual(title, description = '') {
+  const res = await wnFetch('/wn/manuals', {
+    method: 'POST',
+    body: JSON.stringify({ title, description: description || null }),
+  });
+  if (!res || !res.ok) {
+    const err = await res?.json().catch(() => ({}));
+    throw new Error(err.message || 'マニュアルの作成に失敗しました');
+  }
+  return (await res.json()).data;
+}
+async function wnUpdateManual(id, patch) {
+  const res = await wnFetch(`/wn/manuals/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  if (!res || !res.ok) return null;
+  return (await res.json()).data ?? null;
+}
+async function wnDeleteManual(id) {
+  const res = await wnFetch(`/wn/manuals/${id}`, { method: 'DELETE' });
+  return !!(res && res.ok);
+}
+async function wnAddManualStep(id, { type, fileId, caption, body } = {}) {
+  const res = await wnFetch(`/wn/manuals/${id}/steps`, {
+    method: 'POST',
+    body: JSON.stringify({
+      type,
+      file_id: fileId || null,
+      caption: caption || null,
+      body:    body    || null,
+    }),
+  });
+  if (!res || !res.ok) {
+    const err = await res?.json().catch(() => ({}));
+    throw new Error(err.message || 'ステップの追加に失敗しました');
+  }
+  return (await res.json()).data;
+}
+async function wnUpdateManualStep(id, stepId, patch) {
+  const res = await wnFetch(`/wn/manuals/${id}/steps/${stepId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  if (!res || !res.ok) return null;
+  return (await res.json()).data ?? null;
+}
+async function wnDeleteManualStep(id, stepId) {
+  const res = await wnFetch(`/wn/manuals/${id}/steps/${stepId}`, { method: 'DELETE' });
+  return !!(res && res.ok);
+}
+async function wnReorderManualSteps(id, order) {
+  const res = await wnFetch(`/wn/manuals/${id}/steps/reorder`, {
+    method: 'PATCH',
+    body: JSON.stringify({ order }),
+  });
+  return !!(res && res.ok);
+}
+
 /* ── a.a（経営者向け業界SNS）へ投稿 ── */
 const AA_APP_URL = (() => {
   const h = location.hostname;
