@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1E3A5F">
+  <title>マニュアル編集 — What'sNo</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="apple-touch-icon" sizes="180x180" href="../assets/icons/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260725a">
+  <style>
+    .e-wrap { max-width: 640px; margin: 0 auto; padding: 8px 14px calc(28px + env(safe-area-inset-bottom)); }
+    .e-head { display: flex; align-items: center; gap: 10px; padding: 8px 0 12px; position: sticky; top: 0;
+      background: var(--bg); z-index: 20; }
+    .e-back { width: 36px; height: 36px; flex: none; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; color: var(--primary); text-decoration: none; font-size: 16px; transition: background .15s; }
+    .e-back:hover { background: var(--bg-card); }
+    .e-htitle { font-weight: 800; font-size: 16px; color: var(--primary); flex: 1;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .e-status { display: flex; gap: 4px; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 100px; padding: 3px; }
+    .e-status button { border: none; background: none; padding: 5px 12px; border-radius: 100px; font-size: 12px;
+      font-weight: 700; color: var(--muted); cursor: pointer; font-family: inherit; }
+    .e-status button.active { background: var(--accent); color: #fff; }
+
+    .e-field { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 11px 13px; margin-bottom: 14px; }
+    .e-field-label { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: .06em;
+      text-transform: uppercase; margin-bottom: 4px; }
+    .e-field input, .e-field textarea { width: 100%; border: none; background: none; font-family: inherit;
+      font-size: 15px; font-weight: 700; color: var(--primary); padding: 0; box-sizing: border-box; }
+    .e-field input:focus, .e-field textarea:focus { outline: none; }
+    .e-field.desc input { font-weight: 400; font-size: 13.5px; }
+
+    .e-steps { display: flex; flex-direction: column; gap: 10px; }
+    .e-step { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+      padding: 10px; display: flex; gap: 11px; box-shadow: var(--shadow-sm); align-items: flex-start; }
+    .e-num { flex: none; width: 25px; height: 25px; border-radius: 50%; background: var(--primary); color: #fff;
+      font-weight: 700; font-size: 12px; display: grid; place-items: center; margin-top: 2px; }
+    .e-thumb { flex: none; width: 62px; height: 62px; border-radius: var(--radius); object-fit: cover;
+      display: grid; place-items: center; color: #fff; font-size: 20px; background: linear-gradient(135deg,#2d3d52,#0a2540); overflow: hidden; }
+    .e-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .e-thumb.file { background: #eef0ff; color: var(--accent-dk); border: 1px solid #dfe1fb; }
+    .e-scap { flex: 1; min-width: 0; }
+    .e-kind { font-size: 10px; font-weight: 700; color: var(--accent); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 3px; }
+    .e-scap input, .e-scap textarea { width: 100%; border: 1px solid var(--border); border-radius: 6px;
+      padding: 7px 9px; font-family: inherit; font-size: 13.5px; color: var(--primary); box-sizing: border-box; resize: vertical; }
+    .e-scap input:focus, .e-scap textarea:focus { outline: none; border-color: var(--accent); }
+    .e-step.heading { background: #f0f4f9; }
+    .e-step.heading .e-scap input { font-weight: 800; font-size: 14px; background: transparent; border-color: transparent; }
+    .e-step.heading .e-scap input:focus { border-color: var(--accent); background: #fff; }
+    .e-sctrl { flex: none; display: flex; flex-direction: column; gap: 3px; }
+    .e-sctrl button { width: 28px; height: 24px; border: 1px solid var(--border); background: var(--bg-card);
+      border-radius: 5px; color: var(--muted); cursor: pointer; font-size: 11px; }
+    .e-sctrl button:hover { color: var(--accent); border-color: var(--accent); }
+    .e-sctrl button.del:hover { color: var(--red); border-color: var(--red); }
+    .e-sctrl button:disabled { opacity: .3; cursor: not-allowed; }
+
+    .e-addbar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+    .e-addbtn { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 13px 8px; text-align: center; font-size: 12px; font-weight: 700; color: var(--primary);
+      display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; font-family: inherit;
+      transition: border-color .15s; }
+    .e-addbtn:hover { border-color: var(--accent); }
+    .e-addbtn .bic { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; }
+    .e-addbtn.cam  .bic { background: #eef0ff; color: var(--accent-dk); }
+    .e-addbtn.pick .bic { background: #e7f6ef; color: var(--green); }
+    .e-addbtn.file .bic { background: #fff3e5; color: var(--orange); }
+    .e-addbtn.text .bic { background: #eef2f7; color: var(--primary); }
+
+    .e-empty { text-align: center; padding: 30px 16px; color: var(--muted); font-size: 13px; }
+
+    .e-danger { margin-top: 26px; text-align: center; }
+    .e-danger button { background: none; border: none; color: var(--red); font-size: 12.5px; font-weight: 700;
+      cursor: pointer; font-family: inherit; padding: 8px; }
+    .e-danger button:hover { text-decoration: underline; }
+
+    .e-view-link { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; font-size: 12px;
+      color: var(--accent); text-decoration: none; font-weight: 700; }
+
+    /* オーバーレイ（既存ファイル選択 / テキスト追加） */
+    .e-overlay { position: fixed; inset: 0; background: rgba(10,37,64,.5); display: none; align-items: center;
+      justify-content: center; z-index: 100; padding: 16px; }
+    .e-overlay.show { display: flex; }
+    .e-modal { background: #fff; border-radius: var(--radius-lg); width: 100%; max-width: 560px; max-height: 84vh;
+      display: flex; flex-direction: column; box-shadow: var(--shadow-md); overflow: hidden; }
+    .e-modal-head { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; }
+    .e-modal-head h3 { margin: 0; font-size: 16px; font-weight: 800; color: var(--primary); }
+    .e-modal-head .close { margin-left: auto; background: none; border: none; font-size: 18px; color: var(--muted); cursor: pointer; }
+    .e-modal-body { padding: 16px 18px; overflow-y: auto; }
+    .e-pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+    .e-pick-item { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer;
+      display: flex; flex-direction: column; transition: border-color .15s; background: #fff; }
+    .e-pick-item:hover { border-color: var(--accent); }
+    .e-pick-thumb { height: 70px; display: grid; place-items: center; background: var(--bg); color: var(--muted); font-size: 20px; overflow: hidden; }
+    .e-pick-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .e-pick-name { font-size: 10.5px; padding: 5px 6px; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .e-type-row { display: flex; gap: 8px; margin-bottom: 14px; }
+    .e-type-row button { flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius);
+      background: #fff; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; }
+    .e-type-row button.active { border-color: var(--accent); background: #eef0ff; color: var(--accent-dk); }
+    .e-ta { width: 100%; min-height: 90px; padding: 11px; border: 1px solid var(--border); border-radius: var(--radius);
+      font-family: inherit; font-size: 14px; box-sizing: border-box; resize: vertical; }
+    .e-ta:focus { outline: none; border-color: var(--accent); }
+    .e-modal-foot { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+    .e-modal-foot button { flex: 1; padding: 12px; border-radius: var(--radius); font-size: 14px; font-weight: 700;
+      cursor: pointer; font-family: inherit; border: 1px solid var(--border); }
+    .e-mf-cancel { background: #fff; color: var(--primary); }
+    .e-mf-add { background: var(--accent); color: #fff; border-color: var(--accent) !important; }
+    .e-mf-add:disabled { opacity: .5; cursor: not-allowed; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="e-wrap">
+  <div class="e-head">
+    <a href="manuals.html" class="e-back" aria-label="戻る"><i class="fa-solid fa-arrow-left"></i></a>
+    <div class="e-htitle" id="hTitle">マニュアル編集</div>
+    <a class="e-view-link" id="viewLink" href="#" title="閲覧"><i class="fa-solid fa-eye"></i></a>
+    <div class="e-status">
+      <button id="stDraft" data-v="draft">下書き</button>
+      <button id="stPub" data-v="published">公開</button>
+    </div>
+  </div>
+
+  <div class="e-field">
+    <div class="e-field-label">タイトル</div>
+    <input id="fTitle" type="text" placeholder="マニュアルのタイトル" maxlength="200">
+  </div>
+  <div class="e-field desc">
+    <div class="e-field-label">説明（任意）</div>
+    <input id="fDesc" type="text" placeholder="作業の概要・所要時間・注意など" maxlength="2000">
+  </div>
+
+  <div class="e-steps" id="steps"></div>
+
+  <div class="e-addbar">
+    <div class="e-addbtn cam"  id="addCam"><div class="bic"><i class="fa-solid fa-camera"></i></div>写真を撮る</div>
+    <div class="e-addbtn pick" id="addImg"><div class="bic"><i class="fa-solid fa-image"></i></div>画像を選ぶ</div>
+    <div class="e-addbtn file" id="addFile"><div class="bic"><i class="fa-solid fa-paperclip"></i></div>既存ファイル</div>
+    <div class="e-addbtn text" id="addText"><div class="bic"><i class="fa-solid fa-heading"></i></div>見出し・説明</div>
+  </div>
+
+  <input type="file" id="inCam"  accept="image/*" capture="environment" multiple style="display:none;">
+  <input type="file" id="inImg"  accept="image/*" multiple style="display:none;">
+
+  <div class="e-danger">
+    <button id="delManualBtn"><i class="fa-solid fa-trash-can"></i> このマニュアルを削除</button>
+  </div>
+</div>
+
+<!-- 既存ファイル選択モーダル -->
+<div class="e-overlay" id="fileModal">
+  <div class="e-modal">
+    <div class="e-modal-head"><h3>既存ファイルから追加</h3><button class="close" data-close="fileModal">&times;</button></div>
+    <div class="e-modal-body"><div class="e-pick-grid" id="pickGrid"><div class="e-empty">読み込み中…</div></div></div>
+  </div>
+</div>
+
+<!-- 見出し・説明モーダル -->
+<div class="e-overlay" id="textModal">
+  <div class="e-modal">
+    <div class="e-modal-head"><h3>見出し・説明を追加</h3><button class="close" data-close="textModal">&times;</button></div>
+    <div class="e-modal-body">
+      <div class="e-type-row">
+        <button id="tHeading" class="active" data-t="heading">🔤 見出し</button>
+        <button id="tText" data-t="text">📝 説明文</button>
+      </div>
+      <textarea class="e-ta" id="textBody" placeholder="テキストを入力"></textarea>
+    </div>
+    <div class="e-modal-foot">
+      <button class="e-mf-cancel" data-close="textModal">キャンセル</button>
+      <button class="e-mf-add" id="textAddBtn">追加</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="../../solid/assets/js/auth.js?v=6"></script>
+<script src="../assets/js/wn-api.js?v=13"></script>
+<script>
+'use strict';
+/* マニュアル編集画面 */
+const user = requireSpaceAuth();
+if (!user) throw new Error('未認証');
+
+const manualId = new URLSearchParams(location.search).get('id');
+if (!manualId) { location.href = 'manuals.html'; }
+
+let manual = null;   /* {id, title, description, status, steps:[]} */
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+const KIND_LABEL = { photo: '📷 写真', file: '📎 ファイル', heading: '🔤 見出し', text: '📝 説明文' };
+
+/* ---------- 描画 ---------- */
+function renderStatus() {
+  document.getElementById('stDraft').classList.toggle('active', manual.status === 'draft');
+  document.getElementById('stPub').classList.toggle('active', manual.status === 'published');
+}
+
+function stepThumbHtml(s) {
+  if (s.file && (s.type === 'photo' || s.type === 'file')) {
+    const isImg = (s.file.mime_type || '').startsWith('image/');
+    if (isImg || s.type === 'photo') {
+      return `<div class="e-thumb"><img src="${wnThumbUrl(s.file.id, s.file.updated_at)}" alt=""
+        onerror="this.parentElement.innerHTML='<i class=&quot;fa-solid fa-image&quot;></i>'"></div>`;
+    }
+    const ic = wnFileIcon(s.file.file_name, s.file.mime_type);
+    return `<div class="e-thumb file"><i class="fa-solid ${ic.icon}"></i></div>`;
+  }
+  return '';
+}
+
+function renderSteps() {
+  const box = document.getElementById('steps');
+  if (!manual.steps.length) {
+    box.innerHTML = `<div class="e-empty">下のボタンから写真・ファイル・見出しを追加してください</div>`;
+    return;
+  }
+  box.innerHTML = manual.steps.map((s, i) => {
+    const first = i === 0, last = i === manual.steps.length - 1;
+    const ctrl = `
+      <div class="e-sctrl">
+        <button ${first ? 'disabled' : ''} onclick="moveStep(${i},-1)" title="上へ"><i class="fa-solid fa-chevron-up"></i></button>
+        <button ${last ? 'disabled' : ''} onclick="moveStep(${i},1)" title="下へ"><i class="fa-solid fa-chevron-down"></i></button>
+        <button class="del" onclick="removeStep(${s.id})" title="削除"><i class="fa-solid fa-xmark"></i></button>
+      </div>`;
+
+    if (s.type === 'heading' || s.type === 'text') {
+      const cls = s.type === 'heading' ? 'e-step heading' : 'e-step';
+      const field = s.type === 'heading'
+        ? `<input value="${escapeHtml(s.body)}" placeholder="見出し" onchange="saveBody(${s.id}, this.value)">`
+        : `<textarea rows="2" placeholder="説明文" onchange="saveBody(${s.id}, this.value)">${escapeHtml(s.body)}</textarea>`;
+      return `<div class="${cls}">
+        <div class="e-num">${i + 1}</div>
+        <div class="e-scap"><div class="e-kind">${KIND_LABEL[s.type]}</div>${field}</div>
+        ${ctrl}
+      </div>`;
+    }
+
+    return `<div class="e-step">
+      <div class="e-num">${i + 1}</div>
+      ${stepThumbHtml(s)}
+      <div class="e-scap">
+        <div class="e-kind">${KIND_LABEL[s.type]}</div>
+        <input value="${escapeHtml(s.caption)}" placeholder="一言説明（例: 電源をOFFにする）"
+          onchange="saveCaption(${s.id}, this.value)">
+      </div>
+      ${ctrl}
+    </div>`;
+  }).join('');
+}
+
+function renderAll() {
+  document.getElementById('hTitle').textContent = manual.title || 'マニュアル編集';
+  document.getElementById('fTitle').value = manual.title || '';
+  document.getElementById('fDesc').value = manual.description || '';
+  document.getElementById('viewLink').href = `manual-view.html?id=${manual.id}`;
+  renderStatus();
+  renderSteps();
+}
+
+/* ---------- 保存系（オートセーブ） ---------- */
+async function saveCaption(stepId, value) {
+  const s = manual.steps.find(x => x.id === stepId); if (s) s.caption = value;
+  await wnUpdateManualStep(manual.id, stepId, { caption: value });
+}
+async function saveBody(stepId, value) {
+  const s = manual.steps.find(x => x.id === stepId); if (s) s.body = value;
+  await wnUpdateManualStep(manual.id, stepId, { body: value });
+}
+async function removeStep(stepId) {
+  if (!confirm('このステップを削除しますか？')) return;
+  const ok = await wnDeleteManualStep(manual.id, stepId);
+  if (!ok) { wnShowToast('削除に失敗しました', 'danger'); return; }
+  manual.steps = manual.steps.filter(s => s.id !== stepId);
+  renderSteps();
+}
+async function moveStep(index, dir) {
+  const j = index + dir;
+  if (j < 0 || j >= manual.steps.length) return;
+  const arr = manual.steps;
+  [arr[index], arr[j]] = [arr[j], arr[index]];
+  renderSteps();
+  await wnReorderManualSteps(manual.id, arr.map(s => s.id));
+}
+window.saveCaption = saveCaption; window.saveBody = saveBody;
+window.removeStep = removeStep; window.moveStep = moveStep;
+
+/* ---------- ステップ追加 ---------- */
+async function addFileSteps(files, type) {
+  for (const f of files) {
+    if (!f || f.size === 0) continue;
+    try {
+      wnShowToast(`${f.name} をアップロード中…`);
+      const up = await wnUploadFile(f);
+      const fileId = up?.data?.id;
+      if (!fileId) throw new Error('アップロード失敗');
+      const step = await wnAddManualStep(manual.id, { type, fileId, caption: '' });
+      manual.steps.push(step);
+      renderSteps();
+      /* 追加直後のキャプション欄へフォーカス（撮影→一言の最短ループ） */
+      const box = document.getElementById('steps');
+      const last = box.querySelector('.e-step:last-child .e-scap input');
+      if (last) last.focus();
+    } catch (e) {
+      wnShowToast(e.message || '追加に失敗しました', 'danger');
+    }
+  }
+}
+
+async function addTextStep(type, body) {
+  try {
+    const step = await wnAddManualStep(manual.id, { type, body });
+    manual.steps.push(step);
+    renderSteps();
+  } catch (e) {
+    wnShowToast(e.message || '追加に失敗しました', 'danger');
+  }
+}
+
+/* ---------- 既存ファイルピッカー ---------- */
+async function openFilePicker() {
+  document.getElementById('fileModal').classList.add('show');
+  const grid = document.getElementById('pickGrid');
+  grid.innerHTML = '<div class="e-empty">読み込み中…</div>';
+  const { data, error } = await wnGetFiles({ per_page: 60 });
+  if (error || !data || !data.length) {
+    grid.innerHTML = '<div class="e-empty">追加できるファイルがありません</div>';
+    return;
+  }
+  grid.innerHTML = data.map(f => {
+    const isImg = (f.mime_type || '').startsWith('image/');
+    const thumb = isImg || /\.(pdf|jpg|jpeg|png|webp|heic|gif)$/i.test(f.file_name)
+      ? `<img src="${wnThumbUrl(f.id, f.created_at)}" alt="" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=&quot;fa-solid ${wnFileIcon(f.file_name, f.mime_type).icon}&quot;></i>'">`
+      : `<i class="fa-solid ${wnFileIcon(f.file_name, f.mime_type).icon}"></i>`;
+    return `<div class="e-pick-item" onclick="pickFile(${f.id})">
+      <div class="e-pick-thumb">${thumb}</div>
+      <div class="e-pick-name">${escapeHtml(f.file_name)}</div>
+    </div>`;
+  }).join('');
+}
+async function pickFile(fileId) {
+  document.getElementById('fileModal').classList.remove('show');
+  try {
+    const step = await wnAddManualStep(manual.id, { type: 'file', fileId, caption: '' });
+    manual.steps.push(step);
+    renderSteps();
+  } catch (e) {
+    wnShowToast(e.message || '追加に失敗しました', 'danger');
+  }
+}
+window.pickFile = pickFile;
+
+/* ---------- 初期化 ---------- */
+async function load() {
+  manual = await wnGetManual(manualId);
+  if (!manual) { wnShowToast('マニュアルが見つかりません', 'danger'); setTimeout(() => location.href = 'manuals.html', 1200); return; }
+  renderAll();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  /* タイトル・説明のオートセーブ */
+  document.getElementById('fTitle').addEventListener('change', async e => {
+    const v = e.target.value.trim();
+    if (!v) { e.target.value = manual.title; return; }
+    manual.title = v; document.getElementById('hTitle').textContent = v;
+    await wnUpdateManual(manual.id, { title: v });
+  });
+  document.getElementById('fDesc').addEventListener('change', async e => {
+    manual.description = e.target.value;
+    await wnUpdateManual(manual.id, { description: e.target.value });
+  });
+
+  /* 公開状態 */
+  document.querySelectorAll('.e-status button').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const v = btn.dataset.v;
+      if (manual.status === v) return;
+      manual.status = v; renderStatus();
+      await wnUpdateManual(manual.id, { status: v });
+      wnShowToast(v === 'published' ? '公開しました' : '下書きに戻しました', 'success');
+    });
+  });
+
+  /* 追加ボタン */
+  document.getElementById('addCam').addEventListener('click', () => document.getElementById('inCam').click());
+  document.getElementById('addImg').addEventListener('click', () => document.getElementById('inImg').click());
+  document.getElementById('inCam').addEventListener('change', function () { addFileSteps(Array.from(this.files), 'photo'); this.value = ''; });
+  document.getElementById('inImg').addEventListener('change', function () { addFileSteps(Array.from(this.files), 'photo'); this.value = ''; });
+  document.getElementById('addFile').addEventListener('click', openFilePicker);
+  document.getElementById('addText').addEventListener('click', () => {
+    document.getElementById('textModal').classList.add('show');
+    document.getElementById('textBody').value = '';
+    setTimeout(() => document.getElementById('textBody').focus(), 50);
+  });
+
+  /* テキストモーダル タイプ切替 */
+  let textType = 'heading';
+  document.querySelectorAll('.e-type-row button').forEach(b => {
+    b.addEventListener('click', () => {
+      textType = b.dataset.t;
+      document.querySelectorAll('.e-type-row button').forEach(x => x.classList.toggle('active', x === b));
+    });
+  });
+  document.getElementById('textAddBtn').addEventListener('click', async () => {
+    const body = document.getElementById('textBody').value.trim();
+    if (!body) return;
+    document.getElementById('textModal').classList.remove('show');
+    await addTextStep(textType, body);
+  });
+
+  /* モーダルの閉じる */
+  document.querySelectorAll('[data-close]').forEach(el => {
+    el.addEventListener('click', () => document.getElementById(el.dataset.close).classList.remove('show'));
+  });
+  document.querySelectorAll('.e-overlay').forEach(ov => {
+    ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('show'); });
+  });
+
+  /* マニュアル削除 */
+  document.getElementById('delManualBtn').addEventListener('click', async () => {
+    if (!confirm('このマニュアルを削除しますか？（元に戻せません）')) return;
+    const ok = await wnDeleteManual(manual.id);
+    if (ok) location.href = 'manuals.html';
+    else wnShowToast('削除に失敗しました', 'danger');
+  });
+
+  load();
+});
+</script>
+</body>
+</html>
