@@ -4124,7 +4124,8 @@ function initDesktopIntegrationModal() {
       }
     } catch (err) {
       if (err?.name === 'AbortError') {
-        saveAllStatus.textContent = '';
+        saveAllStatus.style.color = 'var(--muted)';
+        saveAllStatus.textContent = 'キャンセルされました。「デスクトップ」フォルダ自体は選べないため、その中に新しいフォルダーを作成してから選んでください。';
       } else {
         saveAllStatus.style.color = '#E17055';
         saveAllStatus.textContent = `保存に失敗しました: ${err?.message || err}`;
