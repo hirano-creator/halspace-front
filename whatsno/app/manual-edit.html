@@ -58,6 +58,11 @@
       border-radius: 5px; color: var(--muted); cursor: pointer; font-size: 11px; }
     .e-sctrl button:hover { color: var(--accent); border-color: var(--accent); }
     .e-sctrl button.del:hover { color: var(--red); border-color: var(--red); }
+    .e-sctrl button.cover.active { color: var(--orange); border-color: var(--orange); }
+    .e-num { cursor: grab; }
+    .e-num:active { cursor: grabbing; }
+    .e-step.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(99,91,255,.25); }
+    .e-step.dragging { opacity: .5; }
     .e-sctrl button:disabled { opacity: .3; cursor: not-allowed; }
 
     .e-addbar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
@@ -230,27 +235,34 @@ function renderSteps() {
   }
   box.innerHTML = manual.steps.map((s, i) => {
     const first = i === 0, last = i === manual.steps.length - 1;
+    const hasFile = (s.type === 'photo' || s.type === 'file') && s.file;
+    const coverBtn = hasFile
+      ? `<button class="cover ${s.file.id === manual.cover_file_id ? 'active' : ''}" onclick="setCover(${s.file.id})" title="表紙にする"><i class="fa-solid fa-star"></i></button>`
+      : '';
     const ctrl = `
       <div class="e-sctrl">
+        ${coverBtn}
         <button ${first ? 'disabled' : ''} onclick="moveStep(${i},-1)" title="上へ"><i class="fa-solid fa-chevron-up"></i></button>
         <button ${last ? 'disabled' : ''} onclick="moveStep(${i},1)" title="下へ"><i class="fa-solid fa-chevron-down"></i></button>
         <button class="del" onclick="removeStep(${s.id})" title="削除"><i class="fa-solid fa-xmark"></i></button>
       </div>`;
+    const dragAttrs = `data-idx="${i}" ondragover="onStepDragOver(event,${i})" ondragleave="onStepDragLeave(event)" ondrop="onStepDrop(event,${i})"`;
+    const numHandle = `<div class="e-num" draggable="true" ondragstart="onStepDragStart(event,${i})" ondragend="onStepDragEnd(event)" title="ドラッグで並べ替え">${i + 1}</div>`;
 
     if (s.type === 'heading' || s.type === 'text') {
       const cls = s.type === 'heading' ? 'e-step heading' : 'e-step';
       const field = s.type === 'heading'
         ? `<input value="${escapeHtml(s.body)}" placeholder="見出し" onchange="saveBody(${s.id}, this.value)">`
         : `<textarea rows="2" placeholder="説明文" onchange="saveBody(${s.id}, this.value)">${escapeHtml(s.body)}</textarea>`;
-      return `<div class="${cls}">
-        <div class="e-num">${i + 1}</div>
+      return `<div class="${cls}" ${dragAttrs}>
+        ${numHandle}
         <div class="e-scap"><div class="e-kind">${KIND_LABEL[s.type]}</div>${field}</div>
         ${ctrl}
       </div>`;
     }
 
-    return `<div class="e-step">
-      <div class="e-num">${i + 1}</div>
+    return `<div class="e-step" ${dragAttrs}>
+      ${numHandle}
       ${stepThumbHtml(s)}
       <div class="e-scap">
         <div class="e-kind">${KIND_LABEL[s.type]}</div>
@@ -295,8 +307,53 @@ async function moveStep(index, dir) {
   renderSteps();
   await wnReorderManualSteps(manual.id, arr.map(s => s.id));
 }
+/* ドラッグ並べ替え（番号バッジをハンドルに。スマホ用に上下ボタンも併設） */
+let dragIdx = null;
+function onStepDragStart(e, i) {
+  dragIdx = i;
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', String(i)); } catch (_) {}
+  const step = e.target.closest('.e-step'); if (step) step.classList.add('dragging');
+}
+function onStepDragEnd() {
+  dragIdx = null;
+  document.querySelectorAll('.e-step.dragging, .e-step.drag-over').forEach(el => el.classList.remove('dragging', 'drag-over'));
+}
+function onStepDragOver(e) {
+  if (dragIdx === null) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const el = e.currentTarget;
+  document.querySelectorAll('.e-step.drag-over').forEach(x => { if (x !== el) x.classList.remove('drag-over'); });
+  el.classList.add('drag-over');
+}
+function onStepDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+async function onStepDrop(e, i) {
+  e.preventDefault();
+  const from = dragIdx; dragIdx = null;
+  document.querySelectorAll('.e-step.drag-over, .e-step.dragging').forEach(el => el.classList.remove('drag-over', 'dragging'));
+  if (from === null || from === i) return;
+  const arr = manual.steps;
+  const [moved] = arr.splice(from, 1);
+  arr.splice(i, 0, moved);
+  renderSteps();
+  await wnReorderManualSteps(manual.id, arr.map(s => s.id));
+}
+
+/* 表紙（カバー）画像を設定 */
+async function setCover(fileId) {
+  manual.cover_file_id = fileId;
+  renderSteps();
+  await wnUpdateManual(manual.id, { cover_file_id: fileId });
+  wnShowToast('表紙に設定しました', 'success');
+}
+
 window.saveCaption = saveCaption; window.saveBody = saveBody;
 window.removeStep = removeStep; window.moveStep = moveStep;
+window.setCover = setCover;
+window.onStepDragStart = onStepDragStart; window.onStepDragEnd = onStepDragEnd;
+window.onStepDragOver = onStepDragOver; window.onStepDragLeave = onStepDragLeave;
+window.onStepDrop = onStepDrop;
 
 /* ---------- ステップ追加 ---------- */
 async function addFileSteps(files, type) {
