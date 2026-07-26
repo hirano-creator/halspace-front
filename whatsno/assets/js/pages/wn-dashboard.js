@@ -4063,12 +4063,76 @@ async function syncDesktopToken() {
    デスクトップ連携モーダル
    ──────────────────────────────── */
 function initDesktopIntegrationModal() {
-  const modal      = document.getElementById('desktopModal');
-  const navBtn     = document.getElementById('navDesktop');
-  const closeX     = document.getElementById('desktopModalClose');
-  const closeBtn   = document.getElementById('desktopCloseBtn');
-  const cmdPreview = document.getElementById('desktopCmdPreview');
-  const copyBtn    = document.getElementById('desktopTokenCopy');
+  const modal        = document.getElementById('desktopModal');
+  const navBtn       = document.getElementById('navDesktop');
+  const closeX       = document.getElementById('desktopModalClose');
+  const closeBtn     = document.getElementById('desktopCloseBtn');
+  const cmdPreview   = document.getElementById('desktopCmdPreview');
+  const copyBtn      = document.getElementById('desktopTokenCopy');
+  const saveAllBtn   = document.getElementById('desktopSaveAllBtn');
+  const saveAllStatus = document.getElementById('desktopSaveAllStatus');
+  const DESKTOP_SCRIPT_FILES = ['wn-install.ps1', 'wn-upload.ps1', 'wn-token-handler.ps1', 'wn-sync-server.ps1'];
+
+  async function fetchScriptBlob(name) {
+    const res = await fetch(`../tools/${name}`);
+    if (!res.ok) throw new Error(`${name} の取得に失敗しました`);
+    return res.blob();
+  }
+
+  /* Chrome/Edge: フォルダ選択→その場に4ファイルを自動保存 */
+  async function saveAllViaFileSystemAccess() {
+    const dirHandle = await window.showDirectoryPicker({ id: 'whatsno-desktop-setup', startIn: 'desktop' });
+    const subHandle = await dirHandle.getDirectoryHandle('WhatsNo連携', { create: true });
+    for (const name of DESKTOP_SCRIPT_FILES) {
+      saveAllStatus.textContent = `${name} を保存中…`;
+      const blob = await fetchScriptBlob(name);
+      const fileHandle = await subHandle.getFileHandle(name, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+    }
+    saveAllStatus.textContent = '選んだフォルダ内の「WhatsNo連携」フォルダに4ファイルを保存しました。';
+  }
+
+  /* Firefox/Safariなど非対応ブラウザ: ZIPをまとめてダウンロード */
+  async function saveAllViaZip() {
+    if (typeof JSZip === 'undefined') throw new Error('ZIP機能の読み込みに失敗しました');
+    const zip = new JSZip();
+    for (const name of DESKTOP_SCRIPT_FILES) {
+      saveAllStatus.textContent = `${name} を取得中…`;
+      zip.file(name, await fetchScriptBlob(name));
+    }
+    saveAllStatus.textContent = 'ZIPを作成中…';
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = 'whatsno-desktop-setup.zip';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    saveAllStatus.textContent = 'ZIPをダウンロードしました。展開してデスクトップなどに置いてください。';
+  }
+
+  saveAllBtn?.addEventListener('click', async () => {
+    saveAllBtn.disabled = true;
+    saveAllStatus.style.color = 'var(--muted)';
+    try {
+      if (typeof window.showDirectoryPicker === 'function') {
+        await saveAllViaFileSystemAccess();
+      } else {
+        await saveAllViaZip();
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError') {
+        saveAllStatus.textContent = '';
+      } else {
+        saveAllStatus.style.color = '#E17055';
+        saveAllStatus.textContent = `保存に失敗しました: ${err?.message || err}`;
+      }
+    } finally {
+      saveAllBtn.disabled = false;
+    }
+  });
 
   function buildCommand() {
     const token = sessionStorage.getItem('space_token') || '';
