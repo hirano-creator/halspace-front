@@ -906,6 +906,141 @@ async function wnBrainDeleteNote(id) {
   return !!(res && res.ok);
 }
 
+/* ────────────────────────────────
+   メーラー起動（PC / スマホ共通）
+   スマホは mailto の制約が厳しく「押しても何も起きない」になりやすいため、
+   起動経路をここに集約する
+   ──────────────────────────────── */
+
+// スマホのメーラーは mailto が長すぎると起動せず無反応になるため上限を設ける。
+// 日本語は %エンコードで1文字9文字に膨らむので、4000 で本文およそ350文字ぶん。
+// PCは従来どおり無制限（これまで問題が出ていないため挙動を変えない）。
+const WN_MAILTO_MAX_LEN_MOBILE = 4000;
+
+/* スマホ・タブレット判定（iPadOSはMacを名乗るため maxTouchPoints も見る） */
+function wnIsMobileDevice() {
+  const ua = navigator.userAgent || '';
+  return /iPhone|iPad|iPod|Android/i.test(ua)
+    || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1);
+}
+
+/* mailto: URL を組み立てる。
+   m.parts = { message, core, signature } を渡すと、長すぎるときに
+   署名 → メッセージ の順で削り、共有リンク（core）だけは必ず残す。
+   戻り値: { url, trimmed } */
+function wnBuildMailtoUrl(m) {
+  const enc   = encodeURIComponent;
+  const max   = wnIsMobileDevice() ? WN_MAILTO_MAX_LEN_MOBILE : Infinity;
+  const build = (body) => {
+    const q = [];
+    if (m.cc)      q.push(`cc=${enc(m.cc)}`);
+    if (m.bcc)     q.push(`bcc=${enc(m.bcc)}`);
+    if (m.subject) q.push(`subject=${enc(m.subject)}`);
+    q.push(`body=${enc(body)}`);
+    return `mailto:${m.to}?${q.join('&')}`;
+  };
+
+  const full = build(m.body);
+  if (full.length <= max || !m.parts) return { url: full, trimmed: false };
+
+  const compose = (msg, sig) => [msg, m.parts.core].filter(Boolean).join('\r\n\r\n') + (sig || '');
+
+  // 1) まず署名を落とす
+  let url = build(compose(m.parts.message, ''));
+  if (url.length <= max) return { url, trimmed: true };
+
+  // 2) それでも長ければメッセージを後ろから削る
+  let msg = m.parts.message || '';
+  while (msg) {
+    msg = msg.slice(0, Math.max(0, Math.floor(msg.length * 0.8) - 1));
+    url = build(compose(msg ? `${msg}…` : '', ''));
+    if (url.length <= max) return { url, trimmed: true };
+  }
+
+  // 3) 共有リンクだけで上限を超える（ファイル多数）→ 削らずそのまま返す
+  return { url: build(compose('', '')), trimmed: true };
+}
+
+/* mailto: を開く。
+   - iOSのホーム画面PWAでは location.href への代入が無視されることがあるため
+     <a> のクリックを主経路にする
+   - 既定メールアプリ未設定の端末では mailto が完全に無反応になるので、
+     画面が離れたか（blur / visibilitychange）で起動可否を推定して onFail を呼ぶ */
+function wnOpenMailto(url, { onLaunch, onFail } = {}) {
+  let left = false;
+  const mark = () => { left = true; };
+  window.addEventListener('blur', mark);
+  document.addEventListener('visibilitychange', mark);
+
+  try {
+    const a = document.createElement('a');
+    a.href = url;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => a.remove(), 2000);
+  } catch {
+    window.location.href = url;
+  }
+
+  setTimeout(() => {
+    window.removeEventListener('blur', mark);
+    document.removeEventListener('visibilitychange', mark);
+    if (left) onLaunch?.(); else onFail?.();
+  }, 1500);
+}
+
+/* ホーム画面に追加したPWA（standalone）で開いているか */
+function wnIsStandalonePwa() {
+  return window.navigator.standalone === true
+    || window.matchMedia?.('(display-mode: standalone)').matches === true;
+}
+
+/* 外部サイトを開く。
+   iOSのホーム画面アプリ（standalone）では window.open が無視されて「何も起きない」ため、
+   <a target="_blank"> のクリックでブラウザに渡す。それでも開かなければ同じ画面で遷移する。 */
+function wnOpenExternalUrl(url) {
+  let left = false;
+  const mark = () => { left = true; };
+  window.addEventListener('blur', mark);
+  document.addEventListener('visibilitychange', mark);
+
+  const a = document.createElement('a');
+  a.href   = url;
+  a.target = '_blank';
+  a.rel    = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+
+  setTimeout(() => {
+    window.removeEventListener('blur', mark);
+    document.removeEventListener('visibilitychange', mark);
+    a.remove();
+    if (!left) window.location.href = url;   // 新規タブが開かなかった端末向けのフォールバック
+  }, 1000);
+}
+
+/* Gmailの作成画面を開く。
+   googlegmail:// スキームはアプリ未インストール時に「アドレスが無効です」警告が出るため使わない。
+   Web版URLならAndroidはGmailアプリに引き継がれ、iOSはブラウザのGmailが開く
+   （iOSはGmailアプリを直接起動する手段がないため、Gmailアプリを使いたい場合は
+     既定メールアプリをGmailにして「メールアプリ」＝mailto を使ってもらう）。 */
+function wnOpenGmailCompose(m) {
+  const enc = encodeURIComponent;
+  const url = 'https://mail.google.com/mail/?view=cm&fs=1'
+    + `&to=${enc(m.to)}`
+    + (m.cc  ? `&cc=${enc(m.cc)}`   : '')
+    + (m.bcc ? `&bcc=${enc(m.bcc)}` : '')
+    + `&su=${enc(m.subject)}`
+    + `&body=${enc(m.body)}`;
+
+  // スマホ（特にホーム画面アプリ）は window.open が無視されるため <a> クリック経由で開く
+  if (wnIsMobileDevice()) { wnOpenExternalUrl(url); return; }
+  const w = window.open(url, '_blank');
+  if (!w) window.location.href = url;   // ポップアップ不可のアプリ内ブラウザ対策
+}
+
 function wnShowToast(msg, type = '') {
   const c = document.getElementById('toastContainer');
   if (!c) return;

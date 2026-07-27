@@ -15,6 +15,7 @@ cd c:\dev\my-programming\_wn_e2e
 node compare-e2e.js        # 比較機能フル（選択導線・4モード・ズーム・失敗時エラー表示）
 node compare-multipage.js  # 複数ページA4 PDF・モード巡回・フィット/スクロール/ズーム往復
 node compare-prod.js       # 本番(space-apps.pages.dev)のデプロイ済みページを直接検証（サーバー不要）
+node email-e2e.js          # メール送信導線（iPhone/PC両方でmailto生成・URL長・起動失敗時のフォールバック）
 ```
 
 ## 重要な教訓（比較機能 2026-07-18）
@@ -24,6 +25,12 @@ node compare-prod.js       # 本番(space-apps.pages.dev)のデプロイ済み�
 - **ズーム処理で style.maxWidth を '' にリセットしない** → インラインの max-width:100%（フィット表示）が消えて巨大表示になる
 - **E2Eは本番相当のサイズで**: 小さいテスト画像(400px)ではフィット系のバグは検出できない。パネル幅超（3000px級）とA4複数ページを必ず含める
 - **失敗時に沈黙させない**: CDN障害・破損ファイルで「スピナー放置」にならないことをテストで保証する（compare-e2e.js テスト6）
+
+## 重要な教訓（メール導線 2026-07-27）
+
+- **PCコンテキストで page.click が一切効かない**: `syncDesktopToken()` が localhost:39876 に失敗すると `whatsno://` へフォールバックし、Chromeの外部プロトコルダイアログが実クリックを飲み込む。`page.route('http://localhost:39876/sync', ...)` を成功で返してから操作する
+- **mailto: は実ブラウザで検証できない**（外部ハンドラ任せ）→ `document.createElement` をフックして `<a>.click()` の href を捕捉する。ハンドラ未登録＝実機の「起動しない」状態がそのまま再現できる
+- **日本語は %エンコードで1文字9文字**: mailto の長さテストは必ず日本語本文（500字）＋署名で行う。ASCIIだけでは上限に届かない
 
 ## 共通パターン（メモリ whatsno_ui_testing より）
 
