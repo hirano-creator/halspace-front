@@ -3666,6 +3666,14 @@ function initEmailModal() {
   document.getElementById('emailMailtoBtn').addEventListener('click', doSendEmailMailto);
   document.getElementById('emailGmailBtn').addEventListener('click', doSendEmailGmail);
 
+  // スマホ向けの主従入れ替え。iOSはGmailアプリを直接起動する手段がなく、
+  // 既定メールアプリを開く mailto の方が「お客様ごとに違うメーラー」に確実に届く
+  if (wnIsMobileDevice()) {
+    document.getElementById('emailMobileHint')?.classList.remove('hidden');
+    document.getElementById('emailMailtoBtn')?.classList.replace('btn-outline', 'btn-accent');
+    document.getElementById('emailGmailBtn')?.classList.replace('btn-accent', 'btn-outline');
+  }
+
   // 署名イベント
   document.getElementById('emailSigToggleBtn')?.addEventListener('click', () => {
     const editArea = document.getElementById('emailSigEditArea');
@@ -3991,49 +3999,44 @@ function _buildEmailContent() {
   const subject = `【What'sNo】${_emailFileName} を共有します`;
   const sig     = localStorage.getItem(WN_MAIL_SIG_KEY) || '';
   const sigText = sig ? `\r\n\r\n--\r\n${sig}` : '';
-  const lines = [];
-  if (message) { lines.push(message, ''); }
-  lines.push('▼ ファイルはこちらからご確認ください');
-  lines.push(_emailPregenShare.url);
-  lines.push('');
-  lines.push('※ リンクからダウンロードできます（有効期限：発行から30日）');
-  const body = lines.join('\r\n') + sigText;
+  // core（共有リンク部）は mailto が長すぎる場合でも削らない部分
+  const core = [
+    '▼ ファイルはこちらからご確認ください',
+    _emailPregenShare.url,
+    '',
+    '※ リンクからダウンロードできます（有効期限：発行から30日）',
+  ].join('\r\n');
+  const body = (message ? `${message}\r\n\r\n` : '') + core + sigText;
   const to   = emailFieldChips.to.map(c => c.email).join(',');
   const cc   = emailFieldChips.cc.map(c => c.email).join(',');
   const bcc  = emailFieldChips.bcc.map(c => c.email).join(',');
 
-  return { to, cc, bcc, subject, body };
+  return { to, cc, bcc, subject, body, parts: { message, core, signature: sigText } };
 }
 
 /* Gmail の作成画面を開く */
 function doSendEmailGmail() {
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
-
-  // googlegmail:// スキームはアプリ未インストール時やアプリ内ブラウザで
-  // 「アドレスが無効です」警告が出るため使わない。Web版のURLなら
-  // AndroidはGmailアプリに引き継がれ、iOSはWeb版が開き警告は出ない。
-  const url = 'https://mail.google.com/mail/?view=cm&fs=1'
-    + `&to=${encodeURIComponent(m.to)}`
-    + (m.cc  ? `&cc=${encodeURIComponent(m.cc)}`   : '')
-    + (m.bcc ? `&bcc=${encodeURIComponent(m.bcc)}` : '')
-    + `&su=${encodeURIComponent(m.subject)}`
-    + `&body=${encodeURIComponent(m.body)}`;
-  const w = window.open(url, '_blank');
-  if (!w) window.location.href = url;   // ポップアップ不可のアプリ内ブラウザ対策
-  wnShowToast('Gmailの作成画面を開きました', 'success');
-  closeEmailModal();
+  wnOpenGmailCompose(m);   // スマホは同じタブ、PCは新規タブで開く（wn-api.js）
+  if (!wnIsMobileDevice()) {
+    wnShowToast('Gmailの作成画面を開きました', 'success');
+    closeEmailModal();
+  }
 }
 
 /* 既定のメールアプリ（Outlook等）を mailto で起動 */
 function doSendEmailMailto() {
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
-  const url = `mailto:${m.to}`
-    + `?${m.cc  ? `cc=${encodeURIComponent(m.cc)}&`   : ''}`
-    + `${m.bcc ? `bcc=${encodeURIComponent(m.bcc)}&` : ''}`
-    + `subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
-  window.location.href = url;
-  wnShowToast('メールアプリを起動しました', 'success');
-  closeEmailModal();
+
+  const { url, trimmed } = wnBuildMailtoUrl(m);
+  if (trimmed) wnShowToast('本文が長いため一部を省略しました（共有リンクは含まれています）', 'warning');
+
+  wnOpenMailto(url, {
+    onLaunch: () => closeEmailModal(),
+    // メールアプリ未設定の端末では mailto は無反応のまま。
+    // モーダルは閉じずに残し、代替手段を案内する
+    onFail: () => wnShowToast('メールアプリを起動できませんでした。「Gmailで送る」かリンクのコピーをお試しください', 'danger'),
+  });
 }

@@ -471,7 +471,11 @@ async function runSkill(instruction) {
         // _buildEmailContent() が参照する emailPregenShares を先に設定してからメーラーを起動する
         emailPregenShares = shareResults;
         const pref = wnGetMailerPref();
-        if (pref === 'gmail')       doSendEmailGmail();   // 2回目以降: 記憶したGmailを自動起動
+        // スマホはタップ直後でないと mailto / 新規タブがブロックされ「何も起きない」ため自動起動しない
+        if (wnIsMobileDevice()) {
+          wnShowToast('下の「メールアプリ」または「Gmailで送る」をタップしてください', 'info');
+        }
+        else if (pref === 'gmail')  doSendEmailGmail();   // 2回目以降: 記憶したGmailを自動起動
         else if (pref === 'mailto') doSendEmailMailto();  // 2回目以降: 記憶した既定メールアプリを自動起動
         else wnShowToast('送信方法を選んでください（次回から自動で起動します）', 'info');  // 初回はモーダルで選択
       }
@@ -3262,6 +3266,7 @@ function initEmailModal() {
 
   document.getElementById('emailMailtoBtn').addEventListener('click', doSendEmailMailto);
   document.getElementById('emailGmailBtn').addEventListener('click', doSendEmailGmail);
+  _emailApplyMobileLayout();
 
   // 署名イベント
   document.getElementById('emailSigToggleBtn')?.addEventListener('click', () => {
@@ -3279,6 +3284,16 @@ function initEmailModal() {
   document.getElementById('emailSigCancelBtn')?.addEventListener('click', () => {
     document.getElementById('emailSigEditArea').style.display = 'none';
   });
+}
+
+/* スマホ向けの主従入れ替え。
+   iOSはGmailアプリを直接起動する手段がなく、既定メールアプリを開く mailto の方が
+   「お客様ごとに違うメーラー」に確実に届くため、そちらを主ボタンにする */
+function _emailApplyMobileLayout() {
+  if (!wnIsMobileDevice()) return;
+  document.getElementById('emailMobileHint')?.classList.remove('hidden');
+  document.getElementById('emailMailtoBtn')?.classList.replace('btn-outline', 'btn-accent');
+  document.getElementById('emailGmailBtn')?.classList.replace('btn-accent', 'btn-outline');
 }
 
 function _emailRenderSigPreview() {
@@ -3557,23 +3572,26 @@ function _buildEmailContent() {
   const message = document.getElementById('emailMessage').value.trim();
 
   if (emailModalFiles.length === 0) {
-    return { to, cc, bcc, subject: '', body: message + sigText };
+    return { to, cc, bcc, subject: '', body: message + sigText, parts: { message, core: '', signature: sigText } };
   }
 
   const subject = emailModalFiles.length === 1
     ? `【What'sNo】${emailModalFiles[0].name} を共有します`
     : `【What'sNo】${emailModalFiles.length}件のファイルを共有します`;
-  const lines = [];
-  if (message) { lines.push(message, ''); }
-  lines.push('▼ ファイルはこちらからご確認ください');
+
+  // core（共有リンク部）は mailto が長すぎる場合でも削らない部分
+  const coreLines = ['▼ ファイルはこちらからご確認ください'];
   for (const s of emailPregenShares) {
-    lines.push('');
-    lines.push(`■ ${s.name}`);
-    lines.push(s.url);
+    coreLines.push('');
+    coreLines.push(`■ ${s.name}`);
+    coreLines.push(s.url);
   }
-  lines.push('');
-  lines.push('※ リンクからダウンロードできます（有効期限：発行から30日）');
-  return { to, cc, bcc, subject, body: lines.join('\r\n') + sigText };
+  coreLines.push('');
+  coreLines.push('※ リンクからダウンロードできます（有効期限：発行から30日）');
+  const core = coreLines.join('\r\n');
+  const body = (message ? `${message}\r\n\r\n` : '') + core + sigText;
+
+  return { to, cc, bcc, subject, body, parts: { message, core, signature: sigText } };
 }
 
 /* Gmail の作成画面を開く */
@@ -3581,20 +3599,11 @@ function doSendEmailGmail() {
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
   wnSetMailerPref('gmail');   // 次回スキルから自動でGmailを起動
-
-  // googlegmail:// スキームはアプリ未インストール時やアプリ内ブラウザで
-  // 「アドレスが無効です」警告が出るため使わない。Web版のURLなら
-  // AndroidはGmailアプリに引き継がれ、iOSはWeb版が開き警告は出ない。
-  const url = 'https://mail.google.com/mail/?view=cm&fs=1'
-    + `&to=${encodeURIComponent(m.to)}`
-    + (m.cc  ? `&cc=${encodeURIComponent(m.cc)}`   : '')
-    + (m.bcc ? `&bcc=${encodeURIComponent(m.bcc)}` : '')
-    + `&su=${encodeURIComponent(m.subject)}`
-    + `&body=${encodeURIComponent(m.body)}`;
-  const w = window.open(url, '_blank');
-  if (!w) window.location.href = url;   // ポップアップ不可のアプリ内ブラウザ対策
-  wnShowToast('Gmailの作成画面を開きました', 'success');
-  closeEmailModal();
+  wnOpenGmailCompose(m);      // スマホは同じタブ、PCは新規タブで開く（wn-api.js）
+  if (!wnIsMobileDevice()) {
+    wnShowToast('Gmailの作成画面を開きました', 'success');
+    closeEmailModal();
+  }
 }
 
 /* 既定のメールアプリ（Outlook等）を mailto で起動 */
@@ -3602,13 +3611,16 @@ function doSendEmailMailto() {
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
   wnSetMailerPref('mailto');   // 次回スキルから自動で既定メールアプリを起動
-  const url = `mailto:${m.to}`
-    + `?${m.cc  ? `cc=${encodeURIComponent(m.cc)}&`   : ''}`
-    + `${m.bcc ? `bcc=${encodeURIComponent(m.bcc)}&` : ''}`
-    + `subject=${encodeURIComponent(m.subject)}&body=${encodeURIComponent(m.body)}`;
-  window.location.href = url;
-  wnShowToast('メールアプリを起動しました', 'success');
-  closeEmailModal();
+
+  const { url, trimmed } = wnBuildMailtoUrl(m);
+  if (trimmed) wnShowToast('本文が長いため一部を省略しました（共有リンクは含まれています）', 'warning');
+
+  wnOpenMailto(url, {
+    onLaunch: () => closeEmailModal(),
+    // メールアプリ未設定の端末では mailto は無反応のまま。
+    // モーダルは閉じずに残し、代替手段を案内する
+    onFail: () => wnShowToast('メールアプリを起動できませんでした。「Gmailで送る」かリンクのコピーをお試しください', 'danger'),
+  });
 }
 
 /* ────────────────────────────────
