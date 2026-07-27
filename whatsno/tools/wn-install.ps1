@@ -79,69 +79,61 @@ Write-Host "[2/5] トークンを保存中…" -ForegroundColor Cyan
 @{ token = $Token } | ConvertTo-Json | Set-Content $configFile -Encoding utf8
 icacls $configFile /inheritance:r /grant:r "${env:USERNAME}:F" 2>&1 | Out-Null
 
-# ── レジストリ登録（HKCU — 管理者権限不要／セキュリティソフトの介入対策でタイムアウト付き） ──
+# ── レジストリ登録（HKCU — 管理者権限不要） ──
+# 注意: パスに含まれる '*'（全ファイル種別）は PowerShell のプロバイダ経由だと
+#       ワイルドカードとして展開され Classes 配下を全走査して固まる。
+#       そのため .NET のレジストリ API を直接使い、'*' を必ずリテラル扱いにする。
+function Set-WnRegKey {
+    param(
+        [string]$SubKey,              # HKCU からの相対パス
+        [hashtable]$Values = @{}      # 値名 => データ（'' キーは (Default)）
+    )
+    $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($SubKey)
+    try {
+        foreach ($name in $Values.Keys) {
+            $key.SetValue($name, $Values[$name], [Microsoft.Win32.RegistryValueKind]::String)
+        }
+    } finally {
+        $key.Close()
+    }
+}
+
 Write-Host "[3/5] 右クリックメニューを登録中…" -ForegroundColor Cyan
 
-$saveJob = Start-Job -ScriptBlock {
-    param($uploadScript)
-    $regBase    = 'HKCU:\Software\Classes\*\shell\WhatsNoSave'
-    $regCommand = "$regBase\command"
-    $psCmd      = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$uploadScript`" `"%1`""
-    New-Item -Path $regBase    -Force | Out-Null
-    New-Item -Path $regCommand -Force | Out-Null
-    Set-ItemProperty -Path $regBase    -Name '(Default)' -Value "What'sNoに保存"
-    Set-ItemProperty -Path $regBase    -Name 'Icon'      -Value 'shell32.dll,13'
-    Set-ItemProperty -Path $regBase    -Name 'Position'  -Value 'Top'
-    Set-ItemProperty -Path $regCommand -Name '(Default)' -Value $psCmd
-} -ArgumentList $uploadScript
-
-if (Wait-Job $saveJob -Timeout 10) {
-    Receive-Job $saveJob -ErrorAction SilentlyContinue | Out-Null
-} else {
-    Stop-Job $saveJob -ErrorAction SilentlyContinue
-    Write-Host "  ※「What'sNoに保存」メニューの登録がタイムアウトしました（セキュリティソフトの介入の可能性）。スキップして続行します。" -ForegroundColor Yellow
+$psCmd = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$uploadScript`" `"%1`""
+Set-WnRegKey 'Software\Classes\*\shell\WhatsNoSave' @{
+    ''         = "What'sNoに保存"
+    'Icon'     = 'shell32.dll,13'
+    'Position' = 'Top'
 }
-Remove-Job $saveJob -Force -ErrorAction SilentlyContinue
+Set-WnRegKey 'Software\Classes\*\shell\WhatsNoSave\command' @{ '' = $psCmd }
 
 # ── 「What'sNoを開く」登録（アプリをブラウザで開くだけ・保存とは別） ──
 # ファイル上／フォルダ背景／デスクトップ背景の3か所に登録する
 $appUrl    = 'https://space-apps.pages.dev/whatsno/app/dashboard.html'
 $openCmd   = "rundll32.exe url.dll,FileProtocolHandler $appUrl"
 $openRoots = @(
-    'HKCU:\Software\Classes\*\shell\WhatsNoOpen'                       # ファイルを右クリック
-    'HKCU:\Software\Classes\Directory\Background\shell\WhatsNoOpen'    # フォルダ内の背景を右クリック
-    'HKCU:\Software\Classes\DesktopBackground\shell\WhatsNoOpen'       # デスクトップの背景を右クリック
+    'Software\Classes\*\shell\WhatsNoOpen'                       # ファイルを右クリック
+    'Software\Classes\Directory\Background\shell\WhatsNoOpen'    # フォルダ内の背景を右クリック
+    'Software\Classes\DesktopBackground\shell\WhatsNoOpen'       # デスクトップの背景を右クリック
 )
-
-$openJob = Start-Job -ScriptBlock {
-    param($openRoots, $openCmd)
-    foreach ($openBase in $openRoots) {
-        $openCommand = "$openBase\command"
-        New-Item -Path $openBase    -Force | Out-Null
-        New-Item -Path $openCommand -Force | Out-Null
-        Set-ItemProperty -Path $openBase    -Name '(Default)' -Value "What'sNoを開く"
-        Set-ItemProperty -Path $openBase    -Name 'Icon'      -Value 'shell32.dll,220'
-        Set-ItemProperty -Path $openCommand -Name '(Default)' -Value $openCmd
+foreach ($openBase in $openRoots) {
+    Set-WnRegKey $openBase @{
+        ''     = "What'sNoを開く"
+        'Icon' = 'shell32.dll,220'
     }
-} -ArgumentList (,$openRoots), $openCmd
-
-if (Wait-Job $openJob -Timeout 10) {
-    Receive-Job $openJob -ErrorAction SilentlyContinue | Out-Null
-} else {
-    Stop-Job $openJob -ErrorAction SilentlyContinue
-    Write-Host "  ※「What'sNoを開く」メニューの登録がタイムアウトしました（セキュリティソフトの介入の可能性）。スキップして続行します。" -ForegroundColor Yellow
+    Set-WnRegKey "$openBase\command" @{ '' = $openCmd }
 }
-Remove-Job $openJob -Force -ErrorAction SilentlyContinue
 
 # ── whatsno:// プロトコルハンドラ登録（自動トークン同期用） ──
 Write-Host "[4/5] プロトコルハンドラを登録中…" -ForegroundColor Cyan
 if (Test-Path $handlerScript) {
-    $protoBase = 'HKCU:\Software\Classes\whatsno'
-    New-Item -Path "$protoBase\shell\open\command" -Force | Out-Null
-    Set-ItemProperty -Path $protoBase -Name '(Default)'    -Value 'URL:WhatsNo Protocol'
-    Set-ItemProperty -Path $protoBase -Name 'URL Protocol' -Value ''
     $protoCmd = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$handlerScript`" `"%1`""
-    Set-ItemProperty -Path "$protoBase\shell\open\command" -Name '(Default)' -Value $protoCmd
+    Set-WnRegKey 'Software\Classes\whatsno' @{
+        ''             = 'URL:WhatsNo Protocol'
+        'URL Protocol' = ''
+    }
+    Set-WnRegKey 'Software\Classes\whatsno\shell\open\command' @{ '' = $protoCmd }
 }
 
 # ── 同期サーバーをスケジュールタスクに登録してすぐ起動（タスクスケジューラ無応答対策でタイムアウト付き） ──

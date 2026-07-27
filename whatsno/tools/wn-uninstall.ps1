@@ -14,21 +14,28 @@ Stop-ScheduledTask       -TaskName 'WhatsNoSyncServer' -ErrorAction SilentlyCont
 Unregister-ScheduledTask -TaskName 'WhatsNoSyncServer' -Confirm:$false -ErrorAction SilentlyContinue
 
 # レジストリ削除（HKCU）
-$regBase = 'HKCU:\Software\Classes\*\shell\WhatsNoSave'
-if (Test-Path $regBase) { Remove-Item -Path $regBase -Recurse -Force }
+# 注意: パスの '*' は PowerShell プロバイダ経由だとワイルドカード展開されて
+#       Classes 配下を全走査し固まるため、.NET API でリテラル扱いにする。
+function Remove-WnRegKey {
+    param([string]$SubKey)
+    try {
+        [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKeyTree($SubKey, $false)
+    } catch {}
+}
+
+Remove-WnRegKey 'Software\Classes\*\shell\WhatsNoSave'
 
 # 「What'sNoを開く」削除（3か所）
 $openRoots = @(
-    'HKCU:\Software\Classes\*\shell\WhatsNoOpen'
-    'HKCU:\Software\Classes\Directory\Background\shell\WhatsNoOpen'
-    'HKCU:\Software\Classes\DesktopBackground\shell\WhatsNoOpen'
+    'Software\Classes\*\shell\WhatsNoOpen'
+    'Software\Classes\Directory\Background\shell\WhatsNoOpen'
+    'Software\Classes\DesktopBackground\shell\WhatsNoOpen'
 )
 foreach ($openBase in $openRoots) {
-    if (Test-Path $openBase) { Remove-Item -Path $openBase -Recurse -Force }
+    Remove-WnRegKey $openBase
 }
 
-$protoBase = 'HKCU:\Software\Classes\whatsno'
-if (Test-Path $protoBase) { Remove-Item -Path $protoBase -Recurse -Force }
+Remove-WnRegKey 'Software\Classes\whatsno'
 
 # AppData フォルダ削除
 $appDir = Join-Path $env:APPDATA 'WhatsNo'
