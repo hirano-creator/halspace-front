@@ -10,6 +10,41 @@ const WN_API_BASE = (() => {
 /* ログイン情報はタブごとに独立したsessionStorageに保存しているため、
    別タブで別アカウントにログインしても、このタブのセッションには影響しない。 */
 
+/* ── デスクトップ連携から開いたときだけ前回のログインを引き継ぐ ──
+   右クリック「What'sNoを開く」は毎回まっさらな新規タブで開くため、
+   タブ独立のsessionStorageは必ず空になり、そのままだと毎回ログイン画面になる。
+   そこでログイン中の控えをlocalStorageに持っておき、URLに from=desktop が
+   付いている場合に限って復元する。通常の新規タブは今まで通り未ログインのままなので、
+   タブごとに別アカウントを開ける設計は維持される。 */
+const WN_DESKTOP_SESSION_KEY = 'wn_desktop_session';
+
+function wnClearDesktopSession() {
+  try { localStorage.removeItem(WN_DESKTOP_SESSION_KEY); } catch {}
+}
+
+/* このタブのログインを控えとして保存（次回デスクトップから開いたとき用） */
+function wnPersistDesktopSession() {
+  const token = sessionStorage.getItem('space_token');
+  const user  = sessionStorage.getItem('space_user');
+  if (!token || !user) return;
+  try { localStorage.setItem(WN_DESKTOP_SESSION_KEY, JSON.stringify({ token, user })); } catch {}
+}
+
+function wnRestoreDesktopSession() {
+  if (new URLSearchParams(location.search).get('from') !== 'desktop') return;
+  if (sessionStorage.getItem('space_token')) return;  /* このタブは既にログイン済み */
+  try {
+    const saved = JSON.parse(localStorage.getItem(WN_DESKTOP_SESSION_KEY) || 'null');
+    if (!saved || !saved.token || !saved.user) return;
+    sessionStorage.setItem('space_token', saved.token);
+    sessionStorage.setItem('space_user',  saved.user);
+  } catch {}
+}
+
+/* requireSpaceAuth() より先に走らせる必要があるため、読み込み時点で実行する */
+wnRestoreDesktopSession();
+wnPersistDesktopSession();
+
 async function wnFetch(path, options = {}) {
   const token = sessionStorage.getItem('space_token');
   /* FormData の場合は Content-Type を付けない（ブラウザに multipart 境界を
@@ -27,6 +62,7 @@ async function wnFetch(path, options = {}) {
     if (token && token.startsWith('mock-token')) return null;
     sessionStorage.removeItem('space_token');
     sessionStorage.removeItem('space_user');
+    wnClearDesktopSession();  /* 失効したトークンでデスクトップから再ログインしないように */
     location.href = '../../../space/login.html';
     return null;
   }
@@ -109,6 +145,7 @@ async function wnUploadFile(file, { onProgress } = {}) {
     xhr.onload = () => {
       if (xhr.status === 401) {
         sessionStorage.removeItem('space_token');
+        wnClearDesktopSession();
         location.href = '../../../space/login.html';
         return;
       }
@@ -166,6 +203,7 @@ async function wnOverwriteFile(id, file) {
     xhr.onload = () => {
       if (xhr.status === 401) {
         sessionStorage.removeItem('space_token');
+        wnClearDesktopSession();
         location.href = '../../../space/login.html';
         return;
       }
