@@ -98,29 +98,62 @@ function Set-WnRegKey {
     }
 }
 
+# 過去バージョンが作ったメニュー項目を掃除する。
+# 旧スクリプトのワイルドカード不具合で 'WhatsNoOpen HKCU:' のような壊れたキーが
+# 残っていることがあり、これがメニューに意味不明な項目として出てしまう。
+function Remove-WnLegacyMenuKeys {
+    param(
+        [string]$ShellPath,
+        [string[]]$Keep = @()
+    )
+    $shell = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($ShellPath)
+    if (-not $shell) { return }
+    $names = $shell.GetSubKeyNames()
+    $shell.Close()
+    foreach ($n in $names) {
+        # -like の '*' はここではPowerShellのワイルドカードとして意図通り使う
+        if ($n -like 'WhatsNo*' -and $Keep -notcontains $n) {
+            try { [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKeyTree("$ShellPath\$n", $false) } catch {}
+        }
+    }
+}
+
 Write-Host "[3/5] 右クリックメニューを登録中…" -ForegroundColor Cyan
 
+# メニューの並び順は shell 配下のキー名の昇順で決まる。
+# 「保存」を「開く」より上に出すため、キー名に連番を付けて順序を固定し、
+# 両方を Position=Top にして先頭グループにまとめる。
+$saveKey = 'WhatsNo1Save'
+$openKey = 'WhatsNo2Open'
+
+Remove-WnLegacyMenuKeys 'Software\Classes\*\shell'                    @($saveKey, $openKey)
+Remove-WnLegacyMenuKeys 'Software\Classes\Directory\Background\shell' @($openKey)
+Remove-WnLegacyMenuKeys 'Software\Classes\DesktopBackground\shell'    @($openKey)
+
 $psCmd = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$uploadScript`" `"%1`""
-Set-WnRegKey 'Software\Classes\*\shell\WhatsNoSave' @{
+Set-WnRegKey "Software\Classes\*\shell\$saveKey" @{
     ''         = "What'sNoに保存"
     'Icon'     = 'shell32.dll,13'
     'Position' = 'Top'
 }
-Set-WnRegKey 'Software\Classes\*\shell\WhatsNoSave\command' @{ '' = $psCmd }
+Set-WnRegKey "Software\Classes\*\shell\$saveKey\command" @{ '' = $psCmd }
 
 # ── 「What'sNoを開く」登録（アプリをブラウザで開くだけ・保存とは別） ──
-# ファイル上／フォルダ背景／デスクトップ背景の3か所に登録する
-$appUrl    = 'https://space-apps.pages.dev/whatsno/app/dashboard.html'
+# ファイル上／フォルダ背景／デスクトップ背景の3か所に登録する。
+# from=desktop は「デスクトップから開いた」印で、これが付いているときだけ
+# What'sNo側が前回のログインを引き継ぐ（毎回ログイン画面になるのを防ぐ）。
+$appUrl    = 'https://space-apps.pages.dev/whatsno/app/dashboard.html?from=desktop'
 $openCmd   = "rundll32.exe url.dll,FileProtocolHandler $appUrl"
 $openRoots = @(
-    'Software\Classes\*\shell\WhatsNoOpen'                       # ファイルを右クリック
-    'Software\Classes\Directory\Background\shell\WhatsNoOpen'    # フォルダ内の背景を右クリック
-    'Software\Classes\DesktopBackground\shell\WhatsNoOpen'       # デスクトップの背景を右クリック
+    "Software\Classes\*\shell\$openKey"                       # ファイルを右クリック
+    "Software\Classes\Directory\Background\shell\$openKey"    # フォルダ内の背景を右クリック
+    "Software\Classes\DesktopBackground\shell\$openKey"       # デスクトップの背景を右クリック
 )
 foreach ($openBase in $openRoots) {
     Set-WnRegKey $openBase @{
-        ''     = "What'sNoを開く"
-        'Icon' = 'shell32.dll,220'
+        ''         = "What'sNoを開く"
+        'Icon'     = 'shell32.dll,220'
+        'Position' = 'Top'
     }
     Set-WnRegKey "$openBase\command" @{ '' = $openCmd }
 }
