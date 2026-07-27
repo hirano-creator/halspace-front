@@ -29,6 +29,7 @@ if (-not (Test-Path $srcUpload)) {
     exit 1
 }
 
+Write-Host "[1/5] ファイルを配置中…" -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path $appDir | Out-Null
 Copy-Item $srcUpload $uploadScript -Force
 
@@ -74,10 +75,12 @@ if (-not $Token) {
 }
 
 # ── config.json 保存 & ACL制限 ──
+Write-Host "[2/5] トークンを保存中…" -ForegroundColor Cyan
 @{ token = $Token } | ConvertTo-Json | Set-Content $configFile -Encoding utf8
 icacls $configFile /inheritance:r /grant:r "${env:USERNAME}:F" 2>&1 | Out-Null
 
 # ── レジストリ登録（HKCU — 管理者権限不要） ──
+Write-Host "[3/5] 右クリックメニューを登録中…" -ForegroundColor Cyan
 $regBase    = 'HKCU:\Software\Classes\*\shell\WhatsNoSave'
 $regCommand = "$regBase\command"
 $psCmd      = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$uploadScript`" `"%1`""
@@ -108,6 +111,7 @@ foreach ($openBase in $openRoots) {
 }
 
 # ── whatsno:// プロトコルハンドラ登録（自動トークン同期用） ──
+Write-Host "[4/5] プロトコルハンドラを登録中…" -ForegroundColor Cyan
 if (Test-Path $handlerScript) {
     $protoBase = 'HKCU:\Software\Classes\whatsno'
     New-Item -Path "$protoBase\shell\open\command" -Force | Out-Null
@@ -117,18 +121,29 @@ if (Test-Path $handlerScript) {
     Set-ItemProperty -Path "$protoBase\shell\open\command" -Name '(Default)' -Value $protoCmd
 }
 
-# ── 同期サーバーをスケジュールタスクに登録してすぐ起動 ──
+# ── 同期サーバーをスケジュールタスクに登録してすぐ起動（タスクスケジューラ無応答対策でタイムアウト付き） ──
+Write-Host "[5/5] 同期サーバーを登録中…" -ForegroundColor Cyan
 if (Test-Path $syncServerScript) {
-    $taskName = 'WhatsNoSyncServer'
-    Stop-ScheduledTask     -TaskName $taskName -ErrorAction SilentlyContinue
-    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+    $taskJob = Start-Job -ScriptBlock {
+        param($taskName, $syncServerScript, $userName)
+        Stop-ScheduledTask       -TaskName $taskName -ErrorAction SilentlyContinue
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
 
-    $action   = New-ScheduledTaskAction -Execute 'powershell.exe' `
-                    -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$syncServerScript`""
-    $trigger  = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
-    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit 0 -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
-    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
-    Start-ScheduledTask    -TaskName $taskName
+        $action   = New-ScheduledTaskAction -Execute 'powershell.exe' `
+                        -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$syncServerScript`""
+        $trigger  = New-ScheduledTaskTrigger -AtLogOn -User $userName
+        $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit 0 -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
+        Start-ScheduledTask    -TaskName $taskName
+    } -ArgumentList 'WhatsNoSyncServer', $syncServerScript, $env:USERNAME
+
+    if (Wait-Job $taskJob -Timeout 20) {
+        Receive-Job $taskJob -ErrorAction SilentlyContinue | Out-Null
+    } else {
+        Stop-Job $taskJob -ErrorAction SilentlyContinue
+        Write-Host "  ※ 同期サーバーの登録がタイムアウトしました（タスクスケジューラが応答していない可能性）。右クリックメニューは問題なく使えます。" -ForegroundColor Yellow
+    }
+    Remove-Job $taskJob -Force -ErrorAction SilentlyContinue
 }
 
 # ── 完了 ──
