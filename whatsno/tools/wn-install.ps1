@@ -47,6 +47,27 @@ if (Test-Path $srcSyncServer) {
     Copy-Item $srcSyncServer $syncServerScript -Force
 }
 
+# ── 非表示ランチャー(wn-launch.vbs)を生成 ──
+# powershell.exe を直接右クリックメニューに登録すると -WindowStyle Hidden を付けても
+# コンソールが一瞬表示される。複数ファイルを選ぶとファイル数だけ点滅して目立つため、
+# WScript.Shell.Run の非表示モード(0)経由で起動するランチャーを挟む。
+# 中身は環境依存を避けるためASCIIのみで書き、ファイルはUTF-16(BOM付き)で保存する
+# （ユーザー名に日本語が含まれてもパスが壊れないようにするため）。
+$launcherScript = Join-Path $appDir 'wn-launch.vbs'
+$vbs = @"
+' What'sNo desktop integration - launches PowerShell with no visible console window.
+Option Explicit
+Dim sh, args, i, cmd
+Set sh = CreateObject("WScript.Shell")
+args = ""
+For i = 0 To WScript.Arguments.Count - 1
+  args = args & " """ & WScript.Arguments(i) & """"
+Next
+cmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ""$uploadScript""" & args
+sh.Run cmd, 0, False
+"@
+[System.IO.File]::WriteAllText($launcherScript, $vbs, [System.Text.Encoding]::Unicode)
+
 # ── トークン取得（パラメータ優先、なければ InputBox） ──
 if (-not $Token) {
     $existing = if (Test-Path $configFile) {
@@ -130,7 +151,14 @@ Remove-WnLegacyMenuKeys 'Software\Classes\*\shell'                    @($saveKey
 Remove-WnLegacyMenuKeys 'Software\Classes\Directory\Background\shell' @($openKey)
 Remove-WnLegacyMenuKeys 'Software\Classes\DesktopBackground\shell'    @($openKey)
 
-$psCmd = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$uploadScript`" `"%1`""
+# wscript.exe が使える環境ではランチャー経由（コンソールが一切出ない）。
+# 使えない環境では従来どおり powershell.exe を直接呼ぶ（一瞬コンソールが出る）。
+$wscript = Join-Path $env:SystemRoot 'System32\wscript.exe'
+$psCmd = if (Test-Path $wscript) {
+    "`"$wscript`" `"$launcherScript`" `"%1`""
+} else {
+    "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$uploadScript`" `"%1`""
+}
 Set-WnRegKey "Software\Classes\*\shell\$saveKey" @{
     ''         = "What'sNoに保存"
     'Icon'     = 'shell32.dll,13'
