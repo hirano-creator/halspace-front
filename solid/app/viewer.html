@@ -100,6 +100,23 @@
     }
     .viewer-unsupported i { font-size: 64px; color: var(--muted); }
     .viewer-unsupported strong { font-size: 16px; color: var(--text); }
+
+    /* ── レスポンシブ ── */
+    @media (max-width: 768px) {
+      .viewer-header { padding: 0 10px; gap: 8px; height: 46px; }
+      .viewer-header-sep { display: none; }
+      .viewer-header-type { display: none; }
+      .viewer-header-name { font-size: 13px; }
+
+      .viewer-toolbar { padding: 6px 10px; gap: 6px; flex-wrap: wrap; }
+      .tb-btn { padding: 6px 10px; font-size: 12px; min-height: 32px; }
+      /* 3Dツールバーの操作説明はタッチ操作と食い違うため非表示 */
+      #threejsToolbar span { display: none; }
+      #threejsToolbar .tb-sep { display: none; }
+
+      .viewer-unsupported { padding: 20px; }
+      .viewer-unsupported i { font-size: 48px; }
+    }
   </style>
 </head>
 <body>

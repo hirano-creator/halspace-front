@@ -210,6 +210,7 @@ if (user) {
           <div style="display:flex;align-items:center;gap:6px;">
             <span class="project-title-clamp" style="font-weight:600;color:var(--dark);">${p.title}</span>
             ${isAlert ? '<i class="fa-solid fa-triangle-exclamation text-danger" style="flex-shrink:0;" title="期限間近"></i>' : ''}
+            ${p.unread_count ? `<span class="unread-badge" title="未読メッセージ${p.unread_count}件">${p.unread_count > 99 ? '99+' : p.unread_count}</span>` : ''}
           </div>
           ${(isAdmin(user) || isModeler(user)) ? `<span class="project-company-label" style="font-size:11px;color:var(--muted);">${companyName}</span>` : ''}
         </td>

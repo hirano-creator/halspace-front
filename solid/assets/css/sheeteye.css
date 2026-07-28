@@ -122,3 +122,30 @@ canvas { display: block; }
   border: 1px solid #45475a; border-radius: 6px; padding: 5px; cursor: pointer; font-size: 12px;
 }
 #settingsPanel .resetBtn:hover { background: #45475a; }
+
+/* ===== レスポンシブ（狭い画面向けの最低限の調整） ===== */
+@media (max-width: 768px) {
+  #toolbar { padding: 6px 8px; gap: 3px; }
+  #toolbar button, #toolbar label {
+    padding: 7px 9px; height: 34px; font-size: 12px;
+  }
+  #toolbar .brand { padding: 0 6px 0 2px; font-size: 12px; }
+
+  #infoPanel {
+    max-width: min(260px, 78vw);
+    font-size: 11px;
+  }
+  #settingsPanel {
+    min-width: min(240px, 82vw);
+    max-width: 82vw;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+  #coords { font-size: 11px; padding: 3px 8px; }
+}
+
+@media (max-width: 480px) {
+  #infoPanel { top: 4px; right: 4px; padding: 8px 10px; }
+  #drawMode { top: 4px; left: 4px; font-size: 11px; padding: 3px 10px; }
+  #settingsPanel { top: 46px; right: 6px; }
+}
