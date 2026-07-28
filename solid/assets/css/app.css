@@ -366,7 +366,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .badge::before { content: '●'; font-size: 8px; }
 .badge-draft     { background: rgba(178,190,195,.15); color: #636e72; }
 .badge-submitted { background: rgba(116,185,255,.2);  color: #0984E3; }
-.badge-in_progress { background: rgba(9,132,227,.15); color: #0984E3; }
+.badge-in_progress { background: rgba(108,92,231,.15); color: #6C5CE7; }
 .badge-review_pending { background: rgba(255,107,53,.15); color: #E55A2B; }
 .badge-revision_requested { background: rgba(253,203,110,.25); color: #e17055; }
 .badge-approved  { background: rgba(0,184,148,.15); color: #00B894; }
