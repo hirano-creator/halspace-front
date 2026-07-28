@@ -222,9 +222,11 @@
           <div class="chat-tabs" id="chatTabs">
             <button class="chat-tab active" data-ch="client">
               <i class="fa-solid fa-user"></i> お客様連絡
+              <span class="chat-tab-badge" data-badge="client" style="display:none;"></span>
             </button>
             <button class="chat-tab" data-ch="modeler" id="modelerTab">
               <i class="fa-solid fa-drafting-compass"></i> 制作チーム
+              <span class="chat-tab-badge" data-badge="modeler" style="display:none;"></span>
             </button>
           </div>
           <!-- メッセージリスト -->
@@ -259,15 +261,13 @@
     display:flex;flex-direction:column;width:100%;height:100%;
     background:var(--dark);position:relative;">
     <!-- ヘッダー -->
-    <div style="
-      display:flex;align-items:center;justify-content:space-between;
-      padding:12px 20px;background:rgba(0,0,0,.5);flex-shrink:0;gap:12px;">
-      <div style="display:flex;align-items:center;gap:10px;">
+    <div class="viewer-modal-header">
+      <div class="viewer-modal-header-info">
         <span id="viewerIcon" style="font-size:18px;"></span>
-        <span id="viewerFileName" style="font-weight:700;font-size:14px;color:#fff;"></span>
+        <span id="viewerFileName" class="viewer-modal-filename"></span>
         <span id="viewerFileType" style="font-size:11px;color:rgba(255,255,255,.5);"></span>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
+      <div class="viewer-modal-header-tools">
         <!-- DXFツールバー（DXF時のみ表示） -->
         <div id="dxfToolbar" style="display:none;gap:6px;align-items:center;">
           <button class="viewer-tool-btn" id="dxfZoomIn"  title="拡大"><i class="fa-solid fa-magnifying-glass-plus"></i></button>

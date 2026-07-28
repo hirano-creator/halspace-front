@@ -823,8 +823,44 @@ function initChatTabs() {
       tabs.querySelectorAll('.chat-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       renderChat();
+      updateChatBadges();
+      markChannelRead(currentChannel);
     });
   });
+
+  // 表示中のタブは常に既読扱いにする（未読バッジは「今見ていないタブに新着がある」ことだけを示す）
+  updateChatBadges();
+  markChannelRead(currentChannel);
+}
+
+/* タブの未読バッジ（project.unread_client / unread_modeler）を反映する。
+   今表示中のチャンネルは既読マーク済みなので出さない。 */
+function updateChatBadges() {
+  const tabs = document.getElementById('chatTabs');
+  if (!tabs) return;
+  ['client', 'modeler'].forEach(ch => {
+    const badge = tabs.querySelector(`[data-badge="${ch}"]`);
+    if (!badge) return;
+    const n = ch === 'client' ? (project.unread_client ?? 0) : (project.unread_modeler ?? 0);
+    if (n > 0 && ch !== currentChannel) {
+      badge.textContent = n > 99 ? '99+' : String(n);
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
+  });
+}
+
+/* 案件一覧のバッジ用に project.comments 読了時刻をサーバーへ記録する */
+async function markChannelRead(channel) {
+  try {
+    await api.post(`/projects/${projId}/comments/read`, { channel });
+  } catch {
+    return;
+  }
+  if (channel === 'client')  project.unread_client  = 0;
+  if (channel === 'modeler') project.unread_modeler = 0;
+  updateChatBadges();
 }
 
 /* チャットカードの高さを実際のビューポート残り分に合わせる
@@ -1628,7 +1664,12 @@ async function init() {
 
     if (statusChanged) { renderInfo(); renderTimeline(); }
     if (filesChanged)  { renderFiles(); renderTimeline(); }
-    if (commentsChanged) renderChat();
+    if (commentsChanged) {
+      renderChat();
+      updateChatBadges();
+      // 表示中のチャンネルに新着が来ても、開いたまま見ているので既読のまま維持する
+      markChannelRead(currentChannel);
+    }
     // 納期回答フォームに入力中は再描画しない（入力内容が消えるのを防ぐ）
     if ((statusChanged || deadlineChanged)
         && !document.getElementById('deadlinePanel')?.contains(document.activeElement)) {

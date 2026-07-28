@@ -66,7 +66,10 @@ function renderTable() {
     if (isCancelled) tr.style.opacity = '0.5';
     tr.innerHTML = `
       <td><code style="color:var(--blue);font-size:12px;">${p.project_code}</code></td>
-      <td><a href="project-detail.html?id=${p.id}" style="font-weight:600;${isCancelled?'text-decoration:line-through;color:var(--muted);':''}">${p.title}</a></td>
+      <td>
+        <a href="project-detail.html?id=${p.id}" style="font-weight:600;${isCancelled?'text-decoration:line-through;color:var(--muted);':''}">${p.title}</a>
+        ${p.unread_count ? `<span class="unread-badge" style="margin-left:6px;" title="未読メッセージ${p.unread_count}件">${p.unread_count > 99 ? '99+' : p.unread_count}</span>` : ''}
+      </td>
       <td style="font-size:13px;">${companyName}</td>
       <td><span class="badge badge-${p.status}">${STATUS_LABEL[p.status] || p.status}</span></td>
       <td style="font-size:13px;">${p.deadline_requested || '—'}</td>

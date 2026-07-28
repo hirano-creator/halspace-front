@@ -719,6 +719,37 @@ tbody tr:last-child { border-bottom: none; }
 .chat-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
 .chat-tab:hover:not(.active) { color: var(--dark); }
 .chat-tab.hidden { display: none; }
+.chat-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* 案件一覧の未読バッジ（案件詳細タブと同じ見た目を汎用化） */
+.unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
 
 /* メッセージリスト */
 .chat-messages {
@@ -1124,6 +1155,23 @@ tbody tr:last-child { border-bottom: none; }
 /* ビューアモーダルはフルスクリーン */
 #viewerModal { padding:0; align-items:stretch; }
 
+/* ビューアモーダルヘッダー */
+.viewer-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px; background: rgba(0,0,0,.5); flex-shrink: 0; gap: 12px;
+}
+.viewer-modal-header-info {
+  display: flex; align-items: center; gap: 10px;
+  min-width: 0; flex: 1;
+}
+.viewer-modal-header-tools {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.viewer-modal-filename {
+  font-weight: 700; font-size: 14px; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+
 /* ファイル行のプレビューボタン */
 .file-preview-btn {
   display:inline-flex;align-items:center;justify-content:center;
@@ -1381,6 +1429,15 @@ tbody tr:last-child { border-bottom: none; }
   #adminReviewBar  .flex,
   #clientReviewBar .flex,
   #modelerActionBar .flex { flex-direction: column; align-items: flex-start !important; gap: 8px !important; }
+
+  /* ビューアモーダルヘッダー: タイプバッジを非表示にして省スペース化 */
+  .viewer-modal-header { padding: 10px 12px; gap: 8px; }
+  .viewer-modal-header-info { gap: 6px; }
+  #viewerFileType { display: none; }
+  .viewer-modal-header-tools { gap: 4px; }
+  #dxfToolbar, #threejsToolbar { gap: 4px !important; }
+  #threejsToolbar span { display: none; }
+  .viewer-tool-btn { width: 30px; height: 30px; font-size: 13px; }
 }
 
 /* ── スマートフォン小 (〜480px) ── */
