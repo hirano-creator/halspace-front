@@ -23,6 +23,10 @@ if (isAdmin(user)) {
   if (adminNav) adminNav.style.display = '';
 }
 
+/* 会社名は複数社の案件が並ぶ管理者・モデラーのみ表示（発注者は自社案件のみのため不要） */
+const SHOW_COMPANY = isAdmin(user) || isModeler(user);
+if (SHOW_COMPANY) document.body.classList.add('show-company');
+
 function showToast(msg, type = '') {
   const c = document.getElementById('toastContainer');
   if (!c) return;
@@ -134,26 +138,27 @@ function makeCell(date, otherMonth) {
   const MAX_VISIBLE = 3;
   items.slice(0, MAX_VISIBLE).forEach(({ p, type }) => {
     const bar = document.createElement('div');
+    const co  = _companyLine(p);
     if (type === 'delivered') {
       bar.className = 'cal-bar cal-bar-delivered';
-      bar.innerHTML = `<i class="fa-solid fa-circle-check" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}`;
+      bar.innerHTML = `<div class="cal-bar-title"><i class="fa-solid fa-circle-check" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}</div>${co}`;
     } else if (type === 'replied') {
       bar.className = `cal-bar cal-bar-${p.status}`;
-      bar.innerHTML = `<i class="fa-solid fa-flag" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}`;
+      bar.innerHTML = `<div class="cal-bar-title"><i class="fa-solid fa-flag" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}</div>${co}`;
       bar.title = `${p.title}（回答納期: ${p.deadline_replied}）`;
     } else if (type === 'requested') {
       bar.className = `cal-bar cal-bar-${p.status}`;
-      bar.innerHTML = `<i class="fa-solid fa-clock" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}`;
+      bar.innerHTML = `<div class="cal-bar-title"><i class="fa-solid fa-clock" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}</div>${co}`;
       bar.title = `${p.title}（希望納期: ${p.deadline_requested} / 未回答）`;
     } else if (type === 'overdue') {
       bar.className = `cal-bar cal-bar-${p.status}`;
-      bar.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}`;
+      bar.innerHTML = `<div class="cal-bar-title"><i class="fa-solid fa-triangle-exclamation" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}</div>${co}`;
       bar.title = `${p.title}（期限超過）`;
     } else {
       bar.className = `cal-bar cal-bar-${p.status}`;
-      bar.innerHTML = _short(p.title);
+      bar.innerHTML = `<div class="cal-bar-title">${_short(p.title)}</div>${co}`;
     }
-    bar.title = p.title;
+    bar.title = _companyName(p) ? `${p.title}（${_companyName(p)}）` : p.title;
     bar.style.cursor = 'pointer';
     bar.addEventListener('click', () => { location.href = `project-detail.html?id=${p.id}`; });
     cell.appendChild(bar);
@@ -177,9 +182,29 @@ function makeCell(date, otherMonth) {
   return cell;
 }
 
+function _esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
 function _short(title) {
   const limit = window.innerWidth <= 374 ? 5 : window.innerWidth <= 540 ? 7 : window.innerWidth <= 768 ? 10 : 14;
-  return title.length > limit ? title.slice(0, limit) + '…' : title;
+  return _esc(title.length > limit ? title.slice(0, limit) + '…' : title);
+}
+
+/* 法人格（株式会社・(有)・㈱ など）を除いた社名を返す */
+const _CORP_RE = /(株式会社|有限会社|合同会社|合資会社|合名会社|(一般|公益)?(社団|財団)法人|\(株\)|（株）|\(有\)|（有）|㈱|㈲)/g;
+function _companyName(p) {
+  if (!SHOW_COMPANY) return '';
+  const raw = p.company_name ?? p.company ?? '';
+  return raw.replace(_CORP_RE, '').replace(/[\s　]+/g, ' ').trim();
+}
+
+function _companyLine(p) {
+  const name = _companyName(p);
+  if (!name) return '';
+  const limit = window.innerWidth <= 374 ? 6 : window.innerWidth <= 540 ? 8 : window.innerWidth <= 768 ? 11 : 16;
+  const text = name.length > limit ? name.slice(0, limit) + '…' : name;
+  return `<div class="cal-bar-company">${_esc(text)}</div>`;
 }
 
 /* ── 日別ポップアップ ── */
@@ -208,10 +233,12 @@ function showDayPopup(items, dateStr, anchorEl) {
       : type === 'requested' ? `希望納期: ${p.deadline_requested}`
       : type === 'overdue'   ? '期限超過' : '';
 
+    const coName = _companyName(p);
     item.innerHTML = `
-      <div style="font-weight:700;font-size:13px;">${icon}${p.title}</div>
+      <div style="font-weight:700;font-size:13px;">${icon}${_esc(p.title)}</div>
+      ${coName ? `<div style="font-size:11px;margin-top:2px;opacity:.75;">${_esc(coName)}</div>` : ''}
       <div style="font-size:11px;margin-top:3px;opacity:.8;">
-        <code style="font-size:10px;">${p.project_code}</code>
+        <code style="font-size:10px;">${_esc(p.project_code)}</code>
         ${dateInfo ? `· ${dateInfo}` : ''}
       </div>`;
     item.addEventListener('click', () => { location.href = `project-detail.html?id=${p.id}`; });
