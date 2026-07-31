@@ -1,6 +1,6 @@
 // CSV出力エンドポイント
-// GET /api/export?month=YYYY-MM&type=summary|daily&department=&q=
-// type=summary: 社員別月次集計 / type=daily: 日別明細
+// GET /api/export?month=YYYY-MM&type=summary|daily|weekly&department=&q=
+// type=summary: 社員別月次集計 / type=daily: 日別明細 / type=weekly: 週別明細（週単位管理の会社のみ）
 
 import { NextResponse, type NextRequest } from "next/server";
 import { requireApiUser } from "@/lib/auth/api-guard";
@@ -12,7 +12,9 @@ import {
   getDisplaySettings,
   workRulesFor,
 } from "@/lib/settings";
-import { currentPeriod, minutesToHHMM } from "@/lib/utils/time";
+import { calcWeekly } from "@/lib/attendance/calculator";
+import type { WeeklyBucket } from "@/lib/attendance/types";
+import { currentPeriod, minutesToHHMM, periodRange } from "@/lib/utils/time";
 
 /** CSVフィールドのエスケープ（カンマ・引用符・改行対応） */
 function csvField(value: string | number): string {
@@ -34,7 +36,8 @@ export async function GET(request: NextRequest) {
   }
 
   const params = request.nextUrl.searchParams;
-  const type = params.get("type") === "daily" ? "daily" : "summary";
+  const typeParam = params.get("type");
+  const type = typeParam === "daily" || typeParam === "weekly" ? typeParam : "summary";
   const departmentId = params.get("department") || undefined;
   const companyId = params.get("company") || undefined;
   const query = params.get("q")?.trim() || undefined;
@@ -57,6 +60,8 @@ export async function GET(request: NextRequest) {
       { departmentId, companyId, query },
       allRules,
     );
+    // 週単位管理の社員が1人でもいる場合だけ2区分の列を足す（画面の出し分けと同じ条件）
+    const hasWeekly = summaries.some((s) => s.weeklyEnabled);
     csv = toCsv([
       [
         "社員番号",
@@ -67,6 +72,7 @@ export async function GET(request: NextRequest) {
         "勤務時間",
         "早出残業",
         "残業時間",
+        ...(hasWeekly ? ["36H超44H以内", "44H超"] : []),
         "遅刻回数",
         "早退回数",
         ...(showMoney ? ["金額", "残業代", "支給額合計"] : []),
@@ -77,15 +83,50 @@ export async function GET(request: NextRequest) {
         s.departmentName ?? "",
         ...(showMoney ? [s.hourlyWage] : []),
         s.summary.workDays,
+        // 週単位管理では早出・残業を区分しないため、総労働時間をそのまま勤務時間にする
         minutesToHHMM(
-          s.summary.normalMinutes + (s.summary.earlyMinutes - s.summary.earlyOvertimeMinutes),
+          s.weeklyTotals
+            ? s.weeklyTotals.totalMinutes
+            : s.summary.normalMinutes + (s.summary.earlyMinutes - s.summary.earlyOvertimeMinutes),
         ),
         minutesToHHMM(s.summary.earlyOvertimeMinutes),
         minutesToHHMM(s.summary.overtimeMinutes),
+        ...(hasWeekly
+          ? [
+              s.weeklyTotals ? minutesToHHMM(s.weeklyTotals.withinLegalOvertimeMinutes) : "",
+              s.weeklyTotals ? minutesToHHMM(s.weeklyTotals.overLegalOvertimeMinutes) : "",
+            ]
+          : []),
         s.summary.lateCount,
         s.summary.earlyLeaveCount,
         ...(showMoney ? [s.pay.basePay, s.pay.premiumPay, s.pay.totalPay] : []),
       ]),
+    ]);
+  } else if (type === "weekly") {
+    const summaries = await getMonthlySummaries(
+      user,
+      month,
+      { departmentId, companyId, query },
+      allRules,
+    );
+    csv = toCsv([
+      ["社員番号", "氏名", "部署", "週", "勤務日数", "週合計", "所定内", "36-44H", "44H超", "定休日出勤"],
+      ...summaries
+        .filter((s) => s.weeklyEnabled)
+        .flatMap((s) =>
+          s.weeks.map((w) => [
+            s.employeeCode,
+            s.userName,
+            s.departmentName ?? "",
+            `${w.labelStart}〜${w.labelEnd}`,
+            w.workDays,
+            minutesToHHMM(w.totalMinutes),
+            minutesToHHMM(w.standardMinutes),
+            minutesToHHMM(w.withinLegalOvertimeMinutes),
+            minutesToHHMM(w.overLegalOvertimeMinutes),
+            w.closedDayWorkDates.join(" "),
+          ]),
+        ),
     ]);
   } else {
     const { rows } = await getMonthlyAttendance(
@@ -94,12 +135,40 @@ export async function GET(request: NextRequest) {
       { departmentId, companyId, query },
       allRules,
     );
+
+    // 週単位管理の会社は「その日がどの週に属するか」を列に足す（Excelで週ごとに集計できるように）。
+    // 週の区切りは会社ごとに違いうるため、会社単位で1度だけ計算して使い回す。
+    const weekKeyOf = (r: { companyId: string | null; date: string }) => `${r.companyId} ${r.date}`;
+    const weekLabelByCompanyDate = new Map<string, string>();
+    const weeklyCompanyIds = new Set(
+      rows.map((r) => r.companyId).filter((id): id is string => id !== null),
+    );
+    for (const cid of weeklyCompanyIds) {
+      const companyRules = workRulesFor(allRules, cid);
+      if (!companyRules.weekly.enabled) continue;
+      const companyPeriod = periodRange(month, companyRules.closingDay);
+      const weeks: WeeklyBucket[] = calcWeekly(
+        rows.filter((r) => r.companyId === cid).map((r) => ({ date: r.date, calc: r.calc })),
+        companyPeriod,
+        companyRules,
+      );
+      for (const w of weeks) {
+        for (const r of rows) {
+          if (r.companyId === cid && r.date >= w.start && r.date <= w.end) {
+            weekLabelByCompanyDate.set(weekKeyOf(r), `${w.labelStart}〜${w.labelEnd}`);
+          }
+        }
+      }
+    }
+    const hasWeekly = weekLabelByCompanyDate.size > 0;
+
     csv = toCsv([
       [
         "社員番号",
         "氏名",
         "部署",
         "日付",
+        ...(hasWeekly ? ["週"] : []),
         "実出勤",
         "実退勤",
         "出勤時間",
@@ -120,16 +189,20 @@ export async function GET(request: NextRequest) {
         r.userName,
         r.departmentName ?? "",
         r.date,
+        ...(hasWeekly ? [weekLabelByCompanyDate.get(weekKeyOf(r)) ?? ""] : []),
         r.clockIn ?? "",
         r.clockOut ?? "",
         r.calc.error ? "" : r.calc.roundedClockIn,
         r.calc.error ? "" : r.calc.roundedClockOut,
         r.breakMinutes,
         r.calc.error ? `エラー: ${r.calc.error}` : minutesToHHMM(r.calc.totalMinutes),
-        r.calc.error
+        // 週単位管理の社員は残業の区分を週側で持つため、日別の2列は空にする
+        r.calc.error || weekLabelByCompanyDate.has(weekKeyOf(r))
           ? ""
           : minutesToHHMM(r.calc.earlyPremiumApplies ? r.calc.earlyMinutes : 0),
-        r.calc.error ? "" : minutesToHHMM(r.calc.overtimeMinutes),
+        r.calc.error || weekLabelByCompanyDate.has(weekKeyOf(r))
+          ? ""
+          : minutesToHHMM(r.calc.overtimeMinutes),
         r.calc.error ? "" : r.calc.lateMinutes || "",
         r.calc.error ? "" : r.calc.earlyLeaveMinutes || "",
         r.lateReason ?? "",
@@ -146,7 +219,8 @@ export async function GET(request: NextRequest) {
     ]);
   }
 
-  const fileName = `kintai_${type === "summary" ? "shukei" : "meisai"}_${month}.csv`;
+  const fileNamePart = { summary: "shukei", daily: "meisai", weekly: "shubetsu" }[type];
+  const fileName = `kintai_${fileNamePart}_${month}.csv`;
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

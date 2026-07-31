@@ -1,7 +1,7 @@
 // /api/employees/* の各Route Handlerが共有するロジック
 
 import { ROLES } from "@/lib/auth/roles";
-import { serializeFeatures, toClockMode, type SelfEditMode } from "@/lib/auth/features";
+import { serializeFeatures, toClockMode, toHomeScreen, type SelfEditMode } from "@/lib/auth/features";
 
 export interface EmployeeInput {
   employeeCode: string;
@@ -34,6 +34,7 @@ export function parseEmployeeForm(formData: FormData): EmployeeInput | string {
   const featureOverrides = serializeFeatures({
     selfEdit,
     clockMode: toClockMode(formData.get("clockMode")),
+    homeScreen: toHomeScreen(formData.get("homeScreen")),
     showMonthlySummary: formData.get("showMonthlySummary") === "on",
     companyAttendance: formData.get("companyAttendance") === "on",
   });

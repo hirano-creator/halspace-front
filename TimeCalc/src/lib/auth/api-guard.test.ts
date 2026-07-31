@@ -15,6 +15,7 @@ const adminUser: SessionUser = {
   companyId: null,
   gpsCheckEnabled: true,
   companyAttendance: false,
+  homeScreen: "my",
 };
 
 const employeeUser: SessionUser = {
@@ -26,6 +27,7 @@ const employeeUser: SessionUser = {
   companyId: "company-1",
   gpsCheckEnabled: true,
   companyAttendance: false,
+  homeScreen: "my",
 };
 
 function requestWithToken(token?: string): Request {

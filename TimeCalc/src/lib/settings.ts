@@ -38,13 +38,41 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   showMoney: false,
 };
 
+/**
+ * 夏季・冬季を廃止する前の勤務ルールJSON。
+ * 保存済みの設定を読むときだけ現れるため、この型は移行用に閉じておく。
+ */
+interface LegacySeasonalWorkRules {
+  summer?: { workStart?: string; workEnd?: string };
+  winter?: { workStart?: string; workEnd?: string };
+}
+
+/**
+ * 旧形式（summer / winter で季節ごとに時刻を持つ）で保存された勤務ルールを、
+ * 新形式（workStart / workEnd の1組）に読み替える。
+ * 季節の切り替えは廃止したため、夏季側の値を引き継ぐ。
+ * 設定画面から一度保存し直せば新形式で上書きされ、この分岐は通らなくなる。
+ */
+function migrateLegacySeasons(parsed: Record<string, unknown>): Record<string, unknown> {
+  const legacy = parsed as LegacySeasonalWorkRules;
+  if (parsed.workStart !== undefined || !legacy.summer) return parsed;
+  const { summer, winter, ...rest } = parsed as Record<string, unknown> & LegacySeasonalWorkRules;
+  void winter;
+  return {
+    ...rest,
+    ...(summer?.workStart ? { workStart: summer.workStart } : {}),
+    ...(summer?.workEnd ? { workEnd: summer.workEnd } : {}),
+  };
+}
+
 /** JSON文字列のレイヤーを順にデフォルトへマージする（後のレイヤーが優先） */
 function mergeJsonLayers<T>(defaults: T, ...layers: (string | null | undefined)[]): T {
   let result = { ...defaults };
   for (const layer of layers) {
     if (!layer) continue;
     try {
-      result = { ...result, ...(JSON.parse(layer) as Partial<T>) };
+      const parsed = JSON.parse(layer) as Record<string, unknown>;
+      result = { ...result, ...(migrateLegacySeasons(parsed) as Partial<T>) };
     } catch {
       console.error("設定JSONが不正です。該当レイヤーを無視します。");
     }

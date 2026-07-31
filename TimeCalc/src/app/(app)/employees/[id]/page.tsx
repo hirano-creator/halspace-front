@@ -56,6 +56,22 @@ export default function EmployeeDetailPage() {
     };
   }, [authStatus, params.id, month, refreshKey]);
 
+  // 他端末での打刻をほぼリアルタイムに反映するため、表示中は定期的に再取得する
+  useEffect(() => {
+    if (authStatus !== "authenticated") return;
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") refetch();
+    }, 15000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refetch();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [authStatus, refetch]);
+
   if (authStatus === "unauthenticated") return null;
   if (authStatus === "loading" || !data) {
     return <p className="py-8 text-center text-sm text-muted">読み込み中...</p>;
@@ -95,9 +111,28 @@ export default function EmployeeDetailPage() {
         className={`mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 ${showMoney ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}
       >
         <StatCard label="勤務日数" value={`${data.summary.workDays}日`} />
-        <StatCard label="勤務時間" value={formatMinutes(data.monthTotal.workMinutes)} />
-        <StatCard label="早出残業" value={formatMinutes(data.monthTotal.earlyOvertimeMinutes)} tone="amber" />
-        <StatCard label="残業時間" value={formatMinutes(data.monthTotal.overtimeMinutes)} tone="amber" />
+        {/* 週単位管理の会社は残業を週合計で区分するため、早出残業・残業の代わりに2区分を出す */}
+        {data.weeklyTotals ? (
+          <>
+            <StatCard label="勤務時間" value={formatMinutes(data.weeklyTotals.totalMinutes)} />
+            <StatCard
+              label="36H超44H以内"
+              value={formatMinutes(data.weeklyTotals.withinLegalOvertimeMinutes)}
+              tone="amber"
+            />
+            <StatCard
+              label="44H超"
+              value={formatMinutes(data.weeklyTotals.overLegalOvertimeMinutes)}
+              tone="amber"
+            />
+          </>
+        ) : (
+          <>
+            <StatCard label="勤務時間" value={formatMinutes(data.monthTotal.workMinutes)} />
+            <StatCard label="早出残業" value={formatMinutes(data.monthTotal.earlyOvertimeMinutes)} tone="amber" />
+            <StatCard label="残業時間" value={formatMinutes(data.monthTotal.overtimeMinutes)} tone="amber" />
+          </>
+        )}
         <StatCard
           label="遅刻・早退"
           value={`${data.summary.lateCount}・${data.summary.earlyLeaveCount}回`}
@@ -124,6 +159,7 @@ export default function EmployeeDetailPage() {
           rows={data.rows}
           editable={data.editable}
           showMoney={showMoney}
+          weeks={data.weeks}
           onChanged={refetch}
         />
       </Card>

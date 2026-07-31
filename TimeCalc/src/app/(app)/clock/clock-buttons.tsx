@@ -174,7 +174,7 @@ export function ClockButtons({
             退勤
           </button>
         )}
-        {mode !== "attend" && (
+        {mode !== "attend" && (canOutStart || canOutEnd) && (
           <button
             type="button"
             onClick={() => punch("OUT_START")}
@@ -185,7 +185,7 @@ export function ClockButtons({
             <span className="text-[11px] font-normal">勤務時間から除外</span>
           </button>
         )}
-        {mode !== "attend" && (
+        {mode !== "attend" && (canOutStart || canOutEnd) && (
           <button
             type="button"
             onClick={() => punch("OUT_END")}

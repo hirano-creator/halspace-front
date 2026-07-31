@@ -8,7 +8,12 @@ import { useRouter } from "next/navigation";
 import { createEmployeeAction, updateEmployeeAction } from "./client-actions";
 import type { EmployeeFormState } from "./types";
 import { ROLES, type Role } from "@/lib/auth/roles";
-import { SELF_EDIT_LABELS, CLOCK_MODE_LABELS, type FeatureSettings } from "@/lib/auth/features";
+import {
+  SELF_EDIT_LABELS,
+  CLOCK_MODE_LABELS,
+  HOME_SCREEN_LABELS,
+  type FeatureSettings,
+} from "@/lib/auth/features";
 import {
   buttonPrimaryClass,
   buttonSecondaryClass,
@@ -41,12 +46,18 @@ export function EmployeeForm({
   roleLabels,
   values,
   showMoney,
+  nextCodeByDepartment = {},
+  defaultNextCode = "",
 }: {
   departments: DepartmentOption[];
   roleLabels: Record<Role, string>;
   values?: EmployeeFormValues; // 未指定なら新規登録
   /** 金額（時給）欄を表示するか（設定画面の表示設定に従う） */
   showMoney: boolean;
+  /** 部署ID → その会社で次に割り当てる社員番号（新規登録時のみ自動入力に使う） */
+  nextCodeByDepartment?: Record<string, string>;
+  /** 部署未設定のときの次の社員番号 */
+  defaultNextCode?: string;
 }) {
   const isEdit = Boolean(values?.id);
   const router = useRouter();
@@ -55,6 +66,17 @@ export function EmployeeForm({
     initialState,
   );
   const [showPassword, setShowPassword] = useState(false);
+  const [departmentId, setDepartmentId] = useState(values?.departmentId ?? "");
+  // 新規登録では、選んだ部署の会社の採番ルールに従った番号を入れておく（手入力で上書き可）
+  const [employeeCode, setEmployeeCode] = useState(
+    values?.employeeCode ?? nextCodeByDepartment[values?.departmentId ?? ""] ?? defaultNextCode,
+  );
+
+  function handleDepartmentChange(id: string) {
+    setDepartmentId(id);
+    if (isEdit) return; // 編集時は既存の番号を勝手に書き換えない
+    setEmployeeCode(nextCodeByDepartment[id] ?? defaultNextCode);
+  }
 
   useEffect(() => {
     if (state.success) router.push("/employees");
@@ -74,10 +96,16 @@ export function EmployeeForm({
             name="employeeCode"
             type="text"
             required
-            defaultValue={values?.employeeCode ?? ""}
+            value={employeeCode}
+            onChange={(e) => setEmployeeCode(e.target.value)}
             className={inputClass}
-            placeholder="0005"
+            placeholder="A0001"
           />
+          {!isEdit && (
+            <p className="mt-1 text-xs text-muted">
+              部署を選ぶと、その会社の採番ルールに沿った番号が入ります（変更可）
+            </p>
+          )}
         </div>
         <div>
           <label htmlFor="name" className={labelClass}>
@@ -151,7 +179,8 @@ export function EmployeeForm({
           <select
             id="departmentId"
             name="departmentId"
-            defaultValue={values?.departmentId ?? ""}
+            value={departmentId}
+            onChange={(e) => handleDepartmentChange(e.target.value)}
             className={inputClass}
           >
             <option value="">未設定</option>
@@ -257,6 +286,29 @@ export function EmployeeForm({
             </select>
             <p className="mt-1 text-xs text-muted">
               「QRタップ打刻」「スキャン即打刻」はログイン後の打刻ページからは打刻できず、店舗掲示のQRコードを読み取った場合のみ打刻できます。「スキャン即打刻」は先に部署の打刻QR画面（出勤・退勤QR/外出・戻りQR）を店舗に掲示してから設定してください
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="homeScreen" className={labelClass}>
+              アプリを開いた直後の画面
+            </label>
+            <select
+              id="homeScreen"
+              name="homeScreen"
+              defaultValue={values?.features.homeScreen ?? "my"}
+              className={inputClass}
+            >
+              {(Object.keys(HOME_SCREEN_LABELS) as (keyof typeof HOME_SCREEN_LABELS)[]).map(
+                (mode) => (
+                  <option key={mode} value={mode}>
+                    {HOME_SCREEN_LABELS[mode]}
+                  </option>
+                ),
+              )}
+            </select>
+            <p className="mt-1 text-xs text-muted">
+              「QR読取り画面」にすると、ログイン直後にすぐカメラでQRコードを読み取れます（設定変更後は本人が再ログインすると反映されます）
             </p>
           </div>
 

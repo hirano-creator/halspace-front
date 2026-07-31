@@ -1,21 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { calcDaily, calcDailyPay, roundOvertime, seasonOf, summarize } from "./calculator";
+import {
+  calcDaily,
+  calcDailyPay,
+  calcWeekly,
+  calcWeeklyPay,
+  roundOvertime,
+  summarize,
+  summarizeWeeks,
+} from "./calculator";
 import { DEFAULT_WORK_RULES } from "./types";
+import type { DailyCalcResult, WorkRuleSettings } from "./types";
 
-const rules = DEFAULT_WORK_RULES;
-
-describe("seasonOf", () => {
-  it("4月〜10月は夏季", () => {
-    expect(seasonOf("2026-04-01", rules)).toBe("summer");
-    expect(seasonOf("2026-07-15", rules)).toBe("summer");
-    expect(seasonOf("2026-10-31", rules)).toBe("summer");
-  });
-  it("11月〜3月は冬季（年跨ぎ）", () => {
-    expect(seasonOf("2026-11-01", rules)).toBe("winter");
-    expect(seasonOf("2026-01-15", rules)).toBe("winter");
-    expect(seasonOf("2026-03-31", rules)).toBe("winter");
-  });
-});
+// 計算仕様の基準ルール（始業9:00・終業18:00）。
+// 既定値そのものではなく、テストが前提とする勤務時間を明示するために上書きしている。
+const rules: WorkRuleSettings = {
+  ...DEFAULT_WORK_RULES,
+  workStart: "09:00",
+  workEnd: "18:00",
+};
 
 describe("roundOvertime（30分単位切り捨て）", () => {
   it("89分 → 60分", () => expect(roundOvertime(89, 30)).toBe(60));
@@ -26,14 +28,13 @@ describe("roundOvertime（30分単位切り捨て）", () => {
   it("30分未満は0", () => expect(roundOvertime(29, 30)).toBe(0));
 });
 
-describe("calcDaily 夏季（定時9:00〜18:00、18:00以降残業）", () => {
+describe("calcDaily（定時9:00〜18:00、18:00以降残業）", () => {
   it("定時勤務 9:00〜18:00 休憩60分 → 通常8時間・早出/残業なし", () => {
     const r = calcDaily(
       { date: "2026-07-01", clockIn: "09:00", clockOut: "18:00", breakMinutes: 60 },
       rules,
     );
     expect(r.error).toBeNull();
-    expect(r.season).toBe("summer");
     expect(r.earlyMinutes).toBe(0);
     expect(r.normalMinutes).toBe(8 * 60);
     expect(r.overtimeMinutes).toBe(0);
@@ -124,21 +125,23 @@ describe("calcDaily 夏季（定時9:00〜18:00、18:00以降残業）", () => {
   });
 });
 
-describe("calcDaily 冬季（定時9:00〜16:00、16:00〜18:00は通常扱い）", () => {
-  it("9:00〜18:00 休憩60分 → 全て通常勤務8時間・残業0", () => {
+describe("calcDaily 終業が早い会社（定時9:00〜16:00、16:00〜18:00は通常扱い）", () => {
+  const earlyEndRules: WorkRuleSettings = { ...rules, workEnd: "16:00" };
+
+  it("9:00〜18:00 休憩60分 → 終業後も残業開始までは通常勤務8時間・残業0", () => {
     const r = calcDaily(
       { date: "2026-01-15", clockIn: "09:00", clockOut: "18:00", breakMinutes: 60 },
-      rules,
+      earlyEndRules,
     );
-    expect(r.season).toBe("winter");
     expect(r.normalMinutes).toBe(8 * 60);
     expect(r.overtimeMinutes).toBe(0);
+    expect(r.earlyLeaveMinutes).toBe(0);
   });
 
   it("9:00〜20:05 休憩60分 → 残業は18:00以降を丸めて2時間", () => {
     const r = calcDaily(
       { date: "2026-01-15", clockIn: "09:00", clockOut: "20:05", breakMinutes: 60 },
-      rules,
+      earlyEndRules,
     );
     expect(r.overtimeRawMinutes).toBe(125);
     expect(r.overtimeMinutes).toBe(120);
@@ -300,6 +303,277 @@ describe("summarize", () => {
   });
 });
 
+// ------------------------------------------------------------------
+// 週単位管理（affect: 定時9:00〜16:00・金曜起算・木曜定休・所定36H/法定44H）
+// ------------------------------------------------------------------
+
+const weeklyRules: WorkRuleSettings = {
+  ...DEFAULT_WORK_RULES,
+  workStart: "09:00",
+  workEnd: "16:00",
+  weekly: {
+    enabled: true,
+    startDayOfWeek: 5, // 金
+    closedDays: [4], // 木
+    standardMinutes: 36 * 60,
+    legalMinutes: 44 * 60,
+    withinLegalPremiumRate: 0,
+    overLegalPremiumRate: 0.25,
+  },
+};
+
+/** 週次テスト用に「その日は clockIn〜clockOut・休憩60分」で計算した1日分を作る */
+function day(date: string, clockIn: string, clockOut: string) {
+  return {
+    date,
+    calc: calcDaily({ date, clockIn, clockOut, breakMinutes: 60 }, weeklyRules),
+  };
+}
+
+describe("calcDaily 週単位モード（日単位では残業を判定しない）", () => {
+  it("9:00〜16:00 休憩60分 → 実働6時間がすべて通常勤務", () => {
+    const r = calcDaily(
+      { date: "2026-08-26", clockIn: "09:00", clockOut: "16:00", breakMinutes: 60 },
+      weeklyRules,
+    );
+    expect(r.normalMinutes).toBe(6 * 60);
+    expect(r.overtimeMinutes).toBe(0);
+    expect(r.earlyMinutes).toBe(0);
+    expect(r.totalMinutes).toBe(6 * 60);
+  });
+
+  it("残業開始時刻(18:00)を超えて働いても日単位の残業は0のまま", () => {
+    const r = calcDaily(
+      { date: "2026-09-11", clockIn: "09:00", clockOut: "19:00", breakMinutes: 60 },
+      weeklyRules,
+    );
+    expect(r.overtimeMinutes).toBe(0);
+    expect(r.earlyPremiumApplies).toBe(false);
+    expect(r.normalMinutes).toBe(9 * 60);
+    expect(r.totalMinutes).toBe(9 * 60);
+  });
+
+  it("始業前の早出も区別せず労働時間に合算する", () => {
+    const r = calcDaily(
+      { date: "2026-09-11", clockIn: "08:00", clockOut: "16:00", breakMinutes: 60 },
+      weeklyRules,
+    );
+    expect(r.earlyMinutes).toBe(0);
+    expect(r.normalMinutes).toBe(7 * 60);
+    expect(r.totalMinutes).toBe(7 * 60);
+  });
+
+  it("30分丸めは週次モードでも従来どおり適用する（8:47→9:00 / 19:07→19:00）", () => {
+    const r = calcDaily(
+      { date: "2026-09-12", clockIn: "08:47", clockOut: "19:07", breakMinutes: 60 },
+      weeklyRules,
+    );
+    expect(r.roundedClockIn).toBe("09:00");
+    expect(r.roundedClockOut).toBe("19:00");
+    expect(r.totalMinutes).toBe(9 * 60);
+  });
+
+  it("遅刻・早退の判定は従来どおり実打刻と定時で行う", () => {
+    const late = calcDaily(
+      { date: "2026-09-22", clockIn: "09:12", clockOut: "16:00", breakMinutes: 60 },
+      weeklyRules,
+    );
+    expect(late.lateMinutes).toBe(12);
+    expect(late.totalMinutes).toBe(5 * 60 + 48);
+  });
+});
+
+describe("calcWeekly（36H超44H以内 / 44H超の区分）", () => {
+  const period = { start: "2026-08-26", end: "2026-09-25" };
+
+  it("6H×6日=36:00 はすべて所定内", () => {
+    const days = ["2026-08-28", "2026-08-29", "2026-08-30", "2026-08-31", "2026-09-01", "2026-09-02"]
+      .map((d) => day(d, "09:00", "16:00"));
+    const week = calcWeekly(days, period, weeklyRules).find((w) => w.start === "2026-08-28")!;
+    expect(week.workDays).toBe(6);
+    expect(week.totalMinutes).toBe(36 * 60);
+    expect(week.standardMinutes).toBe(36 * 60);
+    expect(week.withinLegalOvertimeMinutes).toBe(0);
+    expect(week.overLegalOvertimeMinutes).toBe(0);
+  });
+
+  it("ちょうど44:00 の週は 36H超44H以内が8時間・44H超は0（境界）", () => {
+    const days = [
+      day("2026-09-04", "09:00", "18:00"), // 8:00
+      day("2026-09-05", "09:00", "18:00"), // 8:00
+      day("2026-09-06", "09:00", "16:00"), // 6:00
+      day("2026-09-07", "09:00", "18:00"), // 8:00
+      day("2026-09-08", "09:00", "18:00"), // 8:00
+      day("2026-09-09", "09:00", "16:00"), // 6:00
+    ];
+    const week = calcWeekly(days, period, weeklyRules).find((w) => w.start === "2026-09-04")!;
+    expect(week.totalMinutes).toBe(44 * 60);
+    expect(week.standardMinutes).toBe(36 * 60);
+    expect(week.withinLegalOvertimeMinutes).toBe(8 * 60);
+    expect(week.overLegalOvertimeMinutes).toBe(0);
+  });
+
+  it("9H×6日=54:00 は 36H + 8H(36-44帯) + 10H(44H超) に割れる", () => {
+    const days = ["2026-09-11", "2026-09-12", "2026-09-13", "2026-09-14", "2026-09-15", "2026-09-16"]
+      .map((d) => day(d, "09:00", "19:00"));
+    const week = calcWeekly(days, period, weeklyRules).find((w) => w.start === "2026-09-11")!;
+    expect(week.totalMinutes).toBe(54 * 60);
+    expect(week.standardMinutes).toBe(36 * 60);
+    expect(week.withinLegalOvertimeMinutes).toBe(8 * 60);
+    expect(week.overLegalOvertimeMinutes).toBe(10 * 60);
+  });
+
+  it("端数週はしきい値を按分せずそのまま適用する（1日6:00は全て所定内）", () => {
+    const weeks = calcWeekly([day("2026-08-26", "09:00", "16:00")], period, weeklyRules);
+    const first = weeks[0];
+    expect(first.isPartial).toBe(true);
+    expect(first.workDays).toBe(1);
+    expect(first.totalMinutes).toBe(6 * 60);
+    expect(first.standardMinutes).toBe(6 * 60);
+    expect(first.withinLegalOvertimeMinutes).toBe(0);
+  });
+
+  it("表示ラベルは勤務実績のある日でトリムする（木曜が定休なら水曜まで）", () => {
+    const days = ["2026-08-28", "2026-08-29", "2026-08-30", "2026-08-31", "2026-09-01", "2026-09-02"]
+      .map((d) => day(d, "09:00", "16:00"));
+    const week = calcWeekly(days, period, weeklyRules).find((w) => w.start === "2026-08-28")!;
+    expect(week.end).toBe("2026-09-03"); // 区間は木曜まで
+    expect(week.labelStart).toBe("2026-08-28");
+    expect(week.labelEnd).toBe("2026-09-02"); // ラベルは水曜まで
+  });
+
+  it("定休日（木）に勤務があればラベルが木曜まで伸び、労働時間にも合算される", () => {
+    const days = [
+      day("2026-09-18", "09:00", "16:00"),
+      day("2026-09-19", "09:00", "16:00"),
+      day("2026-09-21", "09:00", "16:00"),
+      day("2026-09-22", "09:12", "16:00"), // 遅刻12分 → 5:48
+      day("2026-09-23", "09:00", "16:00"),
+      day("2026-09-24", "09:00", "16:00"), // 木曜（定休日）に出勤
+    ];
+    const week = calcWeekly(days, period, weeklyRules).find((w) => w.start === "2026-09-18")!;
+    expect(week.labelEnd).toBe("2026-09-24");
+    expect(week.closedDayWorkDates).toEqual(["2026-09-24"]);
+    expect(week.workDays).toBe(6);
+    expect(week.totalMinutes).toBe(35 * 60 + 48);
+  });
+
+  it("勤務のない週も区間として残り、すべて0になる", () => {
+    const weeks = calcWeekly([], period, weeklyRules);
+    expect(weeks).toHaveLength(6);
+    for (const w of weeks) {
+      expect(w.workDays).toBe(0);
+      expect(w.totalMinutes).toBe(0);
+      expect(w.labelStart).toBe(w.start);
+      expect(w.labelEnd).toBe(w.end);
+    }
+  });
+
+  it("所定内 + 36H超44H以内 + 44H超 は必ず週合計と一致する（不変条件）", () => {
+    const patterns: [string, string][] = [
+      ["09:00", "16:00"], // 6:00
+      ["09:00", "18:00"], // 8:00
+      ["09:00", "19:00"], // 9:00
+      ["09:00", "21:00"], // 11:00
+    ];
+    for (const [clockIn, clockOut] of patterns) {
+      const days = [
+        "2026-09-11",
+        "2026-09-12",
+        "2026-09-13",
+        "2026-09-14",
+        "2026-09-15",
+        "2026-09-16",
+      ].map((d) => day(d, clockIn, clockOut));
+      for (const w of calcWeekly(days, period, weeklyRules)) {
+        expect(
+          w.standardMinutes + w.withinLegalOvertimeMinutes + w.overLegalOvertimeMinutes,
+        ).toBe(w.totalMinutes);
+      }
+    }
+  });
+});
+
+describe("summarizeWeeks / calcWeeklyPay（2026年9月度の通し計算）", () => {
+  const period = { start: "2026-08-26", end: "2026-09-25" };
+  // UIモック（docs/affect-weekly-mock.html）と同じ打刻データ
+  const days = [
+    day("2026-08-26", "09:00", "16:00"),
+    day("2026-08-28", "09:00", "16:00"),
+    day("2026-08-29", "09:00", "16:00"),
+    day("2026-08-30", "09:00", "16:00"),
+    day("2026-08-31", "09:00", "15:30"), // 早退30分 → 5:30
+    day("2026-09-01", "09:00", "16:00"),
+    day("2026-09-02", "09:00", "16:00"),
+    day("2026-09-04", "09:00", "18:00"),
+    day("2026-09-05", "09:00", "18:00"),
+    day("2026-09-06", "09:00", "16:00"),
+    day("2026-09-07", "09:00", "18:00"),
+    day("2026-09-08", "09:00", "18:00"),
+    day("2026-09-09", "09:00", "16:00"),
+    day("2026-09-11", "09:00", "19:00"),
+    day("2026-09-12", "08:47", "19:07"), // 丸めて 9:00〜19:00
+    day("2026-09-13", "09:00", "19:00"),
+    day("2026-09-14", "09:00", "19:00"),
+    day("2026-09-15", "09:00", "19:00"),
+    day("2026-09-16", "09:00", "19:00"),
+    day("2026-09-18", "09:00", "16:00"),
+    day("2026-09-19", "09:00", "16:00"),
+    day("2026-09-21", "09:00", "16:00"),
+    day("2026-09-22", "09:12", "16:00"), // 遅刻12分 → 5:48
+    day("2026-09-23", "09:00", "16:00"),
+    day("2026-09-24", "09:00", "16:00"), // 定休日出勤
+    day("2026-09-25", "09:00", "16:00"),
+  ];
+
+  const weeks = calcWeekly(days, period, weeklyRules);
+  const totals = summarizeWeeks(weeks);
+
+  it("週ごとの合計がモックの値と一致する", () => {
+    expect(weeks.map((w) => w.totalMinutes)).toEqual([
+      6 * 60,
+      35 * 60 + 30,
+      44 * 60,
+      54 * 60,
+      35 * 60 + 48,
+      6 * 60,
+    ]);
+    expect(weeks.map((w) => w.workDays)).toEqual([1, 6, 6, 6, 6, 1]);
+  });
+
+  it("月度合計は 26日 / 181:18、内訳は 所定内155:18・36-44H 16:00・44H超 10:00", () => {
+    expect(weeks.reduce((sum, w) => sum + w.workDays, 0)).toBe(26);
+    expect(totals.totalMinutes).toBe(181 * 60 + 18);
+    expect(totals.standardMinutes).toBe(155 * 60 + 18);
+    expect(totals.withinLegalOvertimeMinutes).toBe(16 * 60);
+    expect(totals.overLegalOvertimeMinutes).toBe(10 * 60);
+    expect(totals.closedDayWorkCount).toBe(1);
+  });
+
+  it("月度合計でも 所定内 + 36-44H + 44H超 = 総労働時間", () => {
+    expect(
+      totals.standardMinutes +
+        totals.withinLegalOvertimeMinutes +
+        totals.overLegalOvertimeMinutes,
+    ).toBe(totals.totalMinutes);
+  });
+
+  it("割増は 36-44H帯が0%・44H超が25% なので 44H超10時間分のみ発生する", () => {
+    const pay = calcWeeklyPay(totals, 1200, weeklyRules);
+    expect(pay.withinLegalPay).toBe(0);
+    expect(pay.overLegalPay).toBe(10 * 1200 * 0.25);
+    expect(pay.premiumPay).toBe(3000);
+  });
+
+  it("日次は基本給のみになるため、週の割増と足しても二重計上にならない", () => {
+    const basePay = days.reduce((sum, d) => sum + calcDailyPay(d.calc, 1200, weeklyRules).basePay, 0);
+    const premium = calcWeeklyPay(totals, 1200, weeklyRules).premiumPay;
+    // 基本給は総労働時間ぶん、割増は44H超に対する上乗せぶんのみ
+    expect(basePay).toBe(Math.round((181 * 60 + 18) * (1200 / 60)));
+    expect(basePay + premium).toBe(basePay + 3000);
+  });
+});
+
 describe("遅刻・早退の自動判定（実打刻基準）", () => {
   it("始業ちょうど・終業ちょうどは遅刻・早退なし", () => {
     const r = calcDaily(
@@ -335,15 +609,16 @@ describe("遅刻・早退の自動判定（実打刻基準）", () => {
     expect(r.earlyLeaveMinutes).toBe(30);
   });
 
-  it("冬季15:00退勤 → 早退60分（終業16:00基準）、16:30退勤は早退なし", () => {
+  it("終業16:00の会社なら15:00退勤で早退60分、16:30退勤は早退なし", () => {
+    const earlyEndRules: WorkRuleSettings = { ...rules, workEnd: "16:00" };
     const early = calcDaily(
       { date: "2026-12-01", clockIn: "09:00", clockOut: "15:00", breakMinutes: 60 },
-      rules,
+      earlyEndRules,
     );
     expect(early.earlyLeaveMinutes).toBe(60);
     const onTime = calcDaily(
       { date: "2026-12-01", clockIn: "09:00", clockOut: "16:30", breakMinutes: 60 },
-      rules,
+      earlyEndRules,
     );
     expect(onTime.earlyLeaveMinutes).toBe(0);
   });

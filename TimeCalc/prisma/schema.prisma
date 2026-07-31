@@ -24,6 +24,11 @@ datasource db {
 model Company {
   id          String           @id @default(cuid())
   name        String           @unique
+  // 社員番号の採番ルール（例: codePrefix="A", codeDigits=4 → A0001）。
+  // 社員番号自体は全社で一意（User.employeeCode の @unique）のままなので、
+  // ログイン・CSV取込の名寄せには影響しない。新規登録時の既定値を作るために使う。
+  codePrefix  String?
+  codeDigits  Int              @default(4)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   departments Department[]

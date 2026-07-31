@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     );
   }
 
+  const features = resolveFeatures(user.featureOverrides);
   const sessionUser: SessionUser = {
     id: user.id,
     employeeCode: user.employeeCode,
@@ -45,7 +46,8 @@ export async function POST(request: Request) {
     departmentId: user.departmentId,
     companyId: await getCompanyIdForDepartment(user.departmentId),
     gpsCheckEnabled: user.gpsCheckEnabled,
-    companyAttendance: resolveFeatures(user.featureOverrides).companyAttendance,
+    companyAttendance: features.companyAttendance,
+    homeScreen: features.homeScreen,
   };
 
   const token = await createSessionToken(sessionUser);

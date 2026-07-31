@@ -9,8 +9,6 @@ import type { WorkRuleSettings } from "@/lib/attendance/types";
 import type { SettingsFormState } from "@/app/(app)/settings/types";
 import { resolveCompanyId } from "../_shared";
 
-const MONTH_DAY_RE = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
-
 export async function POST(request: Request) {
   const auth = await requireApiPermission(request, "manageSettings");
   if (!auth.ok) return auth.response;
@@ -22,20 +20,12 @@ export async function POST(request: Request) {
   }
 
   const get = (key: string) => String(formData.get(key) ?? "").trim();
+  // 時間単位で入力された週の労働時間を分に直す（0.5時間刻みを許容するため四捨五入する）
+  const hoursToMinutes = (key: string) => Math.round(Number(get(key)) * 60);
 
   const rules: WorkRuleSettings = {
-    summer: {
-      startMonthDay: get("summerStart"),
-      endMonthDay: get("summerEnd"),
-      workStart: get("summerWorkStart"),
-      workEnd: get("summerWorkEnd"),
-    },
-    winter: {
-      startMonthDay: get("winterStart"),
-      endMonthDay: get("winterEnd"),
-      workStart: get("winterWorkStart"),
-      workEnd: get("winterWorkEnd"),
-    },
+    workStart: get("workStart"),
+    workEnd: get("workEnd"),
     overtimeStart: get("overtimeStart"),
     overtimePremiumRate: Number(get("overtimePremiumRate")) / 100,
     earlyPremiumRate: Number(get("earlyPremiumRate")) / 100,
@@ -45,26 +35,28 @@ export async function POST(request: Request) {
     closingDay: Number(get("closingDay")),
     breakStart: get("breakStart"),
     breakEnd: get("breakEnd"),
+    weekly: {
+      enabled: formData.get("weeklyEnabled") !== null,
+      startDayOfWeek: Number(get("weeklyStartDayOfWeek")),
+      // チェックボックス群のため getAll で受け、0〜6の整数だけを重複なく残す
+      closedDays: [
+        ...new Set(
+          formData
+            .getAll("weeklyClosedDays")
+            .map((v) => Number(String(v)))
+            .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6),
+        ),
+      ].sort((a, b) => a - b),
+      standardMinutes: hoursToMinutes("weeklyStandardHours"),
+      legalMinutes: hoursToMinutes("weeklyLegalHours"),
+      withinLegalPremiumRate: Number(get("weeklyWithinLegalPremiumRate")) / 100,
+      overLegalPremiumRate: Number(get("weeklyOverLegalPremiumRate")) / 100,
+    },
   };
 
-  for (const [label, md] of [
-    ["夏季開始", rules.summer.startMonthDay],
-    ["夏季終了", rules.summer.endMonthDay],
-    ["冬季開始", rules.winter.startMonthDay],
-    ["冬季終了", rules.winter.endMonthDay],
-  ] as const) {
-    if (!MONTH_DAY_RE.test(md)) {
-      return NextResponse.json<SettingsFormState>({
-        error: `${label}は MM-DD 形式で入力してください（例: 04-01）`,
-        success: false,
-      });
-    }
-  }
   for (const [label, time] of [
-    ["夏季始業", rules.summer.workStart],
-    ["夏季終業", rules.summer.workEnd],
-    ["冬季始業", rules.winter.workStart],
-    ["冬季終業", rules.winter.workEnd],
+    ["始業", rules.workStart],
+    ["終業", rules.workEnd],
     ["残業開始", rules.overtimeStart],
     ["早出計算開始", rules.earlyWorkStart],
     ["休憩開始", rules.breakStart],
@@ -77,6 +69,8 @@ export async function POST(request: Request) {
   for (const [label, rate] of [
     ["残業割増率", rules.overtimePremiumRate],
     ["早出割増率", rules.earlyPremiumRate],
+    ["所定超〜法定内の割増率", rules.weekly.withinLegalPremiumRate],
+    ["法定超の割増率", rules.weekly.overLegalPremiumRate],
   ] as const) {
     if (!Number.isFinite(rate) || rate < 0 || rate > 2) {
       return NextResponse.json<SettingsFormState>({
@@ -114,6 +108,33 @@ export async function POST(request: Request) {
   if (timeToMinutes(rules.breakEnd)! <= timeToMinutes(rules.breakStart)!) {
     return NextResponse.json<SettingsFormState>({
       error: "休憩終了は休憩開始より後にしてください",
+      success: false,
+    });
+  }
+  if (
+    !Number.isInteger(rules.weekly.startDayOfWeek) ||
+    rules.weekly.startDayOfWeek < 0 ||
+    rules.weekly.startDayOfWeek > 6
+  ) {
+    return NextResponse.json<SettingsFormState>({
+      error: "週の起算曜日を選択してください",
+      success: false,
+    });
+  }
+  for (const [label, minutes] of [
+    ["所定労働時間", rules.weekly.standardMinutes],
+    ["法定労働時間", rules.weekly.legalMinutes],
+  ] as const) {
+    if (!Number.isInteger(minutes) || minutes < 0 || minutes > 168 * 60) {
+      return NextResponse.json<SettingsFormState>({
+        error: `${label}は0〜168時間の範囲で入力してください`,
+        success: false,
+      });
+    }
+  }
+  if (rules.weekly.legalMinutes < rules.weekly.standardMinutes) {
+    return NextResponse.json<SettingsFormState>({
+      error: "法定労働時間は所定労働時間以上にしてください",
       success: false,
     });
   }

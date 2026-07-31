@@ -11,7 +11,8 @@ import { LoginForm } from "./login-form";
 /** オープンリダイレクト対策: "/"始まりの相対パスのみ許可する */
 function safeRedirect(target: string | null): string {
   if (target && target.startsWith("/") && !target.startsWith("//")) return target;
-  return "/my";
+  // "/" にすることで、以後の振り分け（起動時の画面設定）をルートページの1箇所に集約する
+  return "/";
 }
 
 export default function LoginPage() {

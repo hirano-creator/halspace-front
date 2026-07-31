@@ -1,23 +1,11 @@
 // 勤務ルール設定・勤怠計算の型定義
 
-/** 季節ごとの勤務時間帯設定 */
-export interface SeasonRule {
-  /** 期間開始（"MM-DD"） */
-  startMonthDay: string;
-  /** 期間終了（"MM-DD"） */
-  endMonthDay: string;
-  /** 始業時刻（"HH:mm"） */
-  workStart: string;
-  /** 終業時刻（"HH:mm"）。終業後〜残業開始までは通常勤務扱い */
-  workEnd: string;
-}
-
 /** 勤務ルール設定（設定画面から変更可能） */
 export interface WorkRuleSettings {
-  /** 夏季勤務 */
-  summer: SeasonRule;
-  /** 冬季勤務 */
-  winter: SeasonRule;
+  /** 始業時刻（"HH:mm"）。会社ごとに設定する（例: ヒラノ 08:00 / affect 09:00） */
+  workStart: string;
+  /** 終業時刻（"HH:mm"）。終業後〜残業開始までは通常勤務扱い。遅刻・早退の判定基準にもなる */
+  workEnd: string;
   /** 残業開始時刻（"HH:mm"）。この時刻以降の勤務が残業 */
   overtimeStart: string;
   /** 残業割増率（例: 0.25 = 25%） */
@@ -52,22 +40,39 @@ export interface WorkRuleSettings {
   breakStart: string;
   /** 休憩終了時刻（"HH:mm"） */
   breakEnd: string;
+  /** 週単位の労働時間管理 */
+  weekly: WeeklyRule;
+}
+
+/**
+ * 週単位の労働時間管理設定。
+ * enabled にすると、その会社では日単位の残業判定（overtimeStart / overtimeThresholdMinutes）を
+ * 行わず、週合計を「所定内」「所定超〜法定内」「法定超」の3層に分けて残業を区分する。
+ */
+export interface WeeklyRule {
+  /** 週単位管理を使うか。false なら従来どおり日単位で残業を判定する */
+  enabled: boolean;
+  /** 週の起算曜日（0=日 … 6=土）。金曜起算 = 5 */
+  startDayOfWeek: number;
+  /**
+   * 定休日（0=日 … 6=土）の配列。木曜定休 = [4]。
+   * 定休日に勤務があった場合も週の労働時間には合算し、表示上のみ区別する。
+   */
+  closedDays: number[];
+  /** 所定労働時間（分/週）。6H×6日 = 36H = 2160 */
+  standardMinutes: number;
+  /** 法定労働時間（分/週）。44H = 2640。所定以上の値であること */
+  legalMinutes: number;
+  /** 所定超〜法定内（例: 36H超44H以内）の割増率（0.25 = 25%） */
+  withinLegalPremiumRate: number;
+  /** 法定超（例: 44H超）の割増率 */
+  overLegalPremiumRate: number;
 }
 
 /** 勤務ルールの初期値 */
 export const DEFAULT_WORK_RULES: WorkRuleSettings = {
-  summer: {
-    startMonthDay: "04-01",
-    endMonthDay: "10-31",
-    workStart: "09:00",
-    workEnd: "18:00",
-  },
-  winter: {
-    startMonthDay: "11-01",
-    endMonthDay: "03-31",
-    workStart: "09:00",
-    workEnd: "16:00",
-  },
+  workStart: "08:00",
+  workEnd: "17:00",
   overtimeStart: "18:00",
   overtimePremiumRate: 0.25,
   earlyPremiumRate: 0.25,
@@ -77,6 +82,16 @@ export const DEFAULT_WORK_RULES: WorkRuleSettings = {
   closingDay: 25,
   breakStart: "12:00",
   breakEnd: "13:00",
+  // 既定はOFF。既存の会社は従来どおり日単位で残業を判定する
+  weekly: {
+    enabled: false,
+    startDayOfWeek: 5, // 金曜
+    closedDays: [4], // 木曜
+    standardMinutes: 36 * 60,
+    legalMinutes: 44 * 60,
+    withinLegalPremiumRate: 0,
+    overLegalPremiumRate: 0.25,
+  },
 };
 
 /** 1日分の金額計算結果（すべて円・整数） */
@@ -117,8 +132,6 @@ export interface DailyAttendanceInput {
 
 /** 1日分の勤怠計算結果（すべて分単位） */
 export interface DailyCalcResult {
-  /** 適用季節 */
-  season: "summer" | "winter";
   /** 早出時間（丸め後）。「出勤時間」表示にも使う */
   earlyMinutes: number;
   /** 早出時間（丸め前・参考値） */
@@ -177,6 +190,55 @@ export interface MonthlySummary {
   earlyLeaveCount: number;
   /** 早退時間の合計（分） */
   earlyLeaveMinutes: number;
+}
+
+/**
+ * 1週分の集計結果（週単位管理が有効な会社のみ生成される）。
+ * 週の区間は起算曜日から7日間だが、月度の先頭・末尾では締め期間で切り詰められる（端数週）。
+ */
+export interface WeeklyBucket {
+  /** 週区間の開始日 "YYYY-MM-DD"（締め期間で切り詰め後） */
+  start: string;
+  /** 週区間の終了日 "YYYY-MM-DD"（締め期間で切り詰め後） */
+  end: string;
+  /** 表示用の開始日。勤務実績のある日でトリムする（例: 8/28〜9/3 → 8/28） */
+  labelStart: string;
+  /** 表示用の終了日。木曜が定休で勤務なしなら水曜まで縮む（例: 8/28〜9/3 → 9/2） */
+  labelEnd: string;
+  /** 7日に満たない端数週か（月度の先頭・末尾で発生） */
+  isPartial: boolean;
+  /** 勤務日数（計算エラーのない日） */
+  workDays: number;
+  /** 週の総労働時間（分） */
+  totalMinutes: number;
+  /** 所定内（〜standardMinutes） */
+  standardMinutes: number;
+  /** 所定超〜法定内（standardMinutes超〜legalMinutes以内） */
+  withinLegalOvertimeMinutes: number;
+  /** 法定超（legalMinutes超） */
+  overLegalOvertimeMinutes: number;
+  /** 定休日に勤務があった日付 "YYYY-MM-DD" */
+  closedDayWorkDates: string[];
+}
+
+/** 週別集計の月度合計 */
+export interface WeeklyTotals {
+  totalMinutes: number;
+  standardMinutes: number;
+  withinLegalOvertimeMinutes: number;
+  overLegalOvertimeMinutes: number;
+  /** 定休日に勤務した日数 */
+  closedDayWorkCount: number;
+}
+
+/** 週単位管理での割増額（円・整数） */
+export interface WeeklyPay {
+  /** 所定超〜法定内の割増分 */
+  withinLegalPay: number;
+  /** 法定超の割増分 */
+  overLegalPay: number;
+  /** 割増合計（日次の basePay に加算して支給額になる） */
+  premiumPay: number;
 }
 
 /** CSV列マッピング設定（Square CSVの列名 → システム項目） */

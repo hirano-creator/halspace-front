@@ -30,8 +30,8 @@ export function buildClockUrl(
 }
 
 /** URLからQRコードのdata URL（PNG）を生成する */
-export async function generateQrDataUrl(url: string): Promise<string> {
-  return QRCode.toDataURL(url, { width: 320, margin: 2 });
+export async function generateQrDataUrl(url: string, width = 320): Promise<string> {
+  return QRCode.toDataURL(url, { width, margin: 2 });
 }
 
 /** キオスク表示ページ（/qr/[kioskKey]）用の秘密キーを生成する（32文字hex） */

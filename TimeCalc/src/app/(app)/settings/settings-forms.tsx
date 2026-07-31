@@ -7,6 +7,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { WorkRuleSettings } from "@/lib/attendance/types";
+import { WEEKDAY_LABELS } from "@/lib/utils/time";
 import { ROLES, type Role } from "@/lib/auth/roles";
 import {
   KEY_DISPLAY,
@@ -20,6 +21,7 @@ import {
   deleteCompanyAction,
   deleteDepartmentAction,
   resetCompanySettingAction,
+  saveCodeRuleAction,
   saveDisplaySettingsAction,
   saveRoleLabelsAction,
   saveWorkRulesAction,
@@ -132,32 +134,14 @@ export function WorkRulesForm({
       <form action={formAction} className="space-y-6">
         <input type="hidden" name="companyId" value={scope.companyId ?? ""} />
         <fieldset>
-          <legend className="mb-3 text-sm font-semibold">夏季勤務</legend>
+          <legend className="mb-3 text-sm font-semibold">勤務時間</legend>
           <div className="grid gap-4 sm:grid-cols-4">
-            <div>
-              <label className={labelClass}>期間開始（MM-DD）</label>
-              <input
-                name="summerStart"
-                defaultValue={rules.summer.startMonthDay}
-                className={inputClass}
-                placeholder="04-01"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>期間終了（MM-DD）</label>
-              <input
-                name="summerEnd"
-                defaultValue={rules.summer.endMonthDay}
-                className={inputClass}
-                placeholder="10-31"
-              />
-            </div>
             <div>
               <label className={labelClass}>始業</label>
               <input
                 type="time"
-                name="summerWorkStart"
-                defaultValue={rules.summer.workStart}
+                name="workStart"
+                defaultValue={rules.workStart}
                 className={inputClass}
               />
             </div>
@@ -165,56 +149,15 @@ export function WorkRulesForm({
               <label className={labelClass}>終業</label>
               <input
                 type="time"
-                name="summerWorkEnd"
-                defaultValue={rules.summer.workEnd}
+                name="workEnd"
+                defaultValue={rules.workEnd}
                 className={inputClass}
               />
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend className="mb-3 text-sm font-semibold">冬季勤務</legend>
-          <div className="grid gap-4 sm:grid-cols-4">
-            <div>
-              <label className={labelClass}>期間開始（MM-DD）</label>
-              <input
-                name="winterStart"
-                defaultValue={rules.winter.startMonthDay}
-                className={inputClass}
-                placeholder="11-01"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>期間終了（MM-DD）</label>
-              <input
-                name="winterEnd"
-                defaultValue={rules.winter.endMonthDay}
-                className={inputClass}
-                placeholder="03-31"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>始業</label>
-              <input
-                type="time"
-                name="winterWorkStart"
-                defaultValue={rules.winter.workStart}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>終業</label>
-              <input
-                type="time"
-                name="winterWorkEnd"
-                defaultValue={rules.winter.workEnd}
-                className={inputClass}
-              />
+              <p className="mt-1 text-xs text-muted">遅刻・早退の判定基準になります</p>
             </div>
           </div>
           <p className="mt-2 text-xs text-muted">
-            冬季の終業〜残業開始の間は通常勤務扱いとして計算されます
+            終業〜残業開始の間は通常勤務扱いとして計算されます
           </p>
         </fieldset>
 
@@ -345,6 +288,119 @@ export function WorkRulesForm({
           </div>
         </fieldset>
 
+        <fieldset>
+          <legend className="mb-3 text-sm font-semibold">週単位管理</legend>
+          <label className="mb-4 flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="weeklyEnabled"
+              defaultChecked={rules.weekly.enabled}
+              className="mt-1 size-4 accent-[var(--primary)]"
+            />
+            <span>
+              <span className="font-medium">週単位で労働時間・残業を管理する</span>
+              <span className="mt-1 block text-xs text-muted">
+                ONにすると、この会社では「残業開始時刻」「残業がつく実働時間」による日単位の判定を行わず、
+                週合計を「所定内」「所定超〜法定内」「法定超」に分けて残業を区分します
+              </span>
+            </span>
+          </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>週の起算曜日</label>
+              <select
+                name="weeklyStartDayOfWeek"
+                defaultValue={rules.weekly.startDayOfWeek}
+                className={inputClass}
+              >
+                {WEEKDAY_LABELS.map((label, index) => (
+                  <option key={index} value={index}>
+                    {label}曜
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted">
+                金曜起算 → 金・土・日・月・火・水・木の7日で1週
+              </p>
+            </div>
+            <div>
+              <label className={labelClass}>定休日</label>
+              <div className="flex flex-wrap gap-2">
+                {WEEKDAY_LABELS.map((label, index) => (
+                  <label
+                    key={index}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-2.5 py-1.5 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      name="weeklyClosedDays"
+                      value={index}
+                      defaultChecked={rules.weekly.closedDays.includes(index)}
+                      className="size-3.5 accent-[var(--primary)]"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-muted">
+                定休日の勤務も週の労働時間に合算します（画面上はバッジで区別）
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-4">
+            <div>
+              <label className={labelClass}>所定労働時間（時間/週）</label>
+              <input
+                type="number"
+                name="weeklyStandardHours"
+                defaultValue={rules.weekly.standardMinutes / 60}
+                min={0}
+                max={168}
+                step={0.5}
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-muted">例: 6時間×6日 = 36</p>
+            </div>
+            <div>
+              <label className={labelClass}>法定労働時間（時間/週）</label>
+              <input
+                type="number"
+                name="weeklyLegalHours"
+                defaultValue={rules.weekly.legalMinutes / 60}
+                min={0}
+                max={168}
+                step={0.5}
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-muted">所定以上の値を入力</p>
+            </div>
+            <div>
+              <label className={labelClass}>所定超〜法定内の割増率（%）</label>
+              <input
+                type="number"
+                name="weeklyWithinLegalPremiumRate"
+                defaultValue={Math.round(rules.weekly.withinLegalPremiumRate * 100)}
+                min={0}
+                max={200}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>法定超の割増率（%）</label>
+              <input
+                type="number"
+                name="weeklyOverLegalPremiumRate"
+                defaultValue={Math.round(rules.weekly.overLegalPremiumRate * 100)}
+                min={0}
+                max={200}
+                className={inputClass}
+              />
+            </div>
+          </div>
+        </fieldset>
+
         {state.error && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>
         )}
@@ -366,6 +422,103 @@ export function WorkRulesForm({
  * 権限の呼び方（表示名）を変更するフォーム。
  * 「誰が何を見られるか」という権限の中身は変わらず、画面上の呼び名だけを変更する。
  */
+/**
+ * 社員番号の採番ルール（会社ごと）。
+ * 社員番号は全社で一意のままで、ここで決めるのは新規登録時に提案する番号の形だけ。
+ * 会社別設定（CompanySetting）ではなく Company の列に持つため、共通設定へのフォールバックはない。
+ */
+export function EmployeeCodeRuleForm({
+  companyId,
+  companyName,
+  codePrefix,
+  codeDigits,
+  nextEmployeeCode,
+  onSaved,
+}: {
+  companyId: string;
+  companyName: string;
+  codePrefix: string;
+  codeDigits: number;
+  nextEmployeeCode: string;
+  onSaved?: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(saveCodeRuleAction, initialState);
+  const [prefix, setPrefix] = useState(codePrefix);
+  const [digits, setDigits] = useState(codeDigits);
+
+  useEffect(() => {
+    if (state.success && !state.error) onSaved?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.success, state.error]);
+
+  const preview = `${prefix}${"1".padStart(Math.min(Math.max(digits, 1), 10), "0")}`;
+
+  return (
+    <Card>
+      <h2 className="mb-1 text-base font-semibold">社員番号の採番（{companyName}）</h2>
+      <p className="mb-4 text-sm text-muted">
+        新規登録時に自動で入る番号の形式です。社員番号は全社で一意のままなので、
+        社員番号でのログインやCSV取込の名寄せには影響しません
+      </p>
+
+      <form action={formAction} className="space-y-4">
+        <input type="hidden" name="companyId" value={companyId} />
+        <div className="grid gap-4 sm:grid-cols-4">
+          <div>
+            <label className={labelClass}>接頭辞</label>
+            <input
+              name="codePrefix"
+              value={prefix}
+              onChange={(e) => setPrefix(e.target.value)}
+              className={inputClass}
+              placeholder="A"
+            />
+            <p className="mt-1 text-xs text-muted">空欄なら接頭辞なし。英字で始めてください</p>
+          </div>
+          <div>
+            <label className={labelClass}>連番の桁数</label>
+            <input
+              type="number"
+              name="codeDigits"
+              value={digits}
+              onChange={(e) => setDigits(Number(e.target.value))}
+              min={1}
+              max={10}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>形式プレビュー</label>
+            <p className="rounded-lg border border-border bg-gray-50 px-3 py-2 font-mono text-sm tabular-nums">
+              {preview}
+            </p>
+          </div>
+          <div>
+            <label className={labelClass}>次に割り当てる番号</label>
+            <p className="rounded-lg border border-border bg-gray-50 px-3 py-2 font-mono text-sm tabular-nums">
+              {nextEmployeeCode || "-"}
+            </p>
+            <p className="mt-1 text-xs text-muted">既存の最大番号の次（欠番は埋めません）</p>
+          </div>
+        </div>
+
+        {state.error && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>
+        )}
+        {state.success && !state.error && (
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            採番ルールを保存しました
+          </p>
+        )}
+
+        <button type="submit" disabled={pending} className={buttonPrimaryClass}>
+          {pending ? "保存中..." : "採番ルールを保存"}
+        </button>
+      </form>
+    </Card>
+  );
+}
+
 export function RoleLabelsForm({
   roleLabels,
   scope,

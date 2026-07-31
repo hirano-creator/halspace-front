@@ -21,33 +21,22 @@ function subscribe(onTick: () => void): () => void {
 const getSeconds = () => Math.floor(Date.now() / 1000);
 const getServerSeconds = () => 0;
 
-export function RealtimeClock({ size = "default" }: { size?: "default" | "large" }) {
+export function RealtimeClock() {
   const seconds = useSyncExternalStore(subscribe, getSeconds, getServerSeconds);
   const now = seconds === 0 ? null : new Date(seconds * 1000);
-  const isLarge = size === "large";
 
   return (
     <div className="text-center" aria-live="off">
-      <p className={isLarge ? "text-base text-muted" : "text-sm text-muted"}>
+      <p className="text-sm text-muted">
         {now
           ? `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日（${WEEKDAYS[now.getDay()]}）`
           : " "}
       </p>
-      <p
-        className={
-          isLarge
-            ? "mt-1 font-mono text-6xl font-semibold tracking-tight tabular-nums sm:text-7xl"
-            : "mt-1 font-mono text-5xl font-semibold tracking-tight tabular-nums sm:text-6xl"
-        }
-      >
+      <p className="mt-1 font-mono text-5xl font-semibold tracking-tight tabular-nums sm:text-6xl">
         {now ? (
           <>
             {pad(now.getHours())}:{pad(now.getMinutes())}
-            <span
-              className={isLarge ? "text-3xl text-muted sm:text-4xl" : "text-2xl text-muted sm:text-3xl"}
-            >
-              :{pad(now.getSeconds())}
-            </span>
+            <span className="text-2xl text-muted sm:text-3xl">:{pad(now.getSeconds())}</span>
           </>
         ) : (
           "--:--"

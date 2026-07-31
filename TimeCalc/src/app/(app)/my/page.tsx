@@ -111,7 +111,12 @@ export default function MyPage() {
       )}
 
       <Card className="isolate max-h-[65vh] overflow-auto overscroll-contain p-0!">
-        <MyAttendanceTable rows={data.rows} selfEditMode={data.selfEditMode} onSaved={refetch} />
+        <MyAttendanceTable
+          rows={data.rows}
+          selfEditMode={data.selfEditMode}
+          weeks={data.weeks}
+          onSaved={refetch}
+        />
       </Card>
 
       <Card className="mt-6">

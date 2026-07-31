@@ -1,0 +1,1628 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>affect 勤怠ルール変更 UIモック</title>
+<style>
+  /* ============================================================
+     ドキュメント側のトークン（テーマ対応）
+     アプリ側のトークンは TimeCalc の globals.css の実値を固定で使う。
+     TimeCalc はライトテーマ専用のため、モック枠の中は常にアプリの
+     配色のまま表示する（スクリーンショットと同じ扱い）。
+     ============================================================ */
+  :root {
+    --doc-bg: #e9edf2;
+    --doc-panel: #ffffff;
+    --doc-ink: #161c2e;
+    --doc-ink-soft: #3c4657;
+    --doc-muted: #5d6879;
+    --doc-line: #d3dae3;
+    --doc-line-soft: #e2e7ee;
+    --doc-accent: #635bff;
+    --doc-accent-soft: #ece9ff;
+    --doc-code-bg: #f3f5f9;
+
+    /* TimeCalc アプリのトークン（globals.css より・両テーマ共通で固定） */
+    --app-bg: #f6f8fa;
+    --app-surface: #ffffff;
+    --app-ink: #1a1f36;
+    --app-muted: #697386;
+    --app-line: #e3e8ee;
+    --app-primary: #635bff;
+
+    /* 新設する2区分のセマンティックカラー */
+    --band-a-bg: #fffbeb;
+    --band-a-ink: #b45309;
+    --band-a-line: #fcd97a;
+    --band-b-bg: #fff4ec;
+    --band-b-ink: #c2410c;
+    --band-b-line: #fdba8c;
+
+    --ok-bg: #ecfdf5;
+    --ok-ink: #047857;
+    --del-bg: #fef2f2;
+    --del-ink: #b91c1c;
+
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+      "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic UI", Meiryo,
+      sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --doc-bg: #11151d;
+      --doc-panel: #1a1f2a;
+      --doc-ink: #e8edf5;
+      --doc-ink-soft: #c3ccda;
+      --doc-muted: #93a0b2;
+      --doc-line: #2a3240;
+      --doc-line-soft: #232a36;
+      --doc-accent: #9d97ff;
+      --doc-accent-soft: #262445;
+      --doc-code-bg: #141922;
+      --del-bg: #2a1a1c;
+      --del-ink: #f79b9b;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --doc-bg: #11151d;
+    --doc-panel: #1a1f2a;
+    --doc-ink: #e8edf5;
+    --doc-ink-soft: #c3ccda;
+    --doc-muted: #93a0b2;
+    --doc-line: #2a3240;
+    --doc-line-soft: #232a36;
+    --doc-accent: #9d97ff;
+    --doc-accent-soft: #262445;
+    --doc-code-bg: #141922;
+    --del-bg: #2a1a1c;
+    --del-ink: #f79b9b;
+  }
+
+  :root[data-theme="light"] {
+    --doc-bg: #e9edf2;
+    --doc-panel: #ffffff;
+    --doc-ink: #161c2e;
+    --doc-ink-soft: #3c4657;
+    --doc-muted: #5d6879;
+    --doc-line: #d3dae3;
+    --doc-line-soft: #e2e7ee;
+    --doc-accent: #635bff;
+    --doc-accent-soft: #ece9ff;
+    --doc-code-bg: #f3f5f9;
+    --del-bg: #fef2f2;
+    --del-ink: #b91c1c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--doc-bg);
+    color: var(--doc-ink);
+    font-family: var(--sans);
+    font-feature-settings: "palt";
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: clamp(2rem, 6vw, 4.5rem) clamp(1rem, 4vw, 2.5rem) 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2.5rem, 5vw, 4rem);
+  }
+
+  /* ---------- タイポグラフィ ---------- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--doc-accent);
+    margin: 0;
+  }
+
+  h1 {
+    font-size: clamp(1.75rem, 4.2vw, 2.5rem);
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0.5rem 0 0;
+  }
+
+  h2 {
+    font-size: 1.3125rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  h3 { font-size: 0.9375rem; font-weight: 700; margin: 0; }
+
+  p { margin: 0; max-width: 68ch; }
+
+  .lede {
+    font-size: 1.0625rem;
+    color: var(--doc-ink-soft);
+    margin-top: 1rem;
+  }
+
+  .note { font-size: 0.875rem; color: var(--doc-muted); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.875em;
+    background: var(--doc-code-bg);
+    border: 1px solid var(--doc-line-soft);
+    border-radius: 5px;
+    padding: 0.1em 0.4em;
+  }
+
+  /* ---------- ヘッダーの仕様サマリー ---------- */
+  .rulestrip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--doc-line);
+    border: 1px solid var(--doc-line);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 2rem;
+  }
+
+  .rulestrip div {
+    background: var(--doc-panel);
+    padding: 1rem 1.125rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .rulestrip dt {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--doc-muted);
+  }
+
+  .rulestrip dd {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- セクション ---------- */
+  section { display: flex; flex-direction: column; gap: 1.25rem; }
+
+  .sechead {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border-top: 2px solid var(--doc-ink);
+    padding-top: 1rem;
+  }
+
+  .sechead .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+
+  .where {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    color: var(--doc-muted);
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .tag-new { background: var(--doc-accent-soft); color: var(--doc-accent); }
+  .tag-add { background: var(--band-a-bg); color: var(--band-a-ink); }
+  .tag-swap { background: var(--ok-bg); color: var(--ok-ink); }
+  .tag-del { background: var(--del-bg); color: var(--del-ink); }
+
+  /* ---------- アプリのモック枠 ---------- */
+  .frame {
+    background: var(--app-bg);
+    border: 1px solid var(--doc-line);
+    border-radius: 14px;
+    padding: clamp(0.875rem, 2.5vw, 1.5rem);
+    overflow-x: auto;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.08), 0 8px 28px rgb(0 0 0 / 0.06);
+    color: var(--app-ink);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+
+  .frame .card {
+    background: var(--app-surface);
+    border: 1px solid var(--app-line);
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 2px rgb(26 31 54 / 0.05);
+  }
+
+  .frame h4 { margin: 0; font-size: 1rem; font-weight: 600; color: var(--app-ink); }
+  .frame .sub { margin: 0.25rem 0 0; font-size: 0.8125rem; color: var(--app-muted); }
+  .frame legend { font-size: 0.8125rem; font-weight: 600; padding: 0; color: var(--app-ink); }
+  .frame fieldset { border: 0; padding: 0; margin: 0; }
+
+  .lbl {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    margin-bottom: 0.3rem;
+    color: var(--app-ink);
+  }
+
+  .inp {
+    width: 100%;
+    border: 1px solid var(--app-line);
+    border-radius: 8px;
+    background: #fff;
+    padding: 0.45rem 0.65rem;
+    font: inherit;
+    font-size: 0.8125rem;
+    color: var(--app-ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hint {
+    margin: 0.35rem 0 0;
+    font-size: 0.75rem;
+    color: var(--app-muted);
+    line-height: 1.55;
+  }
+
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+  .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.875rem; }
+
+  .checkline { display: flex; align-items: flex-start; gap: 0.55rem; font-size: 0.8125rem; }
+
+  .box {
+    width: 16px; height: 16px;
+    border: 1.5px solid var(--app-line);
+    border-radius: 4px;
+    background: #fff;
+    flex: none;
+    margin-top: 0.2rem;
+  }
+  .box.on { background: var(--app-primary); border-color: var(--app-primary); position: relative; }
+  .box.on::after {
+    content: "";
+    position: absolute;
+    left: 4.5px; top: 1px;
+    width: 4px; height: 8px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  .dayrow { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .daychip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid var(--app-line);
+    border-radius: 8px;
+    background: #fff;
+    padding: 0.3rem 0.55rem;
+    font-size: 0.8125rem;
+  }
+  .daychip .box { width: 14px; height: 14px; margin-top: 0; }
+  .daychip .box.on::after { left: 3.8px; top: 0.5px; width: 3.5px; height: 7px; }
+
+  /* 小さな操作ボタン（既存の buttonSecondaryClass を縮めたもの） */
+  .btn-mini {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--app-line);
+    background: #fff;
+    border-radius: 6px;
+    padding: 0.12rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: var(--app-ink);
+    white-space: nowrap;
+  }
+  .btn-mini.pri { border-color: var(--app-primary); color: var(--app-primary); }
+
+  /* 設定画面の会社タブ（既存の rounded-full ピル） */
+  .tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .tab-pill {
+    border: 1px solid var(--app-line);
+    background: var(--app-surface);
+    color: var(--app-muted);
+    border-radius: 999px;
+    padding: 0.3rem 0.9rem;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+  .tab-pill.on { border-color: var(--app-primary); background: var(--app-primary); color: #fff; }
+
+  /* 会社別上書きバッジ（既存の sky-50 バナー） */
+  .override {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    background: #f0f9ff;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #0369a1;
+  }
+
+  /* 会社ごとの設定値の比較表（ドキュメント側） */
+  .cmpwrap {
+    background: var(--doc-panel);
+    border: 1px solid var(--doc-line);
+    border-radius: 12px;
+    overflow-x: auto;
+  }
+  .cmp {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+    min-width: 560px;
+  }
+  .cmp th {
+    text-align: left;
+    font-size: 0.6875rem;
+    font-family: var(--mono);
+    letter-spacing: 0.06em;
+    color: var(--doc-muted);
+    padding: 0.6rem 0.9rem;
+    border-bottom: 1px solid var(--doc-line);
+    white-space: nowrap;
+  }
+  .cmp td {
+    padding: 0.6rem 0.9rem;
+    border-bottom: 1px solid var(--doc-line-soft);
+    white-space: nowrap;
+  }
+  .cmp tbody tr:last-child td { border-bottom: 0; }
+  .cmp .own { color: var(--doc-accent); font-weight: 600; }
+
+  /* ---------- アプリ内テーブル ---------- */
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+    min-width: 640px;
+  }
+  .tbl th {
+    text-align: left;
+    padding: 0.6rem 0.7rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--app-muted);
+    border-bottom: 1px solid var(--app-line);
+    white-space: nowrap;
+    background: #fafbfc;
+  }
+  .tbl td {
+    padding: 0.55rem 0.7rem;
+    font-size: 0.8125rem;
+    border-bottom: 1px solid var(--app-line);
+    white-space: nowrap;
+  }
+  .tbl tbody tr:last-child td { border-bottom: 0; }
+  .tbl .r { text-align: right; }
+  .tbl .c { text-align: center; }
+  .tbl tfoot td {
+    border-top: 2px solid var(--app-line);
+    border-bottom: 0;
+    font-weight: 700;
+    background: #f4f6f9;
+  }
+  .muted { color: var(--app-muted); }
+  .a { color: var(--band-a-ink); font-weight: 600; }
+  .b { color: var(--band-b-ink); font-weight: 700; }
+  .zero { color: var(--app-muted); }
+  .dim { color: var(--app-muted); font-weight: 400; }
+
+  th.col-a, td.col-a { background: var(--band-a-bg); }
+  th.col-b, td.col-b { background: var(--band-b-bg); }
+  .tbl tfoot td.col-a { background: #fdf3d6; }
+  .tbl tfoot td.col-b { background: #ffe9d8; }
+
+  /* 週ヘッダー行（日別行のグループ見出し） */
+  tr.wkrow td {
+    background: #eef0f7;
+    border-top: 1px solid #ccd2e4;
+    border-bottom: 1px solid #ccd2e4;
+    font-weight: 700;
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+  }
+  tr.wkrow td.col-a { background: var(--band-a-bg); }
+  tr.wkrow td.col-b { background: var(--band-b-bg); }
+  tr.wkrow .wklabel { display: inline-flex; align-items: center; gap: 0.5rem; }
+
+  /* 日別行のバリエーション */
+  tr.d-closed td { background: #fbfcfd; color: var(--app-muted); }
+  tr.d-off td { background: #fbfcfd; color: var(--app-muted); }
+  tr.d-closedwork td { background: var(--band-b-bg); }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .pill-gray { background: #f1f3f6; color: #56607a; }
+  .pill-amber { background: #fef3c7; color: #92400e; }
+  .pill-orange { background: #ffe4d0; color: #9a3412; }
+  .pill-violet { background: #ede9fe; color: #5b21b6; }
+
+  /* ---------- StatCard ---------- */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; }
+  .stat {
+    border: 1px solid var(--app-line);
+    background: var(--app-surface);
+    border-radius: 12px;
+    padding: 0.8rem 0.9rem;
+    box-shadow: 0 1px 2px rgb(26 31 54 / 0.05);
+  }
+  .stat .k { font-size: 0.6875rem; font-weight: 500; color: var(--app-muted); }
+  .stat .v {
+    margin-top: 0.2rem;
+    font-size: 1.4rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .s { margin-top: 0.1rem; font-size: 0.6875rem; color: var(--app-muted); }
+  .stat.band-a { border-color: var(--band-a-line); background: var(--band-a-bg); }
+  .stat.band-a .v { color: var(--band-a-ink); }
+  .stat.band-b { border-color: var(--band-b-line); background: var(--band-b-bg); }
+  .stat.band-b .v { color: var(--band-b-ink); }
+
+  /* ---------- 注釈（レッドライン） ---------- */
+  .redline {
+    position: relative;
+    outline: 1.5px dashed var(--app-primary);
+    outline-offset: 5px;
+    border-radius: 10px;
+  }
+
+  .annot {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    font-size: 0.8125rem;
+    color: var(--doc-muted);
+    padding-left: 0.15rem;
+  }
+  .annot::before {
+    content: "";
+    flex: none;
+    width: 1.5rem;
+    height: 0;
+    border-top: 1.5px dashed var(--doc-accent);
+    margin-top: 0.72rem;
+  }
+
+  /* 廃止項目の一覧 */
+  .removed {
+    background: var(--del-bg);
+    border: 1px solid color-mix(in srgb, var(--del-ink) 25%, transparent);
+    border-radius: 10px;
+    padding: 0.9rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .removed strong { color: var(--del-ink); font-size: 0.8125rem; }
+  .removed p { font-size: 0.8125rem; color: var(--doc-ink-soft); }
+  .removed .strike {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    text-decoration: line-through;
+    text-decoration-color: color-mix(in srgb, var(--del-ink) 60%, transparent);
+    color: var(--doc-muted);
+  }
+
+  /* ---------- 週カレンダー ---------- */
+  .calscroll { overflow-x: auto; }
+  .cal {
+    display: grid;
+    grid-template-columns: 8.5rem repeat(7, minmax(66px, 1fr));
+    gap: 3px;
+    min-width: 660px;
+  }
+  .cal .hd {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--doc-muted);
+    text-align: center;
+    padding: 0.35rem 0;
+  }
+  .cal .hd.thu { color: var(--band-b-ink); }
+  .cal .wk {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.1rem;
+    padding: 0.4rem 0.6rem 0.4rem 0;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .cal .wk b { font-size: 0.8125rem; font-weight: 700; }
+  .cal .wk span { color: var(--doc-muted); font-size: 0.6875rem; }
+  .cell {
+    border-radius: 7px;
+    padding: 0.4rem 0.25rem 0.45rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    border: 1px solid transparent;
+    min-height: 52px;
+  }
+  .cell .d { font-size: 0.6875rem; color: var(--doc-muted); }
+  .cell .h { font-size: 0.8125rem; font-weight: 700; margin-top: 0.1rem; }
+  .cell.work { background: var(--doc-panel); border-color: var(--doc-line); }
+  .cell.work .h { color: var(--doc-ink); }
+  .cell.long { background: var(--band-a-bg); border-color: var(--band-a-line); }
+  .cell.long .h, .cell.long .d { color: var(--band-a-ink); }
+  .cell.closed {
+    background: repeating-linear-gradient(
+      -45deg, transparent, transparent 4px,
+      var(--doc-line-soft) 4px, var(--doc-line-soft) 8px
+    );
+    border-color: var(--doc-line-soft);
+  }
+  .cell.closed .h { color: var(--doc-muted); font-weight: 500; font-size: 0.6875rem; }
+  .cell.closedwork { background: var(--band-b-bg); border-color: var(--band-b-line); }
+  .cell.closedwork .h, .cell.closedwork .d { color: var(--band-b-ink); }
+  .cell.off { background: transparent; border-color: var(--doc-line-soft); border-style: dotted; }
+  .cell.off .h { color: var(--doc-muted); font-weight: 500; font-size: 0.6875rem; }
+  .cell.outside { opacity: 0.32; }
+  .cell.outside .h { font-weight: 500; font-size: 0.6875rem; color: var(--doc-muted); }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.1rem;
+    font-size: 0.75rem;
+    color: var(--doc-muted);
+    margin-top: 0.25rem;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .swatch { width: 13px; height: 13px; border-radius: 3px; border: 1px solid var(--doc-line); flex: none; }
+
+  /* ---------- CSV ---------- */
+  pre {
+    margin: 0;
+    background: var(--doc-code-bg);
+    border: 1px solid var(--doc-line-soft);
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    line-height: 1.85;
+    color: var(--doc-ink-soft);
+  }
+  pre b { color: var(--band-b-ink); font-weight: 700; }
+  pre i { color: var(--doc-muted); font-style: normal; }
+
+  /* ---------- 計算式ボックス ---------- */
+  .formula {
+    background: var(--doc-panel);
+    border: 1px solid var(--doc-line);
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .bar {
+    display: flex;
+    height: 30px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--doc-line);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    font-weight: 700;
+  }
+  .bar > div { display: flex; align-items: center; justify-content: center; white-space: nowrap; }
+  .seg-s { background: #eef0f6; color: #4b5570; }
+  .seg-a { background: var(--band-a-bg); color: var(--band-a-ink); border-left: 1px solid var(--band-a-line); }
+  .seg-b { background: var(--band-b-bg); color: var(--band-b-ink); border-left: 1px solid var(--band-b-line); }
+
+  .callout {
+    background: var(--doc-panel);
+    border: 1px solid var(--doc-line);
+    border-left: 3px solid var(--doc-accent);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .callout h3 { font-size: 0.875rem; }
+
+  ul { margin: 0; padding-left: 1.15rem; display: flex; flex-direction: column; gap: 0.4rem; }
+  li { font-size: 0.9375rem; color: var(--doc-ink-soft); }
+  li::marker { color: var(--doc-accent); }
+
+  footer {
+    border-top: 1px solid var(--doc-line);
+    padding-top: 1.5rem;
+    font-size: 0.8125rem;
+    color: var(--doc-muted);
+  }
+
+  a { color: var(--doc-accent); }
+  a:focus-visible, .inp:focus-visible { outline: 2px solid var(--doc-accent); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">TimeCalc / 変更箇所モック</p>
+    <h1>affect 勤怠ルール変更<br />週単位（金〜水）の労働時間・残業管理</h1>
+    <p class="lede">
+      残業の判定を日単位から<strong>週単位</strong>に切り替え、「36H超44H以内」と「44H超」を
+      別々に集計・表示できるようにします。あわせて<strong>夏季・冬季の切り替え機能を廃止</strong>し、
+      定時は<strong>会社ごとに始業・終業を1組だけ</strong>設定する形にします
+      （ヒラノ 8:00–17:00 / affect 9:00–16:00 のように会社別の値は今までどおり保てます）。以下はまだ実装前の画面モックで、
+      数値は 2026年9月度（8/26〜9/25）の同一データで
+      <strong>日別 → 週 → 月度合計が実際に合う値</strong>で通しています。
+    </p>
+
+    <dl class="rulestrip">
+      <div><dt>定時</dt><dd>9:00 – 16:00</dd></div>
+      <div><dt>実働</dt><dd>6H × 6日 / 週</dd></div>
+      <div><dt>定休日</dt><dd>木曜</dd></div>
+      <div><dt>週の区切り</dt><dd>金曜 〜 水曜</dd></div>
+      <div><dt>残業の区分</dt><dd>36H超44H以内 / 44H超</dd></div>
+    </dl>
+  </header>
+
+  <!-- ============ 週の切り方 ============ -->
+  <section>
+    <div class="sechead">
+      <div class="row">
+        <h2>週の切り方</h2>
+        <span class="tag tag-new">新概念</span>
+      </div>
+      <p class="where">計算の土台 — 現行システムに「週」という集計単位は存在しない</p>
+    </div>
+
+    <p>
+      月度（締め日25日 → 8/26〜9/25）を金曜起算で区切ります。月度の先頭と末尾は
+      必ず端数週になり、しきい値 36H / 44H はそのまま適用します（按分しません）。
+    </p>
+
+    <div class="frame">
+      <div class="calscroll">
+        <div class="cal">
+          <div></div>
+          <div class="hd">金</div><div class="hd">土</div><div class="hd">日</div>
+          <div class="hd">月</div><div class="hd">火</div><div class="hd">水</div>
+          <div class="hd thu">木</div>
+
+          <div class="wk"><b>8/26</b><span>端数週 · 1日 · 6:00</span></div>
+          <div class="cell outside"><div class="d">8/21</div><div class="h">期間外</div></div>
+          <div class="cell outside"><div class="d">8/22</div><div class="h">期間外</div></div>
+          <div class="cell outside"><div class="d">8/23</div><div class="h">期間外</div></div>
+          <div class="cell outside"><div class="d">8/24</div><div class="h">期間外</div></div>
+          <div class="cell outside"><div class="d">8/25</div><div class="h">期間外</div></div>
+          <div class="cell work"><div class="d">8/26</div><div class="h">6:00</div></div>
+          <div class="cell closed"><div class="d">8/27</div><div class="h">定休</div></div>
+
+          <div class="wk"><b>8/28 〜 9/2</b><span>6日 · 35:30</span></div>
+          <div class="cell work"><div class="d">8/28</div><div class="h">6:00</div></div>
+          <div class="cell work"><div class="d">8/29</div><div class="h">6:00</div></div>
+          <div class="cell work"><div class="d">8/30</div><div class="h">6:00</div></div>
+          <div class="cell work"><div class="d">8/31</div><div class="h">5:30</div></div>
+          <div class="cell work"><div class="d">9/1</div><div class="h">6:00</div></div>
+          <div class="cell work"><div class="d">9/2</div><div class="h">6:00</div></div>
+          <div class="cell closed"><div class="d">9/3</div><div class="h">定休</div></div>
+
+          <div class="wk"><b>9/4 〜 9/9</b><span>6日 · 44:00</span></div>
+          <div class="cell long"><div class="d">9/4</div><div class="h">8:00</div></div>
+          <div class="cell long"><div class="d">9/5</div><div class="h">8:00</div></div>
+          <div class="cell work"><div class="d">9/6</div><div class="h">6:00</div></div>
+          <div class="cell long"><div class="d">9/7</div><div class="h">8:00</div></div>
+          <div class="cell long"><div class="d">9/8</div><div class="h">8:00</div></div>
+          <div class="cell work"><div class="d">9/9</div><div class="h">6:00</div></div>
+          <div class="cell closed"><div class="d">9/10</div><div class="h">定休</div></div>
+
+          <div class="wk"><b>9/11 〜 9/16</b><span>6日 · 54:00</span></div>
+          <div class="cell long"><div class="d">9/11</div><div class="h">9:00</div></div>
+          <div class="cell long"><div class="d">9/12</div><div class="h">9:00</div></div>
+          <div class="cell long"><div class="d">9/13</div><div class="h">9:00</div></div>
+          <div class="cell long"><div class="d">9/14</div><div class="h">9:00</div></div>
+          <div class="cell long"><div class="d">9/15</div><div class="h">9:00</div></div>
+          <div class="cell long"><div class="d">9/16</div><div class="h">9:00</div></div>
+          <div class="cell closed"><div class="d">9/17</div><div class="h">定休</div></div>
+
+          <div class="wk"><b>9/18 〜 9/24</b><span>6日 · 35:48 · 定休日出勤</span></div>
+          <div class="cell work"><div class="d">9/18</div><div class="h">6:00</div></div>
+          <div class="cell work"><div class="d">9/19</div><div class="h">6:00</div></div>
+          <div class="cell off"><div class="d">9/20</div><div class="h">休み</div></div>
+          <div class="cell work"><div class="d">9/21</div><div class="h">6:00</div></div>
+          <div class="cell work"><div class="d">9/22</div><div class="h">5:48</div></div>
+          <div class="cell work"><div class="d">9/23</div><div class="h">6:00</div></div>
+          <div class="cell closedwork"><div class="d">9/24</div><div class="h">6:00</div></div>
+
+          <div class="wk"><b>9/25</b><span>端数週 · 1日 · 6:00</span></div>
+          <div class="cell work"><div class="d">9/25</div><div class="h">6:00</div></div>
+          <div class="cell outside"><div class="d">9/26</div><div class="h">期間外</div></div>
+          <div class="cell outside"><div class="d">9/27</div><div class="h">期間外</div></div>
+          <div class="cell outside"><div class="d">9/28</div><div class="h">期間外</div></div>
+          <div class="cell outside"><div class="d">9/29</div><div class="h">期間外</div></div>
+          <div class="cell outside"><div class="d">9/30</div><div class="h">期間外</div></div>
+          <div class="cell outside"><div class="d">10/1</div><div class="h">期間外</div></div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span><i class="swatch" style="background:#fff"></i>通常勤務</span>
+        <span><i class="swatch" style="background:var(--band-a-bg);border-color:var(--band-a-line)"></i>定時超え</span>
+        <span><i class="swatch" style="background:var(--band-b-bg);border-color:var(--band-b-line)"></i>定休日に出勤</span>
+        <span><i class="swatch" style="background:repeating-linear-gradient(-45deg,transparent,transparent 3px,#e2e7ee 3px,#e2e7ee 6px)"></i>定休日（木）</span>
+        <span><i class="swatch" style="border-style:dotted;background:transparent"></i>休み・期間外</span>
+      </div>
+    </div>
+
+    <p class="annot">
+      週の区間は内部的に<strong>金〜木の7日</strong>で保持し、画面のラベルは勤務実績のある日でトリムします。
+      木曜が定休で勤務なしなら「8/28〜9/2」、木曜に出勤があれば「9/18〜9/24」と自動で伸びます。
+    </p>
+
+    <div class="formula">
+      <h3>週合計を3層に切る</h3>
+      <div class="bar" role="img" aria-label="週54時間の内訳: 所定内36時間、36時間超44時間以内が8時間、44時間超が10時間">
+        <div class="seg-s" style="flex:36">所定内 36:00</div>
+        <div class="seg-a" style="flex:8">36–44H 8:00</div>
+        <div class="seg-b" style="flex:10">44H超 10:00</div>
+      </div>
+      <p class="note" style="margin:0">
+        9/11〜9/16 の週（54:00）の例。<code>所定内 + 36–44H + 44H超 = 週合計</code> が必ず成り立ちます。
+        端数週も同じしきい値で判定するため、1日6:00の週はすべて所定内に入ります。
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 社員詳細（日別＋週＋編集） ============ -->
+  <section>
+    <div class="sechead">
+      <div class="row">
+        <h2>社員詳細 — 日別と週を1つの表で</h2>
+        <span class="tag tag-swap">カード差し替え</span>
+        <span class="tag tag-new">週行を挿入</span>
+        <span class="tag tag-del">休憩列を削除</span>
+      </div>
+      <p class="where">/employees/[id] — 既存の日別テーブルに週の小計行を差し込む</p>
+    </div>
+
+    <p>
+      週別を独立したテーブルにせず、<strong>既存の日別テーブルに週の小計行を挟む</strong>形にしました。
+      「この週が54時間になったのは各日9時間だったから」がその場で追えます。
+      <strong>日別行の編集は今までどおり</strong>行えます（週行は計算結果なので編集対象外）。
+    </p>
+
+    <div class="frame" style="display:flex;flex-direction:column;gap:1.25rem">
+      <div>
+        <h4>山田 太郎 <span class="pill pill-violet">affect</span></h4>
+        <p class="sub">A0001 · 2026年9月度（8/26〜9/25）</p>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="k">勤務日数</div><div class="v">26日</div></div>
+        <div class="stat"><div class="k">勤務時間</div><div class="v">181:18</div><div class="s">週合計の総和</div></div>
+        <div class="stat band-a redline"><div class="k">36H超44H以内</div><div class="v">16:00</div><div class="s">2週で発生</div></div>
+        <div class="stat band-b redline"><div class="k">44H超</div><div class="v">10:00</div><div class="s">1週で発生</div></div>
+        <div class="stat"><div class="k">遅刻・早退</div><div class="v">2回</div><div class="s">遅刻12分 / 早退30分</div></div>
+      </div>
+
+      <div class="card" style="padding:0">
+        <div style="padding:1.1rem 1.25rem 0.85rem">
+          <h4 style="font-size:0.9375rem">勤怠明細</h4>
+          <p class="sub">金曜〜水曜で区切った週ごとに小計。休憩は設定（12:00〜13:00）から自動控除され、勤務時間は控除後の値です</p>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl" style="min-width:960px">
+            <thead>
+              <tr>
+                <th style="min-width:9.5rem">日付 / 週</th>
+                <th class="r">実出勤</th>
+                <th class="r">実退勤</th>
+                <th class="r">出勤</th>
+                <th class="r">退勤</th>
+                <th class="r">勤務時間</th>
+                <th class="r">所定内</th>
+                <th class="r col-a">36H超44H以内</th>
+                <th class="r col-b">44H超</th>
+                <th>備考</th>
+                <th class="c">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+
+              <!-- 週1: 端数 -->
+              <tr class="wkrow">
+                <td colspan="5"><span class="wklabel">週 8/26 <span class="pill pill-gray">端数週 · 1日</span></span></td>
+                <td class="r">6:00</td>
+                <td class="r">6:00</td>
+                <td class="r col-a zero">—</td>
+                <td class="r col-b zero">—</td>
+                <td></td><td></td>
+              </tr>
+              <tr>
+                <td>8/26（水）</td>
+                <td class="r">9:00</td><td class="r">16:00</td>
+                <td class="r">9:00</td><td class="r">16:00</td>
+                <td class="r">6:00</td>
+                <td colspan="3"></td><td></td>
+                <td class="c"><span class="btn-mini">編集</span></td>
+              </tr>
+              <tr class="d-closed">
+                <td>8/27（木）</td>
+                <td class="r dim">—</td><td class="r dim">—</td>
+                <td class="r dim">—</td><td class="r dim">—</td>
+                <td class="r dim">—</td>
+                <td colspan="3"></td>
+                <td><span class="pill pill-gray">定休日</span></td>
+                <td class="c"><span class="btn-mini">編集</span></td>
+              </tr>
+
+              <!-- 週2 -->
+              <tr class="wkrow">
+                <td colspan="5"><span class="wklabel">週 8/28 〜 9/2 <span class="pill pill-gray">6日</span></span></td>
+                <td class="r">35:30</td>
+                <td class="r">35:30</td>
+                <td class="r col-a zero">—</td>
+                <td class="r col-b zero">—</td>
+                <td></td><td></td>
+              </tr>
+              <tr><td>8/28（金）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr><td>8/29（土）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr><td>8/30（日）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr>
+                <td>8/31（月）</td><td class="r">9:00</td><td class="r">15:30</td><td class="r">9:00</td><td class="r">15:30</td><td class="r">5:30</td>
+                <td colspan="3"></td>
+                <td><span class="pill pill-amber">早退 30分</span></td>
+                <td class="c"><span class="btn-mini">編集</span></td>
+              </tr>
+              <tr><td>9/1（火）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr><td>9/2（水）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr class="d-closed">
+                <td>9/3（木）</td>
+                <td class="r dim">—</td><td class="r dim">—</td><td class="r dim">—</td><td class="r dim">—</td><td class="r dim">—</td>
+                <td colspan="3"></td>
+                <td><span class="pill pill-gray">定休日</span></td>
+                <td class="c"><span class="btn-mini">編集</span></td>
+              </tr>
+
+              <!-- 週3: ちょうど44:00 -->
+              <tr class="wkrow">
+                <td colspan="5"><span class="wklabel">週 9/4 〜 9/9 <span class="pill pill-gray">6日</span></span></td>
+                <td class="r">44:00</td>
+                <td class="r">36:00</td>
+                <td class="r col-a a">8:00</td>
+                <td class="r col-b zero">—</td>
+                <td class="dim" style="font-weight:400;font-size:0.75rem">ちょうど44:00 → 44H超なし</td>
+                <td></td>
+              </tr>
+              <tr><td>9/4（金）</td><td class="r">9:00</td><td class="r">18:00</td><td class="r">9:00</td><td class="r">18:00</td><td class="r">8:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr><td>9/5（土）</td><td class="r">9:00</td><td class="r">18:00</td><td class="r">9:00</td><td class="r">18:00</td><td class="r">8:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr><td>9/6（日）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr><td>9/7（月）</td><td class="r">9:00</td><td class="r">18:00</td><td class="r">9:00</td><td class="r">18:00</td><td class="r">8:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr><td>9/8（火）</td><td class="r">9:00</td><td class="r">18:00</td><td class="r">9:00</td><td class="r">18:00</td><td class="r">8:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr><td>9/9（水）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr class="d-closed">
+                <td>9/10（木）</td>
+                <td class="r dim">—</td><td class="r dim">—</td><td class="r dim">—</td><td class="r dim">—</td><td class="r dim">—</td>
+                <td colspan="3"></td>
+                <td><span class="pill pill-gray">定休日</span></td>
+                <td class="c"><span class="btn-mini">編集</span></td>
+              </tr>
+
+              <!-- 週4: 54:00 -->
+              <tr class="wkrow">
+                <td colspan="5"><span class="wklabel">週 9/11 〜 9/16 <span class="pill pill-gray">6日</span></span></td>
+                <td class="r">54:00</td>
+                <td class="r">36:00</td>
+                <td class="r col-a a">8:00</td>
+                <td class="r col-b b">10:00</td>
+                <td></td><td></td>
+              </tr>
+              <tr><td>9/11（金）</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr>
+                <td>9/12（土）</td>
+                <td class="r muted">8:47</td><td class="r muted">19:07</td>
+                <td class="r">9:00</td><td class="r">19:00</td>
+                <td class="r">9:00</td>
+                <td colspan="3"></td>
+                <td><span class="pill pill-gray">30分丸め適用</span></td>
+                <td class="c"><span class="btn-mini">編集</span></td>
+              </tr>
+              <tr><td>9/13（日）</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr><td>9/14（月）</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr><td>9/15（火）</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr><td>9/16（水）</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr class="d-closed">
+                <td>9/17（木）</td>
+                <td class="r dim">—</td><td class="r dim">—</td><td class="r dim">—</td><td class="r dim">—</td><td class="r dim">—</td>
+                <td colspan="3"></td>
+                <td><span class="pill pill-gray">定休日</span></td>
+                <td class="c"><span class="btn-mini">編集</span></td>
+              </tr>
+
+              <!-- 週5: 定休日出勤 -->
+              <tr class="wkrow">
+                <td colspan="5"><span class="wklabel">週 9/18 〜 9/24 <span class="pill pill-gray">6日</span> <span class="pill pill-orange">定休日出勤</span></span></td>
+                <td class="r">35:48</td>
+                <td class="r">35:48</td>
+                <td class="r col-a zero">—</td>
+                <td class="r col-b zero">—</td>
+                <td></td><td></td>
+              </tr>
+              <tr><td>9/18（金）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr><td>9/19（土）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr class="d-off">
+                <td>9/20（日）</td>
+                <td class="r dim">—</td><td class="r dim">—</td><td class="r dim">—</td><td class="r dim">—</td><td class="r dim">—</td>
+                <td colspan="3"></td>
+                <td><span class="pill pill-gray">休み</span></td>
+                <td class="c"><span class="btn-mini">編集</span></td>
+              </tr>
+              <tr><td>9/21（月）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr>
+                <td>9/22（火）</td><td class="r">9:12</td><td class="r">16:00</td><td class="r">9:12</td><td class="r">16:00</td><td class="r">5:48</td>
+                <td colspan="3"></td>
+                <td><span class="pill pill-amber">遅刻 12分</span></td>
+                <td class="c"><span class="btn-mini">編集</span></td>
+              </tr>
+              <tr><td>9/23（水）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+              <tr class="d-closedwork">
+                <td>9/24（木）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td>
+                <td colspan="3"></td>
+                <td><span class="pill pill-orange">定休日出勤</span></td>
+                <td class="c"><span class="btn-mini">編集</span></td>
+              </tr>
+
+              <!-- 週6: 端数 -->
+              <tr class="wkrow">
+                <td colspan="5"><span class="wklabel">週 9/25 <span class="pill pill-gray">端数週 · 1日</span></span></td>
+                <td class="r">6:00</td>
+                <td class="r">6:00</td>
+                <td class="r col-a zero">—</td>
+                <td class="r col-b zero">—</td>
+                <td></td><td></td>
+              </tr>
+              <tr><td>9/25（金）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="3"></td><td></td><td class="c"><span class="btn-mini">編集</span></td></tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="5">月度合計 <span class="pill pill-gray">26日</span></td>
+                <td class="r">181:18</td>
+                <td class="r">155:18</td>
+                <td class="r col-a a">16:00</td>
+                <td class="r col-b b">10:00</td>
+                <td></td><td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="opacity:0.6;padding:1.1rem 1.25rem">
+        <h4 style="font-size:0.9375rem">修正履歴（既存・変更なし）</h4>
+        <p class="sub">誰がいつ何を直したかの監査ログはそのまま</p>
+      </div>
+    </div>
+
+    <p class="annot">
+      日別行の「勤務時間」を週で足すと週行の値に、週行を足すと月度合計になります。
+      <code>所定内 155:18 + 36–44H 16:00 + 44H超 10:00 = 181:18</code>。
+    </p>
+
+    <div class="callout">
+      <h3>日別行の列の増減</h3>
+      <p class="note" style="margin:0">
+        <strong>消える：</strong>休憩（設定の 12:00〜13:00 から自動控除されるだけなので表示不要）、
+        早出残業・残業（週次モードでは日単位で判定しないため常に0）<br />
+        <strong>残る：</strong>実出勤・実退勤・出勤・退勤（30分丸めは従来どおり適用）、勤務時間、
+        遅刻・早退（定時9:00〜16:00に対する判定）、外出・戻り、備考、<strong>操作（編集）</strong>
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 設定画面 ============ -->
+  <section>
+    <div class="sechead">
+      <div class="row">
+        <h2>設定 › 勤務ルール</h2>
+        <span class="tag tag-del">夏季・冬季を廃止</span>
+        <span class="tag tag-new">週単位管理を新設</span>
+      </div>
+      <p class="where">/settings — 定時は今までどおり会社タブごとに設定する</p>
+    </div>
+
+    <p>
+      <strong>定時（始業・終業）は会社ごとに設定します。</strong>
+      廃止するのは「夏季／冬季で時刻を切り替える<em>機能</em>」であって、
+      時刻そのものを全社で共通化するわけではありません。
+      会社別設定の仕組み（<code>CompanySetting</code>＋会社タブ）は既存のものをそのまま使います。
+    </p>
+
+    <div class="cmpwrap">
+      <table class="cmp">
+        <thead>
+          <tr>
+            <th>会社タブ</th>
+            <th>定時（始業〜終業）</th>
+            <th>社員番号</th>
+            <th>週単位管理</th>
+            <th>締め日</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>共通（全社のデフォルト）</td>
+            <td>8:00 – 17:00</td><td class="muted">接頭辞なし</td>
+            <td class="muted">OFF</td><td>25</td>
+          </tr>
+          <tr>
+            <td><strong>ヒラノ</strong> <span class="pill pill-gray">個別設定</span></td>
+            <td class="own">8:00 – 17:00</td><td class="own">H0001 〜</td>
+            <td class="muted">OFF（従来の日次判定）</td><td>25</td>
+          </tr>
+          <tr>
+            <td><strong>affect</strong> <span class="pill pill-violet">個別設定</span></td>
+            <td class="own">9:00 – 16:00</td><td class="own">A0001 〜</td>
+            <td class="own">ON（金曜起算 / 木曜定休）</td><td>25</td>
+          </tr>
+          <tr>
+            <td>HaLSpace / tws / HKT</td>
+            <td class="muted">共通設定を継承</td><td class="muted">未設定</td>
+            <td class="muted">OFF</td><td class="muted">継承</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="removed">
+      <strong>廃止する入力欄（機能としては全社から消える）</strong>
+      <p class="strike">夏季勤務: 期間開始 04-01 / 期間終了 10-31 / 始業 / 終業　　冬季勤務: 期間開始 11-01 / 期間終了 03-31 / 始業 / 終業</p>
+      <p style="margin:0">
+        どの会社タブでも入力欄が8個から2個（始業・終業）に減ります。<strong>値は会社ごとに別々のまま</strong>です。
+        計算側では季節判定（<code>seasonOf</code>）がまるごと不要になり、
+        打刻の遅刻判定・QRコード画面2つも同じ値を参照する形に単純化されます。
+      </p>
+    </div>
+
+    <div class="frame">
+      <div class="card" style="display:flex;flex-direction:column;gap:1.5rem">
+        <div class="tabs redline">
+          <span class="tab-pill">共通（全社のデフォルト）</span>
+          <span class="tab-pill">ヒラノ</span>
+          <span class="tab-pill">HaLSpace</span>
+          <span class="tab-pill">tws</span>
+          <span class="tab-pill">HKT</span>
+          <span class="tab-pill on">affect</span>
+        </div>
+
+        <div>
+          <h4>勤務ルール（affect）</h4>
+          <p class="sub">保存すると過去分も含めた全期間の計算に反映されます（打刻データ自体は変わりません）</p>
+        </div>
+
+        <div class="override">
+          <span>「affect」の個別設定を使用中</span>
+          <span class="btn-mini">共通設定に戻す</span>
+        </div>
+
+        <fieldset class="redline" style="display:flex;flex-direction:column;gap:0.5rem;padding:0.25rem">
+          <legend>勤務時間</legend>
+          <div class="grid4">
+            <div>
+              <span class="lbl">始業</span>
+              <input class="inp" value="09:00" readonly aria-label="始業" />
+            </div>
+            <div>
+              <span class="lbl">終業</span>
+              <input class="inp" value="16:00" readonly aria-label="終業" />
+              <p class="hint">遅刻・早退の判定基準になります。会社タブごとに別々の値を保存できます</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset style="display:flex;flex-direction:column;gap:0.9rem;opacity:0.55">
+          <legend style="margin-bottom:0.75rem">既存項目（残業・早出 / 休憩 / 締め日）</legend>
+          <div class="grid4">
+            <div><span class="lbl">休憩開始</span><input class="inp" value="12:00" readonly aria-label="休憩開始" /></div>
+            <div><span class="lbl">休憩終了</span><input class="inp" value="13:00" readonly aria-label="休憩終了" /></div>
+            <div><span class="lbl">丸め単位（分）</span><input class="inp" value="30" readonly aria-label="丸め単位" /></div>
+            <div><span class="lbl">締め日</span><input class="inp" value="25" readonly aria-label="締め日" /></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="redline" style="display:flex;flex-direction:column;gap:1rem;padding:0.25rem">
+          <legend>週単位管理</legend>
+
+          <label class="checkline" style="cursor:default">
+            <span class="box on" aria-hidden="true"></span>
+            <span>
+              <strong>週単位で労働時間・残業を管理する</strong>
+              <span class="hint" style="display:block">
+                ONにすると、この会社では「残業開始時刻」「残業がつく実働時間」による日次判定を行わず、
+                週合計で残業を区分します
+              </span>
+            </span>
+          </label>
+
+          <div class="grid3">
+            <div>
+              <span class="lbl">週の起算曜日</span>
+              <input class="inp" value="金曜" readonly aria-label="週の起算曜日" />
+              <p class="hint">金曜起算 → 金・土・日・月・火・水・木の7日で1週</p>
+            </div>
+            <div>
+              <span class="lbl">定休日</span>
+              <div class="dayrow" style="margin-top:0.15rem">
+                <span class="daychip"><span class="box" aria-hidden="true"></span>日</span>
+                <span class="daychip"><span class="box" aria-hidden="true"></span>月</span>
+                <span class="daychip"><span class="box" aria-hidden="true"></span>火</span>
+                <span class="daychip"><span class="box" aria-hidden="true"></span>水</span>
+                <span class="daychip"><span class="box on" aria-hidden="true"></span>木</span>
+                <span class="daychip"><span class="box" aria-hidden="true"></span>金</span>
+                <span class="daychip"><span class="box" aria-hidden="true"></span>土</span>
+              </div>
+              <p class="hint">定休日の勤務も週の労働時間に合算します（画面上はバッジで区別）</p>
+            </div>
+          </div>
+
+          <div class="grid4">
+            <div>
+              <span class="lbl">所定労働時間（時間 / 週）</span>
+              <input class="inp" value="36" readonly aria-label="所定労働時間" />
+              <p class="hint">6H × 6日</p>
+            </div>
+            <div>
+              <span class="lbl">法定労働時間（時間 / 週）</span>
+              <input class="inp" value="44" readonly aria-label="法定労働時間" />
+              <p class="hint">所定以上の値を指定</p>
+            </div>
+            <div>
+              <span class="lbl">36H超44H以内の割増率（%）</span>
+              <input class="inp" value="0" readonly aria-label="36時間超44時間以内の割増率" />
+            </div>
+            <div>
+              <span class="lbl">44H超の割増率（%）</span>
+              <input class="inp" value="25" readonly aria-label="44時間超の割増率" />
+            </div>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+
+    <p class="annot">
+      週単位管理の既定は <code>OFF</code> なので、ヒラノなど既存会社は今までどおり日次判定のままです。
+      夏季・冬季の入力欄はどの会社タブからも消えますが、<strong>定時の値は会社ごとに独立</strong>したままです。
+    </p>
+  </section>
+
+  <!-- ============ 社員番号の採番 ============ -->
+  <section>
+    <div class="sechead">
+      <div class="row">
+        <h2>社員番号を会社ごとの体系に</h2>
+        <span class="tag tag-new">採番設定を新設</span>
+        <span class="tag tag-add">会社フィルタ追加</span>
+      </div>
+      <p class="where">/settings（会社タブ） · /employees — 番号は全体で一意のまま</p>
+    </div>
+
+    <p>
+      会社ごとに<strong>接頭辞と桁数</strong>を決め、社員の新規登録時に次番号を自動で提案します。
+      番号自体は今までどおり全体で一意なので、<strong>ログインもCSV取込も現状のまま動きます</strong>
+      （同じ番号を別会社で使い回す方式ではありません）。
+    </p>
+
+    <div class="removed" style="background:var(--doc-panel);border-color:var(--doc-line)">
+      <strong style="color:var(--doc-ink)">DBの変更は Company に2列を足すだけ</strong>
+      <p style="margin:0">
+        <code>Company.codePrefix</code>（例 <code>"A"</code>）と <code>Company.codeDigits</code>（例 <code>4</code>）。
+        <code>User.employeeCode</code> の <code>@unique</code> はそのまま維持するため、
+        ログイン（社員番号 または メール）・CSV取込の名寄せ・一括登録の重複チェックはいずれも改修不要です。
+      </p>
+    </div>
+
+    <div class="frame" style="display:flex;flex-direction:column;gap:1.25rem">
+
+      <div class="card redline">
+        <h4 style="font-size:0.9375rem">社員番号の採番（affect）</h4>
+        <p class="sub" style="margin-bottom:0.9rem">新規登録時に自動入力される番号の形式です</p>
+        <div class="grid4">
+          <div>
+            <span class="lbl">接頭辞</span>
+            <input class="inp" value="A" readonly aria-label="接頭辞" />
+            <p class="hint">空欄なら接頭辞なし</p>
+          </div>
+          <div>
+            <span class="lbl">連番の桁数</span>
+            <input class="inp" value="4" readonly aria-label="連番の桁数" />
+          </div>
+          <div>
+            <span class="lbl">形式プレビュー</span>
+            <input class="inp" value="A0001" readonly aria-label="形式プレビュー" style="font-family:var(--mono)" />
+          </div>
+          <div>
+            <span class="lbl">次に割り当てる番号</span>
+            <input class="inp" value="A0004" readonly aria-label="次に割り当てる番号" style="font-family:var(--mono)" />
+            <p class="hint">現在の最大 A0003 の次</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4 style="font-size:0.9375rem">社員の新規登録</h4>
+        <p class="sub" style="margin-bottom:0.9rem">部署を選ぶと、その部署が属する会社の番号が自動で入ります（手入力での上書きも可）</p>
+        <div class="grid3">
+          <div>
+            <span class="lbl">部署</span>
+            <input class="inp" value="affect 本店" readonly aria-label="部署" />
+            <p class="hint">選択すると会社が決まる</p>
+          </div>
+          <div class="redline">
+            <span class="lbl">社員番号</span>
+            <input class="inp" value="A0004" readonly aria-label="社員番号" style="font-family:var(--mono)" />
+            <p class="hint">affect の採番設定から自動入力</p>
+          </div>
+          <div>
+            <span class="lbl">氏名</span>
+            <input class="inp" value="" readonly aria-label="氏名" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0">
+        <div style="padding:1.1rem 1.25rem 0.85rem;display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center">
+          <div style="flex:1 1 12rem">
+            <h4 style="font-size:0.9375rem">社員一覧</h4>
+            <p class="sub">会社での絞り込みを追加（現在は部署のみ）</p>
+          </div>
+          <div class="tabs redline" style="gap:0.4rem">
+            <span class="tab-pill">すべて</span>
+            <span class="tab-pill">ヒラノ</span>
+            <span class="tab-pill on">affect</span>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl" style="min-width:520px">
+            <thead>
+              <tr>
+                <th>社員番号</th>
+                <th>氏名</th>
+                <th>部署</th>
+                <th>会社</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="font-family:var(--mono)">A0001</td><td>山田 太郎</td><td>affect 本店</td><td><span class="pill pill-violet">affect</span></td></tr>
+              <tr><td style="font-family:var(--mono)">A0002</td><td>佐藤 花子</td><td>affect 本店</td><td><span class="pill pill-violet">affect</span></td></tr>
+              <tr><td style="font-family:var(--mono)">A0003</td><td>鈴木 一郎</td><td>affect 本店</td><td><span class="pill pill-violet">affect</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <p class="annot">
+      接頭辞が未設定の会社（HaLSpace / tws / HKT）は、今までどおり連番だけを提案します。
+      自動入力された番号は手で書き換えられます（重複時は既存どおりエラー）。
+    </p>
+
+    <div class="callout">
+      <h3>既存社員の番号も付け替える</h3>
+      <p class="note" style="margin:0">
+        現在の <code>0001</code>〜<code>0004</code>（全員ヒラノ所属）を <code>H0001</code>〜<code>H0004</code> に変更します。
+        まだ本運用前のため、ログイン中のセッションや過去の取込履歴への影響はありません。
+        付け替えは移行スクリプトで一括実行し、<strong>今後 Square から CSV 取込を行う場合は
+        Square側の従業員IDも同じ番号に揃えてください</strong>
+        （取込は社員番号の完全一致で名寄せし、一致しない番号は新規社員として自動登録されるため）。
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 勤怠一覧 ============ -->
+  <section>
+    <div class="sechead">
+      <div class="row">
+        <h2>勤怠一覧</h2>
+        <span class="tag tag-add">2列追加</span>
+      </div>
+      <p class="where">/attendance — 社員別月次集計テーブル</p>
+    </div>
+
+    <div class="frame">
+      <div class="card" style="padding:0">
+        <div style="padding:1.1rem 1.25rem 0.85rem">
+          <h4 style="font-size:0.9375rem">社員別集計</h4>
+          <p class="sub">2026年9月度 · 全社</p>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl" style="min-width:860px">
+            <thead>
+              <tr>
+                <th>社員番号</th>
+                <th>氏名</th>
+                <th>会社</th>
+                <th class="r">勤務日数</th>
+                <th class="r">勤務時間</th>
+                <th class="r">早出残業</th>
+                <th class="r">残業時間</th>
+                <th class="r col-a">36H超44H以内</th>
+                <th class="r col-b">44H超</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>A0001</td><td>山田 太郎</td><td><span class="pill pill-violet">affect</span></td>
+                <td class="r">26日</td><td class="r">181:18</td>
+                <td class="r muted">—</td><td class="r muted">—</td>
+                <td class="r col-a a">16:00</td><td class="r col-b b">10:00</td>
+              </tr>
+              <tr>
+                <td>A0002</td><td>佐藤 花子</td><td><span class="pill pill-violet">affect</span></td>
+                <td class="r">25日</td><td class="r">154:00</td>
+                <td class="r muted">—</td><td class="r muted">—</td>
+                <td class="r col-a a">4:00</td><td class="r col-b zero">—</td>
+              </tr>
+              <tr>
+                <td>A0003</td><td>鈴木 一郎</td><td><span class="pill pill-violet">affect</span></td>
+                <td class="r">24日</td><td class="r">144:00</td>
+                <td class="r muted">—</td><td class="r muted">—</td>
+                <td class="r col-a zero">—</td><td class="r col-b zero">—</td>
+              </tr>
+              <tr>
+                <td>H0014</td><td>田中 健</td><td><span class="pill pill-gray">ヒラノ</span></td>
+                <td class="r">21日</td><td class="r">168:00</td>
+                <td class="r a">2:30</td>
+                <td class="r a">12:00</td>
+                <td class="r col-a muted">—</td><td class="r col-b muted">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <p class="annot">
+      日次判定の会社（ヒラノ）と週次判定の会社（affect）は<strong>同じ表に混在しうる</strong>ため、
+      自社に関係しない列は <code>—</code> になります。週次管理の社員が1人もいない画面では新しい2列自体を出しません。
+    </p>
+  </section>
+
+  <!-- ============ マイページ ============ -->
+  <section>
+    <div class="sechead">
+      <div class="row">
+        <h2>マイページ</h2>
+        <span class="tag tag-new">週行を挿入</span>
+      </div>
+      <p class="where">/my — 社員詳細と同じ表示コンポーネントを共用（列は絞る）</p>
+    </div>
+
+    <p>
+      本人画面も同じ「週行＋日別行」の構造です。<strong>修正申請も今までどおり</strong>各日から出せます。
+      直近2週分を抜粋しています。
+    </p>
+
+    <div class="frame" style="max-width:720px">
+      <div class="card" style="padding:0">
+        <div style="padding:1.1rem 1.25rem 0.85rem">
+          <h4 style="font-size:0.9375rem">今月の勤怠</h4>
+          <p class="sub">2026年9月度（8/26〜9/25）</p>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl" style="min-width:620px">
+            <thead>
+              <tr>
+                <th style="min-width:8.5rem">日付 / 週</th>
+                <th class="r">出勤</th>
+                <th class="r">退勤</th>
+                <th class="r">勤務時間</th>
+                <th class="r col-a">36H超44H以内</th>
+                <th class="r col-b">44H超</th>
+                <th class="c">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="wkrow">
+                <td colspan="3"><span class="wklabel">週 9/11 〜 9/16 <span class="pill pill-gray">6日</span></span></td>
+                <td class="r">54:00</td>
+                <td class="r col-a a">8:00</td>
+                <td class="r col-b b">10:00</td>
+                <td></td>
+              </tr>
+              <tr><td>9/11（金）</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td colspan="2"></td><td class="c"><span class="btn-mini">修正申請</span></td></tr>
+              <tr><td>9/12（土）</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td colspan="2"></td><td class="c"><span class="btn-mini">修正申請</span></td></tr>
+              <tr><td>9/13（日）</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td colspan="2"></td><td class="c"><span class="btn-mini">修正申請</span></td></tr>
+              <tr><td>9/14（月）</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td colspan="2"></td><td class="c"><span class="btn-mini">修正申請</span></td></tr>
+              <tr><td>9/15（火）</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td colspan="2"></td><td class="c"><span class="btn-mini">修正申請</span></td></tr>
+              <tr><td>9/16（水）</td><td class="r">9:00</td><td class="r">19:00</td><td class="r">9:00</td><td colspan="2"></td><td class="c"><span class="btn-mini">修正申請</span></td></tr>
+              <tr class="d-closed"><td>9/17（木）</td><td class="r dim">—</td><td class="r dim">—</td><td class="r dim">定休</td><td colspan="2"></td><td class="c"><span class="btn-mini">修正申請</span></td></tr>
+
+              <tr class="wkrow">
+                <td colspan="3"><span class="wklabel">週 9/18 〜 9/24 <span class="pill pill-gray">6日</span> <span class="pill pill-orange">定休日出勤</span></span></td>
+                <td class="r">35:48</td>
+                <td class="r col-a zero">—</td>
+                <td class="r col-b zero">—</td>
+                <td></td>
+              </tr>
+              <tr><td>9/18（金）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="2"></td><td class="c"><span class="btn-mini">修正申請</span></td></tr>
+              <tr><td>9/19（土）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="2"></td><td class="c"><span class="btn-mini">修正申請</span></td></tr>
+              <tr class="d-off"><td>9/20（日）</td><td class="r dim">—</td><td class="r dim">—</td><td class="r dim">休み</td><td colspan="2"></td><td class="c"><span class="btn-mini">修正申請</span></td></tr>
+              <tr><td>9/21（月）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="2"></td><td class="c"><span class="btn-mini">修正申請</span></td></tr>
+              <tr><td>9/22（火）</td><td class="r">9:12</td><td class="r">16:00</td><td class="r">5:48</td><td colspan="2"></td><td class="c"><span class="btn-mini pri">申請中</span></td></tr>
+              <tr><td>9/23（水）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="2"></td><td class="c"><span class="btn-mini">修正申請</span></td></tr>
+              <tr class="d-closedwork"><td>9/24（木）</td><td class="r">9:00</td><td class="r">16:00</td><td class="r">6:00</td><td colspan="2"></td><td class="c"><span class="btn-mini">修正申請</span></td></tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3">月度合計 <span class="pill pill-gray">26日</span></td>
+                <td class="r">181:18</td>
+                <td class="r col-a a">16:00</td>
+                <td class="r col-b b">10:00</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CSV ============ -->
+  <section>
+    <div class="sechead">
+      <div class="row">
+        <h2>CSV出力</h2>
+        <span class="tag tag-add">列追加</span>
+        <span class="tag tag-new">週別CSV新設</span>
+      </div>
+      <p class="where">/api/export — 勤怠一覧のダウンロードボタンは3つになる</p>
+    </div>
+
+    <div class="frame" style="display:flex;flex-direction:column;gap:1.25rem">
+      <div class="card">
+        <h4 style="font-size:0.9375rem">集計CSV <code style="background:#f6f8fa;border-color:#e3e8ee">kintai_shukei_2026-09.csv</code></h4>
+        <p class="sub" style="margin-bottom:0.75rem">「残業時間」の後ろに2列追加</p>
+<pre>社員番号,氏名,部署,勤務日数,勤務時間,早出残業,残業時間,<b>36-44H,44H超</b>,遅刻回数,早退回数
+A0001,山田 太郎,affect,26,181:18,,,<b>16:00,10:00</b>,1,1
+A0002,佐藤 花子,affect,25,154:00,,,<b>4:00,0:00</b>,0,0
+H0014,田中 健,製造部,21,168:00,2:30,12:00,<b>,</b>,2,1</pre>
+      </div>
+
+      <div class="card redline">
+        <h4 style="font-size:0.9375rem">明細CSV（日別・既存） <code style="background:#f6f8fa;border-color:#e3e8ee">kintai_meisai_2026-09.csv</code></h4>
+        <p class="sub" style="margin-bottom:0.75rem">「日付」の後ろに<strong>週</strong>列を追加。Excelでそのまま週ごとに集計できる</p>
+<pre>社員番号,氏名,部署,日付,<b>週</b>,実出勤,実退勤,出勤時間,退勤時間,休憩(分),勤務時間,遅刻(分),早退(分),備考
+A0001,山田 太郎,affect,2026-09-11,<b>2026-09-11〜2026-09-16</b>,09:00,19:00,09:00,19:00,60,9:00,,,
+A0001,山田 太郎,affect,2026-09-12,<b>2026-09-11〜2026-09-16</b>,08:47,19:07,09:00,19:00,60,9:00,,,
+A0001,山田 太郎,affect,2026-09-22,<b>2026-09-18〜2026-09-24</b>,09:12,16:00,09:12,16:00,60,5:48,12,,
+A0001,山田 太郎,affect,2026-09-24,<b>2026-09-18〜2026-09-24</b>,09:00,16:00,09:00,16:00,60,6:00,,,<i>定休日出勤</i></pre>
+        <p class="hint" style="margin-top:0.6rem">
+          休憩(分)列はCSV取込データ（実測値が入る）のために残しています。画面と揃えて消すこともできます（確認事項3）。
+          週次モードの社員は「早出残業」「残業時間」列が空になります
+        </p>
+      </div>
+
+      <div class="card redline">
+        <h4 style="font-size:0.9375rem">週別明細CSV <code style="background:#f6f8fa;border-color:#e3e8ee">kintai_shubetsu_2026-09.csv</code></h4>
+        <p class="sub" style="margin-bottom:0.75rem">新設。<code style="background:#f6f8fa;border-color:#e3e8ee">?type=weekly</code> で出力</p>
+<pre>社員番号,氏名,部署,週,勤務日数,週合計,所定内,36-44H,44H超,定休日出勤
+A0001,山田 太郎,affect,2026-08-26〜2026-08-26,1,6:00,6:00,0:00,0:00,
+A0001,山田 太郎,affect,2026-08-28〜2026-09-02,6,35:30,35:30,0:00,0:00,
+A0001,山田 太郎,affect,2026-09-04〜2026-09-09,6,44:00,36:00,<b>8:00</b>,0:00,
+A0001,山田 太郎,affect,2026-09-11〜2026-09-16,6,54:00,36:00,<b>8:00</b>,<b>10:00</b>,
+A0001,山田 太郎,affect,2026-09-18〜2026-09-24,6,35:48,35:48,0:00,0:00,<i>2026-09-24</i>
+A0001,山田 太郎,affect,2026-09-25〜2026-09-25,1,6:00,6:00,0:00,0:00,</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 確認事項 ============ -->
+  <section>
+    <div class="sechead">
+      <div class="row">
+        <h2>確定した仕様</h2>
+        <span class="tag tag-swap">全項目 決定済み</span>
+      </div>
+    </div>
+
+    <div class="callout">
+      <h3>週行は日別表に挟む / ラベルは実勤務日でトリム</h3>
+      <p class="note" style="margin:0">
+        独立した週別テーブルは作らず、日別表に週の小計行を挟みます。
+        週ラベルは「週 8/28 〜 9/2」のように<strong>実際に勤務した日の範囲</strong>で表示し、
+        木曜に出勤があればラベルも木曜まで伸びます。
+      </p>
+    </div>
+
+    <div class="callout">
+      <h3>列構成と割増率</h3>
+      <p class="note" style="margin:0">
+        週行には内訳が追えるよう「週合計 / 所定内 / 36H超44H以内 / 44H超」を並べます。
+        割増率は 36H超44H以内 0%、44H超 25%（法定44時間の特例事業場を想定）。
+        画面の休憩列は削除し、CSVの休憩(分)列だけ残します（CSV取込データには実測値が入るため）。
+      </p>
+    </div>
+
+    <div class="callout">
+      <h3>共通設定タブの定時 → 8:00 – 17:00</h3>
+      <p class="note" style="margin:0">
+        夏季・冬季を廃止するにあたり、季節で値が違っていた「共通（全社のデフォルト）」タブは
+        <strong>8:00 – 17:00</strong> に統一します。ヒラノ（8:00–17:00）・affect（9:00–16:00）の
+        会社別設定はそれぞれ独立して保持されます。
+      </p>
+    </div>
+
+    <div class="callout">
+      <h3>既存社員の番号も付け替える</h3>
+      <p class="note" style="margin:0">
+        <code>0001</code>〜<code>0004</code> → <code>H0001</code>〜<code>H0004</code>。
+        本運用前のため影響なし。今後 Square から CSV 取込を行う場合は
+        Square側の従業員IDも同じ番号に揃えてください。
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <p style="max-width:none">
+      2026年9月度（8/26〜9/25）の同一データで全画面を通しています（日別 → 週 → 月度合計が実際に一致） ·
+      モック内の配色は TimeCalc の既存デザイントークン（<code>--primary: #635bff</code>）に準拠 ·
+      アプリ本体はライトテーマ専用のため、モック枠の中はページのテーマに関わらず常にライト表示です
+    </p>
+  </footer>
+
+</div>
+
+</body>
+</html>

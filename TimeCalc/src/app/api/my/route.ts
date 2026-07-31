@@ -5,7 +5,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth/api-guard";
 import { resolveFeatures } from "@/lib/auth/features";
-import { calcDaily, summarize } from "@/lib/attendance/calculator";
+import { calcDaily, calcWeekly, summarize } from "@/lib/attendance/calculator";
+import type { DailyCalcResult } from "@/lib/attendance/types";
 import {
   deriveDailyFromEvents,
   fixedBreakMinutesFor,
@@ -78,6 +79,8 @@ export async function GET(request: Request) {
 
   const rows: MyDailyRow[] = [];
   const calcResults = [];
+  // 週別集計用（日付つきで持つ）。週単位管理でない会社では使わない
+  const dailyCalcs: { date: string; calc: DailyCalcResult }[] = [];
   let openCount = 0;
 
   for (const date of datesInRange(period.start, visibleEnd)) {
@@ -90,7 +93,10 @@ export async function GET(request: Request) {
           rules,
         )
       : null;
-    if (calc) calcResults.push(calc);
+    if (calc) {
+      calcResults.push(calc);
+      dailyCalcs.push({ date, calc });
+    }
     const ok = calc && !calc.error;
 
     const derived = record ? null : deriveDailyFromEvents(eventsByDate.get(date) ?? []);
@@ -190,6 +196,13 @@ export async function GET(request: Request) {
   const summary = summarize(calcResults);
   const [year, monthNum] = month.split("-").map(Number);
 
+  // 週単位管理の会社のみ週別集計を返す。
+  // 表示は今日までなので週の区切りも visibleEnd までとし、
+  // rows が新しい順（reverse 済み）なので週も同じ並びに揃える。
+  const weeks = rules.weekly.enabled
+    ? calcWeekly(dailyCalcs, { start: period.start, end: visibleEnd }, rules).reverse()
+    : [];
+
   const requestRows: MyRequestRow[] = requests.map((r) => ({
     id: r.id,
     date: r.date,
@@ -212,6 +225,7 @@ export async function GET(request: Request) {
     selfEditMode: features.selfEdit,
     summary,
     rows,
+    weeks,
     requests: requestRows,
   };
 

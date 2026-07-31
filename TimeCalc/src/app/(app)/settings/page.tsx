@@ -22,6 +22,7 @@ import {
   CompanyManager,
   DepartmentManager,
   DisplaySettingsForm,
+  EmployeeCodeRuleForm,
   RoleLabelsForm,
   WorkRulesForm,
   type CompanyScope,
@@ -124,6 +125,18 @@ export default function SettingsPage() {
           scope={scopeFor(KEY_WORK_RULES)}
           onSaved={refetch}
         />
+        {/* 採番は会社ごとの設定なので、共通タブでは出さない */}
+        {companyId && (
+          <EmployeeCodeRuleForm
+            key={`code-${companyId}`}
+            companyId={companyId}
+            companyName={data.selectedCompanyName ?? ""}
+            codePrefix={data.codePrefix ?? ""}
+            codeDigits={data.codeDigits ?? 4}
+            nextEmployeeCode={data.nextEmployeeCode ?? ""}
+            onSaved={refetch}
+          />
+        )}
         <RoleLabelsForm
           key={`roles-${companyId ?? "common"}`}
           roleLabels={data.roleLabels}

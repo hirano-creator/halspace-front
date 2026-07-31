@@ -25,6 +25,7 @@ export default function EmployeesPage() {
   const searchParams = useSearchParams();
   const query = searchParams.get("q") ?? "";
   const departmentId = searchParams.get("department") ?? "";
+  const companyId = searchParams.get("company") ?? "";
   const status = searchParams.get("status") ?? "";
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
 
@@ -38,6 +39,7 @@ export default function EmployeesPage() {
     const qs = new URLSearchParams();
     if (query) qs.set("q", query);
     if (departmentId) qs.set("department", departmentId);
+    if (companyId) qs.set("company", companyId);
     if (status) qs.set("status", status);
     if (page > 1) qs.set("page", String(page));
 
@@ -52,7 +54,7 @@ export default function EmployeesPage() {
     return () => {
       cancelled = true;
     };
-  }, [authStatus, query, departmentId, status, page, refreshKey]);
+  }, [authStatus, query, departmentId, companyId, status, page, refreshKey]);
 
   if (authStatus === "unauthenticated") return null;
   if (authStatus === "loading" || !data) {
@@ -66,6 +68,7 @@ export default function EmployeesPage() {
     const qs = new URLSearchParams();
     if (query) qs.set("q", query);
     if (departmentId) qs.set("department", departmentId);
+    if (companyId) qs.set("company", companyId);
     if (status) qs.set("status", status);
     if (p > 1) qs.set("page", String(p));
     const s = qs.toString();
@@ -105,6 +108,19 @@ export default function EmployeesPage() {
               placeholder="氏名・社員番号"
               className={inputClass}
             />
+          </div>
+          <div>
+            <label htmlFor="company" className="mb-1 block text-xs font-medium text-muted">
+              会社
+            </label>
+            <select id="company" name="company" defaultValue={companyId} className={inputClass}>
+              <option value="">すべての会社</option>
+              {data.companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label htmlFor="department" className="mb-1 block text-xs font-medium text-muted">

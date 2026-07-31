@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireApiPermission } from "@/lib/auth/api-guard";
 import { getDisplaySettings, getRoleLabels, getWorkRules } from "@/lib/settings";
 import { COMPANY_SETTING_KEYS } from "@/lib/settings-keys";
+import { nextEmployeeCode, normalizeCodeRule } from "@/lib/employee-code";
 import type { SettingsPageResponse } from "@/app/(app)/settings/types";
 
 export async function GET(request: Request) {
@@ -40,10 +41,19 @@ export async function GET(request: Request) {
       : Promise.resolve([]),
   ]);
 
+  // 会社タブを開いているときだけ、社員番号の採番設定と「次に割り当てる番号」を返す
+  const codeRule = selectedCompany
+    ? normalizeCodeRule(selectedCompany.codePrefix, selectedCompany.codeDigits)
+    : null;
+  const nextCode = companyId ? await nextEmployeeCode(companyId) : null;
+
   const body: SettingsPageResponse = {
     companies: companies.map((c) => ({ id: c.id, name: c.name, departmentCount: c._count.departments })),
     selectedCompanyId: companyId,
     selectedCompanyName: selectedCompany?.name ?? null,
+    codePrefix: codeRule?.prefix ?? null,
+    codeDigits: codeRule?.digits ?? null,
+    nextEmployeeCode: nextCode,
     rules,
     roleLabels,
     showMoney: display.showMoney,

@@ -30,7 +30,7 @@ export default function AttendancePage() {
 
   const [data, setData] = useState<AttendancePageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState<"summary" | "daily" | null>(null);
+  const [downloading, setDownloading] = useState<"summary" | "daily" | "weekly" | null>(null);
 
   useEffect(() => {
     if (authStatus !== "authenticated") return;
@@ -67,10 +67,10 @@ export default function AttendancePage() {
   if (query) exportParams.set("q", query);
   const exportUrl = `/api/export?${exportParams.toString()}`;
 
-  async function handleDownload(type: "summary" | "daily") {
+  async function handleDownload(type: "summary" | "daily" | "weekly") {
     setDownloading(type);
     try {
-      await downloadFile(type === "daily" ? `${exportUrl}&type=daily` : exportUrl);
+      await downloadFile(type === "summary" ? exportUrl : `${exportUrl}&type=${type}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "ダウンロードに失敗しました");
     } finally {
@@ -79,7 +79,9 @@ export default function AttendancePage() {
   }
 
   const showMoney = data.showMoney;
-  const columnCount = showMoney ? 10 : 9;
+  // 週単位管理の社員が1人でもいる場合だけ「36H超44H以内」「44H超」の2列を出す
+  const hasWeekly = data.summaries.some((s) => s.weeklyEnabled);
+  const columnCount = (showMoney ? 10 : 9) + (hasWeekly ? 2 : 0);
 
   return (
     <>
@@ -109,6 +111,16 @@ export default function AttendancePage() {
               >
                 {downloading === "daily" ? "出力中..." : "明細CSV出力"}
               </button>
+              {hasWeekly && (
+                <button
+                  type="button"
+                  onClick={() => handleDownload("weekly")}
+                  disabled={downloading !== null}
+                  className={buttonSecondaryClass}
+                >
+                  {downloading === "weekly" ? "出力中..." : "週別CSV出力"}
+                </button>
+              )}
             </div>
           ) : undefined
         }
@@ -182,6 +194,8 @@ export default function AttendancePage() {
               <th className={`${thClass} text-right`}>勤務時間</th>
               <th className={`${thClass} text-right`}>早出残業</th>
               <th className={`${thClass} text-right`}>残業時間</th>
+              {hasWeekly && <th className={`${thClass} text-right`}>36H超44H以内</th>}
+              {hasWeekly && <th className={`${thClass} text-right`}>44H超</th>}
               <th className={`${thClass} text-right`}>遅刻</th>
               <th className={`${thClass} text-right`}>早退</th>
               {showMoney && <th className={`${thClass} text-right`}>支給額（概算）</th>}
@@ -225,6 +239,31 @@ export default function AttendancePage() {
                   >
                     {formatMinutes(s.summary.overtimeMinutes)}
                   </td>
+                  {/* 週単位管理の会社のみ値を持つ。日次判定の会社は「-」で区別する */}
+                  {hasWeekly && (
+                    <td
+                      className={`${tdClass} whitespace-nowrap text-right ${
+                        (s.weeklyTotals?.withinLegalOvertimeMinutes ?? 0) > 0
+                          ? "font-medium text-amber-600"
+                          : "text-muted"
+                      }`}
+                    >
+                      {s.weeklyTotals
+                        ? formatMinutes(s.weeklyTotals.withinLegalOvertimeMinutes)
+                        : "-"}
+                    </td>
+                  )}
+                  {hasWeekly && (
+                    <td
+                      className={`${tdClass} whitespace-nowrap text-right ${
+                        (s.weeklyTotals?.overLegalOvertimeMinutes ?? 0) > 0
+                          ? "font-medium text-orange-700"
+                          : "text-muted"
+                      }`}
+                    >
+                      {s.weeklyTotals ? formatMinutes(s.weeklyTotals.overLegalOvertimeMinutes) : "-"}
+                    </td>
+                  )}
                   <td
                     className={`${tdClass} whitespace-nowrap text-right ${
                       s.summary.lateCount > 0 ? "font-medium text-amber-600" : "text-muted"

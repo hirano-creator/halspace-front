@@ -14,6 +14,7 @@ const sampleUser: SessionUser = {
   companyId: "company-1",
   gpsCheckEnabled: true,
   companyAttendance: false,
+  homeScreen: "my",
 };
 
 describe("createSessionToken / verifySessionToken", () => {

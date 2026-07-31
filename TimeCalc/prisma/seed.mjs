@@ -16,13 +16,21 @@ const prisma = new PrismaClient();
 
 async function main() {
   // グループ会社（設定画面の会社選択タブに表示される）
-  const companyNames = ["ヒラノ", "HaLSpace", "tws", "HKT", "affect"];
+  // codePrefix / codeDigits は社員番号の採番ルール（例: A + 4桁 → A0001）。
+  // 社員番号は全社で一意のままなので、ログイン・CSV取込の名寄せには影響しない。
+  const companySeeds = [
+    { name: "ヒラノ", codePrefix: "H" },
+    { name: "HaLSpace", codePrefix: null },
+    { name: "tws", codePrefix: null },
+    { name: "HKT", codePrefix: null },
+    { name: "affect", codePrefix: "A" },
+  ];
   const companies = {};
-  for (const name of companyNames) {
+  for (const { name, codePrefix } of companySeeds) {
     companies[name] = await prisma.company.upsert({
       where: { name },
-      update: {},
-      create: { name },
+      update: { codePrefix },
+      create: { name, codePrefix, codeDigits: 4 },
     });
   }
 
@@ -43,7 +51,7 @@ async function main() {
   // 初期ユーザー（パスワードは初回ログイン後に変更すること）
   const allUsers = [
     {
-      employeeCode: "0001",
+      employeeCode: "H0001",
       name: "管理者",
       email: "admin@example.com",
       role: "ADMIN",
@@ -52,7 +60,7 @@ async function main() {
       password: "admin123",
     },
     {
-      employeeCode: "0002",
+      employeeCode: "H0002",
       name: "店長 花子",
       email: "tencho@example.com",
       role: "MANAGER",
@@ -61,7 +69,7 @@ async function main() {
       password: "password123",
     },
     {
-      employeeCode: "0003",
+      employeeCode: "H0003",
       name: "工場 太郎",
       email: "kojo@example.com",
       role: "EMPLOYEE",
@@ -70,7 +78,7 @@ async function main() {
       password: "password123",
     },
     {
-      employeeCode: "0004",
+      employeeCode: "H0004",
       name: "平野 次郎",
       email: null,
       role: "PART_TIME",
@@ -101,13 +109,13 @@ async function main() {
 
   if (minimal) {
     console.log("シード完了（最小構成）: 部署2件・管理者アカウント1件");
-    console.log("ログイン: 社員番号 0001 / パスワード admin123 ※必ず変更すること");
+    console.log("ログイン: 社員番号 H0001 / パスワード admin123 ※必ず変更すること");
     return;
   }
 
   // サンプル勤怠（2026年7月第1週・製造部の2名）
-  const kojo = await prisma.user.findUnique({ where: { employeeCode: "0003" } });
-  const jiro = await prisma.user.findUnique({ where: { employeeCode: "0004" } });
+  const kojo = await prisma.user.findUnique({ where: { employeeCode: "H0003" } });
+  const jiro = await prisma.user.findUnique({ where: { employeeCode: "H0004" } });
   const samples = [
     { user: kojo, date: "2026-07-01", clockIn: "07:45", clockOut: "18:32" },
     { user: kojo, date: "2026-07-02", clockIn: "08:00", clockOut: "19:35" },
@@ -132,7 +140,7 @@ async function main() {
   }
 
   console.log("シード完了: 部署2件・ユーザー4件・サンプル勤怠6件");
-  console.log("ログイン例: 社員番号 0001 / パスワード admin123（管理者）");
+  console.log("ログイン例: 社員番号 H0001 / パスワード admin123（管理者）");
 }
 
 main()

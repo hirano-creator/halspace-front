@@ -24,12 +24,22 @@ export const CLOCK_MODE_LABELS: Record<ClockMode, string> = {
   qrScan: "スキャン即打刻（出勤・退勤QRの読取だけで自動打刻）",
 };
 
+/** アプリを開いた直後（ログイン直後・トップアクセス時）に表示する画面 */
+export type HomeScreen = "my" | "scan";
+
+export const HOME_SCREEN_LABELS: Record<HomeScreen, string> = {
+  my: "マイページ",
+  scan: "QR読取り画面（開いてすぐスキャン）",
+};
+
 /** スタッフ単位で切り替えられる機能設定 */
 export interface FeatureSettings {
   /** 押し忘れ・誤打刻の修正: 申請のみ / 本人直接修正可 / 不可 */
   selfEdit: SelfEditMode;
   /** 打刻方式。free以外はQRコード経由（?dept= 付きURL）でのみ打刻を許可する */
   clockMode: ClockMode;
+  /** アプリを開いた直後に表示する画面 */
+  homeScreen: HomeScreen;
   /** マイページに月次集計（勤務時間・遅刻回数など）を表示する */
   showMonthlySummary: boolean;
   /**
@@ -42,6 +52,7 @@ export interface FeatureSettings {
 export const DEFAULT_FEATURES: FeatureSettings = {
   selfEdit: "request",
   clockMode: "free",
+  homeScreen: "my",
   showMonthlySummary: true,
   companyAttendance: false,
 };
@@ -66,6 +77,10 @@ export function resolveFeatures(featureOverrides: string | null | undefined): Fe
           ? parsed.selfEdit
           : DEFAULT_FEATURES.selfEdit,
       clockMode,
+      homeScreen:
+        parsed.homeScreen === "my" || parsed.homeScreen === "scan"
+          ? parsed.homeScreen
+          : DEFAULT_FEATURES.homeScreen,
       showMonthlySummary:
         typeof parsed.showMonthlySummary === "boolean"
           ? parsed.showMonthlySummary
@@ -87,6 +102,9 @@ export function serializeFeatures(features: FeatureSettings): string | null {
   if (features.clockMode !== DEFAULT_FEATURES.clockMode) {
     overrides.clockMode = features.clockMode;
   }
+  if (features.homeScreen !== DEFAULT_FEATURES.homeScreen) {
+    overrides.homeScreen = features.homeScreen;
+  }
   if (features.showMonthlySummary !== DEFAULT_FEATURES.showMonthlySummary) {
     overrides.showMonthlySummary = features.showMonthlySummary;
   }
@@ -101,4 +119,9 @@ export function toClockMode(value: unknown): ClockMode {
   return value === "free" || value === "qrTap" || value === "qrScan"
     ? value
     : DEFAULT_FEATURES.clockMode;
+}
+
+/** 起動時の画面のフォーム値を検証する（不正値はデフォルト） */
+export function toHomeScreen(value: unknown): HomeScreen {
+  return value === "my" || value === "scan" ? value : DEFAULT_FEATURES.homeScreen;
 }

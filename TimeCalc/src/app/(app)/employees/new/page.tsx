@@ -41,7 +41,13 @@ export default function NewEmployeePage() {
     <>
       <PageHeader title="社員を登録" />
       <Card className="max-w-2xl">
-        <EmployeeForm departments={options.departments} roleLabels={options.roleLabels} showMoney={options.showMoney} />
+        <EmployeeForm
+          departments={options.departments}
+          roleLabels={options.roleLabels}
+          showMoney={options.showMoney}
+          nextCodeByDepartment={options.nextCodeByDepartment}
+          defaultNextCode={options.defaultNextCode}
+        />
       </Card>
     </>
   );

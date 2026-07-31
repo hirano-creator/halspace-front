@@ -41,7 +41,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
     }
 
     login(data.token, data.user);
-    router.push(redirectTo ?? "/my");
+    router.push(redirectTo ?? "/");
     return { error: null };
   }
 
@@ -60,7 +60,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           autoComplete="username"
           required
           className={inputClass}
-          placeholder="0001"
+          placeholder="H0001"
         />
       </div>
       <div>

@@ -1,6 +1,7 @@
 // 社員詳細ページの共有型（Route Handler / クライアントコンポーネント両方から使う）
 
 import type { Role } from "@/lib/auth/roles";
+import type { WeeklyBucket, WeeklyTotals } from "@/lib/attendance/types";
 import type { DailyRow } from "./attendance-editor";
 
 export interface AttendanceEditState {
@@ -41,5 +42,11 @@ export interface EmployeeDetailResponse {
   summary: { workDays: number; lateCount: number; earlyLeaveCount: number; lateMinutes: number; earlyLeaveMinutes: number };
   monthTotal: { workMinutes: number; earlyOvertimeMinutes: number; overtimeMinutes: number };
   payTotal: { basePay: number; premiumPay: number; totalPay: number };
+  /** 所属会社が週単位管理か（統計カードと列見出しの出し分けに使う） */
+  weeklyEnabled: boolean;
+  /** 週別集計（週単位管理でなければ空配列） */
+  weeks: WeeklyBucket[];
+  /** 週別集計の月度合計（週単位管理でなければ null） */
+  weeklyTotals: WeeklyTotals | null;
   logs: AttendanceLogRow[];
 }

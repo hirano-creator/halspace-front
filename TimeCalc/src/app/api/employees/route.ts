@@ -21,6 +21,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const query = url.searchParams.get("q")?.trim() || undefined;
   const departmentId = url.searchParams.get("department") || undefined;
+  const companyId = url.searchParams.get("company") || undefined;
   const statusParam = url.searchParams.get("status");
   const status = statusParam === "active" || statusParam === "inactive" ? statusParam : "";
   const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
@@ -29,13 +30,14 @@ export async function GET(request: Request) {
     AND: [
       query ? { OR: [{ name: { contains: query } }, { employeeCode: { contains: query } }] } : {},
       departmentId ? { departmentId } : {},
+      companyId ? { department: { companyId } } : {},
       status === "active" ? { isActive: true } : {},
       status === "inactive" ? { isActive: false } : {},
     ],
   };
 
   const viewerCompanyId = await getCompanyIdForDepartment(viewer.departmentId);
-  const [employees, total, departments, roleLabels, display] = await Promise.all([
+  const [employees, total, departments, companies, roleLabels, display] = await Promise.all([
     prisma.user.findMany({
       where,
       include: { department: { include: { company: true } } },
@@ -45,6 +47,7 @@ export async function GET(request: Request) {
     }),
     prisma.user.count({ where }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
+    prisma.company.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     getRoleLabels(viewerCompanyId),
     getDisplaySettings(viewerCompanyId),
   ]);
@@ -69,6 +72,7 @@ export async function GET(request: Request) {
     totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
     page,
     departments: departments.map((d) => ({ id: d.id, name: d.name })),
+    companies,
     roleLabels,
     showMoney: display.showMoney,
   };

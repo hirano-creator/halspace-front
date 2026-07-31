@@ -4,11 +4,12 @@
 // タイムレコーダーの体験を再現する: リアルタイム時計を見ながらワンタップで打刻する。
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useRequireAuth } from "@/lib/auth/client";
 import { apiFetchJson } from "@/lib/auth/api-fetch";
 import type { ClockPhase } from "@/lib/attendance/clock";
-import { Card } from "@/components/ui";
+import { Card, buttonSecondaryClass } from "@/components/ui";
 import { ClockButtons } from "./clock-buttons";
 import { AutoPunch } from "./auto-punch";
 import { RealtimeClock } from "@/components/realtime-clock";
@@ -104,9 +105,14 @@ export default function ClockPage() {
         {data.qrTokenError ? (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{data.qrTokenError}</p>
         ) : data.needsGuidance ? (
-          <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-muted">
-            店舗の「出勤・退勤」または「外出・戻り」QRコードを読み取ってください
-          </p>
+          <div className="space-y-3">
+            <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-muted">
+              店舗の「出勤・退勤」または「外出・戻り」QRコードを読み取ってください
+            </p>
+            <Link href="/clock/scan" className={`${buttonSecondaryClass} w-full`}>
+              📷 QRコードを読み取る
+            </Link>
+          </div>
         ) : data.clockMode === "qrScan" && data.qrKind === "attend" ? (
           <AutoPunch
             departmentId={data.requestedDeptId as string}
@@ -125,6 +131,12 @@ export default function ClockPage() {
             canOutEnd={data.status.canOutEnd}
             onPunched={refetch}
           />
+        )}
+
+        {data.clockMode !== "free" && !data.needsGuidance && (
+          <Link href="/clock/scan" className={`${buttonSecondaryClass} w-full`}>
+            📷 QRコードを読み取る
+          </Link>
         )}
       </Card>
 

@@ -3,26 +3,27 @@
 // 打刻の生データと勤務ルール設定のみから計算する。
 // DBには計算結果を保存しないため、設定変更だけで全期間の計算結果が変わる。
 
-import { isInMonthDayRange, minutesToTime, timeToMinutes } from "@/lib/utils/time";
+import {
+  datesInRange,
+  dayOfWeek,
+  minutesToTime,
+  timeToMinutes,
+  weeksInPeriod,
+} from "@/lib/utils/time";
 import type {
   DailyAttendanceInput,
   DailyCalcResult,
   DailyPay,
   MonthlySummary,
-  SeasonRule,
+  WeeklyBucket,
+  WeeklyPay,
+  WeeklyTotals,
   WorkRuleSettings,
 } from "./types";
 
 /** 2つの時間帯 [aStart, aEnd) と [bStart, bEnd) の重なり（分）を返す */
 function overlapMinutes(aStart: number, aEnd: number, bStart: number, bEnd: number): number {
   return Math.max(0, Math.min(aEnd, bEnd) - Math.max(aStart, bStart));
-}
-
-/** 日付に適用する季節を判定する（夏季期間に含まれなければ冬季） */
-export function seasonOf(date: string, rules: WorkRuleSettings): "summer" | "winter" {
-  return isInMonthDayRange(date, rules.summer.startMonthDay, rules.summer.endMonthDay)
-    ? "summer"
-    : "winter";
 }
 
 /** 分数を丸め単位（分）で切り捨てる（例: 30分単位 → 89分→60分、95分→90分） */
@@ -44,12 +45,10 @@ function ceilToUnit(minutes: number, unitMinutes: number): number {
 }
 
 const emptyResult = (
-  season: "summer" | "winter",
   error: string,
   rawClockIn: string | null,
   rawClockOut: string | null,
 ): DailyCalcResult => ({
-  season,
   earlyMinutes: 0,
   earlyRawMinutes: 0,
   normalMinutes: 0,
@@ -79,45 +78,41 @@ const emptyResult = (
  * - 通常:   始業           〜 残業開始    の勤務（休憩を控除）
  * - 残業:   残業開始       〜 退勤        の勤務
  *
- * 冬季の終業(16:00)〜残業開始(18:00)は通常勤務扱いのため、
- * 通常勤務の上限は季節の終業時刻ではなく残業開始時刻とする。
+ * 終業(例: 16:00)〜残業開始(18:00)は通常勤務扱いのため、
+ * 通常勤務の上限は終業時刻ではなく残業開始時刻とする。
  *
  * 実働8時間ルール:
  * 残業開始時刻以降の勤務（残業候補）は、早出・通常勤務との合計が
  * overtimeThresholdMinutes（既定8時間=480分）を超えた分だけを残業として扱う。
  * 超えない場合は残業候補を通常勤務に繰り入れる
  * （例: 11:00〜19:00 休憩60分 → 実働7時間のため残業なし）。
+ *
+ * 週単位管理（weekly.enabled）:
+ * 日単位では残業を判定せず、実働時間をすべて通常勤務に集約する。
+ * 残業の区分は週合計に対して calcWeekly が行う。
  */
 export function calcDaily(input: DailyAttendanceInput, rules: WorkRuleSettings): DailyCalcResult {
-  const season = seasonOf(input.date, rules);
-  const seasonRule: SeasonRule = rules[season];
-
   const clockInRaw = timeToMinutes(input.clockIn);
   const clockOutRaw = timeToMinutes(input.clockOut);
-  const workStart = timeToMinutes(seasonRule.workStart);
+  const workStart = timeToMinutes(rules.workStart);
   const overtimeStart = timeToMinutes(rules.overtimeStart);
   const earlyWorkStart = timeToMinutes(rules.earlyWorkStart);
 
   // 未入力（null・空欄）と、入力はあるが形式が不正なケースは分けて知らせる
   if (input.clockIn === null || input.clockIn === "") {
-    return emptyResult(season, "出勤時刻が未入力です", input.clockIn, input.clockOut);
+    return emptyResult("出勤時刻が未入力です", input.clockIn, input.clockOut);
   }
   if (input.clockOut === null || input.clockOut === "") {
-    return emptyResult(season, "退勤時刻が未入力です", input.clockIn, input.clockOut);
+    return emptyResult("退勤時刻が未入力です", input.clockIn, input.clockOut);
   }
   if (clockInRaw === null || clockOutRaw === null) {
-    return emptyResult(season, "打刻時刻の形式が不正です", input.clockIn, input.clockOut);
+    return emptyResult("打刻時刻の形式が不正です", input.clockIn, input.clockOut);
   }
   if (workStart === null || overtimeStart === null || earlyWorkStart === null) {
-    return emptyResult(
-      season,
-      "勤務ルール設定の時刻形式が不正です",
-      input.clockIn,
-      input.clockOut,
-    );
+    return emptyResult("勤務ルール設定の時刻形式が不正です", input.clockIn, input.clockOut);
   }
   if (clockOutRaw <= clockInRaw) {
-    return emptyResult(season, "退勤時刻が出勤時刻以前です", input.clockIn, input.clockOut);
+    return emptyResult("退勤時刻が出勤時刻以前です", input.clockIn, input.clockOut);
   }
 
   const unit = rules.overtimeRoundingMinutes;
@@ -157,26 +152,42 @@ export function calcDaily(input: DailyAttendanceInput, rules: WorkRuleSettings):
   // 例: 8:00〜18:05 → 早出1時間は割増 / 8:00〜16:00 → 早出1時間は通常時給
   const earlyPremiumApplies = clockOut >= overtimeStart;
 
-  // 遅刻・早退の自動判定（丸め前の実打刻と季節の始業・終業時刻を比較する）。
+  // 遅刻・早退の自動判定（丸め前の実打刻と始業・終業時刻を比較する）。
   // 終業時刻の設定が不正な場合は早退判定をスキップする（勤務計算は続行）
-  const workEnd = timeToMinutes(seasonRule.workEnd);
+  const workEnd = timeToMinutes(rules.workEnd);
   const lateMinutes = Math.max(0, clockInRaw - workStart);
   const earlyLeaveMinutes = workEnd === null ? 0 : Math.max(0, workEnd - clockOutRaw);
 
-  return {
-    season,
-    earlyMinutes,
+  const base = {
     earlyRawMinutes,
-    normalMinutes,
-    overtimeMinutes,
     overtimeRawMinutes,
-    earlyPremiumApplies,
     roundedClockIn: minutesToTime(clockIn),
     roundedClockOut: minutesToTime(clockOut),
-    totalMinutes: earlyMinutes + normalMinutes + overtimeMinutes,
     lateMinutes,
     earlyLeaveMinutes,
     error: null,
+  };
+
+  // 週単位管理では日単位の残業・早出割増を判定しない。
+  // 実働時間をすべて通常勤務に集約し、残業の区分は週集計（calcWeekly）に委ねる。
+  if (rules.weekly.enabled) {
+    return {
+      ...base,
+      earlyMinutes: 0,
+      normalMinutes: workedMinutes,
+      overtimeMinutes: 0,
+      earlyPremiumApplies: false,
+      totalMinutes: workedMinutes,
+    };
+  }
+
+  return {
+    ...base,
+    earlyMinutes,
+    normalMinutes,
+    overtimeMinutes,
+    earlyPremiumApplies,
+    totalMinutes: earlyMinutes + normalMinutes + overtimeMinutes,
   };
 }
 
@@ -224,6 +235,98 @@ export function calcDailyPay(
 /** 金額を「¥12,345」形式にフォーマットする */
 export function formatYen(amount: number): string {
   return `¥${amount.toLocaleString("ja-JP")}`;
+}
+
+/**
+ * 週単位管理の会社の勤怠を週ごとに集計する。
+ *
+ * 締め期間を起算曜日（例: 金曜）で区切り、週ごとの総労働時間を3層に配分する:
+ * - 所定内:       〜 standardMinutes（例 36H）
+ * - 所定超法定内:  standardMinutes超 〜 legalMinutes以内（例 36H超44H以内）
+ * - 法定超:       legalMinutes超（例 44H超）
+ * この3つの合計は必ず週の総労働時間と一致する。
+ *
+ * 月度の先頭・末尾は7日に満たない端数週になるが、しきい値は按分せずそのまま適用する
+ * （例: 1日だけの週は 6:00 なのですべて所定内）。
+ *
+ * 定休日（例: 木曜）の勤務も週の労働時間に合算し、closedDayWorkDates で区別できるようにする。
+ * 表示用のラベル（labelStart / labelEnd）は勤務実績のある日でトリムするため、
+ * 木曜が定休で勤務なしの週は「8/28〜9/2」、木曜に出勤した週は「9/18〜9/24」になる。
+ */
+export function calcWeekly(
+  days: { date: string; calc: DailyCalcResult }[],
+  period: { start: string; end: string },
+  rules: WorkRuleSettings,
+): WeeklyBucket[] {
+  const w = rules.weekly;
+  const byDate = new Map(days.map((d) => [d.date, d.calc]));
+
+  return weeksInPeriod(period.start, period.end, w.startDayOfWeek).map((block) => {
+    const dates = datesInRange(block.start, block.end);
+    const worked = dates.filter((date) => {
+      const calc = byDate.get(date);
+      return calc !== undefined && calc.error === null;
+    });
+
+    const totalMinutes = worked.reduce((sum, date) => sum + byDate.get(date)!.totalMinutes, 0);
+    const standardMinutes = Math.min(totalMinutes, w.standardMinutes);
+    const withinLegalOvertimeMinutes = Math.max(
+      0,
+      Math.min(totalMinutes, w.legalMinutes) - w.standardMinutes,
+    );
+    const overLegalOvertimeMinutes = Math.max(0, totalMinutes - w.legalMinutes);
+
+    // 表示ラベルは勤務実績のある日でトリムする（勤務ゼロの週は区間そのもの）
+    const labelStart = worked[0] ?? block.start;
+    const labelEnd = worked[worked.length - 1] ?? block.end;
+
+    return {
+      start: block.start,
+      end: block.end,
+      labelStart,
+      labelEnd,
+      isPartial: block.isPartial,
+      workDays: worked.length,
+      totalMinutes,
+      standardMinutes,
+      withinLegalOvertimeMinutes,
+      overLegalOvertimeMinutes,
+      closedDayWorkDates: worked.filter((date) => w.closedDays.includes(dayOfWeek(date))),
+    };
+  });
+}
+
+/** 週別集計を月度合計にまとめる */
+export function summarizeWeeks(weeks: WeeklyBucket[]): WeeklyTotals {
+  return {
+    totalMinutes: weeks.reduce((sum, w) => sum + w.totalMinutes, 0),
+    standardMinutes: weeks.reduce((sum, w) => sum + w.standardMinutes, 0),
+    withinLegalOvertimeMinutes: weeks.reduce((sum, w) => sum + w.withinLegalOvertimeMinutes, 0),
+    overLegalOvertimeMinutes: weeks.reduce((sum, w) => sum + w.overLegalOvertimeMinutes, 0),
+    closedDayWorkCount: weeks.reduce((sum, w) => sum + w.closedDayWorkDates.length, 0),
+  };
+}
+
+/**
+ * 週単位管理での割増額を計算する（円未満は区分ごとに四捨五入）。
+ *
+ * 週次モードでは calcDaily が残業を0にするため、日次の金額は基本給（basePay）のみになる。
+ * 割増はここで週合計に対して計算し、月度の支給額は「日次 basePay の合計 ＋ premiumPay」になる。
+ */
+export function calcWeeklyPay(
+  totals: WeeklyTotals,
+  hourlyWage: number,
+  rules: WorkRuleSettings,
+): WeeklyPay {
+  if (hourlyWage <= 0) return { withinLegalPay: 0, overLegalPay: 0, premiumPay: 0 };
+  const perMinute = hourlyWage / 60;
+  const withinLegalPay = Math.round(
+    totals.withinLegalOvertimeMinutes * perMinute * rules.weekly.withinLegalPremiumRate,
+  );
+  const overLegalPay = Math.round(
+    totals.overLegalOvertimeMinutes * perMinute * rules.weekly.overLegalPremiumRate,
+  );
+  return { withinLegalPay, overLegalPay, premiumPay: withinLegalPay + overLegalPay };
 }
 
 /** 複数日の計算結果を月次集計する（エラー行は勤務日数に含めない） */

@@ -58,24 +58,6 @@ export function normalizeDate(input: string): string | null {
   return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
-/** "YYYY-MM-DD" から "MM-DD" を取り出す */
-export function monthDayOf(date: string): string {
-  return date.slice(5);
-}
-
-/**
- * 日付("YYYY-MM-DD")が月日範囲("MM-DD"〜"MM-DD")に含まれるか判定する。
- * 年跨ぎの範囲（例: 11-01〜03-31）にも対応する。
- */
-export function isInMonthDayRange(date: string, start: string, end: string): boolean {
-  const md = monthDayOf(date);
-  if (start <= end) {
-    return md >= start && md <= end;
-  }
-  // 年跨ぎ（例: 11-01〜03-31）
-  return md >= start || md <= end;
-}
-
 /** "YYYY-MM" の月の日数を返す */
 export function daysInMonth(yearMonth: string): number {
   const [y, m] = yearMonth.split("-").map(Number);
@@ -163,6 +145,64 @@ export function formatPeriodRange(range: { start: string; end: string }): string
     return `${m}/${d}`;
   };
   return `${f(range.start)}〜${f(range.end)}`;
+}
+
+/** 曜日の表示名（添字が曜日番号: 0=日 … 6=土） */
+export const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"] as const;
+
+/** 日付("YYYY-MM-DD")の曜日を返す（0=日, 1=月 … 6=土） */
+export function dayOfWeek(date: string): number {
+  return new Date(date + "T00:00:00").getDay();
+}
+
+/** 日付を "M/D（曜）" 形式にする（例: "2026-08-28" → "8/28（金）"） */
+export function formatDateWithWeekday(date: string): string {
+  const [, m, d] = date.split("-").map(Number);
+  return `${m}/${d}（${WEEKDAY_LABELS[dayOfWeek(date)]}）`;
+}
+
+/** 週ブロック（起算曜日で区切った1週間。期間の端では7日未満に切り詰められる） */
+export interface WeekBlock {
+  start: string;
+  end: string;
+  /** 7日に満たない端数週か（月度の先頭・末尾で発生する） */
+  isPartial: boolean;
+}
+
+/**
+ * 期間を起算曜日で週ブロックに分割する。
+ * 期間の開始日が起算曜日でない場合、先頭は端数週になる（末尾も同様）。
+ *
+ * 例: 金曜起算(5)で weeksInPeriod("2026-08-26", "2026-09-25", 5)
+ *   → 8/26〜8/27(端数) / 8/28〜9/3 / 9/4〜9/10 / 9/11〜9/17 / 9/18〜9/24 / 9/25(端数)
+ */
+export function weeksInPeriod(
+  start: string,
+  end: string,
+  startDayOfWeek: number,
+): WeekBlock[] {
+  const blocks: WeekBlock[] = [];
+  const last = new Date(end + "T00:00:00");
+  const cursor = new Date(start + "T00:00:00");
+
+  while (cursor <= last) {
+    const blockStart = new Date(cursor);
+    // 起算曜日の次の出現日の前日までが1ブロック（ブロック先頭が起算曜日なら7日後の前日）
+    const offset = (startDayOfWeek - blockStart.getDay() + 7) % 7 || 7;
+    const blockEnd = new Date(blockStart);
+    blockEnd.setDate(blockEnd.getDate() + offset - 1);
+
+    const clamped = blockEnd > last ? last : blockEnd;
+    const days = Math.round((clamped.getTime() - blockStart.getTime()) / 86400000) + 1;
+    blocks.push({
+      start: toDateString(blockStart),
+      end: toDateString(clamped),
+      isPartial: days < 7,
+    });
+
+    cursor.setDate(cursor.getDate() + offset);
+  }
+  return blocks;
 }
 
 /** 期間内の日付（"YYYY-MM-DD"）を開始日から終了日まで順に列挙する */

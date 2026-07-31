@@ -37,15 +37,21 @@ export async function GET(request: Request) {
   const bypassDailyQrCheck = features.clockMode === "free" && !requestedDeptId;
 
   // 日替わりQRが有効な部署は、当日分のトークンと一致しない限り打刻させない
+  // ※トークン自体が無い（QRを読まずに画面を開いた）場合はneedsGuidanceの案内に任せ、
+  //   ここでは「トークンはあるが本日分ではない」場合のみエラーにする
   const qrTokenError =
     !bypassDailyQrCheck &&
     department?.dailyQrEnabled &&
-    (!tokenParam || tokenParam !== dailyQrToken(department.id, todayString()))
+    tokenParam &&
+    tokenParam !== dailyQrToken(department.id, todayString())
       ? "このQRコードは本日分ではありません。店舗に表示されている最新のQRコードを読み取ってください"
       : null;
 
   // QR経由必須の設定（qrTap/qrScan）は、店舗QR（dept+kindが揃ったURL）からのアクセスのみ許可する
-  const needsGuidance = features.clockMode !== "free" && (!qrKind || !requestedDeptId);
+  // 日替わりQRが有効な部署は、free設定のスタッフでもトークンが無ければ同様に案内する
+  const needsGuidance =
+    (features.clockMode !== "free" && (!qrKind || !requestedDeptId)) ||
+    (!bypassDailyQrCheck && !!department?.dailyQrEnabled && !tokenParam);
 
   const body: ClockStatusResponse = {
     viewer: { id: viewer.id, name: viewer.name },

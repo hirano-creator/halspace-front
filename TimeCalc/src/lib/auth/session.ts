@@ -7,6 +7,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import type { Role } from "./roles";
 import { toRole } from "./roles";
+import { toHomeScreen, type HomeScreen } from "./features";
 
 const SESSION_DURATION_SEC = 60 * 60 * 12; // 12時間
 
@@ -23,6 +24,8 @@ export interface SessionUser {
   gpsCheckEnabled: boolean;
   /** true なら同じ会社の他スタッフの勤怠を閲覧・修正できる（ロールに依らず個別付与） */
   companyAttendance: boolean;
+  /** アプリを開いた直後に表示する画面 */
+  homeScreen: HomeScreen;
 }
 
 function getSecret(): Uint8Array {
@@ -43,6 +46,7 @@ export async function createSessionToken(user: SessionUser): Promise<string> {
     companyId: user.companyId,
     gpsCheckEnabled: user.gpsCheckEnabled,
     companyAttendance: user.companyAttendance,
+    homeScreen: user.homeScreen,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.id)
@@ -65,6 +69,7 @@ export async function verifySessionToken(token: string): Promise<SessionUser | n
       companyId: payload.companyId ? String(payload.companyId) : null,
       gpsCheckEnabled: payload.gpsCheckEnabled !== false,
       companyAttendance: payload.companyAttendance === true,
+      homeScreen: toHomeScreen(payload.homeScreen),
     };
   } catch {
     return null;

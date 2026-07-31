@@ -6,7 +6,16 @@ import { prisma } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth/api-guard";
 import { canEditOthersAttendance, canViewEmployee } from "@/lib/auth/guard";
 import { toRole } from "@/lib/auth/roles";
-import { calcDaily, calcDailyPay, formatYen, summarize } from "@/lib/attendance/calculator";
+import {
+  calcDaily,
+  calcDailyPay,
+  calcWeekly,
+  calcWeeklyPay,
+  formatYen,
+  summarize,
+  summarizeWeeks,
+} from "@/lib/attendance/calculator";
+import type { DailyCalcResult } from "@/lib/attendance/types";
 import {
   deriveDailyFromEvents,
   fixedBreakMinutesFor,
@@ -106,6 +115,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const rows: DailyRow[] = [];
   const calcResults = [];
+  // 週別集計用（日付つきで持つ）。週単位管理でない会社では使わない
+  const dailyCalcs: { date: string; calc: DailyCalcResult }[] = [];
   const payTotal = { basePay: 0, premiumPay: 0, totalPay: 0 };
   const monthTotal = { workMinutes: 0, earlyOvertimeMinutes: 0, overtimeMinutes: 0 };
 
@@ -121,7 +132,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       : null;
     const pay = calc ? calcDailyPay(calc, employee.hourlyWage, rules) : null;
     const ok = calc && !calc.error;
-    if (calc) calcResults.push(calc);
+    if (calc) {
+      calcResults.push(calc);
+      dailyCalcs.push({ date, calc });
+    }
     if (pay && ok) {
       payTotal.basePay += pay.basePay;
       payTotal.premiumPay += pay.premiumPay;
@@ -139,6 +153,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const dayEvents = eventsByDate.get(date) ?? [];
     const derived = record ? null : deriveDailyFromEvents(dayEvents);
     const isOpen = !record && derived?.status === "open" && date < today;
+    // 出勤打刻済みで退勤前（勤務中・外出中）の日
+    const isClockedIn = !record && derived?.status === "open";
+
+    // deriveAndSaveAttendance は退勤するまで Attendance を作らないため、
+    // record だけを見ていると出勤直後の行が丸ごと空になり、管理者から打刻が見えない。
+    // 実出勤・実退勤は Attendance が未確定でも打刻ログ（ClockEvent）から補完する。
+    const actualClockInLabel = record
+      ? (record.clockIn ?? "-")
+      : derived?.status === "open"
+        ? derived.clockInSoFar
+        : derived?.status === "closed"
+          ? derived.clockIn
+          : "-";
+    const actualClockOutLabel = record
+      ? (record.clockOut ?? "-")
+      : derived?.status === "closed"
+        ? derived.clockOut
+        : "-";
 
     let outingStartLabel: string;
     let outingEndLabel: string;
@@ -188,6 +220,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       clockOut: record ? (record.clockOut ?? "") : "17:00",
       breakMinutes: record?.breakMinutes ?? 60,
       note: record?.note ?? null,
+      actualClockInLabel,
+      actualClockOutLabel,
       roundedClockInLabel: record ? (ok ? calc.roundedClockIn : "-") : "-",
       roundedClockOutLabel: record ? (ok ? calc.roundedClockOut : "-") : "-",
       outingStartLabel,
@@ -204,6 +238,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       lateReason: record?.lateReason ?? null,
       earlyLeaveReason: record?.earlyLeaveReason ?? null,
       isOpen,
+      isClockedIn,
       isToday: date === today,
       hasPendingRequest: pendingDates.has(date),
       baseAmountLabel: pay && ok ? formatYen(pay.basePay) : "-",
@@ -215,6 +250,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const summary = summarize(calcResults);
   const [year, monthNum] = month.split("-").map(Number);
+
+  // 週単位管理の会社は、週ごとに「所定内 / 36H超44H以内 / 44H超」を出す。
+  // 日次では残業を0にしているため、割増は週合計から計算して支給額に足す。
+  const weeks = rules.weekly.enabled ? calcWeekly(dailyCalcs, period, rules) : [];
+  const weeklyTotals = weeks.length > 0 ? summarizeWeeks(weeks) : null;
+  if (weeklyTotals) {
+    const weeklyPay = calcWeeklyPay(weeklyTotals, employee.hourlyWage, rules);
+    payTotal.premiumPay += weeklyPay.premiumPay;
+    payTotal.totalPay += weeklyPay.premiumPay;
+  }
 
   const logRows: AttendanceLogRow[] = logs.map((log) => ({
     id: log.id,
@@ -255,6 +300,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     },
     monthTotal,
     payTotal,
+    weeklyEnabled: rules.weekly.enabled,
+    weeks,
+    weeklyTotals,
     logs: logRows,
   };
 

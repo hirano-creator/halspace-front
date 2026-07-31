@@ -33,6 +33,14 @@ export async function saveRoleLabelsAction(
   return postForm("/api/settings/role-labels", formData);
 }
 
+/** 社員番号の採番ルール（会社ごとの接頭辞・桁数）を保存する */
+export async function saveCodeRuleAction(
+  _prev: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  return postForm("/api/settings/code-rule", formData);
+}
+
 export async function saveDisplaySettingsAction(
   _prev: SettingsFormState,
   formData: FormData,

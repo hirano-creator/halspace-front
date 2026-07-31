@@ -3,7 +3,7 @@
 // マイページの日別勤怠テーブル
 // 遅刻・早退・未退勤のバッジ表示と、修正申請（または本人直接修正）・理由記入の入口を兼ねる。
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { Fragment, useActionState, useEffect, useRef, useState } from "react";
 import {
   createCorrectionAction,
   saveMyReasonAction,
@@ -12,6 +12,8 @@ import {
 import type { MyActionState } from "./types";
 import type { SelfEditMode } from "@/lib/auth/features";
 import { Badge, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "@/components/ui";
+import { WeekSubtotalRow, groupRowsByWeek } from "@/components/weekly-summary";
+import type { WeeklyBucket } from "@/lib/attendance/types";
 
 // ヘッダー共通クラス。text-align はデフォルトの左寄せに任せ、中央/右寄せにしたい
 // 列だけ text-center / text-right を個別に足す（ここに text-left を入れると
@@ -257,14 +259,22 @@ function RowDetailForm({
 export function MyAttendanceTable({
   rows,
   selfEditMode,
+  weeks = [],
   onSaved,
 }: {
   rows: MyDailyRow[];
   selfEditMode: SelfEditMode;
+  /**
+   * 週別集計。週単位管理の会社に所属している場合のみ渡される。
+   * 社員詳細と同じく、日別行の間に週の小計行が挟まる。
+   */
+  weeks?: WeeklyBucket[];
   /** 保存・申請成功後に呼ぶ（一覧の再取得トリガー用） */
   onSaved?: () => void;
 }) {
   const [openDate, setOpenDate] = useState<string | null>(null);
+  const weekly = weeks.length > 0;
+  const { groups, ungrouped } = groupRowsByWeek(rows, weeks);
 
   return (
     <table className="w-full min-w-[960px] table-fixed text-sm">
@@ -296,14 +306,27 @@ export function MyAttendanceTable({
           <th className={`${th} text-right`}>実外出</th>
           <th className={`${th} text-right`}>控除外出</th>
           <th className={`${th} text-right`}>勤務時間</th>
-          <th className={`${th} text-right`}>早出残業</th>
-          <th className={`${th} text-right`}>残業</th>
+          <th className={`${th} text-right`}>{weekly ? "36H超44H以内" : "早出残業"}</th>
+          <th className={`${th} text-right`}>{weekly ? "44H超" : "残業"}</th>
           <th className={`${th} text-center`}>備考</th>
           <th className={`${th} text-center`}>操作</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-border">
-        {rows.map((row) => (
+        {weekly &&
+          groups.map((group) => (
+            <Fragment key={group.week.start}>
+              <WeekSubtotalRow week={group.week} showMoney={false} />
+              {group.rows.map(renderRow)}
+            </Fragment>
+          ))}
+        {(weekly ? ungrouped : rows).map(renderRow)}
+      </tbody>
+    </table>
+  );
+
+  function renderRow(row: MyDailyRow) {
+    return (
           <tr
             key={row.date}
             className={row.isWeekend ? "bg-gray-50/60" : "transition hover:bg-gray-50/60"}
@@ -345,19 +368,22 @@ export function MyAttendanceTable({
                     row.workLabel
                   )}
                 </td>
+                {/* 週単位管理では残業の区分が週行にしかないため、日別行は空欄にする */}
                 <td
                   className={`${td} text-right ${
-                    row.earlyOvertimeMinutes > 0 ? "font-medium text-amber-600" : "text-muted"
+                    !weekly && row.earlyOvertimeMinutes > 0
+                      ? "font-medium text-amber-600"
+                      : "text-muted"
                   }`}
                 >
-                  {row.earlyOvertimeLabel}
+                  {weekly ? "" : row.earlyOvertimeLabel}
                 </td>
                 <td
                   className={`${td} text-right ${
-                    row.overtimeMinutes > 0 ? "font-medium text-amber-600" : "text-muted"
+                    !weekly && row.overtimeMinutes > 0 ? "font-medium text-amber-600" : "text-muted"
                   }`}
                 >
-                  {row.overtimeLabel}
+                  {weekly ? "" : row.overtimeLabel}
                 </td>
                 <td className={`${td} max-w-56 whitespace-normal text-center text-xs text-muted`}>
                   <span className="flex flex-wrap items-center justify-center gap-1">
@@ -388,8 +414,6 @@ export function MyAttendanceTable({
               </>
             )}
           </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+    );
+  }
 }

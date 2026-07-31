@@ -7,7 +7,6 @@ import type { ClockMode } from "@/lib/auth/features";
 import { distanceMeters } from "@/lib/geo";
 import { todayString, timeToMinutes } from "@/lib/utils/time";
 import { dailyQrToken } from "@/lib/qr";
-import { seasonOf } from "@/lib/attendance/calculator";
 import { getWorkRules } from "@/lib/settings";
 
 /**
@@ -36,7 +35,13 @@ export async function resolveClockDepartment(
   // 日替わりQRが有効な部署は、フォーム送信時にも当日分のトークンを再検証する
   // （クライアント側の表示チェックだけでは、URLを保存して翌日以降に直接送信されると素通りしてしまうため）
   if (!bypassDailyQrCheck && department?.dailyQrEnabled) {
-    if (!token || token !== dailyQrToken(department.id, todayString())) {
+    if (!token) {
+      return {
+        ok: false,
+        error: "店舗の「出勤・退勤」または「外出・戻り」QRコードを読み取ってください",
+      };
+    }
+    if (token !== dailyQrToken(department.id, todayString())) {
       return {
         ok: false,
         error:
@@ -89,7 +94,7 @@ export async function calcLateMinutes(
   if (todayInCount !== 1) return 0;
   // 遅刻判定は打刻先部署（QR経由なら店舗、それ以外は所属部署）の会社の勤務ルールで行う
   const rules = await getWorkRules(department?.companyId ?? null);
-  const workStart = timeToMinutes(rules[seasonOf(date, rules)].workStart);
+  const workStart = timeToMinutes(rules.workStart);
   const now = timeToMinutes(time);
   return workStart !== null && now !== null ? Math.max(0, now - workStart) : 0;
 }

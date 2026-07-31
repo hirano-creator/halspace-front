@@ -6,11 +6,13 @@ import { getAllWorkRules, workRulesFor, type CompanyWorkRules } from "@/lib/sett
 import { attendanceScope } from "@/lib/auth/guard";
 import { periodRange } from "@/lib/utils/time";
 import type { SessionUser } from "@/lib/auth/session";
-import { calcDaily, calcDailyPay, summarize } from "./calculator";
+import { calcDaily, calcDailyPay, calcWeekly, calcWeeklyPay, summarize, summarizeWeeks } from "./calculator";
 import type {
   DailyCalcResult,
   DailyPay,
   MonthlySummary,
+  WeeklyBucket,
+  WeeklyTotals,
   WorkRuleSettings,
 } from "./types";
 import type { Prisma } from "@/generated/prisma/client";
@@ -38,6 +40,8 @@ export interface AttendanceWithCalc {
   userName: string;
   employeeCode: string;
   departmentName: string | null;
+  /** 所属会社（週次集計で会社ごとのルールを引き直すために持つ） */
+  companyId: string | null;
   date: string;
   clockIn: string | null;
   clockOut: string | null;
@@ -58,8 +62,16 @@ export interface EmployeeMonthlySummary {
   departmentName: string | null;
   hourlyWage: number;
   summary: MonthlySummary;
-  /** 月次金額（日額の合計） */
+  /** 月次金額（日額の合計）。週次管理の社員は割増分が weeklyPremiumPay 側に入る */
   pay: DailyPay;
+  /** 所属会社が週単位管理かどうか */
+  weeklyEnabled: boolean;
+  /** 週別集計（週単位管理でない社員は空配列） */
+  weeks: WeeklyBucket[];
+  /** 週別集計の月度合計（週単位管理でない社員は null） */
+  weeklyTotals: WeeklyTotals | null;
+  /** 週単位管理での割増額（週単位管理でない社員は0） */
+  weeklyPremiumPay: number;
 }
 
 /**
@@ -142,6 +154,7 @@ export async function getMonthlyAttendance(
       userName: r.user.name,
       employeeCode: r.user.employeeCode,
       departmentName: r.user.department?.name ?? null,
+      companyId,
       date: r.date,
       clockIn: r.clockIn,
       clockOut: r.clockOut,
@@ -158,28 +171,37 @@ export async function getMonthlyAttendance(
   return { rows, rules, period };
 }
 
-/** 指定月の社員別月次集計を取得する */
+/**
+ * 指定月の社員別月次集計を取得する。
+ * 週単位管理の会社に属する社員には、所属会社のルールと締め期間で計算した
+ * 週別集計（36H超44H以内 / 44H超）を付ける。
+ */
 export async function getMonthlySummaries(
   viewer: SessionUser,
   yearMonth: string,
   filter?: { departmentId?: string; companyId?: string; query?: string },
   knownRules?: CompanyWorkRules,
 ): Promise<EmployeeMonthlySummary[]> {
-  const { rows } = await getMonthlyAttendance(viewer, yearMonth, filter, knownRules);
+  const allRules = knownRules ?? (await getAllWorkRules());
+  const { rows } = await getMonthlyAttendance(viewer, yearMonth, filter, allRules);
 
   const byUser = new Map<
     string,
-    { meta: AttendanceWithCalc; calcs: DailyCalcResult[]; pay: DailyPay }
+    { meta: AttendanceWithCalc; days: { date: string; calc: DailyCalcResult }[]; pay: DailyPay }
   >();
   for (const row of rows) {
     const entry =
       byUser.get(row.userId) ??
       ({
         meta: row,
-        calcs: [],
+        days: [],
         pay: { normalPay: 0, earlyPay: 0, overtimePay: 0, totalPay: 0, basePay: 0, premiumPay: 0 },
-      } as { meta: AttendanceWithCalc; calcs: DailyCalcResult[]; pay: DailyPay });
-    entry.calcs.push(row.calc);
+      } as {
+        meta: AttendanceWithCalc;
+        days: { date: string; calc: DailyCalcResult }[];
+        pay: DailyPay;
+      });
+    entry.days.push({ date: row.date, calc: row.calc });
     entry.pay.normalPay += row.pay.normalPay;
     entry.pay.earlyPay += row.pay.earlyPay;
     entry.pay.overtimePay += row.pay.overtimePay;
@@ -190,14 +212,34 @@ export async function getMonthlySummaries(
   }
 
   return [...byUser.values()]
-    .map(({ meta, calcs, pay }) => ({
-      userId: meta.userId,
-      employeeCode: meta.employeeCode,
-      userName: meta.userName,
-      departmentName: meta.departmentName,
-      hourlyWage: meta.hourlyWage,
-      summary: summarize(calcs),
-      pay,
-    }))
+    .map(({ meta, days, pay }) => {
+      const userRules = workRulesFor(allRules, meta.companyId);
+      const weeks = userRules.weekly.enabled
+        ? calcWeekly(days, periodRange(yearMonth, userRules.closingDay), userRules)
+        : [];
+      const weeklyTotals = weeks.length > 0 ? summarizeWeeks(weeks) : null;
+      // 週次モードでは日次の割増が0になるため、割増は週合計から計算して支給額に足す
+      const weeklyPremiumPay = weeklyTotals
+        ? calcWeeklyPay(weeklyTotals, meta.hourlyWage, userRules).premiumPay
+        : 0;
+
+      return {
+        userId: meta.userId,
+        employeeCode: meta.employeeCode,
+        userName: meta.userName,
+        departmentName: meta.departmentName,
+        hourlyWage: meta.hourlyWage,
+        summary: summarize(days.map((d) => d.calc)),
+        pay: {
+          ...pay,
+          premiumPay: pay.premiumPay + weeklyPremiumPay,
+          totalPay: pay.totalPay + weeklyPremiumPay,
+        },
+        weeklyEnabled: userRules.weekly.enabled,
+        weeks,
+        weeklyTotals,
+        weeklyPremiumPay,
+      };
+    })
     .sort((a, b) => a.employeeCode.localeCompare(b.employeeCode));
 }
