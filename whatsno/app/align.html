@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1E3A5F">
+  <title>並べて表示 | What'sNo</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/wn-app.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { background: var(--bg); }
+
+    .align-wrap { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* トップバー */
+    .align-topbar {
+      height: 52px; background: var(--white); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 16px; gap: 12px; flex-shrink: 0; z-index: 10;
+    }
+    .align-topbar-back {
+      color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 6px;
+      text-decoration: none; white-space: nowrap;
+    }
+    .align-topbar-back:hover { color: var(--primary); }
+    .align-topbar-title { font-size: 14px; font-weight: 700; color: var(--primary); flex: 1; }
+    .align-topbar-hint { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+    /* 本体グリッド */
+    .align-body { flex: 1; overflow: auto; padding: 12px; }
+    .align-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 12px; align-items: stretch;
+    }
+
+    .align-panel {
+      background: var(--white); border: 1px solid var(--border); border-radius: 8px;
+      display: flex; flex-direction: column; height: 58vh; min-height: 320px;
+      overflow: hidden;
+    }
+    .align-panel-label {
+      flex-shrink: 0; height: 44px; padding: 0 10px; display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid var(--border); background: rgba(21,101,192,.05);
+    }
+    .align-badge {
+      flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
+      background: var(--primary); color: #fff; font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .align-panel-name {
+      flex: 1; min-width: 0; font-size: 12px; font-weight: 700; color: var(--text);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .align-panel-link {
+      flex-shrink: 0; color: var(--muted); font-size: 12px; text-decoration: none;
+      width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    }
+    .align-panel-link:hover { color: var(--primary); background: rgba(21,101,192,.1); }
+
+    .align-panel-body {
+      flex: 1; overflow: auto; position: relative;
+      display: flex; align-items: flex-start; justify-content: center;
+      padding: 10px; background: var(--bg);
+    }
+    .align-panel-body.align-pannable { touch-action: none; overscroll-behavior: contain; }
+    .align-panel-body.zoomed { align-items: flex-start; justify-content: flex-start; }
+
+    .align-content { max-width: 100%; border-radius: 6px; background: #fff; display: block; margin: auto; }
+    .align-dxf-wrap { width: 100%; height: 100%; }
+    .align-dxf-wrap canvas { display: block; }
+
+    .align-page-badge {
+      position: absolute; left: 8px; bottom: 8px;
+      background: rgba(0,0,0,.65); color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 10px;
+    }
+    .align-thumb-note {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,.55); color: #fff; font-size: 11px; padding: 4px 10px; text-align: center;
+    }
+
+    .align-panel-spin, .align-panel-error, .align-panel-noPreview {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 10px; color: var(--muted); width: 100%; height: 100%; text-align: center; padding: 20px;
+      font-size: 12px;
+    }
+    .align-panel-spin i, .align-panel-noPreview i { font-size: 32px; opacity: .5; }
+    .align-panel-error i { font-size: 28px; color: #C62828; opacity: .8; }
+
+    /* エラー(全体) */
+    .align-error {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px; color: var(--muted);
+      background: var(--bg);
+    }
+    .align-error i { font-size: 48px; opacity: .4; }
+
+    @media (max-width: 640px) {
+      .align-grid { grid-template-columns: 1fr; }
+      .align-panel { height: 50vh; }
+      .align-topbar-hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="align-wrap">
+
+  <!-- トップバー -->
+  <div class="align-topbar">
+    <a href="dashboard.html" class="align-topbar-back">
+      <i class="fa-solid fa-chevron-left"></i> 一覧に戻る
+    </a>
+    <div class="align-topbar-title" id="alignTitle">並べて表示</div>
+    <div class="align-topbar-hint">Ctrl/Cmdキー + ホイールで拡大・ドラッグでパン</div>
+  </div>
+
+  <!-- 本体 -->
+  <div class="align-body" id="alignBody">
+    <div class="align-grid" id="alignGrid"></div>
+  </div>
+
+</div>
+
+<!-- toast -->
+<div id="toastContainer" style="position:fixed;bottom:24px;right:24px;z-index:99999;display:flex;flex-direction:column;gap:8px;"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="../../solid/assets/js/auth.js"></script>
+<script src="../assets/js/wn-api.js"></script>
+<script src="../assets/js/wn-dxf-viewer.js"></script>
+<script>
+'use strict';
+
+const alignIds = (new URLSearchParams(location.search).get('ids') || '')
+  .split(',').map(s => s.trim()).filter(Boolean);
+
+const ALIGN_IMG_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+const extOf = f => (f?.file_name ?? '').split('.').pop().toLowerCase();
+
+/* 安全網: 予期しない例外でページ全体が沈黙状態にならないようにする */
+window.addEventListener('error', e => console.error(e.error || e.message));
+window.addEventListener('unhandledrejection', e => console.error(e.reason));
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (alignIds.length < 2) { showAlignFatal('並べて表示するファイルが指定されていません'); return; }
+  requireSpaceAuth();
+
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  document.getElementById('alignTitle').textContent = `並べて表示（${alignIds.length}件）`;
+
+  const grid = document.getElementById('alignGrid');
+  grid.innerHTML = alignIds.map((id, i) => panelSkeletonHtml(id, i)).join('');
+
+  /* 各パネルは独立して読み込み・描画する（1件失敗しても他は表示され続ける） */
+  alignIds.forEach((id, i) => loadAndRenderPanel(id, i));
+});
+
+function panelSkeletonHtml(id, i) {
+  return `
+  <div class="align-panel" id="alignPanel-${id}">
+    <div class="align-panel-label">
+      <span class="align-badge">${i + 1}</span>
+      <span class="align-panel-name" id="alignName-${id}">読み込み中…</span>
+      <a href="file-detail.html?id=${encodeURIComponent(id)}" target="_blank" rel="noopener"
+         class="align-panel-link" title="詳細を開く（新しいタブ）">
+        <i class="fa-solid fa-up-right-from-square"></i>
+      </a>
+    </div>
+    <div class="align-panel-body" id="alignBody-${id}">
+      <div class="align-panel-spin"><i class="fa-solid fa-spinner fa-spin"></i><span>読み込み中…</span></div>
+    </div>
+  </div>`;
+}
+
+async function loadAndRenderPanel(id, i) {
+  const nameEl = document.getElementById(`alignName-${id}`);
+  const bodyEl = document.getElementById(`alignBody-${id}`);
+  if (!nameEl || !bodyEl) return;
+  try {
+    const res = await wnFetch(`/wn/files/${id}`);
+    if (!res || !res.ok) throw new Error('ファイル情報の取得に失敗しました');
+    const file = (await res.json()).data;
+    if (!file) throw new Error('ファイルが見つかりません');
+
+    nameEl.textContent = file.file_name;
+    nameEl.title = file.file_name;
+
+    await renderPanelContent(file, bodyEl);
+  } catch (err) {
+    console.error(err);
+    bodyEl.innerHTML = `
+      <div class="align-panel-error">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>${h(err.message || '読み込みに失敗しました')}</span>
+      </div>`;
+  }
+}
+
+async function renderPanelContent(file, bodyEl) {
+  const ext = extOf(file);
+  bodyEl.innerHTML = '';
+
+  if (ext === 'pdf') {
+    if (typeof pdfjsLib === 'undefined') throw new Error('PDF表示ライブラリの読み込みに失敗しました');
+    const url = await wnGetViewUrl(file.id);
+    if (!url) throw new Error('ファイルのURL取得に失敗しました');
+    const doc = await pdfjsLib.getDocument(url).promise;
+    const page = await doc.getPage(1);
+    const vp = page.getViewport({ scale: 1.4 });
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width;
+    canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    canvas.className = 'align-content';
+    bodyEl.appendChild(canvas);
+    if (doc.numPages > 1) {
+      const badge = document.createElement('div');
+      badge.className = 'align-page-badge';
+      badge.textContent = `1 / ${doc.numPages} ページ`;
+      bodyEl.appendChild(badge);
+    }
+    initAlignZoomPan(bodyEl, canvas);
+
+  } else if (ALIGN_IMG_EXTS.includes(ext)) {
+    const buf = await wnFetchFileBuffer(file.id);
+    if (!buf) throw new Error('画像の取得に失敗しました');
+    const blobUrl = URL.createObjectURL(new Blob([buf]));
+    const img = document.createElement('img');
+    img.className = 'align-content';
+    img.alt = '';
+    await new Promise((resolve, reject) => {
+      img.onload  = resolve;
+      img.onerror = () => reject(new Error('画像の表示に失敗しました'));
+      img.src = blobUrl;
+    });
+    bodyEl.appendChild(img);
+    initAlignZoomPan(bodyEl, img);
+
+  } else if (ext === 'dxf') {
+    if (typeof wnRenderDxf !== 'function' || typeof THREE === 'undefined') {
+      throw new Error('DXF表示ライブラリの読み込みに失敗しました');
+    }
+    const text = await fetchDxfText(file.id);
+    if (!text) throw new Error('DXFの取得に失敗しました');
+    const dxfWrap = document.createElement('div');
+    dxfWrap.className = 'align-dxf-wrap';
+    bodyEl.appendChild(dxfWrap);
+    /* wnRenderDxf は内部で独自にホイールズーム/ドラッグパンを備えている */
+    wnRenderDxf(dxfWrap, text);
+
+  } else {
+    /* Office文書・その他: サーバー生成サムネイルにフォールバック */
+    const thumbUrl = wnThumbUrl(file.id, file.updated_at ?? file.created_at);
+    const img = document.createElement('img');
+    img.className = 'align-content';
+    img.alt = '';
+    const ok = await new Promise(resolve => {
+      img.onload  = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = thumbUrl;
+    });
+    if (!ok) {
+      const { icon, cls } = (typeof wnFileIcon === 'function')
+        ? wnFileIcon(file.file_name, file.mime_type) : { icon: 'fa-file', cls: '' };
+      bodyEl.innerHTML = `
+        <div class="align-panel-noPreview">
+          <i class="fa-solid ${icon} ${cls}"></i>
+          <span>プレビュー非対応の形式です</span>
+        </div>`;
+      return;
+    }
+    bodyEl.appendChild(img);
+    initAlignZoomPan(bodyEl, img);
+    const note = document.createElement('div');
+    note.className = 'align-thumb-note';
+    note.textContent = 'サムネイル表示（詳細を開くと本体を確認できます）';
+    bodyEl.appendChild(note);
+  }
+}
+
+async function fetchDxfText(fileId) {
+  const token = sessionStorage.getItem('space_token');
+  const url = WN_API_BASE + `/wn/files/${fileId}/public-view` + (token ? `?token=${encodeURIComponent(token)}` : '');
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return await res.text();
+  } catch { return null; }
+}
+
+/* ── パネル単位のズーム・パン ──
+   diff.html の cmp-zoom と同様の考え方だが、パネルごとに独立して倍率を持つ。
+   PDF/画像は Ctrl/Cmd+ホイールまたはピンチで拡大、1本指ドラッグでパン。 */
+function initAlignZoomPan(wrap, el) {
+  let zoom = 1;
+  let baseW = 0;
+  const ZOOM_MIN = 1, ZOOM_MAX = 6;
+
+  requestAnimationFrame(() => {
+    el.style.maxWidth = '100%';
+    baseW = el.getBoundingClientRect().width || el.width || 0;
+  });
+
+  function apply() {
+    if (!baseW) return;
+    if (zoom <= 1) { el.style.width = ''; el.style.maxWidth = '100%'; }
+    else { el.style.width = Math.round(baseW * zoom) + 'px'; el.style.maxWidth = 'none'; }
+    wrap.classList.toggle('zoomed', zoom > 1);
+  }
+
+  function setZoom(nz, cx, cy) {
+    nz = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, nz));
+    if (Math.abs(nz - zoom) < 0.005) return;
+    const px = cx ?? wrap.clientWidth  / 2;
+    const py = cy ?? wrap.clientHeight / 2;
+    const fx = (wrap.scrollLeft + px) / Math.max(1, wrap.scrollWidth);
+    const fy = (wrap.scrollTop  + py) / Math.max(1, wrap.scrollHeight);
+    zoom = nz;
+    apply();
+    wrap.scrollLeft = fx * wrap.scrollWidth  - px;
+    wrap.scrollTop  = fy * wrap.scrollHeight - py;
+  }
+
+  wrap.addEventListener('wheel', e => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const r = wrap.getBoundingClientRect();
+    setZoom(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+
+  wrap.addEventListener('dblclick', e => {
+    const r = wrap.getBoundingClientRect();
+    setZoom(zoom > 1 ? 1 : 2, e.clientX - r.left, e.clientY - r.top);
+  });
+
+  wrap.classList.add('align-pannable');
+  const ptrs = new Map();
+  let panning = false, panPtrId = null, startX = 0, startY = 0, startL = 0, startT = 0;
+  let pinching = false, pinchStartDist = 0, pinchStartZoom = 1;
+
+  wrap.addEventListener('pointerdown', e => {
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (ptrs.size >= 2) {
+      if (panning) {
+        panning = false;
+        try { wrap.releasePointerCapture(panPtrId); } catch (_) {}
+        panPtrId = null;
+        wrap.style.cursor = '';
+      }
+      if (ptrs.size === 2) {
+        pinching = true;
+        const [a, b] = [...ptrs.values()];
+        pinchStartDist = Math.hypot(a.x - b.x, a.y - b.y);
+        pinchStartZoom = zoom;
+      }
+      return;
+    }
+
+    if (e.button !== 0) return;
+    const pannable = wrap.scrollWidth > wrap.clientWidth || wrap.scrollHeight > wrap.clientHeight;
+    if (!pannable) return;
+    e.preventDefault();
+    panning  = true;
+    panPtrId = e.pointerId;
+    startX = e.clientX; startY = e.clientY;
+    startL = wrap.scrollLeft; startT = wrap.scrollTop;
+    wrap.setPointerCapture(e.pointerId);
+    wrap.style.cursor = 'grabbing';
+  });
+
+  wrap.addEventListener('pointermove', e => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pinching && ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinchStartDist > 0) setZoom(pinchStartZoom * (dist / pinchStartDist));
+      return;
+    }
+
+    if (!panning) return;
+    wrap.scrollLeft = startL - (e.clientX - startX);
+    wrap.scrollTop  = startT - (e.clientY - startY);
+  });
+
+  const endPan = e => {
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinching = false;
+    if (!panning || e.pointerId !== panPtrId) return;
+    panning  = false;
+    panPtrId = null;
+    try { wrap.releasePointerCapture(e.pointerId); } catch (_) {}
+    wrap.style.cursor = '';
+  };
+  wrap.addEventListener('pointerup', endPan);
+  wrap.addEventListener('pointercancel', endPan);
+}
+
+function showAlignFatal(msg) {
+  const body = document.getElementById('alignBody');
+  if (!body) return;
+  body.innerHTML = `
+    <div class="align-error">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <p style="font-size:14px;max-width:80%;text-align:center;">${h(msg)}</p>
+      <a href="dashboard.html" class="btn btn-outline btn-sm">一覧に戻る</a>
+    </div>`;
+}
+
+function h(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+<script src="../assets/js/pwa.js"></script>
+</body>
+</html>
