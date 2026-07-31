@@ -3683,6 +3683,11 @@ function initMergeSelect() {
     // 選択順を保持: 1番目=A、2番目=B
     location.href = `diff.html?a=${encodeURIComponent(selectedIds[0])}&b=${encodeURIComponent(selectedIds[1])}&type=files`;
   });
+  document.getElementById('alignSelBtn')?.addEventListener('click', () => {
+    if (selectedIds.length < 2) return;
+    // 選択順を保持したままカンマ区切りで渡す（比較と違い種別混在・3件以上もOK）
+    location.href = `align.html?ids=${selectedIds.map(encodeURIComponent).join(',')}`;
+  });
 }
 
 function toggleSelectMode() {
@@ -3747,6 +3752,9 @@ function updateMergeActionBar() {
     cmpBtn.disabled = !comparable;
     cmpBtn.title    = comparable ? '' : 'PDF/画像同士、またはDXF同士を2つ選択すると比較できます';
   }
+  // 並べるは種別を問わず2件以上あれば有効
+  const alignBtn = document.getElementById('alignSelBtn');
+  if (alignBtn) alignBtn.disabled = selectedIds.length < 2;
 
   // ファイル選択中はスキル入力モードとしてプレースホルダーを切り替え
   const si = document.getElementById('searchInput');
