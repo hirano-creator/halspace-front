@@ -30,17 +30,19 @@
     .align-topbar-title { font-size: 14px; font-weight: 700; color: var(--primary); flex: 1; }
     .align-topbar-hint { font-size: 11px; color: var(--muted); white-space: nowrap; }
 
-    /* 本体: masonry(タイル状)グリッド。列数はcolumn-countで指定し、幅に応じて段階的に減らす */
+    /* 本体グリッド: auto-fitで「実際に使うトラックだけ」を画面幅いっぱいに引き伸ばす。
+       column-count(masonry)は件数に関わらず固定本数のトラックを確保してしまい、
+       件数が少ないと右側が空白のまま残る／画像が常に狭い幅に収まる問題があったため、
+       件数に応じて自然にフィットするCSS Gridに変更した。 */
     .align-body { flex: 1; overflow: auto; padding: 14px; }
-    .align-grid { column-count: 8; column-gap: 12px; }
-    @media (max-width: 1700px) { .align-grid { column-count: 6; } }
-    @media (max-width: 1300px) { .align-grid { column-count: 5; } }
-    @media (max-width: 1000px) { .align-grid { column-count: 4; } }
-    @media (max-width: 760px)  { .align-grid { column-count: 3; } }
-    @media (max-width: 560px)  { .align-grid { column-count: 2; } .align-topbar-hint { display: none; } }
+    .align-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px; align-items: start;
+    }
+    @media (max-width: 560px) { .align-topbar-hint { display: none; } }
 
     .align-card {
-      display: block; break-inside: avoid; margin: 0 0 12px;
+      display: block;
       background: var(--white); border: 1px solid var(--border); border-radius: 8px;
       overflow: hidden; cursor: pointer; text-decoration: none; color: inherit;
       transition: box-shadow .15s;

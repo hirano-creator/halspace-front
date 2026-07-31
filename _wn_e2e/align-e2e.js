@@ -149,8 +149,10 @@ EOF
 
     await page.waitForFunction(() => document.querySelectorAll('.align-thumb-wrap img').length === 8, { timeout: 15000 });
 
-    const colCount = await page.evaluate(() => getComputedStyle(document.getElementById('alignGrid')).columnCount);
-    check('広い画面(1920px)でグリッドが8列', colCount === '8', 'columnCount=' + colCount);
+    const colTrackCount = await page.evaluate(() =>
+      getComputedStyle(document.getElementById('alignGrid')).gridTemplateColumns.split(' ').length);
+    check('広い画面(1920px)で8件が7〜8列程度に収まる(auto-fitで実トラック数のみ確保)',
+      colTrackCount >= 7 && colTrackCount <= 9, 'tracks=' + colTrackCount);
 
     const cardCount = await page.evaluate(() => document.querySelectorAll('.align-card').length);
     check('カード数がids数と一致(8)', cardCount === 8, 'count=' + cardCount);
@@ -162,7 +164,43 @@ EOF
     await page.close();
   }
 
-  /* ════ 3. align.html: レスポンシブ(狭い画面で列数が減る) ════ */
+  /* ════ 3. align.html: 少件数(4件)でも画面幅いっぱいに引き伸ばされる(実バグの再発防止)
+     報告されたバグ: column-count方式だと件数に関わらず固定8トラックを確保するため、
+     4件では左側だけ埋まり右半分が空白のまま・画像もサムネイル並みに小さいままだった。 */
+  {
+    const page = await ctx.newPage();
+    page.on('pageerror', e => console.log('PAGE ERROR(align-fullwidth):', e.message));
+    await page.route('**/api/wn/**', r => r.fulfill({ json: { data: [] } }));
+    for (const id of [1, 2, 3, 4]) {
+      await page.route(`**/api/wn/files/${id}`, r => r.fulfill({ json: { data: { id, file_name: `写真${id}.png`, mime_type: 'image/png', updated_at: '2026-07-01T00:00:00Z' } } }));
+      await page.route(`**/api/wn/files/${id}/thumb*`, r => r.fulfill({ contentType: 'image/png', body: thumbBufs[id] }));
+    }
+    await page.goto(`${BASE}/app/align.html?ids=1,2,3,4`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelectorAll('.align-thumb-wrap img').length === 4, { timeout: 15000 });
+    await page.waitForTimeout(200);
+
+    const fit = await page.evaluate(() => {
+      const grid = document.getElementById('alignGrid');
+      const cards = [...document.querySelectorAll('.align-card')];
+      const gridRect = grid.getBoundingClientRect();
+      const lastRect = cards[cards.length - 1].getBoundingClientRect();
+      const firstW = cards[0].getBoundingClientRect().width;
+      return {
+        gridRight: gridRect.right,
+        lastCardRight: lastRect.right,
+        cardWidth: Math.round(firstW),
+      };
+    });
+    check('4件を1920px幅で表示: 最後のカードが画面右端付近まで届く(右半分が空白のまま残らない)',
+      Math.abs(fit.gridRight - fit.lastCardRight) < 5, JSON.stringify(fit));
+    check('4件を1920px幅で表示: カード幅が旧サムネイル幅(約224px)より大幅に大きい(実画像サイズに近い)',
+      fit.cardWidth > 400, 'cardWidth=' + fit.cardWidth);
+
+    await page.screenshot({ path: path.join(SHOTS, 'align-grid-4col-fullwidth.png') });
+    await page.close();
+  }
+
+  /* ════ 4. align.html: レスポンシブ(狭い画面では列数が自然に減る) ════ */
   {
     const page = await ctx.newPage();
     await page.setViewportSize({ width: 900, height: 800 });
@@ -172,9 +210,12 @@ EOF
       await page.route(`**/api/wn/files/${id}/thumb*`, r => r.fulfill({ contentType: 'image/png', body: thumbBufs[id] }));
     }
     await page.goto(`${BASE}/app/align.html?ids=1,2`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(600);
-    const colCount = await page.evaluate(() => getComputedStyle(document.getElementById('alignGrid')).columnCount);
-    check('900px幅ではグリッドが4列に縮小(レスポンシブ)', colCount === '4', 'columnCount=' + colCount);
+    await page.waitForFunction(() => document.querySelectorAll('.align-thumb-wrap img').length === 2, { timeout: 15000 });
+    await page.waitForTimeout(200);
+    const colTracks = await page.evaluate(() =>
+      getComputedStyle(document.getElementById('alignGrid')).gridTemplateColumns.split(' ').length);
+    check('900px幅では2件がminmax(260px)により2〜3列相当に収まる(auto-fitで自然に縮小)',
+      colTracks >= 2 && colTracks <= 3, 'tracks=' + colTracks);
     await page.close();
   }
 
