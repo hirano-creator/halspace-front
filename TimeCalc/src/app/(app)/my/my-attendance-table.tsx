@@ -213,9 +213,7 @@ function RowDetailForm({
             <p className="w-full text-xs font-semibold text-muted">遅刻・早退理由の記入</p>
             {row.lateMinutes > 0 && (
               <div className="min-w-48 flex-1">
-                <label className="mb-1 block text-xs text-muted">
-                  遅刻理由（{row.lateMinutes}分）
-                </label>
+                <label className="mb-1 block text-xs text-muted">遅刻理由</label>
                 <input
                   type="text"
                   name="lateReason"
@@ -227,9 +225,7 @@ function RowDetailForm({
             )}
             {row.earlyLeaveMinutes > 0 && (
               <div className="min-w-48 flex-1">
-                <label className="mb-1 block text-xs text-muted">
-                  早退理由（{row.earlyLeaveMinutes}分）
-                </label>
+                <label className="mb-1 block text-xs text-muted">早退理由</label>
                 <input
                   type="text"
                   name="earlyLeaveReason"
@@ -387,14 +383,12 @@ export function MyAttendanceTable({
                 </td>
                 <td className={`${td} max-w-56 whitespace-normal text-center text-xs text-muted`}>
                   <span className="flex flex-wrap items-center justify-center gap-1">
-                    {row.isOpen && <Badge tone="red">未退勤</Badge>}
+                    {row.isOpen && <Badge tone="red">退勤未打刻</Badge>}
                     {row.isToday && !row.hasRecord && !row.isOpen && (
                       <span className="text-xs text-muted">本日</span>
                     )}
-                    {row.lateMinutes > 0 && <Badge tone="amber">遅刻 {row.lateMinutes}分</Badge>}
-                    {row.earlyLeaveMinutes > 0 && (
-                      <Badge tone="amber">早退 {row.earlyLeaveMinutes}分</Badge>
-                    )}
+                    {row.lateMinutes > 0 && <Badge tone="amber">遅刻</Badge>}
+                    {row.earlyLeaveMinutes > 0 && <Badge tone="amber">早退</Badge>}
                     {row.hasPendingRequest && <Badge tone="purple">申請中</Badge>}
                     <span>{[row.lateReason, row.earlyLeaveReason].filter(Boolean).join(" / ")}</span>
                   </span>

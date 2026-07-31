@@ -6,8 +6,8 @@ import { prisma } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth/api-guard";
 import { resolveFeatures } from "@/lib/auth/features";
 import { todayString, nowTimeString } from "@/lib/utils/time";
-import { phaseOfLastEvent, CLOCK_EVENT_LABELS, type ClockEventType } from "@/lib/attendance/clock";
-import { deriveAndSaveAttendance } from "@/lib/attendance/clock-service";
+import { CLOCK_EVENT_LABELS, type ClockEventType } from "@/lib/attendance/clock";
+import { deriveAndSaveAttendance, getClockStatus } from "@/lib/attendance/clock-service";
 import { resolveClockDepartment, checkGps, calcLateMinutes } from "../_shared";
 import type { AutoPunchState } from "@/app/(app)/clock/types";
 
@@ -63,16 +63,16 @@ export async function POST(request: Request) {
   }
   const { department } = ctx;
 
-  const last = await prisma.clockEvent.findFirst({
-    where: { userId: viewer.id },
-    orderBy: { timestamp: "desc" },
-  });
+  // 打刻忘れで日付が変わった場合も当日は「勤務外」から始まるため（getClockStatus 参照）、
+  // 前日の未退勤を引きずって初回スキャンが退勤になることはない
+  const status = await getClockStatus(viewer.id);
+  const last = status.lastEvent;
 
   if (last && !force && Date.now() - last.timestamp.getTime() < AUTO_PUNCH_GUARD_MS) {
     return NextResponse.json<AutoPunchState>({
       error: null,
       success: false,
-      punchedLabel: CLOCK_EVENT_LABELS[last.type as ClockEventType],
+      punchedLabel: CLOCK_EVENT_LABELS[last.type],
       punchedTime: last.time,
       lateMinutes: 0,
       eventId: last.id,
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const phase = phaseOfLastEvent((last?.type as ClockEventType | undefined) ?? null);
+  const phase = status.phase;
   let type: ClockEventType;
   if (phase === "beforeWork" || phase === "offWork") {
     type = "IN";

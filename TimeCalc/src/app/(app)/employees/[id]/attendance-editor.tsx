@@ -410,15 +410,13 @@ export function AttendanceEditor({
                 </td>
                 <td className={`${td} max-w-56 whitespace-normal text-center text-xs text-muted`}>
                   <span className="flex flex-wrap items-center justify-center gap-1">
-                    {row.isOpen && <Badge tone="red">未退勤</Badge>}
+                    {row.isOpen && <Badge tone="red">退勤未打刻</Badge>}
                     {row.isClockedIn && !row.isOpen && <Badge tone="green">出勤中</Badge>}
                     {row.isToday && !row.attendanceId && !row.isOpen && !row.isClockedIn && (
                       <span className="text-xs text-muted">本日</span>
                     )}
-                    {row.lateMinutes > 0 && <Badge tone="amber">遅刻 {row.lateMinutes}分</Badge>}
-                    {row.earlyLeaveMinutes > 0 && (
-                      <Badge tone="amber">早退 {row.earlyLeaveMinutes}分</Badge>
-                    )}
+                    {row.lateMinutes > 0 && <Badge tone="amber">遅刻</Badge>}
+                    {row.earlyLeaveMinutes > 0 && <Badge tone="amber">早退</Badge>}
                     {row.hasPendingRequest && <Badge tone="purple">申請中</Badge>}
                     <span>{[row.lateReason, row.earlyLeaveReason].filter(Boolean).join(" / ")}</span>
                   </span>

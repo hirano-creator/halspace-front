@@ -18,7 +18,7 @@ import {
 export type { TimelineEntry };
 
 export interface ClockStatus {
-  /** 直近の打刻種別（打刻したことがなければ null） */
+  /** 直近の打刻種別（当日の打刻がなければ null） */
   lastEventType: ClockEventType | null;
   /** 現在のフェーズ（勤務外/出勤中/外出中/退勤済み） */
   phase: ClockPhase;
@@ -30,27 +30,37 @@ export interface ClockStatus {
   canOutStart: boolean;
   /** 戻りボタンを押せるか（外出中のとき） */
   canOutEnd: boolean;
+  /** 直近の打刻（二重打刻ガードなどに使う。当日以外の打刻も含む） */
+  lastEvent: { id: string; type: ClockEventType; time: string; date: string; timestamp: Date } | null;
 }
 
 /**
  * 打刻の現在状態を取得する。
- * 日付を跨いだ未退勤（前日出勤したまま退勤し忘れ）も引き継げるよう、
- * 当日に絞らずユーザーの最新 ClockEvent 1件から判定する。
  *
- * ただし、退勤打刻がされないまま修正申請などでその日の Attendance が
- * 退勤時刻ありで確定している場合は、打刻ログ上は未完結でも退勤済み扱いにする
- * （そうしないと退勤打刻を忘れた日以降、ずっと「出勤中」のまま出勤できなくなる）。
+ * 判定は当日（date が today）の打刻のみで行う。前日以前の退勤打刻を忘れても
+ * 翌日は「勤務外」から始まり、通常どおり出勤から打刻できる
+ * （引き継ぐと、押し忘れた日以降ずっと「出勤中」のまま出勤できなくなるため）。
+ * 押し忘れた日は findUnclosedDate で別途拾い、後から修正できるよう画面で知らせる。
+ *
+ * また、退勤打刻がされないまま修正申請などで当日の Attendance が退勤時刻ありで
+ * 確定している場合は、打刻ログ上は未完結でも退勤済み扱いにする。
  */
-export async function getClockStatus(userId: string): Promise<ClockStatus> {
+export async function getClockStatus(
+  userId: string,
+  today: string = todayString(),
+): Promise<ClockStatus> {
   const last = await prisma.clockEvent.findFirst({
     where: { userId },
     orderBy: { timestamp: "desc" },
   });
-  let lastEventType = (last?.type as ClockEventType | undefined) ?? null;
 
-  if (last && lastEventType !== "OUT") {
+  // 前日以前の打刻は当日の状態に持ち越さない（打刻忘れとして扱う）
+  const isToday = last?.date === today;
+  let lastEventType = isToday ? ((last!.type as ClockEventType) ?? null) : null;
+
+  if (isToday && lastEventType !== "OUT") {
     const attendance = await prisma.attendance.findUnique({
-      where: { userId_date: { userId, date: last.date } },
+      where: { userId_date: { userId, date: last!.date } },
     });
     if (attendance?.clockOut) lastEventType = "OUT";
   }
@@ -63,7 +73,44 @@ export async function getClockStatus(userId: string): Promise<ClockStatus> {
     canClockOut: phase === "working" || phase === "outing",
     canOutStart: phase === "working",
     canOutEnd: phase === "outing",
+    lastEvent: last
+      ? {
+          id: last.id,
+          type: last.type as ClockEventType,
+          time: last.time,
+          date: last.date,
+          timestamp: last.timestamp,
+        }
+      : null,
   };
+}
+
+/**
+ * 退勤打刻がないまま日付が変わった日（＝退勤打刻の押し忘れ）を返す。
+ * 当日より前の直近の打刻日だけを見るため、当日すでに出勤していても通知は消えない。
+ * 修正申請の承認・管理者編集で Attendance の退勤時刻が入っている日は、
+ * 打刻ログが未完結でも修正済みとみなして null を返す。
+ */
+export async function findUnclosedDate(
+  userId: string,
+  today: string = todayString(),
+): Promise<string | null> {
+  const lastBeforeToday = await prisma.clockEvent.findFirst({
+    where: { userId, date: { lt: today } },
+    orderBy: { timestamp: "desc" },
+  });
+  if (!lastBeforeToday) return null;
+
+  const date = lastBeforeToday.date;
+  const [events, attendance] = await Promise.all([
+    prisma.clockEvent.findMany({ where: { userId, date }, orderBy: { timestamp: "asc" } }),
+    prisma.attendance.findUnique({ where: { userId_date: { userId, date } } }),
+  ]);
+  if (attendance?.clockOut) return null;
+  const derived = deriveDailyFromEvents(
+    events.map((e) => ({ type: e.type as ClockEventType, time: e.time })),
+  );
+  return derived.status === "open" ? date : null;
 }
 
 /** 指定した打刻種別が現在の状態で受理できるか検証する（不可なら理由を返す） */

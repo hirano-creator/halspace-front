@@ -136,11 +136,6 @@ export default function EmployeeDetailPage() {
         <StatCard
           label="遅刻・早退"
           value={`${data.summary.lateCount}・${data.summary.earlyLeaveCount}回`}
-          sub={
-            data.summary.lateMinutes + data.summary.earlyLeaveMinutes > 0
-              ? `計${formatMinutes(data.summary.lateMinutes + data.summary.earlyLeaveMinutes)}`
-              : undefined
-          }
           tone={data.summary.lateCount + data.summary.earlyLeaveCount > 0 ? "amber" : "default"}
         />
         {showMoney && (

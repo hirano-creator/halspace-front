@@ -94,17 +94,11 @@ export default function MyPage() {
           <StatCard
             label="遅刻"
             value={`${data.summary.lateCount}回`}
-            sub={data.summary.lateMinutes > 0 ? `計${formatMinutes(data.summary.lateMinutes)}` : undefined}
             tone={data.summary.lateCount > 0 ? "amber" : "default"}
           />
           <StatCard
             label="早退"
             value={`${data.summary.earlyLeaveCount}回`}
-            sub={
-              data.summary.earlyLeaveMinutes > 0
-                ? `計${formatMinutes(data.summary.earlyLeaveMinutes)}`
-                : undefined
-            }
             tone={data.summary.earlyLeaveCount > 0 ? "amber" : "default"}
           />
         </div>

@@ -43,6 +43,8 @@ export interface ClockStatusResponse {
     canOutStart: boolean;
     canOutEnd: boolean;
   };
+  /** 退勤打刻がないまま日付が変わった日 "YYYY-MM-DD"（打刻忘れ。なければ null） */
+  unclosedDate: string | null;
   events: {
     id: string;
     type: string;

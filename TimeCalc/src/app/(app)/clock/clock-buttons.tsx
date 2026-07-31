@@ -27,11 +27,9 @@ const punchButtonBase =
 /** 遅刻時などに打刻直後へ理由を追記するフォーム */
 export function LateReasonForm({
   eventId,
-  lateMinutes,
   onSaved,
 }: {
   eventId: string;
-  lateMinutes: number;
   /** 保存成功後に呼ぶ（タイムライン再取得のトリガー用） */
   onSaved?: () => void;
 }) {
@@ -53,9 +51,7 @@ export function LateReasonForm({
   return (
     <form action={formAction} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
       <input type="hidden" name="eventId" value={eventId} />
-      <p className="text-sm font-medium text-amber-800">
-        始業時刻より{lateMinutes}分遅い打刻です
-      </p>
+      <p className="text-sm font-medium text-amber-800">始業時刻より遅い打刻です</p>
       <p className="mt-0.5 text-xs text-amber-700">
         遅刻理由を記入できます（後からマイページでも記入できます）
       </p>
@@ -233,7 +229,7 @@ export function ClockButtons({
         </p>
       )}
       {state.success && state.lateMinutes > 0 && state.eventId && (
-        <LateReasonForm eventId={state.eventId} lateMinutes={state.lateMinutes} onSaved={onPunched} />
+        <LateReasonForm eventId={state.eventId} onSaved={onPunched} />
       )}
     </form>
   );

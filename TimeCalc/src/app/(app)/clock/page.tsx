@@ -32,6 +32,13 @@ function phaseBadge(phase: ClockPhase, hasEventsToday: boolean) {
   }
 }
 
+/** "YYYY-MM-DD" を "7/30(水)" 形式にする（打刻忘れの案内用） */
+function formatUnclosedDate(date: string) {
+  const [y, m, d] = date.split("-").map(Number);
+  const weekday = ["日", "月", "火", "水", "木", "金", "土"][new Date(y, m - 1, d).getDay()];
+  return `${m}/${d}(${weekday})`;
+}
+
 export default function ClockPage() {
   const { status: authStatus } = useRequireAuth();
   const searchParams = useSearchParams();
@@ -100,6 +107,23 @@ export default function ClockPage() {
         </div>
         {data.department && (
           <p className="-mt-4 text-center text-xs text-muted">{data.department.name}</p>
+        )}
+
+        {/* 打刻忘れの日があっても当日は通常どおり出勤から打刻できる。
+            後から修正できるよう、押し忘れた日をここで知らせる */}
+        {data.unclosedDate && (
+          <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <p className="font-medium">
+              {formatUnclosedDate(data.unclosedDate)}の退勤打刻がありません
+            </p>
+            <p className="mt-0.5 text-xs">
+              本日はそのまま出勤から打刻できます。押し忘れた日は
+              <Link href="/my" className="mx-1 underline">
+                マイページ
+              </Link>
+              から修正してください
+            </p>
+          </div>
         )}
 
         {data.qrTokenError ? (

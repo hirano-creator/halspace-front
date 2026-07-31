@@ -5,7 +5,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth/api-guard";
 import { resolveFeatures } from "@/lib/auth/features";
-import { getClockStatus, getTimelineWithCorrections } from "@/lib/attendance/clock-service";
+import {
+  findUnclosedDate,
+  getClockStatus,
+  getTimelineWithCorrections,
+} from "@/lib/attendance/clock-service";
 import { todayString } from "@/lib/utils/time";
 import { dailyQrToken, toQrKind } from "@/lib/qr";
 import type { ClockStatusResponse } from "@/app/(app)/clock/types";
@@ -24,11 +28,12 @@ export async function GET(request: Request) {
   const departmentId = requestedDeptId ?? viewer.departmentId;
   const qrKind = toQrKind(kindParam);
 
-  const [status, events, department, me] = await Promise.all([
+  const [status, events, department, me, unclosedDate] = await Promise.all([
     getClockStatus(viewer.id),
     getTimelineWithCorrections(viewer.id, todayString()),
     departmentId ? prisma.department.findUnique({ where: { id: departmentId } }) : null,
     prisma.user.findUnique({ where: { id: viewer.id } }),
+    findUnclosedDate(viewer.id),
   ]);
   const features = resolveFeatures(me?.featureOverrides);
 
@@ -63,6 +68,7 @@ export async function GET(request: Request) {
       canOutStart: status.canOutStart,
       canOutEnd: status.canOutEnd,
     },
+    unclosedDate,
     events: events.map((e) => ({
       id: e.id,
       type: e.type,

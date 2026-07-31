@@ -139,7 +139,7 @@ export function AutoPunch({
             を記録しました
           </p>
           {state.lateMinutes > 0 && state.eventId && (
-            <LateReasonForm eventId={state.eventId} lateMinutes={state.lateMinutes} onSaved={onPunched} />
+            <LateReasonForm eventId={state.eventId} onSaved={onPunched} />
           )}
         </div>
       )}
