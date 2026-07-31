@@ -30,65 +30,55 @@
     .align-topbar-title { font-size: 14px; font-weight: 700; color: var(--primary); flex: 1; }
     .align-topbar-hint { font-size: 11px; color: var(--muted); white-space: nowrap; }
 
-    /* 本体グリッド */
-    .align-body { flex: 1; overflow: auto; padding: 12px; }
-    .align-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 12px; align-items: stretch;
-    }
+    /* 本体: masonry(タイル状)グリッド。列数はcolumn-countで指定し、幅に応じて段階的に減らす */
+    .align-body { flex: 1; overflow: auto; padding: 14px; }
+    .align-grid { column-count: 8; column-gap: 12px; }
+    @media (max-width: 1700px) { .align-grid { column-count: 6; } }
+    @media (max-width: 1300px) { .align-grid { column-count: 5; } }
+    @media (max-width: 1000px) { .align-grid { column-count: 4; } }
+    @media (max-width: 760px)  { .align-grid { column-count: 3; } }
+    @media (max-width: 560px)  { .align-grid { column-count: 2; } .align-topbar-hint { display: none; } }
 
-    .align-panel {
+    .align-card {
+      display: block; break-inside: avoid; margin: 0 0 12px;
       background: var(--white); border: 1px solid var(--border); border-radius: 8px;
-      display: flex; flex-direction: column; height: 58vh; min-height: 320px;
-      overflow: hidden;
+      overflow: hidden; cursor: pointer; text-decoration: none; color: inherit;
+      transition: box-shadow .15s;
     }
-    .align-panel-label {
-      flex-shrink: 0; height: 44px; padding: 0 10px; display: flex; align-items: center; gap: 8px;
-      border-bottom: 1px solid var(--border); background: rgba(21,101,192,.05);
-    }
-    .align-badge {
-      flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
-      background: var(--primary); color: #fff; font-size: 11px; font-weight: 700;
+    .align-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.14); }
+
+    .align-thumb-wrap {
+      position: relative; width: 100%; min-height: 90px; background: var(--bg);
       display: flex; align-items: center; justify-content: center;
     }
-    .align-panel-name {
-      flex: 1; min-width: 0; font-size: 12px; font-weight: 700; color: var(--text);
+    .align-thumb-wrap img { display: block; width: 100%; height: auto; }
+
+    .align-badge {
+      position: absolute; top: 6px; left: 6px; z-index: 2;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: rgba(21,101,192,.9); color: #fff; font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .align-card-link {
+      position: absolute; top: 6px; right: 6px; z-index: 2;
+      width: 24px; height: 24px; border-radius: 6px;
+      background: rgba(255,255,255,.9); color: var(--muted); font-size: 11px;
+      display: flex; align-items: center; justify-content: center; text-decoration: none;
+    }
+    .align-card-link:hover { color: var(--primary); }
+
+    .align-card-label {
+      padding: 7px 10px; font-size: 12px; font-weight: 600; color: var(--text);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .align-panel-link {
-      flex-shrink: 0; color: var(--muted); font-size: 12px; text-decoration: none;
-      width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
-    }
-    .align-panel-link:hover { color: var(--primary); background: rgba(21,101,192,.1); }
 
-    .align-panel-body {
-      flex: 1; overflow: auto; position: relative;
-      display: flex; align-items: flex-start; justify-content: center;
-      padding: 10px; background: var(--bg);
-    }
-    .align-panel-body.align-pannable { touch-action: none; overscroll-behavior: contain; }
-    .align-panel-body.zoomed { align-items: flex-start; justify-content: flex-start; }
-
-    .align-content { max-width: 100%; border-radius: 6px; background: #fff; display: block; margin: auto; }
-    .align-dxf-wrap { width: 100%; height: 100%; }
-    .align-dxf-wrap canvas { display: block; }
-
-    .align-page-badge {
-      position: absolute; left: 8px; bottom: 8px;
-      background: rgba(0,0,0,.65); color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 10px;
-    }
-    .align-thumb-note {
-      position: absolute; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,.55); color: #fff; font-size: 11px; padding: 4px 10px; text-align: center;
-    }
-
-    .align-panel-spin, .align-panel-error, .align-panel-noPreview {
+    .align-card-spin, .align-card-noPreview {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 10px; color: var(--muted); width: 100%; height: 100%; text-align: center; padding: 20px;
-      font-size: 12px;
+      gap: 8px; color: var(--muted); width: 100%; padding: 26px 10px; font-size: 11px; text-align: center;
     }
-    .align-panel-spin i, .align-panel-noPreview i { font-size: 32px; opacity: .5; }
-    .align-panel-error i { font-size: 28px; color: #C62828; opacity: .8; }
+    .align-card-spin i, .align-card-noPreview i { font-size: 26px; opacity: .5; }
+    .align-card-error { color: #C62828; }
+    .align-card-error i { color: #C62828; opacity: .8; }
 
     /* エラー(全体) */
     .align-error {
@@ -98,11 +88,62 @@
     }
     .align-error i { font-size: 48px; opacity: .4; }
 
-    @media (max-width: 640px) {
-      .align-grid { grid-template-columns: 1fr; }
-      .align-panel { height: 50vh; }
-      .align-topbar-hint { display: none; }
+    /* ── ライトボックス(クリックで実物大プレビュー) ── */
+    .align-lightbox {
+      position: fixed; inset: 0; background: rgba(10,14,20,.92); z-index: 999;
+      display: none; flex-direction: column;
     }
+    .align-lightbox.show { display: flex; }
+    .align-lightbox-top {
+      height: 52px; flex-shrink: 0; display: flex; align-items: center; gap: 8px;
+      padding: 0 14px; color: #fff; background: #12161f;
+    }
+    .align-lightbox-title {
+      flex: 1; min-width: 0; font-size: 13px; font-weight: 700;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .align-lightbox-counter { font-size: 12px; color: rgba(255,255,255,.6); white-space: nowrap; }
+    .align-lightbox-btn {
+      width: 34px; height: 34px; border-radius: 8px; border: none; background: rgba(255,255,255,.12);
+      color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; text-decoration: none;
+    }
+    .align-lightbox-btn:hover { background: rgba(255,255,255,.24); }
+
+    .align-lightbox-body { flex: 1; position: relative; overflow: hidden; }
+    .align-lightbox-content-wrap {
+      position: absolute; inset: 0; overflow: auto;
+      display: flex; align-items: flex-start; justify-content: center; padding: 16px;
+    }
+    .align-lightbox-content-wrap.align-pannable { touch-action: none; overscroll-behavior: contain; }
+    .align-lightbox-content-wrap.zoomed { align-items: flex-start; justify-content: flex-start; }
+    .align-content { max-width: 100%; border-radius: 6px; background: #fff; display: block; margin: auto; }
+    .align-dxf-wrap { width: 100%; height: 100%; }
+    .align-dxf-wrap canvas { display: block; }
+
+    .align-lightbox-nav {
+      position: absolute; top: 50%; transform: translateY(-50%); z-index: 5;
+      width: 44px; height: 44px; border-radius: 50%; border: none; background: rgba(0,0,0,.4);
+      color: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .align-lightbox-nav:hover { background: rgba(0,0,0,.6); }
+    .align-lightbox-nav.prev { left: 14px; }
+    .align-lightbox-nav.next { right: 14px; }
+
+    .align-lightbox-page-badge {
+      position: absolute; left: 20px; bottom: 16px; z-index: 4;
+      background: rgba(0,0,0,.6); color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 10px;
+    }
+    .align-lightbox-hint {
+      position: absolute; right: 20px; bottom: 16px; z-index: 4; font-size: 11px; color: rgba(255,255,255,.5);
+    }
+
+    .align-lightbox-spin, .align-lightbox-error, .align-lightbox-noPreview {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; color: rgba(255,255,255,.7); width: 100%; height: 100%; text-align: center;
+    }
+    .align-lightbox-spin i, .align-lightbox-noPreview i { font-size: 40px; opacity: .5; }
+    .align-lightbox-error i { font-size: 34px; color: #EF5350; }
   </style>
 </head>
 <body>
@@ -114,7 +155,7 @@
       <i class="fa-solid fa-chevron-left"></i> 一覧に戻る
     </a>
     <div class="align-topbar-title" id="alignTitle">並べて表示</div>
-    <div class="align-topbar-hint">Ctrl/Cmdキー + ホイールで拡大・ドラッグでパン</div>
+    <div class="align-topbar-hint">クリックで拡大表示</div>
   </div>
 
   <!-- 本体 -->
@@ -122,6 +163,23 @@
     <div class="align-grid" id="alignGrid"></div>
   </div>
 
+</div>
+
+<!-- ライトボックス -->
+<div class="align-lightbox" id="alignLightbox">
+  <div class="align-lightbox-top">
+    <button class="align-lightbox-btn" id="lbCloseBtn" title="閉じる（Esc）"><i class="fa-solid fa-xmark"></i></button>
+    <div class="align-lightbox-title" id="lbTitle"></div>
+    <div class="align-lightbox-counter" id="lbCounter"></div>
+    <a class="align-lightbox-btn" id="lbDetailLink" href="#" target="_blank" rel="noopener" title="詳細を開く（新しいタブ）">
+      <i class="fa-solid fa-up-right-from-square"></i>
+    </a>
+  </div>
+  <div class="align-lightbox-body">
+    <button class="align-lightbox-nav prev" id="lbPrevBtn" title="前へ（←）"><i class="fa-solid fa-chevron-left"></i></button>
+    <button class="align-lightbox-nav next" id="lbNextBtn" title="次へ（→）"><i class="fa-solid fa-chevron-right"></i></button>
+    <div class="align-lightbox-content-wrap" id="lbContentWrap"></div>
+  </div>
 </div>
 
 <!-- toast -->
@@ -142,6 +200,10 @@ const alignIds = (new URLSearchParams(location.search).get('ids') || '')
 const ALIGN_IMG_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
 const extOf = f => (f?.file_name ?? '').split('.').pop().toLowerCase();
 
+/* 選択順を保持したままファイル本体をキャッシュ（グリッドはサムネイルのみ、
+   ライトボックスを開いたときだけ実体を取得する: index → file record） */
+const alignFiles = new Array(alignIds.length).fill(null);
+
 /* 安全網: 予期しない例外でページ全体が沈黙状態にならないようにする */
 window.addEventListener('error', e => console.error(e.error || e.message));
 window.addEventListener('unhandledrejection', e => console.error(e.reason));
@@ -158,56 +220,164 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('alignTitle').textContent = `並べて表示（${alignIds.length}件）`;
 
   const grid = document.getElementById('alignGrid');
-  grid.innerHTML = alignIds.map((id, i) => panelSkeletonHtml(id, i)).join('');
+  grid.innerHTML = alignIds.map((id, i) => cardSkeletonHtml(id, i)).join('');
 
-  /* 各パネルは独立して読み込み・描画する（1件失敗しても他は表示され続ける） */
-  alignIds.forEach((id, i) => loadAndRenderPanel(id, i));
+  initLightboxControls();
+
+  /* 各カードは独立して読み込み・描画する（1件失敗しても他は表示され続ける） */
+  alignIds.forEach((id, i) => loadCard(id, i));
 });
 
-function panelSkeletonHtml(id, i) {
+function cardSkeletonHtml(id, i) {
   return `
-  <div class="align-panel" id="alignPanel-${id}">
-    <div class="align-panel-label">
+  <div class="align-card" id="alignCard-${id}" data-idx="${i}">
+    <div class="align-thumb-wrap" id="alignThumb-${id}">
       <span class="align-badge">${i + 1}</span>
-      <span class="align-panel-name" id="alignName-${id}">読み込み中…</span>
       <a href="file-detail.html?id=${encodeURIComponent(id)}" target="_blank" rel="noopener"
-         class="align-panel-link" title="詳細を開く（新しいタブ）">
+         class="align-card-link" title="詳細を開く（新しいタブ）" onclick="event.stopPropagation();">
         <i class="fa-solid fa-up-right-from-square"></i>
       </a>
+      <div class="align-card-spin"><i class="fa-solid fa-spinner fa-spin"></i></div>
     </div>
-    <div class="align-panel-body" id="alignBody-${id}">
-      <div class="align-panel-spin"><i class="fa-solid fa-spinner fa-spin"></i><span>読み込み中…</span></div>
-    </div>
+    <div class="align-card-label" id="alignName-${id}">読み込み中…</div>
   </div>`;
 }
 
-async function loadAndRenderPanel(id, i) {
-  const nameEl = document.getElementById(`alignName-${id}`);
-  const bodyEl = document.getElementById(`alignBody-${id}`);
-  if (!nameEl || !bodyEl) return;
+async function loadCard(id, i) {
+  const nameEl  = document.getElementById(`alignName-${id}`);
+  const thumbEl = document.getElementById(`alignThumb-${id}`);
+  const cardEl  = document.getElementById(`alignCard-${id}`);
+  if (!nameEl || !thumbEl || !cardEl) return;
   try {
     const res = await wnFetch(`/wn/files/${id}`);
     if (!res || !res.ok) throw new Error('ファイル情報の取得に失敗しました');
     const file = (await res.json()).data;
     if (!file) throw new Error('ファイルが見つかりません');
 
+    alignFiles[i] = file;
     nameEl.textContent = file.file_name;
     nameEl.title = file.file_name;
+    cardEl.addEventListener('click', () => openLightbox(i));
 
-    await renderPanelContent(file, bodyEl);
+    const thumbUrl = wnThumbUrl(file.id, file.updated_at ?? file.created_at);
+    const img = document.createElement('img');
+    img.alt = '';
+    const ok = await new Promise(resolve => {
+      img.onload  = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = thumbUrl;
+    });
+    const spin = thumbEl.querySelector('.align-card-spin');
+    if (spin) spin.remove();
+    if (ok) {
+      thumbEl.appendChild(img);
+    } else {
+      const { icon, cls } = (typeof wnFileIcon === 'function')
+        ? wnFileIcon(file.file_name, file.mime_type) : { icon: 'fa-file', cls: '' };
+      const ph = document.createElement('div');
+      ph.className = 'align-card-noPreview';
+      ph.innerHTML = `<i class="fa-solid ${icon} ${cls}"></i><span>プレビューなし</span>`;
+      thumbEl.appendChild(ph);
+    }
   } catch (err) {
     console.error(err);
-    bodyEl.innerHTML = `
-      <div class="align-panel-error">
+    const spin = thumbEl.querySelector('.align-card-spin');
+    if (spin) spin.remove();
+    nameEl.textContent = 'エラー';
+    const ph = document.createElement('div');
+    ph.className = 'align-card-noPreview align-card-error';
+    ph.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i><span>${h(err.message || '読み込みに失敗しました')}</span>`;
+    thumbEl.appendChild(ph);
+  }
+}
+
+/* ────────────────── ライトボックス(実物大プレビュー) ────────────────── */
+let lbIndex = -1;
+let lbDispose = null; /* DXFビューアの後片付け(WebGLコンテキスト解放)用 */
+let lbRenderToken = 0; /* 連打で次へ/前へした際、古い非同期処理が新しい描画を上書きしないためのトークン */
+
+function initLightboxControls() {
+  document.getElementById('lbCloseBtn').addEventListener('click', closeLightbox);
+  document.getElementById('lbPrevBtn').addEventListener('click', () => stepLightbox(-1));
+  document.getElementById('lbNextBtn').addEventListener('click', () => stepLightbox(1));
+  document.getElementById('alignLightbox').addEventListener('click', e => {
+    if (e.target.id === 'alignLightbox') closeLightbox();
+  });
+  window.addEventListener('keydown', e => {
+    const lb = document.getElementById('alignLightbox');
+    if (!lb.classList.contains('show')) return;
+    if (e.key === 'Escape') closeLightbox();
+    else if (e.key === 'ArrowLeft') stepLightbox(-1);
+    else if (e.key === 'ArrowRight') stepLightbox(1);
+  });
+}
+
+function openLightbox(i) {
+  lbIndex = i;
+  document.getElementById('alignLightbox').classList.add('show');
+  renderLightbox(i);
+}
+
+function closeLightbox() {
+  document.getElementById('alignLightbox').classList.remove('show');
+  disposeLightboxContent();
+  document.getElementById('lbContentWrap').innerHTML = '';
+}
+
+function stepLightbox(dir) {
+  const n = alignIds.length;
+  lbIndex = (lbIndex + dir + n) % n;
+  renderLightbox(lbIndex);
+}
+
+function disposeLightboxContent() {
+  if (lbDispose) { try { lbDispose(); } catch (_) {} lbDispose = null; }
+}
+
+async function renderLightbox(i) {
+  const myToken = ++lbRenderToken;
+  disposeLightboxContent();
+  const id = alignIds[i];
+  const wrap = document.getElementById('lbContentWrap');
+  wrap.className = 'align-lightbox-content-wrap';
+  wrap.innerHTML = `<div class="align-lightbox-spin"><i class="fa-solid fa-spinner fa-spin"></i><span>読み込み中…</span></div>`;
+  document.getElementById('lbCounter').textContent = `${i + 1} / ${alignIds.length}`;
+  document.getElementById('lbDetailLink').href = `file-detail.html?id=${encodeURIComponent(id)}`;
+
+  try {
+    const file = alignFiles[i] ?? await (async () => {
+      const res = await wnFetch(`/wn/files/${id}`);
+      if (!res || !res.ok) throw new Error('ファイル情報の取得に失敗しました');
+      const f = (await res.json()).data;
+      if (!f) throw new Error('ファイルが見つかりません');
+      alignFiles[i] = f;
+      return f;
+    })();
+    /* この間に次へ/前へが押されていたら(=より新しいトークンが発行済み)、
+       ここで中断して古い結果によるDOM上書き・二重描画(DXFのWebGLコンテキストリーク等)を防ぐ */
+    if (myToken !== lbRenderToken) return;
+
+    document.getElementById('lbTitle').textContent = file.file_name;
+    document.getElementById('lbTitle').title = file.file_name;
+
+    await renderLightboxContent(file, wrap);
+    if (myToken !== lbRenderToken) { disposeLightboxContent(); return; }
+  } catch (err) {
+    if (myToken !== lbRenderToken) return;
+    console.error(err);
+    wrap.innerHTML = `
+      <div class="align-lightbox-error">
         <i class="fa-solid fa-triangle-exclamation"></i>
         <span>${h(err.message || '読み込みに失敗しました')}</span>
       </div>`;
   }
 }
 
-async function renderPanelContent(file, bodyEl) {
+async function renderLightboxContent(file, wrap) {
   const ext = extOf(file);
-  bodyEl.innerHTML = '';
+  wrap.innerHTML = '';
+  /* ページバッジはwrapの外(.align-lightbox-body)に置くため個別に掃除する */
+  wrap.parentElement.querySelectorAll('.align-lightbox-page-badge').forEach(b => b.remove());
 
   if (ext === 'pdf') {
     if (typeof pdfjsLib === 'undefined') throw new Error('PDF表示ライブラリの読み込みに失敗しました');
@@ -215,20 +385,20 @@ async function renderPanelContent(file, bodyEl) {
     if (!url) throw new Error('ファイルのURL取得に失敗しました');
     const doc = await pdfjsLib.getDocument(url).promise;
     const page = await doc.getPage(1);
-    const vp = page.getViewport({ scale: 1.4 });
+    const vp = page.getViewport({ scale: 2 });
     const canvas = document.createElement('canvas');
     canvas.width = vp.width;
     canvas.height = vp.height;
     await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
     canvas.className = 'align-content';
-    bodyEl.appendChild(canvas);
+    wrap.appendChild(canvas);
     if (doc.numPages > 1) {
       const badge = document.createElement('div');
-      badge.className = 'align-page-badge';
+      badge.className = 'align-lightbox-page-badge';
       badge.textContent = `1 / ${doc.numPages} ページ`;
-      bodyEl.appendChild(badge);
+      wrap.parentElement.appendChild(badge);
     }
-    initAlignZoomPan(bodyEl, canvas);
+    initAlignZoomPan(wrap, canvas);
 
   } else if (ALIGN_IMG_EXTS.includes(ext)) {
     const buf = await wnFetchFileBuffer(file.id);
@@ -242,8 +412,8 @@ async function renderPanelContent(file, bodyEl) {
       img.onerror = () => reject(new Error('画像の表示に失敗しました'));
       img.src = blobUrl;
     });
-    bodyEl.appendChild(img);
-    initAlignZoomPan(bodyEl, img);
+    wrap.appendChild(img);
+    initAlignZoomPan(wrap, img);
 
   } else if (ext === 'dxf') {
     if (typeof wnRenderDxf !== 'function' || typeof THREE === 'undefined') {
@@ -253,9 +423,10 @@ async function renderPanelContent(file, bodyEl) {
     if (!text) throw new Error('DXFの取得に失敗しました');
     const dxfWrap = document.createElement('div');
     dxfWrap.className = 'align-dxf-wrap';
-    bodyEl.appendChild(dxfWrap);
+    wrap.appendChild(dxfWrap);
     /* wnRenderDxf は内部で独自にホイールズーム/ドラッグパンを備えている */
-    wnRenderDxf(dxfWrap, text);
+    const handle = wnRenderDxf(dxfWrap, text);
+    lbDispose = handle?.dispose ?? null;
 
   } else {
     /* Office文書・その他: サーバー生成サムネイルにフォールバック */
@@ -271,19 +442,15 @@ async function renderPanelContent(file, bodyEl) {
     if (!ok) {
       const { icon, cls } = (typeof wnFileIcon === 'function')
         ? wnFileIcon(file.file_name, file.mime_type) : { icon: 'fa-file', cls: '' };
-      bodyEl.innerHTML = `
-        <div class="align-panel-noPreview">
+      wrap.innerHTML = `
+        <div class="align-lightbox-noPreview">
           <i class="fa-solid ${icon} ${cls}"></i>
-          <span>プレビュー非対応の形式です</span>
+          <span>プレビュー非対応の形式です。「詳細を開く」から本体を確認してください</span>
         </div>`;
       return;
     }
-    bodyEl.appendChild(img);
-    initAlignZoomPan(bodyEl, img);
-    const note = document.createElement('div');
-    note.className = 'align-thumb-note';
-    note.textContent = 'サムネイル表示（詳細を開くと本体を確認できます）';
-    bodyEl.appendChild(note);
+    wrap.appendChild(img);
+    initAlignZoomPan(wrap, img);
   }
 }
 
@@ -297,9 +464,8 @@ async function fetchDxfText(fileId) {
   } catch { return null; }
 }
 
-/* ── パネル単位のズーム・パン ──
-   diff.html の cmp-zoom と同様の考え方だが、パネルごとに独立して倍率を持つ。
-   PDF/画像は Ctrl/Cmd+ホイールまたはピンチで拡大、1本指ドラッグでパン。 */
+/* ── ライトボックス内のズーム・パン ──
+   Ctrl/Cmd+ホイールまたはピンチで拡大、1本指ドラッグでパン、ダブルクリックでトグル。 */
 function initAlignZoomPan(wrap, el) {
   let zoom = 1;
   let baseW = 0;
