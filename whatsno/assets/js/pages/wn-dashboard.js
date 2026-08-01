@@ -21,6 +21,7 @@ let uploadQueue  = [];
 let semanticMode = false;   // AI自然言語検索モード中かどうか
 let selectMode   = false;   // PDF結合の選択モード中かどうか
 let selectedIds  = [];      // 選択中ファイルID（選択順を保持）
+let lastSelectedIndex = null; // Shift範囲選択の起点（allFiles内インデックス）
 let mergeOrder   = [];      // 結合モーダル内の並び順
 
 /* ────────────────────────────────
@@ -646,7 +647,11 @@ function renderFiles(reset = true, newItems = null) {
   scopeEls.forEach(el => {
     el.addEventListener('click', e => {
       if (e.target.closest('.like-btn') || e.target.closest('.file-action-btn')) return;
-      if (selectMode) { toggleMergeSelect(el.dataset.fileId); return; }
+      if (selectMode) {
+        if (e.shiftKey && lastSelectedIndex !== null) rangeSelect(el.dataset.fileId);
+        else toggleMergeSelect(el.dataset.fileId);
+        return;
+      }
       location.href = `file-detail.html?id=${el.dataset.fileId}`;
     });
   });
@@ -3701,6 +3706,7 @@ function toggleSelectMode() {
   if (!selectMode) {
     selectedIds.forEach(id => applySelectedVisual(id, false));
     selectedIds = [];
+    lastSelectedIndex = null;
   }
   updateMergeActionBar();
 }
@@ -3714,6 +3720,24 @@ function toggleMergeSelect(fileId) {
   if (idx >= 0) selectedIds.splice(idx, 1);
   else selectedIds.push(id);
   applySelectedVisual(id, idx < 0);
+  lastSelectedIndex = allFiles.findIndex(x => String(x.id) === id);
+  updateMergeActionBar();
+}
+
+// Shift+クリック用の範囲選択。lastSelectedIndex（起点）から今クリックした行までを一括で選択状態にする
+function rangeSelect(fileId) {
+  const id = String(fileId);
+  const toIdx = allFiles.findIndex(x => String(x.id) === id);
+  if (toIdx < 0) return;
+  const [start, end] = lastSelectedIndex <= toIdx ? [lastSelectedIndex, toIdx] : [toIdx, lastSelectedIndex];
+  for (let i = start; i <= end; i++) {
+    const fid = String(allFiles[i].id);
+    if (!selectedIds.includes(fid)) {
+      selectedIds.push(fid);
+      applySelectedVisual(fid, true);
+    }
+  }
+  lastSelectedIndex = toIdx;
   updateMergeActionBar();
 }
 
