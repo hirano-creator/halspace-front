@@ -45,6 +45,12 @@
       display: grid; place-items: center; color: #fff; font-size: 20px; background: linear-gradient(135deg,#2d3d52,#0a2540); overflow: hidden; }
     .e-thumb img { width: 100%; height: 100%; object-fit: cover; }
     .e-thumb.file { background: #eef0ff; color: var(--accent-dk); border: 1px solid #dfe1fb; }
+    /* 注釈編集へ飛べるサムネイル（ホバーでペンアイコンを重ねる） */
+    .e-thumb.annotatable { cursor: pointer; position: relative; }
+    .e-thumb.annotatable::after { content: '\f304'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+      position: absolute; inset: 0; display: grid; place-items: center; font-size: 17px; color: #fff;
+      background: rgba(10,37,64,.55); opacity: 0; transition: opacity .15s; }
+    .e-thumb.annotatable:hover::after, .e-thumb.annotatable:focus-visible::after { opacity: 1; }
     .e-scap { flex: 1; min-width: 0; }
     .e-kind { font-size: 10px; font-weight: 700; color: var(--accent); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 3px; }
     .e-scap input, .e-scap textarea { width: 100%; border: 1px solid var(--border); border-radius: 6px;
@@ -189,7 +195,7 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="../../solid/assets/js/auth.js?v=6"></script>
-<script src="../assets/js/wn-api.js?v=20"></script>
+<script src="../assets/js/wn-api.js?v=21"></script>
 <script>
 'use strict';
 /* マニュアル編集画面 */
@@ -216,13 +222,17 @@ function renderStatus() {
 
 function stepThumbHtml(s) {
   if (s.file && (s.type === 'photo' || s.type === 'file')) {
+    /* 画像・PDFはクリックで注釈編集へ。非対応形式（Excel等）は従来どおり表示のみ */
+    const canAnnotate = wnIsAnnotatable(s.file.file_name, s.file.mime_type);
+    const mod   = canAnnotate ? ' annotatable' : '';
+    const attrs = canAnnotate ? ` onclick="openAnnotate(${s.id})" title="クリックして注釈を編集"` : '';
     const isImg = (s.file.mime_type || '').startsWith('image/');
     if (isImg || s.type === 'photo') {
-      return `<div class="e-thumb"><img src="${wnThumbUrl(s.file.id, s.file.updated_at)}" alt=""
+      return `<div class="e-thumb${mod}"${attrs}><img src="${wnThumbUrl(s.file.id, s.file.updated_at)}" alt=""
         onerror="this.parentElement.innerHTML='<i class=&quot;fa-solid fa-image&quot;></i>'"></div>`;
     }
     const ic = wnFileIcon(s.file.file_name, s.file.mime_type);
-    return `<div class="e-thumb file"><i class="fa-solid ${ic.icon}"></i></div>`;
+    return `<div class="e-thumb file${mod}"${attrs}><i class="fa-solid ${ic.icon}"></i></div>`;
   }
   return '';
 }
@@ -284,13 +294,21 @@ function renderAll() {
 }
 
 /* ---------- 保存系（オートセーブ） ---------- */
+/* 実行中の保存を保持する。注釈編集へ遷移する前に完走を待ち、
+   入力直後のクリックでキャプションを取りこぼさないようにする */
+const pendingSaves = new Set();
+function trackSave(p) {
+  pendingSaves.add(p);
+  p.finally(() => pendingSaves.delete(p));
+  return p;
+}
 async function saveCaption(stepId, value) {
   const s = manual.steps.find(x => x.id === stepId); if (s) s.caption = value;
-  await wnUpdateManualStep(manual.id, stepId, { caption: value });
+  await trackSave(wnUpdateManualStep(manual.id, stepId, { caption: value }));
 }
 async function saveBody(stepId, value) {
   const s = manual.steps.find(x => x.id === stepId); if (s) s.body = value;
-  await wnUpdateManualStep(manual.id, stepId, { body: value });
+  await trackSave(wnUpdateManualStep(manual.id, stepId, { body: value }));
 }
 async function removeStep(stepId) {
   if (!confirm('このステップを削除しますか？')) return;
@@ -348,9 +366,27 @@ async function setCover(fileId) {
   wnShowToast('表紙に設定しました', 'success');
 }
 
+/* サムネイルをクリック → 注釈編集画面へ。
+   保存すると annotate.html 側が manual_id/step_id を見てステップを差し替える */
+async function openAnnotate(stepId) {
+  const s = manual.steps.find(x => x.id === stepId);
+  if (!s || !s.file || !wnIsAnnotatable(s.file.file_name, s.file.mime_type)) return;
+  /* 入力中のキャプションを確定（onchange）させ、保存の完走を待ってから遷移 */
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  if (pendingSaves.size) await Promise.allSettled([...pendingSaves]);
+  const q = new URLSearchParams({
+    id:        s.file.id,
+    back:      `manual-edit.html?id=${manual.id}`,
+    manual_id: manual.id,
+    step_id:   stepId,
+  });
+  if (s.file.id === manual.cover_file_id) q.set('cover', '1');
+  location.href = 'annotate.html?' + q.toString();
+}
+
 window.saveCaption = saveCaption; window.saveBody = saveBody;
 window.removeStep = removeStep; window.moveStep = moveStep;
-window.setCover = setCover;
+window.setCover = setCover; window.openAnnotate = openAnnotate;
 window.onStepDragStart = onStepDragStart; window.onStepDragEnd = onStepDragEnd;
 window.onStepDragOver = onStepDragOver; window.onStepDragLeave = onStepDragLeave;
 window.onStepDrop = onStepDrop;
