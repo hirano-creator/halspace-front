@@ -151,8 +151,8 @@ EOF
 
     const colTrackCount = await page.evaluate(() =>
       getComputedStyle(document.getElementById('alignGrid')).gridTemplateColumns.split(' ').length);
-    check('広い画面(1920px)で8件が7〜8列程度に収まる(auto-fitで実トラック数のみ確保)',
-      colTrackCount >= 7 && colTrackCount <= 9, 'tracks=' + colTrackCount);
+    check('広い画面(1920px)で8件は正方形に近い4列程度に収まる(小さい固定列数で埋めず1件あたりを大きく表示)',
+      colTrackCount >= 3 && colTrackCount <= 5, 'tracks=' + colTrackCount);
 
     const cardCount = await page.evaluate(() => document.querySelectorAll('.align-card').length);
     check('カード数がids数と一致(8)', cardCount === 8, 'count=' + cardCount);
@@ -164,9 +164,12 @@ EOF
     await page.close();
   }
 
-  /* ════ 3. align.html: 少件数(4件)でも画面幅いっぱいに引き伸ばされる(実バグの再発防止)
-     報告されたバグ: column-count方式だと件数に関わらず固定8トラックを確保するため、
-     4件では左側だけ埋まり右半分が空白のまま・画像もサムネイル並みに小さいままだった。 */
+  /* ════ 3. align.html: 少件数(4件)でも画面いっぱいに大きく表示される(実バグの再発防止)
+     報告されたバグ1: column-count方式だと件数に関わらず固定8トラックを確保するため、
+     4件では左側だけ埋まり右半分が空白のまま・画像もサムネイル並みに小さいままだった。
+     報告されたバグ2: sqrt(件数×アスペクト比)だけで列数を決めると4件で3列を選んでしまい、
+     最終行が1件だけ埋まって右側が広く空白のまま残ることがあった（見た目はバグ1と同じ）。
+     → 4件は2×2グリッドになり、どの行も隙間なく埋まりカードが大きく表示されるはず。 */
   {
     const page = await ctx.newPage();
     page.on('pageerror', e => console.log('PAGE ERROR(align-fullwidth):', e.message));
@@ -185,13 +188,17 @@ EOF
       const gridRect = grid.getBoundingClientRect();
       const lastRect = cards[cards.length - 1].getBoundingClientRect();
       const firstW = cards[0].getBoundingClientRect().width;
+      const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').length;
       return {
         gridRight: gridRect.right,
         lastCardRight: lastRect.right,
         cardWidth: Math.round(firstW),
+        cols,
       };
     });
-    check('4件を1920px幅で表示: 最後のカードが画面右端付近まで届く(右半分が空白のまま残らない)',
+    check('4件を1920px幅で表示: 2×2グリッドになる(最終行が1件だけ孤立して右側が空白にならない)',
+      fit.cols === 2, 'cols=' + fit.cols);
+    check('4件を1920px幅で表示: 最後の行も画面右端付近まで届く(空白が残らない)',
       Math.abs(fit.gridRight - fit.lastCardRight) < 5, JSON.stringify(fit));
     check('4件を1920px幅で表示: カード幅が旧サムネイル幅(約224px)より大幅に大きい(実画像サイズに近い)',
       fit.cardWidth > 400, 'cardWidth=' + fit.cardWidth);
@@ -200,7 +207,7 @@ EOF
     await page.close();
   }
 
-  /* ════ 4. align.html: レスポンシブ(狭い画面では列数が自然に減る) ════ */
+  /* ════ 4. align.html: レスポンシブ(狭い画面でも件数×アスペクト比から自然な列数になる) ════ */
   {
     const page = await ctx.newPage();
     await page.setViewportSize({ width: 900, height: 800 });
@@ -214,7 +221,7 @@ EOF
     await page.waitForTimeout(200);
     const colTracks = await page.evaluate(() =>
       getComputedStyle(document.getElementById('alignGrid')).gridTemplateColumns.split(' ').length);
-    check('900px幅では2件がminmax(260px)により2〜3列相当に収まる(auto-fitで自然に縮小)',
+    check('900px幅では2件が2〜3列相当に収まる(件数と画面比から算出した列数)',
       colTracks >= 2 && colTracks <= 3, 'tracks=' + colTracks);
     await page.close();
   }
