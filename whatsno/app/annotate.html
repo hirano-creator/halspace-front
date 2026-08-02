@@ -10,7 +10,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
   <script src="../../solid/assets/js/auth.js?v=6"></script>
-  <script src="../assets/js/wn-api.js?v=20"></script>
+  <script src="../assets/js/wn-api.js?v=21"></script>
   <style>
     :root {
       --primary: #1E3A5F;
@@ -795,6 +795,27 @@ const params   = new URLSearchParams(location.search);
 let   fileId   = params.get('id');
 const fromPage = params.get('from') || 'file-detail.html';
 
+/* 呼び出し元がマニュアル編集画面の場合、戻り先はファイルIDでは組み立てられないので
+   back に戻り先URL全体を受け取る。manual_id/step_id があれば新バージョン保存時に
+   そのステップを新しいファイルへ差し替える */
+const manualId = params.get('manual_id');
+const stepId   = params.get('step_id');
+
+/* 戻り先URL（back は同一ディレクトリの相対パスのみ許可＝外部への誘導を防ぐ） */
+function backUrl() {
+  const back = params.get('back');
+  if (back && /^[a-z0-9._-]+\.html(\?[^#]*)?$/i.test(back)) return back;
+  return fromPage + '?id=' + fileId;
+}
+
+/* 自ページを開き直すURL（back/manual_id/step_id 等を落とさず id と saved だけ差し替える） */
+function selfUrl(newFileId, saved) {
+  const p = new URLSearchParams(params.toString());
+  p.set('id', newFileId);
+  if (saved) p.set('saved', '1'); else p.delete('saved');
+  return location.pathname + '?' + p.toString();
+}
+
 let currentUser = null;
 let fileData    = null;
 let saveMode    = 'newversion'; // 'newversion' | 'overwrite'
@@ -960,10 +981,10 @@ const annCtx      = annotCanvas.getContext('2d');
 /* ────── 初期化 ────── */
 document.addEventListener('DOMContentLoaded', async () => {
   currentUser = requireSpaceAuth();
-  if (!currentUser || !fileId) { location.href = fromPage + '?id=' + fileId; return; }
+  if (!currentUser || !fileId) { location.href = backUrl(); return; }
 
   document.getElementById('backBtn').addEventListener('click', () => {
-    location.href = fromPage + '?id=' + fileId;
+    location.href = backUrl();
   });
 
   initTools();
@@ -994,7 +1015,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     setLoading(false);
     showToast('この形式はアノテーション非対応です', 'danger');
-    setTimeout(() => location.href = fromPage + '?id=' + fileId, 2000);
+    setTimeout(() => location.href = backUrl(), 2000);
     return;
   }
 
@@ -1003,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* 保存後リロード時のトースト */
   if (params.get('saved')) {
     showToast('保存しました（注釈が焼き込まれたPDFを表示中）', 'success');
-    window.history.replaceState(null, '', location.pathname + '?id=' + fileId + '&from=' + encodeURIComponent(fromPage));
+    window.history.replaceState(null, '', selfUrl(fileId, false));
   }
 });
 
@@ -2898,6 +2919,16 @@ function initTopActions() {
   });
 }
 
+/* マニュアル編集画面から開かれていれば、そのステップを注釈入りの新ファイルへ差し替える
+   （上書き保存はファイルIDが変わらないので差し替え不要） */
+async function repointManualStep(newFileId) {
+  if (!manualId || !stepId) return;
+  const updated = await wnUpdateManualStep(manualId, stepId, { file_id: newFileId });
+  if (!updated) { showToast('マニュアルの画像差し替えに失敗しました', 'danger'); return; }
+  /* この画像が表紙だった場合は表紙も追従させる */
+  if (params.get('cover') === '1') await wnUpdateManual(manualId, { cover_file_id: newFileId });
+}
+
 /* ────── 保存（新バージョン） ────── */
 async function saveAsNewVersion() {
   /* テキスト入力中なら先に確定（blur発火タイミングの差異を吸収） */
@@ -2931,13 +2962,15 @@ async function saveAsNewVersion() {
     if (res?.data) {
       /* 保存後サムネイルを先行生成（ダッシュボードで即時表示） */
       await preGenerateThumbnail(String(res.data.id), res.data.updated_at).catch(() => {});
+      /* マニュアル経由なら、そのステップを新ファイルへ差し替え（fileId 更新前に旧IDを使い切る） */
+      await repointManualStep(res.data.id);
       /* 保存後は新ファイルのIDに更新してページ遷移せず継続編集可能にする */
       fileId   = String(res.data.id);
       fileData = res.data;
-      window.history.replaceState(null, '', `?id=${fileId}&from=${encodeURIComponent(fromPage)}`);
+      window.history.replaceState(null, '', selfUrl(fileId, false));
       document.getElementById('topTitle').textContent = `注釈編集：${fileData.file_name}`;
       /* 保存済みファイル（注釈焼き込み済み）で同ページを再ロード */
-      location.replace(location.pathname + '?id=' + fileId + '&from=' + encodeURIComponent(fromPage) + '&saved=1');
+      location.replace(selfUrl(fileId, true));
     } else {
       showToast('保存に失敗しました', 'danger');
     }
@@ -2985,7 +3018,7 @@ async function saveOverwrite() {
       /* 保存後サムネイルを先行生成（ダッシュボードで即時表示） */
       await preGenerateThumbnail(String(fileId), res.data.updated_at).catch(() => {});
       /* 保存済みファイル（注釈焼き込み済み）で同ページを再ロード */
-      location.replace(location.pathname + '?id=' + fileId + '&from=' + encodeURIComponent(fromPage) + '&saved=1');
+      location.replace(selfUrl(fileId, true));
     } else {
       showToast('保存に失敗しました', 'danger');
     }

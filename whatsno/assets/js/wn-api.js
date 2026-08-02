@@ -859,6 +859,16 @@ function wnFileIcon(fileName, mimeType = '') {
   return { icon: 'fa-file', cls: 'file-icon-other' };
 }
 
+/* annotate.html で注釈編集できる形式か（PDF・画像のみ。PowerPointは対象外） */
+function wnIsAnnotatable(fileName, mimeType = '') {
+  const ext  = (fileName || '').split('.').pop().toLowerCase();
+  const mime = mimeType || '';
+  if (['pptx', 'ppt', 'pptm'].includes(ext)) return false;
+  return ext === 'pdf' || mime === 'application/pdf'
+    || mime.startsWith('image/')
+    || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif', 'svg'].includes(ext);
+}
+
 /* ── Knowl ── */
 async function wnBrainAsk(question, sessionId = null, folderId = null) {
   const res = await wnFetch('/wn/brain/ask', {
