@@ -64,6 +64,15 @@
     .v-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
     .v-lightbox .lb-close { position: absolute; top: 16px; right: 20px; color: #fff; font-size: 26px; background: none; border: none; cursor: pointer; }
     .v-lightbox .lb-spin { color: #fff; font-size: 28px; }
+
+    /* PC: 画像の右側にコメントを並べる */
+    @media (min-width: 768px) {
+      .v-wrap { max-width: 900px; }
+      .v-sbody { display: flex; align-items: flex-start; gap: 20px; }
+      .v-shot { flex: none; width: 380px; max-width: 50%; }
+      .v-filerow { flex: 1; }
+      .v-cap { flex: 1; min-width: 0; margin-top: 2px; font-size: 15.5px; line-height: 1.7; }
+    }
   </style>
 </head>
 <body>
