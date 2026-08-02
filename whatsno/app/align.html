@@ -30,10 +30,10 @@
     .align-topbar-title { font-size: 14px; font-weight: 700; color: var(--primary); flex: 1; }
     .align-topbar-hint { font-size: 11px; color: var(--muted); white-space: nowrap; }
 
-    /* 本体グリッド: auto-fitで「実際に使うトラックだけ」を画面幅いっぱいに引き伸ばす。
-       column-count(masonry)は件数に関わらず固定本数のトラックを確保してしまい、
-       件数が少ないと右側が空白のまま残る／画像が常に狭い幅に収まる問題があったため、
-       件数に応じて自然にフィットするCSS Gridに変更した。 */
+    /* 本体グリッド: 列数はJS(applyAlignGridColumns)が件数と画面のアスペクト比から
+       都度計算し、grid-template-columnsを直接指定する。auto-fit+minmaxだけだと
+       件数が少なくても画面幅が広いほど列数が増えてしまい、カードが常に最小幅(220px)
+       止まりで小さく表示される問題があったため。ここでの値はJS計算前の初期表示用フォールバック。 */
     .align-body { flex: 1; overflow: auto; padding: 14px; }
     .align-grid {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -224,11 +224,53 @@ document.addEventListener('DOMContentLoaded', async () => {
   const grid = document.getElementById('alignGrid');
   grid.innerHTML = alignIds.map((id, i) => cardSkeletonHtml(id, i)).join('');
 
+  applyAlignGridColumns();
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(applyAlignGridColumns, 150);
+  });
+
   initLightboxControls();
 
   /* 各カードは独立して読み込み・描画する（1件失敗しても他は表示され続ける） */
   alignIds.forEach((id, i) => loadCard(id, i));
 });
+
+/* 件数と画面(align-body)のアスペクト比から、できるだけ正方形に近い
+   グリッドになる列数を求める。auto-fitで機械的に列を埋めると件数が
+   少なくても画面幅いっぱいに列数だけ増えてカードが小さいままになるため、
+   件数に応じて列数を絞り、1カードあたりの表示面積を大きく保つ。
+   単純に sqrt(件数×アスペクト比) だけで決めると、例えば4件で3列を選んだ
+   場合に最終行が1件だけ埋まって右側が空白のまま残る（column-count方式の
+   旧バグと同じ見た目）ことがあるため、理想列数への近さに加えて
+   「最終行の埋まり具合」もスコアリングして列数を選ぶ。 */
+function computeAlignColumns(count) {
+  const body = document.getElementById('alignBody');
+  const availW = Math.max(200, body.clientWidth - 28);
+  const availH = Math.max(200, body.clientHeight - 28);
+  const aspect = availW / availH;
+  const idealCols = Math.sqrt(count * aspect);
+  const MIN_CARD_W = 220;
+  const maxCols = Math.max(1, Math.min(count, Math.floor(availW / MIN_CARD_W)));
+
+  let best = 1, bestScore = -Infinity;
+  for (let cols = 1; cols <= maxCols; cols++) {
+    const remainder = count % cols;
+    const lastRowFill = remainder === 0 ? cols : remainder;
+    const emptiness = (cols - lastRowFill) / cols;
+    const score = -Math.abs(cols - idealCols) - emptiness * 3;
+    if (score > bestScore) { bestScore = score; best = cols; }
+  }
+  return best;
+}
+
+function applyAlignGridColumns() {
+  const grid = document.getElementById('alignGrid');
+  if (!grid) return;
+  const cols = computeAlignColumns(alignIds.length);
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+}
 
 function cardSkeletonHtml(id, i) {
   return `
