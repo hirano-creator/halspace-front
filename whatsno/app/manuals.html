@@ -46,10 +46,56 @@
     .m-edit { color: var(--muted); font-size: 13px; padding: 2px 6px; border-radius: 6px; margin-left: auto; }
     .m-edit:hover { color: var(--accent); background: var(--bg); }
 
+    .m-card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .m-card-tags .tag { font-size: 10.5px; padding: 2px 8px; cursor: default; }
+
     .m-empty { text-align: center; padding: 60px 20px; color: var(--muted); }
     .m-empty .ei { font-size: 44px; color: var(--border); }
     .m-empty .et { font-size: 15px; font-weight: 700; color: var(--primary); margin-top: 14px; }
     .m-empty .es { font-size: 13px; margin-top: 6px; }
+    .m-empty .eb { margin-top: 16px; background: none; border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 8px 16px; font-size: 13px; font-family: inherit; color: var(--primary); cursor: pointer; }
+    .m-empty .eb:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ツールバー（検索・状態・並び替え・タグ） */
+    .m-tools { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+    .m-search { position: relative; display: flex; align-items: center; }
+    .m-search > i { position: absolute; left: 14px; color: var(--muted); font-size: 14px; pointer-events: none; }
+    .m-search input { width: 100%; padding: 11px 38px 11px 38px; border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: 14px; font-family: inherit; box-sizing: border-box; background: var(--bg-card); }
+    .m-search input:focus { outline: none; border-color: var(--accent); }
+    .m-search-clear { position: absolute; right: 8px; background: none; border: none; color: var(--muted);
+      font-size: 14px; cursor: pointer; padding: 6px 8px; display: none; }
+    .m-search-clear:hover { color: var(--primary); }
+
+    .m-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .m-chips { display: flex; gap: 6px; }
+    .m-chip { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-card);
+      font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; font-family: inherit;
+      transition: background .15s, color .15s, border-color .15s; white-space: nowrap; }
+    .m-chip:hover { color: var(--primary); }
+    .m-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .m-sort { margin-left: auto; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--bg-card); font-size: 12.5px; font-family: inherit; color: var(--primary); cursor: pointer; }
+    .m-sort:focus { outline: none; border-color: var(--accent); }
+    .m-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+    .m-tagrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .m-tagrow > .lbl { font-size: 12px; font-weight: 700; color: var(--primary); flex: none; }
+    .m-and { font-size: 10.5px; font-weight: 700; color: var(--accent); background: rgba(99,91,255,.1);
+      border-radius: 20px; padding: 2px 9px; white-space: nowrap; }
+    .m-tag-clear { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 2px 9px;
+      font-size: 11.5px; color: var(--muted); cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .m-tag-clear:hover { border-color: var(--accent); color: var(--accent); }
+
+    .m-more { text-align: center; padding: 20px; color: var(--muted); font-size: 13px; }
+
+    @media (max-width: 560px) {
+      .m-head { padding-bottom: 12px; }
+      .m-new-btn { padding: 9px 12px; font-size: 13px; }
+      .m-sort { margin-left: 0; width: 100%; }
+      .m-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    }
 
     /* 新規作成モーダル */
     .m-overlay { position: fixed; inset: 0; background: rgba(10,37,64,.5); display: none; align-items: center;
@@ -84,7 +130,45 @@
     <button class="m-new-btn" id="newBtn"><i class="fa-solid fa-plus"></i> 新規マニュアル</button>
   </div>
 
+  <!-- 検索・絞り込み・並べ替え -->
+  <div class="m-tools">
+    <div class="m-search">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="searchInput" autocomplete="off"
+             placeholder="マニュアル名・手順の中身で検索…">
+      <button class="m-search-clear" id="searchClear" title="クリア" aria-label="検索をクリア">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="m-row">
+      <div class="m-chips" id="statusChips">
+        <button class="m-chip active" data-status="">すべて</button>
+        <button class="m-chip" data-status="published">公開中</button>
+        <button class="m-chip" data-status="draft">下書き</button>
+      </div>
+      <span class="m-count" id="countLabel"></span>
+      <select class="m-sort" id="sortSelect">
+        <option value="recent">最近見た順</option>
+        <option value="popular">よく見る順</option>
+        <option value="newest">更新が新しい順</option>
+        <option value="oldest">更新が古い順</option>
+        <option value="name">タイトル順</option>
+      </select>
+    </div>
+
+    <div class="m-tagrow" id="tagRow" style="display:none;">
+      <span class="lbl"><i class="fa-solid fa-tag"></i> タグ</span>
+      <div class="tag-list" id="tagList"></div>
+      <span class="m-and" id="tagAndBadge" style="display:none;">AND</span>
+      <button class="m-tag-clear" id="tagClearBtn" style="display:none;">
+        <i class="fa-solid fa-xmark"></i> 全解除
+      </button>
+    </div>
+  </div>
+
   <div id="listArea"></div>
+  <div id="scrollSentinel" style="height:1px;"></div>
 </div>
 
 <!-- 新規作成モーダル -->
@@ -104,7 +188,7 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="../../solid/assets/js/auth.js?v=6"></script>
-<script src="../assets/js/wn-api.js?v=21"></script>
+<script src="../assets/js/wn-api.js?v=22"></script>
 <script>
 'use strict';
 /* マニュアル一覧画面 */
@@ -114,6 +198,36 @@ if (!user) throw new Error('未認証');
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
     ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+/* ── 一覧の状態（URLクエリと同期させる） ── */
+const state = {
+  search: '', tags: [], status: '', sort: 'recent',
+  page: 1, lastPage: 1, total: 0, loading: false, items: [],
+};
+let allTags = [];
+
+function readStateFromUrl() {
+  const p = new URLSearchParams(location.search);
+  state.search = p.get('q') || '';
+  state.tags   = (p.get('tag') || '').split(',').map(Number).filter(Boolean);
+  state.status = ['draft', 'published'].includes(p.get('status')) ? p.get('status') : '';
+  state.sort   = ['recent', 'popular', 'newest', 'oldest', 'name'].includes(p.get('sort'))
+    ? p.get('sort') : 'recent';
+}
+
+function writeStateToUrl() {
+  const p = new URLSearchParams();
+  if (state.search)      p.set('q', state.search);
+  if (state.tags.length) p.set('tag', state.tags.join(','));
+  if (state.status)      p.set('status', state.status);
+  if (state.sort !== 'recent') p.set('sort', state.sort);
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+}
+
+function hasFilter() {
+  return !!(state.search || state.tags.length || state.status);
 }
 
 function coverHtml(m) {
@@ -129,22 +243,22 @@ function coverHtml(m) {
   return `<div class="m-cover">${inner}${badge}${steps}</div>`;
 }
 
-function renderManuals(manuals) {
-  const area = document.getElementById('listArea');
-  if (!manuals.length) {
-    area.innerHTML = `
-      <div class="m-empty">
-        <div class="ei"><i class="fa-solid fa-book-open"></i></div>
-        <div class="et">まだマニュアルがありません</div>
-        <div class="es">「新規マニュアル」から、スマホで撮った写真を並べるだけで作れます</div>
-      </div>`;
-    return;
-  }
-  const cards = manuals.map(m => `
+/* カード内のタグは2件まで。残りは +N に畳む */
+function cardTagsHtml(m) {
+  const tags = m.tags || [];
+  if (!tags.length) return '';
+  const shown = tags.slice(0, 2).map(t => `<span class="tag">${escapeHtml(t.name)}</span>`).join('');
+  const rest  = tags.length > 2 ? `<span class="tag">+${tags.length - 2}</span>` : '';
+  return `<div class="m-card-tags">${shown}${rest}</div>`;
+}
+
+function cardHtml(m) {
+  return `
     <a class="m-card" href="manual-view.html?id=${m.id}">
       ${coverHtml(m)}
       <div class="m-body">
         <div class="m-name">${escapeHtml(m.title)}</div>
+        ${cardTagsHtml(m)}
         <div class="m-meta">
           <span>${wnFormatDate(m.updated_at)}</span>
           <span class="m-edit" title="編集"
@@ -153,13 +267,174 @@ function renderManuals(manuals) {
           </span>
         </div>
       </div>
-    </a>`).join('');
-  area.innerHTML = `<div class="m-grid">${cards}</div>`;
+    </a>`;
 }
 
-async function load() {
-  const manuals = await wnGetManuals();
-  renderManuals(manuals);
+function emptyHtml() {
+  if (hasFilter()) {
+    return `
+      <div class="m-empty">
+        <div class="ei"><i class="fa-solid fa-magnifying-glass"></i></div>
+        <div class="et">条件に合うマニュアルがありません</div>
+        <div class="es">キーワードやタグを変えて試してください</div>
+        <button class="eb" id="clearAllBtn"><i class="fa-solid fa-rotate-left"></i> 絞り込みを解除</button>
+      </div>`;
+  }
+  return `
+    <div class="m-empty">
+      <div class="ei"><i class="fa-solid fa-book-open"></i></div>
+      <div class="et">まだマニュアルがありません</div>
+      <div class="es">「新規マニュアル」から、スマホで撮った写真を並べるだけで作れます</div>
+    </div>`;
+}
+
+function renderManuals() {
+  const area = document.getElementById('listArea');
+  if (!state.items.length) {
+    area.innerHTML = emptyHtml();
+    const clearBtn = document.getElementById('clearAllBtn');
+    if (clearBtn) clearBtn.addEventListener('click', clearAllFilters);
+    return;
+  }
+  area.innerHTML = `<div class="m-grid">${state.items.map(cardHtml).join('')}</div>`;
+}
+
+function renderCount() {
+  const el = document.getElementById('countLabel');
+  el.textContent = state.total ? `${state.total}件` : '';
+}
+
+/* ── タグ絞り込みバー ── */
+function renderTagFilter() {
+  const row  = document.getElementById('tagRow');
+  const list = document.getElementById('tagList');
+  // マニュアルに1件も付いていないタグは候補に出さない（ファイル用タグが混ざるため）
+  if (!allTags.length) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+
+  list.innerHTML = allTags.map(t => `
+    <span class="tag ${state.tags.includes(t.id) ? 'active' : ''}" data-tag-id="${t.id}">
+      ${escapeHtml(t.name)}
+    </span>`).join('');
+
+  list.querySelectorAll('[data-tag-id]').forEach(el => {
+    el.addEventListener('click', () => toggleTag(Number(el.dataset.tagId)));
+  });
+
+  document.getElementById('tagAndBadge').style.display = state.tags.length > 1 ? '' : 'none';
+  document.getElementById('tagClearBtn').style.display = state.tags.length ? '' : 'none';
+}
+
+function toggleTag(id) {
+  state.tags = state.tags.includes(id) ? state.tags.filter(t => t !== id) : [...state.tags, id];
+  renderTagFilter();
+  reload();
+}
+
+function clearAllFilters() {
+  state.search = '';
+  state.tags   = [];
+  state.status = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').style.display = 'none';
+  document.querySelectorAll('#statusChips .m-chip').forEach(c =>
+    c.classList.toggle('active', c.dataset.status === ''));
+  renderTagFilter();
+  reload();
+}
+
+/* ── 読み込み ── */
+function buildParams() {
+  return {
+    search:   state.search,
+    tag:      state.tags.join(','),
+    status:   state.status,
+    sort:     state.sort,
+    page:     state.page,
+    per_page: 24,
+  };
+}
+
+/* 先頭ページから読み直す */
+async function reload() {
+  writeStateToUrl();
+  state.page = 1;
+  state.loading = true;
+
+  const { data, meta, error } = await wnGetManuals(buildParams());
+  state.loading = false;
+
+  if (error) {
+    if (error !== 'auth') wnShowToast('一覧を取得できませんでした', 'danger');
+    return;
+  }
+  state.items    = data;
+  state.total    = meta?.total ?? data.length;
+  state.lastPage = meta?.last_page ?? 1;
+  renderManuals();
+  renderCount();
+}
+
+/* 次ページを追記（無限スクロール） */
+async function loadMore() {
+  if (state.loading || state.page >= state.lastPage) return;
+  state.loading = true;
+  state.page   += 1;
+
+  const { data, meta, error } = await wnGetManuals(buildParams());
+  state.loading = false;
+  if (error) { state.page -= 1; return; }
+
+  state.items    = state.items.concat(data);
+  state.lastPage = meta?.last_page ?? state.lastPage;
+  renderManuals();
+}
+
+async function loadTags() {
+  allTags = await wnGetManualTags(true);   // 実際に使われているタグのみ
+  renderTagFilter();
+}
+
+/* ── 操作のひもづけ ── */
+function initTools() {
+  const input = document.getElementById('searchInput');
+  const clear = document.getElementById('searchClear');
+  input.value = state.search;
+  clear.style.display = state.search ? 'block' : 'none';
+
+  let timer;
+  input.addEventListener('input', () => {
+    clear.style.display = input.value ? 'block' : 'none';
+    clearTimeout(timer);
+    timer = setTimeout(() => { state.search = input.value.trim(); reload(); }, 400);
+  });
+  clear.addEventListener('click', () => {
+    input.value = ''; clear.style.display = 'none';
+    state.search = ''; reload(); input.focus();
+  });
+
+  document.querySelectorAll('#statusChips .m-chip').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.status === state.status);
+    chip.addEventListener('click', () => {
+      state.status = chip.dataset.status;
+      document.querySelectorAll('#statusChips .m-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      reload();
+    });
+  });
+
+  const sortSel = document.getElementById('sortSelect');
+  sortSel.value = state.sort;
+  sortSel.addEventListener('change', () => { state.sort = sortSel.value; reload(); });
+
+  document.getElementById('tagClearBtn').addEventListener('click', () => {
+    state.tags = []; renderTagFilter(); reload();
+  });
+
+  // 末尾が見えたら次ページを読む
+  new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) loadMore();
+  }, { rootMargin: '600px' }).observe(document.getElementById('scrollSentinel'));
 }
 
 /* 新規作成モーダル */
@@ -188,7 +463,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('createBtn').addEventListener('click', createManual);
   titleInput.addEventListener('keydown', e => { if (e.key === 'Enter') createManual(); });
   modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-  load();
+
+  readStateFromUrl();
+  initTools();
+  reload();
+  loadTags();
 });
 </script>
 </body>

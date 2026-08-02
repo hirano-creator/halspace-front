@@ -125,6 +125,31 @@
     .e-mf-add { background: var(--accent); color: #fff; border-color: var(--accent) !important; }
     .e-mf-add:disabled { opacity: .5; cursor: not-allowed; }
 
+    /* タグ行 */
+    .e-tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 2px 14px; }
+    .e-tags-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .04em; flex: none; }
+    .e-tag-add { background: none; border: 1px dashed var(--border); border-radius: 20px; padding: 3px 11px;
+      font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .e-tag-add:hover { border-color: var(--accent); color: var(--accent); }
+    .e-tagpick { position: relative; flex: none; }
+    .e-tagpick-panel { display: none; position: absolute; left: 0; top: calc(100% + 6px); z-index: 200;
+      background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 10px; min-width: 240px;
+      box-shadow: var(--shadow-md); }
+    .e-tagpick-panel.show { display: block; }
+    .e-tagpick-panel input { width: 100%; padding: 7px 10px; border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: 13px; font-family: inherit; box-sizing: border-box; }
+    .e-tagpick-panel input:focus { outline: none; border-color: var(--accent); }
+    .e-tagpick-list { max-height: 200px; overflow-y: auto; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .e-tagpick-hint { font-size: 11.5px; color: var(--muted); padding: 6px 2px; }
+
+    /* ファイルピッカーの検索 */
+    .e-pick-search { position: relative; margin-bottom: 12px; }
+    .e-pick-search > i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 13px; pointer-events: none; }
+    .e-pick-search input { width: 100%; padding: 9px 12px 9px 32px; border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: 13px; font-family: inherit; box-sizing: border-box; }
+    .e-pick-search input:focus { outline: none; border-color: var(--accent); }
+
     .hidden { display: none !important; }
   </style>
 </head>
@@ -149,6 +174,20 @@
     <input id="fDesc" type="text" placeholder="作業の概要・所要時間・注意など" maxlength="2000">
   </div>
 
+  <!-- タグ（一覧の絞り込みに使う） -->
+  <div class="e-tags">
+    <span class="e-tags-label">タグ</span>
+    <div class="tag-list" id="tagChips"></div>
+    <div class="e-tagpick">
+      <button class="e-tag-add" id="tagAddBtn"><i class="fa-solid fa-plus"></i> タグ</button>
+      <div class="e-tagpick-panel" id="tagPickPanel">
+        <input type="text" id="tagPickSearch" placeholder="タグ名で絞り込み / 新規作成" autocomplete="off" maxlength="100">
+        <div class="e-tagpick-list" id="tagPickList"></div>
+        <div class="e-tagpick-hint" id="tagPickHint"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="e-steps" id="steps"></div>
 
   <div class="e-addbar">
@@ -170,7 +209,13 @@
 <div class="e-overlay" id="fileModal">
   <div class="e-modal">
     <div class="e-modal-head"><h3>既存ファイルから追加</h3><button class="close" data-close="fileModal">&times;</button></div>
-    <div class="e-modal-body"><div class="e-pick-grid" id="pickGrid"><div class="e-empty">読み込み中…</div></div></div>
+    <div class="e-modal-body">
+      <div class="e-pick-search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="pickSearch" placeholder="ファイル名で検索…" autocomplete="off">
+      </div>
+      <div class="e-pick-grid" id="pickGrid"><div class="e-empty">読み込み中…</div></div>
+    </div>
   </div>
 </div>
 
@@ -195,7 +240,7 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="../../solid/assets/js/auth.js?v=6"></script>
-<script src="../assets/js/wn-api.js?v=21"></script>
+<script src="../assets/js/wn-api.js?v=22"></script>
 <script>
 'use strict';
 /* マニュアル編集画面 */
@@ -290,6 +335,7 @@ function renderAll() {
   document.getElementById('fDesc').value = manual.description || '';
   document.getElementById('viewLink').href = `manual-view.html?id=${manual.id}`;
   renderStatus();
+  renderTagChips();
   renderSteps();
 }
 
@@ -423,14 +469,104 @@ async function addTextStep(type, body) {
   }
 }
 
+/* ---------- タグ ---------- */
+let allTags = [];   /* 会社のタグマスター（ピッカー用に1回だけ取得） */
+
+function renderTagChips() {
+  const box = document.getElementById('tagChips');
+  box.innerHTML = (manual.tags || []).map(t => `
+    <span class="tag tag-removable">${escapeHtml(t.name)}<button
+      onclick="removeTag(${t.id})" title="このタグを外す"><i class="fa-solid fa-xmark"></i></button></span>`).join('');
+}
+
+async function addTag({ tagId, name }) {
+  try {
+    const tag = await wnAddManualTag(manual.id, { tagId, name });
+    if (!(manual.tags || []).some(t => t.id === tag.id)) {
+      manual.tags = [...(manual.tags || []), tag];
+    }
+    if (!allTags.some(t => t.id === tag.id)) allTags.push(tag);
+    renderTagChips();
+    renderTagPicker();
+  } catch (e) {
+    wnShowToast(e.message || 'タグの追加に失敗しました', 'danger');
+  }
+}
+
+async function removeTag(tagId) {
+  const ok = await wnRemoveManualTag(manual.id, tagId);
+  if (!ok) { wnShowToast('タグを外せませんでした', 'danger'); return; }
+  manual.tags = (manual.tags || []).filter(t => t.id !== tagId);
+  renderTagChips();
+  renderTagPicker();
+}
+window.removeTag = removeTag;
+
+/* ピッカーは取得済みのタグをクライアント側で絞り込む（打鍵ごとの通信をしない） */
+function renderTagPicker() {
+  const raw   = document.getElementById('tagPickSearch').value.trim();
+  const q     = raw.toLowerCase();
+  const owned = new Set((manual.tags || []).map(t => t.id));
+  const list  = allTags.filter(t => !owned.has(t.id) && (!q || t.name.toLowerCase().includes(q)));
+
+  document.getElementById('tagPickList').innerHTML = list.length
+    ? list.map(t => `<span class="tag" data-pick-tag="${t.id}">${escapeHtml(t.name)}</span>`).join('')
+    : '';
+
+  document.getElementById('tagPickList').querySelectorAll('[data-pick-tag]').forEach(el => {
+    el.addEventListener('click', () => addTag({ tagId: Number(el.dataset.pickTag) }));
+  });
+
+  const hint  = document.getElementById('tagPickHint');
+  const exact = q && allTags.some(t => t.name.toLowerCase() === q);
+  if (q && !exact) {
+    hint.innerHTML = `Enter で「${escapeHtml(raw)}」を新しいタグとして作成`;
+  } else {
+    hint.textContent = list.length ? '' : '該当するタグがありません';
+  }
+}
+
+function initTagPicker() {
+  const btn    = document.getElementById('tagAddBtn');
+  const panel  = document.getElementById('tagPickPanel');
+  const search = document.getElementById('tagPickSearch');
+
+  btn.addEventListener('click', async e => {
+    e.stopPropagation();
+    const opening = !panel.classList.contains('show');
+    panel.classList.toggle('show', opening);
+    if (!opening) return;
+    if (!allTags.length) allTags = await wnGetManualTags();
+    search.value = '';
+    renderTagPicker();
+    setTimeout(() => search.focus(), 50);
+  });
+
+  search.addEventListener('input', renderTagPicker);
+  search.addEventListener('keydown', async e => {
+    if (e.key !== 'Enter') return;
+    const name = search.value.trim();
+    if (!name) return;
+    await addTag({ name });          // 既存が無ければサーバー側で作成される
+    search.value = '';
+    renderTagPicker();
+  });
+
+  panel.addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', () => panel.classList.remove('show'));
+}
+
 /* ---------- 既存ファイルピッカー ---------- */
-async function openFilePicker() {
-  document.getElementById('fileModal').classList.add('show');
+let pickSearchTimer = null;
+
+async function loadPickerFiles() {
   const grid = document.getElementById('pickGrid');
+  const q    = document.getElementById('pickSearch').value.trim();
   grid.innerHTML = '<div class="e-empty">読み込み中…</div>';
-  const { data, error } = await wnGetFiles({ per_page: 60 });
+
+  const { data, error } = await wnGetFiles({ search: q, per_page: 60 });
   if (error || !data || !data.length) {
-    grid.innerHTML = '<div class="e-empty">追加できるファイルがありません</div>';
+    grid.innerHTML = `<div class="e-empty">${q ? '該当するファイルがありません' : '追加できるファイルがありません'}</div>`;
     return;
   }
   grid.innerHTML = data.map(f => {
@@ -444,6 +580,14 @@ async function openFilePicker() {
     </div>`;
   }).join('');
 }
+function openFilePicker() {
+  document.getElementById('fileModal').classList.add('show');
+  const search = document.getElementById('pickSearch');
+  search.value = '';
+  loadPickerFiles();
+  setTimeout(() => search.focus(), 50);
+}
+
 async function pickFile(fileId) {
   document.getElementById('fileModal').classList.remove('show');
   try {
@@ -493,6 +637,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('inCam').addEventListener('change', function () { addFileSteps(Array.from(this.files), 'photo'); this.value = ''; });
   document.getElementById('inImg').addEventListener('change', function () { addFileSteps(Array.from(this.files), 'photo'); this.value = ''; });
   document.getElementById('addFile').addEventListener('click', openFilePicker);
+  document.getElementById('pickSearch').addEventListener('input', () => {
+    clearTimeout(pickSearchTimer);
+    pickSearchTimer = setTimeout(loadPickerFiles, 400);
+  });
+  initTagPicker();
   document.getElementById('addText').addEventListener('click', () => {
     document.getElementById('textModal').classList.add('show');
     document.getElementById('textBody').value = '';

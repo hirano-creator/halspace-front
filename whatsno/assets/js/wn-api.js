@@ -699,10 +699,73 @@ async function wnSuggestRelations(fileId) {
 }
 
 /* ── マニュアル（工場向け手順書・会社単位） ── */
-async function wnGetManuals() {
-  const res = await wnFetch('/wn/manuals');
+
+/* マニュアル一覧
+   params: { search, search_reading, tag, status, mine, sort, page, per_page }
+     sort: recent(最近見た) | popular(よく見る) | newest | oldest | name
+   返り値: { data: [], meta: {...}, error: null } / { data: null, meta: null, error: 'msg' }
+   wnGetFiles と同じくエラーと「本当に空」を区別し、詰まりをリトライで自動回復させる */
+async function wnGetManuals(params = {}) {
+  const q = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q.set(k, v); });
+  const path = '/wn/manuals?' + q.toString();
+
+  const MAX_ATTEMPTS    = 4;
+  const BACKOFF_MS      = [0, 700, 1600, 3200];
+  const PER_TRY_TIMEOUT = 15000;
+
+  let lastError = 'unknown';
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    if (BACKOFF_MS[attempt]) await new Promise(r => setTimeout(r, BACKOFF_MS[attempt]));
+
+    const ctl   = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), PER_TRY_TIMEOUT);
+    try {
+      const res = await wnFetch(path, { signal: ctl.signal });
+      clearTimeout(timer);
+      if (!res) return { data: null, meta: null, error: 'auth' };
+      if (res.status >= 500) { lastError = `server-${res.status}`; continue; }
+      if (!res.ok) return { data: null, meta: null, error: `http-${res.status}` };
+      const json = await res.json();
+      return { data: json.data ?? [], meta: json.meta ?? null, error: null };
+    } catch (e) {
+      clearTimeout(timer);
+      lastError = (e && e.name === 'AbortError') ? 'timeout' : 'network';
+    }
+  }
+  return { data: null, meta: null, error: lastError };
+}
+
+/* マニュアルで使われているタグ一覧（used=true で件数0のタグを除く） */
+async function wnGetManualTags(used = false) {
+  const res = await wnFetch('/wn/manuals/tags' + (used ? '?used=1' : ''));
   if (!res || !res.ok) return [];
   return (await res.json()).data ?? [];
+}
+
+/* タグ付与（tagIdまたはnameのどちらか。nameは無ければその場で作成される） */
+async function wnAddManualTag(id, { tagId, name } = {}) {
+  const res = await wnFetch(`/wn/manuals/${id}/tags`, {
+    method: 'POST',
+    body: JSON.stringify(tagId ? { tag_id: tagId } : { name }),
+  });
+  if (!res || !res.ok) {
+    const err = await res?.json().catch(() => ({}));
+    throw new Error(err.message || 'タグの追加に失敗しました');
+  }
+  return (await res.json()).data;
+}
+
+async function wnRemoveManualTag(id, tagId) {
+  const res = await wnFetch(`/wn/manuals/${id}/tags/${tagId}`, { method: 'DELETE' });
+  return !!(res && res.ok);
+}
+
+/* 閲覧記録（「最近見た/よく見る」の並べ替え用。失敗しても閲覧を妨げない） */
+async function wnTrackManualView(id) {
+  try {
+    await wnFetch(`/wn/manuals/${id}/view`, { method: 'POST' });
+  } catch (e) { /* 記録できなくても表示は継続する */ }
 }
 async function wnGetManual(id) {
   const res = await wnFetch(`/wn/manuals/${id}`);
