@@ -30,6 +30,10 @@
     .v-h1 { margin: 8px 0 6px; font-size: 22px; font-weight: 800; line-height: 1.3; }
     .v-desc { font-size: 13.5px; opacity: .92; }
     .v-meta { display: flex; gap: 16px; margin-top: 16px; font-size: 12px; opacity: .85; flex-wrap: wrap; }
+    /* ヒーロー内のタグ（濃紺背景なので配色を上書きする） */
+    .v-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .v-tags .tag { background: rgba(255,255,255,.16); color: #fff; text-decoration: none; }
+    .v-tags .tag:hover { background: rgba(255,255,255,.3); color: #fff; }
     .v-draft-pill { display: inline-block; margin-left: 8px; font-size: 10.5px; font-weight: 700; padding: 2px 9px;
       border-radius: 100px; background: rgba(255,255,255,.2); vertical-align: middle; }
 
@@ -92,7 +96,7 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="../../solid/assets/js/auth.js?v=6"></script>
-<script src="../assets/js/wn-api.js?v=21"></script>
+<script src="../assets/js/wn-api.js?v=22"></script>
 <script>
 'use strict';
 /* マニュアル閲覧画面（社内） */
@@ -147,6 +151,11 @@ function render(m) {
   stepNo = 0;
   const draftPill = m.status === 'draft' ? '<span class="v-draft-pill">下書き</span>' : '';
   const descHtml = m.description ? `<div class="v-desc">${escapeHtml(m.description)}</div>` : '';
+  // タグは一覧の絞り込みへの導線（同じタグのマニュアルをまとめて見られる）
+  const tagsHtml = (m.tags || []).length
+    ? `<div class="v-tags">${m.tags.map(t =>
+        `<a class="tag" href="manuals.html?tag=${t.id}">${escapeHtml(t.name)}</a>`).join('')}</div>`
+    : '';
   const stepCount = m.steps.filter(s => s.type === 'photo' || s.type === 'file').length;
   const stepsHtml = m.steps.length
     ? m.steps.map(stepHtml).join('')
@@ -157,6 +166,7 @@ function render(m) {
       <div class="v-tag">作業手順書${draftPill}</div>
       <div class="v-h1">${escapeHtml(m.title)}</div>
       ${descHtml}
+      ${tagsHtml}
       <div class="v-meta">
         <span>📖 <b>${stepCount}</b> ステップ</span>
         <span>🕓 ${wnFormatDate(m.updated_at)}</span>
@@ -181,6 +191,7 @@ async function load() {
   const m = await wnGetManual(manualId);
   if (!m) { document.getElementById('content').innerHTML = '<div class="v-empty">マニュアルが見つかりません</div>'; return; }
   render(m);
+  wnTrackManualView(m.id);   /* 一覧の「最近見た / よく見る」順に反映（失敗しても表示は継続） */
 }
 
 document.addEventListener('DOMContentLoaded', () => {
