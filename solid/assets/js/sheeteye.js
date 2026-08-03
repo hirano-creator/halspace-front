@@ -54,15 +54,22 @@ function saveDimStyle() {
 // Per-file annotation store: { "<filename>": [...annotations] }
 // Key "__default__" is used when no DXF has been opened (freehand session)
 let currentFileKey = '__default__';
+// ホストページが window.SHEETEYE_STORAGE_NS にユーザー識別子を設定していれば、
+// 計測寸法の保存領域をユーザーごとに分離する（同一ブラウザで管理者/発注者を
+// ログイン切替した際に、互いの計測データが見えてしまう問題への対応）。
+// 未設定時（whatsno側など）は従来どおり共通キーのまま動作する。
+const ANNOTATION_STORE_KEY = (typeof window !== 'undefined' && window.SHEETEYE_STORAGE_NS)
+  ? 'cad_annotations_by_file__' + window.SHEETEYE_STORAGE_NS
+  : 'cad_annotations_by_file';
 function loadAnnotationStore() {
   try {
-    const s = localStorage.getItem('cad_annotations_by_file');
+    const s = localStorage.getItem(ANNOTATION_STORE_KEY);
     if (s) return JSON.parse(s) || {};
   } catch (e) {}
   return {};
 }
 function saveAnnotationStore(store) {
-  try { localStorage.setItem('cad_annotations_by_file', JSON.stringify(store)); } catch (e) {}
+  try { localStorage.setItem(ANNOTATION_STORE_KEY, JSON.stringify(store)); } catch (e) {}
 }
 function saveAnnotations() {
   const store = loadAnnotationStore();

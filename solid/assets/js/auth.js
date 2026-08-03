@@ -122,9 +122,13 @@ function renderSidebarUser(user) {
 /* role=サイト権限、solidType=発注者/モデラー種別（solidアプリ内でのみ意味を持つ） */
 function roleLabel(role, solidType) {
   if (role === 'super_admin') return 'スーパー管理者';
-  if (role === 'admin') return '管理者';
+  if (role === 'admin') {
+    if (solidType === 'id_modeler') return 'モデラー管理者';
+    if (solidType === 'jp_client') return '発注担当管理者';
+    return '管理者';
+  }
   if (solidType === 'jp_client') return '発注担当';
-  if (solidType === 'id_modeler') return 'モデラー';
+  if (solidType === 'id_modeler') return 'モデラー一般会員';
   return '一般会員';
 }
 

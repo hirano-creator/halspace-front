@@ -113,9 +113,19 @@
   </div>
 </div>
 
-<script src="../assets/js/auth.js?v=1"></script>
+<script src="../assets/js/auth.js?v=2"></script>
 <script src="../assets/js/api.js?v=1"></script>
-<script src="../assets/js/sheeteye.js?v=1"></script>
+<script>
+/* 計測寸法(annotations)の保存領域をユーザーごとに分離する名前空間。
+   sheeteye.js読み込み前（トップレベルでストアを読むため）に設定する必要がある。 */
+(function () {
+  try {
+    var u = (typeof getSpaceUser === 'function') ? getSpaceUser() : null;
+    if (u) window.SHEETEYE_STORAGE_NS = 'u' + (u.id != null ? u.id : (u.solid_type || u.role || 'unknown'));
+  } catch (e) {}
+})();
+</script>
+<script src="../assets/js/sheeteye.js?v=2"></script>
 <script>
 /* URLパラメータ（file_id / name）からSOLID APIのDXFを自動ロード */
 (function () {
