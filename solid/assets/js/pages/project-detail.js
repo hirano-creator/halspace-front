@@ -793,10 +793,13 @@ async function apiFetchForm(path, formData) {
    チャットルーム
    ══════════════════════════════════════════ */
 
+/* 発注者（一般会員）は制作チームとも直接やり取りするため両チャンネル可。
+   モデラーは発注者⇄管理者間の「お客様連絡」には入らない。
+   バックエンドの User::accessibleCommentChannels() と揃えること。 */
 function canAccessChannel(ch) {
   if (hasAdminLevelAccess(user)) return true;
   if (ch === 'client')  return !isModeler(user);
-  if (ch === 'modeler') return isModeler(user);
+  if (ch === 'modeler') return true;
   return false;
 }
 
@@ -804,16 +807,11 @@ let currentChannel = isModeler(user) ? 'modeler' : 'client';
 let pendingImages  = [];
 
 function initChatTabs() {
-  const tabs      = document.getElementById('chatTabs');
-  const modelerTab = document.getElementById('modelerTab');
+  const tabs = document.getElementById('chatTabs');
 
   if (isModeler(user)) {
     tabs.querySelector('[data-ch="client"]').style.display = 'none';
     currentChannel = 'modeler';
-  }
-  /* solid_typeが未設定の既存ユーザーもいるため isClient() ではなく !isModeler() で判定する */
-  if (!hasAdminLevelAccess(user) && !isModeler(user)) {
-    modelerTab.style.display = 'none';
   }
 
   tabs.querySelectorAll('.chat-tab').forEach(btn => {
