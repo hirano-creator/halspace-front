@@ -434,7 +434,8 @@ async function openAnnotate(stepId) {
     step_id:   stepId,
   });
   if (s.file.id === manual.cover_file_id) q.set('cover', '1');
-  location.href = 'annotate.html?' + q.toString();
+  /* 編集中の内容を失わないよう別タブで開く。戻ってきたらフォーカス時に再取得する */
+  window.open('annotate.html?' + q.toString(), '_blank');
 }
 
 window.saveCaption = saveCaption; window.saveBody = saveBody;
@@ -613,6 +614,11 @@ async function load() {
   if (!manual) { wnShowToast('マニュアルが見つかりません', 'danger'); setTimeout(() => location.href = 'manuals.html', 1200); return; }
   renderAll();
 }
+
+/* 注釈編集を別タブで開いた後、このタブへ戻ってきたら最新の注釈済みサムネイルを反映する */
+window.addEventListener('focus', () => {
+  if (manual) load().catch(() => {});
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   /* タイトル・説明のオートセーブ */
