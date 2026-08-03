@@ -11,14 +11,14 @@ test.describe("タブごとのセッション分離（本改修の核心）", ()
     await pageA.getByLabel(/社員番号/).fill("0001");
     await pageA.getByLabel("パスワード").fill("admin123");
     await pageA.getByRole("button", { name: "ログイン" }).click();
-    await expect(pageA).toHaveURL(/\/my$/);
+    await expect(pageA).toHaveURL(/\/clock$/);
 
     // タブB: 店長でログイン（別アカウント）
     await pageB.goto("/login");
     await pageB.getByLabel(/社員番号/).fill("0002");
     await pageB.getByLabel("パスワード").fill("password123");
     await pageB.getByRole("button", { name: "ログイン" }).click();
-    await expect(pageB).toHaveURL(/\/my$/);
+    await expect(pageB).toHaveURL(/\/clock$/);
 
     // それぞれのタブで自分のアカウント名がサイドバーに表示されている
     await expect(pageA.getByText("管理者", { exact: true })).toBeVisible();
@@ -27,9 +27,9 @@ test.describe("タブごとのセッション分離（本改修の核心）", ()
     // リロードしても互いに影響しない（sessionStorageはタブごとに独立）
     await pageA.reload();
     await pageB.reload();
-    await expect(pageA).toHaveURL(/\/my$/);
+    await expect(pageA).toHaveURL(/\/clock$/);
     await expect(pageA.getByText("管理者", { exact: true })).toBeVisible();
-    await expect(pageB).toHaveURL(/\/my$/);
+    await expect(pageB).toHaveURL(/\/clock$/);
     await expect(pageB.getByText("店長 花子", { exact: true })).toBeVisible();
 
     // タブAでログアウトしても、タブBのセッションは維持される
@@ -37,7 +37,7 @@ test.describe("タブごとのセッション分離（本改修の核心）", ()
     await expect(pageA).toHaveURL(/\/login/);
 
     await pageB.reload();
-    await expect(pageB).toHaveURL(/\/my$/);
+    await expect(pageB).toHaveURL(/\/clock$/);
     await expect(pageB.getByText("店長 花子", { exact: true })).toBeVisible();
 
     await context.close();

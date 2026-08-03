@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRequireAuth } from "@/lib/auth/client";
 import { apiFetchJson } from "@/lib/auth/api-fetch";
-import { Card, PageHeader, tdClass, thClass } from "@/components/ui";
+import { PageHeader, TableCard, tdClass, thClass } from "@/components/ui";
 import { ImportClient } from "./import-client";
 import { DeleteHistoryButton } from "./delete-history-button";
 import type { ImportPageResponse } from "./types";
@@ -49,8 +49,10 @@ export default function ImportPage() {
 
       <ImportClient initialMapping={data.mapping} onImported={refetch} />
 
-      <Card className="mt-6 overflow-x-auto p-0">
-        <h2 className="px-6 py-4 text-base font-semibold">取込履歴</h2>
+      <TableCard
+        className="mt-6"
+        header={<h2 className="px-4 py-3 text-base font-semibold sm:px-6 sm:py-4">取込履歴</h2>}
+      >
         <table className="w-full min-w-[560px] border-t border-border">
           <thead className="bg-gray-50/50">
             <tr>
@@ -98,7 +100,7 @@ export default function ImportPage() {
             )}
           </tbody>
         </table>
-      </Card>
+      </TableCard>
     </>
   );
 }

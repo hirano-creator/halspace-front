@@ -12,6 +12,7 @@ import { importCsvAction } from "./client-actions";
 import type { ImportResult, ImportRow } from "./types";
 import {
   Card,
+  TableCard,
   buttonPrimaryClass,
   inputClass,
   tdClass,
@@ -246,23 +247,26 @@ export function ImportClient({
             </div>
           </Card>
 
-          <Card className="overflow-x-auto p-0">
-            <div className="flex items-center justify-between px-6 py-4">
-              <div>
-                <h2 className="text-base font-semibold">プレビュー</h2>
-                <p className="text-sm text-muted">
-                  {csv.fileName} ・ 全{csv.rows.length}行（先頭10行を表示）
-                </p>
+          <TableCard
+            header={
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
+                <div className="min-w-0">
+                  <h2 className="text-base font-semibold">プレビュー</h2>
+                  <p className="text-sm text-muted">
+                    {csv.fileName} ・ 全{csv.rows.length}行（先頭10行を表示）
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={!mappingComplete || pending}
+                  className={`${buttonPrimaryClass} w-full sm:w-auto`}
+                >
+                  {pending ? "取込中..." : `${csv.rows.length}行を取り込む`}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={submit}
-                disabled={!mappingComplete || pending}
-                className={buttonPrimaryClass}
-              >
-                {pending ? "取込中..." : `${csv.rows.length}行を取り込む`}
-              </button>
-            </div>
+            }
+          >
             <table className="w-full min-w-[640px] border-t border-border">
               <thead className="bg-gray-50/50">
                 <tr>
@@ -289,7 +293,7 @@ export function ImportClient({
                 ))}
               </tbody>
             </table>
-          </Card>
+          </TableCard>
         </>
       )}
     </div>

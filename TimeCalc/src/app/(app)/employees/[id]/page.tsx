@@ -8,7 +8,7 @@ import { useRequireAuth } from "@/lib/auth/client";
 import { apiFetchJson } from "@/lib/auth/api-fetch";
 import { formatYen } from "@/lib/attendance/calculator";
 import { formatMinutes } from "@/lib/utils/time";
-import { Badge, Card, PageHeader, StatCard } from "@/components/ui";
+import { Badge, Card, PageHeader, StatCard, TableCard } from "@/components/ui";
 import { MonthPicker } from "@/components/month-picker";
 import { AttendanceEditor } from "./attendance-editor";
 import type { EmployeeDetailResponse } from "./types";
@@ -148,7 +148,7 @@ export default function EmployeeDetailPage() {
         )}
       </div>
 
-      <Card className="overflow-x-auto p-0">
+      <TableCard>
         <AttendanceEditor
           userId={data.employee.id}
           rows={data.rows}
@@ -157,7 +157,7 @@ export default function EmployeeDetailPage() {
           weeks={data.weeks}
           onChanged={refetch}
         />
-      </Card>
+      </TableCard>
 
       {data.logs.length > 0 && (
         <Card className="mt-6">

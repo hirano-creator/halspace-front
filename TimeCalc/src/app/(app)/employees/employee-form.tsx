@@ -12,6 +12,7 @@ import {
   SELF_EDIT_LABELS,
   CLOCK_MODE_LABELS,
   HOME_SCREEN_LABELS,
+  DEFAULT_FEATURES,
   type FeatureSettings,
 } from "@/lib/auth/features";
 import {
@@ -296,7 +297,7 @@ export function EmployeeForm({
             <select
               id="homeScreen"
               name="homeScreen"
-              defaultValue={values?.features.homeScreen ?? "my"}
+              defaultValue={values?.features.homeScreen ?? DEFAULT_FEATURES.homeScreen}
               className={inputClass}
             >
               {(Object.keys(HOME_SCREEN_LABELS) as (keyof typeof HOME_SCREEN_LABELS)[]).map(
@@ -308,7 +309,7 @@ export function EmployeeForm({
               )}
             </select>
             <p className="mt-1 text-xs text-muted">
-              「QR読取り画面」にすると、ログイン直後にすぐカメラでQRコードを読み取れます（設定変更後は本人が再ログインすると反映されます）
+              既定は「打刻画面」で、ログイン直後にそのまま出勤・退勤を打刻できます。「QR読取り画面」にすると、ログイン直後にすぐカメラでQRコードを読み取れます（設定変更後は本人が再ログインすると反映されます）
             </p>
           </div>
 

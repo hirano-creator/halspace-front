@@ -12,6 +12,7 @@ import { formatMinutes } from "@/lib/utils/time";
 import {
   Card,
   PageHeader,
+  TableCard,
   buttonSecondaryClass,
   inputClass,
   tdClass,
@@ -183,7 +184,7 @@ export default function AttendancePage() {
         </form>
       </Card>
 
-      <Card className="overflow-x-auto p-0">
+      <TableCard>
         <table className="w-full min-w-[860px]">
           <thead className="border-b border-border bg-gray-50/50">
             <tr>
@@ -292,7 +293,7 @@ export default function AttendancePage() {
             )}
           </tbody>
         </table>
-      </Card>
+      </TableCard>
     </>
   );
 }

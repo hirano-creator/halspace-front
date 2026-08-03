@@ -7,6 +7,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/client";
+import { DEFAULT_FEATURES, HOME_SCREEN_PATHS } from "@/lib/auth/features";
 
 export default function RootPage() {
   const { user } = useAuth();
@@ -14,7 +15,9 @@ export default function RootPage() {
 
   useEffect(() => {
     if (!user) return;
-    router.replace(user.homeScreen === "scan" ? "/clock/scan" : "/my");
+    router.replace(
+      HOME_SCREEN_PATHS[user.homeScreen] ?? HOME_SCREEN_PATHS[DEFAULT_FEATURES.homeScreen],
+    );
   }, [user, router]);
 
   return null;

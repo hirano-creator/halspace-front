@@ -11,6 +11,7 @@ import {
   Badge,
   Card,
   PageHeader,
+  TableCard,
   buttonPrimaryClass,
   buttonSecondaryClass,
   inputClass,
@@ -151,7 +152,7 @@ export default function EmployeesPage() {
         </form>
       </Card>
 
-      <Card className="overflow-x-auto p-0">
+      <TableCard>
         <table className="w-full min-w-[640px]">
           <thead className="border-b border-border bg-gray-50/50">
             <tr>
@@ -214,7 +215,7 @@ export default function EmployeesPage() {
             ))}
           </tbody>
         </table>
-      </Card>
+      </TableCard>
 
       {data.totalPages > 1 && (
         <div className="mt-4 flex items-center justify-center gap-3 text-sm">

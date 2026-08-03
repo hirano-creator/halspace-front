@@ -2,7 +2,12 @@
 
 import type { ReactNode } from "react";
 
-/** カード（白背景・角丸・薄い枠線） */
+/**
+ * カード（白背景・角丸・薄い枠線）
+ *
+ * 余白はスマホで詰める（p-4）。呼び出し側で余白を打ち消す場合は、
+ * メディアクエリの `sm:p-6` に負けないよう `p-0!` のように `!` を付けること。
+ */
 export function Card({
   children,
   className = "",
@@ -11,9 +16,36 @@ export function Card({
   className?: string;
 }) {
   return (
-    <div className={`rounded-xl border border-border bg-surface p-6 shadow-sm ${className}`}>
+    <div className={`rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-6 ${className}`}>
       {children}
     </div>
+  );
+}
+
+/**
+ * 横幅の広い表を載せるカード。
+ * スマホでは表が画面幅に収まらず横スクロールになるため、スクロールできることを一言添える
+ * （見えている範囲が全てだと誤解されるのを防ぐ）。見出しやボタンは header に渡すと
+ * スクロール領域の外に固定される。
+ */
+export function TableCard({
+  children,
+  header,
+  className = "",
+}: {
+  children: ReactNode;
+  /** 表の上に置く見出し・操作（横スクロールしても動かない） */
+  header?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Card className={`p-0! ${className}`}>
+      {header}
+      <p className="border-b border-border bg-gray-50/50 px-4 py-1.5 text-xs text-muted md:hidden">
+        ← 横にスクロールできます
+      </p>
+      <div className="overflow-x-auto">{children}</div>
+    </Card>
   );
 }
 
@@ -28,9 +60,9 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+    <div className="mb-5 flex flex-wrap items-start justify-between gap-3 sm:mb-6 sm:gap-4">
+      <div className="min-w-0">
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
         {description && <p className="mt-1 text-sm text-muted">{description}</p>}
       </div>
       {action && <div className="w-full sm:w-auto">{action}</div>}

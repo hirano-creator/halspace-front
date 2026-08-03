@@ -7,8 +7,9 @@ test.describe("ログイン", () => {
     await page.getByLabel("パスワード").fill("admin123");
     await page.getByRole("button", { name: "ログイン" }).click();
 
-    await expect(page).toHaveURL(/\/my$/);
-    await expect(page.getByText("マイページ")).toBeVisible();
+    // ログイン直後は打刻画面（homeScreenの既定値 clock）へ着地する
+    await expect(page).toHaveURL(/\/clock$/);
+    await expect(page.getByRole("button", { name: "出勤" })).toBeVisible();
   });
 
   test("誤ったパスワードではエラーが表示される", async ({ page }) => {

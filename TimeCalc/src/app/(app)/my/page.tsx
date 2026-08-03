@@ -58,11 +58,11 @@ export default function MyPage() {
         title="マイページ"
         description={`${data.me.name} ・ ${data.me.departmentName ?? "部署未設定"} ・ ${data.year}年${data.monthNum}月度（${data.periodRangeLabel}）`}
         action={
-          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
-            <form method="get">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <form method="get" className="min-w-0 flex-1 sm:flex-none">
               <MonthPicker defaultValue={data.month} />
             </form>
-            <Link href="/clock" className={buttonPrimaryClass}>
+            <Link href="/clock" className={`${buttonPrimaryClass} shrink-0`}>
               打刻する
             </Link>
           </div>
@@ -104,7 +104,9 @@ export default function MyPage() {
         </div>
       )}
 
-      <Card className="isolate max-h-[65vh] overflow-auto overscroll-contain p-0!">
+      {/* スマホはカード一覧（縦に伸びる）なのでページごとスクロールさせ、
+          PCは表の縦横スクロールをカード内に閉じ込める */}
+      <Card className="isolate p-0! md:max-h-[65vh] md:overflow-auto md:overscroll-contain">
         <MyAttendanceTable
           rows={data.rows}
           selfEditMode={data.selfEditMode}

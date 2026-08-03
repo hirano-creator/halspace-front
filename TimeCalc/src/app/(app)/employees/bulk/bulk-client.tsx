@@ -144,7 +144,7 @@ export function BulkClient() {
       </Card>
 
       {rows && !result && (
-        <Card className="p-0">
+        <Card className="p-0!">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
             <p className="text-sm">
               <span className="font-medium">{fileName}</span>
@@ -187,7 +187,7 @@ export function BulkClient() {
       )}
 
       {result && (
-        <Card className="p-0">
+        <Card className="p-0!">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6">
             <p className={`text-sm font-medium ${result.ok ? "text-emerald-700" : "text-amber-700"}`}>
               {result.message}

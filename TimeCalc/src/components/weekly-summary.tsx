@@ -33,6 +33,40 @@ export function groupRowsByWeek<T extends { date: string }>(
 }
 
 /**
+ * 週の小計（スマホのカード一覧用）。
+ * テーブルの WeekSubtotalRow と同じ値を、列ではなくラベル付きで並べる。
+ */
+export function WeekSubtotalBar({ week }: { week: WeeklyBucket }) {
+  return (
+    <div className="border-y border-violet-200/70 bg-violet-50/50 px-4 py-2 text-sm font-semibold">
+      <span className="flex flex-wrap items-center gap-2">
+        <span>{weekRangeLabel(week)}</span>
+        <Badge tone="gray">{week.workDays}日</Badge>
+        {week.isPartial && <Badge tone="gray">端数週</Badge>}
+        {week.closedDayWorkDates.length > 0 && <Badge tone="amber">定休日出勤</Badge>}
+      </span>
+      <span className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-normal">
+        <span>
+          勤務 <span className="font-mono tabular-nums">{minutesToHHMM(week.totalMinutes)}</span>
+        </span>
+        <span className={week.withinLegalOvertimeMinutes > 0 ? "text-amber-600" : "text-muted"}>
+          36H超44H以内{" "}
+          <span className="font-mono tabular-nums">
+            {minutesToHHMM(week.withinLegalOvertimeMinutes)}
+          </span>
+        </span>
+        <span className={week.overLegalOvertimeMinutes > 0 ? "text-orange-700" : "text-muted"}>
+          44H超{" "}
+          <span className="font-mono tabular-nums">
+            {minutesToHHMM(week.overLegalOvertimeMinutes)}
+          </span>
+        </span>
+      </span>
+    </div>
+  );
+}
+
+/**
  * 週の小計行。日別テーブルの中に差し込んで使う。
  * 列構成は日別行と同じで、日付〜控除外出の9列をラベルに使い、
  * 勤務時間・所定超法定内・法定超の3列に週の集計値を入れる。

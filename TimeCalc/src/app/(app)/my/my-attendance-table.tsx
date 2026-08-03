@@ -12,7 +12,7 @@ import {
 import type { MyActionState } from "./types";
 import type { SelfEditMode } from "@/lib/auth/features";
 import { Badge, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "@/components/ui";
-import { WeekSubtotalRow, groupRowsByWeek } from "@/components/weekly-summary";
+import { WeekSubtotalBar, WeekSubtotalRow, groupRowsByWeek } from "@/components/weekly-summary";
 import type { WeeklyBucket } from "@/lib/attendance/types";
 
 // ヘッダー共通クラス。text-align はデフォルトの左寄せに任せ、中央/右寄せにしたい
@@ -70,8 +70,19 @@ export interface MyDailyRow {
 
 const initialState: MyActionState = { error: null, success: false };
 
-/** 行の展開フォーム（時刻の修正申請/直接修正＋遅刻・早退理由の記入） */
-function RowDetailForm({
+/**
+ * 表示に値があるか。API側は列の高さを揃えるため未入力を "-"、0分を "0:00" で返すが、
+ * スマホのカードでは行そのものを省きたいので、この2つは「値なし」として扱う。
+ */
+function hasValue(label: string): boolean {
+  return label !== "" && label !== "-" && label !== "0:00";
+}
+
+/**
+ * 行の展開フォーム（時刻の修正申請/直接修正＋遅刻・早退理由の記入）。
+ * PCはテーブルのセル内、スマホはカード内に置くため、入れ物は呼び出し側が用意する。
+ */
+function RowDetailFields({
   row,
   selfEditMode,
   onClose,
@@ -110,145 +121,143 @@ function RowDetailForm({
     : undefined;
 
   return (
-    <td colSpan={COLUMN_COUNT} className="bg-violet-50/40 px-4 py-3">
-      <div className="space-y-4">
-        {selfEditMode !== "none" && (
-          <form action={editFormAction} className="flex flex-wrap items-end gap-3">
-            <input type="hidden" name="date" value={row.date} />
-            <p className="w-full text-xs font-semibold text-muted">
-              {selfEditMode === "direct"
-                ? "時刻の修正（保存するとすぐ反映されます・修正履歴が残ります）"
-                : "時刻の修正申請（管理者の承認後に反映されます）"}
-            </p>
-            <div>
-              <label className="mb-1 flex items-center justify-between gap-2 text-xs text-muted">
-                <span>出勤</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (clockInRef.current) clockInRef.current.value = "";
-                  }}
-                  className="text-primary hover:underline"
-                >
-                  未出勤にする
-                </button>
-              </label>
-              <input
-                ref={clockInRef}
-                type="time"
-                name="clockIn"
-                defaultValue={row.clockIn}
-                max={maxTime}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="mb-1 flex items-center justify-between gap-2 text-xs text-muted">
-                <span>退勤</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (clockOutRef.current) clockOutRef.current.value = "";
-                  }}
-                  className="text-primary hover:underline"
-                >
-                  未退勤にする
-                </button>
-              </label>
-              <input
-                ref={clockOutRef}
-                type="time"
-                name="clockOut"
-                defaultValue={row.clockOut}
-                max={maxTime}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-muted">外出</label>
-              <input
-                type="time"
-                name="outingStart"
-                defaultValue={row.outingStart}
-                max={maxTime}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-muted">戻り</label>
-              <input
-                type="time"
-                name="outingEnd"
-                defaultValue={row.outingEnd}
-                max={maxTime}
-                className={inputClass}
-              />
-            </div>
-            <p className="w-full text-xs text-muted">
-              休憩は設定画面の勤務ルール（休憩開始〜終了）から自動で勤務時間に反映されます。外出がこの休憩時間帯と重なる場合は「控除外出」で重複分を除いた時間を差し引きます。外出した場合のみ入力してください
-            </p>
+    <div className="space-y-4">
+      {selfEditMode !== "none" && (
+        <form action={editFormAction} className="flex flex-wrap items-end gap-3">
+          <input type="hidden" name="date" value={row.date} />
+          <p className="w-full text-xs font-semibold text-muted">
+            {selfEditMode === "direct"
+              ? "時刻の修正（保存するとすぐ反映されます・修正履歴が残ります）"
+              : "時刻の修正申請（管理者の承認後に反映されます）"}
+          </p>
+          <div>
+            <label className="mb-1 flex items-center justify-between gap-2 text-xs text-muted">
+              <span>出勤</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (clockInRef.current) clockInRef.current.value = "";
+                }}
+                className="text-primary hover:underline"
+              >
+                未出勤にする
+              </button>
+            </label>
+            <input
+              ref={clockInRef}
+              type="time"
+              name="clockIn"
+              defaultValue={row.clockIn}
+              max={maxTime}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1 flex items-center justify-between gap-2 text-xs text-muted">
+              <span>退勤</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (clockOutRef.current) clockOutRef.current.value = "";
+                }}
+                className="text-primary hover:underline"
+              >
+                未退勤にする
+              </button>
+            </label>
+            <input
+              ref={clockOutRef}
+              type="time"
+              name="clockOut"
+              defaultValue={row.clockOut}
+              max={maxTime}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted">外出</label>
+            <input
+              type="time"
+              name="outingStart"
+              defaultValue={row.outingStart}
+              max={maxTime}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted">戻り</label>
+            <input
+              type="time"
+              name="outingEnd"
+              defaultValue={row.outingEnd}
+              max={maxTime}
+              className={inputClass}
+            />
+          </div>
+          <p className="w-full text-xs text-muted">
+            休憩は設定画面の勤務ルール（休憩開始〜終了）から自動で勤務時間に反映されます。外出がこの休憩時間帯と重なる場合は「控除外出」で重複分を除いた時間を差し引きます。外出した場合のみ入力してください
+          </p>
+          <div className="min-w-48 flex-1">
+            <label className="mb-1 block text-xs text-muted">
+              理由{selfEditMode === "request" ? "（必須）" : ""}
+            </label>
+            <input
+              type="text"
+              name="reason"
+              placeholder="例: 退勤の押し忘れのため"
+              required={selfEditMode === "request"}
+              maxLength={500}
+              className={inputClass}
+            />
+          </div>
+          <button type="submit" disabled={editPending} className={buttonPrimaryClass}>
+            {editPending ? "送信中..." : selfEditMode === "direct" ? "保存" : "申請する"}
+          </button>
+          {editState.error && <p className="w-full text-sm text-red-600">{editState.error}</p>}
+        </form>
+      )}
+
+      {showReasonForm && (
+        <form action={reasonFormAction} className="flex flex-wrap items-end gap-3">
+          <input type="hidden" name="date" value={row.date} />
+          <p className="w-full text-xs font-semibold text-muted">遅刻・早退理由の記入</p>
+          {row.lateMinutes > 0 && (
             <div className="min-w-48 flex-1">
-              <label className="mb-1 block text-xs text-muted">
-                理由{selfEditMode === "request" ? "（必須）" : ""}
-              </label>
+              <label className="mb-1 block text-xs text-muted">遅刻理由</label>
               <input
                 type="text"
-                name="reason"
-                placeholder="例: 退勤の押し忘れのため"
-                required={selfEditMode === "request"}
-                maxLength={500}
+                name="lateReason"
+                defaultValue={row.lateReason ?? ""}
+                maxLength={200}
                 className={inputClass}
               />
             </div>
-            <button type="submit" disabled={editPending} className={buttonPrimaryClass}>
-              {editPending ? "送信中..." : selfEditMode === "direct" ? "保存" : "申請する"}
-            </button>
-            {editState.error && <p className="w-full text-sm text-red-600">{editState.error}</p>}
-          </form>
-        )}
+          )}
+          {row.earlyLeaveMinutes > 0 && (
+            <div className="min-w-48 flex-1">
+              <label className="mb-1 block text-xs text-muted">早退理由</label>
+              <input
+                type="text"
+                name="earlyLeaveReason"
+                defaultValue={row.earlyLeaveReason ?? ""}
+                maxLength={200}
+                className={inputClass}
+              />
+            </div>
+          )}
+          <button type="submit" disabled={reasonPending} className={buttonSecondaryClass}>
+            {reasonPending ? "保存中..." : "理由を保存"}
+          </button>
+          {reasonState.error && (
+            <p className="w-full text-sm text-red-600">{reasonState.error}</p>
+          )}
+        </form>
+      )}
 
-        {showReasonForm && (
-          <form action={reasonFormAction} className="flex flex-wrap items-end gap-3">
-            <input type="hidden" name="date" value={row.date} />
-            <p className="w-full text-xs font-semibold text-muted">遅刻・早退理由の記入</p>
-            {row.lateMinutes > 0 && (
-              <div className="min-w-48 flex-1">
-                <label className="mb-1 block text-xs text-muted">遅刻理由</label>
-                <input
-                  type="text"
-                  name="lateReason"
-                  defaultValue={row.lateReason ?? ""}
-                  maxLength={200}
-                  className={inputClass}
-                />
-              </div>
-            )}
-            {row.earlyLeaveMinutes > 0 && (
-              <div className="min-w-48 flex-1">
-                <label className="mb-1 block text-xs text-muted">早退理由</label>
-                <input
-                  type="text"
-                  name="earlyLeaveReason"
-                  defaultValue={row.earlyLeaveReason ?? ""}
-                  maxLength={200}
-                  className={inputClass}
-                />
-              </div>
-            )}
-            <button type="submit" disabled={reasonPending} className={buttonSecondaryClass}>
-              {reasonPending ? "保存中..." : "理由を保存"}
-            </button>
-            {reasonState.error && (
-              <p className="w-full text-sm text-red-600">{reasonState.error}</p>
-            )}
-          </form>
-        )}
-
-        <button type="button" onClick={onClose} className="text-xs text-muted hover:underline">
-          閉じる
-        </button>
-      </div>
-    </td>
+      <button type="button" onClick={onClose} className="text-xs text-muted hover:underline">
+        閉じる
+      </button>
+    </div>
   );
 }
 
@@ -273,7 +282,22 @@ export function MyAttendanceTable({
   const { groups, ungrouped } = groupRowsByWeek(rows, weeks);
 
   return (
-    <table className="w-full min-w-[960px] table-fixed text-sm">
+    <>
+      {/* スマホ（md未満）: 14列の表は画面に収まらないため、日ごとのカードに積み替える */}
+      <ul className="divide-y divide-border md:hidden">
+        {weekly &&
+          groups.map((group) => (
+            <Fragment key={group.week.start}>
+              <li>
+                <WeekSubtotalBar week={group.week} />
+              </li>
+              {group.rows.map(renderCard)}
+            </Fragment>
+          ))}
+        {(weekly ? ungrouped : rows).map(renderCard)}
+      </ul>
+
+      <table className="hidden w-full min-w-[960px] table-fixed text-sm md:table">
       <colgroup>
         <col className="w-[8%]" />
         <col className="w-[7%]" />
@@ -318,8 +342,103 @@ export function MyAttendanceTable({
           ))}
         {(weekly ? ungrouped : rows).map(renderRow)}
       </tbody>
-    </table>
+      </table>
+    </>
   );
+
+  /** スマホ用の1日カード。表の14列から、その日の判断に要る項目だけを残す */
+  function renderCard(row: MyDailyRow) {
+    if (openDate === row.date) {
+      return (
+        <li key={row.date} className="bg-violet-50/40 px-4 py-3">
+          <p className="mb-3 text-sm font-semibold">{row.dayLabel}</p>
+          <RowDetailFields
+            row={row}
+            selfEditMode={selfEditMode}
+            onClose={() => setOpenDate(null)}
+            onSaved={onSaved}
+          />
+        </li>
+      );
+    }
+
+    const badges = (
+      <>
+        {row.isOpen && <Badge tone="red">退勤未打刻</Badge>}
+        {row.lateMinutes > 0 && <Badge tone="amber">遅刻</Badge>}
+        {row.earlyLeaveMinutes > 0 && <Badge tone="amber">早退</Badge>}
+        {row.hasPendingRequest && <Badge tone="purple">申請中</Badge>}
+        {row.isToday && !row.hasRecord && !row.isOpen && (
+          <span className="text-xs text-muted">本日</span>
+        )}
+      </>
+    );
+    const reason = [row.lateReason, row.earlyLeaveReason].filter(Boolean).join(" / ");
+    const punched = hasValue(row.clockInLabel) || hasValue(row.clockOutLabel);
+    const canOpen =
+      selfEditMode !== "none" ||
+      (row.hasRecord && (row.lateMinutes > 0 || row.earlyLeaveMinutes > 0));
+
+    return (
+      <li key={row.date} className={`px-4 py-3 ${row.isWeekend ? "bg-gray-50/60" : ""}`}>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className={`text-sm font-semibold ${row.isWeekend ? "text-muted" : ""}`}>
+            {row.dayLabel}
+          </span>
+          <span className="flex flex-wrap items-center justify-end gap-1">{badges}</span>
+        </div>
+
+        {punched ? (
+          <>
+            <div className="mt-1.5 flex items-baseline gap-2 font-mono text-base tabular-nums">
+              <span>{row.clockInLabel}</span>
+              <span className="text-xs text-muted">→</span>
+              <span>{row.clockOutLabel}</span>
+              {row.error ? (
+                <span className="font-sans text-xs text-red-600">{row.error}</span>
+              ) : (
+                <span className="ml-auto font-sans text-sm">
+                  勤務 <span className="font-mono tabular-nums">{row.workLabel}</span>
+                </span>
+              )}
+            </div>
+
+            {/* 丸め後の時刻・外出・残業は、値がある日だけ補足として出す */}
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
+              {(hasValue(row.roundedClockInLabel) || hasValue(row.roundedClockOutLabel)) && (
+                <span>
+                  丸め後 {row.roundedClockInLabel}〜{row.roundedClockOutLabel}
+                </span>
+              )}
+              {hasValue(row.actualOutingLabel) && <span>実外出 {row.actualOutingLabel}</span>}
+              {hasValue(row.deductibleOutingLabel) && (
+                <span>控除外出 {row.deductibleOutingLabel}</span>
+              )}
+              {!weekly && row.earlyOvertimeMinutes > 0 && (
+                <span className="text-amber-600">早出残業 {row.earlyOvertimeLabel}</span>
+              )}
+              {!weekly && row.overtimeMinutes > 0 && (
+                <span className="text-amber-600">残業 {row.overtimeLabel}</span>
+              )}
+              {reason && <span>{reason}</span>}
+            </div>
+          </>
+        ) : (
+          <p className="mt-1 text-sm text-muted">打刻なし</p>
+        )}
+
+        {canOpen && (
+          <button
+            type="button"
+            onClick={() => setOpenDate(row.date)}
+            className="mt-2 text-xs text-primary hover:underline"
+          >
+            {selfEditMode === "direct" ? "修正・理由を記入" : "申請・理由を記入"}
+          </button>
+        )}
+      </li>
+    );
+  }
 
   function renderRow(row: MyDailyRow) {
     return (
@@ -328,12 +447,14 @@ export function MyAttendanceTable({
             className={row.isWeekend ? "bg-gray-50/60" : "transition hover:bg-gray-50/60"}
           >
             {openDate === row.date ? (
-              <RowDetailForm
-                row={row}
-                selfEditMode={selfEditMode}
-                onClose={() => setOpenDate(null)}
-                onSaved={onSaved}
-              />
+              <td colSpan={COLUMN_COUNT} className="bg-violet-50/40 px-4 py-3">
+                <RowDetailFields
+                  row={row}
+                  selfEditMode={selfEditMode}
+                  onClose={() => setOpenDate(null)}
+                  onSaved={onSaved}
+                />
+              </td>
             ) : (
               <>
                 <td className={`${td} text-center ${row.isWeekend ? "text-muted" : ""}`}>

@@ -25,12 +25,24 @@ export const CLOCK_MODE_LABELS: Record<ClockMode, string> = {
 };
 
 /** アプリを開いた直後（ログイン直後・トップアクセス時）に表示する画面 */
-export type HomeScreen = "my" | "scan";
+export type HomeScreen = "clock" | "my" | "scan";
 
 export const HOME_SCREEN_LABELS: Record<HomeScreen, string> = {
+  clock: "打刻画面（開いてすぐ打刻）",
   my: "マイページ",
   scan: "QR読取り画面（開いてすぐスキャン）",
 };
+
+/** HomeScreen の遷移先パス。ルート("/")アクセス時の振り分けに使う */
+export const HOME_SCREEN_PATHS: Record<HomeScreen, string> = {
+  clock: "/clock",
+  my: "/my",
+  scan: "/clock/scan",
+};
+
+function isHomeScreen(value: unknown): value is HomeScreen {
+  return value === "clock" || value === "my" || value === "scan";
+}
 
 /** スタッフ単位で切り替えられる機能設定 */
 export interface FeatureSettings {
@@ -52,7 +64,8 @@ export interface FeatureSettings {
 export const DEFAULT_FEATURES: FeatureSettings = {
   selfEdit: "request",
   clockMode: "free",
-  homeScreen: "my",
+  // 出社してまず打つのは打刻なので、既定の着地点は打刻画面にする
+  homeScreen: "clock",
   showMonthlySummary: true,
   companyAttendance: false,
 };
@@ -77,10 +90,9 @@ export function resolveFeatures(featureOverrides: string | null | undefined): Fe
           ? parsed.selfEdit
           : DEFAULT_FEATURES.selfEdit,
       clockMode,
-      homeScreen:
-        parsed.homeScreen === "my" || parsed.homeScreen === "scan"
-          ? parsed.homeScreen
-          : DEFAULT_FEATURES.homeScreen,
+      homeScreen: isHomeScreen(parsed.homeScreen)
+        ? parsed.homeScreen
+        : DEFAULT_FEATURES.homeScreen,
       showMonthlySummary:
         typeof parsed.showMonthlySummary === "boolean"
           ? parsed.showMonthlySummary
@@ -123,5 +135,5 @@ export function toClockMode(value: unknown): ClockMode {
 
 /** 起動時の画面のフォーム値を検証する（不正値はデフォルト） */
 export function toHomeScreen(value: unknown): HomeScreen {
-  return value === "my" || value === "scan" ? value : DEFAULT_FEATURES.homeScreen;
+  return isHomeScreen(value) ? value : DEFAULT_FEATURES.homeScreen;
 }

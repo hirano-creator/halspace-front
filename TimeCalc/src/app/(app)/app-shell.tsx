@@ -95,7 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       {/* サイドバー（md以上のみ表示） */}
-      <aside className="fixed inset-y-0 left-0 hidden w-44 flex-col border-r border-border bg-surface px-3 py-6 md:flex">
+      <aside className="fixed inset-y-0 left-0 hidden w-[220px] flex-col border-r border-border bg-surface px-3 py-6 md:flex">
         <div className="mb-8 px-3">
           <span className="text-xl font-bold tracking-tight text-primary">TimeCalc</span>
         </div>
@@ -105,7 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mt-auto border-t border-border pt-4">{userFooter}</div>
       </aside>
 
-      <main className="min-w-0 px-4 py-6 md:ml-44 md:px-6 md:py-8">
+      <main className="min-w-0 px-4 py-6 md:ml-[220px] md:px-6 md:py-8">
         <div className="mx-auto max-w-[1600px]">{children}</div>
       </main>
     </div>
