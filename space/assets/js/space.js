@@ -166,7 +166,8 @@ if (loginForm) {
       const u = data.user;
       saveAuth({
         id: u.id, name: u.name, email: u.email,
-        role: u.role, solid_type: u.solid_type, company: u.company_name, company_id: u.company_id,
+        role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
+        company: u.company_name, company_id: u.company_id,
         apps: u.apps_enabled ?? ['solid'],
         token: data.token,
       });
@@ -216,7 +217,8 @@ if (loginForm) {
           const u = data.user;
           saveAuth({
             id: u.id, name: u.name, email: u.email,
-            role: u.role, solid_type: u.solid_type, company: u.company_name, company_id: u.company_id,
+            role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
+            company: u.company_name, company_id: u.company_id,
             apps: u.apps_enabled ?? ['solid'],
             token: data.token,
           });
