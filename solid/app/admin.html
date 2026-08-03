@@ -37,7 +37,19 @@
     .company-actions{display:flex;gap:8px;flex-wrap:wrap;}
 
     /* ユーザーリスト */
-    .user-role-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:4px;}
+    .user-role-badge{display:inline-block;white-space:nowrap;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:4px;}
+    /* 列が多いので、収まらないときは縮めずに.table-wrapを横スクロールさせる */
+    @media(min-width:769px){ #adminUserTable{min-width:900px;} }
+    /* 幅が足りないときは国を隠す（発注担当/モデラーのバッジでほぼ判別できるため、
+       有効トグルと削除ボタンを横スクロールの外へ追い出さないことを優先する）。
+       サイドバー240pxを差し引くと、全列が収まるのはビューポート1440px以上から。 */
+    @media(max-width:1439px){
+      #adminUserTable th:nth-child(6),#adminUserTable td:nth-child(6){display:none;}
+    }
+    /* 登録日・国・最終ログインは短いので折り返さない */
+    #adminUserTable td:nth-child(1),
+    #adminUserTable td:nth-child(6),
+    #adminUserTable td:nth-child(7){white-space:nowrap;}
     .role-general     {background:rgba(116,185,255,.2);color:var(--blue);}
     .role-admin       {background:rgba(0,184,148,.2);color:var(--accent);}
     .role-super_admin {background:rgba(255,107,53,.2);color:var(--primary);}
@@ -71,14 +83,17 @@
       .stat-label{width:auto;flex:1 1 100%;}
       .stat-bar-wrap{flex:1 1 auto;}
       /* ユーザー管理カードのフィルタ群を縦積みに */
-      #tab-users .card-header select{max-width:none!important;width:100%;margin-left:0!important;}
+      #tab-users .card-header select,
+      #tab-users .card-header input[type=search]{max-width:none!important;width:100%;margin-left:0!important;}
       /* タブ見出しのフォントサイズ */
       .tab-btn{padding:9px 14px;font-size:12px;}
     }
     @media(max-width:480px){
-      /* ユーザーテーブル: 登録日(1)・メール(3)・国(6)・最終ログイン(7)を非表示 */
+      /* ユーザーテーブル: 登録日(1)・メール(3)・会社(4)・国(6)・最終ログイン(7)を非表示。
+         名前/ロール/有効/操作だけを残し、有効トグルと削除ボタンが画面外に出ないようにする */
       #adminUserTable th:nth-child(1),#adminUserTable td:nth-child(1),
       #adminUserTable th:nth-child(3),#adminUserTable td:nth-child(3),
+      #adminUserTable th:nth-child(4),#adminUserTable td:nth-child(4),
       #adminUserTable th:nth-child(6),#adminUserTable td:nth-child(6),
       #adminUserTable th:nth-child(7),#adminUserTable td:nth-child(7){display:none;}
       /* 削除管理サマリー: 1列 */
@@ -96,6 +111,23 @@
     .toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s;}
     .toggle-switch input:checked + .toggle-slider{background:var(--primary);}
     .toggle-switch input:checked + .toggle-slider:before{transform:translateX(20px);}
+
+    /* ユーザー行の操作ボタン */
+    .row-action-btn{background:none;border:none;color:var(--muted);cursor:pointer;padding:6px 8px;border-radius:6px;font-size:13px;transition:background var(--trans),color var(--trans);}
+    .row-action-btn:hover{background:var(--bg);color:var(--dark);}
+    .row-action-btn.danger:hover{background:rgba(225,112,85,.12);color:var(--danger);}
+
+    /* ページネーション */
+    .pagination{display:flex;justify-content:center;align-items:center;gap:6px;padding:16px 0 4px;flex-wrap:wrap;}
+    .pagination button{min-width:32px;height:32px;padding:0 8px;border:1px solid var(--border);background:var(--white);color:var(--dark);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:background var(--trans),border-color var(--trans);}
+    .pagination button:hover:not(:disabled):not(.current){background:var(--bg);}
+    .pagination button.current{background:var(--primary);border-color:var(--primary);color:#fff;cursor:default;}
+    .pagination button:disabled{opacity:.4;cursor:not-allowed;}
+    .pagination .page-info{font-size:12px;color:var(--muted);margin-left:8px;}
+
+    /* 仮パスワード表示 */
+    .temp-pw-row{display:flex;gap:8px;align-items:center;}
+    .temp-pw-row input{flex:1;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.5px;}
 
     /* 統計バー */
     .stat-row{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
@@ -155,23 +187,29 @@
 
       <!-- タブ1: ユーザー管理 -->
       <div class="tab-pane active" id="tab-users">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <h3 style="font-size:16px;font-weight:700;">ユーザー一覧</h3>
           <button class="btn btn-primary btn-sm" id="inviteUserBtn">
             <i class="fa-solid fa-user-plus"></i> ユーザーを招待
           </button>
         </div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">
+          <i class="fa-solid fa-circle-info"></i>
+          SOLIDを利用できるユーザーのみを表示しています。ここでの変更はSpace.appの管理画面にもそのまま反映されます。
+        </p>
         <div class="card">
           <div class="card-header" style="flex-wrap:wrap;gap:10px;">
-            <span class="card-title">全ユーザー</span>
-            <select class="form-select" id="filterUserCompany" style="max-width:180px;margin-left:auto;">
+            <span class="card-title">SOLIDユーザー</span>
+            <input type="search" class="form-input" id="filterUserSearch" placeholder="名前・メールで検索"
+                   style="max-width:200px;margin-left:auto;">
+            <select class="form-select" id="filterUserCompany" style="max-width:180px;">
               <option value="">全会社</option>
             </select>
             <select class="form-select" id="filterUserRole" style="max-width:160px;">
               <option value="">全ロール</option>
               <option value="general">一般会員</option>
               <option value="admin">管理者</option>
-              <option value="super_admin">スーパー管理者</option>
+              <option value="super_admin" id="optFilterRoleSuperAdmin">スーパー管理者</option>
             </select>
             <select class="form-select" id="filterUserSolidType" style="max-width:160px;">
               <option value="">全種別（発注者/モデラー）</option>
@@ -190,11 +228,14 @@
                   <th>ロール</th>
                   <th>国</th>
                   <th>最終ログイン</th>
+                  <th>有効</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody id="userBody"></tbody>
             </table>
           </div>
+          <div class="pagination" id="userPagination"></div>
         </div>
       </div>
 
@@ -286,10 +327,24 @@
         <option value="id_modeler">モデラー（インドネシア）</option>
       </select>
     </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:-4px;">
+      <i class="fa-solid fa-circle-info"></i>
+      作成したユーザーには利用アプリとしてSOLIDのみが付与されます。他アプリも使わせる場合はSpace.appの管理画面で追加してください。
+    </p>
+    <!-- 作成後に仮パスワードを表示するエリア -->
+    <div class="form-group" id="inviteTempPwArea" style="display:none;">
+      <label class="form-label">仮パスワード<span style="font-size:10px;color:var(--muted);">（本人に伝えてください。この画面を閉じると再表示できます）</span></label>
+      <div class="temp-pw-row">
+        <input type="text" class="form-input" id="inviteTempPw" readonly>
+        <button class="btn btn-outline btn-sm" id="inviteTempPwCopy" type="button" style="flex-shrink:0;">
+          <i class="fa-solid fa-copy"></i> コピー
+        </button>
+      </div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-outline" id="userModalClose2">キャンセル</button>
       <button class="btn btn-primary" id="userModalSubmit">
-        <i class="fa-solid fa-paper-plane"></i> 招待メールを送る
+        <i class="fa-solid fa-user-plus"></i> ユーザーを追加する
       </button>
     </div>
   </div>
@@ -303,21 +358,53 @@
       <button class="modal-close" id="editUserModalClose"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <input type="hidden" id="editUserId">
-    <div class="form-group">
-      <label class="form-label">ロール</label>
-      <select class="form-select" id="editUserRole">
-        <option value="general">一般会員</option>
-        <option value="admin">管理者</option>
-        <option value="super_admin">スーパー管理者</option>
-      </select>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">名前 <span class="req">*</span></label>
+        <input type="text" class="form-input" id="editUserName">
+      </div>
+      <div class="form-group">
+        <label class="form-label">メールアドレス<span style="font-size:10px;color:var(--muted);">（変更不可）</span></label>
+        <input type="email" class="form-input" id="editUserEmail" readonly
+               style="background:var(--bg);color:var(--muted);">
+      </div>
     </div>
-    <div class="form-group">
-      <label class="form-label">発注者/モデラー種別<span style="font-size:10px;color:var(--muted);">（SOLID内での立場。空欄可）</span></label>
-      <select class="form-select" id="editUserSolidType">
-        <option value="">— なし —</option>
-        <option value="jp_client">発注担当（日本）</option>
-        <option value="id_modeler">モデラー（インドネシア）</option>
-      </select>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">ロール</label>
+        <select class="form-select" id="editUserRole">
+          <option value="general">一般会員</option>
+          <option value="admin">管理者</option>
+          <option value="super_admin" id="optEditRoleSuperAdmin">スーパー管理者</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">発注者/モデラー種別<span style="font-size:10px;color:var(--muted);">（SOLID内での立場。空欄可）</span></label>
+        <select class="form-select" id="editUserSolidType">
+          <option value="">— なし —</option>
+          <option value="jp_client">発注担当（日本）</option>
+          <option value="id_modeler">モデラー（インドネシア）</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:16px;">
+      <div>
+        <div style="font-size:13px;font-weight:600;">アカウントを有効にする</div>
+        <div style="font-size:11px;color:var(--muted);">無効にするとログインできなくなります</div>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="editUserActive">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="form-group" id="editTempPwArea" style="display:none;">
+      <label class="form-label">仮パスワード<span style="font-size:10px;color:var(--muted);">（本人がまだ変更していません）</span></label>
+      <div class="temp-pw-row">
+        <input type="text" class="form-input" id="editTempPw" readonly>
+        <button class="btn btn-outline btn-sm" id="editTempPwCopy" type="button" style="flex-shrink:0;">
+          <i class="fa-solid fa-copy"></i> コピー
+        </button>
+      </div>
     </div>
     <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px;">
       <div style="font-weight:700;font-size:13px;margin-bottom:14px;color:var(--muted);">

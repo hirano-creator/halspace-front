@@ -886,6 +886,16 @@
         <div class="form-hint">この会社が契約しているアプリの範囲内で、ユーザーごとに利用可否を設定できます。</div>
         <div id="userAppsContainer" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:6px;"></div>
       </div>
+      <!-- SOLIDを利用できるユーザーのときだけ表示。SOLID側の管理画面と同じ値を編集する -->
+      <div class="form-group" id="userModalSolidTypeGroup" style="display:none;">
+        <label class="form-label">SOLID種別</label>
+        <div class="form-hint">SOLID内での立場です。SOLIDの管理画面からも変更できます。</div>
+        <select class="form-input" id="userModalSolidType">
+          <option value="">— なし —</option>
+          <option value="jp_client">発注担当（日本）</option>
+          <option value="id_modeler">モデラー（インドネシア）</option>
+        </select>
+      </div>
       <div id="userModalPwArea" style="display:none;">
         <div class="form-group">
           <label class="form-label">仮パスワード</label>
@@ -1385,7 +1395,7 @@ function renderUserTable() {
         </td>
         <td style="color:var(--muted);font-size:12px;">${h(u.email)}</td>
         <td style="font-size:12px;">${h(u.company?.name ?? '—')}</td>
-        <td>${roleBadge(u.role)}</td>
+        <td>${roleBadge(u.role)}${solidTypeBadge(u)}</td>
         <td><div class="app-chips">${(u.effective_apps ?? []).map(appChip).join('')}</div></td>
         <td style="font-size:11px;color:var(--muted);">${u.last_login_at ?? '—'}</td>
         <td>
@@ -1443,6 +1453,11 @@ async function deleteUser(id) {
   }
 }
 
+/* SOLIDを実際に利用できるユーザーか（solid_typeはSOLIDアプリ内でのみ意味を持つ） */
+function userUsesSolid(u) {
+  return (u?.effective_apps ?? []).includes('solid');
+}
+
 /* ── ユーザーごとの利用アプリ設定（会社の契約範囲内でのみ選択可） ── */
 function renderUserAppsCheckboxes(companyId, checkedApps) {
   const company    = companiesCache.find(c => c.id == companyId);
@@ -1482,6 +1497,8 @@ function openAddUser() {
   document.getElementById('userModalPwArea').style.display = 'none';
   document.getElementById('userModalError').style.display  = 'none';
   document.getElementById('userModalSave').style.display   = '';
+  // SOLID種別は会社の契約状況が確定してからのほうが判断しやすいので、作成後の編集で設定する
+  document.getElementById('userModalSolidTypeGroup').style.display = 'none';
   const compSel = document.getElementById('userModalCompany');
   const setupCompanyAndApps = () => {
     // adminは自分の会社に固定
@@ -1515,6 +1532,9 @@ async function openEditUser(id) {
   // adminは自分の会社のみ編集可
   document.getElementById('userModalCompany').disabled = !isSuperAdmin;
   renderUserAppsCheckboxes(u.company_id, u.apps_enabled);
+  // SOLIDを使えるユーザーにだけSOLID種別を出す（使わないユーザーに無関係な項目を見せない）
+  document.getElementById('userModalSolidTypeGroup').style.display = userUsesSolid(u) ? '' : 'none';
+  document.getElementById('userModalSolidType').value = u.solid_type ?? '';
   openModal('userModal');
 
   // 仮パスワードが未変更のまま残っていれば再表示する（顧客が変更済みなら404で何も表示しない）
@@ -1540,8 +1560,14 @@ document.getElementById('userModalSave').addEventListener('click', async () => {
 
   if (id) {
     // 編集
+    const payload = { name, role, company_id, apps_enabled };
+    // SOLID種別欄を出しているときだけ送る。送らなければAPI側で既存値が保持される
+    // （SOLIDの管理画面で設定した種別を、Spaceからの編集で消さないため）
+    if (document.getElementById('userModalSolidTypeGroup').style.display !== 'none') {
+      payload.solid_type = document.getElementById('userModalSolidType').value || null;
+    }
     const res = await apiFetch(`/admin/users/${id}`, {
-      method: 'PATCH', body: JSON.stringify({ name, role, company_id, apps_enabled }),
+      method: 'PATCH', body: JSON.stringify(payload),
     });
     if (res?.ok) {
       closeModal('userModal');
@@ -1767,6 +1793,13 @@ function roleBadge(role) {
   const map = { general: ['badge-blue','一般会員'], admin: ['badge-purple','管理者'], super_admin: ['badge-red','Super Admin'] };
   const [cls, lbl] = map[role] ?? ['badge-gray', role];
   return `<span class="badge ${cls}">${lbl}</span>`;
+}
+/* SOLID内での立場。SOLIDを使わないユーザーには何も出さない */
+function solidTypeBadge(u) {
+  if (!userUsesSolid(u) || !u.solid_type) return '';
+  const map = { jp_client: ['badge-blue','発注担当'], id_modeler: ['badge-orange','モデラー'] };
+  const [cls, lbl] = map[u.solid_type] ?? ['badge-gray', u.solid_type];
+  return ` <span class="badge ${cls}">${lbl}</span>`;
 }
 function appBadge(app) {
   const map = { space: ['badge-gray','Space'], solid: ['badge-purple','SOLID'], whatsno: ['badge-blue','What\'sNo'], meetlog: ['badge-green','MeetLog'] };

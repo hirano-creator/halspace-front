@@ -12,9 +12,33 @@ if (!isAdmin(user)) {
 const ROLE_LABEL = { general:'一般会員', admin:'管理者', super_admin:'スーパー管理者' };
 const SOLID_TYPE_LABEL = { jp_client:'発注担当', id_modeler:'モデラー' };
 
+/* このアプリのキー。ユーザー一覧はこのアプリを利用できる人だけをサーバー側で絞って取得する。 */
+const APP_KEY = 'solid';
+const USER_PER_PAGE = 20;
+
+const IS_SUPER = isSuperAdmin(user);
+
 /* ── インメモリキャッシュ ── */
 let allCompanies = [];
 let allUsers     = [];
+let userPage     = 1;
+
+/* テーブル・トーストはinnerHTMLで組み立てるため、DB由来の文字列は必ずエスケープする */
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+/* ============================================================
+   権限に応じたUIの出し分け
+   （adminは自社スコープ。super_adminロールの付与・他社の閲覧はできない）
+   ============================================================ */
+if (!IS_SUPER) {
+  document.getElementById('optFilterRoleSuperAdmin')?.remove();
+  document.getElementById('optEditRoleSuperAdmin')?.remove();
+  /* 自社ユーザーしか返らないため会社フィルタは意味を持たない */
+  document.getElementById('filterUserCompany').style.display = 'none';
+}
 
 /* ============================================================
    タブ切り替え
@@ -60,55 +84,160 @@ async function loadCompanies() {
    ============================================================ */
 async function loadUsers() {
   try {
-    const data = await api.get('/admin/users');
-    allUsers = data?.users ?? [];
-  } catch {
+    /* Space.appの管理画面と同じエンドポイント。?app= でSOLIDを利用できるユーザーだけに絞る */
+    const data = await api.get(`/admin/users?app=${APP_KEY}`);
+    allUsers = data?.data ?? [];
+  } catch (err) {
     allUsers = [];
+    showToast('ユーザー一覧を取得できませんでした: ' + esc(err.message), 'danger');
   }
+  userPage = 1;
   renderUsers();
 }
 
-function renderUsers() {
+function filteredUsers() {
+  const q        = document.getElementById('filterUserSearch').value.trim().toLowerCase();
   const cFilter  = document.getElementById('filterUserCompany').value;
   const rFilter  = document.getElementById('filterUserRole').value;
   const stFilter = document.getElementById('filterUserSolidType').value;
-  let us = allUsers;
-  if (cFilter) us = us.filter(u => String(u.company_id) === cFilter);
-  if (rFilter) us = us.filter(u => u.role === rFilter);
-  if (stFilter) us = us.filter(u => u.solid_type === stFilter);
 
-  const tbody = document.getElementById('userBody');
-  if (!us.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px;">該当するユーザーがいません</td></tr>';
-    return;
-  }
-  tbody.innerHTML = us.map(u => `
-    <tr style="cursor:pointer;" data-edit-user="${u.id}">
-      <td style="font-size:12px;color:var(--muted);">${u.created_at||'—'}</td>
-      <td style="font-weight:600;">${u.name}</td>
-      <td style="font-size:13px;color:var(--muted);">${u.email}</td>
-      <td style="font-size:13px;">${u.company_name??'—'}</td>
-      <td>
-        <span class="user-role-badge role-${u.role}">${ROLE_LABEL[u.role]??u.role}</span>
-        ${u.solid_type ? `<span class="user-role-badge solid-type-${u.solid_type}">${SOLID_TYPE_LABEL[u.solid_type]??u.solid_type}</span>` : ''}
-      </td>
-      <td style="font-size:13px;">${u.country === 'JP' ? '🇯🇵 日本' : '🇮🇩 インドネシア'}</td>
-      <td style="font-size:12px;color:var(--muted);">${u.last_login_at||'—'}</td>
-    </tr>`).join('');
+  return allUsers.filter(u => {
+    if (q && !`${u.name} ${u.email}`.toLowerCase().includes(q)) return false;
+    if (cFilter && String(u.company_id) !== cFilter) return false;
+    if (rFilter && u.role !== rFilter) return false;
+    if (stFilter && u.solid_type !== stFilter) return false;
+    return true;
+  });
 }
 
-document.getElementById('filterUserCompany').addEventListener('change', renderUsers);
-document.getElementById('filterUserRole').addEventListener('change', renderUsers);
-document.getElementById('filterUserSolidType').addEventListener('change', renderUsers);
+function renderUsers() {
+  const us    = filteredUsers();
+  const pages = Math.max(1, Math.ceil(us.length / USER_PER_PAGE));
+  if (userPage > pages) userPage = pages;
+  const sliced = us.slice((userPage - 1) * USER_PER_PAGE, userPage * USER_PER_PAGE);
+
+  const tbody = document.getElementById('userBody');
+  if (!sliced.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:32px;">該当するユーザーがいません</td></tr>';
+    renderUserPagination(1, 1, 0);
+    return;
+  }
+  tbody.innerHTML = sliced.map(u => `
+    <tr style="cursor:pointer;${u.is_active ? '' : 'opacity:.55;'}" data-edit-user="${u.id}">
+      <td style="font-size:12px;color:var(--muted);">${esc(u.created_at) || '—'}</td>
+      <td style="font-weight:600;">${esc(u.name)}</td>
+      <td style="font-size:13px;color:var(--muted);">${esc(u.email)}</td>
+      <td style="font-size:13px;">${esc(u.company?.name) || '—'}</td>
+      <td>
+        <span class="user-role-badge role-${esc(u.role)}">${esc(ROLE_LABEL[u.role] ?? u.role)}</span>
+        ${u.solid_type ? `<span class="user-role-badge solid-type-${esc(u.solid_type)}">${esc(SOLID_TYPE_LABEL[u.solid_type] ?? u.solid_type)}</span>` : ''}
+      </td>
+      <td style="font-size:13px;">${u.country === 'JP' ? '🇯🇵 日本' : '🇮🇩 インドネシア'}</td>
+      <td style="font-size:12px;color:var(--muted);">${esc(u.last_login_at) || '—'}</td>
+      <td>
+        <label class="toggle-switch" data-stop>
+          <input type="checkbox" ${u.is_active ? 'checked' : ''} data-toggle-user="${u.id}">
+          <span class="toggle-slider"></span>
+        </label>
+      </td>
+      <td>
+        ${u.id === user.id ? '' : `
+        <button class="row-action-btn danger" data-delete-user="${u.id}" title="削除">
+          <i class="fa-solid fa-trash"></i>
+        </button>`}
+      </td>
+    </tr>`).join('');
+
+  renderUserPagination(userPage, pages, us.length);
+}
+
+function renderUserPagination(current, pages, total) {
+  const el = document.getElementById('userPagination');
+  if (pages <= 1) {
+    el.innerHTML = total ? `<span class="page-info">全 ${total} 件</span>` : '';
+    return;
+  }
+  /* 現在ページの前後2件だけを出し、離れたページは「…」で省略する */
+  const nums = [];
+  for (let p = 1; p <= pages; p++) {
+    if (p === 1 || p === pages || Math.abs(p - current) <= 2) nums.push(p);
+    else if (nums[nums.length - 1] !== '…') nums.push('…');
+  }
+
+  el.innerHTML = `
+    <button data-page="${current - 1}" ${current === 1 ? 'disabled' : ''}>
+      <i class="fa-solid fa-chevron-left"></i>
+    </button>
+    ${nums.map(p => p === '…'
+      ? '<button disabled>…</button>'
+      : `<button data-page="${p}" class="${p === current ? 'current' : ''}">${p}</button>`).join('')}
+    <button data-page="${current + 1}" ${current === pages ? 'disabled' : ''}>
+      <i class="fa-solid fa-chevron-right"></i>
+    </button>
+    <span class="page-info">全 ${total} 件</span>`;
+}
+
+document.getElementById('userPagination').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-page]');
+  if (!btn || btn.disabled) return;
+  userPage = Number(btn.dataset.page);
+  renderUsers();
+});
+
+['filterUserCompany', 'filterUserRole', 'filterUserSolidType'].forEach(id =>
+  document.getElementById(id).addEventListener('change', () => { userPage = 1; renderUsers(); }));
+document.getElementById('filterUserSearch').addEventListener('input', () => { userPage = 1; renderUsers(); });
+
+/* ============================================================
+   有効/無効の切り替え・削除
+   ============================================================ */
+async function toggleUserActive(id, active, checkbox) {
+  try {
+    await api.patch(`/admin/users/${id}`, { is_active: active });
+    const u = allUsers.find(x => x.id === id);
+    if (u) u.is_active = active;
+    renderUsers();
+    showToast(active ? 'ユーザーを有効にしました' : 'ユーザーを無効にしました', active ? 'success' : '');
+  } catch (err) {
+    checkbox.checked = !active;   // サーバーに拒否されたらUIを元へ戻す
+    showToast('更新に失敗しました: ' + esc(err.message), 'danger');
+  }
+}
+
+async function deleteUser(id) {
+  const u = allUsers.find(x => x.id === id);
+  if (!u) return;
+  if (!confirm(`「${u.name}」を削除しますか？この操作は取り消せません。\nSpace.app側の一覧からも削除されます。`)) return;
+
+  try {
+    await api.delete(`/admin/users/${id}`);
+    allUsers = allUsers.filter(x => x.id !== id);
+    renderUsers();
+    showToast('ユーザーを削除しました', 'success');
+  } catch (err) {
+    showToast('削除に失敗しました: ' + esc(err.message), 'danger');
+  }
+}
 
 /* ユーザー行クリック → 編集モーダル */
 let editingUserId = null;
 let editExtraEmails = [];
 
 document.getElementById('userBody').addEventListener('click', e => {
+  /* 有効トグルと削除ボタンは行クリック（編集モーダル）と競合させない */
+  const del = e.target.closest('button[data-delete-user]');
+  if (del) { deleteUser(Number(del.dataset.deleteUser)); return; }
+  if (e.target.closest('[data-stop]')) return;
+
   const row = e.target.closest('tr[data-edit-user]');
   if (!row) return;
   openEditUserModal(Number(row.dataset.editUser));
+});
+
+document.getElementById('userBody').addEventListener('change', e => {
+  const cb = e.target.closest('input[data-toggle-user]');
+  if (!cb) return;
+  toggleUserActive(Number(cb.dataset.toggleUser), cb.checked, cb);
 });
 
 async function openEditUserModal(userId) {
@@ -118,25 +247,50 @@ async function openEditUserModal(userId) {
 
   document.getElementById('editUserModalTitle').textContent = u.name + ' の設定';
   document.getElementById('editUserId').value = userId;
+  document.getElementById('editUserName').value = u.name;
+  document.getElementById('editUserEmail').value = u.email;
   document.getElementById('editUserRole').value = u.role;
   document.getElementById('editUserSolidType').value = u.solid_type ?? '';
-
-  // 通知設定を取得
-  const data = await api.get(`/admin/users/${userId}/notification-settings`);
-  const s = data?.setting || { modeling_completed_enabled: true, expiring_file_enabled: true, extra_emails: [] };
-  document.getElementById('editToggleModeling').checked = s.modeling_completed_enabled;
-  document.getElementById('editToggleExpiring').checked = s.expiring_file_enabled;
-  editExtraEmails = s.extra_emails || [];
-  renderEditExtraEmails();
+  document.getElementById('editUserActive').checked = !!u.is_active;
+  document.getElementById('editTempPwArea').style.display = 'none';
 
   document.getElementById('editUserModal').classList.remove('hidden');
+
+  // 通知設定を取得
+  try {
+    const data = await api.get(`/admin/users/${userId}/notification-settings`);
+    const s = data?.setting || { modeling_completed_enabled: true, expiring_file_enabled: true, extra_emails: [] };
+    document.getElementById('editToggleModeling').checked = s.modeling_completed_enabled;
+    document.getElementById('editToggleExpiring').checked = s.expiring_file_enabled;
+    editExtraEmails = s.extra_emails || [];
+  } catch {
+    document.getElementById('editToggleModeling').checked = true;
+    document.getElementById('editToggleExpiring').checked = true;
+    editExtraEmails = [];
+  }
+  renderEditExtraEmails();
+
+  /* 仮パスワードは本人が変更済みだと404が返るので、その場合は欄ごと出さない */
+  try {
+    const pw = await api.get(`/admin/users/${userId}/temp-password`);
+    if (pw?.temp_password) {
+      document.getElementById('editTempPw').value = pw.temp_password;
+      document.getElementById('editTempPwArea').style.display = '';
+    }
+  } catch { /* 変更済み・権限なし。表示しないだけでよい */ }
 }
+
+document.getElementById('editTempPwCopy').addEventListener('click', () => {
+  navigator.clipboard?.writeText(document.getElementById('editTempPw').value)
+    .then(() => showToast('仮パスワードをコピーしました', 'success'))
+    .catch(() => showToast('コピーできませんでした', 'danger'));
+});
 
 function renderEditExtraEmails() {
   const list = document.getElementById('editExtraEmailList');
   list.innerHTML = editExtraEmails.map((email, i) => `
     <div style="display:flex;gap:8px;align-items:center;">
-      <input type="email" class="form-input" value="${email}" style="flex:1;"
+      <input type="email" class="form-input" value="${esc(email)}" style="flex:1;"
              oninput="editExtraEmails[${i}]=this.value">
       <button class="btn btn-outline btn-sm" onclick="removeEditExtraEmail(${i})"
               style="color:var(--danger);border-color:var(--danger);flex-shrink:0;">
@@ -167,19 +321,25 @@ document.getElementById('editAddExtraEmailBtn').addEventListener('click', () => 
 
 document.getElementById('editUserModalSubmit').addEventListener('click', async () => {
   if (!editingUserId) return;
+  const name = document.getElementById('editUserName').value.trim();
   const role = document.getElementById('editUserRole').value;
   const solidType = document.getElementById('editUserSolidType').value || null;
+  const isActive = document.getElementById('editUserActive').checked;
   const validEmails = editExtraEmails.filter(e => e.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim()));
+
+  if (!name) { showToast('名前は必須です', 'danger'); return; }
 
   const btn = document.getElementById('editUserModalSubmit');
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
   try {
-    // ロール・種別変更
-    await api.patch(`/admin/users/${editingUserId}`, { role, solid_type: solidType });
+    /* 名前・ロール・種別・有効状態。solid_type に null を送ると「種別なし」に戻る */
+    const res = await api.patch(`/admin/users/${editingUserId}`, {
+      name, role, solid_type: solidType, is_active: isActive,
+    });
     const idx = allUsers.findIndex(u => u.id === editingUserId);
-    if (idx !== -1) { allUsers[idx].role = role; allUsers[idx].solid_type = solidType; }
+    if (idx !== -1 && res?.user) allUsers[idx] = res.user;
 
     // 通知設定保存
     await api.patch(`/admin/users/${editingUserId}/notification-settings`, {
@@ -188,13 +348,22 @@ document.getElementById('editUserModalSubmit').addEventListener('click', async (
       extra_emails:               validEmails,
     });
 
+    /* 自分自身を編集した場合はサイドバー表示も即時更新する（再ログイン不要） */
+    if (editingUserId === user.id && res?.user) {
+      user.name = res.user.name;
+      user.role = res.user.role;
+      user.solid_type = res.user.solid_type;
+      sessionStorage.setItem('space_user', JSON.stringify(user));
+      renderSidebarUser(user);
+    }
+
     document.getElementById('editUserModal').classList.add('hidden');
     editingUserId = null;
     editExtraEmails = [];
     renderUsers();
     showToast('ユーザー設定を保存しました', 'success');
   } catch (err) {
-    showToast('保存に失敗しました: ' + err.message, 'danger');
+    showToast('保存に失敗しました: ' + esc(err.message), 'danger');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> 保存';
@@ -202,17 +371,13 @@ document.getElementById('editUserModalSubmit').addEventListener('click', async (
 });
 
 function openInviteModal() {
-  editingUserId = null;
   document.querySelector('#userModal .modal-title').textContent = 'ユーザーを招待';
   document.getElementById('inviteName').value    = '';
   document.getElementById('inviteEmail').value   = '';
-  document.getElementById('inviteName').disabled  = false;
-  document.getElementById('inviteEmail').disabled = false;
-  document.getElementById('inviteCompany').disabled = false;
   document.getElementById('inviteRole').value = 'general';
   document.getElementById('inviteSolidType').value = '';
-  document.getElementById('userModalSubmit').innerHTML =
-    '<i class="fa-solid fa-paper-plane"></i> ユーザーを追加する';
+  document.getElementById('inviteTempPwArea').style.display = 'none';
+  document.getElementById('userModalSubmit').style.display = '';
   document.getElementById('userModal').classList.remove('hidden');
 }
 
@@ -220,11 +385,13 @@ document.getElementById('inviteUserBtn').addEventListener('click', openInviteMod
 ['userModalClose','userModalClose2'].forEach(id =>
   document.getElementById(id).addEventListener('click', () => {
     document.getElementById('userModal').classList.add('hidden');
-    document.getElementById('inviteName').disabled  = false;
-    document.getElementById('inviteEmail').disabled = false;
-    document.getElementById('inviteCompany').disabled = false;
-    editingUserId = null;
   }));
+
+document.getElementById('inviteTempPwCopy').addEventListener('click', () => {
+  navigator.clipboard?.writeText(document.getElementById('inviteTempPw').value)
+    .then(() => showToast('仮パスワードをコピーしました', 'success'))
+    .catch(() => showToast('コピーできませんでした', 'danger'));
+});
 
 document.getElementById('userModalSubmit').addEventListener('click', async () => {
   const name    = document.getElementById('inviteName').value.trim();
@@ -233,41 +400,40 @@ document.getElementById('userModalSubmit').addEventListener('click', async () =>
   const role    = document.getElementById('inviteRole').value;
   const solidType = document.getElementById('inviteSolidType').value || null;
 
+  if (!name || !email) { showToast('名前とメールアドレスは必須です', 'danger'); return; }
+
   const btn = document.getElementById('userModalSubmit');
   btn.disabled = true;
   const origLabel = btn.innerHTML;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
   try {
-    if (editingUserId !== null) {
-      /* ── ロール変更 ── */
-      const data = await api.patch(`/admin/users/${editingUserId}`, { role, solid_type: solidType });
-      const idx = allUsers.findIndex(u => u.id === editingUserId);
-      if (idx !== -1) { allUsers[idx].role = role; allUsers[idx].solid_type = solidType; }
-      document.getElementById('userModal').classList.add('hidden');
-      document.getElementById('inviteName').disabled  = false;
-      document.getElementById('inviteEmail').disabled = false;
-      document.getElementById('inviteCompany').disabled = false;
-      editingUserId = null;
-      renderUsers();
-      showToast('ロールを変更しました', 'success');
+    /* SOLIDの管理画面から作るユーザーには利用アプリとしてSOLIDだけを付与する。
+       （会社契約の他アプリまで自動で使えてしまうのを防ぐ。追加はSpace.appの管理画面で行う） */
+    const data = await api.post('/admin/users', {
+      name, email, role,
+      solid_type: solidType,
+      company_id: Number(compSel.value),
+      apps_enabled: [APP_KEY],
+    });
+
+    const created = data?.data;
+    if (created) allUsers.push(created);
+    renderUsers();
+
+    /* 仮パスワードはこの場でしか安全に渡せないため、モーダルに残して手渡しできるようにする */
+    document.getElementById('inviteTempPw').value = data?.temp_password ?? '';
+    document.getElementById('inviteTempPwArea').style.display = '';
+    btn.style.display = 'none';
+
+    /* 会社がSOLID未契約だと effective_apps が空になり、作成できてもログインできない */
+    if (created && !(created.effective_apps ?? []).includes(APP_KEY)) {
+      showToast('ユーザーを作成しましたが、この会社はSOLIDを契約していないためログインできません', 'danger');
     } else {
-      /* ── ユーザー追加 ── */
-      if (!name || !email) { showToast('名前とメールアドレスは必須です', 'danger'); return; }
-      const country = solidType === 'id_modeler' ? 'ID' : 'JP';
-      const data = await api.post('/admin/users', {
-        name, email,
-        password: 'password',  // 初期パスワード（実運用では変更必須）
-        role, solid_type: solidType, country,
-        company_id: Number(compSel.value),
-      });
-      allUsers.push(data.user);
-      document.getElementById('userModal').classList.add('hidden');
-      renderUsers();
-      showToast('ユーザーを追加しました（初期パスワード: password）', 'success');
+      showToast('ユーザーを追加しました', 'success');
     }
   } catch (err) {
-    showToast('操作に失敗しました: ' + err.message, 'danger');
+    showToast('操作に失敗しました: ' + esc(err.message), 'danger');
   } finally {
     btn.disabled = false;
     btn.innerHTML = origLabel;
@@ -360,6 +526,11 @@ function populateInviteCompany(companies) {
     o.value = c.id; o.textContent = c.name;
     sel.appendChild(o);
   });
+  /* adminは自社にしかユーザーを作れない（サーバー側でも会社IDを自社に強制上書きしている） */
+  if (!IS_SUPER) {
+    sel.value = user.company_id ?? sel.value;
+    sel.disabled = true;
+  }
 }
 
 /* ============================================================
