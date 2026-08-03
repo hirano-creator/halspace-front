@@ -69,6 +69,11 @@ function isAdmin(user)   { return ['admin','super_admin'].includes(user?.role); 
 function isSuperAdmin(user) { return user?.role === 'super_admin'; }
 function isModeler(user) { return user?.solid_type === 'id_modeler'; }
 function isClient(user)  { return user?.solid_type === 'jp_client'; }
+/* HaLSpace運営会社（発注者とモデラーの中間役）に所属しているか */
+function isOperator(user) { return !!user?.is_operator; }
+/* admin相当の全権限（全プロジェクト閲覧、発注者/モデラー両チャンネル閲覧等）を持つか。
+   role=admin/super_adminに加え、HaLSpace運営会社所属者はrole=generalでも同等に扱う。 */
+function hasAdminLevelAccess(user) { return isAdmin(user) || isOperator(user); }
 
 /* ハンバーガーメニュー（モバイル用サイドバー開閉） */
 function initMobileMenu() {
