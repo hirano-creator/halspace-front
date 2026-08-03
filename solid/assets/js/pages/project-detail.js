@@ -457,12 +457,21 @@ function downloadFilesAsZip(files) {
   a.click();
 }
 
-const REVIEW_BADGE = {
-  submitted: '<span class="badge badge-review_pending" style="font-size:11px;margin-right:4px;">検査依頼中</span>',
-  ok:        '<span class="badge badge-approved" style="font-size:11px;margin-right:4px;">OK</span>',
-  revision:  '<span class="badge badge-revision_requested" style="font-size:11px;margin-right:4px;">修正依頼</span>',
-  delivered: '<span class="badge badge-delivered" style="font-size:11px;margin-right:4px;"><i class="fa-solid fa-truck" style="margin-right:3px;"></i>納品済み</span>',
+const REVIEW_STATUS_META = {
+  pending:   { cls: 'badge-submitted',          label: '検査依頼前' },
+  submitted: { cls: 'badge-review_pending',     label: '検査依頼中' },
+  ok:        { cls: 'badge-approved',           label: 'OK' },
+  revision:  { cls: 'badge-revision_requested', label: '修正依頼' },
+  delivered: { cls: 'badge-delivered',          label: '納品済み', icon: 'fa-truck' },
 };
+
+/* review_status のバッジ。count を渡すとフォルダ行用に「（N件）」付きで出す */
+function reviewBadge(status, count = null) {
+  const m = REVIEW_STATUS_META[status];
+  if (!m) return '';
+  const icon = m.icon ? `<i class="fa-solid ${m.icon}" style="margin-right:3px;"></i>` : '';
+  return `<span class="badge ${m.cls}" style="font-size:11px;margin-right:4px;">${icon}${m.label}${count === null ? '' : `（${count}件）`}</span>`;
+}
 
 function fileDirOf(f) {
   return f.relative_path ? f.relative_path.split('/').slice(0, -1).join('/') : '';
@@ -499,11 +508,9 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
     const canPreview = ['pdf', 'dxf', 'dwg', 'stl', 'stp', 'step'].includes(ext);
 
     // 検査依頼前（pending）バッジは3Dモデルエリア（検査対象）でのみ表示
-    const reviewBadge = (f.review_status === 'pending' || !f.review_status)
-      ? ((showAdminBtns || showModelerBtns)
-          ? '<span class="badge badge-submitted" style="font-size:11px;margin-right:4px;">検査依頼前</span>'
-          : '')
-      : (REVIEW_BADGE[f.review_status] || '');
+    const badge = (f.review_status === 'pending' || !f.review_status)
+      ? ((showAdminBtns || showModelerBtns) ? reviewBadge('pending') : '')
+      : reviewBadge(f.review_status);
 
     // バッジ横の検査者・依頼者表示（誰がいつ操作したか）
     const reviewMetaText = f.review_status === 'submitted'
@@ -560,7 +567,7 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
         </div>
       </div>
       <div class="file-item-actions">
-        ${reviewBadge}
+        ${badge}
         ${reviewBtns}
         ${modelerBtns}
         ${canPreview ? `<button class="file-preview-btn" data-file-id="${f.id}" title="プレビュー">
@@ -605,6 +612,46 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
     const isOpen = expandedFolderKeys.has(`${area.id}::${topDir}`);
     const totalSize = groupFiles.reduce((s, f) => s + (f.file_size || 0), 0);
 
+    // フォルダ内の検査状況をまとめたバッジ（状態ごとに件数を表示）
+    const statusCounts = {};
+    groupFiles.forEach(f => {
+      const s = f.review_status || 'pending';
+      statusCounts[s] = (statusCounts[s] || 0) + 1;
+    });
+    const folderBadges = (showAdminBtns || showModelerBtns)
+      ? ['submitted', 'revision', 'ok', 'delivered', 'pending']
+          .filter(s => statusCounts[s])
+          .map(s => reviewBadge(s, statusCounts[s])).join('')
+      : '';
+
+    // 管理者: フォルダ内のファイルをまとめてOK／修正依頼／納品
+    const okTargets       = groupFiles.filter(f => ['submitted','revision'].includes(f.review_status));
+    const revisionTargets = groupFiles.filter(f => ['submitted','ok'].includes(f.review_status));
+    const deliverTargets  = groupFiles.filter(f => f.review_status === 'ok');
+    const hasReviewable   = groupFiles.some(f => ['submitted','ok','revision'].includes(f.review_status));
+    const disabledAttr = (label) =>
+      `disabled style="opacity:.45;cursor:not-allowed;" title="${label}"`;
+    const folderAdminBtns = (showAdminBtns && hasReviewable) ? `
+        <button class="btn btn-sm btn-outline folder-review-ok-btn" data-folder-idx="${idx}"
+                ${okTargets.length
+                  ? `title="このフォルダ内の${okTargets.length}件をまとめて検査OKにする"`
+                  : disabledAttr('OKにできるファイルがありません')}>
+          <i class="fa-solid fa-check"></i> OK
+        </button>
+        <button class="btn btn-sm btn-outline folder-review-revision-btn" data-folder-idx="${idx}"
+                ${revisionTargets.length
+                  ? `title="このフォルダ内の${revisionTargets.length}件をまとめて修正依頼にする"`
+                  : disabledAttr('修正依頼にできるファイルがありません')}>
+          <i class="fa-solid fa-rotate-left"></i> 修正依頼
+        </button>
+        <button class="btn btn-sm folder-deliver-btn ${deliverTargets.length ? 'btn-primary' : 'btn-outline'}"
+                data-folder-idx="${idx}"
+                ${deliverTargets.length
+                  ? `title="検査OKの${deliverTargets.length}件をまとめて発注者へ納品"`
+                  : disabledAttr('検査OKにすると納品できます')}>
+          <i class="fa-solid fa-truck"></i> 納品
+        </button>` : '';
+
     // モデラー: フォルダ内のファイルをまとめて検査依頼／取消
     const pendingCount   = groupFiles.filter(f => ['pending','revision'].includes(f.review_status || 'pending')).length;
     const submittedCount = groupFiles.filter(f => f.review_status === 'submitted').length;
@@ -623,12 +670,14 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
     return `
     <div class="file-tree-group" style="margin:8px 0;">
       <div class="file-tree-folder-row" style="display:flex;align-items:center;gap:8px;padding:10px 12px;
-           border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);">
+           flex-wrap:wrap;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);">
         <i class="fa-solid ${isOpen ? 'fa-chevron-down' : 'fa-chevron-right'} folder-toggle-icon"
            style="font-size:11px;color:var(--muted);width:12px;"></i>
         <i class="fa-solid fa-folder" style="color:var(--accent);"></i>
-        <div style="flex:1;font-size:13px;font-weight:600;">${topDir}</div>
+        <div style="flex:1;min-width:120px;font-size:13px;font-weight:600;">${topDir}</div>
+        ${folderBadges}
         <div style="font-size:12px;color:var(--muted);">${groupFiles.length}件 · ${formatBytes(totalSize)}</div>
+        ${folderAdminBtns}
         ${folderReviewBtn}
         <button class="btn btn-ghost btn-sm folder-save-btn tooltip-hint"
                 data-tooltip="クリック後に表示されるフォルダ選択画面で、デスクトップ・ドキュメント・ダウンロード自体は選択できません。その中のサブフォルダ（または新規作成したフォルダ）を選んでください。"
@@ -709,6 +758,50 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
         showToast(`${failed}件の取消に失敗しました`, 'danger');
       } else {
         showToast('検査依頼を取り消しました', 'warning');
+      }
+    });
+  });
+
+  // 管理者: フォルダ単位のOK／修正依頼／納品
+  area.querySelectorAll('.folder-review-ok-btn:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const [topDir, groupFiles] = folderEntries[Number(btn.dataset.folderIdx)];
+      const targets = groupFiles.filter(f => ['submitted','revision'].includes(f.review_status));
+      if (!confirm(`「${topDir}」内の${targets.length}件を検査OKにしますか？`)) return;
+      const failed = await setFilesReviewStatus(targets.map(f => f.id), 'ok');
+      if (failed) {
+        showToast(`${failed}件のOKに失敗しました`, 'danger');
+      } else {
+        showToast(`${topDir} の${targets.length}件を検査OKにしました`, 'success');
+      }
+    });
+  });
+  area.querySelectorAll('.folder-review-revision-btn:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const [topDir, groupFiles] = folderEntries[Number(btn.dataset.folderIdx)];
+      const targets = groupFiles.filter(f => ['submitted','ok'].includes(f.review_status));
+      if (!confirm(`「${topDir}」内の${targets.length}件を修正依頼にしますか？`)) return;
+      const failed = await setFilesReviewStatus(targets.map(f => f.id), 'revision');
+      if (failed) {
+        showToast(`${failed}件の修正依頼に失敗しました`, 'danger');
+      } else {
+        showToast(`${topDir} の${targets.length}件を修正依頼にしました`, 'warning');
+      }
+    });
+  });
+  area.querySelectorAll('.folder-deliver-btn:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const [topDir, groupFiles] = folderEntries[Number(btn.dataset.folderIdx)];
+      const targets = groupFiles.filter(f => f.review_status === 'ok');
+      if (!confirm(`「${topDir}」内の検査OK ${targets.length}件を発注者へ納品しますか？\n納品後、発注者がこれらのファイルを閲覧・ダウンロードできるようになります。`)) return;
+      const failed = await setFilesReviewStatus(targets.map(f => f.id), 'delivered');
+      if (failed) {
+        showToast(`${failed}件の納品に失敗しました`, 'danger');
+      } else {
+        showToast(`${topDir} の${targets.length}件を納品しました。発注者に公開されます。`, 'success');
       }
     });
   });
