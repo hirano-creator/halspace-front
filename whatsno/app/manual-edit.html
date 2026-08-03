@@ -41,12 +41,12 @@
       padding: 10px; display: flex; gap: 11px; box-shadow: var(--shadow-sm); align-items: flex-start; }
     .e-num { flex: none; width: 25px; height: 25px; border-radius: 50%; background: var(--primary); color: #fff;
       font-weight: 700; font-size: 12px; display: grid; place-items: center; margin-top: 2px; }
-    .e-thumb { flex: none; width: 150px; height: 150px; border-radius: var(--radius); object-fit: cover;
+    .e-thumb { flex: none; width: 200px; height: 200px; border-radius: var(--radius); object-fit: cover;
       display: grid; place-items: center; color: #fff; font-size: 34px; background: linear-gradient(135deg,#2d3d52,#0a2540); overflow: hidden; }
-    .e-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .e-thumb img { width: 100%; height: 100%; object-fit: contain; }
     /* スマホでは説明欄が潰れるのでサムネイルを控えめにする */
     @media (max-width: 480px) {
-      .e-thumb { width: 96px; height: 96px; font-size: 24px; }
+      .e-thumb { width: 130px; height: 130px; font-size: 24px; }
       .e-thumb.annotatable::after { font-size: 20px; }
     }
     .e-thumb.file { background: #eef0ff; color: var(--accent-dk); border: 1px solid #dfe1fb; }
@@ -62,7 +62,7 @@
       padding: 7px 9px; font-family: inherit; font-size: 13.5px; color: var(--primary); box-sizing: border-box; resize: vertical; }
     .e-scap input:focus, .e-scap textarea:focus { outline: none; border-color: var(--accent); }
     /* 一言説明はある程度の分量を書けるように縦を確保する */
-    .e-scap textarea.cap { min-height: 100px; line-height: 1.6; }
+    .e-scap textarea.cap { min-height: 130px; line-height: 1.6; }
     .e-step.heading { background: #f0f4f9; }
     .e-step.heading .e-scap input { font-weight: 800; font-size: 14px; background: transparent; border-color: transparent; }
     .e-step.heading .e-scap input:focus { border-color: var(--accent); background: #fff; }
