@@ -41,14 +41,19 @@
       padding: 10px; display: flex; gap: 11px; box-shadow: var(--shadow-sm); align-items: flex-start; }
     .e-num { flex: none; width: 25px; height: 25px; border-radius: 50%; background: var(--primary); color: #fff;
       font-weight: 700; font-size: 12px; display: grid; place-items: center; margin-top: 2px; }
-    .e-thumb { flex: none; width: 62px; height: 62px; border-radius: var(--radius); object-fit: cover;
-      display: grid; place-items: center; color: #fff; font-size: 20px; background: linear-gradient(135deg,#2d3d52,#0a2540); overflow: hidden; }
+    .e-thumb { flex: none; width: 150px; height: 150px; border-radius: var(--radius); object-fit: cover;
+      display: grid; place-items: center; color: #fff; font-size: 34px; background: linear-gradient(135deg,#2d3d52,#0a2540); overflow: hidden; }
     .e-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    /* スマホでは説明欄が潰れるのでサムネイルを控えめにする */
+    @media (max-width: 480px) {
+      .e-thumb { width: 96px; height: 96px; font-size: 24px; }
+      .e-thumb.annotatable::after { font-size: 20px; }
+    }
     .e-thumb.file { background: #eef0ff; color: var(--accent-dk); border: 1px solid #dfe1fb; }
     /* 注釈編集へ飛べるサムネイル（ホバーでペンアイコンを重ねる） */
     .e-thumb.annotatable { cursor: pointer; position: relative; }
     .e-thumb.annotatable::after { content: '\f304'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
-      position: absolute; inset: 0; display: grid; place-items: center; font-size: 17px; color: #fff;
+      position: absolute; inset: 0; display: grid; place-items: center; font-size: 26px; color: #fff;
       background: rgba(10,37,64,.55); opacity: 0; transition: opacity .15s; }
     .e-thumb.annotatable:hover::after, .e-thumb.annotatable:focus-visible::after { opacity: 1; }
     .e-scap { flex: 1; min-width: 0; }
@@ -56,6 +61,8 @@
     .e-scap input, .e-scap textarea { width: 100%; border: 1px solid var(--border); border-radius: 6px;
       padding: 7px 9px; font-family: inherit; font-size: 13.5px; color: var(--primary); box-sizing: border-box; resize: vertical; }
     .e-scap input:focus, .e-scap textarea:focus { outline: none; border-color: var(--accent); }
+    /* 一言説明はある程度の分量を書けるように縦を確保する */
+    .e-scap textarea.cap { min-height: 100px; line-height: 1.6; }
     .e-step.heading { background: #f0f4f9; }
     .e-step.heading .e-scap input { font-weight: 800; font-size: 14px; background: transparent; border-color: transparent; }
     .e-step.heading .e-scap input:focus { border-color: var(--accent); background: #fff; }
@@ -240,7 +247,7 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="../../solid/assets/js/auth.js?v=6"></script>
-<script src="../assets/js/wn-api.js?v=22"></script>
+<script src="../assets/js/wn-api.js?v=23"></script>
 <script>
 'use strict';
 /* マニュアル編集画面 */
@@ -321,8 +328,8 @@ function renderSteps() {
       ${stepThumbHtml(s)}
       <div class="e-scap">
         <div class="e-kind">${KIND_LABEL[s.type]}</div>
-        <input value="${escapeHtml(s.caption)}" placeholder="一言説明（例: 電源をOFFにする）"
-          onchange="saveCaption(${s.id}, this.value)">
+        <textarea class="cap" placeholder="一言説明（例: 電源をOFFにする）"
+          onchange="saveCaption(${s.id}, this.value)">${escapeHtml(s.caption)}</textarea>
       </div>
       ${ctrl}
     </div>`;
@@ -451,7 +458,7 @@ async function addFileSteps(files, type) {
       renderSteps();
       /* 追加直後のキャプション欄へフォーカス（撮影→一言の最短ループ） */
       const box = document.getElementById('steps');
-      const last = box.querySelector('.e-step:last-child .e-scap input');
+      const last = box.querySelector('.e-step:last-child .e-scap input, .e-step:last-child .e-scap textarea');
       if (last) last.focus();
     } catch (e) {
       wnShowToast(e.message || '追加に失敗しました', 'danger');
