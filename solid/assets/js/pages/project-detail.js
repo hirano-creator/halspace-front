@@ -601,9 +601,25 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
 
   let html = rootFiles.map(f => renderFileItem(f, 0)).join('');
 
-  html += folderEntries.map(([topDir, groupFiles]) => {
+  html += folderEntries.map(([topDir, groupFiles], idx) => {
     const isOpen = expandedFolderKeys.has(`${area.id}::${topDir}`);
     const totalSize = groupFiles.reduce((s, f) => s + (f.file_size || 0), 0);
+
+    // モデラー: フォルダ内のファイルをまとめて検査依頼／取消
+    const pendingCount   = groupFiles.filter(f => ['pending','revision'].includes(f.review_status || 'pending')).length;
+    const submittedCount = groupFiles.filter(f => f.review_status === 'submitted').length;
+    const folderReviewBtn = !showModelerBtns ? ''
+      : pendingCount ? `
+        <button class="btn btn-sm btn-success folder-request-review-btn" data-folder-idx="${idx}"
+                title="このフォルダ内の検査依頼前のファイルをまとめて検査依頼">
+          <i class="fa-solid fa-paper-plane"></i> 検査依頼（${pendingCount}件）
+        </button>`
+      : submittedCount ? `
+        <button class="btn btn-sm btn-outline folder-cancel-review-btn" data-folder-idx="${idx}"
+                title="このフォルダ内の検査依頼をまとめて取消">
+          <i class="fa-solid fa-xmark"></i> 依頼取消（${submittedCount}件）
+        </button>` : '';
+
     return `
     <div class="file-tree-group" style="margin:8px 0;">
       <div class="file-tree-folder-row" style="display:flex;align-items:center;gap:8px;padding:10px 12px;
@@ -613,6 +629,7 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
         <i class="fa-solid fa-folder" style="color:var(--accent);"></i>
         <div style="flex:1;font-size:13px;font-weight:600;">${topDir}</div>
         <div style="font-size:12px;color:var(--muted);">${groupFiles.length}件 · ${formatBytes(totalSize)}</div>
+        ${folderReviewBtn}
         <button class="btn btn-ghost btn-sm folder-save-btn tooltip-hint"
                 data-tooltip="クリック後に表示されるフォルダ選択画面で、デスクトップ・ドキュメント・ダウンロード自体は選択できません。その中のサブフォルダ（または新規作成したフォルダ）を選んでください。"
                 style="${'showDirectoryPicker' in window ? '' : 'display:none;'}">
@@ -663,6 +680,36 @@ function renderFileSection(area, files, canDelete, showAdminBtns = false, showMo
       e.stopPropagation();
       const [, groupFiles] = folderEntries[idx];
       downloadFilesAsZip(groupFiles);
+    });
+  });
+
+  // モデラー: フォルダ単位の検査依頼／取消
+  area.querySelectorAll('.folder-request-review-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const [topDir, groupFiles] = folderEntries[Number(btn.dataset.folderIdx)];
+      const targets = groupFiles.filter(f => ['pending','revision'].includes(f.review_status || 'pending'));
+      if (!confirm(`「${topDir}」内の${targets.length}件を検査依頼しますか？`)) return;
+      const failed = await setFilesReviewStatus(targets.map(f => f.id), 'submitted');
+      if (failed) {
+        showToast(`${failed}件の検査依頼に失敗しました`, 'danger');
+      } else {
+        showToast(`${topDir} の${targets.length}件の検査を依頼しました`, 'success');
+      }
+    });
+  });
+  area.querySelectorAll('.folder-cancel-review-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const [topDir, groupFiles] = folderEntries[Number(btn.dataset.folderIdx)];
+      const targets = groupFiles.filter(f => f.review_status === 'submitted');
+      if (!confirm(`「${topDir}」内の${targets.length}件の検査依頼を取り消しますか？`)) return;
+      const failed = await setFilesReviewStatus(targets.map(f => f.id), 'pending');
+      if (failed) {
+        showToast(`${failed}件の取消に失敗しました`, 'danger');
+      } else {
+        showToast('検査依頼を取り消しました', 'warning');
+      }
     });
   });
 
@@ -1129,6 +1176,29 @@ async function setFileReviewStatus(fileId, status) {
   } catch (err) {
     showToast('ステータス更新に失敗しました', 'danger');
   }
+}
+
+/* ── フォルダ単位 review_status 一括更新（同時リクエストを避けるため逐次実行し、描画は最後に1回） ── */
+async function setFilesReviewStatus(fileIds, status) {
+  let failed = 0;
+  let projectStatus = null;
+  for (const fileId of fileIds) {
+    try {
+      const data = await api.patch(`/files/${fileId}/review-status`, { review_status: status });
+      const f = project.files.find(x => x.id === fileId);
+      if (f) Object.assign(f, data?.file ?? { review_status: status });
+      if (data?.project_status) projectStatus = data.project_status;
+    } catch (err) {
+      failed++;
+    }
+  }
+  if (projectStatus && projectStatus !== project.status) {
+    project.status = projectStatus;
+    renderInfo();
+  }
+  renderFiles();
+  renderTimeline();
+  return failed;
 }
 
 function updateAdminReviewBarState() {
