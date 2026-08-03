@@ -66,6 +66,7 @@ function solidToast(msg, ok = true) {
 
 /* ロールチェック（role=サイト権限、solid_type=発注者/モデラー種別） */
 function isAdmin(user)   { return ['admin','super_admin'].includes(user?.role); }
+function isSuperAdmin(user) { return user?.role === 'super_admin'; }
 function isModeler(user) { return user?.solid_type === 'id_modeler'; }
 function isClient(user)  { return user?.solid_type === 'jp_client'; }
 
