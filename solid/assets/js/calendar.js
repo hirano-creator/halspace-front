@@ -23,9 +23,8 @@ if (isAdmin(user)) {
   if (adminNav) adminNav.style.display = '';
 }
 
-/* 会社名は複数社の案件が並ぶ管理者・モデラーのみ表示（発注者は自社案件のみのため不要） */
-const SHOW_COMPANY = isAdmin(user) || isModeler(user);
-if (SHOW_COMPANY) document.body.classList.add('show-company');
+/* 会社名は全ロールで物件名の下に表示する */
+document.body.classList.add('show-company');
 
 function showToast(msg, type = '') {
   const c = document.getElementById('toastContainer');
@@ -194,7 +193,6 @@ function _short(title) {
 /* 法人格（株式会社・(有)・㈱ など）を除いた社名を返す */
 const _CORP_RE = /(株式会社|有限会社|合同会社|合資会社|合名会社|(一般|公益)?(社団|財団)法人|\(株\)|（株）|\(有\)|（有）|㈱|㈲)/g;
 function _companyName(p) {
-  if (!SHOW_COMPANY) return '';
   const raw = p.company_name ?? p.company ?? '';
   return raw.replace(_CORP_RE, '').replace(/[\s　]+/g, ' ').trim();
 }
