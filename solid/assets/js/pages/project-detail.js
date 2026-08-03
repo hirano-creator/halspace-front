@@ -81,7 +81,7 @@ function renderTimeline() {
 
   // 管理者検査バー: review_pending × 管理者
   const adminReviewBar = document.getElementById('adminReviewBar');
-  adminReviewBar.style.display = (project.status === 'review_pending' && isAdmin(user)) ? '' : 'none';
+  adminReviewBar.style.display = (project.status === 'review_pending' && hasAdminLevelAccess(user)) ? '' : 'none';
 
   // 発注者確認バー: approved × 発注者
   const clientReviewBar = document.getElementById('clientReviewBar');
@@ -104,7 +104,7 @@ function renderTimeline() {
 
   /* キャンセルボタン: 発注者・管理者のみ、完了・キャンセル済み以外で表示 */
   const cancelBar = document.getElementById('cancelBar');
-  const canCancel = (isClient(user) || isAdmin(user))
+  const canCancel = (isClient(user) || hasAdminLevelAccess(user))
     && !['delivered', 'cancelled'].includes(project.status);
   cancelBar.style.display = canCancel ? '' : 'none';
 }
@@ -166,7 +166,7 @@ function renderFiles() {
   const modelArea      = document.getElementById('modelFileArea');
   const lockedMsg      = document.getElementById('modelFileLockedMsg');
   // 管理者はプロジェクト進行中ならいつでもファイル単位の検査・納品が可能
-  const isAdminReview  = isAdmin(user)
+  const isAdminReview  = hasAdminLevelAccess(user)
     && ['in_progress','review_pending','revision_requested','approved'].includes(project.status);
   // モデラーはファイル単位で検査依頼が可能
   const isModelerSubmit = isModeler(user)
@@ -191,7 +191,7 @@ function renderFiles() {
   }
 
   // 図面・参考資料エリア（全員表示）
-  renderFileSection(document.getElementById('drawingFileArea'), drawingFiles, isAdmin(user) || isModeler(user));
+  renderFileSection(document.getElementById('drawingFileArea'), drawingFiles, hasAdminLevelAccess(user) || isModeler(user));
 
   // 修正依頼ファイルエリア: file_type=revision OR (model_3d && review_status=revision)
   const allRevisionFiles = allFiles.filter(f =>
@@ -201,7 +201,7 @@ function renderFiles() {
   const revisionCard = document.getElementById('revisionFileCard');
   if (allRevisionFiles.length > 0) {
     revisionCard.style.display = '';
-    renderFileSection(document.getElementById('revisionFileArea'), allRevisionFiles, isAdmin(user) || isModeler(user));
+    renderFileSection(document.getElementById('revisionFileArea'), allRevisionFiles, hasAdminLevelAccess(user) || isModeler(user));
   } else {
     revisionCard.style.display = 'none';
   }
@@ -794,7 +794,7 @@ async function apiFetchForm(path, formData) {
    ══════════════════════════════════════════ */
 
 function canAccessChannel(ch) {
-  if (isAdmin(user)) return true;
+  if (hasAdminLevelAccess(user)) return true;
   if (ch === 'client')  return !isModeler(user);
   if (ch === 'modeler') return isModeler(user);
   return false;
@@ -812,7 +812,7 @@ function initChatTabs() {
     currentChannel = 'modeler';
   }
   /* solid_typeが未設定の既存ユーザーもいるため isClient() ではなく !isModeler() で判定する */
-  if (!isAdmin(user) && !isModeler(user)) {
+  if (!hasAdminLevelAccess(user) && !isModeler(user)) {
     modelerTab.style.display = 'none';
   }
 
@@ -922,7 +922,7 @@ function renderChat() {
     const textHtml = c.body ? `<div>${escapeHtml(c.body)}</div>` : '';
     const role = c.user_role ?? c.role ?? '';
     const solidType = c.user_solid_type ?? c.solid_type ?? '';
-    const canDel = Number(c.user_id) === Number(user.id) || isAdmin(user);
+    const canDel = Number(c.user_id) === Number(user.id) || hasAdminLevelAccess(user);
     const delBtn = canDel
       ? `<button class="chat-del-btn" data-comment-id="${c.id}" title="削除"><i class="fa-solid fa-trash-can"></i></button>`
       : '';
@@ -1416,7 +1416,7 @@ function renderDeadlinePanel() {
   const deadlineVal = project.deadline_requested || project.deadline_at || '—';
 
   /* ── 発注者ビュー ── */
-  if (!isModeler(user) && !isAdmin(user)) {
+  if (!isModeler(user) && !hasAdminLevelAccess(user)) {
     let html = `
       <div style="display:flex;align-items:center;gap:16px;padding:12px 0;flex-wrap:wrap;">
         <div style="flex:1;min-width:160px;">
@@ -1629,7 +1629,7 @@ function renderDeadlinePanel() {
 
 /* ── 初期化 ── */
 async function init() {
-  if (isAdmin(user) || isModeler(user)) {
+  if (hasAdminLevelAccess(user) || isModeler(user)) {
     try {
       const data = await api.get('/projects/modelers');
       allModelers = data.modelers || [];
