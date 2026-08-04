@@ -132,9 +132,6 @@
                 <button class="btn btn-primary btn-sm" id="startModelingBtn" style="display:none;">
                   <i class="fa-solid fa-play"></i> モデリング開始
                 </button>
-                <button class="btn btn-success btn-sm" id="submitModelBtn" style="display:none;">
-                  <i class="fa-solid fa-paper-plane"></i> 完成・提出（検査依頼）
-                </button>
                 <button class="btn btn-outline btn-sm" id="resumeModelingBtn" style="display:none;">
                   <i class="fa-solid fa-rotate-left"></i> モデリング再開
                 </button>
@@ -304,50 +301,6 @@
       <button class="btn btn-outline" id="revisionModalClose2">キャンセル</button>
       <button class="btn btn-warning" id="revisionSubmit" style="background:var(--warning);color:var(--dark);">
         <i class="fa-solid fa-rotate-left"></i> 修正依頼を送る
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- 完成・提出モーダル -->
-<div class="modal-overlay hidden" id="submitModelModal">
-  <div class="modal" style="max-width:560px;">
-    <div class="modal-header">
-      <span class="modal-title"><i class="fa-solid fa-paper-plane" style="color:var(--accent);margin-right:6px;"></i>完成・提出（検査依頼）</span>
-      <button class="modal-close" id="submitModelModalClose"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <!-- 既存ファイルから選択 -->
-    <div style="margin-bottom:14px;">
-      <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--dark);">
-        提出するファイルを選択
-      </div>
-      <div id="submitFileCheckList" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;"></div>
-    </div>
-    <!-- 新規アップロード追加 -->
-    <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:4px;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <label class="btn btn-outline btn-sm" for="submitNewFileInput" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
-          <i class="fa-solid fa-plus"></i> 新しいファイルを追加
-        </label>
-        <label class="btn btn-outline btn-sm" for="submitNewFolderInput" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
-          <i class="fa-solid fa-folder-open"></i> フォルダを追加
-        </label>
-      </div>
-      <input type="file" id="submitNewFileInput" accept=".stp,.step,.stl,.obj,.iges,.fbx,.sldprt,.sldasm,.slddrw,.dxf,.pdf" multiple style="display:none">
-      <input type="file" id="submitNewFolderInput" webkitdirectory style="display:none">
-      <div id="submitNewFilePreview" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;"></div>
-      <div id="submitModelProgress" style="display:none;margin-top:8px;">
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px;">
-          <span id="submitModelProgressCount">0 / 0 ファイル</span>
-          <span id="submitModelProgressName"></span>
-        </div>
-        <div class="progress-bar-bg"><div class="progress-bar-fill" id="submitModelProgressFill" style="width:0%"></div></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" id="submitModelModalClose2">キャンセル</button>
-      <button class="btn btn-success" id="submitModelConfirmBtn">
-        <i class="fa-solid fa-paper-plane"></i> 提出する
       </button>
     </div>
   </div>
