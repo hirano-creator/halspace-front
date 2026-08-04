@@ -1534,7 +1534,7 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 /* プロジェクト情報（横長グリッド） */
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 16px 20px;
 }
 .info-item {
@@ -1556,6 +1556,11 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 /* =====================
    レスポンシブ
    ===================== */
+
+/* ── 小さめのノートPC (〜1400px): 8項目を2段に折り返す ── */
+@media (max-width: 1400px) {
+  .info-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 
 /* ── タブレット横 (〜1024px) ── */
 @media (max-width: 1024px) {

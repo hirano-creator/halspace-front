@@ -115,15 +115,18 @@ function renderInfo() {
   document.getElementById('statusBadge').textContent  = STATUS_LABEL[project.status];
 
   const companyName = project.company_name ?? project.company ?? '—';
-  const modelerName = project.modeler_name ?? project.modeler;
+  const clientName  = project.client_name ?? project.client ?? '—';
 
-  const modelerCell = modelerName || '<span style="color:var(--muted)">未割当</span>';
+  const deadlineRequested = project.deadline_requested || project.deadline_at || '—';
+  const deadlineReplied   = project.deadline_replied ?? project.deadline_reply?.date ?? '—';
 
   const rows = [
     ['プロジェクトコード', `<code style="color:var(--blue)">${project.project_code}</code>`],
     ['会社名', companyName],
-    ['担当モデラー', modelerCell],
+    ['担当者名', clientName],
     ['発注日', (project.created_at||'—').slice(0,10)],
+    ['希望納期', deadlineRequested],
+    ['納期回答', deadlineReplied],
     ['納品日', project.delivered_at || '—'],
     ['優先度', `<span class="priority-${project.priority}">${{urgent:'緊急',high:'高',normal:'通常',low:'低'}[project.priority]||project.priority}</span>`],
   ];
