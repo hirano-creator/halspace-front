@@ -155,24 +155,36 @@ function filesFromDirectoryInput(input) {
 }
 
 /* ── アップロード実行 ──
-   1ファイル=1リクエストのため、直列だとファイル数ぶんの往復待ちがそのまま積み上がり、
-   フォルダアップロード（小さいファイルが数十件）で待ち時間が極端に長くなる。
-   APIはFrankenPHPで並行処理でき、last_used_at行ロックもPersonalAccessToken側の
-   書き込み間引きで解消済みのため、同時本数を絞ったうえで並列送信する。 */
+   API経由(POST /projects/{id}/files)は 1ファイル=1リクエストで、実体が
+   ブラウザ→API→R2 と2段で転送されるうえ、ファイルごとにフレームワーク起動＋認証
+   （本番実測0.3〜0.5秒）が積み上がる。これがフォルダアップロードの待ち時間の正体。
 
-const UPLOAD_CONCURRENCY = 4;
+   そこで既定では、署名付きURLを1リクエストでまとめて受け取り、実体はブラウザから
+   R2へ直接PUTして転送を1段にする。APIへの往復は「署名発行」と「一括登録」の2回だけ。
+   R2のCORSが効かない環境（ローカル開発など）では従来のAPI経由へ自動で切り替える。 */
 
-function uploadItems(projectId, items, {
-  fileType = 'model_3d',
-  onProgress,
-  concurrency = UPLOAD_CONCURRENCY,
-} = {}) {
-  const token = sessionStorage.getItem('space_token');
+const UPLOAD_CONCURRENCY = 6; // HTTP/1.1のブラウザ側同時接続上限に合わせる
+
+/* 0..count-1 のタスクを指定本数だけ並行に走らせる */
+async function runWithConcurrency(count, concurrency, task) {
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(concurrency, count)) },
+    async () => {
+      while (next < count) {
+        const idx = next++;
+        await task(idx);
+      }
+    });
+  await Promise.all(workers);
+}
+
+/* 進捗の集計（直送・API経由の両方から使う） */
+function createProgressTracker(items, onProgress) {
   const totalBytes = items.reduce((s, it) => s + it.file.size, 0);
   let doneBytes = 0;
   let doneCount = 0;
-  const uploaded = [];
-  const errors = [];
+  let phase = '';
   const inFlight = new Map(); // idx → ファイル名（並列中の表示用）
 
   function report() {
@@ -180,20 +192,141 @@ function uploadItems(projectId, items, {
     onProgress?.({
       doneCount,
       total: items.length,
-      currentName: names.length > 1 ? `${names[0]} ほか${names.length - 1}件` : (names[0] ?? ''),
+      currentName: phase || (names.length > 1 ? `${names[0]} ほか${names.length - 1}件` : (names[0] ?? '')),
       currentPct: totalBytes ? Math.round((doneBytes / totalBytes) * 100) : 100,
       doneBytes,
       totalBytes,
     });
   }
 
-  function uploadOne(item, idx) {
+  return {
+    report,
+    start(idx, name) { inFlight.set(idx, name); report(); },
+    addBytes(n) { doneBytes += n; report(); },
+    finish(idx) { inFlight.delete(idx); doneCount++; report(); },
+    setPhase(text) { phase = text; report(); },
+  };
+}
+
+function authHeaders() {
+  const token = sessionStorage.getItem('space_token');
+  return {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+  };
+}
+
+function uploadItems(projectId, items, {
+  fileType = 'model_3d',
+  onProgress,
+  concurrency = UPLOAD_CONCURRENCY,
+} = {}) {
+  const resolveType = item => (typeof fileType === 'function' ? fileType(item) : fileType);
+
+  return (async () => {
+    try {
+      return await uploadItemsDirect(projectId, items, { resolveType, onProgress, concurrency });
+    } catch (err) {
+      console.warn('[uploader] R2直送を使えないためAPI経由で送信します:', err?.message ?? err);
+      return await uploadItemsViaApi(projectId, items, { resolveType, onProgress, concurrency });
+    }
+  })();
+}
+
+/* R2直送。署名一括取得 → ブラウザからR2へ並列PUT → 一括登録 の3ステップ */
+async function uploadItemsDirect(projectId, items, { resolveType, onProgress, concurrency }) {
+  const tracker = createProgressTracker(items, onProgress);
+  tracker.setPhase('アップロードの準備中…');
+
+  const res = await fetch(`${API_BASE}/projects/${projectId}/files/upload-urls`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ files: items.map(it => ({ name: it.file.name })) }),
+  });
+  if (!res.ok) throw new Error(`署名URLの取得に失敗しました (HTTP ${res.status})`);
+
+  const { uploads } = await res.json();
+  if (!Array.isArray(uploads) || uploads.length !== items.length) {
+    throw new Error('署名URLの件数がファイル数と一致しません');
+  }
+  tracker.setPhase('');
+
+  const succeeded = new Array(items.length).fill(false);
+  const errors = [];
+
+  /* 署名URLへ実体をPUTする。ヘッダは付けない——署名はクエリ側(SigV4)にあり、
+     余計なヘッダを足すとCORSプリフライトが増えるだけになる。 */
+  function putOne(idx) {
+    const item = items[idx];
+    return new Promise((resolve, reject) => {
+      tracker.start(idx, item.file.name);
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploads[idx].url);
+
+      let lastLoaded = 0;
+      xhr.upload.onprogress = e => {
+        const loaded = e.lengthComputable ? e.loaded : lastLoaded;
+        tracker.addBytes(loaded - lastLoaded);
+        lastLoaded = loaded;
+      };
+      xhr.onload = () => {
+        tracker.finish(idx);
+        if (xhr.status >= 200 && xhr.status < 300) { succeeded[idx] = true; resolve(); }
+        else reject(new Error(`R2へのPUTが失敗しました (HTTP ${xhr.status})`));
+      };
+      xhr.onerror = () => { tracker.finish(idx); reject(new Error('R2へ接続できません')); };
+      xhr.send(item.file);
+    });
+  }
+
+  // 1件目は疎通確認を兼ねる。ここで落ちた場合だけAPI経由へ丸ごと切り替える
+  await putOne(0);
+  await runWithConcurrency(items.length - 1, concurrency, i =>
+    putOne(i + 1).catch(() => { errors.push(items[i + 1].file.name); }));
+
+  const okIdx = items.map((_, i) => i).filter(i => succeeded[i]);
+  if (!okIdx.length) return { uploaded: [], errors };
+
+  tracker.setPhase('登録中…');
+  const regRes = await fetch(`${API_BASE}/projects/${projectId}/files/register`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({
+      files: okIdx.map(i => ({
+        key: uploads[i].key,
+        file_name: items[i].file.name,
+        relative_path: items[i].relativePath || null,
+        file_type: resolveType(items[i]),
+        file_size: items[i].file.size,
+        mime_type: items[i].file.type || null,
+      })),
+    }),
+  });
+
+  if (!regRes.ok) {
+    // 実体はR2に載っているが登録できなかった。二重アップロードを避けるため再送はしない
+    return { uploaded: [], errors: [...errors, ...okIdx.map(i => items[i].file.name)] };
+  }
+
+  const { files } = await regRes.json();
+  return { uploaded: files ?? [], errors };
+}
+
+/* 従来のAPI経由アップロード（R2直送が使えない環境向けのフォールバック） */
+async function uploadItemsViaApi(projectId, items, { resolveType, onProgress, concurrency }) {
+  const token = sessionStorage.getItem('space_token');
+  const tracker = createProgressTracker(items, onProgress);
+  const uploaded = [];
+  const errors = [];
+
+  function uploadOne(idx) {
+    const item = items[idx];
     return new Promise(resolve => {
-      inFlight.set(idx, item.file.name);
-      report();
+      tracker.start(idx, item.file.name);
       const fd = new FormData();
       fd.append('file', item.file);
-      fd.append('file_type', typeof fileType === 'function' ? fileType(item) : fileType);
+      fd.append('file_type', resolveType(item));
       if (item.relativePath) fd.append('relative_path', item.relativePath);
 
       const xhr = new XMLHttpRequest();
@@ -204,17 +337,11 @@ function uploadItems(projectId, items, {
       let lastLoaded = 0;
       xhr.upload.onprogress = e => {
         const loaded = e.lengthComputable ? e.loaded : lastLoaded;
-        doneBytes += (loaded - lastLoaded);
+        tracker.addBytes(loaded - lastLoaded);
         lastLoaded = loaded;
-        report();
       };
 
-      const finish = () => {
-        inFlight.delete(idx);
-        doneCount++;
-        report();
-        resolve();
-      };
+      const finish = () => { tracker.finish(idx); resolve(); };
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
@@ -234,19 +361,8 @@ function uploadItems(projectId, items, {
     });
   }
 
-  return (async () => {
-    let next = 0;
-    const workers = Array.from(
-      { length: Math.max(1, Math.min(concurrency, items.length)) },
-      async () => {
-        while (next < items.length) {
-          const idx = next++;
-          await uploadOne(items[idx], idx);
-        }
-      });
-    await Promise.all(workers);
-    return { uploaded, errors };
-  })();
+  await runWithConcurrency(items.length, concurrency, uploadOne);
+  return { uploaded, errors };
 }
 
 /* ── アップロード進捗パネル（画面右下に固定表示） ──
