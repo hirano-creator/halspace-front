@@ -116,27 +116,14 @@
           <!-- ステータスタイムライン -->
           <div class="card">
             <div class="timeline" id="timeline"></div>
-            <!-- 管理者検査アクションバー（review_pending × 管理者のみ） -->
+            <!-- 管理者検査アクションバー（review_pending × 管理者のみ）。
+                 ボタンのラベル・役割は updateAdminReviewBarState() が状況に応じて切り替える -->
             <div id="adminReviewBar" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
               <div class="flex gap-12 flex-wrap" style="align-items:center;">
                 <button class="btn btn-success btn-sm" id="adminPublishBtn" disabled style="opacity:0.5;">
-                  <i class="fa-solid fa-check-circle"></i> 検査完了・発注者へ公開
+                  <i class="fa-solid fa-flag-checkered"></i> 納品完了にする
                 </button>
-                <span style="color:var(--muted);font-size:13px;align-self:center;">
-                  各ファイルに <strong>OK</strong> / <strong>修正依頼</strong> を設定してから公開してください。
-                  OKにしたファイルは <strong>納品</strong> ボタンで1件ずつ先行納品もできます。
-                </span>
-              </div>
-            </div>
-            <!-- 発注者確認アクションバー（approved × 発注者のみ） -->
-            <div id="clientReviewBar" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
-              <div class="flex gap-12 flex-wrap" style="align-items:center;">
-                <button class="btn btn-success btn-sm" id="clientApproveBtn">
-                  <i class="fa-solid fa-thumbs-up"></i> 納品を承認する
-                </button>
-                <span style="color:var(--muted);font-size:13px;align-self:center;">
-                  3Dデータをご確認のうえ納品を承認してください。
-                </span>
+                <span id="adminReviewBarNote" style="color:var(--muted);font-size:13px;align-self:center;"></span>
               </div>
             </div>
             <!-- モデラー用アクションバー -->

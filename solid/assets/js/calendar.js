@@ -39,7 +39,7 @@ function showToast(msg, type = '') {
 const DOW = ['日','月','火','水','木','金','土'];
 const STATUS_LABEL = {
   submitted:'提出済み', in_progress:'モデリング中', review_pending:'検査待ち',
-  revision_requested:'修正依頼中', approved:'承認済み', delivered:'納品完了',
+  revision_requested:'修正依頼中', approved:'納品待ち', delivered:'納品完了',
 };
 
 let curYear  = new Date().getFullYear();

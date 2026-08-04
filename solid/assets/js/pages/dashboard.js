@@ -132,7 +132,7 @@ if (user) {
   const STATUS_LABEL = {
     draft:'下書き', submitted:'提出済み', in_progress:'モデリング中',
     review_pending:'検査待ち', revision_requested:'修正依頼中',
-    approved:'承認済み', delivered:'納品完了', cancelled:'キャンセル',
+    approved:'納品待ち', delivered:'納品完了', cancelled:'キャンセル',
   };
   const PRIORITY_LABEL = { urgent:'緊急', high:'高', normal:'通常', low:'低' };
 

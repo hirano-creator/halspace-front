@@ -1760,7 +1760,6 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 
   /* アクションバーをモバイルで縦スタック */
   #adminReviewBar  .flex,
-  #clientReviewBar .flex,
   #modelerActionBar .flex { flex-direction: column; align-items: flex-start !important; gap: 8px !important; }
 
   /* ビューアモーダルヘッダー: タイプバッジを非表示にして省スペース化 */
