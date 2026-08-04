@@ -1726,11 +1726,19 @@ function updateAdminReviewBarState() {
   btn.disabled = !enabled;
   btn.style.opacity = enabled ? '1' : '0.5';
 
+  // 全件納品済みなのにここが表示されている＝自動完了の発火機会を逃した状態
+  // （旧フローで「納品待ち(approved)」に入った既存案件など）。
+  // 「自動で完了します」と案内すると待ち続けてしまうため、ボタン操作を促す
+  const allDelivered = modelFiles.length > 0
+    && modelFiles.every(f => f.review_status === 'delivered');
+
   const note = document.getElementById('adminReviewBarNote');
   if (note) {
     note.textContent = hasRevision
       ? '修正依頼のファイルがあります。差し戻すとモデラーの作業に戻ります。'
-      : '各ファイルを検査・納品したうえで、案件を納品完了にしてください。3Dデータを全件納品すると自動で完了します。';
+      : allDelivered
+        ? '3Dデータはすべて納品済みです。「納品完了にする」を押すと案件が完了します。'
+        : '各ファイルを検査・納品したうえで、案件を納品完了にしてください。3Dデータを全件納品すると自動で完了します。';
   }
 }
 
