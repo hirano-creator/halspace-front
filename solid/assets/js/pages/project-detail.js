@@ -87,15 +87,14 @@ function renderTimeline() {
     (['review_pending','approved'].includes(project.status) && hasAdminLevelAccess(user)) ? '' : 'none';
 
   // モデラー用アクションバー
+  // 検査依頼はファイル単位（一覧の「検査依頼」）に一本化したため、ここには開始／再開のみ置く
   const modelerActionBar = document.getElementById('modelerActionBar');
   const startBtn  = document.getElementById('startModelingBtn');
-  const submitBtn = document.getElementById('submitModelBtn');
   const resumeBtn = document.getElementById('resumeModelingBtn');
   if (isModeler(user)) {
     const s = project.status;
-    modelerActionBar.style.display = ['submitted','in_progress','revision_requested','review_pending'].includes(s) ? '' : 'none';
+    modelerActionBar.style.display = ['submitted','revision_requested'].includes(s) ? '' : 'none';
     startBtn.style.display  = s === 'submitted' ? '' : 'none';
-    submitBtn.style.display = ['in_progress','review_pending'].includes(s) ? '' : 'none';
     resumeBtn.style.display = s === 'revision_requested' ? '' : 'none';
   } else {
     modelerActionBar.style.display = 'none';
@@ -1769,150 +1768,6 @@ document.getElementById('startModelingBtn')?.addEventListener('click', async () 
 document.getElementById('resumeModelingBtn')?.addEventListener('click', async () => {
   await updateStatus('in_progress');
   showToast('モデリングを再開しました', 'success');
-});
-
-/* ── 完成・提出モーダル ── */
-let submitNewFiles = [];
-
-function openSubmitModelModal() {
-  submitNewFiles = [];
-  document.getElementById('submitNewFilePreview').innerHTML = '';
-  document.getElementById('submitModelProgress').style.display = 'none';
-  document.getElementById('submitModelProgressFill').style.width = '0%';
-
-  // 検査依頼の対象となる model_3d / delivery ファイルをチェックリストに表示
-  // （検査OK・納品済みのファイルは再依頼不要のため除外）
-  const modelFiles = (project.files ?? []).filter(f =>
-    MODEL_TYPES.includes(f.file_type) && !['ok', 'delivered'].includes(f.review_status));
-  const list = document.getElementById('submitFileCheckList');
-  if (modelFiles.length === 0) {
-    list.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">検査依頼できるファイルがありません</div>';
-  } else {
-    list.innerHTML = modelFiles.map(f => `
-      <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);
-                    border-radius:8px;cursor:pointer;font-size:13px;background:var(--surface);">
-        <input type="checkbox" class="submit-file-check" value="${f.id}" checked
-               style="width:15px;height:15px;cursor:pointer;">
-        ${getFileIcon(f.file_name)}
-        <div style="flex:1;">
-          <div style="font-weight:600;">${f.file_name}</div>
-          <div style="font-size:11px;color:var(--muted);">${TYPE_LABEL[f.file_type]||''} · ${formatBytes(f.file_size)}${f.review_status === 'submitted' ? ' · 検査依頼中' : ''}</div>
-        </div>
-      </label>`).join('');
-    list.querySelectorAll('.submit-file-check').forEach(cb =>
-      cb.addEventListener('change', updateSubmitConfirmBtn));
-  }
-
-  document.getElementById('submitModelModal').classList.remove('hidden');
-  updateSubmitConfirmBtn();
-}
-
-function updateSubmitConfirmBtn() {
-  const checkedCount = document.querySelectorAll('.submit-file-check:checked').length;
-  const btn = document.getElementById('submitModelConfirmBtn');
-  if (!btn) return;
-  const hasFile = checkedCount > 0 || submitNewFiles.length > 0;
-  btn.disabled = !hasFile;
-  btn.style.opacity = hasFile ? '1' : '0.45';
-}
-
-document.getElementById('submitModelBtn')?.addEventListener('click', openSubmitModelModal);
-['submitModelModalClose','submitModelModalClose2'].forEach(id =>
-  document.getElementById(id)?.addEventListener('click', () =>
-    document.getElementById('submitModelModal').classList.add('hidden')));
-
-// 新規ファイル追加プレビュー（単発選択・フォルダ選択共通）
-function addSubmitNewItems(items) {
-  let skipped = 0;
-  items.forEach(({ file, relativePath }) => {
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (![...SOLID_3D_EXTS, 'dxf', 'pdf'].includes(ext)) { skipped++; return; }
-    submitNewFiles.push({ file, relativePath });
-  });
-  if (skipped > 0) showToast(`対応外の形式のファイルを${skipped}件スキップしました`, 'warning');
-
-  const preview = document.getElementById('submitNewFilePreview');
-  preview.innerHTML = submitNewFiles.map((item, i) => `
-    <span style="display:inline-flex;align-items:center;gap:4px;background:var(--surface);
-                 border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px;">
-      <i class="fa-solid fa-file" style="color:var(--muted);font-size:10px;"></i>
-      ${item.relativePath || item.file.name}
-      <button data-rm="${i}" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:0 2px;">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </span>`).join('');
-  preview.querySelectorAll('[data-rm]').forEach(btn =>
-    btn.addEventListener('click', () => {
-      submitNewFiles.splice(Number(btn.dataset.rm), 1);
-      addSubmitNewItems([]);
-    }));
-  updateSubmitConfirmBtn();
-}
-
-document.getElementById('submitNewFileInput')?.addEventListener('change', e => {
-  addSubmitNewItems(Array.from(e.target.files).map(f => ({ file: f, relativePath: '' })));
-  e.target.value = '';
-});
-document.getElementById('submitNewFolderInput')?.addEventListener('change', e => {
-  addSubmitNewItems(filesFromDirectoryInput(e.target));
-  e.target.value = '';
-});
-
-document.getElementById('submitModelConfirmBtn')?.addEventListener('click', async () => {
-  // チェックされた既存ファイルIDを取得
-  const checkedIds = Array.from(document.querySelectorAll('.submit-file-check:checked'))
-    .map(cb => Number(cb.value));
-  if (checkedIds.length === 0 && submitNewFiles.length === 0) {
-    showToast('提出するファイルを1件以上選択してください', 'warning');
-    return;
-  }
-
-  // 新規ファイルを直列アップロード（Sanctumの行ロック競合を避けるため並列化しない）
-  const newIds = [];
-  if (submitNewFiles.length > 0) {
-    const progressWrap  = document.getElementById('submitModelProgress');
-    const progressCount = document.getElementById('submitModelProgressCount');
-    const progressName  = document.getElementById('submitModelProgressName');
-    const progressFill  = document.getElementById('submitModelProgressFill');
-    progressWrap.style.display = '';
-
-    const { uploaded, errors } = await uploadItemsSequential(projId, submitNewFiles, {
-      fileType: 'model_3d',
-      onProgress: ({ doneCount, total, currentName, doneBytes, totalBytes }) => {
-        progressCount.textContent = `${doneCount} / ${total} ファイル`;
-        progressName.textContent = currentName;
-        progressFill.style.width = totalBytes ? `${Math.round((doneBytes / totalBytes) * 100)}%` : '0%';
-      },
-    });
-    project.files = [...(project.files ?? []), ...uploaded];
-    newIds.push(...uploaded.map(f => f.id));
-    if (errors.length) {
-      showToast(`アップロードに失敗しました: ${errors.join(', ')}`, 'danger');
-      return;
-    }
-  }
-
-  // 選択されたファイルをファイル単位で検査依頼（submitted）にする
-  for (const id of [...checkedIds, ...newIds]) {
-    try {
-      const data = await api.patch(`/files/${id}/review-status`, { review_status: 'submitted' });
-      const f = project.files.find(x => x.id === id);
-      if (f) Object.assign(f, data?.file ?? { review_status: 'submitted' });
-    } catch {
-      showToast('検査依頼の設定に失敗したファイルがあります', 'danger');
-    }
-  }
-
-  document.getElementById('submitModelModal').classList.add('hidden');
-  submitNewFiles = [];
-  if (project.status === 'review_pending') {
-    // すでに検査依頼中 → ステータス変更不要、ファイル追加のみ反映
-    renderFiles();
-    showToast('選択したファイルを検査依頼しました。管理者の検査をお待ちください。', 'success');
-  } else {
-    await updateStatus('review_pending');
-    showToast('完成・提出しました。管理者の検査をお待ちください。', 'success');
-  }
 });
 
 /* ── キャンセルモーダル ── */
