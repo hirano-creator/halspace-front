@@ -1358,10 +1358,12 @@ async function apiFetchForm(path, formData) {
    ══════════════════════════════════════════ */
 
 /* 「制作チーム」は社内側（HaLSpace運営会社＋モデラー専属会社）のやり取り用なので
-   発注者（一般会員）には見せない。モデラーは発注者⇄管理者間の「お客様連絡」には入らない。
+   発注者には見せない。発注者会社の管理者(role=admin)も外部なので同じ扱いにする
+   （hasAdminLevelAccess で判定しないのはこのため）。
+   モデラーは発注者⇄管理者間の「お客様連絡」には入らない。
    バックエンドの User::accessibleCommentChannels() と揃えること。 */
 function canAccessChannel(ch) {
-  if (hasAdminLevelAccess(user)) return true;
+  if (isSuperAdmin(user) || isOperator(user)) return true;
   if (ch === 'client')  return !isModeler(user);
   if (ch === 'modeler') return isModeler(user);
   return false;
