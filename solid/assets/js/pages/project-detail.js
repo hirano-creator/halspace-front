@@ -359,7 +359,16 @@ function renderFiles() {
 
 /* 3Dデータをアップロードし、file-type別に検査依頼前(pending)のまま画面へ反映する */
 async function uploadModelItemsAndRefresh(items) {
-  const { uploaded, errors } = await uploadItemsSequential(projId, items, { fileType: 'model_3d' });
+  const panel = createUploadProgressPanel('3Dデータをアップロード中');
+  let uploaded, errors;
+  try {
+    ({ uploaded, errors } = await uploadItems(projId, items, {
+      fileType: 'model_3d',
+      onProgress: panel.onProgress,
+    }));
+  } finally {
+    panel.close();
+  }
   if (uploaded.length) {
     project.files = [...(project.files ?? []), ...uploaded];
     renderFiles();
@@ -380,9 +389,16 @@ function resolveDrawingFileType(file) {
 
 /* 図面・参考資料をアップロードし、画面へ反映する */
 async function uploadDrawingItemsAndRefresh(items) {
-  const { uploaded, errors } = await uploadItemsSequential(projId, items, {
-    fileType: item => resolveDrawingFileType(item.file),
-  });
+  const panel = createUploadProgressPanel('ファイルをアップロード中');
+  let uploaded, errors;
+  try {
+    ({ uploaded, errors } = await uploadItems(projId, items, {
+      fileType: item => resolveDrawingFileType(item.file),
+      onProgress: panel.onProgress,
+    }));
+  } finally {
+    panel.close();
+  }
   if (uploaded.length) {
     project.files = [...(project.files ?? []), ...uploaded];
     renderFiles();

@@ -230,7 +230,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     const progressFill  = document.getElementById('submitUploadProgressFill');
     progressWrap.style.display = '';
 
-    const { errors } = await uploadItemsSequential(newProjId, localItems, {
+    const { errors } = await uploadItems(newProjId, localItems, {
       fileType: item => resolveDrawingFileType(item.file.name),
       onProgress: ({ doneCount, total, currentName, doneBytes, totalBytes }) => {
         progressCount.textContent = `${doneCount} / ${total} ファイル`;

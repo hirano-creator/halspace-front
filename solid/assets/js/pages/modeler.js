@@ -222,7 +222,7 @@ document.getElementById('uploadSubmitBtn').addEventListener('click', async () =>
   const progressFill  = document.getElementById('modalUploadProgressFill');
   progressWrap.style.display = '';
 
-  const { uploaded, errors } = await uploadItemsSequential(uploadTargetId, pendingFiles, {
+  const { uploaded, errors } = await uploadItems(uploadTargetId, pendingFiles, {
     fileType: 'model_3d',
     onProgress: ({ doneCount, total, currentName, doneBytes, totalBytes }) => {
       progressCount.textContent = `${doneCount} / ${total} ファイル`;
@@ -232,10 +232,11 @@ document.getElementById('uploadSubmitBtn').addEventListener('click', async () =>
   });
 
   // アップロードしたファイルをファイル単位で検査依頼（submitted）にする
-  for (const f of uploaded) {
-    try {
-      await api.patch(`/files/${f.id}/review-status`, { review_status: 'submitted' });
-    } catch {}
+  // （直列だとファイル数ぶんの往復がアップロード後にそのまま上乗せされるため、数本ずつまとめて投げる）
+  const PATCH_CONCURRENCY = 4;
+  for (let i = 0; i < uploaded.length; i += PATCH_CONCURRENCY) {
+    await Promise.all(uploaded.slice(i, i + PATCH_CONCURRENCY).map(f =>
+      api.patch(`/files/${f.id}/review-status`, { review_status: 'submitted' }).catch(() => {})));
   }
 
   if (errors.length) {

@@ -872,6 +872,46 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   margin-bottom: 4px;
 }
 
+/* アップロード進捗パネル（フォルダアップロード中に右下へ常時表示） */
+.upload-progress-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1200;
+  width: 320px;
+  max-width: calc(100vw - 40px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 12px 14px;
+}
+.upload-progress-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.upload-progress-head i { color: var(--blue); }
+.upload-progress-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-progress-count {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-weight: 400;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.upload-progress-name {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 4px 0 6px;
+  min-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ステータスタイムライン */
 .timeline {
   display: flex;
