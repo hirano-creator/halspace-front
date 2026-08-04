@@ -101,10 +101,10 @@ function renderTimeline() {
   }
 
   /* キャンセルボタン: 発注者・管理者のみ、完了・キャンセル済み以外で表示 */
-  const cancelBar = document.getElementById('cancelBar');
+  const cancelBtn = document.getElementById('cancelBtn');
   const canCancel = (isClient(user) || hasAdminLevelAccess(user))
     && !['delivered', 'cancelled'].includes(project.status);
-  cancelBar.style.display = canCancel ? '' : 'none';
+  cancelBtn.style.display = canCancel ? '' : 'none';
 }
 
 /* ── プロジェクト情報テーブル ── */
