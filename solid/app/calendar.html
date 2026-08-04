@@ -34,12 +34,15 @@
     /* 会社名行は管理者・モデラーのみ（body.show-company）。その分セルを高くする */
     .cal-bar-company{font-size:9px;font-weight:500;opacity:.72;line-height:1.25;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     body.show-company .cal-cell{min-height:138px;}
-    .cal-bar-submitted  {background:rgba(116,185,255,.25);color:#0984E3;}
-    .cal-bar-in_progress{background:rgba(9,132,227,.2);color:#0984E3;}
-    .cal-bar-review_pending{background:rgba(255,107,53,.2);color:#E55A2B;}
-    .cal-bar-revision_requested{background:rgba(253,203,110,.35);color:#b8690f;}
-    .cal-bar-approved   {background:rgba(0,184,148,.2);color:#00B894;}
-    .cal-bar-delivered  {background:rgba(0,184,148,.15);color:#00B894;}
+    /* ステータス色は app.css の --s-* が唯一のソース（ダッシュボードのバッジと共通） */
+    .cal-bar-draft      {background:var(--s-draft-bg);    color:var(--s-draft);}
+    .cal-bar-submitted  {background:var(--s-submitted-bg);color:var(--s-submitted);}
+    .cal-bar-in_progress{background:var(--s-progress-bg); color:var(--s-progress);}
+    .cal-bar-review_pending{background:var(--s-review-bg);color:var(--s-review);}
+    .cal-bar-revision_requested{background:var(--s-revision-bg);color:var(--s-revision);}
+    .cal-bar-approved   {background:var(--s-approved-bg); color:var(--s-approved);}
+    .cal-bar-delivered  {background:var(--s-delivered-bg);color:var(--s-delivered);}
+    .cal-bar-cancelled  {background:var(--s-cancelled-bg);color:var(--s-cancelled);}
     .cal-marker{font-size:11px;padding:2px 6px;border-radius:4px;margin-bottom:2px;display:flex;align-items:center;gap:4px;}
     .cal-marker-deadline{background:rgba(225,112,85,.15);color:var(--danger);}
     .cal-marker-delivered{background:rgba(0,184,148,.15);color:var(--accent);}
@@ -139,11 +142,12 @@
         </div>
         <!-- 凡例 -->
         <div class="legend">
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(116,185,255,.4)"></div>提出済み（納期）</div>
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(9,132,227,.3)"></div>モデリング中（納期）</div>
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(255,107,53,.3)"></div>検査待ち（納期）</div>
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(253,203,110,.5)"></div>修正依頼中（納期）</div>
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(0,184,148,.3)"></div>納品待ち/納品日</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--s-submitted)"></div>提出済み（納期）</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--s-progress)"></div>モデリング中（納期）</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--s-review)"></div>検査待ち（納期）</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--s-revision)"></div>修正依頼中（納期）</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--s-approved)"></div>納品待ち（納期）</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--s-delivered)"></div>納品完了/納品日</div>
         </div>
       </div>
 
