@@ -1,5 +1,5 @@
 /* What'sNo「並べる」機能(align.html)のE2E検証（バックエンドなし・APIモック）
-   masonryグリッド(8列)＋クリックで実物大ライトボックスを開く方式 */
+   justified layout（行ごとに高さを揃え幅いっぱいに埋める）＋クリックで実物大ライトボックスを開く方式 */
 const { chromium } = require('../_aa_e2e/node_modules/playwright-core');
 const fs = require('fs');
 const path = require('path');
@@ -12,6 +12,35 @@ const results = [];
 function check(name, ok, detail = '') {
   results.push({ name, ok, detail });
   console.log(`${ok ? 'PASS' : 'FAIL'}: ${name}${detail ? ' — ' + detail : ''}`);
+}
+
+/* justified layout の実測: 行ごとに「右端まで届いているか」「行内で下端が揃っているか」を返す。
+   この2つが崩れると、カードの右や下に空白（報告された赤丸箇所）が出る。 */
+function readAlignRows(page) {
+  return page.evaluate(() => {
+    const grid = document.getElementById('alignGrid');
+    const gRect = grid.getBoundingClientRect();
+    return [...grid.querySelectorAll('.align-row')].map(row => {
+      const cards = [...row.querySelectorAll('.align-card')];
+      const rects = cards.map(c => c.getBoundingClientRect());
+      const imgs = cards.map(c => {
+        const img = c.querySelector('.align-thumb-wrap img');
+        if (!img || !img.naturalWidth) return null;
+        const w = c.querySelector('.align-thumb-wrap').getBoundingClientRect();
+        return { natural: img.naturalWidth / img.naturalHeight, box: w.width / w.height };
+      });
+      return {
+        count: cards.length,
+        gapToRight: Math.round(gRect.right - Math.max(...rects.map(r => r.right))),
+        heightSpread: Math.round(Math.max(...rects.map(r => r.height)) - Math.min(...rects.map(r => r.height))),
+        bottomSpread: Math.round(Math.max(...rects.map(r => r.bottom)) - Math.min(...rects.map(r => r.bottom))),
+        minWidth: Math.round(Math.min(...rects.map(r => r.width))),
+        maxWidth: Math.round(Math.max(...rects.map(r => r.width))),
+        thumbH: Math.round(row.querySelector('.align-thumb-wrap').getBoundingClientRect().height),
+        aspectErr: Math.max(0, ...imgs.filter(Boolean).map(x => Math.abs(x.box - x.natural) / x.natural)),
+      };
+    });
+  });
 }
 
 (async () => {
@@ -129,7 +158,7 @@ EOF
     await page.close();
   }
 
-  /* ════ 2. align.html: 8件のグリッドが8列のmasonryで表示される ════ */
+  /* ════ 2. align.html: 8件が縦横比バラバラでも隙間なく並ぶ ════ */
   {
     const page = await ctx.newPage();
     page.on('pageerror', e => console.log('PAGE ERROR(align):', e.message));
@@ -148,11 +177,17 @@ EOF
     check('タイトルに件数表示', (await page.evaluate(() => document.getElementById('alignTitle').textContent)).includes('8件'));
 
     await page.waitForFunction(() => document.querySelectorAll('.align-thumb-wrap img').length === 8, { timeout: 15000 });
+    await page.waitForTimeout(300);
 
-    const colTrackCount = await page.evaluate(() =>
-      getComputedStyle(document.getElementById('alignGrid')).gridTemplateColumns.split(' ').length);
-    check('広い画面(1920px)で8件は正方形に近い4列程度に収まる(小さい固定列数で埋めず1件あたりを大きく表示)',
-      colTrackCount >= 3 && colTrackCount <= 5, 'tracks=' + colTrackCount);
+    const rows8 = await readAlignRows(page);
+    check('8件が複数行のjustified layoutで並ぶ', rows8.length >= 2 && rows8.reduce((s, r) => s + r.count, 0) === 8,
+      JSON.stringify(rows8.map(r => r.count)));
+    check('どの行も右端まで埋まる(カード右側に空白が残らない)',
+      rows8.every(r => r.gapToRight <= 2), JSON.stringify(rows8.map(r => r.gapToRight)));
+    check('行内のカード下端が揃う(縦横比の違いでカード下に空白が残らない)',
+      rows8.every(r => r.bottomSpread <= 1), JSON.stringify(rows8.map(r => r.bottomSpread)));
+    check('サムネイル枠の縦横比が元画像と一致(引き伸ばし・レターボックスなし)',
+      rows8.every(r => r.aspectErr < 0.06), JSON.stringify(rows8.map(r => +r.aspectErr.toFixed(3))));
 
     const cardCount = await page.evaluate(() => document.querySelectorAll('.align-card').length);
     check('カード数がids数と一致(8)', cardCount === 8, 'count=' + cardCount);
@@ -160,7 +195,7 @@ EOF
     const badges = await page.evaluate(() => [...document.querySelectorAll('.align-badge')].map(b => b.textContent));
     check('各カードに選択順バッジ(1〜8)が表示される', JSON.stringify(badges) === JSON.stringify(['1','2','3','4','5','6','7','8']), badges.join(','));
 
-    await page.screenshot({ path: path.join(SHOTS, 'align-grid-8col.png') });
+    await page.screenshot({ path: path.join(SHOTS, 'align-justified-8.png') });
     await page.close();
   }
 
@@ -169,7 +204,9 @@ EOF
      4件では左側だけ埋まり右半分が空白のまま・画像もサムネイル並みに小さいままだった。
      報告されたバグ2: sqrt(件数×アスペクト比)だけで列数を決めると4件で3列を選んでしまい、
      最終行が1件だけ埋まって右側が広く空白のまま残ることがあった（見た目はバグ1と同じ）。
-     → 4件は2×2グリッドになり、どの行も隙間なく埋まりカードが大きく表示されるはず。 */
+     報告されたバグ3: 列幅を固定するCSS Gridでは、縦長画像と横長画像が同じ行に並ぶと
+     行の高さが最も高いカードに合わせて確保され、低いカードの下に空白が残っていた。
+     → justified layout により、どの行も右端まで埋まり行内の下端も揃うはず。 */
   {
     const page = await ctx.newPage();
     page.on('pageerror', e => console.log('PAGE ERROR(align-fullwidth):', e.message));
@@ -182,28 +219,17 @@ EOF
     await page.waitForFunction(() => document.querySelectorAll('.align-thumb-wrap img').length === 4, { timeout: 15000 });
     await page.waitForTimeout(200);
 
-    const fit = await page.evaluate(() => {
-      const grid = document.getElementById('alignGrid');
-      const cards = [...document.querySelectorAll('.align-card')];
-      const gridRect = grid.getBoundingClientRect();
-      const lastRect = cards[cards.length - 1].getBoundingClientRect();
-      const firstW = cards[0].getBoundingClientRect().width;
-      const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').length;
-      return {
-        gridRight: gridRect.right,
-        lastCardRight: lastRect.right,
-        cardWidth: Math.round(firstW),
-        cols,
-      };
-    });
-    check('4件を1920px幅で表示: 2×2グリッドになる(最終行が1件だけ孤立して右側が空白にならない)',
-      fit.cols === 2, 'cols=' + fit.cols);
-    check('4件を1920px幅で表示: 最後の行も画面右端付近まで届く(空白が残らない)',
-      Math.abs(fit.gridRight - fit.lastCardRight) < 5, JSON.stringify(fit));
-    check('4件を1920px幅で表示: カード幅が旧サムネイル幅(約224px)より大幅に大きい(実画像サイズに近い)',
-      fit.cardWidth > 400, 'cardWidth=' + fit.cardWidth);
+    const rows4 = await readAlignRows(page);
+    check('4件を1920px幅で表示: 1件だけ孤立した行を作らない(2件×2行など均等に分ける)',
+      rows4.every(r => r.count >= 2), JSON.stringify(rows4.map(r => r.count)));
+    check('4件を1920px幅で表示: 最後の行も画面右端まで届く(空白が残らない)',
+      rows4.every(r => r.gapToRight <= 2), JSON.stringify(rows4.map(r => r.gapToRight)));
+    check('4件を1920px幅で表示: 行内のカード下端が揃う',
+      rows4.every(r => r.bottomSpread <= 1), JSON.stringify(rows4.map(r => r.bottomSpread)));
+    check('4件を1920px幅で表示: サムネイルが旧グリッド(高さ約200px)より大きく表示される',
+      rows4.every(r => r.thumbH > 300), JSON.stringify(rows4.map(r => r.thumbH)));
 
-    await page.screenshot({ path: path.join(SHOTS, 'align-grid-4col-fullwidth.png') });
+    await page.screenshot({ path: path.join(SHOTS, 'align-justified-4.png') });
     await page.close();
   }
 
@@ -218,11 +244,77 @@ EOF
     }
     await page.goto(`${BASE}/app/align.html?ids=1,2`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.querySelectorAll('.align-thumb-wrap img').length === 2, { timeout: 15000 });
-    await page.waitForTimeout(200);
-    const colTracks = await page.evaluate(() =>
-      getComputedStyle(document.getElementById('alignGrid')).gridTemplateColumns.split(' ').length);
-    check('900px幅では2件が2〜3列相当に収まる(件数と画面比から算出した列数)',
-      colTracks >= 2 && colTracks <= 3, 'tracks=' + colTracks);
+    await page.waitForTimeout(300);
+    const rowsNarrow = await readAlignRows(page);
+    check('900px幅でも2件が1行に収まり右端まで埋まる',
+      rowsNarrow.length === 1 && rowsNarrow[0].count === 2 && rowsNarrow[0].gapToRight <= 2,
+      JSON.stringify(rowsNarrow));
+    await page.close();
+  }
+
+  /* ════ 4b. align.html: 実運用に近い21件（縦長パネル多数＋横長の使用イメージ混在）でも
+     すべての行が隙間なく埋まる。報告されたスクリーンショットの再現ケース。 ════ */
+  {
+    const page = await ctx.newPage();
+    page.on('pageerror', e => console.log('PAGE ERROR(align-21):', e.message));
+    await page.setViewportSize({ width: 1920, height: 1000 });
+    await page.route('**/api/wn/**', r => r.fulfill({ json: { data: [] } }));
+
+    /* 縦長(2:3)・横長(16:9)・正方形を不規則に混ぜる */
+    const mixPage = await ctx.newPage();
+    await mixPage.goto('about:blank');
+    const mix = await mixPage.evaluate(() => {
+      const shapes = [[300,450],[480,270],[300,450],[480,270],[400,400],[300,450],[300,450],
+                      [480,270],[300,450],[300,450],[480,270],[300,450],[300,450],[300,450],
+                      [400,400],[300,450],[300,450],[300,450],[300,450],[480,270],[300,450]];
+      return shapes.map(([w, h], i) => {
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const g = c.getContext('2d');
+        g.fillStyle = '#eef'; g.fillRect(0, 0, w, h);
+        g.strokeStyle = '#333'; g.lineWidth = 3; g.strokeRect(6, 6, w - 12, h - 12);
+        g.fillStyle = '#000'; g.font = '28px sans-serif'; g.fillText('#' + (i + 1), 16, 40);
+        return c.toDataURL('image/png').split(',')[1];
+      });
+    });
+    await mixPage.close();
+
+    const ids21 = mix.map((_, i) => 100 + i);
+    for (let k = 0; k < ids21.length; k++) {
+      const id = ids21[k];
+      const buf = Buffer.from(mix[k], 'base64');
+      await page.route(`**/api/wn/files/${id}`, r => r.fulfill({ json: { data: { id, file_name: `p${id}.jpg`, mime_type: 'image/jpeg', updated_at: '2026-07-01T00:00:00Z' } } }));
+      await page.route(`**/api/wn/files/${id}/thumb*`, r => r.fulfill({ contentType: 'image/png', body: buf }));
+    }
+
+    await page.goto(`${BASE}/app/align.html?ids=${ids21.join(',')}`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelectorAll('.align-thumb-wrap img').length === 21, { timeout: 20000 });
+    await page.waitForTimeout(400);
+
+    const rows21 = await readAlignRows(page);
+    const total = rows21.reduce((s, r) => s + r.count, 0);
+    check('21件(縦長多数＋横長混在)が全件表示される', total === 21, 'total=' + total);
+    check('21件: どの行も右端まで埋まる(赤丸で指摘された右側の空白が出ない)',
+      rows21.every(r => r.gapToRight <= 2), JSON.stringify(rows21.map(r => r.gapToRight)));
+    check('21件: 行内のカード下端が揃う(横長画像の下に空白が出ない)',
+      rows21.every(r => r.bottomSpread <= 1), JSON.stringify(rows21.map(r => r.bottomSpread)));
+    check('21件: 1行あたりのカード数が下限幅(190px)を割り込まない',
+      rows21.every(r => r.minWidth >= 150), JSON.stringify(rows21.map(r => r.minWidth)));
+
+    await page.screenshot({ path: path.join(SHOTS, 'align-justified-21.png'), fullPage: true });
+
+    /* スマホ幅: 1行1枚に落ちて縦に長大化しないこと＋横幅は埋まること */
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(600);
+    const rowsSp = await readAlignRows(page);
+    /* 横長画像は1枚で幅いっぱいになるのが正しいので全行2枚は求めない。
+       下限幅の設定ミスで「全行1枚(＝ただの縦並び)」に落ちていないことを見る。 */
+    check('スマホ幅(390px)でも大半の行が2枚並ぶ(1列になって縦に長くならない)',
+      rowsSp.filter(r => r.count >= 2).length >= Math.ceil(rowsSp.length * 0.6),
+      JSON.stringify(rowsSp.map(r => r.count)));
+    check('スマホ幅でも各行が右端まで埋まる',
+      rowsSp.slice(0, -1).every(r => r.gapToRight <= 2), JSON.stringify(rowsSp.map(r => r.gapToRight)));
+    await page.screenshot({ path: path.join(SHOTS, 'align-justified-21-sp.png'), fullPage: true });
     await page.close();
   }
 
