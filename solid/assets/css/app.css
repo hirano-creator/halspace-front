@@ -16,6 +16,7 @@
   --border:    #e5e7eb;
   --text:      #2D3436;
   --muted:     #636e72;
+  --surface:   #f7f8fa;   /* カード内の一段沈んだ面（フォルダ行・サマリー行など） */
   --shadow-sm: 0 2px 8px rgba(0,0,0,.06);
   --shadow-md: 0 8px 24px rgba(0,0,0,.10);
   --radius:    10px;
@@ -504,6 +505,311 @@ tbody tr:last-child { border-bottom: none; }
 .upload-file-size { font-size: 12px; color: var(--muted); }
 .upload-file-remove { color: var(--muted); font-size: 14px; transition: color var(--trans); }
 .upload-file-remove:hover { color: var(--danger); }
+
+/* =========================================================
+   ファイル検査UI（選択＋一括アクションバー方式）
+   ========================================================= */
+
+/* ── 選択チェックボックス ── */
+.file-select-cb {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+/* 選択中の行をハイライト */
+.upload-file-item.is-selected {
+  border-color: var(--primary);
+  background: rgba(255,107,53,.06);
+}
+
+/* ── ファイル状況サマリー（件数バッジ＝状態フィルタ） ── */
+.file-status-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.file-status-summary-total { font-size: 13px; font-weight: 700; color: var(--dark); }
+.file-status-summary-spacer { flex: 1; min-width: 8px; }
+/* 状態フィルタチップ。badge の見た目を継承しつつクリック可能に */
+.status-filter-chip {
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: var(--trans);
+}
+.status-filter-chip:hover { filter: brightness(.96); }
+.status-filter-chip.is-active {
+  border-color: currentColor;
+  box-shadow: 0 0 0 2px rgba(255,107,53,.15);
+}
+.file-select-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ── 次にやることのガイド行 ── */
+.file-guide-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 10px;
+  background: rgba(9,132,227,.07);
+  color: #0b6ab0;
+  border: 1px solid rgba(9,132,227,.18);
+}
+.file-guide-row i { flex-shrink: 0; margin-top: 2px; }
+.file-guide-row.guide-action {  /* 対応が必要な状態 */
+  background: rgba(255,107,53,.08);
+  color: #C2410C;
+  border-color: rgba(255,107,53,.22);
+}
+.file-guide-row.guide-wait {    /* 待ち状態（操作不要） */
+  background: rgba(99,110,114,.08);
+  color: var(--muted);
+  border-color: var(--border);
+}
+
+/* ── フォルダツリー ── */
+.file-tree-group { margin: 8px 0; }
+.file-tree-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: var(--trans);
+}
+.file-tree-folder-row:hover { border-color: #cbd2d9; }
+.file-tree-folder-row.is-selected {
+  border-color: var(--primary);
+  background: rgba(255,107,53,.08);
+}
+.folder-toggle-icon { font-size: 11px; color: var(--muted); width: 12px; flex-shrink: 0; }
+.file-tree-folder-name {
+  flex: 1;
+  min-width: 120px;
+  font-size: 13px;
+  font-weight: 700;
+  word-break: break-all;
+}
+.file-tree-folder-meta { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.file-tree-group-body { padding-top: 6px; }
+.file-tree-subdir {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 8px 0 3px;
+}
+/* フォルダ内に要対応があることを示す注意ドット */
+.folder-attention {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #C2410C;
+  white-space: nowrap;
+}
+
+/* ── 行の「⋯」メニュー ── */
+.row-menu-wrap { position: relative; display: inline-block; }
+.row-menu-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px 9px;
+  border-radius: 6px;
+  font-size: 15px;
+  line-height: 1;
+  transition: var(--trans);
+}
+.row-menu-btn:hover { background: rgba(0,0,0,.06); color: var(--dark); }
+.row-menu-wrap.open .row-menu-btn { background: rgba(0,0,0,.08); color: var(--dark); }
+.row-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 232px;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.15);
+  padding: 6px;
+  z-index: 60;
+}
+.row-menu-wrap.open .row-menu { display: block; }
+/* 上方向に開く（画面下部の行用） */
+.row-menu.drop-up { top: auto; bottom: calc(100% + 4px); }
+.row-menu-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.45;
+}
+.row-menu-item i { width: 14px; flex-shrink: 0; margin-top: 2px; font-size: 13px; }
+.row-menu-item:hover:not(:disabled) { background: rgba(0,0,0,.05); }
+.row-menu-item:disabled { cursor: not-allowed; color: var(--muted); }
+/* 実行できない項目は消さず、その場に理由を出す */
+.row-menu-item-reason {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.row-menu-item.is-danger:hover:not(:disabled) { background: rgba(225,112,85,.1); color: var(--danger); }
+.row-menu-sep { height: 1px; background: var(--border); margin: 5px 2px; }
+
+/* ── 一括アクションバー（選択時のみ画面下部に固定） ── */
+.file-bulk-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 900;
+  background: var(--dark);
+  color: var(--white);
+  padding: 12px 20px;
+  box-shadow: 0 -6px 20px rgba(0,0,0,.22);
+  animation: bulkBarIn .2s ease;
+}
+.file-bulk-bar.hidden { display: none; }
+@keyframes bulkBarIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.file-bulk-bar-inner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.file-bulk-count { font-size: 14px; font-weight: 700; white-space: nowrap; }
+.file-bulk-note {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: rgba(255,255,255,.72);
+  line-height: 1.5;
+}
+.file-bulk-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+/* バー内は暗背景のため、無効ボタンの見え方を専用に調整 */
+.file-bulk-actions .btn:disabled { opacity: .35; cursor: not-allowed; }
+.file-bulk-actions .btn-outline {
+  border-color: rgba(255,255,255,.45);
+  color: var(--white);
+  background: transparent;
+}
+.file-bulk-actions .btn-outline:hover:not(:disabled) { background: rgba(255,255,255,.14); }
+.file-bulk-clear {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,.75);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.file-bulk-clear:hover { background: rgba(255,255,255,.14); color: var(--white); }
+/* 一括処理の進捗 */
+.file-bulk-progress { flex-basis: 100%; font-size: 12px; color: rgba(255,255,255,.9); }
+.file-bulk-progress .progress-bar-bg { background: rgba(255,255,255,.2); margin-top: 5px; }
+.file-bulk-progress .progress-bar-fill { background: var(--primary); }
+/* バーに隠れないよう本文末尾に余白を確保し、トーストを持ち上げる */
+body.has-bulk-bar .page-body { padding-bottom: 120px; }
+body.has-bulk-bar .toast-container { bottom: 100px; }
+
+/* ── Undo付きトースト ── */
+.toast-undo-btn {
+  background: rgba(255,255,255,.2);
+  border: 1px solid rgba(255,255,255,.5);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+.toast-undo-btn:hover { background: rgba(255,255,255,.32); }
+.toast-undo-btn:disabled { opacity: .5; cursor: default; }
+.toast-close-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,.8);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 6px;
+}
+.toast-close-btn:hover { color: var(--white); }
+
+/* ── 確認モーダルの対象ファイル一覧 ── */
+.confirm-file-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 12px 0;
+  background: var(--surface);
+}
+.confirm-file-list li {
+  list-style: none;
+  font-size: 13px;
+  padding: 4px 0;
+  word-break: break-all;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.confirm-file-list li i { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+.confirm-warn {
+  font-size: 12px;
+  color: var(--danger);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  line-height: 1.6;
+}
+.confirm-warn i { margin-top: 3px; }
 
 /* プログレスバー */
 .progress-wrap { margin-top: 8px; }
@@ -1221,6 +1527,9 @@ tbody tr:last-child { border-bottom: none; }
   gap: 5px;
   align-items: start;
 }
+/* グリッド項目の既定 min-width:auto だと、中身（タイムライン等）の最小幅が
+   カラム幅を押し広げてページ全体が横スクロールする。0 にして縮められるようにする */
+.detail-layout > * { min-width: 0; }
 
 /* プロジェクト情報（横長グリッド） */
 .info-grid {
@@ -1404,6 +1713,30 @@ tbody tr:last-child { border-bottom: none; }
   .upload-file-item > div { min-width: 0; }
   .file-item-main { flex: 1 1 100%; }
   .file-item-actions { width: 100%; margin-left: 0; justify-content: flex-end; }
+  /* チェックボックスはファイル名と同じ行に残す */
+  .upload-file-item > .file-select-cb { flex: 0 0 auto; }
+  .upload-file-item > .file-select-cb + .file-item-main { flex: 1 1 auto; }
+
+  /* ファイル検査UI */
+  .file-status-summary { padding: 10px; gap: 6px; }
+  .file-status-summary-spacer { display: none; }
+  .file-select-all-label { flex-basis: 100%; }
+  .file-tree-folder-row { padding: 10px; gap: 6px; }
+  .file-tree-folder-name { flex: 1 1 100%; min-width: 0; }
+  /* サブフォルダの階層インデントを浅くして横幅を稼ぐ */
+  .file-tree-group-body .upload-file-item { margin-left: 0 !important; }
+  .file-tree-subdir { padding-left: 0 !important; }
+  .row-menu { min-width: 200px; right: 0; }
+
+  /* 一括アクションバー: 全幅・ボタンは折り返し */
+  .file-bulk-bar { padding: 10px 12px; }
+  .file-bulk-bar-inner { gap: 8px; }
+  .file-bulk-actions { margin-left: 0; width: 100%; }
+  .file-bulk-actions .btn { flex: 1 1 auto; justify-content: center; font-size: 13px; padding: 8px 10px; }
+  .file-bulk-clear { width: 100%; }
+  body.has-bulk-bar .page-body { padding-bottom: 190px; }
+  /* バーとトーストの重なりを回避 */
+  body.has-bulk-bar .toast-container { bottom: 180px; }
 
   /* ドロップゾーン */
   .upload-zone { padding: 24px 16px; }

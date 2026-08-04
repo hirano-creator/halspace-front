@@ -192,6 +192,10 @@
               検査が完了したデータから順次公開されます
             </div>
             <div id="modelFolderSaveProgress" style="display:none;padding:8px 0;font-size:12px;color:var(--muted);"></div>
+            <!-- 「次に何をすべきか」の案内（ロール×状況で1行だけ表示） -->
+            <div id="modelFileGuide" class="file-guide-row" style="display:none;"></div>
+            <!-- 状態別の件数サマリー（クリックで絞り込み）＋表示中を全選択 -->
+            <div id="modelFileSummary" class="file-status-summary" style="display:none;"></div>
             <div id="modelFileArea"></div>
           </div>
 
@@ -389,9 +393,45 @@
   </div>
 </div>
 
+<!-- 汎用確認モーダル（納品・削除など取り消せない操作） -->
+<div class="modal-overlay hidden" id="confirmActionModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="confirmActionTitle"></span>
+      <button class="modal-close" id="confirmActionClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p id="confirmActionBody" style="font-size:13px;color:var(--muted);line-height:1.7;"></p>
+    <ul class="confirm-file-list" id="confirmActionFiles" style="display:none;"></ul>
+    <div class="confirm-warn" id="confirmActionWarn" style="display:none;">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span id="confirmActionWarnText"></span>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="confirmActionCancel">キャンセル</button>
+      <button class="btn btn-primary" id="confirmActionOk"></button>
+    </div>
+  </div>
+</div>
+
 <!-- 画像拡大ライトボックス -->
 <div id="imgLightbox" class="hidden">
   <img id="imgLightboxImg" src="" alt="">
+</div>
+
+<!-- ファイル一括アクションバー（選択時のみ表示） -->
+<div class="file-bulk-bar hidden" id="fileBulkBar">
+  <div class="file-bulk-bar-inner">
+    <span class="file-bulk-count" id="fileBulkCount"></span>
+    <div class="file-bulk-actions" id="fileBulkActions"></div>
+    <button type="button" class="file-bulk-clear" id="fileBulkClear">
+      <i class="fa-solid fa-xmark"></i> 選択を解除
+    </button>
+    <div class="file-bulk-note" id="fileBulkNote" style="display:none;"></div>
+    <div class="file-bulk-progress" id="fileBulkProgress" style="display:none;">
+      <span id="fileBulkProgressLabel"></span>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="fileBulkProgressFill" style="width:0%"></div></div>
+    </div>
+  </div>
 </div>
 
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
