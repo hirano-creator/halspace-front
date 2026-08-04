@@ -434,7 +434,13 @@ async function saveFilesToLocalFolder(files) {
 
   let rootHandle;
   try {
-    rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    /* startIn/id: 初回はデスクトップを開き（直下はChromeが禁止するのでサブフォルダを作って選ぶ）、
+       2回目以降は前回選んだ場所を復元する */
+    rootHandle = await window.showDirectoryPicker({
+      mode: 'readwrite',
+      id: 'solid-model-save',
+      startIn: 'desktop',
+    });
   } catch (err) {
     if (err?.name === 'AbortError') return;
     showToast('保存先フォルダの選択に失敗しました', 'danger');
