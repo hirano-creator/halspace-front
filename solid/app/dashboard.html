@@ -125,7 +125,8 @@
             <option value="in_progress">モデリング中</option>
             <option value="review_pending">検査待ち</option>
             <option value="revision_requested">修正依頼中</option>
-            <option value="approved">承認済み</option>
+            <!-- approved（旧・発注者確認）は廃止。既存案件が残るためフィルタは残す -->
+            <option value="approved">納品待ち</option>
             <option value="delivered">納品完了</option>
             <option value="cancelled">キャンセル</option>
           </select>

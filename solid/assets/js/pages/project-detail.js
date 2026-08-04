@@ -12,11 +12,12 @@ let comments = [];
 let allModelers = [];
 
 /* タイムライン設定 */
+/* 発注者確認（approved）ステップは廃止し、管理者検査 → 納品完了 で確定する。
+   approved は既存案件が残っているため「納品待ち」として管理者検査の位置に表示する */
 const STEPS = [
   { key:'submitted',      label:'図面提出' },
   { key:'in_progress',    label:'モデリング中' },
   { key:'review_pending', label:'管理者検査' },
-  { key:'approved',       label:'発注者確認' },
   { key:'delivered',      label:'納品完了' },
 ];
 const STATUS_ORDER = ['draft','submitted','in_progress','review_pending',
@@ -26,7 +27,7 @@ function statusRank(s) { return STATUS_ORDER.indexOf(s); }
 const STATUS_LABEL = {
   draft:'下書き', submitted:'提出済み', in_progress:'モデリング中',
   review_pending:'検査待ち', revision_requested:'修正依頼中',
-  approved:'承認済み', delivered:'納品完了', cancelled:'キャンセル',
+  approved:'納品待ち', delivered:'納品完了', cancelled:'キャンセル',
 };
 
 /* ── データ取得 ── */
@@ -55,8 +56,9 @@ function renderAll() {
 
 /* ── タイムライン描画 ── */
 function renderTimeline() {
-  const tl   = document.getElementById('timeline');
-  const rank = statusRank(project.status);
+  const tl = document.getElementById('timeline');
+  // 廃止した発注者確認(approved)の既存案件は「管理者検査を終えた納品待ち」として同じ位置に出す
+  const rank = statusRank(project.status === 'approved' ? 'review_pending' : project.status);
   // 1件でも検査依頼中のファイルがあれば「管理者検査」ステップを点灯させる
   const hasSubmittedFile = (project.files ?? []).some(f =>
     MODEL_TYPES.includes(f.file_type) && f.review_status === 'submitted');
@@ -79,13 +81,10 @@ function renderTimeline() {
       ${i < STEPS.length-1 ? `<div style="flex:1;height:2px;background:${isDone?'var(--accent)':'var(--border)'};align-self:flex-start;margin-top:15px;"></div>` : ''}`;
   }).join('');
 
-  // 管理者検査バー: review_pending × 管理者
+  // 管理者検査バー: review_pending × 管理者（approved の既存案件も納品確定できるよう表示する）
   const adminReviewBar = document.getElementById('adminReviewBar');
-  adminReviewBar.style.display = (project.status === 'review_pending' && hasAdminLevelAccess(user)) ? '' : 'none';
-
-  // 発注者確認バー: approved × 発注者
-  const clientReviewBar = document.getElementById('clientReviewBar');
-  clientReviewBar.style.display = (project.status === 'approved' && isClient(user)) ? '' : 'none';
+  adminReviewBar.style.display =
+    (['review_pending','approved'].includes(project.status) && hasAdminLevelAccess(user)) ? '' : 'none';
 
   // モデラー用アクションバー
   const modelerActionBar = document.getElementById('modelerActionBar');
@@ -1700,32 +1699,58 @@ async function setFilesReviewStatus(fileIds, status, onProgress = null) {
   return failed;
 }
 
+/* 管理者検査バーのボタンは状況で役割が変わるため、ラベル・色・活性をここで決める。
+   修正依頼が1件でもあれば差し戻し、なければ納品完了の確定 */
 function updateAdminReviewBarState() {
   const btn = document.getElementById('adminPublishBtn');
   if (!btn) return;
-  const modelFiles = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
-  const hasOk = modelFiles.some(f => ['ok', 'delivered'].includes(f.review_status));
-  btn.disabled = !hasOk;
-  btn.style.opacity = hasOk ? '1' : '0.5';
-}
-
-/* ── 管理者: 検査完了・発注者へ公開 ── */
-document.getElementById('adminPublishBtn')?.addEventListener('click', async () => {
   const modelFiles  = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
   const hasRevision = modelFiles.some(f => f.review_status === 'revision');
-  const newStatus   = hasRevision ? 'revision_requested' : 'approved';
-  await updateStatus(newStatus);
-  if (hasRevision) {
-    showToast('一部ファイルを公開しました。修正依頼ファイルはモデラーへ差し戻します。', 'warning');
-  } else {
-    showToast('検査OKです。発注者に3Dデータが公開されました。', 'success');
-  }
-});
+  const hasOk       = modelFiles.some(f => ['ok', 'delivered'].includes(f.review_status));
 
-/* ── 発注者: 納品承認 → delivered ── */
-document.getElementById('clientApproveBtn')?.addEventListener('click', async () => {
+  btn.dataset.mode = hasRevision ? 'revision' : 'deliver';
+  btn.innerHTML = hasRevision
+    ? '<i class="fa-solid fa-rotate-left"></i> 修正依頼をモデラーへ差し戻す'
+    : '<i class="fa-solid fa-flag-checkered"></i> 納品完了にする';
+  btn.className = `btn btn-sm ${hasRevision ? 'btn-outline' : 'btn-success'}`;
+
+  const enabled = hasRevision || hasOk;
+  btn.disabled = !enabled;
+  btn.style.opacity = enabled ? '1' : '0.5';
+
+  const note = document.getElementById('adminReviewBarNote');
+  if (note) {
+    note.textContent = hasRevision
+      ? '修正依頼のファイルがあります。差し戻すとモデラーの作業に戻ります。'
+      : '各ファイルを検査・納品したうえで、案件を納品完了にしてください。3Dデータを全件納品すると自動で完了します。';
+  }
+}
+
+/* ── 管理者: 納品完了の確定／修正依頼の差し戻し ── */
+document.getElementById('adminPublishBtn')?.addEventListener('click', async () => {
+  const modelFiles = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
+
+  if (document.getElementById('adminPublishBtn').dataset.mode === 'revision') {
+    await updateStatus('revision_requested');
+    showToast('修正依頼のファイルをモデラーへ差し戻しました', 'warning');
+    return;
+  }
+
+  // 未納品のまま完了にすると発注者に届かないファイルが残るため、件数を出して確認する
+  const undelivered = modelFiles.filter(f => f.review_status !== 'delivered');
+  const ok = await openConfirmModal({
+    title: '案件を納品完了にする', icon: 'fa-flag-checkered',
+    body: 'この案件を納品完了にします。以降このプロジェクトのステータスは変更できません。',
+    files: undelivered.map(f => f.file_name),
+    warn: undelivered.length
+      ? `未納品のファイルが${undelivered.length}件あります。納品しないと発注者には表示されません。`
+      : '',
+    okLabel: '納品完了にする',
+  });
+  if (!ok) return;
+
   await updateStatus('delivered');
-  showToast('納品を承認しました', 'success');
+  showToast('案件を納品完了にしました', 'success');
 });
 
 /* ── モデラーアクション ── */
