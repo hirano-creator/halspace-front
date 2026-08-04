@@ -352,6 +352,36 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   font-weight: 700;
   color: var(--dark);
 }
+/* カードヘッダー右側のアクション群（ステータスバッジ＋補助操作） */
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* 発注キャンセル: 破壊的操作なので普段は控えめ、hoverで危険色に */
+.btn-cancel-order {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-cancel-order i { font-size: 11px; }
+.btn-cancel-order:hover {
+  color: var(--danger);
+  border-color: rgba(225,112,85,.45);
+  background: rgba(225,112,85,.08);
+}
 
 /* ステータスバッジ */
 .badge {
@@ -1633,6 +1663,9 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   /* カード */
   .card { padding: 16px; }
   .card-header { margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  /* 狭い画面ではキャンセルはアイコンのみ（バッジを押し出さない） */
+  .btn-cancel-order span { display: none; }
+  .btn-cancel-order { padding: 5px 8px; }
 
   /* フォーム */
   .form-row { grid-template-columns: 1fr; }

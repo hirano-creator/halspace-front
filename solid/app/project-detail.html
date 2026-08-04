@@ -66,17 +66,15 @@
       <!-- プロジェクト情報（最上部・横長） -->
       <div class="card mb-16">
         <div class="card-header">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <span class="card-title">プロジェクト情報</span>
-            <!-- キャンセルバー（発注者・管理者のみ、完了・キャンセル済み以外） -->
-            <div id="cancelBar" style="display:none;">
-              <button class="btn btn-sm" id="cancelBtn" title="キャンセルすると元に戻せません"
-                style="background:rgba(231,76,60,.15);color:#e74c3c;border:1px solid rgba(231,76,60,.35);">
-                <i class="fa-solid fa-ban"></i> この発注をキャンセルする
-              </button>
-            </div>
+          <span class="card-title">プロジェクト情報</span>
+          <div class="card-header-actions">
+            <span id="statusBadge" class="badge"></span>
+            <!-- 発注キャンセル（発注者・管理者のみ、完了・キャンセル済み以外） -->
+            <button class="btn-cancel-order" id="cancelBtn" type="button" style="display:none;"
+              title="この発注をキャンセルする（元に戻せません）">
+              <i class="fa-solid fa-ban"></i><span>キャンセル</span>
+            </button>
           </div>
-          <span id="statusBadge" class="badge"></span>
         </div>
         <div id="infoTable" class="info-grid"></div>
       </div>
