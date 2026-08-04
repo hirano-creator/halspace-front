@@ -23,15 +23,24 @@
   --radius-lg: 8px;
   --trans:     0.25s ease;
 
-  /* ステータスカラー */
-  --s-draft:     #b2bec3;
-  --s-submitted: #74b9ff;
-  --s-progress:  #0984E3;
-  --s-review:    #FF6B35;
-  --s-revision:  #fdcb6e;
-  --s-approved:  #00B894;
-  --s-delivered: #00B894;
-  --s-cancelled: #b2bec3;
+  /* ステータスカラー（ダッシュボードのバッジと受注カレンダーの共通ソース）
+     文字色 --s-xxx / 背景色 --s-xxx-bg をセットで使う */
+  --s-draft:        #636e72;            /* 下書き     : グレー   */
+  --s-draft-bg:     rgba(99,110,114,.13);
+  --s-submitted:    #0984E3;            /* 提出済み   : ブルー   */
+  --s-submitted-bg: rgba(9,132,227,.14);
+  --s-progress:     #6C5CE7;            /* モデリング中: パープル */
+  --s-progress-bg:  rgba(108,92,231,.14);
+  --s-review:       #E55A2B;            /* 検査待ち   : オレンジ */
+  --s-review-bg:    rgba(255,107,53,.16);
+  --s-revision:     #C2255C;            /* 修正依頼中 : クリムゾン */
+  --s-revision-bg:  rgba(194,37,92,.13);
+  --s-approved:     #5C940D;            /* 納品待ち   : ライム   */
+  --s-approved-bg:  rgba(130,201,30,.18);
+  --s-delivered:    #00B894;            /* 納品完了   : グリーン */
+  --s-delivered-bg: rgba(0,184,148,.15);
+  --s-cancelled:    #636e72;            /* キャンセル : グレー   */
+  --s-cancelled-bg: rgba(99,110,114,.13);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -395,14 +404,14 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   white-space: nowrap;
 }
 .badge::before { content: '●'; font-size: 8px; }
-.badge-draft     { background: rgba(178,190,195,.15); color: #636e72; }
-.badge-submitted { background: rgba(116,185,255,.2);  color: #0984E3; }
-.badge-in_progress { background: rgba(108,92,231,.15); color: #6C5CE7; }
-.badge-review_pending { background: rgba(255,107,53,.15); color: #E55A2B; }
-.badge-revision_requested { background: rgba(253,203,110,.25); color: #e17055; }
-.badge-approved  { background: rgba(0,184,148,.15); color: #00B894; }
-.badge-delivered { background: rgba(0,184,148,.15); color: #00B894; }
-.badge-cancelled { background: rgba(178,190,195,.15); color: #636e72; }
+.badge-draft     { background: var(--s-draft-bg);     color: var(--s-draft); }
+.badge-submitted { background: var(--s-submitted-bg); color: var(--s-submitted); }
+.badge-in_progress { background: var(--s-progress-bg); color: var(--s-progress); }
+.badge-review_pending { background: var(--s-review-bg); color: var(--s-review); }
+.badge-revision_requested { background: var(--s-revision-bg); color: var(--s-revision); }
+.badge-approved  { background: var(--s-approved-bg);  color: var(--s-approved); }
+.badge-delivered { background: var(--s-delivered-bg); color: var(--s-delivered); }
+.badge-cancelled { background: var(--s-cancelled-bg); color: var(--s-cancelled); }
 
 /* 優先度バッジ */
 .priority-urgent { color: var(--danger); font-weight: 700; }
