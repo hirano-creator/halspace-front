@@ -126,7 +126,7 @@ function renderInfo() {
     ['発注日', (project.created_at||'—').slice(0,10)],
     ['希望納期', deadlineRequested],
     ['納期回答', deadlineReplied],
-    ['納品日', project.delivered_at || '—'],
+    ['納品日', (project.delivered_at || '—').slice(0, 10)],
     ['優先度', `<span class="priority-${project.priority}">${{urgent:'緊急',high:'高',normal:'通常',low:'低'}[project.priority]||project.priority}</span>`],
   ];
   const longRows = [];
@@ -1691,6 +1691,7 @@ async function setFilesReviewStatus(fileIds, status, onProgress = null) {
       const f = project.files.find(x => x.id === fileId);
       if (f) Object.assign(f, data?.file ?? { review_status: status });
       if (data?.project_status) projectStatus = data.project_status;
+      if (data?.project_delivered_at) project.delivered_at = data.project_delivered_at;
     } catch (err) {
       failed++;
     }
