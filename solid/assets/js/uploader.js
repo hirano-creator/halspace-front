@@ -154,17 +154,43 @@ function filesFromDirectoryInput(input) {
     .map(f => ({ file: f, relativePath: f.webkitRelativePath || '' }));
 }
 
-/* ── アップロード実行（直列。Sanctumトークンの行ロック競合を避けるため並列化しない） ── */
+/* ── アップロード実行 ──
+   1ファイル=1リクエストのため、直列だとファイル数ぶんの往復待ちがそのまま積み上がり、
+   フォルダアップロード（小さいファイルが数十件）で待ち時間が極端に長くなる。
+   APIはFrankenPHPで並行処理でき、last_used_at行ロックもPersonalAccessToken側の
+   書き込み間引きで解消済みのため、同時本数を絞ったうえで並列送信する。 */
 
-function uploadItemsSequential(projectId, items, { fileType = 'model_3d', onProgress } = {}) {
+const UPLOAD_CONCURRENCY = 4;
+
+function uploadItems(projectId, items, {
+  fileType = 'model_3d',
+  onProgress,
+  concurrency = UPLOAD_CONCURRENCY,
+} = {}) {
   const token = sessionStorage.getItem('space_token');
   const totalBytes = items.reduce((s, it) => s + it.file.size, 0);
   let doneBytes = 0;
+  let doneCount = 0;
   const uploaded = [];
   const errors = [];
+  const inFlight = new Map(); // idx → ファイル名（並列中の表示用）
+
+  function report() {
+    const names = [...inFlight.values()];
+    onProgress?.({
+      doneCount,
+      total: items.length,
+      currentName: names.length > 1 ? `${names[0]} ほか${names.length - 1}件` : (names[0] ?? ''),
+      currentPct: totalBytes ? Math.round((doneBytes / totalBytes) * 100) : 100,
+      doneBytes,
+      totalBytes,
+    });
+  }
 
   function uploadOne(item, idx) {
     return new Promise(resolve => {
+      inFlight.set(idx, item.file.name);
+      report();
       const fd = new FormData();
       fd.append('file', item.file);
       fd.append('file_type', typeof fileType === 'function' ? fileType(item) : fileType);
@@ -180,14 +206,14 @@ function uploadItemsSequential(projectId, items, { fileType = 'model_3d', onProg
         const loaded = e.lengthComputable ? e.loaded : lastLoaded;
         doneBytes += (loaded - lastLoaded);
         lastLoaded = loaded;
-        onProgress?.({
-          doneCount: idx,
-          total: items.length,
-          currentName: item.file.name,
-          currentPct: item.file.size ? Math.round((loaded / item.file.size) * 100) : 100,
-          doneBytes,
-          totalBytes,
-        });
+        report();
+      };
+
+      const finish = () => {
+        inFlight.delete(idx);
+        doneCount++;
+        report();
+        resolve();
       };
 
       xhr.onload = () => {
@@ -201,25 +227,54 @@ function uploadItemsSequential(projectId, items, { fileType = 'model_3d', onProg
         } else {
           errors.push(item.file.name);
         }
-        resolve();
+        finish();
       };
-      xhr.onerror = () => { errors.push(item.file.name); resolve(); };
+      xhr.onerror = () => { errors.push(item.file.name); finish(); };
       xhr.send(fd);
     });
   }
 
   return (async () => {
-    for (let i = 0; i < items.length; i++) {
-      await uploadOne(items[i], i);
-      onProgress?.({
-        doneCount: i + 1,
-        total: items.length,
-        currentName: '',
-        currentPct: 100,
-        doneBytes,
-        totalBytes,
+    let next = 0;
+    const workers = Array.from(
+      { length: Math.max(1, Math.min(concurrency, items.length)) },
+      async () => {
+        while (next < items.length) {
+          const idx = next++;
+          await uploadOne(items[idx], idx);
+        }
       });
-    }
+    await Promise.all(workers);
     return { uploaded, errors };
   })();
+}
+
+/* ── アップロード進捗パネル（画面右下に固定表示） ──
+   フォルダアップロードは完了まで数十秒かかることがあり、無表示だと固まったように見えるため、
+   件数・ファイル名・全体進捗を常時出す。onProgressにそのまま渡せる形で返す。 */
+function createUploadProgressPanel(title = 'アップロード中') {
+  const el = document.createElement('div');
+  el.className = 'upload-progress-panel';
+  el.innerHTML = `
+    <div class="upload-progress-head">
+      <i class="fa-solid fa-cloud-arrow-up"></i>
+      <span class="upload-progress-title">${title}</span>
+      <span class="upload-progress-count">0 / 0</span>
+    </div>
+    <div class="upload-progress-name"></div>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:0%"></div></div>`;
+  document.body.appendChild(el);
+
+  const countEl = el.querySelector('.upload-progress-count');
+  const nameEl  = el.querySelector('.upload-progress-name');
+  const fillEl  = el.querySelector('.progress-bar-fill');
+
+  return {
+    onProgress({ doneCount, total, currentName, doneBytes, totalBytes }) {
+      countEl.textContent = `${doneCount} / ${total} ファイル`;
+      nameEl.textContent = currentName || '';
+      fillEl.style.width = totalBytes ? `${Math.round((doneBytes / totalBytes) * 100)}%` : '0%';
+    },
+    close() { el.remove(); },
+  };
 }
