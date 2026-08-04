@@ -345,7 +345,7 @@ function renderFiles() {
   if (saveFolderBtnEl && !saveFolderBtnEl.dataset.bound) {
     saveFolderBtnEl.dataset.bound = '1';
     saveFolderBtnEl.addEventListener('click', () =>
-      saveFilesToLocalFolder(visibleModelFilesForBulk(), project.project_code || `project-${projId}`));
+      saveFilesToLocalFolder(visibleModelFilesForBulk()));
   }
 
   const zipAllBtnEl = document.getElementById('zipAllBtn');
@@ -427,9 +427,9 @@ function visibleModelFilesForBulk() {
 }
 
 /* 指定ファイル群をローカルへ直接保存（Chrome/Edge, File System Access API）。
-   wrapperNameを渡すと「保存先/wrapperName/relative_path...」に、省略時は
-   「保存先/relative_path...」にそのまま書き込む（フォルダ単体保存でトップ階層が二重にならないように）。*/
-async function saveFilesToLocalFolder(files, wrapperName) {
+   「選んだ保存先/relative_path...」にそのまま書き込む。プロジェクトコードの階層は挟まない
+   （選んだフォルダがそのまま保存先になるので、余計な入れ子ができないようにするため）。*/
+async function saveFilesToLocalFolder(files) {
   if (!files.length) return;
 
   let rootHandle;
@@ -447,9 +447,6 @@ async function saveFilesToLocalFolder(files, wrapperName) {
     return;
   }
 
-  const baseHandle = wrapperName
-    ? await rootHandle.getDirectoryHandle(wrapperName, { create: true })
-    : rootHandle;
   const progressEl = document.getElementById('modelFolderSaveProgress');
   const token = sessionStorage.getItem('space_token');
   if (progressEl) progressEl.style.display = '';
@@ -458,7 +455,7 @@ async function saveFilesToLocalFolder(files, wrapperName) {
   for (const f of files) {
     if (progressEl) progressEl.textContent = `${done} / ${files.length} 件保存中: ${f.file_name}`;
     const segs = (f.relative_path || f.file_name).split('/').filter(Boolean);
-    let dirHandle = baseHandle;
+    let dirHandle = rootHandle;
     for (const seg of segs.slice(0, -1)) {
       dirHandle = await dirHandle.getDirectoryHandle(seg, { create: true });
     }
