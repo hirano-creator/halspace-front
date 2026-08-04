@@ -30,30 +30,31 @@
     .align-topbar-title { font-size: 14px; font-weight: 700; color: var(--primary); flex: 1; }
     .align-topbar-hint { font-size: 11px; color: var(--muted); white-space: nowrap; }
 
-    /* 本体グリッド: 列数はJS(applyAlignGridColumns)が件数と画面のアスペクト比から
-       都度計算し、grid-template-columnsを直接指定する。auto-fit+minmaxだけだと
-       件数が少なくても画面幅が広いほど列数が増えてしまい、カードが常に最小幅(220px)
-       止まりで小さく表示される問題があったため。ここでの値はJS計算前の初期表示用フォールバック。 */
+    /* 本体レイアウト: Google フォト方式の justified layout。
+       行ごとにサムネイルの高さを揃え、カード幅を画像の縦横比に比例させて
+       行の合計幅がコンテナ幅ちょうどになるようJS(layoutAlign)が算出する。
+       CSS Gridで列幅を固定すると縦横比の違いでカード下部に空白が残るため
+       (横長画像の隣に縦長画像が並ぶと行の高さが最も高いカードに引っ張られる)、
+       行の構成そのものをJS側で決める方式に変えている。 */
     .align-body { flex: 1; overflow: auto; padding: 14px; }
-    .align-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 14px; align-items: start;
-    }
+    .align-grid { display: flex; flex-direction: column; gap: 14px; }
+    .align-row  { display: flex; gap: 14px; align-items: flex-start; }
     @media (max-width: 560px) { .align-topbar-hint { display: none; } }
 
     .align-card {
-      display: block;
+      display: block; flex: none; width: 100%;
       background: var(--white); border: 1px solid var(--border); border-radius: 8px;
       overflow: hidden; cursor: pointer; text-decoration: none; color: inherit;
       transition: box-shadow .15s;
     }
     .align-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.14); }
 
+    /* 高さはJSがpxで指定する(行内で必ず同一値になる)。初期表示用に160pxを置く。 */
     .align-thumb-wrap {
-      position: relative; width: 100%; min-height: 90px; background: var(--bg);
-      display: flex; align-items: center; justify-content: center;
+      position: relative; width: 100%; height: 160px; background: var(--bg);
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
     }
-    .align-thumb-wrap img { display: block; width: 100%; height: auto; }
+    .align-thumb-wrap img { display: block; width: 100%; height: 100%; object-fit: contain; }
 
     .align-badge {
       position: absolute; top: 6px; left: 6px; z-index: 2;
@@ -69,14 +70,19 @@
     }
     .align-card-link:hover { color: var(--primary); }
 
+    /* 行内でカード高さを完全に揃えるため、ラベル部の高さも固定する
+       (可変にすると1件だけ折り返して行の下端がずれる) */
     .align-card-label {
-      padding: 7px 10px; font-size: 12px; font-weight: 600; color: var(--text);
+      height: 30px; line-height: 16px; padding: 7px 10px;
+      font-size: 12px; font-weight: 600; color: var(--text);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
+    /* サムネ枠の高さはJS管理なので、中身は絶対配置にして高さに影響させない */
     .align-card-spin, .align-card-noPreview {
+      position: absolute; inset: 0;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 8px; color: var(--muted); width: 100%; padding: 26px 10px; font-size: 11px; text-align: center;
+      gap: 8px; color: var(--muted); padding: 10px; font-size: 11px; text-align: center;
     }
     .align-card-spin i, .align-card-noPreview i { font-size: 26px; opacity: .5; }
     .align-card-error { color: #C62828; }
@@ -206,6 +212,16 @@ const extOf = f => (f?.file_name ?? '').split('.').pop().toLowerCase();
    ライトボックスを開いたときだけ実体を取得する: index → file record） */
 const alignFiles = new Array(alignIds.length).fill(null);
 
+/* justified layout 用: index → サムネイルの縦横比(w/h)。0は未取得(仮に正方形として扱う) */
+const alignAspects = new Array(alignIds.length).fill(0);
+const alignCardEls = new Array(alignIds.length).fill(null);
+
+const ALIGN_GAP        = 14;  /* CSSの gap と一致させること */
+const ALIGN_LABEL_H    = 30;  /* .align-card-label の固定高さ */
+const ALIGN_BORDER_H   = 2;   /* カード上下のborder */
+const ALIGN_MIN_ROW_H  = 110; /* サムネイルをこれ以上小さくしない */
+const ALIGN_MIN_CARD_W = 190; /* 1行に詰め込みすぎないための下限 */
+
 /* 安全網: 予期しない例外でページ全体が沈黙状態にならないようにする */
 window.addEventListener('error', e => console.error(e.error || e.message));
 window.addEventListener('unhandledrejection', e => console.error(e.reason));
@@ -223,12 +239,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const grid = document.getElementById('alignGrid');
   grid.innerHTML = alignIds.map((id, i) => cardSkeletonHtml(id, i)).join('');
+  alignIds.forEach((id, i) => { alignCardEls[i] = document.getElementById(`alignCard-${id}`); });
 
-  applyAlignGridColumns();
+  layoutAlign();
   let resizeTimer = null;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(applyAlignGridColumns, 150);
+    resizeTimer = setTimeout(layoutAlign, 150);
   });
 
   initLightboxControls();
@@ -237,39 +254,135 @@ document.addEventListener('DOMContentLoaded', async () => {
   alignIds.forEach((id, i) => loadCard(id, i));
 });
 
-/* 件数と画面(align-body)のアスペクト比から、できるだけ正方形に近い
-   グリッドになる列数を求める。auto-fitで機械的に列を埋めると件数が
-   少なくても画面幅いっぱいに列数だけ増えてカードが小さいままになるため、
-   件数に応じて列数を絞り、1カードあたりの表示面積を大きく保つ。
-   単純に sqrt(件数×アスペクト比) だけで決めると、例えば4件で3列を選んだ
-   場合に最終行が1件だけ埋まって右側が空白のまま残る（column-count方式の
-   旧バグと同じ見た目）ことがあるため、理想列数への近さに加えて
-   「最終行の埋まり具合」もスコアリングして列数を選ぶ。 */
-function computeAlignColumns(count) {
-  const body = document.getElementById('alignBody');
-  const availW = Math.max(200, body.clientWidth - 28);
-  const availH = Math.max(200, body.clientHeight - 28);
-  const aspect = availW / availH;
-  const idealCols = Math.sqrt(count * aspect);
-  const MIN_CARD_W = 220;
-  const maxCols = Math.max(1, Math.min(count, Math.floor(availW / MIN_CARD_W)));
+/* ────────────────── justified layout（隙間なく並べる） ──────────────────
+   考え方は Google フォト / Flickr と同じ:
+     1. 並び順を保ったまま、連続するカードを「行」に区切る
+     2. 行内のカード幅を各サムネイルの縦横比に比例させ、
+        合計がコンテナ幅ちょうどになる高さを解く（→ 行の右端まで必ず埋まる）
+     3. 行内は同じ高さ・ラベル高さも固定なので、カード下部にも空白が出ない
+   行の区切りは貪欲法ではなく動的計画法で選ぶ。貪欲だと最終行だけ極端に
+   詰まったり空いたりするが、DPなら全行が目標高さに均等に近づく。 */
 
-  let best = 1, bestScore = -Infinity;
-  for (let cols = 1; cols <= maxCols; cols++) {
-    const remainder = count % cols;
-    const lastRowFill = remainder === 0 ? cols : remainder;
-    const emptiness = (cols - lastRowFill) / cols;
-    const score = -Math.abs(cols - idealCols) - emptiness * 3;
-    if (score > bestScore) { bestScore = score; best = cols; }
-  }
-  return best;
+/* 縦横比の極端な値はレイアウトを壊す(横長パノラマ1枚で行が潰れる等)ため丸める */
+function alignAspectAt(i) {
+  const a = alignAspects[i];
+  return a > 0 ? Math.min(Math.max(a, 0.4), 3.0) : 1;
 }
 
-function applyAlignGridColumns() {
+/* 目標高さ targetH に対して、各行の高さが targetH からどれだけ離れるかの
+   総コストが最小になる行分割を返す。コストは比率の対数の2乗（targetHの
+   半分になる/2倍になるを対称に扱う）。 */
+function buildAlignRows(W, targetH, maxPerRow) {
+  const n = alignIds.length;
+  const cost = new Array(n + 1).fill(Infinity);
+  const from = new Array(n + 1).fill(-1);
+  cost[0] = 0;
+
+  for (let i = 0; i < n; i++) {
+    if (cost[i] === Infinity) continue;
+    let sumA = 0;
+    for (let j = i; j < n && j - i < maxPerRow; j++) {
+      sumA += alignAspectAt(j);
+      const cnt = j - i + 1;
+      const h = (W - (cnt - 1) * ALIGN_GAP) / sumA;
+      if (h <= 0) break;
+      const c = cost[i] + Math.pow(Math.log(h / targetH), 2);
+      if (c < cost[j + 1]) { cost[j + 1] = c; from[j + 1] = i; }
+      /* これ以上詰めても行はさらに低くなるだけ(コスト増)なので打ち切り */
+      if (h < targetH * 0.5 && j > i) break;
+    }
+  }
+
+  const rows = [];
+  for (let end = n; end > 0; end = from[end]) {
+    const start = from[end];
+    const items = [];
+    for (let k = start; k < end; k++) items.push(k);
+    let sumA = 0;
+    items.forEach(k => { sumA += alignAspectAt(k); });
+    const raw = (W - (items.length - 1) * ALIGN_GAP) / sumA;
+    /* 高さの上限は最終行にだけ掛ける。最終行は残り物なので1枚だけ極端に
+       巨大化することがあり、その場合は左寄せ（幅は余る）を許容する。
+       途中の行に上限を掛けると幅が足りなくなり、行の右側に空白が残る。 */
+    const isLast = rows.length === 0;
+    const h = isLast ? Math.min(raw, targetH * 1.6) : raw;
+    rows.unshift({ items, h, full: h === raw });
+  }
+  return rows;
+}
+
+function alignRowsTotalHeight(rows) {
+  const inner = rows.reduce((s, r) => s + r.h + ALIGN_LABEL_H + ALIGN_BORDER_H, 0);
+  return inner + Math.max(0, rows.length - 1) * ALIGN_GAP;
+}
+
+/* 全体が1画面に収まる範囲で、できるだけ大きいサムネイル高さを選ぶ。
+   targetHを上げるほど1行の枚数が減り→行数が増え→総高さが増えるので、
+   総高さは targetH に対して単調増加とみなして二分探索できる。 */
+function pickAlignTargetHeight(W, availH, maxPerRow) {
+  const total = th => alignRowsTotalHeight(buildAlignRows(W, th, maxPerRow));
+  /* 件数が多く1画面に収まらない場合はスクロール前提。ここで無理に縮めても
+     全部は入らずサムネイルが小さくなるだけなので、画面高さの1/3を目安にする。 */
+  const base = Math.max(ALIGN_MIN_ROW_H, Math.round(availH / 3));
+  const hi0 = Math.max(base + 1, availH - ALIGN_LABEL_H - ALIGN_BORDER_H);
+  if (total(base) > availH) return base;
+  if (total(hi0) <= availH) return hi0;
+  let lo = base, hi = hi0;
+  for (let k = 0; k < 16; k++) {
+    const mid = (lo + hi) / 2;
+    if (total(mid) <= availH) lo = mid; else hi = mid;
+  }
+  return lo;
+}
+
+function layoutAlign(retry) {
   const grid = document.getElementById('alignGrid');
-  if (!grid) return;
-  const cols = computeAlignColumns(alignIds.length);
-  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  const body = document.getElementById('alignBody');
+  if (!grid || !body) return;
+  const W = grid.clientWidth;
+  if (W < 60) return;
+  const availH = Math.max(240, body.clientHeight - 28);
+
+  /* スマホ幅では下限をそのまま使うと1行1枚になり縦に長大化するため緩める */
+  const minCardW = W < 640 ? 130 : ALIGN_MIN_CARD_W;
+  const maxPerRow = Math.max(1, Math.floor((W + ALIGN_GAP) / (minCardW + ALIGN_GAP)));
+  const targetH = pickAlignTargetHeight(W, availH, maxPerRow);
+  const rows = buildAlignRows(W, targetH, maxPerRow);
+
+  const frag = document.createDocumentFragment();
+  rows.forEach(row => {
+    const rowEl = document.createElement('div');
+    rowEl.className = 'align-row';
+    const h = Math.round(row.h);
+    const avail = W - (row.items.length - 1) * ALIGN_GAP;
+    let used = 0;
+    row.items.forEach((idx, k) => {
+      const card = alignCardEls[idx];
+      if (!card) return;
+      const isLast = k === row.items.length - 1;
+      /* 端数を最後の1枚で吸収し、行の右端をコンテナ幅にぴったり合わせる */
+      const w = (isLast && row.full) ? avail - used : Math.round(row.h * alignAspectAt(idx));
+      used += w;
+      card.style.width = Math.max(40, w) + 'px';
+      const thumb = card.querySelector('.align-thumb-wrap');
+      if (thumb) thumb.style.height = h + 'px';
+      rowEl.appendChild(card);
+    });
+    frag.appendChild(rowEl);
+  });
+  grid.innerHTML = '';
+  grid.appendChild(frag);
+
+  /* 組み直しで縦スクロールバーが出た(消えた)場合はコンテナ幅が変わり、
+     計算した幅とズレて右端に隙間が残る。幅が変わったときだけ1回やり直す。 */
+  if (!retry && grid.clientWidth !== W) layoutAlign(true);
+}
+
+/* サムネイルは1件ずつ非同期に届くため、届くたびに組み直す（まとめて1回） */
+let alignLayoutTimer = null;
+function scheduleAlignLayout() {
+  clearTimeout(alignLayoutTimer);
+  alignLayoutTimer = setTimeout(layoutAlign, 60);
 }
 
 function cardSkeletonHtml(id, i) {
@@ -314,6 +427,11 @@ async function loadCard(id, i) {
     const spin = thumbEl.querySelector('.align-card-spin');
     if (spin) spin.remove();
     if (ok) {
+      /* 実物の縦横比が分かった時点でレイアウトを組み直す（隙間なく詰めるため） */
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        alignAspects[i] = img.naturalWidth / img.naturalHeight;
+        scheduleAlignLayout();
+      }
       thumbEl.appendChild(img);
     } else {
       const { icon, cls } = (typeof wnFileIcon === 'function')
