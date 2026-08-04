@@ -434,7 +434,13 @@ async function saveFilesToLocalFolder(files, wrapperName) {
 
   let rootHandle;
   try {
-    rootHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    /* startIn/id: 初回はデスクトップを開き（直下はChromeが禁止するのでサブフォルダを作って選ぶ）、
+       2回目以降は前回選んだ場所を復元する */
+    rootHandle = await window.showDirectoryPicker({
+      mode: 'readwrite',
+      id: 'solid-model-save',
+      startIn: 'desktop',
+    });
   } catch (err) {
     if (err?.name === 'AbortError') return;
     showToast('保存先フォルダの選択に失敗しました', 'danger');
@@ -1351,13 +1357,13 @@ async function apiFetchForm(path, formData) {
    チャットルーム
    ══════════════════════════════════════════ */
 
-/* 発注者（一般会員）は制作チームとも直接やり取りするため両チャンネル可。
-   モデラーは発注者⇄管理者間の「お客様連絡」には入らない。
+/* 「制作チーム」は社内側（HaLSpace運営会社＋モデラー専属会社）のやり取り用なので
+   発注者（一般会員）には見せない。モデラーは発注者⇄管理者間の「お客様連絡」には入らない。
    バックエンドの User::accessibleCommentChannels() と揃えること。 */
 function canAccessChannel(ch) {
   if (hasAdminLevelAccess(user)) return true;
   if (ch === 'client')  return !isModeler(user);
-  if (ch === 'modeler') return true;
+  if (ch === 'modeler') return isModeler(user);
   return false;
 }
 
@@ -1367,12 +1373,12 @@ let pendingImages  = [];
 function initChatTabs() {
   const tabs = document.getElementById('chatTabs');
 
-  if (isModeler(user)) {
-    tabs.querySelector('[data-ch="client"]').style.display = 'none';
-    currentChannel = 'modeler';
-  }
-
   tabs.querySelectorAll('.chat-tab').forEach(btn => {
+    // 閲覧権限のないチャンネルのタブは出さない
+    //（発注者に「制作チーム」、モデラーに「お客様連絡」は見せない）
+    btn.style.display = canAccessChannel(btn.dataset.ch) ? '' : 'none';
+    btn.classList.toggle('active', btn.dataset.ch === currentChannel);
+
     btn.addEventListener('click', () => {
       if (!canAccessChannel(btn.dataset.ch)) return;
       currentChannel = btn.dataset.ch;
