@@ -9,14 +9,14 @@ test.describe("タブごとのセッション分離（本改修の核心）", ()
     // タブA: 管理者でログイン
     await pageA.goto("/login");
     await pageA.getByLabel(/社員番号/).fill("0001");
-    await pageA.getByLabel("パスワード").fill("admin123");
+    await pageA.getByLabel("パスワード", { exact: true }).fill("admin123");
     await pageA.getByRole("button", { name: "ログイン" }).click();
     await expect(pageA).toHaveURL(/\/clock$/);
 
     // タブB: 店長でログイン（別アカウント）
     await pageB.goto("/login");
     await pageB.getByLabel(/社員番号/).fill("0002");
-    await pageB.getByLabel("パスワード").fill("password123");
+    await pageB.getByLabel("パスワード", { exact: true }).fill("password123");
     await pageB.getByRole("button", { name: "ログイン" }).click();
     await expect(pageB).toHaveURL(/\/clock$/);
 
@@ -50,7 +50,7 @@ test.describe("QR打刻導線", () => {
     await expect(page).toHaveURL(/\/login\?redirect=/);
 
     await page.getByLabel(/社員番号/).fill("0003");
-    await page.getByLabel("パスワード").fill("password123");
+    await page.getByLabel("パスワード", { exact: true }).fill("password123");
     await page.getByRole("button", { name: "ログイン" }).click();
 
     await expect(page).toHaveURL(/\/clock\?dept=00000000-0000-0000-0000-000000000000&kind=attend/);

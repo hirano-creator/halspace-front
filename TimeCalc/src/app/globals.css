@@ -30,6 +30,17 @@ body {
   font-feature-settings: "palt";
 }
 
+/* Chromeの自動入力が入力欄を水色に塗りつぶして枠線のデザインが崩れるのを打ち消す */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--foreground);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+  caret-color: var(--foreground);
+  /* 自動入力直後に一瞬だけ水色が出るのを、実質無限の遅延で見せないようにする */
+  transition: background-color 100000s ease-out 0s;
+}
+
 /* 印刷時はサイドバー・モバイルヘッダー等の操作UIを隠す（打刻QRコードの印刷用） */
 @media print {
   aside,
