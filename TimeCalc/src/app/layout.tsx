@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "TimeCalc | 勤怠時間計算システム",
-  description: "株式会社ヒラノ 勤怠時間計算システム",
+  description: "勤怠時間計算システム",
   appleWebApp: {
     title: "TimeCalc",
     statusBarStyle: "default",

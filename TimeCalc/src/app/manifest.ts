@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "TimeCalc | 勤怠時間計算システム",
     short_name: "TimeCalc",
-    description: "株式会社ヒラノ 勤怠時間計算システム",
+    description: "勤怠時間計算システム",
     start_url: "/",
     display: "standalone",
     background_color: "#f6f8fa",
