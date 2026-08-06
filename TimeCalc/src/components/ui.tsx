@@ -132,8 +132,12 @@ export function Badge({
  */
 export const controlHeightClass = "min-h-11 sm:min-h-10";
 
-/** フォーム入力の共通クラス */
-export const inputClass = `w-full ${controlHeightClass} rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20`;
+/**
+ * フォーム入力の共通クラス。
+ * スマホだけ16pxにするのは、iOS Safariが16px未満の入力にフォーカスすると画面を
+ * 自動ズームしてしまうため（PCは sm: で従来の14pxに戻す）。
+ */
+export const inputClass = `w-full ${controlHeightClass} rounded-lg border border-border bg-white px-3 py-2 text-base outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 sm:text-sm`;
 
 /** プライマリボタンの共通クラス */
 export const buttonPrimaryClass = `inline-flex ${controlHeightClass} items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50`;

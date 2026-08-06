@@ -41,6 +41,15 @@ input:-webkit-autofill:focus {
   transition: background-color 100000s ease-out 0s;
 }
 
+/* 幅を詰めた時刻入力（.time-input）専用。ネイティブ描画（appearance）を切ると
+   iOS Safari は値を左上に寄せて描くため、枠の中央に置き直す。切らないと padding も
+   width も無視され、値が枠線に食い込んだり欄が右にはみ出したりする（実機でのみ再現）。
+   幅いっぱいの時刻入力（設定画面など）は左寄せのままにしたいのでクラスで限定する */
+.time-input::-webkit-date-and-time-value {
+  text-align: center;
+  margin: 0;
+}
+
 /* 印刷時はサイドバー・モバイルヘッダー等の操作UIを隠す（打刻QRコードの印刷用） */
 @media print {
   aside,

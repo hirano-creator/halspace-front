@@ -11,7 +11,13 @@ import {
 } from "./client-actions";
 import type { MyActionState } from "./types";
 import type { SelfEditMode } from "@/lib/auth/features";
-import { Badge, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "@/components/ui";
+import {
+  Badge,
+  buttonPrimaryClass,
+  buttonSecondaryClass,
+  controlHeightClass,
+  inputClass,
+} from "@/components/ui";
 import { WeekSubtotalBar, WeekSubtotalRow, groupRowsByWeek } from "@/components/weekly-summary";
 import type { WeeklyBucket } from "@/lib/attendance/types";
 
@@ -79,53 +85,112 @@ function hasValue(label: string): boolean {
 }
 
 /**
- * 時刻入力1つ分。ラベル・入力欄・クリアボタンを必ずこの順に縦積みするので、
- * 横に並べても（スマホで2列に折り返しても）ラベルと入力欄の対応がずれない。
+ * 時刻入力の見た目。
+ *
+ * `appearance-none` が要点で、これを外すとiOS Safariはネイティブの時刻コントロールを
+ * 描画する。その状態では padding も width も無視されるため、値が枠線に食い込んだり
+ * 指定より広がって右にはみ出したりする（実機でのみ再現する）。
+ * 文字サイズを16px以上にしているのは、iOSがフォーカス時に画面を自動ズームするのを
+ * 防ぐため（PCは sm: で従来の14pxに戻す）。
  */
-function TimeField({
-  label,
-  name,
-  defaultValue,
-  max,
-  clearLabel,
-}: {
+// PCで少し広げるのは、Chromeが右端に時計アイコンを描くぶんの余白を確保するため。
+const timeInputClass = `time-input w-[6.5rem] ${controlHeightClass} appearance-none rounded-lg border border-border bg-white px-2 text-center font-mono text-base tabular-nums outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 sm:w-32 sm:text-sm`;
+
+/** クリア操作（未出勤/未退勤にする）。主導線の「保存」から色を奪わないよう控えめにする */
+const clearButtonClass =
+  "justify-self-start py-0.5 text-xs text-muted underline underline-offset-2 hover:text-foreground";
+
+interface TimeFieldSpec {
   label: string;
   name: string;
   defaultValue: string;
-  max?: string;
   /** 値を空にするボタンの文言。省略するとボタンを出さない */
   clearLabel?: string;
+}
+
+/**
+ * 「開始 → 終了」の時刻ペア入力。
+ * ラベル・入力欄・クリアボタンを3行×3列のグリッドに載せることで、横方向（ラベルと入力欄）も
+ * 縦方向（左右の欄どうし）も揃う。矢印を挟むのは、一覧の「07:26 → 16:06」と同じ読み方に
+ * するため（2つの独立した欄ではなく、1つの勤務時間帯として読ませる）。
+ */
+function TimeRangeFields({
+  start,
+  end,
+  max,
+}: {
+  start: TimeFieldSpec;
+  end: TimeFieldSpec;
+  max?: string;
 }) {
-  const id = useId();
-  const ref = useRef<HTMLInputElement>(null);
+  const startId = useId();
+  const endId = useId();
+  const startRef = useRef<HTMLInputElement>(null);
+  const endRef = useRef<HTMLInputElement>(null);
+  const showClearRow = Boolean(start.clearLabel || end.clearLabel);
 
   return (
-    // 幅は 1fr で伸ばさず時刻5文字ぶんに固定する。伸ばすと箱だけ間延びするうえ、
-    // iOSのネイティブtime入力は最小幅を持つため、列幅ぴったりだと右にはみ出す。
-    <div className="w-36 min-w-0 shrink-0">
-      <label htmlFor={id} className="mb-1 block text-xs font-medium text-muted">
-        {label}
+    <div className="grid w-fit grid-cols-[auto_auto_auto] items-center gap-x-2 gap-y-1">
+      <label htmlFor={startId} className="text-xs font-medium text-muted">
+        {start.label}
       </label>
+      <span />
+      <label htmlFor={endId} className="text-xs font-medium text-muted">
+        {end.label}
+      </label>
+
       <input
-        id={id}
-        ref={ref}
+        id={startId}
+        ref={startRef}
         type="time"
-        name={name}
-        defaultValue={defaultValue}
+        name={start.name}
+        defaultValue={start.defaultValue}
         max={max}
-        className={`${inputClass} min-w-0 font-mono tabular-nums`}
+        className={timeInputClass}
       />
-      {clearLabel && (
-        <button
-          type="button"
-          onClick={() => {
-            if (ref.current) ref.current.value = "";
-          }}
-          // 主導線（保存）から色を奪わないよう、控えめな色＋常時下線でリンクだと示す
-          className="mt-1 py-0.5 text-xs text-muted underline underline-offset-2 hover:text-foreground"
-        >
-          {clearLabel}
-        </button>
+      <span aria-hidden className="text-sm text-muted">
+        →
+      </span>
+      <input
+        id={endId}
+        ref={endRef}
+        type="time"
+        name={end.name}
+        defaultValue={end.defaultValue}
+        max={max}
+        className={timeInputClass}
+      />
+
+      {showClearRow && (
+        <>
+          {start.clearLabel ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (startRef.current) startRef.current.value = "";
+              }}
+              className={clearButtonClass}
+            >
+              {start.clearLabel}
+            </button>
+          ) : (
+            <span />
+          )}
+          <span />
+          {end.clearLabel ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (endRef.current) endRef.current.value = "";
+              }}
+              className={clearButtonClass}
+            >
+              {end.clearLabel}
+            </button>
+          ) : (
+            <span />
+          )}
+        </>
       )}
     </div>
   );
@@ -191,23 +256,22 @@ function RowDetailFields({
             </p>
           </div>
 
-          {/* 出勤・退勤は毎回使うので常に表示。幅が足りない端末では自動で縦に折り返る */}
-          <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-            <TimeField
-              label="出勤"
-              name="clockIn"
-              defaultValue={row.clockIn}
-              max={maxTime}
-              clearLabel="未出勤にする"
-            />
-            <TimeField
-              label="退勤"
-              name="clockOut"
-              defaultValue={row.clockOut}
-              max={maxTime}
-              clearLabel="未退勤にする"
-            />
-          </div>
+          {/* 出勤・退勤は毎回使うので常に表示 */}
+          <TimeRangeFields
+            start={{
+              label: "出勤",
+              name: "clockIn",
+              defaultValue: row.clockIn,
+              clearLabel: "未出勤にする",
+            }}
+            end={{
+              label: "退勤",
+              name: "clockOut",
+              defaultValue: row.clockOut,
+              clearLabel: "未退勤にする",
+            }}
+            max={maxTime}
+          />
 
           {/* 外出・戻りは外出した日だけの入力なので、値がない日は畳んでおく */}
           <details
@@ -217,14 +281,12 @@ function RowDetailFields({
             <summary className="cursor-pointer text-xs font-medium text-muted">
               外出・戻り（外出した日のみ）
             </summary>
-            <div className="mt-2 flex flex-wrap items-start gap-x-3 gap-y-2">
-              <TimeField
-                label="外出"
-                name="outingStart"
-                defaultValue={row.outingStart}
+            <div className="mt-2">
+              <TimeRangeFields
+                start={{ label: "外出", name: "outingStart", defaultValue: row.outingStart }}
+                end={{ label: "戻り", name: "outingEnd", defaultValue: row.outingEnd }}
                 max={maxTime}
               />
-              <TimeField label="戻り" name="outingEnd" defaultValue={row.outingEnd} max={maxTime} />
             </div>
             <p className="mt-2 text-xs leading-relaxed text-muted">
               休憩は設定画面の勤務ルール（休憩開始〜終了）から自動で勤務時間に反映されます。外出がこの休憩時間帯と重なる場合は「控除外出」で重複分を除いた時間を差し引きます。
@@ -299,10 +361,11 @@ function RowDetailFields({
         </form>
       )}
 
+      {/* 保存の下に置くので、色でも大きさでも主導線と競わない見せ方にする */}
       <button
         type="button"
         onClick={onClose}
-        className="inline-flex min-h-11 items-center px-1 text-xs text-muted hover:underline sm:min-h-0"
+        className="flex min-h-11 w-full items-center justify-center text-xs text-muted hover:underline sm:min-h-0 sm:w-auto sm:justify-start sm:px-1"
       >
         閉じる
       </button>
