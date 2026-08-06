@@ -276,19 +276,21 @@ function RowDetailFields({
           {/* 外出・戻りは外出した日だけの入力なので、値がない日は畳んでおく */}
           <details
             open={hasOuting}
-            className="rounded-lg border border-border bg-white/70 px-3 py-2 sm:max-w-md"
+            className="rounded-lg border border-border bg-white/70 px-3 sm:max-w-md"
           >
-            <summary className="cursor-pointer text-xs font-medium text-muted">
+            {/* 縦の余白は summary 側で持つ。閉じているときの帯の高さが、
+                入力欄・ボタン（controlHeightClass）と揃うようにするため */}
+            <summary className="cursor-pointer py-3 text-sm font-medium text-muted sm:py-2.5">
               外出・戻り（外出した日のみ）
             </summary>
-            <div className="mt-2">
+            <div className="mt-1">
               <TimeRangeFields
                 start={{ label: "外出", name: "outingStart", defaultValue: row.outingStart }}
                 end={{ label: "戻り", name: "outingEnd", defaultValue: row.outingEnd }}
                 max={maxTime}
               />
             </div>
-            <p className="mt-2 text-xs leading-relaxed text-muted">
+            <p className="mt-2 pb-3 text-xs leading-relaxed text-muted">
               休憩は設定画面の勤務ルール（休憩開始〜終了）から自動で勤務時間に反映されます。外出がこの休憩時間帯と重なる場合は「控除外出」で重複分を除いた時間を差し引きます。
             </p>
           </details>
