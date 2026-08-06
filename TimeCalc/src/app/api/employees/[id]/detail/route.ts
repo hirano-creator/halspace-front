@@ -212,6 +212,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     rows.push({
       attendanceId: record?.id ?? null,
+      hasClockEvents: dayEvents.length > 0,
       date,
       dayLabel: `${m}/${d}(${WEEKDAYS[weekday]})`,
       isWeekend: weekday === 0 || weekday === 6,

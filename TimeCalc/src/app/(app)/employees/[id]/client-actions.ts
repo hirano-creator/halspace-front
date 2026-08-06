@@ -18,8 +18,9 @@ export async function deleteAttendanceAction(
   formData: FormData,
 ): Promise<AttendanceEditState> {
   const userId = String(formData.get("userId") ?? "");
-  const attendanceId = String(formData.get("attendanceId") ?? "");
-  const res = await apiFetch(`/api/employees/${userId}/attendance/${attendanceId}`, {
+  // 削除は日付単位（Attendanceが無く打刻ログだけの日も消せるようにするため）
+  const date = String(formData.get("date") ?? "");
+  const res = await apiFetch(`/api/employees/${userId}/attendance/${encodeURIComponent(date)}`, {
     method: "DELETE",
   });
   return res.json();

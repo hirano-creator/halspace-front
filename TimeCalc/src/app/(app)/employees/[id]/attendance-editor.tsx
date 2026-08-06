@@ -59,6 +59,8 @@ const COL_WIDTHS_WITH_MONEY = [
 
 export interface DailyRow {
   attendanceId: string | null; // 打刻がない日は null
+  /** この日の打刻ログ（ClockEvent）が残っているか。Attendance が無くても削除ボタンを出す判定に使う */
+  hasClockEvents: boolean;
   date: string; // "YYYY-MM-DD"
   dayLabel: string; // "1(水)" など
   isWeekend: boolean;
@@ -232,11 +234,15 @@ function RowEditForm({
 /** 削除ボタン（確認ダイアログ付き） */
 function DeleteButton({
   userId,
-  attendanceId,
+  date,
+  hasClockEvents,
   onDeleted,
 }: {
   userId: string;
-  attendanceId: string;
+  /** 削除対象の日付 "YYYY-MM-DD"（Attendanceが無く打刻ログだけの日も消せるよう日付で指定する） */
+  date: string;
+  /** 打刻ログも一緒に消えることを確認ダイアログで伝えるためのフラグ */
+  hasClockEvents: boolean;
   /** 削除成功後に呼ぶ（一覧の再取得トリガー用） */
   onDeleted?: () => void;
 }) {
@@ -251,12 +257,15 @@ function DeleteButton({
     <form
       action={formAction}
       onSubmit={(e) => {
-        if (!confirm("この日の勤怠を削除しますか？")) e.preventDefault();
+        const message = hasClockEvents
+          ? "この日の勤怠を打刻ログごと削除しますか？"
+          : "この日の勤怠を削除しますか？";
+        if (!confirm(message)) e.preventDefault();
       }}
       className="inline"
     >
       <input type="hidden" name="userId" value={userId} />
-      <input type="hidden" name="attendanceId" value={attendanceId} />
+      <input type="hidden" name="date" value={date} />
       <button
         type="submit"
         disabled={pending}
@@ -436,11 +445,14 @@ export function AttendanceEditor({
                       >
                         {row.attendanceId ? "修正" : "追加"}
                       </button>
-                      {row.attendanceId && (
+                      {/* Attendanceが無くても打刻ログだけ残っている日は消せるようにする
+                          （実出勤・実退勤が表示されているのに削除できない状態を作らない） */}
+                      {(row.attendanceId || row.hasClockEvents) && (
                         <span className="ml-2">
                           <DeleteButton
                             userId={userId}
-                            attendanceId={row.attendanceId}
+                            date={row.date}
+                            hasClockEvents={row.hasClockEvents}
                             onDeleted={onChanged}
                           />
                         </span>
