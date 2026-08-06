@@ -668,7 +668,7 @@ export function CompanyManager({
           required
           className={inputClass}
         />
-        <button type="submit" disabled={addPending} className={buttonSecondaryClass}>
+        <button type="submit" disabled={addPending} className={`${buttonSecondaryClass} shrink-0`}>
           追加
         </button>
       </form>
@@ -1078,7 +1078,7 @@ export function DepartmentManager({
           required
           className={inputClass}
         />
-        <button type="submit" disabled={addPending} className={buttonSecondaryClass}>
+        <button type="submit" disabled={addPending} className={`${buttonSecondaryClass} shrink-0`}>
           追加
         </button>
       </form>

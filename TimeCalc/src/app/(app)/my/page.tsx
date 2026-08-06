@@ -58,11 +58,12 @@ export default function MyPage() {
         title="マイページ"
         description={`${data.me.name} ・ ${data.me.departmentName ?? "部署未設定"} ・ ${data.year}年${data.monthNum}月度（${data.periodRangeLabel}）`}
         action={
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <form method="get" className="min-w-0 flex-1 sm:flex-none">
+          // 月度選択と打刻ボタンは高さを揃えて横並び（スマホは幅いっぱい）
+          <div className="flex w-full items-stretch gap-2 sm:w-auto">
+            <form method="get" className="flex min-w-0 flex-1 sm:w-44 sm:flex-none">
               <MonthPicker defaultValue={data.month} />
             </form>
-            <Link href="/clock" className={`${buttonPrimaryClass} shrink-0`}>
+            <Link href="/clock" className={`${buttonPrimaryClass} shrink-0 px-5`}>
               打刻する
             </Link>
           </div>

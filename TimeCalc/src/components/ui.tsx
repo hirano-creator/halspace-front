@@ -125,17 +125,21 @@ export function Badge({
   );
 }
 
+/**
+ * 入力欄とボタンで共有する高さ。
+ * 横に並べたときに高さが揃うよう、両方に同じ値を当てる（スマホは指で押しやすい44px、PCは40px）。
+ * min-h なので文字が折り返しても潰れない。
+ */
+export const controlHeightClass = "min-h-11 sm:min-h-10";
+
 /** フォーム入力の共通クラス */
-export const inputClass =
-  "w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20";
+export const inputClass = `w-full ${controlHeightClass} rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20`;
 
 /** プライマリボタンの共通クラス */
-export const buttonPrimaryClass =
-  "inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50";
+export const buttonPrimaryClass = `inline-flex ${controlHeightClass} items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50`;
 
 /** セカンダリボタンの共通クラス */
-export const buttonSecondaryClass =
-  "inline-flex items-center justify-center rounded-lg border border-border bg-white px-4 py-2 text-sm font-medium text-foreground transition hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50";
+export const buttonSecondaryClass = `inline-flex ${controlHeightClass} items-center justify-center rounded-lg border border-border bg-white px-4 py-2 text-sm font-medium text-foreground transition hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50`;
 
 /** ラベルの共通クラス */
 export const labelClass = "mb-1 block text-sm font-medium text-foreground";
