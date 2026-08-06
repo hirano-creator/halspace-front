@@ -100,8 +100,10 @@ function TimeField({
   const ref = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="min-w-0 sm:w-36">
-      <label htmlFor={id} className="mb-1 block text-xs text-muted">
+    // 幅は 1fr で伸ばさず時刻5文字ぶんに固定する。伸ばすと箱だけ間延びするうえ、
+    // iOSのネイティブtime入力は最小幅を持つため、列幅ぴったりだと右にはみ出す。
+    <div className="w-36 min-w-0 shrink-0">
+      <label htmlFor={id} className="mb-1 block text-xs font-medium text-muted">
         {label}
       </label>
       <input
@@ -111,7 +113,7 @@ function TimeField({
         name={name}
         defaultValue={defaultValue}
         max={max}
-        className={inputClass}
+        className={`${inputClass} min-w-0 font-mono tabular-nums`}
       />
       {clearLabel && (
         <button
@@ -119,7 +121,8 @@ function TimeField({
           onClick={() => {
             if (ref.current) ref.current.value = "";
           }}
-          className="mt-1 py-0.5 text-xs text-primary hover:underline"
+          // 主導線（保存）から色を奪わないよう、控えめな色＋常時下線でリンクだと示す
+          className="mt-1 py-0.5 text-xs text-muted underline underline-offset-2 hover:text-foreground"
         >
           {clearLabel}
         </button>
@@ -176,14 +179,20 @@ function RowDetailFields({
       {selfEditMode !== "none" && (
         <form action={editFormAction} className="space-y-3">
           <input type="hidden" name="date" value={row.date} />
-          <p className="text-xs font-semibold text-muted">
-            {selfEditMode === "direct"
-              ? "時刻の修正（保存するとすぐ反映されます・修正履歴が残ります）"
-              : "時刻の修正申請（管理者の承認後に反映されます）"}
-          </p>
+          {/* 見出しと補足を分ける（1行に詰めるとスマホで折り返して読みにくい） */}
+          <div>
+            <p className="text-sm font-semibold">
+              {selfEditMode === "direct" ? "時刻の修正" : "時刻の修正申請"}
+            </p>
+            <p className="mt-0.5 text-xs text-muted">
+              {selfEditMode === "direct"
+                ? "保存するとすぐ反映されます（修正履歴が残ります）"
+                : "管理者の承認後に反映されます"}
+            </p>
+          </div>
 
-          {/* 出勤・退勤は毎回使うので常に表示。スマホは2列で折り返す */}
-          <div className="grid grid-cols-2 items-start gap-x-3 gap-y-2 sm:flex sm:flex-wrap">
+          {/* 出勤・退勤は毎回使うので常に表示。幅が足りない端末では自動で縦に折り返る */}
+          <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
             <TimeField
               label="出勤"
               name="clockIn"
@@ -208,7 +217,7 @@ function RowDetailFields({
             <summary className="cursor-pointer text-xs font-medium text-muted">
               外出・戻り（外出した日のみ）
             </summary>
-            <div className="mt-2 grid grid-cols-2 items-start gap-x-3 gap-y-2 sm:flex sm:flex-wrap">
+            <div className="mt-2 flex flex-wrap items-start gap-x-3 gap-y-2">
               <TimeField
                 label="外出"
                 name="outingStart"
