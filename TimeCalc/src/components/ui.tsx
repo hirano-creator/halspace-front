@@ -1,6 +1,6 @@
 // 汎用UIコンポーネント（カード・ボタン・バッジなど）
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 /**
  * カード（白背景・角丸・薄い枠線）
@@ -32,11 +32,20 @@ export function TableCard({
   children,
   header,
   className = "",
+  scrollClassName = "",
+  scrollStyle,
 }: {
   children: ReactNode;
   /** 表の上に置く見出し・操作（横スクロールしても動かない） */
   header?: ReactNode;
   className?: string;
+  /**
+   * スクロール領域（表を包むdiv）に足すクラス。
+   * 高さを制限して縦スクロールさせ、表のヘッダー行を sticky で固定する用途に使う。
+   */
+  scrollClassName?: string;
+  /** スクロール領域に渡すstyle（高さをCSS変数で動的に与える用途） */
+  scrollStyle?: CSSProperties;
 }) {
   return (
     <Card className={`p-0! ${className}`}>
@@ -44,7 +53,9 @@ export function TableCard({
       <p className="border-b border-border bg-gray-50/50 px-4 py-1.5 text-xs text-muted md:hidden">
         ← 横にスクロールできます
       </p>
-      <div className="overflow-x-auto">{children}</div>
+      <div className={`overflow-x-auto ${scrollClassName}`} style={scrollStyle}>
+        {children}
+      </div>
     </Card>
   );
 }

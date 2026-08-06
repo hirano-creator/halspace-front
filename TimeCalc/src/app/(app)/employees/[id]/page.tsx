@@ -2,7 +2,7 @@
 
 // 社員詳細（締め期間の日別勤務・残業・金額の一覧と月度合計）
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useRequireAuth } from "@/lib/auth/client";
 import { apiFetchJson } from "@/lib/auth/api-fetch";
@@ -72,6 +72,22 @@ export default function EmployeeDetailPage() {
     };
   }, [authStatus, refetch]);
 
+  // 表を下にたどっても社員名・月度・サマリーを見失わないよう、ページ上部を画面上端に固定する。
+  // 表の高さは「画面の残り」にしたいが、固定部の高さはバッジの折り返しや金額列の有無で変わるため、
+  // 実測してCSS変数で渡す（スマホは縦が狭く固定すると表がほとんど見えないのでmd未満は固定しない）。
+  const stickyHeadRef = useRef<HTMLDivElement>(null);
+  const [stickyHeadHeight, setStickyHeadHeight] = useState(0);
+  const isReady = data !== null;
+  useEffect(() => {
+    const el = stickyHeadRef.current;
+    if (!el) return;
+    const update = () => setStickyHeadHeight(el.offsetHeight);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isReady]);
+
   if (authStatus === "unauthenticated") return null;
   if (authStatus === "loading" || !data) {
     return <p className="py-8 text-center text-sm text-muted">読み込み中...</p>;
@@ -84,71 +100,91 @@ export default function EmployeeDetailPage() {
 
   return (
     <>
-      <PageHeader
-        title={data.employee.name}
-        description={`社員番号 ${data.employee.employeeCode} ・ ${data.employee.departmentName ?? "部署未設定"}${showMoney ? ` ・ 時給 ${formatYen(data.employee.hourlyWage)}` : ""}`}
-        action={
-          <form method="get">
-            <MonthPicker defaultValue={data.month} />
-          </form>
-        }
-      />
-
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Badge tone={data.employee.isActive ? "green" : "red"}>
-          {data.employee.isActive ? "在籍中" : "退職済"}
-        </Badge>
-        <Badge tone="purple">{data.roleLabels[data.employee.role]}</Badge>
-        <Badge tone="gray">
-          {data.year}年{data.monthNum}月度（{data.periodRangeLabel}・締め{data.closingDay}日）
-        </Badge>
-        {showMoney && data.employee.hourlyWage === 0 && (
-          <Badge tone="amber">時給未設定（金額は¥0になります）</Badge>
-        )}
-      </div>
-
       <div
-        className={`mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 ${showMoney ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}
+        ref={stickyHeadRef}
+        className="bg-background md:sticky md:top-0 md:z-30 md:pb-6"
       >
-        <StatCard label="勤務日数" value={`${data.summary.workDays}日`} />
-        {/* 週単位管理の会社は残業を週合計で区分するため、早出残業・残業の代わりに2区分を出す */}
-        {data.weeklyTotals ? (
-          <>
-            <StatCard label="勤務時間" value={formatMinutes(data.weeklyTotals.totalMinutes)} />
-            <StatCard
-              label="36H超44H以内"
-              value={formatMinutes(data.weeklyTotals.withinLegalOvertimeMinutes)}
-              tone="amber"
-            />
-            <StatCard
-              label="44H超"
-              value={formatMinutes(data.weeklyTotals.overLegalOvertimeMinutes)}
-              tone="amber"
-            />
-          </>
-        ) : (
-          <>
-            <StatCard label="勤務時間" value={formatMinutes(data.monthTotal.workMinutes)} />
-            <StatCard label="早出残業" value={formatMinutes(data.monthTotal.earlyOvertimeMinutes)} tone="amber" />
-            <StatCard label="残業時間" value={formatMinutes(data.monthTotal.overtimeMinutes)} tone="amber" />
-          </>
-        )}
-        <StatCard
-          label="遅刻・早退"
-          value={`${data.summary.lateCount}・${data.summary.earlyLeaveCount}回`}
-          tone={data.summary.lateCount + data.summary.earlyLeaveCount > 0 ? "amber" : "default"}
+        <PageHeader
+          title={data.employee.name}
+          description={`社員番号 ${data.employee.employeeCode} ・ ${data.employee.departmentName ?? "部署未設定"}${showMoney ? ` ・ 時給 ${formatYen(data.employee.hourlyWage)}` : ""}`}
+          action={
+            <form method="get">
+              <MonthPicker defaultValue={data.month} />
+            </form>
+          }
         />
-        {showMoney && (
+
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Badge tone={data.employee.isActive ? "green" : "red"}>
+            {data.employee.isActive ? "在籍中" : "退職済"}
+          </Badge>
+          <Badge tone="purple">{data.roleLabels[data.employee.role]}</Badge>
+          <Badge tone="gray">
+            {data.year}年{data.monthNum}月度（{data.periodRangeLabel}・締め{data.closingDay}日）
+          </Badge>
+          {showMoney && data.employee.hourlyWage === 0 && (
+            <Badge tone="amber">時給未設定（金額は¥0になります）</Badge>
+          )}
+        </div>
+
+        {/* 固定時の下余白は親の md:pb-6 が持つため、md以上ではこの mb を外す */}
+        <div
+          className={`mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:mb-0 ${showMoney ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}
+        >
+          <StatCard label="勤務日数" value={`${data.summary.workDays}日`} />
+          {/* 週単位管理の会社は残業を週合計で区分するため、早出残業・残業の代わりに2区分を出す */}
+          {data.weeklyTotals ? (
+            <>
+              <StatCard label="勤務時間" value={formatMinutes(data.weeklyTotals.totalMinutes)} />
+              <StatCard
+                label="36H超44H以内"
+                value={formatMinutes(data.weeklyTotals.withinLegalOvertimeMinutes)}
+                tone="amber"
+              />
+              <StatCard
+                label="44H超"
+                value={formatMinutes(data.weeklyTotals.overLegalOvertimeMinutes)}
+                tone="amber"
+              />
+            </>
+          ) : (
+            <>
+              <StatCard label="勤務時間" value={formatMinutes(data.monthTotal.workMinutes)} />
+              <StatCard
+                label="早出残業"
+                value={formatMinutes(data.monthTotal.earlyOvertimeMinutes)}
+                tone="amber"
+              />
+              <StatCard
+                label="残業時間"
+                value={formatMinutes(data.monthTotal.overtimeMinutes)}
+                tone="amber"
+              />
+            </>
+          )}
           <StatCard
-            label="支給額（概算）"
-            value={formatYen(data.payTotal.totalPay)}
-            sub={`金額 ${formatYen(data.payTotal.basePay)} ＋ 残業代 ${formatYen(data.payTotal.premiumPay)}`}
-            tone="primary"
+            label="遅刻・早退"
+            value={`${data.summary.lateCount}・${data.summary.earlyLeaveCount}回`}
+            tone={data.summary.lateCount + data.summary.earlyLeaveCount > 0 ? "amber" : "default"}
           />
-        )}
+          {showMoney && (
+            <StatCard
+              label="支給額（概算）"
+              value={formatYen(data.payTotal.totalPay)}
+              sub={`金額 ${formatYen(data.payTotal.basePay)} ＋ 残業代 ${formatYen(data.payTotal.premiumPay)}`}
+              tone="primary"
+            />
+          )}
+        </div>
       </div>
 
-      <TableCard>
+      {/* 表だけを画面の残り高さの中でスクロールさせ、列見出し（表ヘッダー）を上端に固定する */}
+      <TableCard
+        scrollClassName="md:max-h-[var(--tc-table-max-h)] md:overflow-y-auto"
+        scrollStyle={
+          { "--tc-table-max-h": `calc(100vh - ${stickyHeadHeight}px - 4.5rem)` } as CSSProperties
+        }
+      >
         <AttendanceEditor
           userId={data.employee.id}
           rows={data.rows}

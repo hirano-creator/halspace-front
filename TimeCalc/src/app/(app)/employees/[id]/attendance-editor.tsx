@@ -15,7 +15,10 @@ import type { WeeklyBucket } from "@/lib/attendance/types";
 // text-align はデフォルトの左寄せに任せ、中央/右寄せにしたい列だけ
 // text-center / text-right を個別に足す（ここに text-left を入れると
 // 後続の text-center 指定と衝突して中央揃えが効かなくなる）。
-const th = "px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted";
+// 下線は thead ではなく各thの内側shadowで引く。border-collapse下のsticky theadは
+// スクロール時にborderが描かれず、線が消えてしまうため。
+const th =
+  "px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted shadow-[inset_0_-1px_0_var(--border)]";
 const td = "px-2 py-2 text-sm whitespace-nowrap";
 
 // 列幅。table-fixed と組み合わせて、ヘッダーとデータ行の列位置を確実に一致させる
@@ -316,7 +319,9 @@ export function AttendanceEditor({
           <col key={i} className={w} />
         ))}
       </colgroup>
-      <thead className="border-b border-border bg-gray-50/50">
+      {/* 表を下にたどっても列名を見失わないよう、スクロール領域の上端に固定する
+          （半透明だと下の行が透けるので、固定する分ここは不透明にする） */}
+      <thead className="sticky top-0 z-10 bg-gray-50">
         <tr>
           <th className={`${th} text-center`}>日付</th>
           <th className={`${th} text-right`}>実出勤</th>
