@@ -64,6 +64,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   initBulkTag();
   initTagShare();
   initScrollTopButton();
+
+  /* 初期化完了の目印。E2Eが「まだリスナーが付いていない状態」で操作して
+     falseネガティブを出すのを防ぐ（初期化は一覧の取得待ちで数秒かかる） */
+  window.__wnDashboardReady = true;
 });
 
 /* ページトップへ戻るボタン（無限スクロールで一覧が長くなるため）
@@ -231,6 +235,34 @@ function wnEscapeHtml(s) {
   ));
 }
 
+/* ── タグの状態（グループ＋タグ。既定のタグは持たず、管理者が作る） ── */
+let ctGroups   = [];          // [{id, name, sort_order}]
+let ctTags     = [];          // [{id, group_id, name, kana, count}]
+let ctCanEdit  = false;       // タグの作成・改名・削除ができるか（管理者のみ）
+let ctSel      = new Set();   // フォームで選択中のタグID
+let ctFlt      = new Set();   // 絞り込み中のタグID（'none' = タグなし）
+/* タグを選ぶパネルの状態 */
+let ctPop      = { open: false, q: '', manage: false, editTag: null, editGroup: null, newTag: false, newGroup: false };
+
+const CT_PALETTE = ['#1E88E5', '#2E9E6B', '#E8873B', '#8E63C8', '#D2546A', '#0FA3A3', '#6B7A8D'];
+const ctJa       = (a, b) => String(a ?? '').localeCompare(String(b ?? ''), 'ja');
+/* 漢字は localeCompare では読み順にならない（機械加工 < 曲げ加工 < 製缶…）ので、
+   「よみ」が入っていればそれを優先する。空なら表記そのままで並べる */
+const ctSortKey  = t => t.kana || t.name;
+const ctByKana   = (a, b) => ctJa(ctSortKey(a), ctSortKey(b));
+const ctTag      = id => ctTags.find(t => t.id === Number(id));
+const ctColor    = groupId => {
+  const i = ctGroups.findIndex(g => g.id === groupId);
+  return i < 0 ? '#9AA7B4' : CT_PALETTE[i % CT_PALETTE.length];
+};
+const ctTagsOf   = groupId => ctTags.filter(t => t.group_id === groupId).sort(ctByKana);
+const ctUngrouped = () => ctTags.filter(t => !t.group_id).sort(ctByKana);
+const ctFmtDate  = s => {
+  if (!s) return '';
+  const d = new Date(s);
+  return isNaN(d) ? '' : `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+};
+
 function initContactsModal() {
   const openBtn         = document.getElementById('contactsOpenBtn');
   const closeBtn        = document.getElementById('contactsModalClose');
@@ -253,8 +285,48 @@ function initContactsModal() {
   companyEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); emailEl?.focus(); } });
   emailEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addContactFromForm(); } });
 
-  const searchEl = document.getElementById('contactSearchInput');
-  searchEl?.addEventListener('input', () => _renderFilteredContacts());
+  document.getElementById('contactSearchInput')?.addEventListener('input', () => _renderFilteredContacts());
+  document.getElementById('contactTagPickBtn')?.addEventListener('click', () => {
+    ctPop.open ? _ctClosePanel() : (ctPop.open = true, _ctRenderPanel('contactTagPanelSearch'));
+  });
+  document.getElementById('contactFilterClear')?.addEventListener('click', () => {
+    ctFlt.clear(); _ctRenderNav(); _renderFilteredContacts();
+  });
+
+  _ctInitKanaAutoFill(nameEl, kanaEl);
+
+  /* パネルの外側クリックで閉じる。再描画するとクリック対象が消えて
+     後続の click が届かなくなるため、DOMから外すだけにする */
+  document.addEventListener('mousedown', e => {
+    if (ctPop.open && !e.target.closest('.ct-pop-wrap')) {
+      document.querySelectorAll('.ct-pop-panel').forEach(el => el.remove());
+      _ctResetPanelState();
+    }
+  });
+}
+
+/* 名前をキーボードで打ったとき、変換前のひらがなを拾ってカナ欄に入れる。
+   iOS Safari や一部Androidは変換前文字列が取れないため、取れなければ何もしない */
+function _ctInitKanaAutoFill(nameEl, kanaEl) {
+  if (!nameEl || !kanaEl) return;
+  let reading = '';
+  nameEl.addEventListener('compositionstart', () => { reading = ''; });
+  nameEl.addEventListener('compositionupdate', e => { reading += e.data || ''; });
+  nameEl.addEventListener('compositionend', () => {
+    const kana = _ctToKatakana(reading);
+    reading = '';
+    if (!kana) return;
+    // 手で入れたカナは上書きしない。空のときだけ補う
+    kanaEl.value = kanaEl.value ? `${kanaEl.value} ${kana}`.trim() : kana;
+  });
+}
+/* ひらがな → カタカナ（カタカナ・長音はそのまま。それ以外の文字は捨てる） */
+function _ctToKatakana(s) {
+  const out = String(s ?? '')
+    .replace(/[ぁ-ゖ]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60))
+    .replace(/[^ァ-ヶー\s　]/g, '')
+    .trim();
+  return out;
 }
 
 function openContactsModal() {
@@ -262,22 +334,36 @@ function openContactsModal() {
   _contactCancelEdit();
   const searchEl = document.getElementById('contactSearchInput');
   if (searchEl) searchEl.value = '';
+  ctFlt.clear();
+  _ctResetPanelState();
   renderContactsList();
+  loadContactTags();
 }
 function closeContactsModal() {
   document.getElementById('contactsModal').classList.add('hidden');
+  _ctClosePanel();
+}
+
+function _ctResetPanelState() {
+  ctPop = { open: false, q: '', manage: false, editTag: null, editGroup: null, newTag: false, newGroup: false };
+}
+function _ctClosePanel() {
+  _ctResetPanelState();
+  _ctRenderPanel();
 }
 
 function _contactCancelEdit() {
   contactEditingId = null;
-  document.getElementById('contactNameInput').value    = '';
-  document.getElementById('contactKanaInput').value    = '';
-  document.getElementById('contactCompanyInput').value = '';
-  document.getElementById('contactEmailInput').value   = '';
-  document.getElementById('contactAddBtnIcon').className  = 'fa-solid fa-plus';
-  document.getElementById('contactAddBtnLabel').textContent = '追加';
+  ['contactNameInput', 'contactKanaInput', 'contactCompanyInput', 'contactEmailInput', 'contactPhoneInput', 'contactFaxInput']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ctSel.clear();
+  document.getElementById('contactFormTitle').textContent    = '新しく登録する';
+  document.getElementById('contactAddBtnIcon').className     = 'fa-solid fa-plus';
+  document.getElementById('contactAddBtnLabel').textContent  = '登録する';
   document.getElementById('contactCancelEditBtn')?.classList.add('hidden');
+  document.getElementById('contactMeta')?.classList.add('hidden');
   _contactShowError('');
+  _ctRenderPicked();
 }
 
 function _contactShowError(msg) {
@@ -288,69 +374,389 @@ function _contactShowError(msg) {
   else     { box.style.display = 'none'; }
 }
 
+async function loadContactTags() {
+  try {
+    const data = await wnGetContactTags();
+    ctGroups  = data.groups   ?? [];
+    ctTags    = data.tags     ?? [];
+    ctCanEdit = !!data.can_edit;
+  } catch {
+    ctGroups = []; ctTags = []; ctCanEdit = false;
+  }
+  _ctRenderNav();
+  _ctRenderPicked();
+  _ctRenderPanel();
+  // 連絡先一覧の方が先に描画されているとタグ名を引けず、行にタグが出ないままになる
+  _renderFilteredContacts();
+}
+
 async function renderContactsList() {
   const list = document.getElementById('contactsList');
   if (!list) return;
-  list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px;"><i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…</div>';
+  list.innerHTML = '<div class="ct-empty"><i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…</div>';
 
   try { allContactsCache = await wnGetContacts(); }
-  catch { list.innerHTML = '<div style="font-size:12px;color:#E17055;padding:8px;">連絡先の取得に失敗しました</div>'; return; }
+  catch { list.innerHTML = '<div class="ct-empty" style="color:#E17055;">連絡先の取得に失敗しました</div>'; return; }
 
   _renderFilteredContacts();
+  _ctRenderNav();      // 「すべて」「タグなし」の件数は連絡先が揃ってから確定する
+}
+
+/* 表示対象の連絡先（検索 → タグ絞り込み → あいうえお順） */
+function _ctVisibleContacts() {
+  const q = (document.getElementById('contactSearchInput')?.value ?? '').trim().toLowerCase();
+  let list = allContactsCache.slice().sort((a, b) => ctJa(a.name_kana || a.name, b.name_kana || b.name));
+  if (q) {
+    list = list.filter(c => [c.name, c.name_kana, c.company_name, c.email, c.phone, c.fax]
+      .some(v => v && String(v).toLowerCase().includes(q)));
+  }
+  if (ctFlt.size) {
+    list = list.filter(c => {
+      const ids = c.tag_ids ?? [];
+      if (ctFlt.has('none') && ids.length === 0) return true;
+      return ids.some(id => ctFlt.has(id));      // いずれかを含む（OR）
+    });
+  }
+  return list;
 }
 
 function _renderFilteredContacts() {
   const list = document.getElementById('contactsList');
   if (!list) return;
 
-  const q = (document.getElementById('contactSearchInput')?.value ?? '').trim().toLowerCase();
-  const contacts = q
-    ? allContactsCache.filter(c =>
-        [c.name, c.name_kana, c.company_name, c.email].some(v => v && v.toLowerCase().includes(q))
-      )
-    : allContactsCache;
+  const contacts = _ctVisibleContacts();
+  const cntEl = document.getElementById('contactsCount');
+  if (cntEl) {
+    const filtered = ctFlt.size || (document.getElementById('contactSearchInput')?.value ?? '').trim();
+    cntEl.textContent = filtered ? `${contacts.length} / ${allContactsCache.length}件` : `${allContactsCache.length}件`;
+  }
+  document.getElementById('contactFilterBar')?.classList.toggle('hidden', ctFlt.size === 0);
 
   if (!allContactsCache.length) {
-    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px;">まだ連絡先がありません。上のフォームから追加してください。</div>';
+    list.innerHTML = '<div class="ct-empty">まだ連絡先がありません。<br>左のフォームから登録してください。</div>';
     return;
   }
   if (!contacts.length) {
-    list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px;">該当する連絡先が見つかりません。</div>';
+    list.innerHTML = '<div class="ct-empty">条件に合う連絡先がありません。</div>';
     return;
   }
 
-  list.innerHTML = contacts.map(c => `
-    <div data-id="${c.id}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;">
+  list.innerHTML = contacts.map(c => {
+    const tags = (c.tag_ids ?? []).map(ctTag).filter(Boolean).sort(ctByKana);
+    const updated = c.updated_at && c.created_at && ctFmtDate(c.updated_at) !== ctFmtDate(c.created_at);
+    return `
+    <div class="ct-r" data-id="${c.id}">
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:700;color:var(--primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          ${wnEscapeHtml(c.name)}${c.name_kana ? `<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">${wnEscapeHtml(c.name_kana)}</span>` : ''}
-        </div>
-        <div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          ${c.company_name ? `<span style="margin-right:4px;">${wnEscapeHtml(c.company_name)}</span><span style="margin-right:4px;">·</span>` : ''}${wnEscapeHtml(c.email)}
-        </div>
+        <div class="nm">${wnEscapeHtml(c.name)}${c.name_kana ? `<span class="kn">${wnEscapeHtml(c.name_kana)}</span>` : ''}</div>
+        <div class="sub">${c.company_name ? `${wnEscapeHtml(c.company_name)} · ` : ''}${wnEscapeHtml(c.email)}</div>
+        ${c.phone || c.fax ? `<div class="sub">${c.phone ? 'TEL ' + wnEscapeHtml(c.phone) : ''}${c.phone && c.fax ? '　' : ''}${c.fax ? 'FAX ' + wnEscapeHtml(c.fax) : ''}</div>` : ''}
+        ${tags.length ? `<div style="margin-top:4px;">${tags.map(t =>
+            `<span class="ct-mini"><span class="ct-dot" style="--c:${ctColor(t.group_id)}"></span>${wnEscapeHtml(t.name)}</span>`).join('')}</div>` : ''}
+        <div class="meta">登録 ${ctFmtDate(c.created_at)}${c.created_by_name ? '　' + wnEscapeHtml(c.created_by_name) : ''}${
+          updated ? `　／　更新 ${ctFmtDate(c.updated_at)}${c.updated_by_name ? '　' + wnEscapeHtml(c.updated_by_name) : ''}` : ''}</div>
       </div>
-      <button class="btn btn-outline btn-sm contact-mail-btn" data-email="${wnEscapeHtml(c.email)}" data-name="${wnEscapeHtml(c.name)}" data-company="${wnEscapeHtml(c.company_name)}" style="flex-shrink:0;font-size:11px;padding:4px 8px;color:var(--accent);" title="メールを送る"><i class="fa-solid fa-envelope"></i></button>
-      <button class="btn btn-outline btn-sm contact-edit-btn" style="flex-shrink:0;font-size:11px;padding:4px 8px;" title="編集"><i class="fa-solid fa-pen"></i></button>
-      <button class="btn btn-outline btn-sm contact-del-btn" style="flex-shrink:0;font-size:11px;padding:4px 8px;color:#E17055;" title="削除"><i class="fa-solid fa-trash"></i></button>
-    </div>
-  `).join('');
+      <button class="ct-ib contact-mail-btn" data-email="${wnEscapeHtml(c.email)}" title="メールを送る"><i class="fa-solid fa-envelope"></i></button>
+      <button class="ct-ib contact-edit-btn" title="編集"><i class="fa-solid fa-pen"></i></button>
+      <button class="ct-ib del contact-del-btn" title="削除"><i class="fa-solid fa-trash"></i></button>
+    </div>`;
+  }).join('');
 
   list.querySelectorAll('.contact-mail-btn').forEach(btn => {
-    btn.addEventListener('click', () => openContactMail(btn.dataset.email, btn.dataset.name, btn.dataset.company));
+    btn.addEventListener('click', () => openContactMail(btn.dataset.email));
   });
   list.querySelectorAll('.contact-del-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.closest('[data-id]').dataset.id;
-      deleteContactById(id);
-    });
+    btn.addEventListener('click', () => deleteContactById(btn.closest('[data-id]').dataset.id));
   });
   list.querySelectorAll('.contact-edit-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const row = btn.closest('[data-id]');
-      const c = contacts.find(x => String(x.id) === String(row.dataset.id));
-      if (c) editContact(c);
-    });
+    const c = contacts.find(x => String(x.id) === String(btn.closest('[data-id]').dataset.id));
+    btn.addEventListener('click', () => { if (c) editContact(c); });
   });
+}
+
+/* ── 右側のタグ一覧（絞り込み） ── */
+function _ctRenderNav() {
+  const nav = document.getElementById('contactTagNav');
+  if (!nav) return;
+
+  const noTag = allContactsCache.filter(c => !(c.tag_ids ?? []).length).length;
+  const item  = t => `
+    <div class="ct-nav-item ${ctFlt.has(t.id) ? 'on' : ''}" data-nav="${t.id}">
+      <span class="ct-dot" style="--c:${ctColor(t.group_id)}"></span>
+      <span class="nm">${wnEscapeHtml(t.name)}</span><span class="cnt">${t.count ?? 0}</span>
+    </div>`;
+
+  nav.innerHTML = `
+    <div class="ct-nav-item ${ctFlt.size ? '' : 'on'}" data-nav="all"><span class="nm">すべて</span><span class="cnt">${allContactsCache.length}</span></div>
+    ${ctGroups.map(g => {
+      const list = ctTagsOf(g.id);
+      if (!list.length) return '';
+      return `<div class="ct-nav-head"><span class="ct-dot" style="--c:${ctColor(g.id)}"></span>${wnEscapeHtml(g.name)}</div>` + list.map(item).join('');
+    }).join('')}
+    ${ctUngrouped().length ? `<div class="ct-nav-head"><span class="ct-dot"></span>未分類</div>` + ctUngrouped().map(item).join('') : ''}
+    ${!ctTags.length ? `<div style="font-size:11px;color:#B6BFC9;padding:10px 7px;line-height:1.7;">${
+        ctCanEdit ? 'タグは左の<br>「タグを作る」から' : 'タグはまだありません'}</div>` : ''}
+    ${noTag ? `<div class="ct-nav-head">その他</div>
+      <div class="ct-nav-item ${ctFlt.has('none') ? 'on' : ''}" data-nav="none"><span class="nm">タグなし</span><span class="cnt">${noTag}</span></div>` : ''}`;
+
+  nav.querySelectorAll('[data-nav]').forEach(el => el.addEventListener('click', () => {
+    const v = el.dataset.nav;
+    if (v === 'all') ctFlt.clear();
+    else {
+      const key = v === 'none' ? 'none' : Number(v);
+      ctFlt.has(key) ? ctFlt.delete(key) : ctFlt.add(key);
+    }
+    _ctRenderNav();
+    _renderFilteredContacts();
+  }));
+}
+
+/* ── フォームの選択中タグ ── */
+function _ctRenderPicked() {
+  const box = document.getElementById('contactPickedTags');
+  const btn = document.getElementById('contactTagPickLabel');
+  if (btn) {
+    btn.textContent = ctSel.size ? `${ctSel.size}件のタグを選択中`
+                                 : (ctTags.length ? 'タグを選ぶ' : (ctCanEdit ? 'タグを作る' : 'タグはまだありません'));
+    btn.style.color      = ctSel.size ? 'var(--primary)' : '';
+    btn.style.fontWeight = ctSel.size ? '700' : '';
+  }
+  if (!box) return;
+
+  const picked = [...ctSel].map(ctTag).filter(Boolean).sort(ctByKana);
+  box.innerHTML = picked.length
+    ? picked.map(t => `<span class="ct-tag"><span class="ct-dot" style="--c:${ctColor(t.group_id)}"></span>${wnEscapeHtml(t.name)}<i class="fa-solid fa-xmark" data-off="${t.id}"></i></span>`).join('')
+    : '<span class="none">タグ未選択</span>';
+
+  box.querySelectorAll('[data-off]').forEach(i => i.addEventListener('click', () => {
+    ctSel.delete(Number(i.dataset.off));
+    _ctRenderPicked(); _ctRenderPanel();
+  }));
+}
+
+/* ── タグを選ぶ／作る／編集するパネル ── */
+function _ctRenderPanel(focusId) {
+  const wrap = document.getElementById('contactTagPanel');
+  if (!wrap) return;
+  if (!ctPop.open) { wrap.innerHTML = ''; return; }
+
+  const hit = t => !ctPop.q || t.name.includes(ctPop.q) || (t.kana || '').includes(ctPop.q);
+
+  const tagRow = t => ctPop.editTag === t.id ? `
+    <div class="ct-opt" style="gap:5px;flex-wrap:wrap;">
+      <input class="ct-in sm" id="ctTagName" value="${wnEscapeHtml(t.name)}" style="flex:1;min-width:80px;">
+      <input class="ct-in sm" id="ctTagKana" value="${wnEscapeHtml(t.kana || '')}" placeholder="よみ（任意）" style="width:96px;">
+      <select class="ct-in sm" id="ctTagGroup" style="width:110px;">
+        ${ctGroups.map(g => `<option value="${g.id}" ${g.id === t.group_id ? 'selected' : ''}>${wnEscapeHtml(g.name)}</option>`).join('')}
+        <option value="" ${t.group_id ? '' : 'selected'}>未分類</option>
+      </select>
+      <button type="button" class="ct-link" data-tsave="${t.id}">保存</button>
+      <button type="button" class="ct-link mut" data-tcancel="1">やめる</button>
+    </div>` : `
+    <div class="ct-opt ${ctSel.has(t.id) ? 'on' : ''}" ${ctPop.manage ? '' : `data-pick="${t.id}"`}>
+      ${ctPop.manage ? `<span class="ct-dot" style="--c:${ctColor(t.group_id)}"></span>` : '<span class="chk"><i class="fa-solid fa-check"></i></span>'}
+      ${wnEscapeHtml(t.name)}
+      ${ctPop.manage ? `<span class="tools">
+          <button type="button" class="ct-mini-ib" data-tedit="${t.id}" title="名前・グループを変える"><i class="fa-solid fa-pen"></i></button>
+          <button type="button" class="ct-mini-ib del" data-tdel="${t.id}" title="タグを削除"><i class="fa-solid fa-trash"></i></button>
+        </span>` : `<span class="cnt">${t.count ?? 0}</span>`}
+    </div>`;
+
+  const groupBlock = g => {
+    const list = ctTagsOf(g.id).filter(hit);
+    if (ctPop.q && !list.length) return '';
+    return `
+      <div class="ct-ghead">
+        <span class="ct-dot" style="--c:${ctColor(g.id)}"></span>
+        ${ctPop.editGroup === g.id
+          ? `<input class="ct-in sm" id="ctGroupName" value="${wnEscapeHtml(g.name)}" style="width:150px;">
+             <button type="button" class="ct-link" data-gsave="${g.id}">保存</button>
+             <button type="button" class="ct-link mut" data-gcancel="1">やめる</button>`
+          : `${wnEscapeHtml(g.name)}
+             ${ctPop.manage ? `<span class="tools">
+                 <button type="button" class="ct-mini-ib" data-gedit="${g.id}" title="グループ名を変える"><i class="fa-solid fa-pen"></i></button>
+                 <button type="button" class="ct-mini-ib del" data-gdel="${g.id}" title="グループを削除"><i class="fa-solid fa-trash"></i></button>
+               </span>` : ''}`}
+      </div>
+      ${list.map(tagRow).join('') || '<div style="font-size:11px;color:#B6BFC9;padding:3px 7px 6px 24px;">タグがありません</div>'}`;
+  };
+
+  const ungrouped = ctUngrouped().filter(hit);
+
+  wrap.innerHTML = `<div class="ct-pop-panel">
+    <div style="display:flex;gap:6px;align-items:center;">
+      <input class="ct-in sm" id="contactTagPanelSearch" placeholder="タグを検索" value="${wnEscapeHtml(ctPop.q)}" style="flex:1;">
+      ${ctCanEdit ? `<button type="button" class="ct-link ${ctPop.manage ? '' : 'mut'}" id="ctManageBtn">
+          <i class="fa-solid fa-${ctPop.manage ? 'check' : 'gear'}"></i> ${ctPop.manage ? '編集を終える' : 'タグを編集'}
+        </button>` : ''}
+    </div>
+
+    <div class="ct-pop-list">
+      ${!ctTags.length && !ctGroups.length ? `<div class="ct-empty" style="padding:12px 7px;">
+          まだタグがありません。${ctCanEdit ? '<br>まず <b>グループ</b>（例：仕入・加工先）を作り、その中にタグを追加してください。'
+                                            : '<br>タグの作成は管理者のみ行えます。'}
+        </div>` : ''}
+      ${ctGroups.map(groupBlock).join('')}
+      ${ungrouped.length ? `<div class="ct-ghead"><span class="ct-dot"></span>未分類</div>${ungrouped.map(tagRow).join('')}` : ''}
+    </div>
+
+    ${ctPop.newGroup ? `
+      <div class="ct-row" style="margin-top:7px;">
+        <input class="ct-in sm" id="ctNewGroupName" placeholder="グループ名（例: 仕入・加工先）" style="flex:1;">
+        <button type="button" class="btn btn-accent btn-sm" id="ctNewGroupOk" style="font-size:11px;">作成</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="ctNewGroupCancel" style="font-size:11px;">やめる</button>
+      </div>` : ''}
+    ${ctPop.newTag ? `
+      <div class="ct-row" style="margin-top:7px;flex-wrap:wrap;">
+        <input class="ct-in sm" id="ctNewTagName" placeholder="タグ名（例: 曲げ加工）" style="flex:1;min-width:100px;">
+        <input class="ct-in sm" id="ctNewTagKana" placeholder="よみ（任意）" style="width:100px;">
+        <select class="ct-in sm" id="ctNewTagGroup" style="width:120px;">
+          ${ctGroups.map(g => `<option value="${g.id}">${wnEscapeHtml(g.name)}</option>`).join('')}
+          <option value="">未分類</option>
+        </select>
+        <button type="button" class="btn btn-accent btn-sm" id="ctNewTagOk" style="font-size:11px;">追加</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="ctNewTagCancel" style="font-size:11px;">やめる</button>
+      </div>` : ''}
+
+    ${ctCanEdit ? `<div class="ct-pop-foot">
+      <button type="button" class="ct-link" id="ctOpenNewTag"><i class="fa-solid fa-plus"></i> 新しいタグ</button>
+      <button type="button" class="ct-link" id="ctOpenNewGroup"><i class="fa-solid fa-folder-plus"></i> グループを追加</button>
+      <span class="note">あいうえお順に並びます（漢字のタグは「よみ」を入れると正確に並びます）</span>
+    </div>` : ''}
+  </div>`;
+
+  _ctBindPanel(wrap);
+  if (focusId) {
+    const el = document.getElementById(focusId);
+    if (el) { el.focus(); if (el.setSelectionRange) el.setSelectionRange(el.value.length, el.value.length); }
+  }
+}
+
+function _ctBindPanel(wrap) {
+  const q = document.getElementById('contactTagPanelSearch');
+  /* 開いている間は focus で再描画しない（focus → 再描画 → focus の無限ループになる） */
+  q?.addEventListener('input', e => { ctPop.q = e.target.value.trim(); _ctRenderPanel('contactTagPanelSearch'); });
+
+  document.getElementById('ctManageBtn')?.addEventListener('click', () => {
+    ctPop.manage = !ctPop.manage; ctPop.editTag = ctPop.editGroup = null; _ctRenderPanel();
+  });
+
+  wrap.querySelectorAll('[data-pick]').forEach(el => el.addEventListener('click', () => {
+    const id = Number(el.dataset.pick);
+    ctSel.has(id) ? ctSel.delete(id) : ctSel.add(id);
+    _ctRenderPicked(); _ctRenderPanel();
+  }));
+
+  /* タグ：作成・改名・削除 */
+  document.getElementById('ctOpenNewTag')?.addEventListener('click', () => {
+    ctPop.newTag = true; ctPop.newGroup = false; _ctRenderPanel('ctNewTagName');
+  });
+  document.getElementById('ctNewTagCancel')?.addEventListener('click', () => { ctPop.newTag = false; _ctRenderPanel(); });
+  document.getElementById('ctNewTagOk')?.addEventListener('click', _ctCreateTag);
+  document.getElementById('ctNewTagName')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); _ctCreateTag(); }
+  });
+  wrap.querySelectorAll('[data-tedit]').forEach(b => b.addEventListener('click', () => {
+    ctPop.editTag = Number(b.dataset.tedit); _ctRenderPanel('ctTagName');
+  }));
+  wrap.querySelectorAll('[data-tcancel]').forEach(b => b.addEventListener('click', () => { ctPop.editTag = null; _ctRenderPanel(); }));
+  wrap.querySelectorAll('[data-tsave]').forEach(b => b.addEventListener('click', async () => {
+    const id   = Number(b.dataset.tsave);
+    const name = document.getElementById('ctTagName').value.trim();
+    if (!name) return;
+    await _ctRun(() => wnUpdateContactTag(id, {
+      name,
+      kana:    document.getElementById('ctTagKana').value.trim(),
+      groupId: document.getElementById('ctTagGroup').value || null,
+    }), 'タグを更新しました');
+    ctPop.editTag = null;
+  }));
+  wrap.querySelectorAll('[data-tdel]').forEach(b => b.addEventListener('click', async () => {
+    const t = ctTag(b.dataset.tdel);
+    if (!t) return;
+    const used = t.count ?? 0;
+    const msg = used
+      ? `「${t.name}」を削除します。\nこのタグが付いた連絡先 ${used}件 からも外れます。よろしいですか？`
+      : `「${t.name}」を削除しますか？`;
+    if (!window.confirm(msg)) return;
+    ctSel.delete(t.id); ctFlt.delete(t.id);
+    await _ctRun(() => wnDeleteContactTag(t.id), 'タグを削除しました');
+  }));
+
+  /* グループ：作成・改名・削除 */
+  document.getElementById('ctOpenNewGroup')?.addEventListener('click', () => {
+    ctPop.newGroup = true; ctPop.newTag = false; _ctRenderPanel('ctNewGroupName');
+  });
+  document.getElementById('ctNewGroupCancel')?.addEventListener('click', () => { ctPop.newGroup = false; _ctRenderPanel(); });
+  document.getElementById('ctNewGroupOk')?.addEventListener('click', _ctCreateGroup);
+  document.getElementById('ctNewGroupName')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); _ctCreateGroup(); }
+  });
+  wrap.querySelectorAll('[data-gedit]').forEach(b => b.addEventListener('click', () => {
+    ctPop.editGroup = Number(b.dataset.gedit); _ctRenderPanel('ctGroupName');
+  }));
+  wrap.querySelectorAll('[data-gcancel]').forEach(b => b.addEventListener('click', () => { ctPop.editGroup = null; _ctRenderPanel(); }));
+  wrap.querySelectorAll('[data-gsave]').forEach(b => b.addEventListener('click', async () => {
+    const name = document.getElementById('ctGroupName').value.trim();
+    if (!name) return;
+    await _ctRun(() => wnUpdateContactTagGroup(Number(b.dataset.gsave), name), 'グループ名を変更しました');
+    ctPop.editGroup = null;
+  }));
+  wrap.querySelectorAll('[data-gdel]').forEach(b => b.addEventListener('click', async () => {
+    const g = ctGroups.find(x => x.id === Number(b.dataset.gdel));
+    if (!g) return;
+    const inside = ctTagsOf(g.id);
+    let deleteTags = false;
+    if (inside.length) {
+      deleteTags = window.confirm(
+        `「${g.name}」には ${inside.length}件のタグがあります。\n\n` +
+        `［OK］タグごと削除する（連絡先からも外れます）\n［キャンセル］タグは「未分類」に残す`);
+    } else if (!window.confirm(`「${g.name}」を削除しますか？`)) {
+      return;
+    }
+    await _ctRun(() => wnDeleteContactTagGroup(g.id, deleteTags), 'グループを削除しました');
+  }));
+}
+
+async function _ctCreateTag() {
+  const name = document.getElementById('ctNewTagName').value.trim();
+  if (!name) return;
+  const kana    = document.getElementById('ctNewTagKana').value.trim();
+  const groupId = document.getElementById('ctNewTagGroup')?.value || null;
+  const created = await _ctRun(() => wnCreateContactTag({ name, kana, groupId }), 'タグを追加しました');
+  if (created?.id) ctSel.add(created.id);      // 作ったタグはそのまま選択状態に
+  ctPop.newTag = false;
+  _ctRenderPicked();
+  _ctRenderPanel('contactTagPanelSearch');
+}
+
+async function _ctCreateGroup() {
+  const name = document.getElementById('ctNewGroupName').value.trim();
+  if (!name) return;
+  await _ctRun(() => wnCreateContactTagGroup(name), 'グループを追加しました');
+  ctPop.newGroup = false;
+  ctPop.newTag   = true;                       // 続けてタグを足せるように
+  _ctRenderPanel('ctNewTagName');
+}
+
+/* タグ系の書き込み → 一覧を取り直して再描画。失敗はトーストで知らせる */
+async function _ctRun(fn, successMsg) {
+  try {
+    const result = await fn();
+    const data = await wnGetContactTags();
+    ctGroups  = data.groups   ?? [];
+    ctTags    = data.tags     ?? [];
+    ctCanEdit = !!data.can_edit;
+    // 消えたタグが選択・絞り込みに残らないようにする
+    const alive = new Set(ctTags.map(t => t.id));
+    [...ctSel].forEach(id => { if (!alive.has(id)) ctSel.delete(id); });
+    [...ctFlt].forEach(id => { if (id !== 'none' && !alive.has(id)) ctFlt.delete(id); });
+    if (successMsg) wnShowToast(successMsg, 'success');
+    _ctRenderPicked(); _ctRenderNav(); _ctRenderPanel(); _renderFilteredContacts();
+    return result;
+  } catch (err) {
+    wnShowToast(err?.message || 'タグの保存に失敗しました', 'danger');
+    return null;
+  }
 }
 
 async function addContactFromForm() {
@@ -359,6 +765,8 @@ async function addContactFromForm() {
   const kanaEl    = document.getElementById('contactKanaInput');
   const companyEl = document.getElementById('contactCompanyInput');
   const emailEl   = document.getElementById('contactEmailInput');
+  const phoneEl   = document.getElementById('contactPhoneInput');
+  const faxEl     = document.getElementById('contactFaxInput');
   const name    = nameEl.value.trim();
   const kana    = kanaEl.value.trim();
   const company = companyEl.value.trim();
@@ -369,17 +777,27 @@ async function addContactFromForm() {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { _contactShowError('メールアドレスの形式が正しくありません'); emailEl.focus(); return; }
   _contactShowError('');
 
+  const fields = {
+    name, email,
+    name_kana:    kana,
+    company_name: company,
+    phone:        phoneEl.value.trim(),
+    fax:          faxEl.value.trim(),
+    tag_ids:      [...ctSel],
+  };
+
   contactsBusy = true;
   try {
     if (contactEditingId) {
-      await wnUpdateContact(contactEditingId, name, email, company || null, kana || null);
+      await wnUpdateContact(contactEditingId, fields);
       wnShowToast('連絡先を更新しました', 'success');
     } else {
-      await wnSaveContact(name, email, company || null, kana || null);
+      await wnSaveContact(fields);
       wnShowToast('連絡先を登録しました', 'success');
     }
     _contactCancelEdit();
     await renderContactsList();
+    await loadContactTags();      // タグの使用件数を更新する
   } catch (err) {
     _contactShowError(err?.message || '連絡先の保存に失敗しました');
   } finally {
@@ -389,24 +807,47 @@ async function addContactFromForm() {
 
 function editContact(c) {
   contactEditingId = c.id;
-  document.getElementById('contactNameInput').value    = c.name        ?? '';
-  document.getElementById('contactKanaInput').value    = c.name_kana   ?? '';
+  document.getElementById('contactNameInput').value    = c.name         ?? '';
+  document.getElementById('contactKanaInput').value    = c.name_kana    ?? '';
   document.getElementById('contactCompanyInput').value = c.company_name ?? '';
-  document.getElementById('contactEmailInput').value   = c.email       ?? '';
-  document.getElementById('contactAddBtnIcon').className  = 'fa-solid fa-check';
-  document.getElementById('contactAddBtnLabel').textContent = '更新';
+  document.getElementById('contactEmailInput').value   = c.email        ?? '';
+  document.getElementById('contactPhoneInput').value   = c.phone        ?? '';
+  document.getElementById('contactFaxInput').value     = c.fax          ?? '';
+  ctSel = new Set(c.tag_ids ?? []);
+
+  document.getElementById('contactFormTitle').textContent   = '連絡先を編集する';
+  document.getElementById('contactAddBtnIcon').className    = 'fa-solid fa-check';
+  document.getElementById('contactAddBtnLabel').textContent = '更新する';
   document.getElementById('contactCancelEditBtn')?.classList.remove('hidden');
+
+  const meta = document.getElementById('contactMeta');
+  if (meta) {
+    meta.innerHTML = `
+      <div><i class="fa-solid fa-clock-rotate-left" style="width:12px;"></i> 登録：${ctFmtDate(c.created_at)}　${wnEscapeHtml(c.created_by_name || '')}</div>
+      <div><i class="fa-solid fa-pen" style="width:12px;"></i> 更新：${ctFmtDate(c.updated_at)}　${wnEscapeHtml(c.updated_by_name || '')}</div>`;
+    meta.classList.remove('hidden');
+  }
+
   _contactShowError('');
+  _ctRenderPicked();
+  _ctRenderPanel();
   document.getElementById('contactNameInput').focus();
-  document.getElementById('contactsModal').querySelector('[style*="padding"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // スマホは一覧が下・フォームが上なので、編集開始時にフォームまで戻す
+  if (wnIsMobileDevice()) document.querySelector('#contactsModal .ct-left')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function deleteContactById(id) {
   if (!window.confirm('この連絡先を削除しますか？')) return;
   wnDeleteContact(id)
     .then(ok => {
-      if (ok) { renderContactsList(); wnShowToast('連絡先を削除しました', 'success'); }
-      else    { wnShowToast('削除に失敗しました', 'danger'); }
+      if (ok) {
+        if (String(contactEditingId) === String(id)) _contactCancelEdit();
+        renderContactsList().then(() => { _ctRenderNav(); });
+        loadContactTags();
+        wnShowToast('連絡先を削除しました', 'success');
+      } else {
+        wnShowToast('削除に失敗しました', 'danger');
+      }
     });
 }
 
@@ -3480,7 +3921,7 @@ function _addEmailToChips(field, val) {
   if (field === 'to' && skillPendingName) {
     const nm = skillPendingName;
     skillPendingName = '';
-    wnSaveContact(nm, val).catch(() => {});
+    wnSaveContact({ name: nm, email: val }).catch(() => {});
   }
   renderEmailChips(field);
   return true;

@@ -16,6 +16,104 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260801a">
   <style>
+    /* ── 連絡先モーダル（2カラム＋タグ） ── */
+    /* overflow:hidden にするとタグのパネルがモーダル下端で切れるので visible にする */
+    .ct-modal { overflow: visible; }
+    .ct-body { display: flex; align-items: stretch; min-height: 470px; }
+    .ct-left  { width: 340px; flex-shrink: 0; padding: 14px 16px 14px 0; border-right: 1px solid var(--border); }
+    .ct-right { flex: 1; min-width: 0; padding: 14px 0 14px 16px; display: flex; flex-direction: column; }
+    .ct-sec { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .04em;
+              display: flex; align-items: center; gap: 6px; margin: 0 0 8px; }
+    .ct-sec-r { margin-left: auto; font-weight: 700; }
+    .ct-in { width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 13px;
+             border: 1px solid var(--border); border-radius: 6px; outline: none; font-family: inherit; }
+    .ct-in:focus { border-color: var(--accent); }
+    .ct-in.sm { font-size: 12px; padding: 6px 9px; }
+    .ct-row { display: flex; gap: 6px; margin-bottom: 6px; }
+    .ct-link { background: none; border: none; padding: 0; font-size: 11px; color: var(--accent);
+               cursor: pointer; font-weight: 700; font-family: inherit; white-space: nowrap; }
+    .ct-link.mut { color: var(--muted); }
+    .ct-meta { margin-top: 12px; font-size: 10.5px; color: #A7B2BD; line-height: 1.7;
+               border-top: 1px dashed var(--border); padding-top: 8px; }
+
+    /* タグの色はグループごとに自動割り当て（--c をJSが指定する） */
+    .ct-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; display: inline-block; background: var(--c, #9AA7B4); }
+    .ct-tag { display: inline-flex; align-items: center; gap: 5px; border-radius: 6px; padding: 4px 9px;
+              font-size: 11.5px; font-weight: 700; line-height: 1.5; white-space: nowrap; background: #F1F4F7; color: #5A6B7D; }
+    .ct-tag i { cursor: pointer; opacity: .7; }
+    .ct-tag i:hover { opacity: 1; }
+    .ct-picked { display: flex; flex-wrap: wrap; gap: 5px; min-height: 24px; align-items: center; margin-top: 8px; }
+    .ct-picked .none { font-size: 11px; color: #B6BFC9; }
+    .ct-mini { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700;
+               color: #5A6B7D; margin-right: 8px; white-space: nowrap; }
+
+    .ct-pop-wrap { position: relative; }
+    .ct-pop-btn { width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 8px 10px;
+                  border: 1px solid var(--border); border-radius: 6px; background: #fff; font-size: 12.5px;
+                  color: var(--muted); cursor: pointer; font-family: inherit; text-align: left; }
+    .ct-pop-btn:hover { border-color: var(--accent); }
+    .ct-pop-panel { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30; background: #fff;
+                    border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 26px rgba(0,0,0,.14); padding: 8px; }
+    .ct-pop-list { max-height: 250px; overflow-y: auto; margin-top: 6px; }
+    .ct-opt { display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 5px;
+              font-size: 12.5px; cursor: pointer; color: var(--primary); }
+    .ct-opt:hover { background: #F1F4F7; }
+    .ct-opt .chk { width: 15px; height: 15px; border: 1.5px solid var(--border); border-radius: 4px; flex-shrink: 0;
+                   display: flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; }
+    .ct-opt.on .chk { background: var(--accent); border-color: var(--accent); }
+    .ct-opt .cnt { margin-left: auto; font-size: 10.5px; color: var(--muted); }
+    .ct-opt .tools { margin-left: auto; display: flex; gap: 2px; }
+    .ct-ghead { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700;
+                color: var(--muted); padding: 8px 7px 3px; }
+    .ct-ghead .tools { margin-left: auto; display: flex; gap: 2px; }
+    .ct-mini-ib { width: 22px; height: 22px; border: none; background: none; border-radius: 4px;
+                  cursor: pointer; color: #9AA7B4; font-size: 10.5px; }
+    .ct-mini-ib:hover { background: #EDF1F5; color: var(--accent); }
+    .ct-mini-ib.del:hover { color: #E17055; }
+    .ct-pop-foot { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 7px;
+                   display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .ct-pop-foot .note { flex-basis: 100%; font-size: 10px; color: #B6BFC9; }
+
+    .ct-panes { display: flex; min-height: 0; flex: 1; }
+    .ct-nav { width: 168px; flex-shrink: 0; border-right: 1px solid var(--border);
+              padding-right: 10px; margin-right: 12px; overflow-y: auto; max-height: 470px; }
+    .ct-nav-item { display: flex; align-items: center; gap: 7px; padding: 5px 7px; border-radius: 6px;
+                   font-size: 12px; color: var(--primary); cursor: pointer; white-space: nowrap; }
+    .ct-nav-item:hover { background: #F1F4F7; }
+    .ct-nav-item.on { background: rgba(33,150,243,.12); color: #1565C0; font-weight: 700; }
+    .ct-nav-item .nm { overflow: hidden; text-overflow: ellipsis; }
+    .ct-nav-item .cnt { margin-left: auto; font-size: 10.5px; color: var(--muted); }
+    .ct-nav-head { font-size: 10px; font-weight: 700; color: var(--muted); margin: 10px 0 4px 7px;
+                   display: flex; align-items: center; gap: 5px; }
+
+    .ct-rows { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; max-height: 470px; }
+    .ct-r { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px;
+            border: 1px solid var(--border); border-radius: 8px; }
+    .ct-r:hover { border-color: #C9D6E2; background: #FAFCFE; }
+    .ct-r .nm { font-size: 13px; font-weight: 700; color: var(--primary); }
+    .ct-r .kn { font-size: 11px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+    .ct-r .sub { font-size: 11px; color: var(--muted); margin-top: 1px; word-break: break-all; }
+    .ct-r .meta { font-size: 10px; color: #A7B2BD; margin-top: 3px; }
+    .ct-ib { flex-shrink: 0; width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 6px;
+             background: #fff; cursor: pointer; font-size: 11px; color: var(--muted); }
+    .ct-ib:hover { border-color: var(--accent); color: var(--accent); }
+    .ct-ib.del:hover { border-color: #E17055; color: #E17055; }
+    .ct-empty { font-size: 12px; color: var(--muted); padding: 14px; line-height: 1.8; }
+    .ct-empty b { color: var(--primary); }
+
+    /* スマホ・タブレットは縦積みに戻す */
+    @media (max-width: 880px) {
+      .ct-body { flex-direction: column; min-height: 0; }
+      .ct-left { width: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 0 0 12px; }
+      .ct-right { padding: 12px 0 0; }
+      .ct-panes { flex-direction: column; }
+      .ct-nav { width: auto; max-height: none; border-right: none; border-bottom: 1px solid var(--border);
+                padding: 0 0 8px; margin: 0 0 8px; display: flex; gap: 6px; overflow-x: auto; }
+      .ct-nav-head { display: none; }
+      .ct-nav-item { flex-shrink: 0; border: 1px solid var(--border); }
+      .ct-rows { max-height: 340px; }
+    }
+
     @media (max-width: 767px) {
       .page-body { padding: 8px 0 72px !important; }
       .brain-widget { margin: 0 8px 12px !important; }
@@ -691,9 +789,9 @@
 </div>
 
 
-<!-- 連絡先管理モーダル -->
+<!-- 連絡先管理モーダル（左＝登録フォーム＋タグ / 右＝タグ一覧＋連絡先一覧） -->
 <div class="modal-overlay hidden" id="contactsModal">
-  <div class="modal" style="max-width:480px;">
+  <div class="modal ct-modal" style="max-width:960px;">
     <div class="modal-header">
       <span class="modal-title">
         <i class="fa-solid fa-address-book" style="color:var(--accent);"></i>
@@ -702,45 +800,76 @@
       <button class="modal-close" id="contactsModalClose"><i class="fa-solid fa-xmark"></i></button>
     </div>
 
-    <div style="padding:4px 0 8px;">
-      <p style="font-size:11px;color:var(--muted);background:rgba(33,150,243,.08);border-radius:6px;padding:8px 10px;margin-bottom:12px;line-height:1.6;">
-        <i class="fa-solid fa-circle-info" style="margin-right:4px;color:var(--accent);"></i>
-        ここに登録した名前とメールアドレスは、スキルが「〇〇さんに送って」の宛先を自動で解決するのに使われます。
-      </p>
+    <div class="ct-body">
+      <!-- 左：登録フォーム -->
+      <div class="ct-left">
+        <div class="ct-sec">
+          <i class="fa-solid fa-user-plus" style="color:var(--accent);"></i>
+          <span id="contactFormTitle">新しく登録する</span>
+        </div>
 
-      <!-- 追加フォーム -->
-      <div style="display:flex;gap:6px;margin-bottom:6px;">
-        <input type="text" id="contactNameInput" placeholder="名前（例: 山田）"
-          style="flex:1;padding:8px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;outline:none;min-width:0;">
-        <input type="text" id="contactKanaInput" placeholder="カナ（例: ヤマダ）"
-          style="flex:1;padding:8px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;outline:none;min-width:0;">
-      </div>
-      <div style="display:flex;gap:6px;margin-bottom:6px;">
-        <input type="text" id="contactCompanyInput" placeholder="会社名（任意）"
-          style="flex:1;padding:8px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;outline:none;min-width:0;">
-      </div>
-      <div style="display:flex;gap:6px;margin-bottom:6px;">
-        <input type="email" id="contactEmailInput" placeholder="メール（例: yamada@example.com）"
-          style="flex:1;padding:8px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;outline:none;min-width:0;">
-        <button class="btn btn-accent btn-sm" id="contactAddBtn" style="flex-shrink:0;white-space:nowrap;">
-          <i class="fa-solid fa-plus" id="contactAddBtnIcon"></i> <span id="contactAddBtnLabel">追加</span>
-        </button>
-        <button class="btn btn-ghost btn-sm hidden" id="contactCancelEditBtn" style="flex-shrink:0;white-space:nowrap;">キャンセル</button>
-      </div>
-      <div id="contactInputError" style="display:none;font-size:11px;color:#E17055;margin-bottom:8px;">
-        <i class="fa-solid fa-triangle-exclamation"></i>
-        <span id="contactInputErrorText"></span>
+        <div class="ct-row">
+          <input type="text" class="ct-in" id="contactNameInput" placeholder="名前（例: 山田）" autocomplete="off">
+          <input type="text" class="ct-in" id="contactKanaInput" placeholder="カナ（例: ヤマダ）" autocomplete="off">
+        </div>
+        <div class="ct-row">
+          <input type="text" class="ct-in" id="contactCompanyInput" placeholder="会社名（任意）" autocomplete="off">
+        </div>
+        <div class="ct-row">
+          <input type="email" class="ct-in" id="contactEmailInput" placeholder="メール（例: yamada@example.com）" autocomplete="off">
+        </div>
+        <div class="ct-row">
+          <input type="tel" class="ct-in" id="contactPhoneInput" placeholder="電話番号（任意）" autocomplete="off">
+          <input type="tel" class="ct-in" id="contactFaxInput" placeholder="FAX番号（任意）" autocomplete="off">
+        </div>
+
+        <div class="ct-sec" style="margin-top:14px;">
+          <i class="fa-solid fa-tags" style="color:var(--accent);"></i> タグ
+        </div>
+        <div class="ct-pop-wrap">
+          <button type="button" class="ct-pop-btn" id="contactTagPickBtn">
+            <i class="fa-solid fa-plus" style="color:var(--accent);"></i>
+            <span id="contactTagPickLabel">タグを選ぶ</span>
+            <i class="fa-solid fa-chevron-down" style="margin-left:auto;font-size:10px;"></i>
+          </button>
+          <div id="contactTagPanel"></div>
+        </div>
+        <div class="ct-picked" id="contactPickedTags"></div>
+
+        <div id="contactMeta" class="ct-meta hidden"></div>
+
+        <div class="ct-row" style="margin-top:12px;">
+          <button class="btn btn-accent btn-sm" id="contactAddBtn" style="flex:1;">
+            <i class="fa-solid fa-plus" id="contactAddBtnIcon"></i> <span id="contactAddBtnLabel">登録する</span>
+          </button>
+          <button class="btn btn-ghost btn-sm hidden" id="contactCancelEditBtn" style="flex-shrink:0;white-space:nowrap;">やめる</button>
+        </div>
+        <div id="contactInputError" style="display:none;font-size:11px;color:#E17055;margin-top:6px;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span id="contactInputErrorText"></span>
+        </div>
       </div>
 
-      <!-- 検索 -->
-      <div style="position:relative;margin-top:10px;">
-        <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--muted);pointer-events:none;"></i>
-        <input type="text" id="contactSearchInput" placeholder="名前・会社・メールで検索"
-          style="width:100%;padding:8px 10px 8px 30px;font-size:13px;border:1px solid var(--border);border-radius:6px;outline:none;box-sizing:border-box;">
+      <!-- 右：検索・タグ一覧・連絡先一覧 -->
+      <div class="ct-right">
+        <div class="ct-sec">
+          <i class="fa-solid fa-list"></i> 登録済みの連絡先
+          <span style="font-weight:400;">（あいうえお順）</span>
+          <span class="ct-sec-r" id="contactsCount"></span>
+        </div>
+        <div style="position:relative;margin-bottom:8px;">
+          <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--muted);pointer-events:none;"></i>
+          <input type="text" class="ct-in" id="contactSearchInput" placeholder="名前・会社・メール・電話番号で検索" style="padding-left:30px;">
+        </div>
+        <div id="contactFilterBar" class="hidden" style="margin-bottom:6px;font-size:11px;color:var(--muted);">
+          <i class="fa-solid fa-filter"></i> 絞り込み中（いずれかを含む）
+          <button type="button" class="ct-link" id="contactFilterClear" style="margin-left:6px;">解除</button>
+        </div>
+        <div class="ct-panes">
+          <div class="ct-nav" id="contactTagNav"></div>
+          <div class="ct-rows" id="contactsList"></div>
+        </div>
       </div>
-
-      <!-- 一覧 -->
-      <div id="contactsList" style="margin-top:8px;display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;"></div>
     </div>
 
     <div class="modal-footer">
@@ -859,8 +988,8 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=6"></script>
-<script src="../assets/js/wn-api.js?v=24"></script>
-<script src="../assets/js/pages/wn-dashboard.js?v=76"></script>
+<script src="../assets/js/wn-api.js?v=25"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=77"></script>
 
 <script>
 /* ── ボトムナビ ── */

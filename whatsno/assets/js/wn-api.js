@@ -682,10 +682,12 @@ async function wnGetContacts() {
   if (!res || !res.ok) return [];
   return (await res.json()).data ?? [];
 }
-async function wnSaveContact(name, email, companyName, nameKana) {
+/* fields: { name, email, company_name, name_kana, phone, fax, tag_ids }
+   tag_ids を渡さなければタグは触らない（サーバー側も同じ契約） */
+async function wnSaveContact(fields) {
   const res = await wnFetch('/wn/contacts', {
     method: 'POST',
-    body: JSON.stringify({ name, email, company_name: companyName || null, name_kana: nameKana || null }),
+    body: JSON.stringify(_wnContactBody(fields)),
   });
   if (!res || !res.ok) {
     const err = await res?.json().catch(() => ({}));
@@ -693,16 +695,63 @@ async function wnSaveContact(name, email, companyName, nameKana) {
   }
   return (await res.json()).data;
 }
-async function wnUpdateContact(id, name, email, companyName, nameKana) {
+async function wnUpdateContact(id, fields) {
   const res = await wnFetch(`/wn/contacts/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ name, email, company_name: companyName ?? null, name_kana: nameKana ?? null }),
+    body: JSON.stringify(_wnContactBody(fields)),
   });
   if (!res || !res.ok) {
     const err = await res?.json().catch(() => ({}));
     throw new Error(err.message || '連絡先の更新に失敗しました');
   }
   return (await res.json()).data;
+}
+function _wnContactBody(f = {}) {
+  const body = {
+    name:         f.name,
+    email:        f.email,
+    company_name: f.company_name || null,
+    name_kana:    f.name_kana    || null,
+    phone:        f.phone        || null,
+    fax:          f.fax          || null,
+  };
+  if (Array.isArray(f.tag_ids)) body.tag_ids = f.tag_ids;
+  return body;
+}
+
+/* ── 連絡先タグ（グループ＋タグ） ──
+   作成・改名・削除は管理者のみ。can_edit で編集導線の出し分けを行う */
+async function wnGetContactTags() {
+  const res = await wnFetch('/wn/contact-tags');
+  if (!res || !res.ok) return { groups: [], tags: [], can_edit: false };
+  return (await res.json()).data ?? { groups: [], tags: [], can_edit: false };
+}
+async function wnCreateContactTag({ name, kana, groupId }) {
+  return _wnTagWrite('/wn/contact-tags', 'POST', { name, kana: kana || null, group_id: groupId || null });
+}
+async function wnUpdateContactTag(id, { name, kana, groupId }) {
+  return _wnTagWrite(`/wn/contact-tags/${id}`, 'PATCH', { name, kana: kana || null, group_id: groupId || null });
+}
+async function wnDeleteContactTag(id) {
+  return _wnTagWrite(`/wn/contact-tags/${id}`, 'DELETE');
+}
+async function wnCreateContactTagGroup(name) {
+  return _wnTagWrite('/wn/contact-tag-groups', 'POST', { name });
+}
+async function wnUpdateContactTagGroup(id, name) {
+  return _wnTagWrite(`/wn/contact-tag-groups/${id}`, 'PATCH', { name });
+}
+/* deleteTags=true なら中のタグごと削除、false なら「未分類」に残す */
+async function wnDeleteContactTagGroup(id, deleteTags) {
+  return _wnTagWrite(`/wn/contact-tag-groups/${id}`, 'DELETE', { delete_tags: !!deleteTags });
+}
+async function _wnTagWrite(path, method, body) {
+  const res = await wnFetch(path, { method, ...(body ? { body: JSON.stringify(body) } : {}) });
+  if (!res || !res.ok) {
+    const err = await res?.json().catch(() => ({}));
+    throw new Error(err.message || 'タグの保存に失敗しました');
+  }
+  return (await res.json()).data ?? true;
 }
 async function wnDeleteContact(id) {
   const res = await wnFetch(`/wn/contacts/${id}`, { method: 'DELETE' });
