@@ -19,9 +19,20 @@ async function prepare(page, shareCount = 1) {
   await page.evaluate((n) => {
     window.__mailto = null;
     window.__nav    = null;
+    // 発行APIの呼び出し回数。ファイル数ぶんリクエストを投げる実装に戻っていないかの見張り
+    window.__shareCalls = { single: 0, bulk: 0 };
+
+    const mockUrl = (id) => `https://space-apps.pages.dev/whatsno/app/share.html?token=${String(id).padStart(2, '0')}${'a'.repeat(62)}`;
 
     // 共有リンク発行をモック（トークンは実物と同じ64文字相当）
-    window.wnCreateShare = async () => ({ url: `https://space-apps.pages.dev/whatsno/app/share.html?token=${'a'.repeat(64)}` });
+    window.wnCreateShare = async (id) => { window.__shareCalls.single++; return { url: mockUrl(id) }; };
+    // 複数ファイルは1リクエストにまとめる（本番APIが単一ワーカーのため）
+    window.wnCreateSharesBulk = async (ids) => {
+      window.__shareCalls.bulk++;
+      const map = {};
+      for (const id of ids) map[id] = { url: mockUrl(id) };
+      return map;
+    };
 
     // <a>.click() を捕捉する。mailto は外部ハンドラ未登録＝実機の「起動しない」状態、
     // Gmail は target="_blank" の新規タブなので、どちらも実遷移させずにURLだけ取る
@@ -135,6 +146,38 @@ async function prepare(page, shareCount = 1) {
       // ホーム画面アプリ（standalone）では window.open が無視されるため <a target="_blank"> 経由であること
       check(`[${device.label}] 新規タブ用の<a>経由で開く`, !!nav);
     }
+
+    /* ── 5. 複数ファイル: 発行は1リクエストにまとめる（リンクが増えても待たせない） ── */
+    await page.evaluate(() => { closeEmailModal(); });
+    await prepare(page);
+    const FILE_N = 12;
+    await page.evaluate((n) => {
+      const files = Array.from({ length: n }, (_, i) => ({ id: 1000 + i, name: `図面_${i + 1}.pdf` }));
+      openEmailModal(files);
+      emailFieldChips.to = [{ email: 'to@example.com' }];
+    }, FILE_N);
+    await page.waitForFunction((n) => Array.isArray(emailPregenShares) && emailPregenShares.length === n, FILE_N, { timeout: 5000 });
+
+    const calls = await page.evaluate(() => window.__shareCalls);
+    check(`[${device.label}] ${FILE_N}件でも発行APIは1回`, calls.bulk === 1 && calls.single === 0,
+      `bulk=${calls.bulk} single=${calls.single}`);
+
+    const btnsEnabled = await page.evaluate(() =>
+      !document.getElementById('emailMailtoBtn').disabled && !document.getElementById('emailGmailBtn').disabled);
+    check(`[${device.label}] 発行完了で送信ボタンが押せる`, btnsEnabled);
+
+    await page.click('#emailMailtoBtn');
+    await page.waitForTimeout(300);
+    const multiMailto = await page.evaluate(() => window.__mailto);
+    if (multiMailto) {
+      const body  = decodeURIComponent(multiMailto.split('body=')[1] || '');
+      const links = (body.match(/\/app\/share\.html\?token=/g) || []).length;
+      // スマホは上限4000文字で削るが、共有リンク(core)は削らない契約
+      check(`[${device.label}] ${FILE_N}件ぶんの共有リンクが本文に入る`, links === FILE_N, `links=${links}`);
+    } else {
+      check(`[${device.label}] ${FILE_N}件でも mailto URLが生成される`, false, 'null');
+    }
+    await page.evaluate(() => { closeEmailModal(); });
 
     await ctx.close();
   }

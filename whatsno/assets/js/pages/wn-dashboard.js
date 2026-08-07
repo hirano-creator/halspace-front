@@ -3364,14 +3364,18 @@ function openEmailModal(files, prefillEmail = null) {
   _emailLinkShowLoading();
   setEmailBtnsLoading(true);
 
-  // 全ファイルの共有リンクを並行生成（hoverキャッシュがあれば再利用）
-  const promises = emailModalFiles.map(f => {
-    const p = emailShareCache.has(f.id)
-      ? emailShareCache.get(f.id)
-      : wnCreateShare(f.id, { expiresDays: 30 });
-    if (!emailShareCache.has(f.id)) emailShareCache.set(f.id, p);
-    return p.then(share => ({ id: f.id, name: f.name, url: share?.url ?? null }));
-  });
+  /* 全ファイルの共有リンクを1リクエストでまとめて発行（hoverキャッシュがあれば再利用）。
+     ファイル1件につき1リクエストだと、単一ワーカーのAPIで直列化して
+     待ち時間がファイル数に比例していた */
+  const missing = emailModalFiles.filter(f => !emailShareCache.has(f.id));
+  if (missing.length > 0) {
+    const bulk = wnCreateSharesBulk(missing.map(f => f.id), { expiresDays: 30 });
+    // キャッシュの中身は「共有オブジェクトに解決するPromise」で統一（スキル側もこれを待つ）
+    missing.forEach(f => emailShareCache.set(f.id, bulk.then(map => map?.[f.id] ?? null)));
+  }
+  const promises = emailModalFiles.map(f =>
+    emailShareCache.get(f.id).then(share => ({ id: f.id, name: f.name, url: share?.url ?? null }))
+  );
 
   Promise.all(promises).then(results => {
     const failed = results.filter(r => !r.url);
