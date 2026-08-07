@@ -570,6 +570,41 @@ async function wnCreateShare(fileId, { expiresDays, password, accessLimit } = {}
   if (!res || !res.ok) return null;
   return (await res.json()).data ?? null;
 }
+/* 共有リンクを一括発行し、{ [fileId]: {token,url,expires_at} } を返す。
+   ファイル数ぶん wnCreateShare を並列に投げると、本番APIが単一ワーカーのため
+   サーバー側で直列化して待ち時間がファイル数に比例する（メール共有で顕著）。
+   API未デプロイ（404/405）のときだけ従来の並列発行にフォールバックする。 */
+async function wnCreateSharesBulk(fileIds, { expiresDays, password, accessLimit } = {}) {
+  const ids = [...new Set((fileIds || []).map(Number))].filter(n => !Number.isNaN(n));
+  if (ids.length === 0) return {};
+
+  const res = await wnFetch('/wn/files/share-bulk', {
+    method: 'POST',
+    body: JSON.stringify({
+      file_ids:      ids,
+      expires_days:  expiresDays  || null,
+      password:      password     || null,
+      access_limit:  accessLimit  || null,
+    }),
+  });
+
+  if (res && res.ok) {
+    const list = (await res.json()).data ?? [];
+    const map  = {};
+    for (const s of list) map[s.file_id] = { token: s.token, url: s.url, expires_at: s.expires_at };
+    return map;
+  }
+
+  // 一括APIが無い環境（旧API）だけ従来方式に戻す。それ以外の失敗はそのまま失敗させる
+  // （res が null＝401リダイレクト中/モックトークンのときも再送しない）
+  if (!res || (res.status !== 404 && res.status !== 405)) return {};
+
+  const results = await Promise.all(ids.map(id => wnCreateShare(id, { expiresDays, password, accessLimit })));
+  const map = {};
+  ids.forEach((id, i) => { if (results[i]) map[id] = results[i]; });
+  return map;
+}
+
 async function wnGetShares(fileId) {
   const res = await wnFetch(`/wn/files/${fileId}/shares`);
   if (!res || !res.ok) return [];
