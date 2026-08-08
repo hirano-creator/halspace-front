@@ -716,7 +716,115 @@ function _wnContactBody(f = {}) {
     fax:          f.fax          || null,
   };
   if (Array.isArray(f.tag_ids)) body.tag_ids = f.tag_ids;
+  // 名刺スキャンで撮ったときだけ送る（送らなければ既存の名刺画像はそのまま）
+  if (f.card_image_path) body.card_image_path = f.card_image_path;
   return body;
+}
+
+/* ── 名刺スキャン ──
+   画像を送って項目を受け取るだけ（連絡先はまだ作らない）。
+   画像はサーバー側でR2に置かれ、card_image_path が一緒に返る */
+async function wnScanBusinessCard(blob) {
+  const fd = new FormData();
+  fd.append('card', blob, 'card.jpg');
+  const res = await wnFetch('/wn/contacts/scan-card', { method: 'POST', body: fd });
+  if (!res || !res.ok) {
+    const err = await res?.json().catch(() => ({}));
+    throw new Error(err.message || '名刺を読み取れませんでした');
+  }
+  return (await res.json()).data;
+}
+
+/* 連絡先に添付した名刺画像のURL（<img> で直接読める） */
+function wnContactCardUrl(contactId) {
+  const token = sessionStorage.getItem('space_token');
+  return WN_API_BASE + `/wn/contacts/${contactId}/card` + (token ? `?token=${encodeURIComponent(token)}` : '');
+}
+
+/* ── ローマ字 → カタカナ（ヘボン式・辞書不要） ──
+   名刺に印字されたローマ字だけを機械的に変換する。AIに読みを推測させないための処理。
+   長音（TARO＝たろう など）は名刺表記に現れないことが多く、そのまま「タロ」になる。
+   誤りを見つけやすいよう、呼び出し側で「自動入力」と分かる表示にすること。 */
+const WN_ROMAJI_MAP = {
+  kya:'キャ', kyu:'キュ', kyo:'キョ', gya:'ギャ', gyu:'ギュ', gyo:'ギョ',
+  sha:'シャ', shu:'シュ', sho:'ショ', sya:'シャ', syu:'シュ', syo:'ショ',
+  ja:'ジャ',  ju:'ジュ',  jo:'ジョ',  jya:'ジャ', jyu:'ジュ', jyo:'ジョ', zya:'ジャ', zyu:'ジュ', zyo:'ジョ',
+  cha:'チャ', chu:'チュ', cho:'チョ', tya:'チャ', tyu:'チュ', tyo:'チョ',
+  nya:'ニャ', nyu:'ニュ', nyo:'ニョ', hya:'ヒャ', hyu:'ヒュ', hyo:'ヒョ',
+  bya:'ビャ', byu:'ビュ', byo:'ビョ', pya:'ピャ', pyu:'ピュ', pyo:'ピョ',
+  mya:'ミャ', myu:'ミュ', myo:'ミョ', rya:'リャ', ryu:'リュ', ryo:'リョ',
+  shi:'シ', chi:'チ', tsu:'ツ', tu:'ツ', fu:'フ', hu:'フ', si:'シ', ti:'チ', ji:'ジ', di:'ヂ', du:'ヅ',
+  ka:'カ', ki:'キ', ku:'ク', ke:'ケ', ko:'コ',
+  sa:'サ', su:'ス', se:'セ', so:'ソ',
+  ta:'タ', te:'テ', to:'ト',
+  na:'ナ', ni:'ニ', nu:'ヌ', ne:'ネ', no:'ノ',
+  ha:'ハ', hi:'ヒ', he:'ヘ', ho:'ホ',
+  ma:'マ', mi:'ミ', mu:'ム', me:'メ', mo:'モ',
+  ya:'ヤ', yu:'ユ', yo:'ヨ',
+  ra:'ラ', ri:'リ', ru:'ル', re:'レ', ro:'ロ',
+  wa:'ワ', wo:'ヲ', we:'ウェ', wi:'ウィ',
+  ga:'ガ', gi:'ギ', gu:'グ', ge:'ゲ', go:'ゴ',
+  za:'ザ', zu:'ズ', ze:'ゼ', zo:'ゾ',
+  da:'ダ', de:'デ', do:'ド',
+  ba:'バ', bi:'ビ', bu:'ブ', be:'ベ', bo:'ボ',
+  pa:'パ', pi:'ピ', pu:'プ', pe:'ペ', po:'ポ',
+  va:'ヴァ', vi:'ヴィ', vu:'ヴ', ve:'ヴェ', vo:'ヴォ',
+  a:'ア', i:'イ', u:'ウ', e:'エ', o:'オ',
+};
+
+function wnRomajiToKatakana(src) {
+  if (!src) return '';
+  let s = String(src).toLowerCase().trim()
+    // マクロン・サーカムフレックスは長音として扱う（Ō→オー）
+    .replace(/[āâ]/g, 'a-').replace(/[īî]/g, 'i-').replace(/[ūû]/g, 'u-')
+    .replace(/[ēê]/g, 'e-').replace(/[ōô]/g, 'o-')
+    .replace(/[^a-z\s'’-]/g, '');
+  // OHNO 式の h 長音（母音+h の直後が子音か語末なら長音）
+  s = s.replace(/([aeiou])h(?=[^aeiouy]|$)/g, '$1-');
+
+  let out = '';
+  for (let i = 0; i < s.length; ) {
+    const ch = s[i];
+
+    if (/\s/.test(ch)) { out += ' ';  i++; continue; }
+    if (ch === '-')    { out += 'ー'; i++; continue; }
+    if (ch === "'" || ch === '’') { i++; continue; }   // n' の区切り記号
+
+    // 促音。tch（＝っち）も含める
+    if (ch === 't' && s.substr(i + 1, 2) === 'ch') { out += 'ッ'; i++; continue; }
+    if (/[bcdfghjklmpqrstvwxyz]/.test(ch) && ch === s[i + 1]) { out += 'ッ'; i++; continue; }
+
+    /* ん（母音・y が続かない n）。
+       「Kenichi」のように区切りを書かない名刺は「ケニチ」になる（けんいち とは判別できない）。
+       逆に「田中 TANAKA」は「タナカ」で正しいので、印字どおりの解釈を既定にしている。
+       区切りが書かれた「Ken'ichi」は ケンイチ になる。カナ欄は自動入力の目印を付けて確認を促す。 */
+    if (ch === 'n' && !/[aiueoy]/.test(s[i + 1] ?? '')) { out += 'ン'; i++; continue; }
+
+    // 3文字 → 2文字 → 1文字の順で当てる
+    let hit = false;
+    for (const len of [3, 2, 1]) {
+      const key = s.substr(i, len);
+      if (key.length === len && WN_ROMAJI_MAP[key]) { out += WN_ROMAJI_MAP[key]; i += len; hit = true; break; }
+    }
+    if (!hit) i++;   // 読めない文字は捨てる
+  }
+  return out.replace(/\s+/g, ' ').trim();
+}
+
+/* 名刺のローマ字表記（例: KENICHIRO HORIUCHI）を「姓 名」のカナにする。
+   日本の名刺は「名→姓」の順が多い。片方だけ全大文字なら、そちらを姓と見なす（YAMADA Taro 形式）。 */
+function wnRomajiNameToKana(roman) {
+  const parts = String(roman ?? '').trim().split(/[\s　]+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length !== 2) return wnRomajiToKatakana(parts.join(' '));
+
+  const isUpper = w => w === w.toUpperCase() && /[A-Z]/.test(w);
+  let [first, second] = parts;
+  // 「YAMADA Taro」形式なら全大文字の方が姓。それ以外は「名 姓」とみなして入れ替える
+  const familyFirst = isUpper(first) && !isUpper(second);
+  const family = familyFirst ? first : second;
+  const given  = familyFirst ? second : first;
+  return `${wnRomajiToKatakana(family)} ${wnRomajiToKatakana(given)}`.trim();
 }
 
 /* ── 連絡先タグ（グループ＋タグ） ──

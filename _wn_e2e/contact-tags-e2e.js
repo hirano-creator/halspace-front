@@ -93,6 +93,17 @@ async function stubApi(page, canEdit) {
     window.wnDeleteContact   = async id => { db.contacts = db.contacts.filter(c => c.id !== Number(id)); recount(); return true; };
 
     const needAdmin = () => { if (!db.canEdit) throw new Error('タグの編集は管理者のみ行えます'); };
+    /* 名刺スキャン。__cardResult を差し替えて読み取り結果を変える */
+    window.__cardResult = {
+      name: '堀内 健一郎', name_roman: 'KENICHIRO HORIUCHI', company: '株式会社堀内鋼機',
+      department: '製造部', title: '係長', email: 'k.horiuchi@example.co.jp',
+      phone: '053-441-2200', mobile: '090-8765-4321', fax: '053-441-2201',
+      address: '静岡県浜松市', card_image_path: 'wn/contact-cards/1/dummy.jpg',
+    };
+    window.wnScanBusinessCard = async () => JSON.parse(JSON.stringify(window.__cardResult));
+    // 1x1 の透明GIF。実画像を取りに行かせない
+    window.wnContactCardUrl = () => 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+
     window.wnCreateContactTag = async ({ name, kana, groupId }) => {
       needAdmin();
       const t = { id: db.nextId++, group_id: groupId ? Number(groupId) : null, name, kana: kana || null, count: 0 };
@@ -252,6 +263,55 @@ async function newPage(browser, canEdit) {
   await page.waitForFunction(() => !ctGroups.some(g => g.name === '加工'), null, { timeout: 5000 });
   check('グループを消してもタグは未分類として残る',
     await page.evaluate(() => ctTags.some(t => t.name === 'レーザー' && !t.group_id)));
+
+  /* ── 名刺スキャン（読み取りAPIはモック。UIの流れとカナ変換を見る） ── */
+  const scan = (page, patch = {}) => page.evaluate(async patch => {
+    Object.assign(window.__cardResult, patch);
+    // 1x1 のPNGをファイル代わりに渡す（縮小処理を通すため実画像である必要がある）
+    const bin = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
+    await scanBusinessCard(new File([bin], 'card.png', { type: 'image/png' }));
+  }, patch);
+
+  await page.evaluate(() => _contactCancelEdit());
+  await scan(page);
+  check('名刺スキャンで名前・会社・メールが入る',
+    (await page.inputValue('#contactNameInput')) === '堀内 健一郎' &&
+    (await page.inputValue('#contactCompanyInput')) === '株式会社堀内鋼機' &&
+    (await page.inputValue('#contactEmailInput')) === 'k.horiuchi@example.co.jp');
+  check('電話とFAXを取り違えない',
+    (await page.inputValue('#contactPhoneInput')) === '053-441-2200' &&
+    (await page.inputValue('#contactFaxInput')) === '053-441-2201');
+  check('カナは名刺のローマ字から機械変換する（姓→名の順）',
+    (await page.inputValue('#contactKanaInput')) === 'ホリウチ ケニチロ',
+    await page.inputValue('#contactKanaInput'));
+  check('自動入力した欄に印が付く', (await page.locator('#contactNameInput.ct-ai').count()) === 1);
+  check('読み取った名刺の控えが出る', await page.isVisible('#contactCardPreview img'));
+  check('名刺画像のパスを保持する', (await page.evaluate(() => ctCardPath)) === 'wn/contact-cards/1/dummy.jpg');
+
+  await clk(page, '#contactAddBtn');
+  await page.waitForFunction(() => allContactsCache.some(c => c.email === 'k.horiuchi@example.co.jp'), null, { timeout: 5000 });
+  check('名刺画像を添えて登録される',
+    (await page.evaluate(() => allContactsCache.find(c => c.email === 'k.horiuchi@example.co.jp')?.card_image_path)) === 'wn/contact-cards/1/dummy.jpg');
+  check('登録後は自動入力の印が消える', (await page.locator('#contactNameInput.ct-ai').count()) === 0);
+
+  /* 同じメールアドレスなら更新に切り替える */
+  await scan(page);
+  check('同じメールの名刺は更新モードになる', (await page.locator('#contactAddBtnLabel').innerText()) === '更新する');
+  check('重複の注意が出る', (await page.locator('#contactScanStatus').innerText()).includes('同じメールアドレス'));
+
+  /* 同じ会社の人が居ればタグを引き継ぐ */
+  await page.evaluate(() => _contactCancelEdit());
+  await scan(page, { email: 'new-person@example.com', company: '山田製作所', name: '山田 次郎', name_roman: 'JIRO YAMADA' });
+  check('同じ会社の既存連絡先からタグを引き継ぐ',
+    (await page.evaluate(() => [...ctSel].map(id => ctTag(id)?.name).sort().join(','))) === 'レーザー',
+    await page.evaluate(() => [...ctSel].map(id => ctTag(id)?.name).join(',')));
+
+  /* ローマ字が無ければカナは空のまま（AIに読みを作らせない） */
+  await page.evaluate(() => _contactCancelEdit());
+  await scan(page, { email: 'noroman@example.com', name: '斎藤 三郎', name_roman: '', company: '' });
+  check('ローマ字が無ければカナは空にする', (await page.inputValue('#contactKanaInput')) === '');
+  check('その旨を画面で知らせる', (await page.locator('#contactScanStatus').innerText()).includes('ローマ字が無い'));
+  await page.evaluate(() => _contactCancelEdit());
 
   /* カナのIME自動入力 */
   const ime = (reading, confirmed) => page.evaluate(({ reading, confirmed }) => {
