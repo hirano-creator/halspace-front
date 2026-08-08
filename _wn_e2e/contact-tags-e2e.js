@@ -79,7 +79,13 @@ async function stubApi(page, canEdit) {
 
     window.wnGetContacts     = async () => JSON.parse(JSON.stringify(db.contacts));
     window.wnGetContactTags  = async () => ({ groups: [...db.groups], tags: JSON.parse(JSON.stringify(db.tags)), can_edit: db.canEdit });
+    /* 本番の store は同じメールなら updateOrCreate で更新に倒れる。モックも同じ挙動にする */
     window.wnSaveContact     = async f => {
+      const exist = db.contacts.find(c => (c.email || '').toLowerCase() === (f.email || '').toLowerCase());
+      if (exist) {
+        Object.assign(exist, f, { tag_ids: f.tag_ids ?? exist.tag_ids, updated_at: '2026-08-08T00:00:00Z', updated_by_name: '平野 秀和' });
+        recount(); return exist;
+      }
       const c = { id: db.nextId++, ...f, tag_ids: f.tag_ids ?? [],
                   created_at: '2026-08-08T00:00:00Z', updated_at: '2026-08-08T00:00:00Z',
                   created_by_name: '平野 秀和', updated_by_name: '平野 秀和' };
@@ -100,7 +106,16 @@ async function stubApi(page, canEdit) {
       phone: '053-441-2200', mobile: '090-8765-4321', fax: '053-441-2201',
       address: '静岡県浜松市', card_image_path: 'wn/contact-cards/1/dummy.jpg',
     };
-    window.wnScanBusinessCard = async () => JSON.parse(JSON.stringify(window.__cardResult));
+    // __cardQueue に積むと1枚ずつ違う結果を返す（まとめ読み取りの検証用）
+    window.__cardQueue = null;
+    window.wnScanBusinessCard = async () => {
+      if (Array.isArray(window.__cardQueue) && window.__cardQueue.length) {
+        const next = window.__cardQueue.shift();
+        if (next === 'ERROR') throw new Error('読み取りに失敗しました');
+        return JSON.parse(JSON.stringify(next));
+      }
+      return JSON.parse(JSON.stringify(window.__cardResult));
+    };
     // 1x1 の透明GIF。実画像を取りに行かせない
     window.wnContactCardUrl = () => 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
 
@@ -312,6 +327,64 @@ async function newPage(browser, canEdit) {
   check('ローマ字が無ければカナは空にする', (await page.inputValue('#contactKanaInput')) === '');
   check('その旨を画面で知らせる', (await page.locator('#contactScanStatus').innerText()).includes('ローマ字が無い'));
   await page.evaluate(() => _contactCancelEdit());
+
+  /* ── 登録済みファイルから読み取る（?scan_file= 経由の入口） ── */
+  await page.evaluate(() => {
+    // 1x1 PNG を「What'sNo上の名刺画像ファイル」として見せる
+    const bin = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
+    window.allFiles = [{ id: 777, file_name: '名刺_堀内.png', mime_type: 'image/png' }];
+    window.wnFetchFileBuffer = async () => bin.buffer;
+    Object.assign(window.__cardResult, { email: 'from-file@example.co.jp', name: '堀内 健一郎', company: '株式会社堀内鋼機' });
+  });
+  await page.evaluate(() => _ctScanFromFile(777));
+  await page.waitForFunction(() => document.getElementById('contactEmailInput').value === 'from-file@example.co.jp', null, { timeout: 10000 });
+  check('登録済みファイルから読み取ってフォームに入る',
+    (await page.inputValue('#contactNameInput')) === '堀内 健一郎');
+  check('ファイル経由でも自動入力の印が付く', (await page.locator('#contactCompanyInput.ct-ai').count()) === 1);
+  await page.evaluate(() => _contactCancelEdit());
+
+  /* ── まとめて読み取り ── */
+  await page.evaluate(() => {
+    window.__cardQueue = [
+      { name: '青木 一', name_roman: 'HAJIME AOKI', company: '青木工業', email: 'aoki@example.com', phone: '01-1111-1111', fax: '', card_image_path: 'wn/contact-cards/1/a.jpg' },
+      { name: '山田 三郎', name_roman: 'SABURO YAMADA', company: '山田製作所', email: 'saburo@example.com', phone: '', fax: '', card_image_path: 'wn/contact-cards/1/b.jpg' },
+      { name: '伊藤 昇', name_roman: '', company: '伊藤商会', email: 'ito@example.com', phone: '', fax: '', card_image_path: 'wn/contact-cards/1/c.jpg' },   // 既存＝更新
+      { name: 'メール無し', name_roman: '', company: 'メール無し工業', email: '', phone: '', fax: '', card_image_path: null },
+      'ERROR',
+    ];
+  });
+  await page.evaluate(async () => {
+    const bin = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
+    const files = [1, 2, 3, 4, 5].map(n => new File([bin], `card${n}.png`, { type: 'image/png' }));
+    await scanCardsBulk(files);
+  });
+  check('まとめ読み取りの一覧が出る', (await page.locator('#cardBulkList .ct-r').count()) === 5);
+  /* 連絡先モーダル(z-index:1000)の裏に回らないこと */
+  const bulkZ = await page.evaluate(() => getComputedStyle(document.getElementById('cardBulkModal')).zIndex);
+  check('まとめ読み取りの画面が前面に出る',
+    (await page.locator('#cardBulkSaveBtn').isVisible()) && Number(bulkZ) > 1000, `z-index=${bulkZ}`);
+  check('既存と同じメールは「更新」と表示する',
+    (await page.locator('#cardBulkList .ct-r', { hasText: '伊藤 昇' }).innerText()).includes('更新'));
+  check('新規は「新規」と表示する',
+    (await page.locator('#cardBulkList .ct-r', { hasText: '青木 一' }).innerText()).includes('新規'));
+  check('メールが無い名刺は選べない',
+    await page.locator('#cardBulkList input[type=checkbox]').nth(3).isDisabled());
+  check('読み取り失敗も一覧に出す',
+    (await page.locator('#cardBulkList .ct-r', { hasText: '読み取れませんでした' }).count()) === 1);
+  check('同じ会社の既存連絡先からタグを引き継ぐ（まとめ読み取り）',
+    (await page.locator('#cardBulkList .ct-r', { hasText: '山田 三郎' }).innerText()).includes('レーザー'));
+  check('登録ボタンに件数が出る',
+    (await page.locator('#cardBulkSaveLabel').innerText()).includes('3件'),
+    await page.locator('#cardBulkSaveLabel').innerText());
+
+  const before = await page.evaluate(() => allContactsCache.length);
+  await clk(page, '#cardBulkSaveBtn');
+  await page.waitForFunction(() => document.getElementById('cardBulkModal').classList.contains('hidden'), null, { timeout: 15000 });
+  const after = await page.evaluate(() => allContactsCache.length);
+  check('チェックした分だけ登録される（更新は増えない）', after === before + 2, `${before} → ${after}`);
+  check('まとめ登録でも名刺画像が紐づく',
+    (await page.evaluate(() => allContactsCache.find(c => c.email === 'aoki@example.com')?.card_image_path)) === 'wn/contact-cards/1/a.jpg');
+  await page.evaluate(() => { window.__cardQueue = null; });
 
   /* カナのIME自動入力 */
   const ime = (reading, confirmed) => page.evaluate(({ reading, confirmed }) => {

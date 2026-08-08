@@ -2275,6 +2275,23 @@ function initActions() {
     openAaPostModal(fileId, fileData?.file_name ?? '');
   });
 
+  /* 名刺の写真・PDFから連絡先を登録する。
+     読み取りと連絡先フォームはダッシュボード側に一式あるので、
+     ここでは対象ファイルを渡して開くだけにする（画面を二重に持たない） */
+  const cardBtn = document.getElementById('contactFromCardBtn');
+  if (cardBtn) {
+    const ext  = (fileData?.file_name ?? '').split('.').pop().toLowerCase();
+    const mime = fileData?.mime_type ?? '';
+    const canScan = mime.startsWith('image/') || mime === 'application/pdf'
+      || ['jpg', 'jpeg', 'png', 'webp', 'heic', 'pdf'].includes(ext);
+    if (canScan) {
+      cardBtn.style.display = '';
+      cardBtn.addEventListener('click', () => {
+        location.href = `dashboard.html?scan_file=${fileId}`;
+      });
+    }
+  }
+
   /* SOLIDへ発注（同一オリジンの兄弟アプリ。space_tokenはsessionStorage共有でそのまま使える） */
   const solidOrderBtn = document.getElementById('solidOrderBtn');
   if (solidOrderBtn) {
