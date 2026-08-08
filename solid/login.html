@@ -6,479 +6,296 @@
   <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
   <link rel="manifest" href="manifest.json">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#FF6B35">
+  <meta name="theme-color" content="#1c1210">
   <title>ログイン | SOLID</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="assets/css/app.css">
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Unbounded:wght@500;700;900&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    /* ── 2カラムログインレイアウト（space/login.htmlを踏襲、SOLIDブランドに変更） ── */
-    .login-page {
-      min-height: 100vh;
-      display: flex;
-      background: #fff;
-      padding: 0;
-      align-items: stretch;
-      opacity: 0;
-      animation: pageIn .6s ease forwards;
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { height:100%; }
+    body {
+      font-family:'Zen Kaku Gothic New',sans-serif;
+      -webkit-font-smoothing:antialiased;
+      background:radial-gradient(ellipse 120% 90% at 50% 30%,#1c1210 0%,#100907 55%,#080403 100%);
+      color:#fff;
+      overflow:hidden;
+      opacity:0;
+      animation:pageIn .6s ease forwards;
     }
-    @keyframes pageIn { to { opacity: 1; } }
+    @keyframes pageIn { to { opacity:1; } }
 
-    /* ── 左パネル ── */
-    .login-brand {
-      flex: 0 0 40%;
-      background: linear-gradient(160deg, #FF6B35, #e8451a, #FF6B35, #ff8a5c);
-      background-size: 400% 400%;
-      animation: gradShift 8s ease infinite;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 48px 44px;
-      position: relative;
-      overflow: hidden;
-      text-align: center;
-    }
-    @keyframes gradShift {
-      0%   { background-position: 0% 50%; }
-      50%  { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
+    .stage { position:relative; min-height:100vh; min-height:100svh; overflow:hidden; isolation:isolate; }
+    .scene { position:absolute; inset:0; width:100%; height:100%; z-index:2; }
+    .as-glow {
+      position:absolute; left:50%; top:44%; width:60vw; height:60vw; transform:translate(-50%,-50%);
+      background:radial-gradient(circle,rgba(255,107,53,.16),transparent 70%); z-index:1; pointer-events:none;
     }
 
-    #brandCanvas {
-      position: absolute;
-      inset: 0;
-      width: 100%; height: 100%;
-      pointer-events: none;
-      z-index: 0;
+    .copy { position:absolute; left:6%; top:12%; z-index:5; pointer-events:none; max-width:min(680px,58vw); }
+    .copy .small { font-family:'Chakra Petch',monospace; font-size:11px; letter-spacing:.26em; color:#ffb08c; margin-bottom:14px; }
+    .copy h1 { font-size:clamp(22px,2.7vw,34px); font-weight:900; color:#fff2ea; line-height:1.6; white-space:nowrap; }
+    .copy h1 em { font-style:normal; color:#FF6B35; }
+    .copy .sub { margin-top:14px; font-size:13px; color:rgba(255,220,200,.5); line-height:1.9; }
+
+    .card-wrap { position:absolute; right:6%; top:50%; transform:translateY(-50%); z-index:10; width:min(400px,88vw); }
+    .card {
+      background:rgba(28,16,12,.8); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+      border:1.5px solid rgba(255,180,140,.28); box-shadow:0 26px 70px rgba(0,0,0,.55);
+      border-radius:18px; padding:32px 32px 30px;
+    }
+    .card.shake { animation:shake .45s ease; }
+    @keyframes shake { 0%,100%{translate:0 0;} 20%{translate:-9px 0;} 40%{translate:8px 0;} 60%{translate:-6px 0;} 80%{translate:4px 0;} }
+
+    .brand { font-family:'Unbounded',sans-serif; font-weight:900; font-size:26px; color:#fff; letter-spacing:-.01em; }
+    .brand .dot { color:#FF6B35; }
+    .brand-sub { font-size:11px; letter-spacing:.18em; color:rgba(255,255,255,.4); margin:6px 0 24px; text-transform:uppercase; }
+
+    .error-box {
+      display:none; align-items:center; gap:8px;
+      background:rgba(229,62,62,.16); border:1px solid rgba(229,62,62,.4); border-radius:8px;
+      padding:10px 14px; font-size:12.5px; color:#ffd2d2; margin-bottom:16px; line-height:1.6;
+    }
+    .error-box.show { display:flex; }
+
+    .field { margin-bottom:16px; }
+    .field label { display:block; font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.5); margin-bottom:7px; }
+    .fwrap { position:relative; }
+    .field input {
+      width:100%; padding:13px 15px; border-radius:10px; background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.16); color:#fff; font-size:14px; font-family:inherit; outline:none;
+      transition:border-color .2s,box-shadow .2s,background .2s;
+    }
+    .field input::placeholder { color:rgba(255,255,255,.24); }
+    .field input:focus { border-color:#FF6B35; box-shadow:0 0 0 3px rgba(255,107,53,.16); }
+    .eye-btn {
+      position:absolute; right:10px; top:50%; transform:translateY(-50%);
+      background:none; border:none; color:rgba(255,255,255,.35); cursor:pointer; width:28px; height:28px; padding:4px;
+    }
+    .eye-btn svg { width:100%; height:100%; }
+    .eye-btn:hover { color:rgba(255,255,255,.8); }
+
+    .submit-btn {
+      width:100%; margin-top:6px; padding:15px; border-radius:12px; border:none;
+      font-size:15px; font-weight:700; font-family:inherit; color:#fff; cursor:pointer; letter-spacing:.06em;
+      background:linear-gradient(120deg,#e85a25,#FF6B35); box-shadow:0 6px 26px rgba(255,107,53,.35);
+      transition:transform .15s,box-shadow .2s,filter .2s;
+      display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .submit-btn:hover { transform:translateY(-2px); filter:brightness(1.1); }
+    .submit-btn:active { transform:scale(.97); }
+    .submit-btn.loading { pointer-events:none; }
+    .submit-btn .btn-spinner {
+      display:none; width:17px; height:17px; border:2.5px solid rgba(255,255,255,.35);
+      border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite;
+    }
+    .submit-btn.loading .btn-text { display:none; }
+    .submit-btn.loading .btn-spinner { display:block; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    .footer-note {
+      position:absolute; left:0; right:0; bottom:22px; text-align:center; z-index:5;
+      font-size:11px; color:rgba(255,255,255,.3); pointer-events:none;
     }
 
-    .login-brand-name {
-      font-family: 'Poppins', sans-serif;
-      font-size: 40px;
-      font-weight: 900;
-      color: #fff;
-      letter-spacing: -1px;
-      line-height: 1;
-      position: relative;
-      z-index: 1;
-      opacity: 0;
-      transform: translateY(20px);
-      animation: slideUp .7s .3s ease forwards;
+    @media (max-width:860px) {
+      .copy { left:0; right:0; top:6%; text-align:center; padding:0 20px; }
+      .copy .sub { display:none; }
+      .card-wrap { right:50%; top:auto; bottom:5%; transform:translate(50%,0); }
+      .footer-note { display:none; }
     }
-    .login-brand-sub {
-      font-size: 13px;
-      font-weight: 700;
-      color: rgba(255,255,255,.75);
-      letter-spacing: .1em;
-      margin-top: 4px;
-      position: relative;
-      z-index: 1;
-    }
-    .login-brand-tagline {
-      font-size: 14px;
-      color: rgba(255,255,255,.8);
-      margin-top: 16px;
-      font-weight: 400;
-      line-height: 1.6;
-      position: relative;
-      z-index: 1;
-      opacity: 0;
-      transform: translateY(16px);
-      animation: slideUp .7s .5s ease forwards;
-    }
-    .login-brand-footer {
-      font-size: 12px;
-      color: rgba(255,255,255,.5);
-      position: absolute;
-      bottom: 28px;
-      left: 0; right: 0;
-      text-align: center;
-      z-index: 1;
-    }
-
-    /* ── 右パネル ── */
-    .login-form-panel {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 48px 32px;
-    }
-    .login-form-inner {
-      width: 100%;
-      max-width: 400px;
-      opacity: 0;
-      transform: translateX(24px);
-      animation: slideLeft .65s .2s ease forwards;
-    }
-    @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
-    @keyframes slideLeft { to { opacity: 1; transform: translateX(0); } }
-
-    .login-form-title {
-      font-size: 15px;
-      color: #444;
-      margin-bottom: 28px;
-      line-height: 1.7;
-    }
-    .login-form-inner .form-group { margin-bottom: 18px; }
-    .login-form-inner .form-group label {
-      display: block;
-      font-size: 13px;
-      font-weight: 700;
-      color: #333;
-      margin-bottom: 6px;
-    }
-    .login-form-inner .form-group input {
-      width: 100%;
-      padding: 14px 16px;
-      border: 1.5px solid #e0e0e0;
-      border-radius: 10px;
-      font-size: 15px;
-      color: #333;
-      outline: none;
-      transition: border-color .2s, box-shadow .2s;
-      font-family: inherit;
-    }
-    .login-form-inner .form-group input:focus {
-      border-color: #FF6B35;
-      box-shadow: 0 0 0 3px rgba(255,107,53,.1);
-    }
-    .login-form-inner .form-group input::placeholder { color: #bbb; }
-
-    .pw-wrap { position: relative; }
-    .pw-wrap input { padding-right: 46px; }
-    .pw-eye {
-      position: absolute;
-      right: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #bbb;
-      cursor: pointer;
-      font-size: 15px;
-      padding: 4px;
-      transition: color .15s;
-      background: none;
-      border: none;
-      line-height: 1;
-    }
-    .pw-eye:hover { color: #555; }
-
-    .btn-login {
-      width: 100%;
-      padding: 15px;
-      background: #FF6B35;
-      color: #fff;
-      font-size: 16px;
-      font-weight: 700;
-      border-radius: 50px;
-      margin-top: 8px;
-      transition: background .2s, transform .15s, box-shadow .2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      border: none;
-      cursor: pointer;
-      font-family: inherit;
-      position: relative;
-      overflow: hidden;
-    }
-    .btn-login:hover {
-      background: #e8451a;
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(255,107,53,.35);
-    }
-    .btn-login:active { transform: scale(.97); box-shadow: none; }
-    .btn-login.loading { pointer-events: none; background: #374151; }
-    .btn-login .btn-spinner {
-      display: none;
-      width: 18px; height: 18px;
-      border: 2.5px solid rgba(255,255,255,.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-    }
-    .btn-login.loading .btn-text { display: none; }
-    .btn-login.loading .btn-spinner { display: block; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .btn-ripple {
-      position: absolute;
-      border-radius: 50%;
-      background: rgba(255,255,255,.25);
-      transform: scale(0);
-      animation: ripple .5s linear;
-      pointer-events: none;
-    }
-    @keyframes ripple { to { transform: scale(4); opacity: 0; } }
-
-    .login-error {
-      display: none;
-      background: #fff5f5;
-      border: 1px solid #fed7d7;
-      border-radius: 8px;
-      padding: 10px 14px;
-      font-size: 13px;
-      color: #e53e3e;
-      margin-bottom: 16px;
-      align-items: center;
-      gap: 8px;
-    }
-    .login-error.show { display: flex; }
-
-    @media (max-width: 700px) {
-      html { background: #FF6B35; min-height: 100%; }
-      body { background: transparent; }
-      .login-page {
-        flex-direction: column;
-        background: linear-gradient(160deg, #FF6B35, #e8451a, #FF6B35, #ff8a5c);
-        background-size: 400% 400%;
-        animation: gradShift 8s ease infinite, pageIn .6s ease forwards;
-        min-height: 100svh;
-      }
-      #brandCanvas { position: fixed; width: 100vw; height: 100vh; z-index: 0; }
-      .login-brand { flex: 0 0 auto; background: none; padding: 60px 24px 16px; animation: none; z-index: 1; }
-      .login-brand-name { font-size: 38px; }
-      .login-brand-tagline { font-size: 12px; margin-top: 10px; opacity: .9; }
-      .login-brand-footer { display: none; }
-      .login-form-panel { background: transparent; padding: 24px 28px 52px; z-index: 1; position: relative; }
-      .login-form-inner { max-width: 100%; }
-      .login-form-title { font-size: 13px; color: rgba(255,255,255,.65); margin-bottom: 24px; }
-      .login-form-inner .form-group { margin-bottom: 16px; }
-      .login-form-inner .form-group label {
-        font-size: 11px; letter-spacing: .06em; color: rgba(255,255,255,.65); text-transform: uppercase;
-      }
-      .login-form-inner .form-group input {
-        background: rgba(255,255,255,.12);
-        border: 1px solid rgba(255,255,255,.25);
-        color: #fff;
-        padding: 14px 16px;
-        border-radius: 12px;
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-      }
-      .login-form-inner .form-group input::placeholder { color: rgba(255,255,255,.4); }
-      .login-form-inner .form-group input:focus {
-        border-color: rgba(255,255,255,.6);
-        box-shadow: 0 0 0 3px rgba(255,255,255,.15);
-        background: rgba(255,255,255,.16);
-      }
-      .login-form-inner .form-group input:-webkit-autofill,
-      .login-form-inner .form-group input:-webkit-autofill:focus {
-        -webkit-box-shadow: 0 0 0 1000px #c9481f inset !important;
-        -webkit-text-fill-color: #fff !important;
-        caret-color: #fff;
-        border-color: rgba(255,255,255,.25) !important;
-      }
-      .pw-eye { color: rgba(255,255,255,.5); }
-      .pw-eye:hover { color: rgba(255,255,255,.9); }
-      .btn-login {
-        background: #1a1a2e;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,.25);
-        margin-top: 20px;
-        letter-spacing: .04em;
-      }
-      .btn-login:hover { background: #0f3460; transform: translateY(-1px); box-shadow: 0 8px 28px rgba(0,0,0,.35); }
-      .login-error { background: rgba(229,62,62,.2); border-color: rgba(229,62,62,.5); color: #fff0f0; }
+    @media (prefers-reduced-motion:reduce) {
+      *,*::before,*::after { animation-duration:.01s!important; animation-iteration-count:1!important; transition-duration:.01s!important; }
     }
   </style>
 </head>
-<body class="login-page">
+<body>
 
-  <!-- 左：ブランドパネル -->
-  <div class="login-brand">
-    <canvas id="brandCanvas"></canvas>
-    <div>
-      <div class="login-brand-name">SOLID</div>
-      <div class="login-brand-sub">by HaLSpace</div>
-      <p class="login-brand-tagline">
-        DXF・PDF図面をアップロードするだけで<br>3Dモデルを受発注
-      </p>
-    </div>
-    <div class="login-brand-footer">&copy; 2025 HaLSpace Inc.</div>
+<div class="stage" id="stage">
+  <div class="as-glow"></div>
+  <canvas class="scene" id="asCanvas"></canvas>
+
+  <div class="copy">
+    <p class="small">SOLID by HaLSpace</p>
+    <h1>モデリングの負担を減らし、<br>設計から製作までを<em>スムーズ</em>に。</h1>
+    <p class="sub">6枚のパーツが空間に浮かび、ゆっくり組み上がっていく。<br>ログインの瞬間、すべてが一つに噛み合う。</p>
   </div>
 
-  <!-- 右：フォームパネル -->
-  <div class="login-form-panel">
-    <div class="login-form-inner">
+  <div class="card-wrap">
+    <div class="card" id="loginCard">
+      <div class="brand">SOLID<span class="dot">.</span></div>
+      <p class="brand-sub">by HaLSpace</p>
 
-      <p class="login-form-title">
-        ログインするには、メールアドレスと<br>パスワードを入力してください。
-      </p>
-
-      <div class="login-error" id="loginError">
-        <i class="fa-solid fa-circle-exclamation"></i>
+      <div class="error-box" id="loginError">
         <span id="loginErrorMsg">メールアドレスまたはパスワードが正しくありません。</span>
       </div>
 
       <form id="loginForm" novalidate>
-        <div class="form-group">
+        <div class="field">
           <label for="email">メールアドレス</label>
-          <input type="email" id="email" name="email"
-                 placeholder="example@company.co.jp" autocomplete="email" required>
+          <div class="fwrap">
+            <input type="email" id="email" name="email" placeholder="example@company.co.jp" autocomplete="email" required>
+          </div>
         </div>
-        <div class="form-group">
+        <div class="field">
           <label for="password">パスワード</label>
-          <div class="pw-wrap">
-            <input type="password" id="password" name="password"
-                   placeholder="パスワードを入力" autocomplete="current-password" required>
-            <button type="button" class="pw-eye" id="pwToggle" tabindex="-1" aria-label="パスワードを表示">
-              <i class="fa-regular fa-eye"></i>
+          <div class="fwrap">
+            <input type="password" id="password" name="password" placeholder="パスワードを入力" autocomplete="current-password" required>
+            <button type="button" class="eye-btn" id="pwToggle" tabindex="-1" aria-label="パスワードを表示">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
         </div>
-        <button type="submit" class="btn-login" id="loginBtn">
-          <span class="btn-text">ログイン</span>
+        <button type="submit" class="submit-btn" id="loginBtn">
+          <span class="btn-text">組み立て — ログイン</span>
           <span class="btn-spinner"></span>
         </button>
       </form>
-
     </div>
   </div>
 
-  <script src="assets/js/api.js"></script>
-  <script>
-  /* 既にこのタブでログイン済みなら、フォームを出さずダッシュボードへ */
-  if (sessionStorage.getItem('space_user')) {
-    location.href = 'app/dashboard.html';
+  <p class="footer-note">&copy; 2025 HaLSpace Inc.</p>
+</div>
+
+<script src="assets/js/api.js"></script>
+<script>
+/* 既にこのタブでログイン済みなら、フォームを出さずダッシュボードへ */
+if (sessionStorage.getItem('space_user')) {
+  location.href = 'app/dashboard.html';
+}
+
+/* ── 浮遊するキューブ断片（ログインで収束） ── */
+const asState = (function () {
+  const stage = document.getElementById('stage');
+  const cv = document.getElementById('asCanvas');
+  const ctx = cv.getContext('2d');
+  let W, H;
+  function resize() { W = cv.width = cv.offsetWidth; H = cv.height = cv.offsetHeight; }
+  new ResizeObserver(resize).observe(cv);
+  resize();
+
+  const N = 9;
+  const frags = Array.from({ length: N }, (_, i) => ({
+    angle: i / N * Math.PI * 2, baseR: 100 + Math.random() * 90,
+    radius: 100 + Math.random() * 90, size: 28 + Math.random() * 22,
+    spin: (Math.random() - .5) * .01, rot: Math.random() * Math.PI * 2, hue: Math.random(),
+  }));
+  let assembled = 0, targetAssembled = 0, t = 0;
+
+  function drawFragment(cx, cy, size, rot, hue) {
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(rot);
+    const s = size;
+    const topC = 'rgba(255,255,255,.9)';
+    const leftC = hue > .5 ? 'rgba(255,180,140,.85)' : 'rgba(255,255,255,.75)';
+    const rightC = 'rgba(255,120,70,.6)';
+    ctx.beginPath(); ctx.moveTo(0,-s*.6); ctx.lineTo(s*.52,-s*.3); ctx.lineTo(0,0); ctx.lineTo(-s*.52,-s*.3); ctx.closePath();
+    ctx.fillStyle = topC; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-s*.52,-s*.3); ctx.lineTo(0,0); ctx.lineTo(0,s*.6); ctx.lineTo(-s*.52,s*.3); ctx.closePath();
+    ctx.fillStyle = leftC; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(s*.52,-s*.3); ctx.lineTo(0,0); ctx.lineTo(0,s*.6); ctx.lineTo(s*.52,s*.3); ctx.closePath();
+    ctx.fillStyle = rightC; ctx.fill();
+    ctx.restore();
   }
 
-  /* ── パーティクル ── */
-  (function () {
-    const canvas = document.getElementById('brandCanvas');
-    const ctx = canvas.getContext('2d');
-    let W, H, particles;
-
-    function resize() {
-      W = canvas.width  = canvas.offsetWidth;
-      H = canvas.height = canvas.offsetHeight;
+  function draw() {
+    t += .016;
+    assembled += (targetAssembled - assembled) * .05;
+    ctx.clearRect(0, 0, W, H);
+    const cx = W * .38, cy = H * .5;
+    frags.forEach(f => {
+      f.angle += f.spin + assembled * .002;
+      f.radius = f.baseR * (1 - assembled) + 2 * assembled;
+      const wob = Math.sin(t * .6 + f.angle * 3) * 9 * (1 - assembled);
+      const x = cx + Math.cos(f.angle) * f.radius;
+      const y = cy + Math.sin(f.angle) * f.radius * .55 + wob;
+      const rot = f.rot + t * .05 * (1 - assembled);
+      const size = f.size * (1 + assembled * .15);
+      drawFragment(x, y, size, rot, f.hue);
+    });
+    if (assembled > .05) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(assembled, 1) * .5;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 90);
+      g.addColorStop(0, 'rgba(255,150,90,.9)'); g.addColorStop(1, 'rgba(255,150,90,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, 90, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
     }
-    function mkParticle() {
-      return {
-        x: Math.random() * W,
-        y: Math.random() * H,
-        r: Math.random() * 1.8 + 0.4,
-        vx: (Math.random() - 0.5) * 0.35,
-        vy: (Math.random() - 0.5) * 0.35,
-        alpha: Math.random() * 0.5 + 0.15,
-      };
+    requestAnimationFrame(draw);
+  }
+  draw();
+
+  return {
+    assemble()  { targetAssembled = 1; },
+    disperse()  { targetAssembled = 0; },
+  };
+})();
+
+/* ── パスワード表示トグル ── */
+document.getElementById('pwToggle').addEventListener('click', function () {
+  const input = document.getElementById('password');
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+});
+
+/* ── ログイン送信 ── */
+document.getElementById('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn    = document.getElementById('loginBtn');
+  const card   = document.getElementById('loginCard');
+  const err    = document.getElementById('loginError');
+  const errMsg = document.getElementById('loginErrorMsg');
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  const fail = msg => {
+    errMsg.textContent = msg;
+    err.classList.add('show');
+    btn.classList.remove('loading');
+    asState.disperse();
+    card.classList.remove('shake');
+    void card.offsetWidth;
+    card.classList.add('shake');
+  };
+
+  btn.classList.add('loading');
+  err.classList.remove('show');
+  asState.assemble();
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) { fail(data.message || 'ログインに失敗しました。'); return; }
+
+    const u = data.user;
+    if (!(u.apps_enabled || []).includes('solid')) {
+      fail('このアカウントはSOLIDをご利用いただけません。管理者にお問い合わせください。');
+      return;
     }
-    function init() { resize(); particles = Array.from({ length: 90 }, mkParticle); }
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
-      particles.forEach(p => {
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
-        if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${p.alpha})`;
-        ctx.fill();
-      });
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 80) {
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(255,255,255,${0.08 * (1 - dist / 80)})`;
-            ctx.lineWidth = 0.6;
-            ctx.stroke();
-          }
-        }
-      }
-      requestAnimationFrame(draw);
-    }
-    window.addEventListener('resize', () => { resize(); });
-    init();
-    draw();
-  })();
 
-  /* ── パスワード表示トグル ── */
-  document.getElementById('pwToggle').addEventListener('click', function () {
-    const input = document.getElementById('password');
-    const icon  = this.querySelector('i');
-    const show  = input.type === 'password';
-    input.type  = show ? 'text' : 'password';
-    icon.className = show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
-  });
+    sessionStorage.setItem('space_token', data.token);
+    sessionStorage.setItem('space_user', JSON.stringify({
+      id: u.id, name: u.name, email: u.email,
+      role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
+      company: u.company_name, company_id: u.company_id,
+      apps: u.apps_enabled,
+      token: data.token,
+    }));
+    /* このページから直接ログインしたことを記録し、SOLID内では
+       「アプリ選択に戻る」の代わりに「ログアウト」を出せるようにする */
+    sessionStorage.setItem('solid_standalone', '1');
 
-  /* ── ボタンリップル ── */
-  document.getElementById('loginBtn').addEventListener('mousedown', function (e) {
-    const btn = this;
-    const rect = btn.getBoundingClientRect();
-    const size = Math.max(rect.width, rect.height) * 2;
-    const x = e.clientX - rect.left - size / 2;
-    const y = e.clientY - rect.top  - size / 2;
-    const ripple = document.createElement('span');
-    ripple.className = 'btn-ripple';
-    ripple.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px`;
-    btn.appendChild(ripple);
-    ripple.addEventListener('animationend', () => ripple.remove());
-  });
+    setTimeout(() => { location.href = 'app/dashboard.html'; }, 700);
 
-  /* ── ログイン送信 ── */
-  document.getElementById('loginForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn    = document.getElementById('loginBtn');
-    const err    = document.getElementById('loginError');
-    const errMsg = document.getElementById('loginErrorMsg');
-    const email    = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-
-    btn.classList.add('loading');
-    err.classList.remove('show');
-    const resetBtn = () => btn.classList.remove('loading');
-
-    try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        errMsg.textContent = data.message || 'ログインに失敗しました。';
-        err.classList.add('show');
-        resetBtn();
-        return;
-      }
-
-      const u = data.user;
-      if (!(u.apps_enabled || []).includes('solid')) {
-        errMsg.textContent = 'このアカウントはSOLIDをご利用いただけません。管理者にお問い合わせください。';
-        err.classList.add('show');
-        resetBtn();
-        return;
-      }
-
-      sessionStorage.setItem('space_token', data.token);
-      sessionStorage.setItem('space_user', JSON.stringify({
-        id: u.id, name: u.name, email: u.email,
-        role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
-        company: u.company_name, company_id: u.company_id,
-        apps: u.apps_enabled,
-        token: data.token,
-      }));
-      /* このページから直接ログインしたことを記録し、SOLID内では
-         「アプリ選択に戻る」の代わりに「ログアウト」を出せるようにする */
-      sessionStorage.setItem('solid_standalone', '1');
-      location.href = 'app/dashboard.html';
-
-    } catch (ex) {
-      errMsg.textContent = 'サーバーに接続できません。しばらく経ってから再度お試しください。';
-      err.classList.add('show');
-      resetBtn();
-    }
-  });
-  </script>
+  } catch (ex) {
+    fail('サーバーに接続できません。しばらく経ってから再度お試しください。');
+  }
+});
+</script>
 </body>
 </html>
