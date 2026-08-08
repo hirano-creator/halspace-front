@@ -16,6 +16,7 @@ node compare-e2e.js        # 比較機能フル（選択導線・4モード・�
 node compare-multipage.js  # 複数ページA4 PDF・モード巡回・フィット/スクロール/ズーム往復
 node compare-prod.js       # 本番(space-apps.pages.dev)のデプロイ済みページを直接検証（サーバー不要）
 node email-e2e.js          # メール送信導線（iPhone/PC両方でmailto生成・URL長・起動失敗時のフォールバック）
+node unknown-contact-e2e.js # 連絡先に未登録の宛先ポップアップ（報告・その場で登録・登録せず送信・再確認しない）
 node manual-annotate-e2e.js # マニュアル編集のサムネ→注釈編集の導線（back/manual_id受け渡し・ステップ差し替え）
 node large-upload-e2e.js   # 大容量アップロード（R2直送マルチパート）の分割・リトライ・abort・フォールバック
 ```

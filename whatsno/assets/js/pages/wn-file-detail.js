@@ -3622,7 +3622,9 @@ function wnFileIconClass(mimeType) {
 let _emailFileId     = null;
 let _emailFileName   = '';
 let _emailPregenShare = null; // モーダルオープン時に先行発行した共有リンク
-let _allContactsCache = [];   // 登録済み連絡先（オートコンプリート用）
+let _allContactsCache  = [];  // 登録済み連絡先（オートコンプリート用）
+let _allContactsLoaded = false;   // 未取得のまま「未登録です」と誤報告しないためのフラグ
+let _emailUnknownConfirmed = false;   // 未登録の宛先ポップアップで確認済み（モーダルを開くたびリセット）
 const WN_MAIL_SIG_KEY = 'wn_mail_signature';
 
 // TO/CC/BCC 共通のチップ状態・要素ID定義
@@ -3721,6 +3723,7 @@ function openEmailModal(fileId, fileName) {
   _emailFileId      = fileId;
   _emailFileName    = fileName;
   _emailPregenShare = null;
+  _emailUnknownConfirmed = false;
   emailFieldChips.to  = [];
   emailFieldChips.cc  = [];
   emailFieldChips.bcc = [];
@@ -3741,7 +3744,8 @@ function openEmailModal(fileId, fileName) {
     _emailHideSuggest(field);
   }
   _emailRenderSigPreview();
-  wnGetContacts().then(list => { _allContactsCache = list; }).catch(() => {});
+  wnRenderUnknownContactNotice();   // 未登録の宛先のお知らせを切っているときの「元に戻す」導線
+  wnGetContacts().then(list => { _allContactsCache = list; _allContactsLoaded = true; }).catch(() => {});
 
   // リンク生成中の表示
   _emailLinkShowLoading();
@@ -4031,8 +4035,30 @@ function _buildEmailContent() {
   return { to, cc, bcc, subject, body, parts: { message, core, signature: sigText } };
 }
 
+/* 送信前チェック: TO/CC/BCC に連絡先へ未登録の宛先があればポップアップで報告する。
+   ポップアップを出したときは true を返し、送信は確認後（send の再実行）に持ち越す。
+   スマホは mailto / 新規タブがタップ直後でないとブロックされるため、
+   ポップアップのボタンのクリックハンドラから同期で send() を呼ぶ */
+function _emailInterceptUnknownContacts(send) {
+  if (_emailUnknownConfirmed || !_allContactsLoaded || wnIsUnknownContactPopupOff()) return false;
+
+  const all = [...emailFieldChips.to, ...emailFieldChips.cc, ...emailFieldChips.bcc].map(c => c.email);
+  const unknown = wnFindUnknownEmails(all, _allContactsCache);
+  if (unknown.length === 0) return false;
+
+  wnShowUnknownContactsPopup(unknown, (newContacts) => {
+    wnSaveNewContactsInBackground(newContacts, () => {
+      wnGetContacts().then(list => { _allContactsCache = list; }).catch(() => {});
+    });
+    _emailUnknownConfirmed = true;
+    send();
+  });
+  return true;
+}
+
 /* Gmail の作成画面を開く */
 function doSendEmailGmail() {
+  if (_emailInterceptUnknownContacts(doSendEmailGmail)) return;
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
   wnOpenGmailCompose(m);   // スマホは同じタブ、PCは新規タブで開く（wn-api.js）
@@ -4044,6 +4070,7 @@ function doSendEmailGmail() {
 
 /* 既定のメールアプリ（Outlook等）を mailto で起動 */
 function doSendEmailMailto() {
+  if (_emailInterceptUnknownContacts(doSendEmailMailto)) return;
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
 

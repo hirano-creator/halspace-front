@@ -75,6 +75,10 @@ async function prepare(page, shareCount = 1) {
 
     const page = await ctx.newPage();
     await page.route('**/api/**', r => r.fulfill({ json: { data: [] } }));
+    // 宛先を連絡先に登録済みにしておく（未登録だと送信前の確認ポップアップが挟まる）
+    await page.route('**/api/wn/contacts', r => r.fulfill({
+      json: { data: [{ id: 1, name: '取引先 太郎', email: 'to@example.com' }] },
+    }));
     // デスクトップ同期サーバーを成功扱いにする。失敗させると whatsno:// のフォールバックが走り、
     // Chromeの外部プロトコルダイアログでその後の page.click が一切届かなくなる（PCコンテキストのみ）
     await page.route('http://localhost:39876/sync', r => r.fulfill({ status: 200, body: 'ok', headers: { 'Access-Control-Allow-Origin': '*' } }));

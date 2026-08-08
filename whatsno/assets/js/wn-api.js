@@ -1317,3 +1317,155 @@ function wnShowToast(msg, type = '') {
   requestAnimationFrame(() => t.classList.add('show'));
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3500);
 }
+
+/* ────────────────────────────────
+   メール送信前チェック: 連絡先に未登録の宛先を報告する
+   （dashboard / file-detail のメールモーダル共通）
+   ──────────────────────────────── */
+
+/* 連絡先（wnGetContacts の結果）に無いメールアドレスを、重複を除いて返す */
+function wnFindUnknownEmails(emails, contacts) {
+  const known = new Set(
+    (contacts || []).map(c => (c?.email || '').trim().toLowerCase()).filter(Boolean)
+  );
+  const seen = new Set();
+  const out  = [];
+  for (const raw of emails || []) {
+    const email = (raw || '').trim();
+    const key   = email.toLowerCase();
+    if (!email || known.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    out.push(email);
+  }
+  return out;
+}
+
+/* 「今後は表示しない」の記憶（端末ごと） */
+const WN_UNKNOWN_CONTACT_OFF_KEY = 'wn_unknown_contact_popup_off';
+function wnIsUnknownContactPopupOff() {
+  return localStorage.getItem(WN_UNKNOWN_CONTACT_OFF_KEY) === '1';
+}
+function wnSetUnknownContactPopupOff(off) {
+  if (off) localStorage.setItem(WN_UNKNOWN_CONTACT_OFF_KEY, '1');
+  else     localStorage.removeItem(WN_UNKNOWN_CONTACT_OFF_KEY);
+}
+
+/* 非表示にしているあいだは、メールモーダルに「元に戻す」導線を出しておく。
+   設定画面が無いため、これが無いと一度切ったきり戻せなくなる。
+   メールモーダルを開くたびに呼ぶ（dashboard / file-detail 共通） */
+function wnRenderUnknownContactNotice() {
+  document.getElementById('wnUnknownContactNotice')?.remove();
+  if (!wnIsUnknownContactPopupOff()) return;
+
+  const footer = document.getElementById('emailMailtoBtn')?.closest('.modal-footer');
+  if (!footer) return;
+
+  const el = document.createElement('div');
+  el.id = 'wnUnknownContactNotice';
+  el.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);'
+    + 'background:rgba(255,152,0,.10);border-radius:6px;padding:7px 10px;margin-top:12px;line-height:1.6;';
+  el.innerHTML = `
+    <i class="fa-solid fa-bell-slash" style="color:#E17055;"></i>
+    <span style="flex:1;">連絡先に未登録の宛先のお知らせは非表示にしています</span>
+    <button type="button" class="btn btn-outline btn-sm" data-act="restore"
+            style="flex-shrink:0;font-size:11px;padding:4px 8px;white-space:nowrap;">元に戻す</button>`;
+  el.querySelector('[data-act="restore"]').addEventListener('click', () => {
+    wnSetUnknownContactPopupOff(false);
+    wnRenderUnknownContactNotice();
+    wnShowToast('未登録の宛先をお知らせするように戻しました', 'success');
+  });
+  footer.parentNode.insertBefore(el, footer);
+}
+
+/* 未登録の宛先をポップアップで報告する。
+   onProceed(newContacts) は「登録せずに送信」「登録して送信」のどちらでも呼ばれる
+   （newContacts は名前が入力された分だけ。登録しない場合は空配列）。
+   スマホは mailto / 新規タブがタップ直後でないとブロックされるため、
+   ボタンのクリックハンドラから同期で onProceed を呼ぶ（保存の完了は待たない）。 */
+function wnShowUnknownContactsPopup(emails, onProceed) {
+  document.getElementById('wnUnknownContactsModal')?.remove();
+
+  const list    = Array.isArray(emails) ? emails : [];
+  const overlay = document.createElement('div');
+  overlay.id        = 'wnUnknownContactsModal';
+  overlay.className = 'modal-overlay';
+  overlay.style.zIndex = '1100';   // メールモーダル（1000）の上に重ねる
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:440px;">
+      <div class="modal-header">
+        <span class="modal-title">
+          <i class="fa-solid fa-user-plus" style="color:#E17055;margin-right:6px;"></i>連絡先に未登録の宛先があります
+        </span>
+        <button class="modal-close" data-act="cancel"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:14px;">
+        次の宛先は連絡先に登録されていません。名前を入れて登録しておくと、次回から入力候補に出ます。
+      </p>
+      <div data-rows style="display:flex;flex-direction:column;gap:12px;"></div>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:16px;font-size:11.5px;color:var(--muted);cursor:pointer;">
+        <input type="checkbox" data-dontask style="cursor:pointer;">今後は表示しない
+      </label>
+      <div class="modal-footer" style="margin-top:14px;">
+        <button class="btn btn-ghost btn-sm" data-act="cancel">キャンセル</button>
+        <button class="btn btn-outline btn-sm" data-act="skip">登録せずに送信</button>
+        <button class="btn btn-accent btn-sm" data-act="save" disabled>登録して送信</button>
+      </div>
+    </div>`;
+
+  const rowsEl  = overlay.querySelector('[data-rows]');
+  const saveBtn = overlay.querySelector('[data-act="save"]');
+  const inputs  = [];
+
+  for (const email of list) {
+    const row  = document.createElement('div');
+    const addr = document.createElement('div');
+    addr.style.cssText = 'font-size:12px;font-weight:700;color:var(--primary);margin-bottom:5px;word-break:break-all;';
+    addr.textContent = email;   // 宛先はユーザー入力なので textContent で埋める
+    const input = document.createElement('input');
+    input.type        = 'text';
+    input.className   = 'form-input';
+    input.placeholder = '名前（例: 山田 太郎）';
+    input.maxLength   = 100;
+    input.style.cssText = 'padding:7px 10px;font-size:13px;';
+    input.dataset.email = email;
+    row.appendChild(addr);
+    row.appendChild(input);
+    rowsEl.appendChild(row);
+    inputs.push(input);
+  }
+
+  // 名前が1件も入っていないと「登録して送信」は押せない（name はサーバー側で必須）
+  const syncSaveBtn = () => { saveBtn.disabled = !inputs.some(i => i.value.trim()); };
+  inputs.forEach(i => i.addEventListener('input', syncSaveBtn));
+
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) { if (e.target === overlay) close(); return; }
+    if (btn.dataset.act === 'cancel') { close(); return; }
+
+    // 送信まで進んだときだけ記憶する（キャンセルは設定を変えない）
+    if (overlay.querySelector('[data-dontask]')?.checked) wnSetUnknownContactPopupOff(true);
+
+    const newContacts = btn.dataset.act === 'save'
+      ? inputs.map(i => ({ name: i.value.trim(), email: i.dataset.email })).filter(c => c.name)
+      : [];
+    close();
+    onProceed(newContacts);
+  });
+
+  document.body.appendChild(overlay);
+  setTimeout(() => inputs[0]?.focus(), 50);
+}
+
+/* ポップアップで入力された連絡先を裏で保存する（送信を待たせない）。
+   onSaved(count) は保存後のキャッシュ更新用 */
+function wnSaveNewContactsInBackground(contacts, onSaved) {
+  if (!contacts?.length) return;
+  Promise.all(contacts.map(c => wnSaveContact(c).catch(() => null))).then(results => {
+    const ok = results.filter(Boolean).length;
+    if (ok) wnShowToast(`${ok}件を連絡先に登録しました`, 'success');
+    if (ok < contacts.length) wnShowToast('一部の連絡先を登録できませんでした', 'warning');
+    onSaved?.(ok);
+  });
+}

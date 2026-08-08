@@ -225,9 +225,10 @@ function initContactMailModal() { /* 廃止 — initEmailModalに統合済み */
 /* ────────────────────────────────
    連絡先管理モーダル（一覧・追加・編集・削除）
    ──────────────────────────────── */
-let contactsBusy     = false;
-let contactEditingId = null;
-let allContactsCache = [];
+let contactsBusy      = false;
+let contactEditingId  = null;
+let allContactsCache  = [];
+let allContactsLoaded = false;   // 未取得のまま「未登録です」と誤報告しないためのフラグ
 
 function wnEscapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, m => (
@@ -770,7 +771,7 @@ async function renderContactsList() {
   if (!list) return;
   list.innerHTML = '<div class="ct-empty"><i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…</div>';
 
-  try { allContactsCache = await wnGetContacts(); }
+  try { allContactsCache = await wnGetContacts(); allContactsLoaded = true; }
   catch { list.innerHTML = '<div class="ct-empty" style="color:#E17055;">連絡先の取得に失敗しました</div>'; return; }
 
   _renderFilteredContacts();
@@ -1259,6 +1260,8 @@ async function runSkill(instruction) {
 
   try {
     const contacts = await wnGetContacts();
+    allContactsCache  = contacts;
+    allContactsLoaded = true;
     const res   = await wnRunSkill(instruction, file.id, contacts);
 
     // スキルが特定できなかった場合は入力を残してエラーを表示
@@ -4036,6 +4039,7 @@ function jsq(str) {
 let emailModalFiles    = [];   // [{ id, name }]
 let emailPregenShares  = null; // [{ id, name, url }] | null
 const emailShareCache  = new Map(); // fileId → Promise<share>（hover先行発行キャッシュ）
+let emailUnknownConfirmed = false;  // 未登録の宛先ポップアップで確認済み（モーダルを開くたびリセット）
 
 // TO/CC/BCC 共通のチップ状態・要素ID定義
 const emailFieldChips = { to: [], cc: [], bcc: [] }; // field → { email: string }[]
@@ -4150,6 +4154,7 @@ function prefetchEmailShare(fileId) {
 function openEmailModal(files, prefillEmail = null) {
   emailModalFiles   = Array.isArray(files) ? files : (files ? [files] : []);
   emailPregenShares = null;
+  emailUnknownConfirmed = false;
   emailFieldChips.to  = prefillEmail ? [{ email: prefillEmail }] : [];
   emailFieldChips.cc  = [];
   emailFieldChips.bcc = [];
@@ -4171,7 +4176,8 @@ function openEmailModal(files, prefillEmail = null) {
     _emailHideSuggest(field);
   }
   _emailRenderSigPreview();
-  wnGetContacts().then(list => { allContactsCache = list; }).catch(() => {});
+  wnRenderUnknownContactNotice();   // 未登録の宛先のお知らせを切っているときの「元に戻す」導線
+  wnGetContacts().then(list => { allContactsCache = list; allContactsLoaded = true; }).catch(() => {});
 
   if (!hasFiles) {
     emailPregenShares = [];
@@ -4312,7 +4318,10 @@ function _addEmailToChips(field, val) {
   if (field === 'to' && skillPendingName) {
     const nm = skillPendingName;
     skillPendingName = '';
-    wnSaveContact({ name: nm, email: val }).catch(() => {});
+    allContactsCache.push({ name: nm, email: val });   // 送信時に「未登録です」と二重に聞かないため
+    wnSaveContact({ name: nm, email: val }).catch(() => {
+      allContactsCache = allContactsCache.filter(c => c.email !== val);
+    });
   }
   renderEmailChips(field);
   return true;
@@ -4435,8 +4444,30 @@ function _buildEmailContent() {
   return { to, cc, bcc, subject, body, parts: { message, core, signature: sigText } };
 }
 
+/* 送信前チェック: TO/CC/BCC に連絡先へ未登録の宛先があればポップアップで報告する。
+   ポップアップを出したときは true を返し、送信は確認後（send の再実行）に持ち越す。
+   スマホは mailto / 新規タブがタップ直後でないとブロックされるため、
+   ポップアップのボタンのクリックハンドラから同期で send() を呼ぶ */
+function _emailInterceptUnknownContacts(send) {
+  if (emailUnknownConfirmed || !allContactsLoaded || wnIsUnknownContactPopupOff()) return false;
+
+  const all = [...emailFieldChips.to, ...emailFieldChips.cc, ...emailFieldChips.bcc].map(c => c.email);
+  const unknown = wnFindUnknownEmails(all, allContactsCache);
+  if (unknown.length === 0) return false;
+
+  wnShowUnknownContactsPopup(unknown, (newContacts) => {
+    wnSaveNewContactsInBackground(newContacts, () => {
+      wnGetContacts().then(list => { allContactsCache = list; }).catch(() => {});
+    });
+    emailUnknownConfirmed = true;
+    send();
+  });
+  return true;
+}
+
 /* Gmail の作成画面を開く */
 function doSendEmailGmail() {
+  if (_emailInterceptUnknownContacts(doSendEmailGmail)) return;
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
   wnSetMailerPref('gmail');   // 次回スキルから自動でGmailを起動
@@ -4449,6 +4480,7 @@ function doSendEmailGmail() {
 
 /* 既定のメールアプリ（Outlook等）を mailto で起動 */
 function doSendEmailMailto() {
+  if (_emailInterceptUnknownContacts(doSendEmailMailto)) return;
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
   wnSetMailerPref('mailto');   // 次回スキルから自動で既定メールアプリを起動
