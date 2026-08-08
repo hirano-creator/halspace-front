@@ -295,6 +295,16 @@ function initContactsModal() {
 
   _ctInitKanaAutoFill(nameEl, kanaEl);
 
+  /* 名刺スキャン。スマホはカメラ、PCはファイル選択が開く */
+  const scanBtn   = document.getElementById('contactScanBtn');
+  const cardInput = document.getElementById('contactCardInput');
+  scanBtn?.addEventListener('click', () => cardInput?.click());
+  cardInput?.addEventListener('change', () => {
+    const f = cardInput.files?.[0];
+    cardInput.value = '';               // 同じ画像をもう一度選べるようにする
+    if (f) scanBusinessCard(f);
+  });
+
   /* パネルの外側クリックで閉じる。再描画するとクリック対象が消えて
      後続の click が届かなくなるため、DOMから外すだけにする */
   document.addEventListener('mousedown', e => {
@@ -357,6 +367,7 @@ function _contactCancelEdit() {
   ['contactNameInput', 'contactKanaInput', 'contactCompanyInput', 'contactEmailInput', 'contactPhoneInput', 'contactFaxInput']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   ctSel.clear();
+  _ctClearScan();
   document.getElementById('contactFormTitle').textContent    = '新しく登録する';
   document.getElementById('contactAddBtnIcon').className     = 'fa-solid fa-plus';
   document.getElementById('contactAddBtnLabel').textContent  = '登録する';
@@ -372,6 +383,139 @@ function _contactShowError(msg) {
   if (!box) return;
   if (msg) { txt.textContent = msg; box.style.display = 'block'; }
   else     { box.style.display = 'none'; }
+}
+
+/* ────────────────────────────────
+   名刺スキャン（撮影 → 読み取り → フォームに自動入力）
+   読み取った時点では登録しない。内容を確認してから「登録する」で保存する。
+   ──────────────────────────────── */
+let ctScanBusy  = false;
+let ctCardPath  = null;   // scan-card が返した名刺画像のパス。保存時に一緒に送る
+
+const CT_SCAN_FIELDS = {
+  contactNameInput:    'name',
+  contactKanaInput:    'name_kana',
+  contactCompanyInput: 'company',
+  contactEmailInput:   'email',
+  contactPhoneInput:   'phone',
+  contactFaxInput:     'fax',
+};
+
+function _ctScanStatus(msg, kind = 'info') {
+  const el = document.getElementById('contactScanStatus');
+  if (!el) return;
+  if (!msg) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.className = `ct-scan-status ${kind}`;
+  el.innerHTML = msg;
+}
+
+/* 自動入力の目印と名刺の控えを消す */
+function _ctClearScan() {
+  ctCardPath = null;
+  Object.keys(CT_SCAN_FIELDS).forEach(id => document.getElementById(id)?.classList.remove('ct-ai'));
+  _ctScanStatus('');
+  const prev = document.getElementById('contactCardPreview');
+  if (prev) { prev.classList.add('hidden'); prev.innerHTML = ''; }
+}
+
+/* 送信前に端末側で縮小する。
+   本番APIは単一ワーカーなので数MBの画像をそのまま送ると他の操作まで詰まる。
+   小さすぎるとローマ字を読み違えるため（1075pxでは HORIUCHI→HORIUCI になった）長辺1600pxにする。 */
+async function _ctShrinkImage(file, long = 1600, quality = 0.8) {
+  try {
+    if (typeof createImageBitmap !== 'function') return file;
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const scale = Math.min(1, long / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * scale));
+    const h = Math.max(1, Math.round(bmp.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bmp, 0, 0, w, h);
+    bmp.close?.();
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+    return blob || file;
+  } catch {
+    return file;   // 縮小できない端末はそのまま送る
+  }
+}
+
+async function scanBusinessCard(file) {
+  if (ctScanBusy) return;
+  ctScanBusy = true;
+  const btn = document.getElementById('contactScanBtn');
+  if (btn) btn.disabled = true;
+  _ctScanStatus('<i class="fa-solid fa-spinner fa-spin"></i> 名刺を読み取っています…（5秒ほど）');
+
+  try {
+    const blob = await _ctShrinkImage(file);
+    const data = await wnScanBusinessCard(blob);
+    ctCardPath = data.card_image_path || null;
+
+    // 名刺に印字されたローマ字だけをカナに変換する（AIに読みは作らせない）
+    const kana = wnRomajiNameToKana(data.name_roman || '');
+    const values = {
+      contactNameInput:    data.name    || '',
+      contactKanaInput:    kana,
+      contactCompanyInput: data.company || '',
+      contactEmailInput:   data.email   || '',
+      contactPhoneInput:   data.phone   || data.mobile || '',
+      contactFaxInput:     data.fax     || '',
+    };
+
+    const filled = [];
+    Object.entries(values).forEach(([id, v]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle('ct-ai', !!v);
+      if (v) { el.value = v; filled.push(id); }
+    });
+
+    // 同じメールアドレスの連絡先があれば、新規ではなく更新に切り替える
+    const dup = data.email
+      ? allContactsCache.find(c => (c.email || '').toLowerCase() === data.email.toLowerCase())
+      : null;
+    if (dup) {
+      contactEditingId = dup.id;
+      ctSel = new Set(dup.tag_ids ?? []);
+      document.getElementById('contactFormTitle').textContent   = '連絡先を編集する';
+      document.getElementById('contactAddBtnIcon').className    = 'fa-solid fa-check';
+      document.getElementById('contactAddBtnLabel').textContent = '更新する';
+      document.getElementById('contactCancelEditBtn')?.classList.remove('hidden');
+    } else if (data.company) {
+      // 同じ会社の人が既にいれば、その人のタグを初期選択にする（付け忘れ防止）
+      const sameCompany = allContactsCache.filter(c => c.company_name && c.company_name === data.company);
+      const suggested = new Set(sameCompany.flatMap(c => c.tag_ids ?? []));
+      if (suggested.size) ctSel = suggested;
+    }
+    _ctRenderPicked();
+
+    const missing = Object.entries(values).filter(([, v]) => !v).length;
+    const notes = [];
+    if (dup) notes.push('<b>同じメールアドレスの連絡先があります。</b>内容を確認して「更新する」を押してください。');
+    if (!kana && data.name) notes.push('名刺にローマ字が無いためカナは空です。');
+    if (kana) notes.push('カナは名刺のローマ字から機械的に変換しています（長音や「ん」の区切りはご確認ください）。');
+    if (missing) notes.push(`読み取れなかった欄は空のままです（${missing}件）。`);
+    _ctScanStatus(
+      `<i class="fa-solid fa-wand-magic-sparkles"></i> 読み取りました。<b>色の付いた欄</b>を確認してください。`
+      + (notes.length ? '<br>' + notes.join('<br>') : ''),
+      dup ? 'warn' : 'info');
+
+    // 撮った名刺を確認できるように控えを出す
+    const prev = document.getElementById('contactCardPreview');
+    if (prev) {
+      const url = URL.createObjectURL(blob);
+      prev.innerHTML = `<img src="${url}" alt="読み取った名刺"><div class="cap">この名刺は連絡先に添付されます</div>`;
+      prev.classList.remove('hidden');
+    }
+    document.getElementById('contactNameInput')?.focus();
+  } catch (err) {
+    _ctScanStatus(`<i class="fa-solid fa-triangle-exclamation"></i> ${wnEscapeHtml(err?.message || '名刺を読み取れませんでした')}。手で入力してください。`, 'warn');
+  } finally {
+    ctScanBusy = false;
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function loadContactTags() {
@@ -447,7 +591,8 @@ function _renderFilteredContacts() {
     return `
     <div class="ct-r" data-id="${c.id}">
       <div style="flex:1;min-width:0;">
-        <div class="nm">${wnEscapeHtml(c.name)}${c.name_kana ? `<span class="kn">${wnEscapeHtml(c.name_kana)}</span>` : ''}</div>
+        <div class="nm">${wnEscapeHtml(c.name)}${c.name_kana ? `<span class="kn">${wnEscapeHtml(c.name_kana)}</span>` : ''}${
+          c.has_card ? '<i class="fa-solid fa-id-card" title="名刺あり" style="margin-left:6px;font-size:10px;color:#B6BFC9;"></i>' : ''}</div>
         <div class="sub">${c.company_name ? `${wnEscapeHtml(c.company_name)} · ` : ''}${wnEscapeHtml(c.email)}</div>
         ${c.phone || c.fax ? `<div class="sub">${c.phone ? 'TEL ' + wnEscapeHtml(c.phone) : ''}${c.phone && c.fax ? '　' : ''}${c.fax ? 'FAX ' + wnEscapeHtml(c.fax) : ''}</div>` : ''}
         ${tags.length ? `<div style="margin-top:4px;">${tags.map(t =>
@@ -785,6 +930,8 @@ async function addContactFromForm() {
     fax:          faxEl.value.trim(),
     tag_ids:      [...ctSel],
   };
+  // 名刺から読み取ったときだけ画像を紐づける（撮り直していなければ既存の名刺が残る）
+  if (ctCardPath) fields.card_image_path = ctCardPath;
 
   contactsBusy = true;
   try {
@@ -819,6 +966,19 @@ function editContact(c) {
   document.getElementById('contactAddBtnIcon').className    = 'fa-solid fa-check';
   document.getElementById('contactAddBtnLabel').textContent = '更新する';
   document.getElementById('contactCancelEditBtn')?.classList.remove('hidden');
+
+  // 名刺が添付されていれば控えを出す（読み取り違いをその場で見比べられる）
+  const prev = document.getElementById('contactCardPreview');
+  if (prev) {
+    if (c.has_card) {
+      prev.innerHTML = `<img src="${wnContactCardUrl(c.id)}" alt="${wnEscapeHtml(c.name)}の名刺" loading="lazy">
+        <div class="cap">登録時に読み取った名刺</div>`;
+      prev.classList.remove('hidden');
+    } else {
+      prev.classList.add('hidden');
+      prev.innerHTML = '';
+    }
+  }
 
   const meta = document.getElementById('contactMeta');
   if (meta) {
