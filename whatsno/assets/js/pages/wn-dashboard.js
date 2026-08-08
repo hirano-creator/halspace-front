@@ -305,6 +305,27 @@ function initContactsModal() {
     if (f) scanBusinessCard(f);
   });
 
+  /* 溜まった名刺をまとめて読み取る */
+  const bulkBtn   = document.getElementById('contactBulkScanBtn');
+  const bulkInput = document.getElementById('contactBulkInput');
+  bulkBtn?.addEventListener('click', () => bulkInput?.click());
+  bulkInput?.addEventListener('change', () => {
+    const files = [...(bulkInput.files ?? [])];
+    bulkInput.value = '';
+    if (files.length) scanCardsBulk(files);
+  });
+  document.getElementById('cardBulkClose')?.addEventListener('click', closeCardBulkModal);
+  document.getElementById('cardBulkCancelBtn')?.addEventListener('click', closeCardBulkModal);
+  document.getElementById('cardBulkSaveBtn')?.addEventListener('click', saveCardBulk);
+
+  /* ファイル詳細から「連絡先に登録」で来たとき（?scan_file=123） */
+  const scanFileId = new URLSearchParams(location.search).get('scan_file');
+  if (scanFileId) {
+    // 再読み込みで二度読み取らないようURLから外す
+    history.replaceState(null, '', location.pathname + location.hash);
+    _ctScanFromFile(scanFileId);
+  }
+
   /* パネルの外側クリックで閉じる。再描画するとクリック対象が消えて
      後続の click が届かなくなるため、DOMから外すだけにする */
   document.addEventListener('mousedown', e => {
@@ -516,6 +537,216 @@ async function scanBusinessCard(file) {
     ctScanBusy = false;
     if (btn) btn.disabled = false;
   }
+}
+
+/* ────────────────────────────────
+   登録済みファイルから読み取る（ファイル詳細の「連絡先に登録」）
+   ファイル詳細から dashboard.html?scan_file=123 で来る。
+   読み取りと連絡先フォームはこちらに一式あるので、画面を二重に持たない。
+   ──────────────────────────────── */
+async function _ctScanFromFile(fileId) {
+  openContactsModal();
+  _ctScanStatus('<i class="fa-solid fa-spinner fa-spin"></i> ファイルを読み込んでいます…');
+  try {
+    const blob = await _ctFileToCardBlob(fileId);
+    if (!blob) throw new Error('このファイルは名刺として読み取れません');
+    await scanBusinessCard(blob);
+  } catch (err) {
+    _ctScanStatus(`<i class="fa-solid fa-triangle-exclamation"></i> ${wnEscapeHtml(err?.message || 'ファイルを読み取れませんでした')}`, 'warn');
+  }
+}
+
+/* What'sNo上のファイルを名刺画像（JPEG）にする。PDFは1ページ目を描画する */
+async function _ctFileToCardBlob(fileId) {
+  const f = allFiles.find(x => String(x.id) === String(fileId));
+  const name = f?.file_name ?? '';
+  const ext  = name.split('.').pop().toLowerCase();
+  const mime = f?.mime_type ?? '';
+
+  const buffer = await wnFetchFileBuffer(fileId);
+  if (!buffer) throw new Error('ファイルを取得できませんでした');
+
+  if (mime === 'application/pdf' || ext === 'pdf') {
+    if (typeof pdfjsLib === 'undefined') throw new Error('PDFを読み取れません');
+    const pdf  = await pdfjsLib.getDocument({ data: buffer }).promise;
+    const page = await pdf.getPage(1);
+    const base = page.getViewport({ scale: 1 });
+    // 文字がつぶれると誤読するので、名刺スキャンと同じ長辺1600pxで描画する
+    const scale    = Math.max(1, 1600 / Math.max(base.width, base.height));
+    const viewport = page.getViewport({ scale });
+    const canvas   = document.createElement('canvas');
+    canvas.width   = Math.round(viewport.width);
+    canvas.height  = Math.round(viewport.height);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';                 // 透過PDFをJPEGにすると黒くつぶれる
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    pdf.destroy?.();
+    return await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
+  }
+
+  return new Blob([buffer], { type: mime || 'image/jpeg' });
+}
+
+/* ────────────────────────────────
+   名刺のまとめ読み取り（溜まった名刺を一度に処理する）
+   本番APIは単一ワーカーなので並列にせず1枚ずつ処理し、進捗を出す。
+   ──────────────────────────────── */
+let ctBulkRows = [];      // [{name, company, email, kana, phone, fax, cardPath, tagIds, dupId, error}]
+let ctBulkBusy = false;
+
+function openCardBulkModal() {
+  document.getElementById('cardBulkModal').classList.remove('hidden');
+}
+function closeCardBulkModal() {
+  if (ctBulkBusy) return;
+  document.getElementById('cardBulkModal').classList.add('hidden');
+  ctBulkRows = [];
+}
+
+function _ctBulkProgress(done, total, label) {
+  const txt = document.getElementById('cardBulkProgressText');
+  const bar = document.getElementById('cardBulkProgressBar');
+  const box = document.getElementById('cardBulkProgress');
+  if (box) box.style.display = total ? 'block' : 'none';
+  if (txt) txt.textContent = label ?? `${done} / ${total} 枚を読み取りました`;
+  if (bar) bar.style.width = total ? `${Math.round(done / total * 100)}%` : '0';
+}
+
+async function scanCardsBulk(files) {
+  if (ctBulkBusy) return;
+  ctBulkBusy = true;
+  ctBulkRows = [];
+  openCardBulkModal();
+  document.getElementById('cardBulkList').innerHTML = '';
+  document.getElementById('cardBulkNote').textContent = '';
+  document.getElementById('cardBulkSaveBtn').disabled = true;
+  _ctBulkProgress(0, files.length, `0 / ${files.length} 枚を読み取っています…`);
+
+  for (let i = 0; i < files.length; i++) {
+    _ctBulkProgress(i, files.length, `${i + 1}枚目を読み取っています…（全${files.length}枚）`);
+    try {
+      const blob = await _ctShrinkImage(files[i]);
+      const d    = await wnScanBusinessCard(blob);
+      const email = (d.email || '').trim();
+      const dup   = email ? allContactsCache.find(c => (c.email || '').toLowerCase() === email.toLowerCase()) : null;
+      // 同じ会社の人が既にいればタグを引き継ぐ（個別登録と同じ扱い）
+      const sameCompany = d.company ? allContactsCache.filter(c => c.company_name === d.company) : [];
+      ctBulkRows.push({
+        fileName: files[i].name,
+        name:     d.name || '',
+        kana:     wnRomajiNameToKana(d.name_roman || ''),
+        company:  d.company || '',
+        email,
+        phone:    d.phone || d.mobile || '',
+        fax:      d.fax || '',
+        cardPath: d.card_image_path || null,
+        tagIds:   dup ? (dup.tag_ids ?? []) : [...new Set(sameCompany.flatMap(c => c.tag_ids ?? []))],
+        dupId:    dup?.id ?? null,
+        error:    null,
+        checked:  !!email,
+      });
+    } catch (err) {
+      ctBulkRows.push({ fileName: files[i].name, error: err?.message || '読み取れませんでした', checked: false });
+    }
+    _ctBulkProgress(i + 1, files.length);
+    _ctRenderBulkList();
+  }
+
+  ctBulkBusy = false;
+  _ctBulkProgress(files.length, files.length, `${files.length}枚の読み取りが終わりました`);
+  _ctRenderBulkList();
+}
+
+function _ctRenderBulkList() {
+  const box = document.getElementById('cardBulkList');
+  if (!box) return;
+
+  box.innerHTML = ctBulkRows.map((r, i) => {
+    if (r.error) {
+      return `<div class="ct-r" style="align-items:center;">
+        <div style="flex:1;min-width:0;">
+          <div class="nm" style="color:#C0562F;">読み取れませんでした</div>
+          <div class="sub">${wnEscapeHtml(r.fileName)} — ${wnEscapeHtml(r.error)}</div>
+        </div></div>`;
+    }
+    const badge = r.dupId
+      ? '<span style="font-size:10px;font-weight:700;color:#C0562F;background:rgba(225,112,85,.12);padding:2px 6px;border-radius:4px;">更新</span>'
+      : '<span style="font-size:10px;font-weight:700;color:#1565C0;background:rgba(33,150,243,.12);padding:2px 6px;border-radius:4px;">新規</span>';
+    const noMail = !r.email;
+    return `<div class="ct-r" style="align-items:center;${noMail ? 'opacity:.65;' : ''}">
+      <input type="checkbox" data-bulk="${i}" ${r.checked ? 'checked' : ''} ${noMail ? 'disabled' : ''}
+        style="width:16px;height:16px;flex-shrink:0;margin-top:2px;">
+      <div style="flex:1;min-width:0;">
+        <div class="nm">${wnEscapeHtml(r.name || '（名前が読み取れません）')}
+          ${r.kana ? `<span class="kn">${wnEscapeHtml(r.kana)}</span>` : ''} ${badge}</div>
+        <div class="sub">${r.company ? wnEscapeHtml(r.company) + ' · ' : ''}${
+          noMail ? '<span style="color:#C0562F;">メールが読み取れないため登録できません（個別に登録してください）</span>' : wnEscapeHtml(r.email)}</div>
+        ${r.phone || r.fax ? `<div class="sub">${r.phone ? 'TEL ' + wnEscapeHtml(r.phone) : ''}${r.phone && r.fax ? '　' : ''}${r.fax ? 'FAX ' + wnEscapeHtml(r.fax) : ''}</div>` : ''}
+        ${r.tagIds?.length ? `<div style="margin-top:3px;">${r.tagIds.map(id => ctTag(id)).filter(Boolean)
+            .map(t => `<span class="ct-mini"><span class="ct-dot" style="--c:${ctColor(t.group_id)}"></span>${wnEscapeHtml(t.name)}</span>`).join('')}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  box.querySelectorAll('[data-bulk]').forEach(cb => cb.addEventListener('change', () => {
+    ctBulkRows[Number(cb.dataset.bulk)].checked = cb.checked;
+    _ctUpdateBulkFooter();
+  }));
+  _ctUpdateBulkFooter();
+}
+
+function _ctUpdateBulkFooter() {
+  const ready = ctBulkRows.filter(r => r.checked && !r.error && r.email);
+  const noMail = ctBulkRows.filter(r => !r.error && !r.email).length;
+  const failed = ctBulkRows.filter(r => r.error).length;
+  const btn = document.getElementById('cardBulkSaveBtn');
+  const lbl = document.getElementById('cardBulkSaveLabel');
+  if (btn) btn.disabled = ctBulkBusy || ready.length === 0;
+  if (lbl) lbl.textContent = ready.length ? `${ready.length}件をまとめて登録` : 'まとめて登録';
+
+  const notes = [];
+  if (ctBulkRows.some(r => r.kana)) notes.push('カナは名刺のローマ字から機械変換しています。登録後に一覧から直せます。');
+  if (noMail) notes.push(`メールが読み取れなかった名刺が${noMail}枚あります（チェックできません）。`);
+  if (failed) notes.push(`読み取りに失敗した名刺が${failed}枚あります。`);
+  const note = document.getElementById('cardBulkNote');
+  if (note) note.textContent = notes.join(' ');
+}
+
+async function saveCardBulk() {
+  if (ctBulkBusy) return;
+  const targets = ctBulkRows.filter(r => r.checked && !r.error && r.email);
+  if (!targets.length) return;
+
+  ctBulkBusy = true;
+  document.getElementById('cardBulkSaveBtn').disabled = true;
+  let done = 0, failed = 0;
+
+  for (const r of targets) {
+    _ctBulkProgress(done, targets.length, `${done + 1}件目を登録しています…（全${targets.length}件）`);
+    try {
+      // 同じメールがあればサーバー側(updateOrCreate)が更新に倒すので、新規・更新どちらも store でよい
+      await wnSaveContact({
+        name: r.name || r.company || '（名称未設定）',
+        email: r.email,
+        name_kana: r.kana,
+        company_name: r.company,
+        phone: r.phone,
+        fax: r.fax,
+        tag_ids: r.tagIds ?? [],
+        card_image_path: r.cardPath,
+      });
+    } catch { failed++; }
+    done++;
+    _ctBulkProgress(done, targets.length);
+  }
+
+  ctBulkBusy = false;
+  closeCardBulkModal();
+  await renderContactsList();
+  await loadContactTags();
+  wnShowToast(failed ? `${done - failed}件を登録しました（${failed}件は失敗）` : `${done}件を登録しました`,
+              failed ? 'warning' : 'success');
 }
 
 async function loadContactTags() {
