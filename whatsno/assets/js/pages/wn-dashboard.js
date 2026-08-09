@@ -3322,12 +3322,12 @@ async function doUpload() {
         onProgress: pct => {
           if (prog) prog.style.width = pct + '%';
           if (pct >= 100 && stat) {
-            stat.innerHTML = '<i class="fa-solid fa-circle-nodes fa-spin" style="color:var(--accent);"></i> KnowlがAI学習中…';
+            stat.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="color:var(--accent);"></i> 保存処理中…';
           }
         },
       });
       document.getElementById(`qitem-${i}`)?.style.setProperty('background', 'rgba(0,184,148,.08)');
-      if (stat) stat.innerHTML = '<i class="fa-solid fa-check" style="color:#2E7D32;"></i> 学習完了';
+      if (stat) stat.innerHTML = '<i class="fa-solid fa-check" style="color:#2E7D32;"></i> 保存完了';
       if (result?.data?.id) uploadedFiles.push(result.data);
     } catch (err) {
       failCount++;
