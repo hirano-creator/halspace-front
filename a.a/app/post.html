@@ -314,19 +314,20 @@
         // 編集保存直後はレスポンスに最新の投稿データが揃っているため、getPostの再取得はしない
         const p = preset || (await AA.getPost(id)).data;
         P = p;
-        const mediaHtml = (p.media||[]).map(m => {
+        // 複数枚は縦に並べず横スワイプのスライドにまとめる（1枚のときは従来どおりそのまま表示）
+        const mediaHtml = AA_slidesHtml((p.media||[]).map(m => {
           if (m.kind === 'document') {
             const wnAttr = p.source_wn_file_id ? ` data-wnid="${p.source_wn_file_id}"` : '';
             return `<div class="media" data-view="${m.view}" data-kind="document" data-mime="${esc(m.mime||'')}"${wnAttr} style="min-height:160px"></div>`;
           } else if (m.kind === 'image' && m.url) {
-            return `<div class="media" style="text-align:center"><img src="${esc(m.url)}" style="max-width:100%;border-radius:12px;display:block" alt="" onerror="this.style.display='none'"></div>`;
+            return `<div class="media" style="text-align:center"><img src="${esc(m.url)}" style="max-width:100%;display:block" alt="" onerror="this.style.display='none'"></div>`;
           } else if (m.kind === 'video' && m.url) {
             const vMime = esc(m.mime || 'video/mp4');
-            return `<div class="media"><video controls playsinline preload="metadata" style="width:100%;border-radius:12px"><source src="${esc(m.url)}" type="${vMime}"></video></div>`;
+            return `<div class="media"><video controls playsinline preload="metadata" style="width:100%"><source src="${esc(m.url)}" type="${vMime}"></video></div>`;
           } else {
             return `<div class="media" data-view="${m.view}" data-kind="${m.kind}" style="min-height:120px"></div>`;
           }
-        }).join('');
+        }));
         const helpful = (p.reactions && p.reactions.helpful) || 0;
         const mine = (p.my_reactions||[]).indexOf('helpful')>=0;
         const thumb = mine
@@ -347,6 +348,7 @@
         </article>
         <div class="ctitle" id="ctitle">コメント</div>
         <div id="clist"></div>`;
+        AA_bindSlides(root);
         loadMedia(root);
         document.getElementById('reactBtn').onclick = async (ev) => {
           const b = document.getElementById('reactBtn');

@@ -99,6 +99,34 @@
       return '<svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#9b9ba3" stroke-width="1.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
     }
 
+    // メディア1件ぶんのカード内表現。複数枚のときはこれをスライドの各コマとして並べる。
+    function mediaItemHtml(m, p){
+      if (!m) return '';
+      if (m.kind === 'document') {
+        // 資料は非同期サムネイル描画。PPTXはpreview-pdf変換、PDFは直接pdf.js。data-wnidはPPTX変換に使う。
+        const wnAttr = p.source_wn_file_id ? ` data-wnid="${p.source_wn_file_id}"` : '';
+        return `<div class="media docprev" data-view="${m.view}" data-mime="${esc(m.mime||'')}"${wnAttr} style="min-height:120px;background:var(--soft);cursor:pointer"></div>`;
+      }
+      if (m.kind === 'image' && (m.id || m.url)) {
+        // サーバー保存サムネ(小さいJPEG)優先。無ければ原寸URL→それも失敗なら非表示
+        const src = m.id ? AA.mediaThumbUrl(m.id) : m.url;
+        return `<div class="media" style="aspect-ratio:4/3;overflow:hidden;background:var(--soft)"><img src="${esc(src)}" data-full="${esc(m.url||'')}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" onerror="if(this.dataset.full&&!this.dataset.fb){this.dataset.fb=1;this.src=this.dataset.full}else{this.style.display='none'}"></div>`;
+      }
+      if (m.kind === 'video') {
+        const vMime = esc(m.mime || 'video/mp4');
+        // m.view から mediaId を取り出す。再生(プロキシraw)とサムネ(thumb)に使う
+        const midMatch = (m.view || '').match(/\/media\/(\d+)\/view/);
+        if (midMatch || m.url) {
+          const tAttr = midMatch
+            ? ` data-thumb-url="${esc(AA.apiBase() + '/aa/media/' + midMatch[1] + '/raw?token=' + AA.token())}" data-media-id="${midMatch[1]}"`
+            : '';
+          return `<div class="media vidcard" data-vid-url="${esc(m.url||'')}" data-vid-mime="${vMime}"${tAttr} style="aspect-ratio:4/3;overflow:hidden;background:#000;position:relative;cursor:pointer"><img class="vidthumb" style="width:100%;height:100%;object-fit:cover;display:block;visibility:hidden" alt=""><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:60px;height:60px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="26" height="26" fill="#fff"><path d="M6 4l14 8-14 8V4z"/></svg></div></div></div>`;
+        }
+        return `<div class="media" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:var(--soft)">${thumbIcon('video')}</div>`;
+      }
+      return `<div class="media" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:var(--soft)">${thumbIcon(m.kind)}</div>`;
+    }
+
     function postCard(p){
       // ニュース
       if (p.kind === 'news') {
@@ -109,34 +137,9 @@
           <h3>${esc(p.news_title)}</h3>${p.news_summary?`<p>${esc(p.news_summary)}</p>`:''}
         </a>`;
       }
-      // メディア表現
-      let mediaHtml = '';
-      const m = (p.media||[])[0];
-      if (m) {
-        if (m.kind === 'document') {
-          // 資料は非同期サムネイル描画。PPTXはpreview-pdf変換、PDFは直接pdf.js。data-wnidはPPTX変換に使う。
-          const wnAttr = p.source_wn_file_id ? ` data-wnid="${p.source_wn_file_id}"` : '';
-          mediaHtml = `<div class="media docprev" data-view="${m.view}" data-mime="${esc(m.mime||'')}"${wnAttr} style="min-height:120px;background:var(--soft);cursor:pointer"></div>`;
-        } else if (m.kind === 'image' && (m.id || m.url)) {
-          // サーバー保存サムネ(小さいJPEG)優先。無ければ原寸URL→それも失敗なら非表示
-          const src = m.id ? AA.mediaThumbUrl(m.id) : m.url;
-          mediaHtml = `<div class="media" style="aspect-ratio:4/3;overflow:hidden;background:var(--soft)"><img src="${esc(src)}" data-full="${esc(m.url||'')}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" onerror="if(this.dataset.full&&!this.dataset.fb){this.dataset.fb=1;this.src=this.dataset.full}else{this.style.display='none'}"></div>`;
-        } else if (m.kind === 'video') {
-          const vMime = esc(m.mime || 'video/mp4');
-          // m.view から mediaId を取り出す。再生(プロキシraw)とサムネ(thumb)に使う
-          const midMatch = (m.view || '').match(/\/media\/(\d+)\/view/);
-          if (midMatch || m.url) {
-            const tAttr = midMatch
-              ? ` data-thumb-url="${esc(AA.apiBase() + '/aa/media/' + midMatch[1] + '/raw?token=' + AA.token())}" data-media-id="${midMatch[1]}"`
-              : '';
-            mediaHtml = `<div class="media vidcard" data-vid-url="${esc(m.url||'')}" data-vid-mime="${vMime}"${tAttr} style="aspect-ratio:4/3;overflow:hidden;background:#000;position:relative;cursor:pointer"><img class="vidthumb" style="width:100%;height:100%;object-fit:cover;display:block;visibility:hidden" alt=""><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:60px;height:60px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="26" height="26" fill="#fff"><path d="M6 4l14 8-14 8V4z"/></svg></div></div></div>`;
-          } else {
-            mediaHtml = `<div class="media" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:var(--soft)">${thumbIcon('video')}</div>`;
-          }
-        } else {
-          mediaHtml = `<div class="media" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:var(--soft)">${thumbIcon(m.kind)}</div>`;
-        }
-      }
+      // メディア表現（複数枚は AA_slidesHtml で横スワイプのスライドにまとめる）
+      const mediaList = p.media || [];
+      const mediaHtml = AA_slidesHtml(mediaList.map(m => mediaItemHtml(m, p)));
       const helpful = (p.reactions && p.reactions.helpful) || 0;
       const mine = (p.my_reactions||[]).indexOf('helpful') >= 0;
       const thumb = mine
@@ -179,6 +182,7 @@
       }
       el.innerHTML = data.map(postCard).join('');
       bind();
+      AA_bindSlides(el);
       renderDocs();
       if (!searchQuery) topSeenId = data[0].id; // 検索中は新着ポーリングの基準を動かさない（絞り込み結果の先頭とは無関係なため）
     }
@@ -416,6 +420,9 @@
       // いいね/コメント/シェアや動画再生・資料オープンなど個別の操作は素通り（ev.target.closest で除外）。
       document.querySelectorAll('.post[data-id]').forEach(art => art.addEventListener('click', (ev) => {
         if (ev.target.closest('a, button, .vidcard, .docprev')) return;
+        // スライドを指で送った直後のクリックは無視（画像をスワイプしただけで詳細に飛ばないように）
+        const sl = ev.target.closest('.slides');
+        if (sl && sl.dataset.swiping) return;
         location.href = './post.html?id=' + art.dataset.id;
       }));
       document.querySelectorAll('[data-react]').forEach(b => b.onclick = async (ev) => {

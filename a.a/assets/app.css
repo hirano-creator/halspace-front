@@ -53,6 +53,31 @@ body{font-family:var(--sans);color:var(--ink);background:var(--paper);
 
 .media{border-radius:20px;overflow:hidden;position:relative;background:var(--soft);margin-bottom:2px}
 .media img,.media video{width:100%;max-width:100%;display:block}
+/* 複数メディアのスライド表示（フィードカード・投稿詳細で共用）。
+   本体は横スクロール＋scroll-snap。ドット/カウンタ/矢印は AA_bindSlides がスクロール位置から同期する。 */
+.slides{position:relative;margin-bottom:2px}
+.slides-track{display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;border-radius:20px;background:var(--soft)}
+.slides-track::-webkit-scrollbar{display:none}
+.slide{flex:0 0 100%;width:100%;min-width:0;scroll-snap-align:center;scroll-snap-stop:always;
+  display:flex;align-items:center}
+.slide > *{width:100%;margin-bottom:0}
+.slide > .media{border-radius:0}
+.slides-count{position:absolute;top:10px;right:12px;z-index:2;pointer-events:none;
+  background:rgba(10,10,14,.62);color:#fff;font-family:var(--mono);font-size:12px;padding:4px 9px;border-radius:999px}
+.slides-dots{display:flex;justify-content:center;align-items:center;gap:6px;height:26px}
+.slides-dots i{width:6px;height:6px;border-radius:50%;background:#d7d9e2;transition:background .15s,transform .15s}
+.slides-dots i.on{background:var(--accent);transform:scale(1.3)}
+/* 上下 0/26px＋margin auto で「ドット列を除いた領域」の垂直中央に置く */
+.slides-arrow{position:absolute;top:0;bottom:26px;margin:auto 0;width:36px;height:36px;border-radius:50%;z-index:2;
+  background:rgba(255,255,255,.92);color:var(--ink);display:none;align-items:center;justify-content:center;
+  box-shadow:0 6px 18px -8px rgba(20,30,80,.6);cursor:pointer;transition:opacity .15s}
+.slides-arrow svg{width:20px;height:20px}
+.slides-arrow.prev{left:10px}
+.slides-arrow.next{right:10px}
+.slides-arrow[disabled]{opacity:0;pointer-events:none}
+@media (hover:hover){.slides:hover .slides-arrow{display:flex}}
+
 .doc{display:flex;align-items:center;gap:13px;background:var(--soft);border-radius:18px;padding:15px 16px}
 .doc .dic{width:42px;height:42px;border-radius:11px;background:#fff;color:var(--accent);display:flex;align-items:center;justify-content:center;flex:0 0 42px}
 .doc .dic svg{width:22px;height:22px}
