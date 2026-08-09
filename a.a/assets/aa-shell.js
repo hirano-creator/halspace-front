@@ -217,6 +217,59 @@
   }
   window.AA_openLikers = openLikers;
 
+  /* ───── 複数メディアのスライド表示（フィードカード / 投稿詳細で共用） ─────
+     items: メディア1件ぶんのHTML文字列の配列（種別ごとの見た目は呼び出し側が作る）。
+     1件のときはスライドにせずそのまま返す＝従来の見た目を変えない。 */
+  function slidesHtml(items) {
+    const list = (items || []).filter(Boolean);
+    if (list.length <= 1) return list[0] || '';
+    const arrow = (dir, d, label) => `<button class="slides-arrow ${dir}" data-slide-dir="${dir === 'prev' ? -1 : 1}" aria-label="${label}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="${d}"/></svg></button>`;
+    return `<div class="slides">
+      <div class="slides-track">${list.map(h => `<div class="slide">${h}</div>`).join('')}</div>
+      <div class="slides-count"><span class="i">1</span>/${list.length}</div>
+      ${arrow('prev', 'M15 18l-6-6 6-6', '前の画像')}${arrow('next', 'M9 6l6 6-6 6', '次の画像')}
+      <div class="slides-dots">${list.map((_, i) => `<i${i ? '' : ' class="on"'}></i>`).join('')}</div>
+    </div>`;
+  }
+
+  // 描画後に呼ぶ。カウンタ・ドット・矢印をスクロール位置に追従させる。
+  function bindSlides(root) {
+    (root || document).querySelectorAll('.slides').forEach(sl => {
+      if (sl.dataset.slidesBound) return;
+      sl.dataset.slidesBound = '1';
+      const track = sl.querySelector('.slides-track');
+      if (!track) return;
+      const dots = [].slice.call(sl.querySelectorAll('.slides-dots i'));
+      const counter = sl.querySelector('.slides-count .i');
+      const prev = sl.querySelector('.slides-arrow.prev');
+      const next = sl.querySelector('.slides-arrow.next');
+      const total = dots.length;
+      const index = () => Math.round(track.scrollLeft / (track.clientWidth || 1));
+      const sync = () => {
+        const i = Math.max(0, Math.min(total - 1, index()));
+        dots.forEach((d, n) => d.classList.toggle('on', n === i));
+        if (counter) counter.textContent = i + 1;
+        if (prev) prev.disabled = i === 0;
+        if (next) next.disabled = i === total - 1;
+      };
+      let clear = null;
+      track.addEventListener('scroll', () => {
+        // スワイプ直後のクリックでカード全体のリンク（投稿詳細へ）が発火しないよう印を付ける
+        sl.dataset.swiping = '1';
+        clearTimeout(clear);
+        clear = setTimeout(() => { delete sl.dataset.swiping; }, 250);
+        sync();
+      }, { passive: true });
+      [prev, next].forEach(b => b && b.addEventListener('click', (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        track.scrollTo({ left: (index() + Number(b.dataset.slideDir)) * track.clientWidth, behavior: 'smooth' });
+      }));
+      sync();
+    });
+  }
+  window.AA_slidesHtml = slidesHtml;
+  window.AA_bindSlides = bindSlides;
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
   else mount();
 })();
