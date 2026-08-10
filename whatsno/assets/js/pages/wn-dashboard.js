@@ -4850,7 +4850,10 @@ async function openAaPostModal(files) {
   aaPostTargets = files;
   aaPostBusy = false;
   document.getElementById('aaPostFileList').innerHTML =
-    files.map(f => `<div><i class="fa-solid fa-file"></i> ${h(f.name)}</div>`).join('');
+    files.map(f => `<div><i class="fa-solid fa-file"></i> ${h(f.name)}</div>`).join('')
+    + (files.length > 1
+      ? `<div style="margin-top:6px;color:var(--accent);"><i class="fa-solid fa-images"></i> この${files.length}件は1つの投稿にまとまり、スワイプで見られます</div>`
+      : '');
   document.getElementById('aaPostCategory').value = '';
   document.getElementById('aaPostBody').value = '';
   document.getElementById('aaPostProgress').style.display = 'none';
@@ -4896,29 +4899,30 @@ async function executeAaPost() {
   errList.style.display = 'none';
   errList.innerHTML = '';
 
+  // 選択した全ファイルを1リクエストで送り、a.a側では**1投稿**にまとまる
+  // （複数枚はスワイプできるスライドとして表示される。以前は1ファイル=1投稿だった）
   const total = aaPostTargets.length;
   let okCount = 0;
-  const failed = [];
 
-  for (let i = 0; i < total; i++) {
-    const f = aaPostTargets[i];
-    document.getElementById('aaPostProgressBar').style.width = `${Math.round((i / total) * 100)}%`;
-    document.getElementById('aaPostProgressText').textContent = `(${i + 1}/${total}) 「${f.name}」を投稿中…`;
-    try {
-      await wnPostToAa(f.id, { category, body });
-      okCount++;
-    } catch (e) {
-      failed.push({ name: f.name, message: e.message || '投稿に失敗しました' });
-    }
+  document.getElementById('aaPostProgressBar').style.width = '40%';
+  document.getElementById('aaPostProgressText').textContent =
+    total > 1 ? `${total}件を1つの投稿にまとめています…` : '投稿中…';
+
+  try {
+    await wnPostToAa(aaPostTargets.map(f => f.id), { category, body });
+    okCount = total;
+  } catch (e) {
+    errList.style.display = 'block';
+    errList.innerHTML = `<div>${h(e.message || '投稿に失敗しました')}</div>`;
   }
 
   document.getElementById('aaPostProgressBar').style.width = '100%';
-  document.getElementById('aaPostProgressText').textContent = `${okCount}/${total}件 投稿完了`;
+  document.getElementById('aaPostProgressText').textContent = okCount
+    ? (total > 1 ? `${total}件を1つの投稿にまとめました` : '投稿完了')
+    : '投稿できませんでした';
 
-  if (failed.length > 0) {
-    errList.style.display = 'block';
-    errList.innerHTML = failed.map(f => `<div>${h(f.name)}: ${h(f.message)}</div>`).join('');
-    wnShowToast('一部の投稿に失敗しました', 'warning');
+  if (!okCount) {
+    wnShowToast('a.aへの投稿に失敗しました', 'danger');
   } else {
     wnShowToast('a.aへの投稿が完了しました', 'success');
   }

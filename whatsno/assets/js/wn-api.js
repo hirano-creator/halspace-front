@@ -1030,11 +1030,16 @@ const AA_APP_URL = (() => {
   return 'https://aa-sns.pages.dev';
 })();
 
-/* What'sNoファイルをそのままa.aへ1件投稿（1ファイル=1投稿） */
-async function wnPostToAa(wnFileId, { category, body } = {}) {
-  const res = await wnFetch(`/aa/posts/from-wn/${wnFileId}`, {
+/* What'sNoファイルをそのままa.aへ投稿。
+   複数渡すと**まとめて1投稿**になり、a.a側では選んだ順のスライドとして表示される。 */
+async function wnPostToAa(wnFileIds, { category, body } = {}) {
+  const res = await wnFetch('/aa/posts/from-wn', {
     method: 'POST',
-    body: JSON.stringify({ category: category || null, body: body || '' }),
+    body: JSON.stringify({
+      wn_file_ids: [].concat(wnFileIds).map(Number),
+      category: category || null,
+      body: body || '',
+    }),
   });
   if (!res || !res.ok) {
     const err = await res?.json().catch(() => ({}));

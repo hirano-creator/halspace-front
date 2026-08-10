@@ -90,11 +90,13 @@
     </div>
   </div>
 
-  <!-- What'sNo選択モーダル -->
+  <!-- What'sNo選択モーダル（複数選択可。選んだ順にスライドとして並ぶ） -->
   <div class="overlay" id="wnModal" style="display:none">
     <div class="sheet">
       <header><span>What'sNoから選んで公開</span><button class="x" id="wnClose"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M18 6L6 18M6 6l12 12"/></svg></button></header>
+      <div class="maskhint" id="wnHint">複数選べます。選んだ順に1つの投稿にまとまり、スワイプで見られます。</div>
       <div class="sbody" id="wnList"><div class="center">読み込み中…</div></div>
+      <footer><button class="btn primary" id="wnDone">選択を使う</button></footer>
     </div>
   </div>
 
@@ -108,7 +110,7 @@
     const CATS = ['補助金','セミナー','設備紹介','お知らせ','相談'];
     let cat = '設備紹介';
     let isMasked = false;
-    let selectedWn = null; // What'sNoから選んだファイル {id, name, mime_type}
+    const selectedWns = []; // What'sNoから選んだファイル {id, name, mime_type}。選んだ順＝スライドの並び順
     const files = []; // {file, kind}
 
     function renderCats(){
@@ -119,10 +121,13 @@
     function renderPreview(){
       const el = document.getElementById('preview');
       let html = files.map((f,i)=>`<span class="chip">${f.masked?'🖤 ':''}${f.kind==='video'?'動画':f.kind==='document'?'資料':'画像'}：${esc(f.file.name.slice(0,16))} <b data-rm="${i}" style="cursor:pointer">×</b></span>`).join('');
-      if (selectedWn) html += `<span class="chip" style="background:var(--accent-bg);color:var(--accent)">📄 What'sNo：${esc(selectedWn.name.slice(0,18))} <b data-rmwn="1" style="cursor:pointer">×</b></span>`;
+      html += selectedWns.map((w,i)=>`<span class="chip" style="background:var(--accent-bg);color:var(--accent)">📄 What'sNo：${esc(w.name.slice(0,18))} <b data-rmwn="${i}" style="cursor:pointer">×</b></span>`).join('');
+      // 2件以上ならスライドになることを明示（投稿前に結果が分かるように）
+      const total = files.length + selectedWns.length;
+      if (total > 1) html += `<span class="chip" style="background:none;color:var(--mute)">→ ${total}枚のスライドとして投稿されます</span>`;
       el.innerHTML = html;
       el.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{ files.splice(+b.dataset.rm,1); renderPreview(); });
-      const rw = el.querySelector('[data-rmwn]'); if (rw) rw.onclick = () => { selectedWn = null; renderPreview(); };
+      el.querySelectorAll('[data-rmwn]').forEach(b=>b.onclick=()=>{ selectedWns.splice(+b.dataset.rmwn,1); renderPreview(); });
     }
     function add(input, kind){
       input.addEventListener('change', () => { [...input.files].forEach(file => files.push({file,kind})); input.value=''; renderPreview(); });
@@ -132,7 +137,7 @@
     add(document.getElementById('fDoc'),'document');
 
     /* ───── マスク編集（canvas黒塗り／モザイク） ───── */
-    let mImg, mRects = [], mScale = 1, mTargetIdx = -1, mFromWn = false, mFromDoc = false, mDrawing = null, mMode = 'black';
+    let mImg, mRects = [], mScale = 1, mTargetIdx = -1, mFromWn = false, mWnIdx = -1, mFromDoc = false, mDrawing = null, mMode = 'black';
     let mMosaicSize = 16; // モザイクの粗さ(px)。数値が大きいほど粗く＝濃くなる
     const maskModal = document.getElementById('maskModal');
     const maskTitle = document.getElementById('maskTitle');
@@ -196,25 +201,26 @@
         }
         return;
       }
-      if (selectedWn) {
-        const isImg = /^image\//.test(selectedWn.mime_type || '');
-        const isPdf = selectedWn.mime_type === 'application/pdf';
-        if (isImg || isPdf) {
-          mFromWn = true;
-          mFromDoc = isPdf;
-          msg.textContent = (isPdf ? '資料' : '画像') + 'を読み込み中…';
-          try {
-            const res = await fetch(AA.wnFileRawUrl(selectedWn.id));
-            if (!res.ok) throw new Error();
-            const rawBlob = await res.blob();
-            const blobUrl = isPdf ? await pdfFirstPageBlobUrl(rawBlob) : URL.createObjectURL(rawBlob);
-            msg.textContent = '';
-            openMaskEditor(mode, blobUrl);
-          } catch (e) {
-            msg.textContent = (isPdf ? '資料' : '画像') + 'の読み込みに失敗しました';
-          }
-          return;
+      // What'sNoから選んだうち、マスクできる（画像かPDFの）最初の1件を対象にする
+      const wnIdx = selectedWns.findIndex(w => /^image\//.test(w.mime_type || '') || w.mime_type === 'application/pdf');
+      if (wnIdx >= 0) {
+        const targetWn = selectedWns[wnIdx];
+        const isPdf = targetWn.mime_type === 'application/pdf';
+        mFromWn = true;
+        mWnIdx = wnIdx;
+        mFromDoc = isPdf;
+        msg.textContent = (isPdf ? '資料' : '画像') + 'を読み込み中…';
+        try {
+          const res = await fetch(AA.wnFileRawUrl(targetWn.id));
+          if (!res.ok) throw new Error();
+          const rawBlob = await res.blob();
+          const blobUrl = isPdf ? await pdfFirstPageBlobUrl(rawBlob) : URL.createObjectURL(rawBlob);
+          msg.textContent = '';
+          openMaskEditor(mode, blobUrl);
+        } catch (e) {
+          msg.textContent = (isPdf ? '資料' : '画像') + 'の読み込みに失敗しました';
         }
+        return;
       }
       msg.textContent = 'マスクする画像・資料(PDF)を「写真」または「資料」から追加してください';
     }
@@ -280,12 +286,12 @@
         x: r.x/mScale, y: r.y/mScale, w: r.w/mScale, h: r.h/mScale, mode: r.mode
       }, mScale));
       out.toBlob((blob) => {
-        const baseName = (mFromWn ? selectedWn.name : files[mTargetIdx].file.name).replace(/\.\w+$/, '');
+        const baseName = (mFromWn ? selectedWns[mWnIdx].name : files[mTargetIdx].file.name).replace(/\.\w+$/, '');
         const masked = new File([blob], 'masked_' + baseName + '.jpg', { type: 'image/jpeg' });
         if (mFromWn) {
           // マスク済み画像は実体をそのまま送る（元ファイルへの参照は使わない＝マスク前の画像を業界内に晒さない）
           files.push({ file: masked, kind: 'image', masked: true });
-          selectedWn = null;
+          selectedWns.splice(mWnIdx, 1);
         } else {
           files[mTargetIdx] = { file: masked, kind: 'image', masked: true };
         }
@@ -299,27 +305,51 @@
 
     /* ───── What'sNo取り込み ───── */
     const wnModal = document.getElementById('wnModal');
-    document.getElementById('wnClose').onclick = () => { wnModal.style.display='none'; };
+    const wnDone = document.getElementById('wnDone');
+    const closeWnModal = () => { wnModal.style.display='none'; renderPreview(); };
+    document.getElementById('wnClose').onclick = closeWnModal;
+    wnDone.onclick = closeWnModal;
+    // 選択件数をボタンに出す（0件でも閉じられる＝選び直しの取消として使える）
+    function paintWnDone(){
+      wnDone.textContent = selectedWns.length ? `選択した${selectedWns.length}件を使う` : '閉じる';
+      wnDone.classList.toggle('primary', selectedWns.length > 0);
+    }
     document.getElementById('fromWn').onclick = async () => {
       wnModal.style.display = 'flex';
+      paintWnDone();
       const list = document.getElementById('wnList');
       list.innerHTML = '<div class="center">読み込み中…</div>';
       try {
         const r = await AA.wnFiles();
         const items = r.data || r.files || (Array.isArray(r) ? r : []);
         if (!items.length) { list.innerHTML = '<div class="center">What\'sNoに公開できるファイルがありません</div>'; return; }
+        const isPicked = (id) => selectedWns.findIndex(w => String(w.id) === String(id));
+        const paintItems = () => {
+          list.querySelectorAll('.wnitem').forEach(b => {
+            const at = isPicked(b.dataset.id);
+            b.classList.toggle('on', at >= 0);
+            // 何番目のコマになるかを丸数字で見せる（選んだ順＝スライドの並び順）
+            b.querySelector('.wnck').textContent = at >= 0 ? String(at + 1) : '';
+          });
+          paintWnDone();
+        };
         list.innerHTML = items.map(f => `
           <button class="wnitem" data-id="${f.id}">
             <div class="dic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>
             <b>${esc(f.file_name || f.name || ('file#'+f.id))}</b>
+            <span class="wnck"></span>
           </button>`).join('');
         list.querySelectorAll('.wnitem').forEach(b => b.onclick = () => {
-          // 選んだら新規投稿ページに戻る。公開は「投稿する」を押したとき。
-          const item = items.find(f => String(f.id) === b.dataset.id);
-          selectedWn = { id: b.dataset.id, name: b.querySelector('b').textContent, mime_type: item && item.mime_type };
-          wnModal.style.display = 'none';
-          renderPreview();
+          // タップで選択のオン/オフ。モーダルは開いたままで続けて選べる。公開は「投稿する」を押したとき。
+          const at = isPicked(b.dataset.id);
+          if (at >= 0) selectedWns.splice(at, 1);
+          else {
+            const item = items.find(f => String(f.id) === b.dataset.id);
+            selectedWns.push({ id: b.dataset.id, name: b.querySelector('b').textContent, mime_type: item && item.mime_type });
+          }
+          paintItems();
         });
+        paintItems();
       } catch(e){ list.innerHTML = `<div class="center">読み込みに失敗：${esc(e.message)}</div>`; }
     };
 
@@ -328,24 +358,15 @@
       const body = document.getElementById('body').value.trim();
       const btn = document.getElementById('submit');
 
-      // What'sNoから選んだ場合は from-wn で公開
-      if (selectedWn) {
-        try {
-          btn.textContent='公開中…'; btn.disabled=true;
-          const r = await AA.publishFromWn(selectedWn.id, { category: cat, body });
-          prependToFeedCache(r.data);
-          location.href = './feed.html';
-        }
-        catch(e){ msg.textContent = e.message; btn.textContent='投稿する'; btn.disabled=false; }
-        return;
-      }
-
-      if (!body && !files.length) { msg.textContent = '本文かメディアを入れてください'; return; }
+      if (!body && !files.length && !selectedWns.length) { msg.textContent = '本文かメディアを入れてください'; return; }
+      // 端末のファイルとWhat'sNoのファイルは同じ投稿にまとめて送る（複数ならスライドになる）。
+      // 並び順は「端末のファイル → What'sNoのファイル」＝プレビューのチップと同じ並び。
       const fd = new FormData();
       fd.append('category', cat);
       if (body) fd.append('body', body);
       if (isMasked) fd.append('is_masked', '1');
       files.forEach(f => fd.append('media[]', f.file));
+      selectedWns.forEach(w => fd.append('wn_file_ids[]', w.id));
       try {
         btn.textContent='投稿中…'; btn.disabled=true;
         const r = await AA.createPost(fd);

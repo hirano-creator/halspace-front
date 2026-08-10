@@ -104,7 +104,8 @@
       if (!m) return '';
       if (m.kind === 'document') {
         // 資料は非同期サムネイル描画。PPTXはpreview-pdf変換、PDFは直接pdf.js。data-wnidはPPTX変換に使う。
-        const wnAttr = p.source_wn_file_id ? ` data-wnid="${p.source_wn_file_id}"` : '';
+        // source_wn_file_id は投稿の代表1件しか持たないため、複数メディアのときは付けない（別コマに他ファイルのサムネが出るのを防ぐ）
+        const wnAttr = (p.source_wn_file_id && (p.media||[]).length === 1) ? ` data-wnid="${p.source_wn_file_id}"` : '';
         return `<div class="media docprev" data-view="${m.view}" data-mime="${esc(m.mime||'')}"${wnAttr} style="min-height:120px;background:var(--soft);cursor:pointer"></div>`;
       }
       if (m.kind === 'image' && (m.id || m.url)) {
