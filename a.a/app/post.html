@@ -317,7 +317,8 @@
         // 複数枚は縦に並べず横スワイプのスライドにまとめる（1枚のときは従来どおりそのまま表示）
         const mediaHtml = AA_slidesHtml((p.media||[]).map(m => {
           if (m.kind === 'document') {
-            const wnAttr = p.source_wn_file_id ? ` data-wnid="${p.source_wn_file_id}"` : '';
+            // 代表1件ぶんのIDしか無いため、複数メディアのときは付けない（別コマに他ファイルのサムネが出るのを防ぐ）
+            const wnAttr = (p.source_wn_file_id && (p.media||[]).length === 1) ? ` data-wnid="${p.source_wn_file_id}"` : '';
             return `<div class="media" data-view="${m.view}" data-kind="document" data-mime="${esc(m.mime||'')}"${wnAttr} style="min-height:160px"></div>`;
           } else if (m.kind === 'image' && m.url) {
             return `<div class="media" style="text-align:center"><img src="${esc(m.url)}" style="max-width:100%;display:block" alt="" onerror="this.style.display='none'"></div>`;

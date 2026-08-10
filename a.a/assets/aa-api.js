@@ -73,7 +73,11 @@
   const feed   = (category) => aaFetch('/aa/feed' + (category ? ('?category=' + encodeURIComponent(category)) : ''));
   const getPost= (id) => aaFetch('/aa/posts/' + id);
   const createPost = (formData) => aaFetch('/aa/posts', { method: 'POST', body: formData }); // FormData(media[], category, body, is_masked)
-  const publishFromWn = (wnFileId, payload) => aaFetch('/aa/posts/from-wn/' + wnFileId, { method: 'POST', body: payload || {} });
+  // What'sNoのファイルをそのまま公開。複数渡すと**1投稿にまとまり**、指定順のスライドとして表示される。
+  const publishFromWn = (wnFileIds, payload) => aaFetch('/aa/posts/from-wn', {
+    method: 'POST',
+    body: Object.assign({}, payload || {}, { wn_file_ids: [].concat(wnFileIds).map(Number) }),
+  });
   const wnFiles = () => aaFetch('/wn/files'); // What'sNo取り込み用の自社ファイル一覧
   // What'sNoファイル実体のURL（マスク編集でcanvasに読み込む用）。wn/files/{id}/viewはR2署名URLを直接返すため
   // 別ドメイン(a.a)からのfetchはR2バケットのCORS許可外で失敗する→APIが中継するrawエンドポイントを使う
