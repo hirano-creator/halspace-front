@@ -31,6 +31,9 @@
     --orange-lt: rgba(245,158,11,.1);
     --blue:      #3b82f6;
     --blue-lt:   rgba(59,130,246,.1);
+    /* 系列色として使うグレー（請求書管理など）。badge-gray と同じ値 */
+    --gray:      #9ca3af;
+    --gray-lt:   #f3f4f6;
     --radius:    6px;
     --shadow:    0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
     --shadow-md: 0 4px 12px rgba(0,0,0,.1);
@@ -484,6 +487,140 @@
     .kpi-value { font-size: 20px; }
     .main-body { padding: 10px; }
   }
+
+  /* ══════════════════════════════════════════════════
+     利用状況（Analytics）
+     描画は assets/js/admin-analytics.js。
+     画面幅を使い切るため12カラムグリッドで組む。
+     ══════════════════════════════════════════════════ */
+  #sectionAnalytics .an-grid {
+    display: grid; grid-template-columns: repeat(12, 1fr); gap: 18px; margin-bottom: 18px;
+  }
+  #sectionAnalytics .an-grid > .card { display: flex; flex-direction: column; min-width: 0; }
+  .an-c3 { grid-column: span 3; } .an-c4 { grid-column: span 4; }
+  .an-c6 { grid-column: span 6; } .an-c8 { grid-column: span 8; }
+  .an-c9 { grid-column: span 9; } .an-c12 { grid-column: span 12; }
+  .an-kpi { grid-column: span 2; }
+
+  #sectionAnalytics .card-body { flex: 1; min-width: 0; }
+  .an-scroll { overflow-x: auto; }
+  .an-mono { font-family: 'Poppins', sans-serif; font-weight: 600; }
+  .an-empty { padding: 28px 16px; text-align: center; color: var(--muted); font-size: 12px; }
+  .an-delta { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 11px; margin-right: 4px; }
+  .an-info { color: var(--muted); font-size: 10px; cursor: help; }
+  .card-tools { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .btn.an-on { background: var(--accent-lt); color: var(--accent); border-color: var(--accent); }
+
+  /* アプリ別の横棒 */
+  .an-appbar { margin-bottom: 13px; }
+  .an-appbar:last-child { margin-bottom: 0; }
+  .an-appbar-head { display: flex; align-items: baseline; margin-bottom: 5px; }
+  .an-appbar-name { font-size: 12.5px; font-weight: 700; }
+  .an-appbar-meta { margin-left: auto; font-size: 11px; color: var(--muted); }
+  .an-appbar-meta b { color: var(--text); font-family: 'Poppins', sans-serif; }
+  .an-appbar-row { display: flex; align-items: center; gap: 9px; }
+  .an-appbar-track { flex: 1; height: 13px; background: var(--gray-lt); border-radius: 4px; overflow: hidden; }
+  .an-appbar-track > div { height: 100%; border-radius: 4px; }
+  .an-appbar-pct { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 12px; min-width: 34px; text-align: right; }
+
+  /* 凡例 */
+  .an-legend-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+  .an-legend-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); margin-right: 12px; }
+  .an-legend-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; display: inline-block; }
+
+  /* 定着率バー */
+  .an-rate { display: flex; align-items: center; gap: 8px; }
+  .an-rate-track { flex: 1; min-width: 44px; height: 6px; background: var(--gray-lt); border-radius: 4px; overflow: hidden; }
+  .an-rate-track > div { height: 100%; border-radius: 4px; }
+  .an-rate-num { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 12px; min-width: 34px; text-align: right; }
+
+  .an-chip {
+    display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 4px;
+    font-size: 10px; font-weight: 700; margin-right: 3px; white-space: nowrap;
+  }
+
+  /* 会社 × アプリ マトリクス */
+  .an-heat { width: 100%; border-collapse: separate; border-spacing: 3px; }
+  .an-heat thead th {
+    font-size: 10px; font-weight: 700; color: var(--muted); padding: 4px 4px 8px;
+    text-align: center; letter-spacing: .04em; text-transform: uppercase;
+    background: transparent; border: none; white-space: nowrap;
+  }
+  .an-heat .an-seats {
+    display: block; font-size: 9px; font-weight: 400; text-transform: none; letter-spacing: 0; margin-top: 1px;
+  }
+  /* 横スクロールしても会社名が消えないように固定する */
+  .an-heat th.an-rowhead, .an-heat td.an-rowhead {
+    text-align: left; position: sticky; left: 0; background: var(--white); z-index: 2; border: none;
+  }
+  .an-heat th.an-rowhead { min-width: 215px; padding-left: 4px; }
+  .an-heat td.an-rowhead { font-size: 12.5px; font-weight: 500; padding: 0 12px 0 4px; white-space: nowrap; }
+  .an-heat td.an-rowhead .an-nm {
+    display: inline-block; max-width: 168px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
+  }
+  .an-cell {
+    border-radius: 5px; text-align: center; padding: 8px 4px; min-width: 66px;
+    font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 12px;
+    cursor: default; transition: transform var(--trans), box-shadow var(--trans);
+  }
+  .an-cell:hover { transform: scale(1.06); box-shadow: 0 2px 8px rgba(0,0,0,.16); }
+  .an-cell-pct { display: block; font-size: 9px; font-weight: 600; opacity: .8; margin-top: 1px; }
+  .an-cell-none {
+    background: repeating-linear-gradient(45deg, #fafafa, #fafafa 4px, #f1f2f4 4px, #f1f2f4 8px);
+    color: #cbd0d6; font-weight: 400;
+  }
+  .an-cell-none:hover { transform: none; box-shadow: none; }
+  .an-cell-zero { background: var(--white); border: 1.5px dashed var(--red); color: var(--red); }
+  .an-cell-total { background: var(--bg); color: var(--text); }
+  .an-heat tfoot td {
+    background: var(--bg); border-radius: 5px; text-align: center; padding: 8px 4px;
+    font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 12px;
+  }
+  .an-heat tfoot td.an-rowhead {
+    background: var(--white); font-family: 'Noto Sans JP', sans-serif;
+    font-size: 11px; font-weight: 700; color: var(--muted); text-align: left;
+  }
+  .an-heat-legend {
+    display: flex; align-items: center; gap: 9px; padding: 14px 20px 18px;
+    font-size: 11px; color: var(--muted); flex-wrap: wrap;
+  }
+  .an-scale { display: flex; gap: 2px; }
+  .an-scale span { width: 24px; height: 11px; border-radius: 2px; }
+  .an-key { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; }
+  .an-key i { width: 24px; height: 13px; border-radius: 3px; display: inline-block; }
+  .an-key-none { background: repeating-linear-gradient(45deg, #fafafa, #fafafa 4px, #f1f2f4 4px, #f1f2f4 8px); }
+
+  /* 機能の内訳（スキル実行の成功率など） */
+  .an-breakdown { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--muted); }
+  .an-breakdown b { color: var(--text); font-family: 'Poppins', sans-serif; }
+
+  /* 記録開始日の警告 */
+  .an-warn {
+    display: flex; gap: 10px; align-items: flex-start; padding: 11px 16px; margin-bottom: 18px;
+    background: var(--orange-lt); border: 1px solid rgba(245,158,11,.35); border-radius: 8px;
+    font-size: 12px; color: #92610a; line-height: 1.7;
+  }
+  .an-warn i { color: var(--orange); margin-top: 3px; }
+  .an-warn b { color: #7a5108; }
+
+  /* 出典・算出率の注記 */
+  .an-note {
+    display: flex; gap: 9px; padding: 12px 16px; background: var(--white);
+    border: 1px solid var(--border); border-left: 3px solid var(--orange); border-radius: 6px;
+    font-size: 11.5px; color: var(--muted); line-height: 1.75;
+  }
+  .an-note > i { color: var(--orange); margin-top: 2px; }
+
+  @media (max-width: 1500px) { .an-kpi { grid-column: span 4; } }
+  @media (max-width: 1280px) {
+    .an-c3, .an-c4, .an-c8, .an-c9 { grid-column: span 6; }
+  }
+  @media (max-width: 899px) {
+    .an-kpi { grid-column: span 6; }
+    .an-c3, .an-c4, .an-c6, .an-c8, .an-c9 { grid-column: span 12; }
+    #sectionAnalytics .an-grid { gap: 12px; margin-bottom: 12px; }
+  }
   </style>
 </head>
 <body>
@@ -503,6 +640,13 @@
       <div class="sidebar-section-label">概要</div>
       <button class="sidebar-nav-item active" data-section="dashboard">
         <i class="fa-solid fa-chart-pie"></i> ダッシュボード
+      </button>
+    </div>
+
+    <div class="sidebar-section" id="sidebarAnalyticsSection">
+      <div class="sidebar-section-label">分析</div>
+      <button class="sidebar-nav-item" data-section="analytics">
+        <i class="fa-solid fa-chart-line"></i> 利用状況
       </button>
     </div>
 
@@ -605,6 +749,130 @@
               <tbody><tr class="loading-row"><td colspan="3"><span class="spinner"></span></td></tr></tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- ── 利用状況（Analytics） ──
+           描画は assets/js/admin-analytics.js の loadAnalytics()。
+           id は switchSection() の capitalize() 規則に合わせて sectionAnalytics 固定。 -->
+      <div class="section" id="sectionAnalytics">
+        <div id="anBody">
+          <div class="filter-bar" id="anFilterBar" style="background:var(--white);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);margin-bottom:18px;"></div>
+
+          <div class="an-warn" id="anWarn" style="display:none;"></div>
+
+          <!-- KPI（1行5枚） -->
+          <div class="an-grid" id="anKpis">
+            <div class="an-kpi kpi-card"><div class="kpi-label">読み込み中</div><div class="kpi-value">—</div></div>
+          </div>
+
+          <!-- 推移 + アプリ別 -->
+          <div class="an-grid">
+            <div class="card an-c8">
+              <div class="card-header">
+                <i class="fa-solid fa-chart-line" style="color:var(--accent);"></i>
+                <span class="card-title">推移</span>
+                <span class="card-sub" id="anLineSub" style="font-size:11px;color:var(--muted);"></span>
+                <div class="card-tools" id="anMetricTabs">
+                  <button class="btn btn-outline btn-xs an-on" data-metric="active_users">ログインした人数</button>
+                  <button class="btn btn-outline btn-xs" data-metric="logins">ログイン数</button>
+                  <button class="btn btn-outline btn-xs" data-metric="events">操作数</button>
+                </div>
+              </div>
+              <div class="card-body" id="anLine" style="display:flex;flex-direction:column;justify-content:center;">
+                <div class="an-empty"><span class="spinner"></span></div>
+              </div>
+              <div style="padding:0 20px 14px;" id="anLineLegend"></div>
+            </div>
+
+            <div class="card an-c4">
+              <div class="card-header">
+                <i class="fa-solid fa-chart-simple" style="color:var(--accent);"></i>
+                <span class="card-title">アプリ別 アクティブユーザー</span>
+              </div>
+              <div class="card-body" id="anAppBars"><div class="an-empty"><span class="spinner"></span></div></div>
+            </div>
+          </div>
+
+          <!-- 会社 × アプリ 定着率マトリクス -->
+          <div class="an-grid">
+            <div class="card an-c12">
+              <div class="card-header">
+                <i class="fa-solid fa-table-cells" style="color:var(--accent);"></i>
+                <span class="card-title">会社 × アプリ 定着率マトリクス</span>
+                <span class="card-sub" style="font-size:11px;color:var(--muted);">セル内は「利用者数 / 契約席数」</span>
+              </div>
+              <div class="card-body an-scroll" id="anHeat" style="padding:14px 20px 4px;">
+                <div class="an-empty"><span class="spinner"></span></div>
+              </div>
+              <div class="an-heat-legend" id="anHeatLegend"></div>
+            </div>
+          </div>
+
+          <!-- 会社別 + 操作数シェア -->
+          <div class="an-grid">
+            <div class="card an-c9">
+              <div class="card-header">
+                <i class="fa-solid fa-building" style="color:var(--accent);"></i>
+                <span class="card-title">会社別 利用状況</span>
+                <span class="card-sub" style="font-size:11px;color:var(--muted);">定着率の低い順</span>
+              </div>
+              <div class="an-scroll">
+                <table class="data-table" id="anCompanyTable">
+                  <thead><tr>
+                    <th>会社名</th><th>プラン</th><th>ユーザー</th><th>契約アプリ</th>
+                    <th>アクティブ</th><th style="min-width:120px;">定着率</th><th>操作数</th>
+                    <th>推移</th><th>最終ログイン</th>
+                  </tr></thead>
+                  <tbody><tr class="loading-row"><td colspan="9"><span class="spinner"></span></td></tr></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card an-c3">
+              <div class="card-header">
+                <i class="fa-solid fa-chart-pie" style="color:var(--accent);"></i>
+                <span class="card-title">操作数シェア</span>
+              </div>
+              <div class="card-body" id="anDonut" style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+                <div class="an-empty"><span class="spinner"></span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 機能使用ランキング + 休眠ユーザー -->
+          <div class="an-grid">
+            <div class="card an-c6">
+              <div class="card-header">
+                <i class="fa-solid fa-ranking-star" style="color:var(--accent);"></i>
+                <span class="card-title">機能使用ランキング</span>
+                <span class="card-sub" id="anFeatSub" style="font-size:11px;color:var(--muted);"></span>
+                <div class="card-tools" id="anFeatTabs"></div>
+              </div>
+              <div class="an-scroll">
+                <table class="data-table" id="anFeatTable">
+                  <thead><tr><th>機能</th><th>実行数</th><th>利用者</th><th>推移</th><th>出典</th></tr></thead>
+                  <tbody><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card an-c6">
+              <div class="card-header">
+                <i class="fa-solid fa-users-viewfinder" style="color:var(--accent);"></i>
+                <span class="card-title">利用が止まっているユーザー</span>
+                <span class="card-sub" id="anDormantSub" style="font-size:11px;color:var(--muted);"></span>
+              </div>
+              <div class="an-scroll">
+                <table class="data-table" id="anDormantTable">
+                  <thead><tr><th>ユーザー</th><th>会社</th><th>ロール</th><th>利用アプリ</th><th>最終ログイン</th><th>経過</th></tr></thead>
+                  <tbody><tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="an-note" id="anNote"></div>
         </div>
       </div>
 
@@ -946,9 +1214,11 @@ document.getElementById('sidebarUserRole').textContent = roleLabel(currentUser.r
 if (isSuperAdmin) {
   document.getElementById('sidebarSystem').style.display = '';
 } else {
-  // adminは会社管理・ダッシュボード非表示（自社のユーザー管理・監査ログのみ）
+  // adminは会社管理・ダッシュボード・利用状況を非表示（自社のユーザー管理・監査ログのみ）
   document.getElementById('sidebarCompanySection').querySelector('[data-section="companies"]').style.display = 'none';
   document.querySelector('[data-section="dashboard"]').style.display = 'none';
+  // 利用状況は全社横断の運営指標なのでsuper_admin専用（サーバー側もrole:super_adminで弾く）
+  document.getElementById('sidebarAnalyticsSection')?.remove();
   // adminはSuper Adminを付与できない
   document.getElementById('userModalRoleSuperAdminOpt')?.remove();
   const roleNote = document.getElementById('userModalRoleNote');
@@ -991,6 +1261,7 @@ function clearSpinners() {
 /* ── ナビゲーション ── */
 const SECTION_TITLES = {
   dashboard: 'ダッシュボード',
+  analytics: '利用状況',
   companies: '会社管理',
   users:     'ユーザー管理',
   logs:      '監査ログ',
@@ -1018,6 +1289,7 @@ function switchSection(name) {
   currentSection = name;
 
   if (name === 'dashboard')  loadDashboard();
+  if (name === 'analytics')  loadAnalytics();   // assets/js/admin-analytics.js
   if (name === 'companies')  loadCompanies();
   if (name === 'users')      loadUsers();
   if (name === 'logs')       loadLogs(1);
@@ -1675,9 +1947,32 @@ async function loadLogs(page = 1) {
 }
 
 document.getElementById('logSearchBtn')?.addEventListener('click', () => loadLogs(1));
-document.getElementById('logExportBtn')?.addEventListener('click', () => {
-  const token = currentUser.token;
-  window.open(`${API}/admin/audit-logs/export?token=${token}`, '_blank');
+document.getElementById('logExportBtn')?.addEventListener('click', async () => {
+  /* window.open(...?token=) では Authorization ヘッダーを送れず401になっていた。
+     クエリトークン用のミドルウェアを作るのは、監査ログという最も機密な資源に対して
+     トークンをURL・ブラウザ履歴・アクセスログに残す設計になるので採らない。
+     apiFetch でヘッダー認証して blob として受け取る。 */
+  const params = new URLSearchParams();
+  const filters = {
+    app:       document.getElementById('logAppFilter')?.value,
+    action:    document.getElementById('logActionFilter')?.value,
+    date_from: document.getElementById('logDateFrom')?.value,
+    date_to:   document.getElementById('logDateTo')?.value,
+  };
+  Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
+
+  const res = await apiFetch(`/admin/audit-logs/export?${params}`);
+  if (!res?.ok) { showToast('CSVの出力に失敗しました', 'danger'); return; }
+
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `audit_log_${new Date().toISOString().slice(0, 10)}.csv`;
+  // detached なアンカーだとダウンロードが発火しないブラウザがあるので一度DOMに入れる
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 });
 
 /* ═══════════════════════════════
@@ -1842,8 +2137,14 @@ document.getElementById('menuToggle').addEventListener('click', () => {
 });
 _backdrop.addEventListener('click', closeSidebar);
 
-/* ── 初期化 ── */
+/* ── 初期化 ──
+   初期セクションは dashboard のまま。ここは外部スクリプトより先に走るため、
+   analytics を初期表示にすると loadAnalytics が未定義になる。 */
 switchSection(isSuperAdmin ? 'dashboard' : 'users');
 </script>
+
+<!-- 利用状況セクションの描画。上のインラインスクリプトが定義する
+     apiFetch / h / showToast / planBadge / roleBadge / currentUser を使うため、必ずこの順で読む -->
+<script src="assets/js/admin-analytics.js"></script>
 </body>
 </html>
