@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth/api-guard";
 import { resolveFeatures } from "@/lib/auth/features";
-import { calcDaily, calcWeekly, summarize } from "@/lib/attendance/calculator";
+import { calcDaily, calcWeekly, summarize, summarizeWeeks } from "@/lib/attendance/calculator";
 import type { DailyCalcResult } from "@/lib/attendance/types";
 import {
   deriveDailyFromEvents,
@@ -81,6 +81,8 @@ export async function GET(request: Request) {
   const calcResults = [];
   // 週別集計用（日付つきで持つ）。週単位管理でない会社では使わない
   const dailyCalcs: { date: string; calc: DailyCalcResult }[] = [];
+  // 月度合計（社員詳細画面と同じく日別の合計を積み上げる）
+  const monthTotal = { workMinutes: 0, earlyOvertimeMinutes: 0, overtimeMinutes: 0 };
   let openCount = 0;
 
   for (const date of datesInRange(period.start, visibleEnd)) {
@@ -126,6 +128,11 @@ export async function GET(request: Request) {
     }
     const earlyOvertimeMinutes = ok && calc.earlyPremiumApplies ? calc.earlyMinutes : 0;
     const overtimeMinutes = ok ? calc.overtimeMinutes : 0;
+    if (calc && ok) {
+      monthTotal.earlyOvertimeMinutes += earlyOvertimeMinutes;
+      monthTotal.overtimeMinutes += overtimeMinutes;
+      monthTotal.workMinutes += calc.normalMinutes + (calc.earlyMinutes - earlyOvertimeMinutes);
+    }
     // 「実外出」欄は実際に外出した時間をそのまま見せる。実測値は打刻ログ・
     // 本人修正フォームの入力値から直接求める（breakMinutesからの逆算はしない）。
     // 「控除外出」欄は休憩時間帯との重複を除いた、勤務時間の計算に使う分
@@ -202,6 +209,7 @@ export async function GET(request: Request) {
   const weeks = rules.weekly.enabled
     ? calcWeekly(dailyCalcs, { start: period.start, end: visibleEnd }, rules).reverse()
     : [];
+  const weeklyTotals = weeks.length > 0 ? summarizeWeeks(weeks) : null;
 
   const requestRows: MyRequestRow[] = requests.map((r) => ({
     id: r.id,
@@ -224,8 +232,10 @@ export async function GET(request: Request) {
     showMonthlySummary: features.showMonthlySummary,
     selfEditMode: features.selfEdit,
     summary,
+    monthTotal,
     rows,
     weeks,
+    weeklyTotals,
     requests: requestRows,
   };
 
