@@ -346,8 +346,8 @@ function initContactsModal() {
     }
   });
   /* パネルは position:fixed でボタンの位置を都度計算しているだけなので、
-     .ct-left をスクロールされるとボタンとズレる。ズレるくらいなら閉じる */
-  document.querySelector('.ct-left')?.addEventListener('scroll', () => {
+     モーダル自体をスクロールされるとボタンとズレる。ズレるくらいなら閉じる */
+  document.querySelector('.ct-modal')?.addEventListener('scroll', () => {
     if (ctPop.open) {
       document.querySelectorAll('.ct-pop-panel').forEach(el => el.remove());
       _ctResetPanelState();
