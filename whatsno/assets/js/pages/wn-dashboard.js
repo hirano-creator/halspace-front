@@ -360,8 +360,25 @@ function _ctToKatakana(s) {
   return out;
 }
 
+let _ctBodyScrollY = 0;
+function _ctLockBodyScroll() {
+  _ctBodyScrollY = window.scrollY;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${_ctBodyScrollY}px`;
+  document.body.style.left = '0';
+  document.body.style.right = '0';
+}
+function _ctUnlockBodyScroll() {
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.left = '';
+  document.body.style.right = '';
+  window.scrollTo(0, _ctBodyScrollY);
+}
+
 function openContactsModal() {
   document.getElementById('contactsModal').classList.remove('hidden');
+  _ctLockBodyScroll();
   _contactCancelEdit();
   const searchEl = document.getElementById('contactSearchInput');
   if (searchEl) searchEl.value = '';
@@ -372,6 +389,7 @@ function openContactsModal() {
 }
 function closeContactsModal() {
   document.getElementById('contactsModal').classList.add('hidden');
+  _ctUnlockBodyScroll();
   _ctClosePanel();
 }
 
