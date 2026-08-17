@@ -294,8 +294,9 @@ function initContactsModal() {
     ctFlt.clear(); _ctRenderNav(); _renderFilteredContacts();
   });
 
-  /* 名刺プレビューをクリックで拡大表示（スキャン直後・編集時どちらの控えも対象） */
+  /* 名刺プレビューをクリックで拡大表示、回転ボタンで90度回転（スキャン直後・編集時どちらの控えも対象） */
   document.getElementById('contactCardPreview')?.addEventListener('click', e => {
+    if (e.target.closest('.ct-rotate-btn')) { _ctRotateCardPreview(); return; }
     if (e.target.tagName === 'IMG') _ctOpenCardLightbox(e.target.src, e.target.alt);
   });
   document.getElementById('ctCardLightboxClose')?.addEventListener('click', _ctCloseCardLightbox);
@@ -452,6 +453,7 @@ function _contactShowError(msg) {
    ──────────────────────────────── */
 let ctScanBusy  = false;
 let ctCardPath  = null;   // scan-card が返した名刺画像のパス。保存時に一緒に送る
+let ctScanPreviewBlob = null;  // 直前にスキャンした名刺のBlob（回転時にサーバーへ再送する元データ）
 
 const CT_SCAN_FIELDS = {
   contactNameInput:    'name',
@@ -477,6 +479,48 @@ function _ctCloseCardLightbox() {
   if (img) img.src = '';
 }
 
+/* 名刺プレビューを90度回転する。
+   横向きに写った写真をその場で直したいという要望への対応。
+   ctScanPreviewBlob があればそれを使い（スキャン直後）、無ければ表示中のURL
+   （編集時の保存済み名刺）を取得して回転する。scan-card に送り直すのは、
+   回転後の画像を保存するAPIが他に無いため（副作用としてOCRも再実行される）。 */
+let ctRotateBusy = false;
+async function _ctRotateCardPreview() {
+  if (ctRotateBusy) return;
+  const img = document.querySelector('#contactCardPreview img');
+  const btn = document.querySelector('#contactCardPreview .ct-rotate-btn');
+  if (!img) return;
+  ctRotateBusy = true;
+  if (btn) btn.disabled = true;
+  try {
+    const srcBlob = ctScanPreviewBlob || await (await fetch(img.src)).blob();
+    const bmp = await createImageBitmap(srcBlob, { imageOrientation: 'from-image' });
+    const canvas = document.createElement('canvas');
+    canvas.width  = bmp.height;
+    canvas.height = bmp.width;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(bmp, -bmp.width / 2, -bmp.height / 2);
+    bmp.close?.();
+    const rotatedBlob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+    if (!rotatedBlob) throw new Error('画像を回転できませんでした');
+
+    const data = await wnScanBusinessCard(rotatedBlob);
+    ctCardPath = data.card_image_path || ctCardPath;
+    ctScanPreviewBlob = rotatedBlob;
+
+    img.src = URL.createObjectURL(rotatedBlob);
+    _ctScanStatus('<i class="fa-solid fa-arrow-rotate-right"></i> 画像を回転しました。「登録する」／「更新する」を押すと保存されます。', 'info');
+  } catch (err) {
+    _ctScanStatus(`<i class="fa-solid fa-triangle-exclamation"></i> ${wnEscapeHtml(err?.message || '画像の回転に失敗しました')}`, 'warn');
+  } finally {
+    ctRotateBusy = false;
+    if (btn) btn.disabled = false;
+  }
+}
+
 function _ctScanStatus(msg, kind = 'info') {
   const el = document.getElementById('contactScanStatus');
   if (!el) return;
@@ -488,6 +532,7 @@ function _ctScanStatus(msg, kind = 'info') {
 /* 自動入力の目印と名刺の控えを消す */
 function _ctClearScan() {
   ctCardPath = null;
+  ctScanPreviewBlob = null;
   Object.keys(CT_SCAN_FIELDS).forEach(id => document.getElementById(id)?.classList.remove('ct-ai'));
   _ctScanStatus('');
   const prev = document.getElementById('contactCardPreview');
@@ -582,7 +627,12 @@ async function scanBusinessCard(file) {
     const prev = document.getElementById('contactCardPreview');
     if (prev) {
       const url = URL.createObjectURL(blob);
-      prev.innerHTML = `<img src="${url}" alt="読み取った名刺"><div class="cap">この名刺は連絡先に添付されます</div>`;
+      ctScanPreviewBlob = blob;
+      prev.innerHTML = `<div class="ct-card-preview-frame">
+          <img src="${url}" alt="読み取った名刺">
+          <button type="button" class="ct-rotate-btn" title="90度回転"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+        </div>
+        <div class="cap">この名刺は連絡先に添付されます。横向きに写っていたら回転ボタンで直せます</div>`;
       prev.classList.remove('hidden');
     }
     document.getElementById('contactNameInput')?.focus();
@@ -1262,10 +1312,14 @@ function editContact(c) {
   document.getElementById('contactCancelEditBtn')?.classList.remove('hidden');
 
   // 名刺が添付されていれば控えを出す（読み取り違いをその場で見比べられる）
+  ctScanPreviewBlob = null;   // 保存済みの名刺はローカルにBlobが無いので、回転時はURLから取得し直す
   const prev = document.getElementById('contactCardPreview');
   if (prev) {
     if (c.has_card) {
-      prev.innerHTML = `<img src="${wnContactCardUrl(c.id)}" alt="${wnEscapeHtml(c.name)}の名刺" loading="lazy">
+      prev.innerHTML = `<div class="ct-card-preview-frame">
+          <img src="${wnContactCardUrl(c.id)}" alt="${wnEscapeHtml(c.name)}の名刺" loading="lazy">
+          <button type="button" class="ct-rotate-btn" title="90度回転"><i class="fa-solid fa-arrow-rotate-right"></i></button>
+        </div>
         <div class="cap">登録時に読み取った名刺</div>`;
       prev.classList.remove('hidden');
     } else {
