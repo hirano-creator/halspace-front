@@ -73,6 +73,9 @@
     .ct-pop-foot { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 7px;
                    display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
     .ct-pop-foot .note { flex-basis: 100%; font-size: 10px; color: #B6BFC9; }
+    /* パネルは絶対配置でフォームの「登録する／更新する」を覆い隠すため、ここでも確定できるようにする */
+    .ct-pop-done { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+    .ct-pop-done .btn { width: 100%; box-sizing: border-box; justify-content: center; }
 
     .ct-panes { display: flex; min-height: 0; flex: 1; }
     .ct-nav { width: 168px; flex-shrink: 0; border-right: 1px solid var(--border);
@@ -1078,7 +1081,7 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=6"></script>
 <script src="../assets/js/wn-api.js?v=27"></script>
-<script src="../assets/js/pages/wn-dashboard.js?v=86"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=87"></script>
 
 <script>
 /* ── ボトムナビ ── */
