@@ -1111,6 +1111,12 @@ function _ctRenderPanel(focusId) {
       <button type="button" class="ct-link" id="ctOpenNewGroup"><i class="fa-solid fa-folder-plus"></i> グループを追加</button>
       <span class="note">あいうえお順に並びます（漢字のタグは「よみ」を入れると正確に並びます）</span>
     </div>` : ''}
+
+    <div class="ct-pop-done">
+      <button type="button" class="btn btn-accent btn-sm" id="ctDoneBtn">
+        <i class="fa-solid fa-check"></i> ${contactEditingId ? '更新する' : '選択を終える'}
+      </button>
+    </div>
   </div>`;
 
   _ctBindPanel(wrap);
@@ -1127,6 +1133,14 @@ function _ctBindPanel(wrap) {
 
   document.getElementById('ctManageBtn')?.addEventListener('click', () => {
     ctPop.manage = !ctPop.manage; ctPop.editTag = ctPop.editGroup = null; _ctRenderPanel();
+  });
+
+  /* パネルが絶対配置でフォームの保存ボタンを覆うため、ここから確定できるようにする。
+     既存の連絡先を編集中ならそのまま更新まで済ませる（タグだけ変えたい場合が大半のため）。 */
+  document.getElementById('ctDoneBtn')?.addEventListener('click', () => {
+    const editing = contactEditingId;
+    _ctClosePanel();
+    if (editing) addContactFromForm();
   });
 
   wrap.querySelectorAll('[data-pick]').forEach(el => el.addEventListener('click', () => {
