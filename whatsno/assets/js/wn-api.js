@@ -117,11 +117,199 @@ async function wnGetFile(id) {
   return (await res.json()).data ?? null;
 }
 
+/* ── アップロードのサイズ方針 ──
+   WN_MULTIPART_THRESHOLD を超えるものは R2 へ直送（分割・再送可能）にする。
+   それ以下は実績のある単発送信のまま（往復が少なく速い）。 */
+const WN_MAX_UPLOAD_BYTES      = 5 * 1024 * 1024 * 1024;   /* 5GB */
+const WN_MULTIPART_THRESHOLD   = 50 * 1024 * 1024;         /* 50MB */
+const WN_MULTIPART_CONCURRENCY = 3;                        /* 同時に送るパート数 */
+const WN_SIGN_BATCH            = 50;                       /* 一度にまとめて署名する数 */
+
+/* R2直送マルチパートアップロード
+
+   ファイル全体をメモリに載せず、file.slice() で切り出した Blob を
+   そのまま XHR に渡す（ArrayBuffer 化しない）。これでGB級でも
+   端末のメモリを圧迫しない。バイト列はAPIサーバーを通らない。
+
+   ローカル開発など分割が使えない環境では init が 409 を返すので、
+   fallback フラグ付きで throw して呼び出し元が単発送信に切り替える。 */
+async function wnUploadFileMultipart(file, { onProgress, overwriteId = null } = {}) {
+  const initRes = await wnFetch('/wn/uploads/init', {
+    method: 'POST',
+    body: JSON.stringify({
+      file_name:    file.name,
+      size:         file.size,
+      mime_type:    file.type || 'application/octet-stream',
+      overwrite_id: overwriteId,
+    }),
+  });
+  if (!initRes) throw new Error('認証が切れました');
+  if (initRes.status === 409) {
+    throw Object.assign(new Error('この環境では分割アップロードを利用できません'), { fallback: true });
+  }
+  if (!initRes.ok) {
+    let msg = `アップロードを開始できませんでした (${initRes.status})`;
+    try { msg = (await initRes.json()).message || msg; } catch {}
+    throw new Error(msg);
+  }
+
+  const { ticket, part_size: partSize, part_count: partCount } = await initRes.json();
+
+  const loaded = new Array(partCount).fill(0);
+  const etags  = new Array(partCount).fill(null);
+  const report = () => {
+    if (!onProgress) return;
+    const sum = loaded.reduce((a, b) => a + b, 0);
+    /* 完了はサーバーのcomplete後に出すので、送信中は99%止まり */
+    onProgress(Math.min(99, Math.round(sum / file.size * 100)));
+  };
+
+  /* 署名URLは往復を減らすためまとめて取り、期限切れ時だけ個別に取り直す */
+  const signed = new Map();
+  const signParts = async (numbers) => {
+    const res = await wnFetch('/wn/uploads/sign', {
+      method: 'POST',
+      body: JSON.stringify({ ticket, part_numbers: numbers }),
+    });
+    if (!res || !res.ok) throw Object.assign(new Error('署名URLの取得に失敗しました'), { retryable: true });
+    const { urls } = await res.json();
+    Object.entries(urls).forEach(([n, u]) => signed.set(Number(n), u));
+  };
+  /* 並列ワーカーが同時に未署名を見つけて同じ範囲を何度も要求しないよう、
+     まとめ取りは常に1本だけ走らせ、他は完了を待つ */
+  let signInFlight = null;
+  const urlForPart = async (n, refresh = false) => {
+    if (refresh) { signed.delete(n); await signParts([n]); return signed.get(n); }
+    while (!signed.has(n)) {
+      if (signInFlight) { await signInFlight; continue; }
+      const batch = [];
+      for (let i = n; i <= partCount && batch.length < WN_SIGN_BATCH; i++) {
+        if (!signed.has(i)) batch.push(i);
+      }
+      if (!batch.length) break;
+      signInFlight = signParts(batch).finally(() => { signInFlight = null; });
+      await signInFlight;
+    }
+    return signed.get(n);
+  };
+
+  const putPart = (n, url) => new Promise((resolve, reject) => {
+    const start = (n - 1) * partSize;
+    const blob  = file.slice(start, Math.min(start + partSize, file.size));
+    const xhr   = new XMLHttpRequest();
+    xhr.open('PUT', url);
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) { loaded[n - 1] = e.loaded; report(); }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        /* ETag は complete に必須。読めない場合は R2 の CORS 設定漏れ */
+        const etag = xhr.getResponseHeader('ETag');
+        if (!etag) {
+          reject(Object.assign(new Error('ETagを取得できませんでした（R2のCORS設定を確認してください）'), { retryable: false }));
+          return;
+        }
+        loaded[n - 1] = blob.size;
+        report();
+        resolve(etag);
+      } else if (xhr.status === 403) {
+        reject(Object.assign(new Error('署名URLの期限が切れました'), { retryable: true, expired: true }));
+      } else {
+        reject(Object.assign(new Error(`パート${n}の送信に失敗しました (${xhr.status})`), { retryable: true }));
+      }
+    };
+    xhr.onerror   = () => reject(Object.assign(new Error(`パート${n}でネットワークエラー`), { retryable: true }));
+    xhr.ontimeout = () => reject(Object.assign(new Error(`パート${n}でタイムアウト`), { retryable: true }));
+    xhr.timeout   = 600000;   /* 1パート16MB。細い回線でも送り切れる余裕を取る */
+    xhr.send(blob);
+  });
+
+  const uploadPart = async (n) => {
+    const BACKOFF_MS = [0, 1000, 3000, 6000];
+    let lastErr;
+    for (let i = 0; i < BACKOFF_MS.length; i++) {
+      if (BACKOFF_MS[i]) await new Promise(r => setTimeout(r, BACKOFF_MS[i]));
+      try {
+        return await putPart(n, await urlForPart(n, !!lastErr?.expired));
+      } catch (e) {
+        lastErr = e;
+        loaded[n - 1] = 0;   /* 失敗分は進捗から戻す */
+        report();
+        if (!e || !e.retryable) throw e;
+      }
+    }
+    throw lastErr;
+  };
+
+  /* 最初のエラーを共有フラグで持ち回り、残りのワーカーを自然に止める。
+     Promise.all の途中脱出に任せると、後から失敗した分が unhandled rejection になる */
+  let failure = null;
+  let next    = 1;
+  const worker = async () => {
+    while (!failure && next <= partCount) {
+      const n = next++;
+      try {
+        etags[n - 1] = await uploadPart(n);
+      } catch (e) {
+        failure = failure || e;
+        return;
+      }
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: Math.min(WN_MULTIPART_CONCURRENCY, partCount) }, worker)
+  );
+
+  if (failure) {
+    /* 未完了のパートは残しておくと課金対象になるため必ず破棄する。
+       投げっぱなしにすると失敗直後の画面遷移で送信されないので待つ */
+    try {
+      await wnFetch('/wn/uploads/abort', { method: 'POST', body: JSON.stringify({ ticket }) });
+    } catch {}
+    /* file.slice() は遅延読み込み。撮影直後の写真などで元ファイル参照が
+       無効化されると復帰不能なので、選び直しを促す */
+    if (failure.name === 'NotReadableError') {
+      throw new Error('ファイルを読み取れませんでした。選び直してください');
+    }
+    throw failure;
+  }
+
+  const res = await wnFetch('/wn/uploads/complete', {
+    method: 'POST',
+    body: JSON.stringify({
+      ticket,
+      parts: etags.map((etag, i) => ({ number: i + 1, etag })),
+    }),
+  });
+  if (!res) throw new Error('認証が切れました');
+  if (!res.ok) {
+    let msg = `アップロードの完了処理に失敗しました (${res.status})`;
+    try { msg = (await res.json()).message || msg; } catch {}
+    throw new Error(msg);
+  }
+
+  if (onProgress) onProgress(100);
+  return await res.json();
+}
+
 /* ファイルアップロード（XHR・進捗コールバック付き）
-   - multipart ではなく raw バイナリで送信（CF Workers のメモリ二重バッファ回避）
+   - 50MB超は R2直送マルチパートへ委譲（GB級はこちらでないと端末が落ちる）
+   - 50MB以下は multipart ではなく raw バイナリで送信（CF Workers のメモリ二重バッファ回避）
    - サーバー側は Content-Type が multipart 以外なら X-File-Name ヘッダーで名前を受け取る
    - ネットワーク系エラーは指数バックオフで最大3回リトライ（wnOverwriteFile と同方針） */
 async function wnUploadFile(file, { onProgress } = {}) {
+  if (file.size > WN_MAX_UPLOAD_BYTES) {
+    throw new Error(`${file.name} は5GBを超えています`);
+  }
+  if (file.size > WN_MULTIPART_THRESHOLD) {
+    try {
+      return await wnUploadFileMultipart(file, { onProgress });
+    } catch (e) {
+      if (!e || !e.fallback) throw e;   /* fallback は分割非対応環境のみ */
+    }
+  }
+
   const token = sessionStorage.getItem('space_token');
 
   // ArrayBuffer 経由で Blob に変換（iOS Safari の File 参照無効化対策）
@@ -181,8 +369,20 @@ async function wnUploadFile(file, { onProgress } = {}) {
   throw lastErr;
 }
 
-/* 既存ファイルの内容を上書き（新バージョンを作らない） */
-async function wnOverwriteFile(id, file) {
+/* 既存ファイルの内容を上書き（新バージョンを作らない）
+   50MB超は wnUploadFile と同じく R2直送マルチパートへ委譲する。 */
+async function wnOverwriteFile(id, file, { onProgress } = {}) {
+  if (file.size > WN_MAX_UPLOAD_BYTES) {
+    throw new Error(`${file.name} は5GBを超えています`);
+  }
+  if (file.size > WN_MULTIPART_THRESHOLD) {
+    try {
+      return await wnUploadFileMultipart(file, { onProgress, overwriteId: id });
+    } catch (e) {
+      if (!e || !e.fallback) throw e;
+    }
+  }
+
   const token = sessionStorage.getItem('space_token');
   const buffer = await file.arrayBuffer();
   const blob = new Blob([buffer], { type: file.type || 'application/octet-stream' });
@@ -1321,4 +1521,156 @@ function wnShowToast(msg, type = '') {
   c.appendChild(t);
   requestAnimationFrame(() => t.classList.add('show'));
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3500);
+}
+
+/* ────────────────────────────────
+   メール送信前チェック: 連絡先に未登録の宛先を報告する
+   （dashboard / file-detail のメールモーダル共通）
+   ──────────────────────────────── */
+
+/* 連絡先（wnGetContacts の結果）に無いメールアドレスを、重複を除いて返す */
+function wnFindUnknownEmails(emails, contacts) {
+  const known = new Set(
+    (contacts || []).map(c => (c?.email || '').trim().toLowerCase()).filter(Boolean)
+  );
+  const seen = new Set();
+  const out  = [];
+  for (const raw of emails || []) {
+    const email = (raw || '').trim();
+    const key   = email.toLowerCase();
+    if (!email || known.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    out.push(email);
+  }
+  return out;
+}
+
+/* 「今後は表示しない」の記憶（端末ごと） */
+const WN_UNKNOWN_CONTACT_OFF_KEY = 'wn_unknown_contact_popup_off';
+function wnIsUnknownContactPopupOff() {
+  return localStorage.getItem(WN_UNKNOWN_CONTACT_OFF_KEY) === '1';
+}
+function wnSetUnknownContactPopupOff(off) {
+  if (off) localStorage.setItem(WN_UNKNOWN_CONTACT_OFF_KEY, '1');
+  else     localStorage.removeItem(WN_UNKNOWN_CONTACT_OFF_KEY);
+}
+
+/* 非表示にしているあいだは、メールモーダルに「元に戻す」導線を出しておく。
+   設定画面が無いため、これが無いと一度切ったきり戻せなくなる。
+   メールモーダルを開くたびに呼ぶ（dashboard / file-detail 共通） */
+function wnRenderUnknownContactNotice() {
+  document.getElementById('wnUnknownContactNotice')?.remove();
+  if (!wnIsUnknownContactPopupOff()) return;
+
+  const footer = document.getElementById('emailMailtoBtn')?.closest('.modal-footer');
+  if (!footer) return;
+
+  const el = document.createElement('div');
+  el.id = 'wnUnknownContactNotice';
+  el.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);'
+    + 'background:rgba(255,152,0,.10);border-radius:6px;padding:7px 10px;margin-top:12px;line-height:1.6;';
+  el.innerHTML = `
+    <i class="fa-solid fa-bell-slash" style="color:#E17055;"></i>
+    <span style="flex:1;">連絡先に未登録の宛先のお知らせは非表示にしています</span>
+    <button type="button" class="btn btn-outline btn-sm" data-act="restore"
+            style="flex-shrink:0;font-size:11px;padding:4px 8px;white-space:nowrap;">元に戻す</button>`;
+  el.querySelector('[data-act="restore"]').addEventListener('click', () => {
+    wnSetUnknownContactPopupOff(false);
+    wnRenderUnknownContactNotice();
+    wnShowToast('未登録の宛先をお知らせするように戻しました', 'success');
+  });
+  footer.parentNode.insertBefore(el, footer);
+}
+
+/* 未登録の宛先をポップアップで報告する。
+   onProceed(newContacts) は「登録せずに送信」「登録して送信」のどちらでも呼ばれる
+   （newContacts は名前が入力された分だけ。登録しない場合は空配列）。
+   スマホは mailto / 新規タブがタップ直後でないとブロックされるため、
+   ボタンのクリックハンドラから同期で onProceed を呼ぶ（保存の完了は待たない）。 */
+function wnShowUnknownContactsPopup(emails, onProceed) {
+  document.getElementById('wnUnknownContactsModal')?.remove();
+
+  const list    = Array.isArray(emails) ? emails : [];
+  const overlay = document.createElement('div');
+  overlay.id        = 'wnUnknownContactsModal';
+  overlay.className = 'modal-overlay';
+  overlay.style.zIndex = '1100';   // メールモーダル（1000）の上に重ねる
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:440px;">
+      <div class="modal-header">
+        <span class="modal-title">
+          <i class="fa-solid fa-user-plus" style="color:#E17055;margin-right:6px;"></i>連絡先に未登録の宛先があります
+        </span>
+        <button class="modal-close" data-act="cancel"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:14px;">
+        次の宛先は連絡先に登録されていません。名前を入れて登録しておくと、次回から入力候補に出ます。
+      </p>
+      <div data-rows style="display:flex;flex-direction:column;gap:12px;"></div>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:16px;font-size:11.5px;color:var(--muted);cursor:pointer;">
+        <input type="checkbox" data-dontask style="cursor:pointer;">今後は表示しない
+      </label>
+      <div class="modal-footer" style="margin-top:14px;">
+        <button class="btn btn-ghost btn-sm" data-act="cancel">キャンセル</button>
+        <button class="btn btn-outline btn-sm" data-act="skip">登録せずに送信</button>
+        <button class="btn btn-accent btn-sm" data-act="save" disabled>登録して送信</button>
+      </div>
+    </div>`;
+
+  const rowsEl  = overlay.querySelector('[data-rows]');
+  const saveBtn = overlay.querySelector('[data-act="save"]');
+  const inputs  = [];
+
+  for (const email of list) {
+    const row  = document.createElement('div');
+    const addr = document.createElement('div');
+    addr.style.cssText = 'font-size:12px;font-weight:700;color:var(--primary);margin-bottom:5px;word-break:break-all;';
+    addr.textContent = email;   // 宛先はユーザー入力なので textContent で埋める
+    const input = document.createElement('input');
+    input.type        = 'text';
+    input.className   = 'form-input';
+    input.placeholder = '名前（例: 山田 太郎）';
+    input.maxLength   = 100;
+    input.style.cssText = 'padding:7px 10px;font-size:13px;';
+    input.dataset.email = email;
+    row.appendChild(addr);
+    row.appendChild(input);
+    rowsEl.appendChild(row);
+    inputs.push(input);
+  }
+
+  // 名前が1件も入っていないと「登録して送信」は押せない（name はサーバー側で必須）
+  const syncSaveBtn = () => { saveBtn.disabled = !inputs.some(i => i.value.trim()); };
+  inputs.forEach(i => i.addEventListener('input', syncSaveBtn));
+
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) { if (e.target === overlay) close(); return; }
+    if (btn.dataset.act === 'cancel') { close(); return; }
+
+    // 送信まで進んだときだけ記憶する（キャンセルは設定を変えない）
+    if (overlay.querySelector('[data-dontask]')?.checked) wnSetUnknownContactPopupOff(true);
+
+    const newContacts = btn.dataset.act === 'save'
+      ? inputs.map(i => ({ name: i.value.trim(), email: i.dataset.email })).filter(c => c.name)
+      : [];
+    close();
+    onProceed(newContacts);
+  });
+
+  document.body.appendChild(overlay);
+  setTimeout(() => inputs[0]?.focus(), 50);
+}
+
+/* ポップアップで入力された連絡先を裏で保存する（送信を待たせない）。
+   onSaved(count) は保存後のキャッシュ更新用 */
+function wnSaveNewContactsInBackground(contacts, onSaved) {
+  if (!contacts?.length) return;
+  Promise.all(contacts.map(c => wnSaveContact(c).catch(() => null))).then(results => {
+    const ok = results.filter(Boolean).length;
+    if (ok) wnShowToast(`${ok}件を連絡先に登録しました`, 'success');
+    if (ok < contacts.length) wnShowToast('一部の連絡先を登録できませんでした', 'warning');
+    onSaved?.(ok);
+  });
 }

@@ -123,7 +123,7 @@
     <div class="dropzone" id="dropzone">
       <div class="dz-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
       <div class="dz-main">ここにドラッグ＆ドロップ</div>
-      <div class="dz-sub">またはタップしてファイルを選択（最大100MB / 1ファイル）</div>
+      <div class="dz-sub">またはタップしてファイルを選択（最大5GB / 1ファイル）</div>
     </div>
     <div class="pick-row">
       <button class="pick-btn" id="pickFileBtn"><i class="fa-solid fa-folder-open"></i> ファイルを選択</button>
@@ -154,7 +154,7 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script src="../../solid/assets/js/auth.js?v=6"></script>
-<script src="../assets/js/wn-api.js?v=26"></script>
+<script src="../assets/js/wn-api.js?v=27"></script>
 <script src="../assets/js/pwa.js"></script>
 <script>
 'use strict';
@@ -166,14 +166,15 @@
 const user = requireSpaceAuth();
 if (!user) throw new Error('未認証');
 
-const MAX_SIZE = 100 * 1024 * 1024;   /* 100MB（ダッシュボードと同方針） */
+const MAX_SIZE = WN_MAX_UPLOAD_BYTES; /* 5GB（ダッシュボードと同方針・wn-api.jsが正） */
 let queue = [];
 
 /* ---------- 表示ユーティリティ ---------- */
 function fmtSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
-  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  if (bytes < 1024 ** 3)   return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  return (bytes / 1024 ** 3).toFixed(2) + ' GB';
 }
 function iconFor(name) {
   const ext = (name.split('.').pop() || '').toLowerCase();
@@ -225,7 +226,7 @@ function addToQueue(files) {
   files.forEach(f => {
     if (!f || f.size === 0) return;
     if (f.size > MAX_SIZE) {
-      wnShowToast(`${f.name} は100MBを超えています`, 'danger');
+      wnShowToast(`${f.name} は5GBを超えています`, 'danger');
       return;
     }
     queue.push(f);
@@ -291,7 +292,7 @@ function showDone(ok, fail) {
   document.getElementById('doneTitle').textContent =
     fail === 0 ? `${ok}件を保存しました` : `${ok}件を保存（${fail}件失敗）`;
   document.getElementById('doneSub').textContent =
-    fail === 0 ? "What'sNo に取り込みました。KnowlがAI学習を行います。"
+    fail === 0 ? "What'sNo に取り込みました。"
                : '失敗したファイルは「続けて保存」から再試行できます。';
 }
 

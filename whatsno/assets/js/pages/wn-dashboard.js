@@ -225,9 +225,10 @@ function initContactMailModal() { /* 廃止 — initEmailModalに統合済み */
 /* ────────────────────────────────
    連絡先管理モーダル（一覧・追加・編集・削除）
    ──────────────────────────────── */
-let contactsBusy     = false;
-let contactEditingId = null;
-let allContactsCache = [];
+let contactsBusy      = false;
+let contactEditingId  = null;
+let allContactsCache  = [];
+let allContactsLoaded = false;   // 未取得のまま「未登録です」と誤報告しないためのフラグ
 
 function wnEscapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, m => (
@@ -804,7 +805,7 @@ async function renderContactsList() {
   if (!list) return;
   list.innerHTML = '<div class="ct-empty"><i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…</div>';
 
-  try { allContactsCache = await wnGetContacts(); }
+  try { allContactsCache = await wnGetContacts(); allContactsLoaded = true; }
   catch { list.innerHTML = '<div class="ct-empty" style="color:#E17055;">連絡先の取得に失敗しました</div>'; return; }
 
   _renderFilteredContacts();
@@ -856,7 +857,7 @@ function _renderFilteredContacts() {
     return `
     <div class="ct-r" data-id="${c.id}">
       <div style="flex:1;min-width:0;">
-        <div class="nm">${wnEscapeHtml(c.name)}${c.name_kana ? `<span class="kn">${wnEscapeHtml(c.name_kana)}</span>` : ''}${
+        <div class="nm" title="クリックして編集">${wnEscapeHtml(c.name)}${c.name_kana ? `<span class="kn">${wnEscapeHtml(c.name_kana)}</span>` : ''}${
           c.has_card ? '<i class="fa-solid fa-id-card" title="名刺あり" style="margin-left:6px;font-size:10px;color:#B6BFC9;"></i>' : ''}</div>
         <div class="sub">${c.company_name ? `${wnEscapeHtml(c.company_name)} · ` : ''}${wnEscapeHtml(c.email)}</div>
         ${c.phone || c.fax ? `<div class="sub">${c.phone ? 'TEL ' + wnEscapeHtml(c.phone) : ''}${c.phone && c.fax ? '　' : ''}${c.fax ? 'FAX ' + wnEscapeHtml(c.fax) : ''}</div>` : ''}
@@ -880,6 +881,10 @@ function _renderFilteredContacts() {
   list.querySelectorAll('.contact-edit-btn').forEach(btn => {
     const c = contacts.find(x => String(x.id) === String(btn.closest('[data-id]').dataset.id));
     btn.addEventListener('click', () => { if (c) editContact(c); });
+  });
+  list.querySelectorAll('.ct-r .nm').forEach(nm => {
+    const c = contacts.find(x => String(x.id) === String(nm.closest('[data-id]').dataset.id));
+    nm.addEventListener('click', () => { if (c) editContact(c); });
   });
 }
 
@@ -1293,6 +1298,8 @@ async function runSkill(instruction) {
 
   try {
     const contacts = await wnGetContacts();
+    allContactsCache  = contacts;
+    allContactsLoaded = true;
     const res   = await wnRunSkill(instruction, file.id, contacts);
 
     // スキルが特定できなかった場合は入力を残してエラーを表示
@@ -3295,8 +3302,10 @@ function closeUploadModal() {
 
 function addToQueue(files) {
   files.forEach(f => {
-    if (f.size > 100 * 1024 * 1024) {
-      wnShowToast(`${f.name} は100MBを超えています`, 'danger');
+    /* 上限は wn-api.js の WN_MAX_UPLOAD_BYTES（5GB）に合わせる。
+       50MB超は自動でR2直送マルチパートに切り替わる */
+    if (f.size > WN_MAX_UPLOAD_BYTES) {
+      wnShowToast(`${f.name} は5GBを超えています`, 'danger');
       return;
     }
     uploadQueue.push(f);
@@ -3357,12 +3366,12 @@ async function doUpload() {
         onProgress: pct => {
           if (prog) prog.style.width = pct + '%';
           if (pct >= 100 && stat) {
-            stat.innerHTML = '<i class="fa-solid fa-circle-nodes fa-spin" style="color:var(--accent);"></i> KnowlがAI学習中…';
+            stat.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="color:var(--accent);"></i> 保存処理中…';
           }
         },
       });
       document.getElementById(`qitem-${i}`)?.style.setProperty('background', 'rgba(0,184,148,.08)');
-      if (stat) stat.innerHTML = '<i class="fa-solid fa-check" style="color:#2E7D32;"></i> 学習完了';
+      if (stat) stat.innerHTML = '<i class="fa-solid fa-check" style="color:#2E7D32;"></i> 保存完了';
       if (result?.data?.id) uploadedFiles.push(result.data);
     } catch (err) {
       failCount++;
@@ -4074,6 +4083,7 @@ function jsq(str) {
 let emailModalFiles    = [];   // [{ id, name }]
 let emailPregenShares  = null; // [{ id, name, url }] | null
 const emailShareCache  = new Map(); // fileId → Promise<share>（hover先行発行キャッシュ）
+let emailUnknownConfirmed = false;  // 未登録の宛先ポップアップで確認済み（モーダルを開くたびリセット）
 
 // TO/CC/BCC 共通のチップ状態・要素ID定義
 const emailFieldChips = { to: [], cc: [], bcc: [] }; // field → { email: string }[]
@@ -4189,6 +4199,7 @@ function openEmailModal(files, prefillEmail = null) {
   if (document.getElementById('emailModal').classList.contains('hidden')) wnLockBodyScroll();
   emailModalFiles   = Array.isArray(files) ? files : (files ? [files] : []);
   emailPregenShares = null;
+  emailUnknownConfirmed = false;
   emailFieldChips.to  = prefillEmail ? [{ email: prefillEmail }] : [];
   emailFieldChips.cc  = [];
   emailFieldChips.bcc = [];
@@ -4210,7 +4221,8 @@ function openEmailModal(files, prefillEmail = null) {
     _emailHideSuggest(field);
   }
   _emailRenderSigPreview();
-  wnGetContacts().then(list => { allContactsCache = list; }).catch(() => {});
+  wnRenderUnknownContactNotice();   // 未登録の宛先のお知らせを切っているときの「元に戻す」導線
+  wnGetContacts().then(list => { allContactsCache = list; allContactsLoaded = true; }).catch(() => {});
 
   if (!hasFiles) {
     emailPregenShares = [];
@@ -4352,7 +4364,10 @@ function _addEmailToChips(field, val) {
   if (field === 'to' && skillPendingName) {
     const nm = skillPendingName;
     skillPendingName = '';
-    wnSaveContact({ name: nm, email: val }).catch(() => {});
+    allContactsCache.push({ name: nm, email: val });   // 送信時に「未登録です」と二重に聞かないため
+    wnSaveContact({ name: nm, email: val }).catch(() => {
+      allContactsCache = allContactsCache.filter(c => c.email !== val);
+    });
   }
   renderEmailChips(field);
   return true;
@@ -4475,8 +4490,30 @@ function _buildEmailContent() {
   return { to, cc, bcc, subject, body, parts: { message, core, signature: sigText } };
 }
 
+/* 送信前チェック: TO/CC/BCC に連絡先へ未登録の宛先があればポップアップで報告する。
+   ポップアップを出したときは true を返し、送信は確認後（send の再実行）に持ち越す。
+   スマホは mailto / 新規タブがタップ直後でないとブロックされるため、
+   ポップアップのボタンのクリックハンドラから同期で send() を呼ぶ */
+function _emailInterceptUnknownContacts(send) {
+  if (emailUnknownConfirmed || !allContactsLoaded || wnIsUnknownContactPopupOff()) return false;
+
+  const all = [...emailFieldChips.to, ...emailFieldChips.cc, ...emailFieldChips.bcc].map(c => c.email);
+  const unknown = wnFindUnknownEmails(all, allContactsCache);
+  if (unknown.length === 0) return false;
+
+  wnShowUnknownContactsPopup(unknown, (newContacts) => {
+    wnSaveNewContactsInBackground(newContacts, () => {
+      wnGetContacts().then(list => { allContactsCache = list; }).catch(() => {});
+    });
+    emailUnknownConfirmed = true;
+    send();
+  });
+  return true;
+}
+
 /* Gmail の作成画面を開く */
 function doSendEmailGmail() {
+  if (_emailInterceptUnknownContacts(doSendEmailGmail)) return;
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
   wnSetMailerPref('gmail');   // 次回スキルから自動でGmailを起動
@@ -4489,6 +4526,7 @@ function doSendEmailGmail() {
 
 /* 既定のメールアプリ（Outlook等）を mailto で起動 */
 function doSendEmailMailto() {
+  if (_emailInterceptUnknownContacts(doSendEmailMailto)) return;
   const m = _buildEmailContent();
   if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
   wnSetMailerPref('mailto');   // 次回スキルから自動で既定メールアプリを起動
