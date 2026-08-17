@@ -360,25 +360,36 @@ function _ctToKatakana(s) {
   return out;
 }
 
-let _ctBodyScrollY = 0;
-function _ctLockBodyScroll() {
-  _ctBodyScrollY = window.scrollY;
-  document.body.style.position = 'fixed';
-  document.body.style.top = `-${_ctBodyScrollY}px`;
-  document.body.style.left = '0';
-  document.body.style.right = '0';
+/* モーダル表示中の背景スクロールロック（iOSでタッチが背景ページに抜けて
+   一緒にスクロールしてしまう対策）。名刺一括読取など、モーダルの上に
+   別のモーダルを重ねるケースがあるため参照カウントで多重open/closeに対応する */
+let _wnBodyScrollLockCount = 0;
+let _wnBodyScrollY = 0;
+function wnLockBodyScroll() {
+  if (_wnBodyScrollLockCount === 0) {
+    _wnBodyScrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${_wnBodyScrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+  }
+  _wnBodyScrollLockCount++;
 }
-function _ctUnlockBodyScroll() {
-  document.body.style.position = '';
-  document.body.style.top = '';
-  document.body.style.left = '';
-  document.body.style.right = '';
-  window.scrollTo(0, _ctBodyScrollY);
+function wnUnlockBodyScroll() {
+  _wnBodyScrollLockCount = Math.max(0, _wnBodyScrollLockCount - 1);
+  if (_wnBodyScrollLockCount === 0) {
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    window.scrollTo(0, _wnBodyScrollY);
+  }
 }
 
 function openContactsModal() {
-  document.getElementById('contactsModal').classList.remove('hidden');
-  _ctLockBodyScroll();
+  const el = document.getElementById('contactsModal');
+  if (el.classList.contains('hidden')) wnLockBodyScroll();
+  el.classList.remove('hidden');
   _contactCancelEdit();
   const searchEl = document.getElementById('contactSearchInput');
   if (searchEl) searchEl.value = '';
@@ -388,8 +399,9 @@ function openContactsModal() {
   loadContactTags();
 }
 function closeContactsModal() {
-  document.getElementById('contactsModal').classList.add('hidden');
-  _ctUnlockBodyScroll();
+  const el = document.getElementById('contactsModal');
+  if (!el.classList.contains('hidden')) wnUnlockBodyScroll();
+  el.classList.add('hidden');
   _ctClosePanel();
 }
 
@@ -614,11 +626,15 @@ let ctBulkRows = [];      // [{name, company, email, kana, phone, fax, cardPath,
 let ctBulkBusy = false;
 
 function openCardBulkModal() {
-  document.getElementById('cardBulkModal').classList.remove('hidden');
+  const el = document.getElementById('cardBulkModal');
+  if (el.classList.contains('hidden')) wnLockBodyScroll();
+  el.classList.remove('hidden');
 }
 function closeCardBulkModal() {
   if (ctBulkBusy) return;
-  document.getElementById('cardBulkModal').classList.add('hidden');
+  const el = document.getElementById('cardBulkModal');
+  if (!el.classList.contains('hidden')) wnUnlockBodyScroll();
+  el.classList.add('hidden');
   ctBulkRows = [];
 }
 
@@ -3262,12 +3278,16 @@ function initUploadModal() {
 function openUploadModal(files = []) {
   uploadQueue = [];
   renderUploadQueue();
-  document.getElementById('uploadModal').classList.remove('hidden');
+  const upEl = document.getElementById('uploadModal');
+  if (upEl.classList.contains('hidden')) wnLockBodyScroll();
+  upEl.classList.remove('hidden');
   if (files.length) addToQueue(files);
 }
 
 function closeUploadModal() {
-  document.getElementById('uploadModal').classList.add('hidden');
+  const upEl = document.getElementById('uploadModal');
+  if (!upEl.classList.contains('hidden')) wnUnlockBodyScroll();
+  upEl.classList.add('hidden');
   uploadQueue = [];
   document.getElementById('uploadFileList').innerHTML = '';
   document.getElementById('uploadSubmitBtn').disabled = true;
@@ -4166,6 +4186,7 @@ function prefetchEmailShare(fileId) {
 }
 
 function openEmailModal(files, prefillEmail = null) {
+  if (document.getElementById('emailModal').classList.contains('hidden')) wnLockBodyScroll();
   emailModalFiles   = Array.isArray(files) ? files : (files ? [files] : []);
   emailPregenShares = null;
   emailFieldChips.to  = prefillEmail ? [{ email: prefillEmail }] : [];
@@ -4282,6 +4303,7 @@ function _emailLinkShowReadyMulti(count) {
 }
 
 function closeEmailModal() {
+  if (!document.getElementById('emailModal').classList.contains('hidden')) wnUnlockBodyScroll();
   document.getElementById('emailModal').classList.add('hidden');
   emailModalFiles     = [];
   emailPregenShares   = null;
@@ -4667,12 +4689,16 @@ function openMergeModal() {
   document.getElementById('mergeProgressText').textContent = '';
   setMergeModalBusy(false);
   renderMergeList();
-  document.getElementById('mergeModal').classList.remove('hidden');
+  const mgEl = document.getElementById('mergeModal');
+  if (mgEl.classList.contains('hidden')) wnLockBodyScroll();
+  mgEl.classList.remove('hidden');
 }
 
 function closeMergeModal() {
   if (mergeBusy) return;   // 結合中は閉じない
-  document.getElementById('mergeModal').classList.add('hidden');
+  const mgEl = document.getElementById('mergeModal');
+  if (!mgEl.classList.contains('hidden')) wnUnlockBodyScroll();
+  mgEl.classList.add('hidden');
 }
 
 function renderMergeList() {
@@ -4850,12 +4876,16 @@ async function openAaPostModal(files) {
   document.getElementById('aaPostResultActions').style.display = 'none';
   document.getElementById('aaPostExecBtn').dataset.mode = 'post';
   setAaPostModalBusy(false);
-  document.getElementById('aaPostModal').classList.remove('hidden');
+  const aaEl = document.getElementById('aaPostModal');
+  if (aaEl.classList.contains('hidden')) wnLockBodyScroll();
+  aaEl.classList.remove('hidden');
 }
 
 function closeAaPostModal() {
   if (aaPostBusy) return;   // 投稿中は閉じない
-  document.getElementById('aaPostModal').classList.add('hidden');
+  const aaEl = document.getElementById('aaPostModal');
+  if (!aaEl.classList.contains('hidden')) wnUnlockBodyScroll();
+  aaEl.classList.add('hidden');
 }
 
 function setAaPostModalBusy(busy) {
@@ -5044,9 +5074,11 @@ function initDesktopIntegrationModal() {
 
   function openModal() {
     cmdPreview.textContent = buildCommand();
+    if (modal.classList.contains('hidden')) wnLockBodyScroll();
     modal.classList.remove('hidden');
   }
   function closeModal() {
+    if (!modal.classList.contains('hidden')) wnUnlockBodyScroll();
     modal.classList.add('hidden');
   }
 
