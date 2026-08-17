@@ -857,7 +857,7 @@ function _renderFilteredContacts() {
     return `
     <div class="ct-r" data-id="${c.id}">
       <div style="flex:1;min-width:0;">
-        <div class="nm">${wnEscapeHtml(c.name)}${c.name_kana ? `<span class="kn">${wnEscapeHtml(c.name_kana)}</span>` : ''}${
+        <div class="nm" title="クリックして編集">${wnEscapeHtml(c.name)}${c.name_kana ? `<span class="kn">${wnEscapeHtml(c.name_kana)}</span>` : ''}${
           c.has_card ? '<i class="fa-solid fa-id-card" title="名刺あり" style="margin-left:6px;font-size:10px;color:#B6BFC9;"></i>' : ''}</div>
         <div class="sub">${c.company_name ? `${wnEscapeHtml(c.company_name)} · ` : ''}${wnEscapeHtml(c.email)}</div>
         ${c.phone || c.fax ? `<div class="sub">${c.phone ? 'TEL ' + wnEscapeHtml(c.phone) : ''}${c.phone && c.fax ? '　' : ''}${c.fax ? 'FAX ' + wnEscapeHtml(c.fax) : ''}</div>` : ''}
@@ -881,6 +881,10 @@ function _renderFilteredContacts() {
   list.querySelectorAll('.contact-edit-btn').forEach(btn => {
     const c = contacts.find(x => String(x.id) === String(btn.closest('[data-id]').dataset.id));
     btn.addEventListener('click', () => { if (c) editContact(c); });
+  });
+  list.querySelectorAll('.ct-r .nm').forEach(nm => {
+    const c = contacts.find(x => String(x.id) === String(nm.closest('[data-id]').dataset.id));
+    nm.addEventListener('click', () => { if (c) editContact(c); });
   });
 }
 
