@@ -345,6 +345,20 @@ function initContactsModal() {
       _ctResetPanelState();
     }
   });
+  /* パネルは position:fixed でボタンの位置を都度計算しているだけなので、
+     .ct-left をスクロールされるとボタンとズレる。ズレるくらいなら閉じる */
+  document.querySelector('.ct-left')?.addEventListener('scroll', () => {
+    if (ctPop.open) {
+      document.querySelectorAll('.ct-pop-panel').forEach(el => el.remove());
+      _ctResetPanelState();
+    }
+  });
+  window.addEventListener('resize', () => {
+    if (ctPop.open) {
+      document.querySelectorAll('.ct-pop-panel').forEach(el => el.remove());
+      _ctResetPanelState();
+    }
+  });
 }
 
 /* 名前をキーボードで打ったとき、変換前のひらがなを拾ってカナ欄に入れる。
@@ -1022,6 +1036,24 @@ function _ctRenderPicked() {
   }));
 }
 
+/* タグパネルをボタンの直下に固定配置する。.ct-left が内側スクロールになったため、
+   絶対配置のままだとスクロール位置でボタンとパネルがずれる・切れるので position:fixed にして
+   毎回ビューポート基準で計算し直す。画面下に収まらなければボタンの上に開く。 */
+function _ctPositionPanel(wrap) {
+  const panel = wrap.querySelector('.ct-pop-panel');
+  const anchor = wrap.parentElement;   // .ct-pop-wrap
+  if (!panel || !anchor) return;
+  const rect = anchor.getBoundingClientRect();
+  panel.style.left  = `${rect.left}px`;
+  panel.style.width = `${rect.width}px`;
+  panel.style.top   = `${rect.bottom + 4}px`;
+  requestAnimationFrame(() => {
+    if (panel.getBoundingClientRect().bottom > window.innerHeight - 8) {
+      panel.style.top = `${Math.max(8, rect.top - panel.offsetHeight - 4)}px`;
+    }
+  });
+}
+
 /* ── タグを選ぶ／作る／編集するパネル ── */
 function _ctRenderPanel(focusId) {
   const wrap = document.getElementById('contactTagPanel');
@@ -1119,6 +1151,7 @@ function _ctRenderPanel(focusId) {
     </div>
   </div>`;
 
+  _ctPositionPanel(wrap);
   _ctBindPanel(wrap);
   if (focusId) {
     const el = document.getElementById(focusId);
