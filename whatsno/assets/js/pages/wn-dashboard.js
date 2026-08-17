@@ -294,6 +294,15 @@ function initContactsModal() {
     ctFlt.clear(); _ctRenderNav(); _renderFilteredContacts();
   });
 
+  /* 名刺プレビューをクリックで拡大表示（スキャン直後・編集時どちらの控えも対象） */
+  document.getElementById('contactCardPreview')?.addEventListener('click', e => {
+    if (e.target.tagName === 'IMG') _ctOpenCardLightbox(e.target.src, e.target.alt);
+  });
+  document.getElementById('ctCardLightboxClose')?.addEventListener('click', _ctCloseCardLightbox);
+  document.getElementById('ctCardLightbox')?.addEventListener('click', e => {
+    if (e.target.id === 'ctCardLightbox') _ctCloseCardLightbox();
+  });
+
   _ctInitKanaAutoFill(nameEl, kanaEl);
 
   /* 名刺スキャン。スマホはカメラ、PCはファイル選択が開く */
@@ -452,6 +461,21 @@ const CT_SCAN_FIELDS = {
   contactPhoneInput:   'phone',
   contactFaxInput:     'fax',
 };
+
+function _ctOpenCardLightbox(src, alt) {
+  const box = document.getElementById('ctCardLightbox');
+  const img = document.getElementById('ctCardLightboxImg');
+  if (!box || !img) return;
+  img.src = src;
+  img.alt = alt || '';
+  box.classList.remove('hidden');
+}
+function _ctCloseCardLightbox() {
+  const box = document.getElementById('ctCardLightbox');
+  const img = document.getElementById('ctCardLightboxImg');
+  box?.classList.add('hidden');
+  if (img) img.src = '';
+}
 
 function _ctScanStatus(msg, kind = 'info') {
   const el = document.getElementById('contactScanStatus');
