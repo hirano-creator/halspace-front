@@ -844,7 +844,9 @@
         <button type="button" class="ct-scan-btn" id="contactScanBtn">
           <i class="fa-solid fa-camera"></i> 名刺から読み取る
         </button>
-        <input type="file" id="contactCardInput" accept="image/*" capture="environment" style="display:none;">
+        <!-- capture="environment" を付けると簡易カメラUIが起動し、端末によっては縦向き撮影に固定される。
+             外すとOS標準の写真選択（フルのカメラアプリを含む）が開き、横向きでも撮影できる。 -->
+        <input type="file" id="contactCardInput" accept="image/*" style="display:none;">
         <button type="button" class="ct-link" id="contactBulkScanBtn" style="display:block;margin:-2px 0 8px auto;">
           <i class="fa-solid fa-layer-group"></i> 複数枚をまとめて読み取る
         </button>
