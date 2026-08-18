@@ -11,7 +11,7 @@ let wnTotalCount    = 0;
 let wnLoadingMore    = false;
 let wnLoadMoreObserver = null;
 let selectedTags = [];
-let navView      = 'all';   // 'all' | 'mine' | 'recent' | 'liked'
+let navView      = 'all';   // 'all' | 'mine' | 'company' | 'recent' | 'liked'
 const LAYOUT_VIEW_STORAGE_KEY = 'wn_layout_view';
 let layoutView   = (() => {
   const saved = localStorage.getItem(LAYOUT_VIEW_STORAGE_KEY);
@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadTags();
   await loadFiles();
   initNav();
+  applyStorageModeUi();
   initDragDrop();
   initPasteUpload();
   initUploadModal();
@@ -1505,9 +1506,11 @@ function buildFileListParams() {
     search_reading: normalizedSearch ? toHiraganaQuery(normalizedSearch) : undefined,
   };
   if (selectedTags.length) params.tag = selectedTags.join(',');
-  if (navView === 'mine')   params.mine   = 1;
-  if (navView === 'recent') params.recent = 1;
-  if (navView === 'liked')  params.liked  = 1;
+  // 個人保管モードでは「マイファイル」を所有者基準にする（旧 mine=1 はアップロード者基準）
+  if (navView === 'mine')    params.scope  = 'mine';
+  if (navView === 'company') params.scope  = 'company';
+  if (navView === 'recent')  params.recent = 1;
+  if (navView === 'liked')   params.liked  = 1;
   return params;
 }
 
@@ -1607,7 +1610,7 @@ function renderFiles(reset = true, newItems = null) {
   const empty = document.getElementById('emptyMsg');
   const countLabel = document.getElementById('fileCountLabel');
 
-  const viewLabels = { all: 'すべてのファイル', mine: 'マイファイル', recent: '最近のファイル', liked: 'いいね済み' };
+  const viewLabels = { all: 'すべてのファイル', mine: 'マイファイル', company: '社内共有', recent: '最近のファイル', liked: 'いいね済み' };
   document.getElementById('areaTitle').textContent = viewLabels[navView] ?? 'すべてのファイル';
   countLabel.textContent = wnTotalCount ? `（${wnTotalCount}件）` : '';
 
@@ -2584,6 +2587,8 @@ function fileCardHtml(f) {
     ? `<i class="fa-solid ${icon} file-type-icon ${cls}" id="thumb-icon-${f.id}"></i>`
     : `<i class="fa-solid ${icon} file-type-icon ${cls}"></i>`;
 
+  const visBadgeHtml = wnVisibilityBadgeHtml(f);
+
   const apStatus = f.approval_status ?? 'none';
   const apBadge  = wnApprovalBadge(apStatus);
   const apBadgeHtml = apStatus !== 'none'
@@ -2599,7 +2604,7 @@ function fileCardHtml(f) {
     ${vBadge ? `<div class="file-card-badge">${vBadge}</div>` : ''}
     <div class="file-card-body">
       <div class="file-card-name" title="${h(f.file_name)}">${h(f.file_name)}</div>
-      ${apBadgeHtml ? `<div style="margin-bottom:4px;">${apBadgeHtml}</div>` : ''}
+      ${(visBadgeHtml || apBadgeHtml) ? `<div style="margin-bottom:4px;display:flex;gap:4px;flex-wrap:wrap;">${visBadgeHtml}${apBadgeHtml}</div>` : ''}
       <div class="file-card-meta">
         <span>${wnFormatDate(f.created_at)}</span>
         <span>${wnFormatSize(f.file_size)}</span>
@@ -3116,8 +3121,8 @@ function showLoading(show) {
    サイドバーナビ（ビュー切替）
    ──────────────────────────────── */
 function initNav() {
-  const navMap = { navAll: 'all', navMine: 'mine', navRecent: 'recent', navLiked: 'liked' };
-  const navLabels = { navAll: 'ホーム', navMine: 'マイファイル', navRecent: '最近のファイル', navLiked: 'いいね済み' };
+  const navMap = { navAll: 'all', navMine: 'mine', navCompany: 'company', navRecent: 'recent', navLiked: 'liked' };
+  const navLabels = { navAll: 'ホーム', navMine: 'マイファイル', navCompany: '社内共有', navRecent: '最近のファイル', navLiked: 'いいね済み' };
   const titleEl = document.getElementById('topBarTitle');
   Object.entries(navMap).forEach(([id, view]) => {
     document.getElementById(id)?.addEventListener('click', e => {
@@ -3487,7 +3492,9 @@ async function doUpload() {
     if (bar) bar.style.display = 'block';
     if (stat) { stat.style.display = 'block'; stat.textContent = 'アップロード中…'; }
     try {
+      const shareToCompany = !!document.getElementById('uploadShareToCompany')?.checked;
       const result = await wnUploadFile(file, {
+        shareToCompany,
         onProgress: pct => {
           if (prog) prog.style.width = pct + '%';
           if (pct >= 100 && stat) {
@@ -4727,6 +4734,9 @@ function initMergeSelect() {
     // 選択順を保持: 1番目=A、2番目=B
     location.href = `diff.html?a=${encodeURIComponent(selectedIds[0])}&b=${encodeURIComponent(selectedIds[1])}&type=files`;
   });
+  document.getElementById('shareSelBtn')?.addEventListener('click',   () => bulkSetVisibility('company'));
+  document.getElementById('unshareSelBtn')?.addEventListener('click', () => bulkSetVisibility('private'));
+
   document.getElementById('alignSelBtn')?.addEventListener('click', () => {
     if (selectedIds.length < 2) return;
     // 選択順を保持したままカンマ区切りで渡す（比較と違い種別混在・3件以上もOK）
@@ -4819,6 +4829,22 @@ function updateMergeActionBar() {
   const alignBtn = document.getElementById('alignSelBtn');
   if (alignBtn) alignBtn.disabled = selectedIds.length < 2;
 
+  // 可視範囲の一括切替。自分が変更できるファイルだけを対象にする
+  // （can_edit はサーバーが返す表示用の判定。強制は必ずサーバー側で行う）
+  const editable = sel.filter(f => f.can_edit !== false);
+  const shareBtn   = document.getElementById('shareSelBtn');
+  const unshareBtn = document.getElementById('unshareSelBtn');
+  if (shareBtn) {
+    const n = editable.filter(f => (f.visibility ?? 'company') !== 'company').length;
+    shareBtn.disabled = n === 0;
+    shareBtn.title = n === 0 ? '社内共有にできるファイルが選択されていません' : `${n}件を社内共有にします`;
+  }
+  if (unshareBtn) {
+    const n = editable.filter(f => (f.visibility ?? 'company') === 'company').length;
+    unshareBtn.disabled = n === 0;
+    unshareBtn.title = n === 0 ? '個人に戻せるファイルが選択されていません' : `${n}件を自分だけが見られる状態に戻します`;
+  }
+
   // ファイル選択中はスキル入力モードとしてプレースホルダーを切り替え
   const si = document.getElementById('searchInput');
   if (si) {
@@ -4826,6 +4852,69 @@ function updateMergeActionBar() {
       ? 'やりたいことを入力して送信（例: 向後さんにメールして）…'
       : '検索、またはやりたいことを入力…';
   }
+}
+
+/* ────────────────────────────────
+   保存モードによるUIの出し分け
+
+   全社共有モードでは可視範囲という概念が画面に出てこない方がよい。
+   全ファイルが同じ状態なので、バッジも共有ボタンも情報量がゼロで
+   操作を迷わせるだけになる。
+   ──────────────────────────────── */
+function applyStorageModeUi() {
+  const personal = wnIsPersonalMode();
+
+  document.getElementById('navCompany')?.style.setProperty('display', personal ? '' : 'none');
+  ['shareSelBtn', 'unshareSelBtn'].forEach(id => {
+    document.getElementById(id)?.style.setProperty('display', personal ? '' : 'none');
+  });
+
+  // アップロード時の「社内共有する」チェックボックス
+  const uploadShare = document.getElementById('uploadShareRow');
+  if (uploadShare) uploadShare.style.display = personal ? '' : 'none';
+}
+
+/* 選択中ファイルの可視範囲をまとめて切り替える */
+async function bulkSetVisibility(visibility) {
+  const targets = selectedIds
+    .map(id => allFiles.find(f => String(f.id) === String(id)))
+    .filter(Boolean)
+    .filter(f => f.can_edit !== false)
+    .filter(f => (f.visibility ?? 'company') !== visibility);
+
+  if (!targets.length) return;
+
+  const toShared = visibility === 'company';
+  if (!toShared) {
+    // 共有をやめると発行済みの外部共有リンクも失効する。
+    // 取り消せない副作用なので、件数を見せたうえで確認する。
+    const ok = confirm(
+      `${targets.length}件を自分だけが見られる状態に戻します。
+` +
+      `これらのファイルに発行済みの外部共有リンクは無効になります。よろしいですか？`
+    );
+    if (!ok) return;
+  }
+
+  let done = 0, failed = 0, revoked = 0;
+  for (const f of targets) {
+    const res = await wnSetFileVisibility(f.id, visibility);
+    if (res) {
+      done++;
+      revoked += res.revoked_share_links ?? 0;
+      f.visibility = visibility;   // 再取得せずに手元の状態も合わせる
+    } else {
+      failed++;
+    }
+  }
+
+  let msg = toShared ? `${done}件を社内共有にしました` : `${done}件を個人に戻しました`;
+  if (revoked) msg += `（共有リンク${revoked}件を失効）`;
+  if (failed)  msg += ` / ${failed}件は失敗しました`;
+  wnShowToast(msg, failed ? 'warning' : 'success');
+
+  renderFiles(true);
+  updateMergeActionBar();
 }
 
 /* ── 結合モーダル ── */

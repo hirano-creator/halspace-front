@@ -2329,6 +2329,55 @@ function initActions() {
     location.href = `annotate.html?id=${fileId}&from=file-detail.html`;
   });
 
+  /* ── 可視範囲の切り替え ──
+     全社共有モードでは概念自体が画面に出ないのでボタンごと隠す。
+     他人のファイル（can_edit=false）にも出さない。 */
+  const visBtn = document.getElementById('visibilityBtn');
+  function refreshVisibilityBtn() {
+    if (!visBtn) return;
+    const show = wnIsPersonalMode() && fileData?.can_edit !== false;
+    visBtn.style.display = show ? '' : 'none';
+    if (!show) return;
+    const shared = (fileData.visibility ?? 'company') === 'company';
+    visBtn.querySelector('#visibilityBtnLabel').textContent = shared ? '個人に戻す' : '社内共有にする';
+    visBtn.querySelector('i').className = shared ? 'fa-solid fa-lock' : 'fa-solid fa-users';
+    visBtn.title = shared
+      ? '自分だけが見られる状態に戻します（発行済みの共有リンクは無効になります）'
+      : '社内の全員が見られるようにします';
+  }
+  refreshVisibilityBtn();
+
+  visBtn?.addEventListener('click', async () => {
+    const shared = (fileData.visibility ?? 'company') === 'company';
+    const next   = shared ? 'private' : 'company';
+
+    if (shared && !confirm(
+      `「${fileData.file_name}」を自分だけが見られる状態に戻します。
+` +
+      `このファイルに発行済みの外部共有リンクは無効になります。よろしいですか？`
+    )) return;
+
+    const res = await wnSetFileVisibility(fileId, next);
+    if (!res) { wnShowToast('可視範囲を変更できませんでした', 'danger'); return; }
+
+    fileData.visibility = next;
+    refreshVisibilityBtn();
+    const revoked = res.revoked_share_links ?? 0;
+    wnShowToast(
+      next === 'company' ? '社内共有にしました'
+        : `個人に戻しました${revoked ? `（共有リンク${revoked}件を失効）` : ''}`,
+      'success'
+    );
+  });
+
+  /* 他人のファイルは変更系の操作を出さない（強制は必ずサーバー側） */
+  if (fileData?.can_edit === false) {
+    ['deleteBtn', 'renameBtn'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+  }
+
   document.getElementById('deleteBtn').addEventListener('click', async () => {
     const versionCount = fileData.version ?? 1;
     const msg = versionCount > 1
