@@ -160,7 +160,14 @@ async function wnSetFileVisibility(id, visibility) {
   return await res.json();
 }
 
-/* 自分のファイルをまとめて社内共有にする（切替前後の復旧導線） */
+/* 会社の保存モードと、自分の非公開ファイル件数 */
+async function wnGetSettings() {
+  const res = await wnFetch('/wn/settings');
+  if (!res || !res.ok) return null;
+  return (await res.json()).data ?? null;
+}
+
+/* 自分のファイルをまとめて社内共有にする（切替後の復旧導線） */
 async function wnShareAllMine() {
   const res = await wnFetch('/wn/files/share-all-mine', { method: 'POST' });
   if (!res || !res.ok) return null;

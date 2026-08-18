@@ -395,6 +395,28 @@
 
     <div class="page-body">
 
+      <!-- 個人保管モードで、自分の非公開ファイルがあるときだけ出す復旧導線。
+           個人保管へ切り替えた直後に「今まで見えていた資料が消えた」と言われたとき、
+           所有者がここから戻せるようにする。押すまでは何も起きない。 -->
+      <div id="shareAllBanner" class="card" style="display:none;padding:12px 16px;margin-bottom:12px;
+        border-left:3px solid var(--wn-share,#22705f);">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <i class="fa-solid fa-users" style="color:var(--wn-share,#22705f);flex:none;"></i>
+          <div style="flex:1;min-width:200px;font-size:13px;line-height:1.7;">
+            <b id="shareAllBannerCount"></b>
+            <span style="color:var(--muted);">
+              他の人に見せたいファイルがあれば、まとめて社内共有にできます。
+            </span>
+          </div>
+          <div style="display:flex;gap:8px;flex:none;">
+            <button class="btn btn-outline btn-sm" id="shareAllDismiss">閉じる</button>
+            <button class="btn btn-primary btn-sm" id="shareAllBtn">
+              <i class="fa-solid fa-users"></i> まとめて社内共有にする
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- ファイル一覧 -->
       <div class="card" id="fileListCard" style="padding:0;overflow:hidden;">
         <div class="card-header" style="padding:12px 16px 8px;border-bottom:1px solid var(--border);flex-wrap:nowrap;">
