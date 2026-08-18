@@ -101,6 +101,7 @@ async function wnGetFiles(params = {}) {
       if (res.status >= 500) { lastError = `server-${res.status}`; continue; }   /* 5xxはリトライ */
       if (!res.ok) return { data: null, meta: null, error: `http-${res.status}` };           /* 4xxは即返す */
       const json = await res.json();
+      wnSyncStorageMode(json.meta);
       return { data: json.data ?? [], meta: json.meta ?? null, error: null };
     } catch (e) {
       clearTimeout(timer);
@@ -108,6 +109,62 @@ async function wnGetFiles(params = {}) {
     }
   }
   return { data: null, meta: null, error: lastError };
+}
+
+/* ── 保存モードと可視範囲 ──────────────────────────────
+   会社の保存モード:
+     shared   … 社内全員が全ファイルを見られる（従来の挙動）
+     personal … 既定は個人保管。社内共有にしたものだけ全員に見える
+
+   フロントはUIの出し分けにしか使わない。権限の強制は必ずサーバー側
+   （scopeVisibleTo / scopeEditableBy）で行うので、この値が古くても
+   表示が古くなるだけで、見えてはいけないものが見えることはない。 */
+let wnStorageMode = null;
+
+function wnGetStorageMode() {
+  if (wnStorageMode) return wnStorageMode;
+  try {
+    const u = JSON.parse(sessionStorage.getItem('space_user') || '{}');
+    if (u.wn_storage_mode) wnStorageMode = u.wn_storage_mode;
+  } catch (_) { /* 壊れたJSONは無視して既定に倒す */ }
+  return wnStorageMode || 'shared';
+}
+
+function wnIsPersonalMode() {
+  return wnGetStorageMode() === 'personal';
+}
+
+/* 一覧APIの meta から自己補正する。super_adminが切り替えた直後は
+   sessionStorage の値が古いままなので、通信のたびに最新へ寄せる。 */
+function wnSyncStorageMode(meta) {
+  if (!meta || !meta.storage_mode) return false;
+  const changed = wnStorageMode !== null && wnStorageMode !== meta.storage_mode;
+  wnStorageMode = meta.storage_mode;
+  try {
+    const u = JSON.parse(sessionStorage.getItem('space_user') || '{}');
+    if (u.wn_storage_mode !== meta.storage_mode) {
+      u.wn_storage_mode = meta.storage_mode;
+      sessionStorage.setItem('space_user', JSON.stringify(u));
+    }
+  } catch (_) { /* 保存できなくても動作は続く */ }
+  return changed;
+}
+
+/* 可視範囲の切り替え（同名の全バージョンにまとめて効く） */
+async function wnSetFileVisibility(id, visibility) {
+  const res = await wnFetch(`/wn/files/${id}/visibility`, {
+    method: 'PATCH',
+    body: JSON.stringify({ visibility }),
+  });
+  if (!res || !res.ok) return null;
+  return await res.json();
+}
+
+/* 自分のファイルをまとめて社内共有にする（切替前後の復旧導線） */
+async function wnShareAllMine() {
+  const res = await wnFetch('/wn/files/share-all-mine', { method: 'POST' });
+  if (!res || !res.ok) return null;
+  return await res.json();
 }
 
 /* ファイル詳細 */
@@ -121,7 +178,7 @@ async function wnGetFile(id) {
    - multipart ではなく raw バイナリで送信（CF Workers のメモリ二重バッファ回避）
    - サーバー側は Content-Type が multipart 以外なら X-File-Name ヘッダーで名前を受け取る
    - ネットワーク系エラーは指数バックオフで最大3回リトライ（wnOverwriteFile と同方針） */
-async function wnUploadFile(file, { onProgress } = {}) {
+async function wnUploadFile(file, { onProgress, shareToCompany = false } = {}) {
   const token = sessionStorage.getItem('space_token');
 
   // ArrayBuffer 経由で Blob に変換（iOS Safari の File 参照無効化対策）
@@ -130,7 +187,9 @@ async function wnUploadFile(file, { onProgress } = {}) {
 
   // Railway へ直送（CORS は API 側で許可済み。旧 /api/wn-upload プロキシは
   // 大容量で Worker メモリ上限に当たり壊れるため廃止）
-  const uploadUrl = WN_API_BASE + '/wn/files';
+  // 個人保管モードで「アップロード後に社内共有する」を選んだときだけ立てる。
+  // ボディはバイナリなのでフォーム値では渡せず、クエリで送る。
+  const uploadUrl = WN_API_BASE + '/wn/files' + (shareToCompany ? '?share_to_company=1' : '');
 
   const attempt = () => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -526,6 +585,20 @@ async function wnCancelApproval(fileId) {
 }
 
 /* 承認ステータスのラベル・色 */
+/* 可視範囲バッジ。全社共有モードでは全ファイルが同じ状態なので何も出さない
+   （全部に同じバッジが付いても情報量がゼロで、画面が煩くなるだけ）。 */
+function wnVisibilityBadgeHtml(f) {
+  if (!wnIsPersonalMode()) return '';
+  const shared = (f.visibility ?? 'company') === 'company';
+  const color  = shared ? '#22705f' : '#574c8e';
+  const bg     = shared ? '#ddede7' : '#e5e2f2';
+  const icon   = shared ? 'fa-users' : 'fa-lock';
+  const label  = shared ? '社内共有' : '個人';
+  return `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;
+    color:${color};background:${bg};white-space:nowrap;">
+    <i class="fa-solid ${icon}" style="margin-right:3px;"></i>${label}</span>`;
+}
+
 function wnApprovalBadge(status) {
   const map = {
     none:     { label: '承認なし',  color: '#90A4AE', bg: '#ECEFF1' },

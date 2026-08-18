@@ -1105,6 +1105,33 @@
         </div>
       </div>
       <div id="appConfigsContainer" style="display:flex;flex-direction:column;gap:10px;"></div>
+
+      <div id="wnStorageModeSection" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--border,#e1e8e6);">
+        <label class="form-label">What'sNo の保存モード</label>
+        <select class="form-input" id="wnStorageMode">
+          <option value="shared">全社共有 — 社内全員が全ファイルを見られる</option>
+          <option value="personal">個人保管 — 既定は自分だけ。共有したものだけ全員に見える</option>
+        </select>
+        <div id="wnStorageModeInfo" style="margin-top:8px;font-size:12px;line-height:1.7;color:var(--text-muted,#6b7a78);"></div>
+
+        <div id="wnExistingRow" style="display:none;margin-top:10px;padding:10px 12px;border-radius:8px;background:var(--surface-alt,#f2f4f3);">
+          <div style="font-size:12px;font-weight:700;margin-bottom:6px;">切り替え時に、いまあるファイルをどうするか</div>
+          <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.7;cursor:pointer;margin-bottom:6px;">
+            <input type="radio" name="wnExisting" value="keep_shared" checked style="margin-top:3px;flex:none;">
+            <span><b>社内共有のまま残す</b>（推奨）<br>
+              切り替え後の新規アップロードだけが個人保管になります。見えていたものは消えません。</span>
+          </label>
+          <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.7;cursor:pointer;">
+            <input type="radio" name="wnExisting" value="to_private" style="margin-top:3px;flex:none;">
+            <span><b>アップロード者の個人所有にする</b><br>
+              <span style="color:var(--red,#9e3226);">この会社の全員の画面から、他人のファイルが一斉に消えます。</span></span>
+          </label>
+        </div>
+
+        <button type="button" class="btn btn-outline btn-sm" id="wnStorageModeApply" style="margin-top:10px;display:none;">
+          <i class="fa-solid fa-arrow-right-arrow-left"></i> 保存モードを変更する
+        </button>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('companyModal')">キャンセル</button>
@@ -1496,8 +1523,93 @@ function openEditCompany(id) {
     codeRow.style.display = 'none';
   }
   renderAppConfigModal(c);
+  loadWnStorageMode(c.id);
   openModal('companyModal');
 }
+
+/* ── What'sNo 保存モード ──────────────────────────────
+   会社全員の見え方が変わる操作なので、会社情報の保存（PATCH /admin/companies）
+   とは別のボタン・別のAPIに分けている。契約情報を直したついでに
+   全社のファイルが動く、という事故を防ぐため。 */
+let wnModeState = null;   // { company_id, storage_mode, total_files, would_become_private, orphan_files }
+
+async function loadWnStorageMode(companyId) {
+  const section = document.getElementById('wnStorageModeSection');
+  const info    = document.getElementById('wnStorageModeInfo');
+  wnModeState = null;
+  section.style.display = 'none';
+  if (!companyId) return;   // 新規作成時は出さない
+
+  const res = await apiFetch(`/admin/wn/companies/${companyId}/storage-mode`);
+  if (!res || !res.ok) return;
+  wnModeState = (await res.json()).data;
+
+  section.style.display = '';
+  document.getElementById('wnStorageMode').value = wnModeState.storage_mode;
+  info.textContent = `ファイル ${wnModeState.total_files} 件`
+    + (wnModeState.orphan_files ? `（うちアップロード者不明 ${wnModeState.orphan_files} 件は常に社内共有のまま）` : '');
+  refreshWnModeUi();
+}
+
+function refreshWnModeUi() {
+  if (!wnModeState) return;
+  const sel      = document.getElementById('wnStorageMode').value;
+  const changed  = sel !== wnModeState.storage_mode;
+  const toPersonal = wnModeState.storage_mode === 'shared' && sel === 'personal';
+
+  document.getElementById('wnExistingRow').style.display     = toPersonal ? '' : 'none';
+  document.getElementById('wnStorageModeApply').style.display = changed ? '' : 'none';
+}
+
+document.getElementById('wnStorageMode')?.addEventListener('change', refreshWnModeUi);
+
+document.getElementById('wnStorageModeApply')?.addEventListener('click', async () => {
+  if (!wnModeState) return;
+  const mode = document.getElementById('wnStorageMode').value;
+  const existing = document.querySelector('input[name="wnExisting"]:checked')?.value ?? 'keep_shared';
+  const toPersonal = wnModeState.storage_mode === 'shared' && mode === 'personal';
+
+  let msg;
+  if (toPersonal && existing === 'to_private') {
+    msg = `${wnModeState.company_name} を個人保管に切り替え、既存 ${wnModeState.would_become_private} 件を`
+        + `アップロード者の個人所有にします。
+
+`
+        + `この会社の全員の画面から他人のファイルが一斉に消えます。
+`
+        + `問題が起きたら「全社共有」に戻せば元通りになります。
+
+実行しますか？`;
+  } else if (toPersonal) {
+    msg = `${wnModeState.company_name} を個人保管に切り替えます。
+`
+        + `既存ファイルは社内共有のまま残るので、見え方は変わりません。
+`
+        + `切り替え後の新規アップロードだけが個人保管になります。
+
+実行しますか？`;
+  } else {
+    msg = `${wnModeState.company_name} を全社共有に戻します。
+`
+        + `各ファイルの共有設定は保持されるので、もう一度個人保管に戻せば元の状態に復元されます。
+
+実行しますか？`;
+  }
+  if (!confirm(msg)) return;
+
+  const btn = document.getElementById('wnStorageModeApply');
+  btn.disabled = true;
+  const res = await apiFetch(`/admin/wn/companies/${wnModeState.company_id}/storage-mode`, {
+    method: 'PATCH',
+    body: JSON.stringify({ mode, existing }),
+  });
+  btn.disabled = false;
+
+  if (!res || !res.ok) { showToast('保存モードを変更できませんでした', 'danger'); return; }
+  const json = await res.json();
+  showToast(`保存モードを変更しました（対象 ${json.affected_files} 件）`, 'success');
+  await loadWnStorageMode(wnModeState.company_id);
+});
 
 document.getElementById('companyModalSave').addEventListener('click', async () => {
   const id   = document.getElementById('companyModalId').value;
