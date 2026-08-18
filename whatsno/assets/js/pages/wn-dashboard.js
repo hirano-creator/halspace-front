@@ -11,7 +11,10 @@ let wnTotalCount    = 0;
 let wnLoadingMore    = false;
 let wnLoadMoreObserver = null;
 let selectedTags = [];
-let navView      = 'all';   // 'all' | 'mine' | 'company' | 'recent' | 'liked'
+/* 'mine' | 'company' | 'recent' | 'liked' | 'all'
+   'all'（見られるもの全部）はサイドバーには出さない内部状態。
+   検索中とタグ共有リンクで開いたときだけこの状態になる。 */
+let navView      = 'mine';
 const LAYOUT_VIEW_STORAGE_KEY = 'wn_layout_view';
 let layoutView   = (() => {
   const saved = localStorage.getItem(LAYOUT_VIEW_STORAGE_KEY);
@@ -39,8 +42,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderSidebarUser(currentUser);
   if (isAdmin(currentUser)) document.getElementById('adminLink').style.display = '';
 
+  /* タグ共有リンク（?tags=1,2）で開いたときは、自分のファイルに絞らず
+     見られるもの全体から該当タグを出す。絞ると共有された意味が消える。 */
   const _tagsParam = new URLSearchParams(location.search).get('tags');
-  if (_tagsParam) selectedTags = _tagsParam.split(',').map(Number).filter(Boolean);
+  if (_tagsParam) {
+    selectedTags = _tagsParam.split(',').map(Number).filter(Boolean);
+    if (selectedTags.length) navView = 'all';
+  }
 
   await loadTags();
   await loadFiles();
@@ -1507,6 +1515,12 @@ function buildFileListParams() {
     search_reading: normalizedSearch ? toHiraganaQuery(normalizedSearch) : undefined,
   };
   if (selectedTags.length) params.tag = selectedTags.join(',');
+
+  /* 検索中はビューの絞り込みを外し、自分に見えるもの全体から探す。
+     マイファイルと社内共有の2ビューしか無いので、ビュー内検索のままだと
+     「自分のか共有か分からないファイル」を探すのに2回検索させることになる。 */
+  if (normalizedSearch) return params;
+
   // 個人保管モードでは「マイファイル」を所有者基準にする（旧 mine=1 はアップロード者基準）
   if (navView === 'mine')    params.scope  = 'mine';
   if (navView === 'company') params.scope  = 'company';
@@ -1612,7 +1626,12 @@ function renderFiles(reset = true, newItems = null) {
   const countLabel = document.getElementById('fileCountLabel');
 
   const viewLabels = { all: 'すべてのファイル', mine: 'マイファイル', company: '社内共有', recent: '最近のファイル', liked: 'いいね済み' };
-  document.getElementById('areaTitle').textContent = viewLabels[navView] ?? 'すべてのファイル';
+  /* 検索中はビューの絞り込みが外れて全体を見ているので、見出しでそう伝える。
+     「マイファイル」のまま他人のファイルが並ぶと、どこを見ているのか分からなくなる。 */
+  const searchTerm = document.getElementById('searchInput')?.value.trim();
+  document.getElementById('areaTitle').textContent = searchTerm
+    ? `「${searchTerm}」の検索結果`
+    : (viewLabels[navView] ?? 'すべてのファイル');
   countLabel.textContent = wnTotalCount ? `（${wnTotalCount}件）` : '';
 
   if (!allFiles.length) {
@@ -3122,8 +3141,8 @@ function showLoading(show) {
    サイドバーナビ（ビュー切替）
    ──────────────────────────────── */
 function initNav() {
-  const navMap = { navAll: 'all', navMine: 'mine', navCompany: 'company', navRecent: 'recent', navLiked: 'liked' };
-  const navLabels = { navAll: 'ホーム', navMine: 'マイファイル', navCompany: '社内共有', navRecent: '最近のファイル', navLiked: 'いいね済み' };
+  const navMap = { navMine: 'mine', navCompany: 'company', navRecent: 'recent', navLiked: 'liked' };
+  const navLabels = { navMine: 'マイファイル', navCompany: '社内共有', navRecent: '最近のファイル', navLiked: 'いいね済み' };
   const titleEl = document.getElementById('topBarTitle');
   Object.entries(navMap).forEach(([id, view]) => {
     document.getElementById(id)?.addEventListener('click', e => {
@@ -3132,19 +3151,23 @@ function initNav() {
       Object.keys(navMap).forEach(k => document.getElementById(k)?.classList.remove('active'));
       document.getElementById(id)?.classList.add('active');
       if (titleEl) titleEl.textContent = navLabels[id];
-      // ホームは検索・タグ選択をリセットして全件表示
-      if (id === 'navAll') {
-        selectedTags = [];
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) searchInput.value = '';
-        renderTagFilter();
-      }
+      /* 検索はビューをまたぐので、検索したまま切り替えても結果が変わらない。
+         切り替え＝そのビューを見に行く操作なので、検索は必ず解除する。 */
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput?.value) searchInput.value = '';
       loadFiles();
     });
   });
-  // 初期アクティブ状態を設定
-  document.getElementById('navAll')?.classList.add('active');
-  if (titleEl) titleEl.textContent = 'ホーム';
+  // 初期アクティブ状態を設定（タグ共有リンクで開いたときは全体表示なのでどれも選ばない）
+  if (navView !== 'all') {
+    const initialId = Object.keys(navMap).find(k => navMap[k] === navView);
+    if (initialId) {
+      document.getElementById(initialId)?.classList.add('active');
+      if (titleEl) titleEl.textContent = navLabels[initialId];
+    }
+  } else if (titleEl) {
+    titleEl.textContent = 'すべてのファイル';
+  }
 }
 
 /* ────────────────────────────────
@@ -4863,7 +4886,6 @@ function updateMergeActionBar() {
 function applyStorageModeUi() {
   const personal = wnIsPersonalMode();
 
-  document.getElementById('navCompany')?.style.setProperty('display', personal ? '' : 'none');
   ['shareSelBtn', 'unshareSelBtn'].forEach(id => {
     document.getElementById(id)?.style.setProperty('display', personal ? '' : 'none');
   });

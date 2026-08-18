@@ -247,9 +247,8 @@
     </div>
     <nav class="sidebar-nav">
       <div class="sidebar-nav-label">メニュー</div>
-      <a href="#" class="active" id="navAll"><i class="fa-solid fa-house"></i> ホーム</a>
-      <a href="#" id="navMine"><i class="fa-solid fa-user"></i> マイファイル</a>
-      <a href="#" id="navCompany" style="display:none;"><i class="fa-solid fa-users"></i> 社内共有</a>
+      <a href="#" class="active" id="navMine"><i class="fa-solid fa-user"></i> マイファイル</a>
+      <a href="#" id="navCompany"><i class="fa-solid fa-users"></i> 社内共有</a>
       <a href="#" id="navRecent"><i class="fa-solid fa-clock-rotate-left"></i> 最近のファイル</a>
       <a href="#" id="navLiked"><i class="fa-solid fa-heart"></i> いいね済み</a>
       <a href="manuals.html"><i class="fa-solid fa-book"></i> マニュアル</a>
@@ -628,7 +627,10 @@
 <nav class="bottom-nav">
   <div class="bottom-nav-inner">
     <div class="bottom-nav-item active" id="bnHome">
-      <i class="fa-solid fa-house"></i><span>ホーム</span>
+      <i class="fa-solid fa-user"></i><span>マイ</span>
+    </div>
+    <div class="bottom-nav-item" id="bnCompany">
+      <i class="fa-solid fa-users"></i><span>社内共有</span>
     </div>
     <div class="bottom-nav-item" id="bnLiked">
       <i class="fa-solid fa-heart"></i><span>いいね</span>
@@ -1133,8 +1135,13 @@
 /* ── ボトムナビ ── */
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('bnHome').addEventListener('click', () => {
-    document.getElementById('navAll').click();
+    document.getElementById('navMine').click();
     setBottomActive('bnHome');
+    closeTagSheet();
+  });
+  document.getElementById('bnCompany').addEventListener('click', () => {
+    document.getElementById('navCompany').click();
+    setBottomActive('bnCompany');
     closeTagSheet();
   });
   document.getElementById('bnLiked').addEventListener('click', () => {
