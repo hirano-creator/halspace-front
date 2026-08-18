@@ -4871,8 +4871,8 @@ function updateMergeActionBar() {
   const si = document.getElementById('searchInput');
   if (si) {
     si.placeholder = selectedIds.length > 0
-      ? 'やりたいことを入力して送信（例: 向後さんにメールして）…'
-      : '検索、またはやりたいことを入力…';
+      ? 'メールの内容を簡素に書いて送信（例: ヒラノ 平野さん 見積依頼メールして）…'
+      : '検索、選択してメールを送信する…';
   }
 }
 
