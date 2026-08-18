@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadTags();
   await loadFiles();
   initNav();
+  initShareAll();
   applyStorageModeUi();
   initDragDrop();
   initPasteUpload();
@@ -4870,6 +4871,59 @@ function applyStorageModeUi() {
   // アップロード時の「社内共有する」チェックボックス
   const uploadShare = document.getElementById('uploadShareRow');
   if (uploadShare) uploadShare.style.display = personal ? '' : 'none';
+
+  if (personal) refreshShareAllBanner();
+}
+
+/* ── まとめて社内共有（切替後の復旧導線）──
+   個人保管へ切り替えた直後は「今まで見えていた資料が消えた」が起きる。
+   消えたと言う人ではなく所有者しか戻せないので、所有者の画面に出す。
+   一度閉じたらそのタブでは出さない（毎回出ると共有を急かす圧になる）。 */
+const SHARE_ALL_DISMISS_KEY = 'wn_share_all_dismissed';
+
+async function refreshShareAllBanner() {
+  const banner = document.getElementById('shareAllBanner');
+  if (!banner) return;
+  if (sessionStorage.getItem(SHARE_ALL_DISMISS_KEY) === '1') return;
+
+  const settings = await wnGetSettings();
+  const n = settings?.my_private_count ?? 0;
+  if (!n) { banner.style.display = 'none'; return; }
+
+  document.getElementById('shareAllBannerCount').textContent =
+    `自分のファイル ${n} 件が個人保管です。`;
+  banner.style.display = '';
+}
+
+function initShareAll() {
+  document.getElementById('shareAllDismiss')?.addEventListener('click', () => {
+    sessionStorage.setItem(SHARE_ALL_DISMISS_KEY, '1');
+    document.getElementById('shareAllBanner').style.display = 'none';
+  });
+
+  document.getElementById('shareAllBtn')?.addEventListener('click', async () => {
+    const settings = await wnGetSettings();
+    const n = settings?.my_private_count ?? 0;
+    if (!n) { document.getElementById('shareAllBanner').style.display = 'none'; return; }
+
+    if (!confirm(
+      `自分のファイル ${n} 件を、社内の全員が見られる状態にします。
+` +
+      `あとから個別に個人へ戻すこともできます。
+
+実行しますか？`
+    )) return;
+
+    const btn = document.getElementById('shareAllBtn');
+    btn.disabled = true;
+    const res = await wnShareAllMine();
+    btn.disabled = false;
+
+    if (!res) { wnShowToast('社内共有にできませんでした', 'danger'); return; }
+    wnShowToast(`${res.updated} 件を社内共有にしました`, 'success');
+    document.getElementById('shareAllBanner').style.display = 'none';
+    await loadFiles();
+  });
 }
 
 /* 選択中ファイルの可視範囲をまとめて切り替える */
