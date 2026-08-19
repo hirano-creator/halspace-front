@@ -292,6 +292,10 @@ function initContactsModal() {
   cancelBtn?.addEventListener('click', closeContactsModal);
   addBtn?.addEventListener('click', addContactFromForm);
   cancelEditBtn?.addEventListener('click', _contactCancelEdit);
+  document.getElementById('ctFormToggle')?.addEventListener('click', () => {
+    const body = document.querySelector('#contactsModal .ct-body');
+    _ctSetFormOpen(!!body?.classList.contains('ct-form-closed'));
+  });
   nameEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); kanaEl?.focus(); } });
   kanaEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); companyEl?.focus(); } });
   companyEl?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); emailEl?.focus(); } });
@@ -441,6 +445,30 @@ function closeContactsModal() {
   _ctClosePanel();
 }
 
+/* ── 登録フォームの開閉（スマホ用） ──
+   狭い画面ではフォームを畳んで「登録済みの連絡先」を先に見せる。
+   クラスは常に付け外しするが、効くのは880px以下のCSSだけなのでPCの2カラムは影響を受けない。 */
+function _ctIsNarrow() { return window.matchMedia('(max-width: 880px)').matches; }
+
+function _ctSetFormOpen(open) {
+  const body = document.querySelector('#contactsModal .ct-body');
+  if (!body) return;
+  body.classList.toggle('ct-form-closed', !open);
+  const label = document.getElementById('ctFormToggleLabel');
+  const chev  = document.getElementById('ctFormToggleChevron');
+  if (label) label.textContent = open ? '閉じる' : '新しく登録する';
+  /* インラインstyle（margin-left:auto等）は残したいのでclassNameだけ差し替える */
+  if (chev) chev.className = `fa-solid fa-chevron-${open ? 'up' : 'down'}`;
+}
+
+/* 編集や名刺読み取りでフォームに値を入れるときは、畳んだままだと何も起きていないように見える */
+function _ctOpenForm(scroll = false) {
+  _ctSetFormOpen(true);
+  if (scroll && _ctIsNarrow()) {
+    document.getElementById('ctFormToggle')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
 function _ctResetPanelState() {
   ctPop = { open: false, q: '', manage: false, editTag: null, editGroup: null, newTag: false, newGroup: false };
 }
@@ -462,6 +490,9 @@ function _contactCancelEdit() {
   document.getElementById('contactMeta')?.classList.add('hidden');
   _contactShowError('');
   _ctRenderPicked();
+  /* 登録・更新の完了時、「やめる」、モーダルを開いた直後はここを通る。
+     スマホでは畳んだ状態に戻して一覧を前に出す */
+  _ctSetFormOpen(false);
 }
 
 function _contactShowError(msg) {
@@ -589,6 +620,9 @@ async function _ctShrinkImage(file, long = 1600, quality = 0.8) {
 
 async function scanBusinessCard(file) {
   if (ctScanBusy) return;
+  /* ファイル詳細から scan_file で来た場合はフォームが畳まれたままなので、
+     読み取り状況と結果が見えるように開いておく */
+  _ctOpenForm(true);
   ctScanBusy = true;
   const btn = document.getElementById('contactScanBtn');
   if (btn) btn.disabled = true;
@@ -1355,6 +1389,8 @@ async function addContactFromForm() {
 }
 
 function editContact(c) {
+  /* 値を入れる前に開く。畳んだまま focus() しても効かず、編集画面が出ないように見える */
+  _ctOpenForm(true);
   contactEditingId = c.id;
   document.getElementById('contactNameInput').value    = c.name         ?? '';
   document.getElementById('contactKanaInput').value    = c.name_kana    ?? '';

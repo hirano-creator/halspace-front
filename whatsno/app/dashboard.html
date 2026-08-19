@@ -21,6 +21,8 @@
        ペインの高さは3か所（.ct-body / .ct-nav / .ct-rows）で揃える必要があるため変数にする */
     .ct-modal { --ct-pane-h: min(640px, 66vh); }
     .ct-body { display: flex; align-items: stretch; min-height: var(--ct-pane-h); }
+    /* 登録フォームの開閉ボタンはスマホ専用（PCは2カラムで常に開いている） */
+    .ct-form-toggle { display: none; }
     /* .ct-left 単独に高さ上限をつけると、フォーム全体が小さな内側スクロールに閉じ込められて
        見た目が「途中で切れている」ようになるため付けない。伸びた分は .modal 本体
        （max-height:90vh; overflow-y:auto）がまとめてスクロールする */
@@ -149,8 +151,18 @@
       /* モーダル自体をスクロールさせないと背景ページごと動いてしまうので auto にする */
       .ct-modal { overflow-y: auto; overscroll-behavior: contain; }
       .ct-body { flex-direction: column; min-height: 0; }
-      .ct-left { width: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 0 0 12px; }
-      .ct-right { padding: 12px 0 0; }
+      /* 登録フォームは畳んでおき、まず「登録済みの連絡先」が見えるようにする。
+         フォームが常時開いていると26件の一覧に届くまで1画面まるごとスクロールが要る */
+      .ct-form-toggle { display: flex; align-items: center; gap: 9px; order: 1; width: 100%;
+                        box-sizing: border-box; margin-bottom: 12px; padding: 13px 14px;
+                        border: 1px solid var(--border); border-radius: 8px; background: #fff;
+                        font-family: inherit; font-size: 14px; font-weight: 700; color: var(--primary);
+                        cursor: pointer; text-align: left; }
+      .ct-form-toggle:active { background: #F1F4F7; }
+      .ct-body.ct-form-closed .ct-form-toggle { margin-bottom: 10px; }
+      .ct-body.ct-form-closed .ct-left { display: none; }
+      .ct-left { order: 2; width: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 0 0 12px; }
+      .ct-right { order: 3; padding: 12px 0 0; }
       .ct-panes { flex-direction: column; }
       .ct-nav { width: auto; max-height: none; border-right: none; border-bottom: 1px solid var(--border);
                 padding: 0 0 8px; margin: 0 0 8px; display: flex; gap: 6px; overflow-x: auto; overscroll-behavior: contain; }
@@ -893,6 +905,13 @@
     </div>
 
     <div class="ct-body">
+      <!-- スマホ用: 登録フォームは既定で畳み、このボタンで開く（PCでは非表示・常に開いた状態） -->
+      <button type="button" class="ct-form-toggle" id="ctFormToggle">
+        <i class="fa-solid fa-user-plus" style="color:var(--accent);"></i>
+        <span id="ctFormToggleLabel">新しく登録する</span>
+        <i class="fa-solid fa-chevron-down" id="ctFormToggleChevron" style="margin-left:auto;font-size:11px;"></i>
+      </button>
+
       <!-- 左：登録フォーム -->
       <div class="ct-left">
         <div class="ct-sec">
@@ -1133,7 +1152,7 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=7"></script>
 <script src="../assets/js/wn-api.js?v=27"></script>
-<script src="../assets/js/pages/wn-dashboard.js?v=90"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=91"></script>
 
 <script>
 /* ── ボトムナビ ── */
