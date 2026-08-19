@@ -1132,6 +1132,18 @@
           <i class="fa-solid fa-arrow-right-arrow-left"></i> 保存モードを変更する
         </button>
       </div>
+
+      <div id="wnExtendedOptionsSection" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--border,#e1e8e6);">
+        <label class="form-label">What'sNo 拡張オプション</label>
+        <div class="form-hint">メール送信・比較/並べる・マニュアル・連絡先・Knowl・注釈の6機能をまとめてON/OFFします（個別選択はできません）。</div>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer;margin-top:8px;">
+          <input type="checkbox" id="wnExtendedOptionsToggle">
+          <span>拡張オプションを有効にする</span>
+        </label>
+        <button type="button" class="btn btn-outline btn-sm" id="wnExtendedOptionsApply" style="margin-top:10px;display:none;">
+          <i class="fa-solid fa-check"></i> 拡張オプションを保存する
+        </button>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('companyModal')">キャンセル</button>
@@ -1524,6 +1536,7 @@ function openEditCompany(id) {
   }
   renderAppConfigModal(c);
   loadWnStorageMode(c.id);
+  loadWnExtendedOptions(c.id);
   openModal('companyModal');
 }
 
@@ -1609,6 +1622,57 @@ document.getElementById('wnStorageModeApply')?.addEventListener('click', async (
   const json = await res.json();
   showToast(`保存モードを変更しました（対象 ${json.affected_files} 件）`, 'success');
   await loadWnStorageMode(wnModeState.company_id);
+});
+
+/* ── What'sNo 拡張オプション（メール送信/比較・並べる/マニュアル/連絡先/Knowl/注釈）──
+   6機能セットで一括契約のオプション。契約条件の変更なのでsuper_admin専用、
+   かつ会社情報の保存（PATCH /admin/companies）とは別ボタン・別APIに分けている。 */
+let wnExtOptState = null;   // { company_id, extended_options_enabled }
+
+async function loadWnExtendedOptions(companyId) {
+  const section = document.getElementById('wnExtendedOptionsSection');
+  wnExtOptState = null;
+  section.style.display = 'none';
+  if (!companyId || !isSuperAdmin) return;   // 新規作成時・admin権限では出さない
+
+  const res = await apiFetch(`/admin/wn/companies/${companyId}/extended-options`);
+  if (!res || !res.ok) return;
+  wnExtOptState = (await res.json()).data;
+
+  section.style.display = '';
+  document.getElementById('wnExtendedOptionsToggle').checked = !!wnExtOptState.extended_options_enabled;
+  refreshWnExtOptUi();
+}
+
+function refreshWnExtOptUi() {
+  if (!wnExtOptState) return;
+  const checked = document.getElementById('wnExtendedOptionsToggle').checked;
+  const changed = checked !== !!wnExtOptState.extended_options_enabled;
+  document.getElementById('wnExtendedOptionsApply').style.display = changed ? '' : 'none';
+}
+
+document.getElementById('wnExtendedOptionsToggle')?.addEventListener('change', refreshWnExtOptUi);
+
+document.getElementById('wnExtendedOptionsApply')?.addEventListener('click', async () => {
+  if (!wnExtOptState) return;
+  const enabled = document.getElementById('wnExtendedOptionsToggle').checked;
+
+  const msg = enabled
+    ? `${wnExtOptState.company_name} の拡張オプション（メール送信・比較/並べる・マニュアル・連絡先・Knowl・注釈）を有効にします。\n\n実行しますか？`
+    : `${wnExtOptState.company_name} の拡張オプションを無効にします。関連する6機能が一斉に使えなくなります。\n\n実行しますか？`;
+  if (!confirm(msg)) return;
+
+  const btn = document.getElementById('wnExtendedOptionsApply');
+  btn.disabled = true;
+  const res = await apiFetch(`/admin/wn/companies/${wnExtOptState.company_id}/extended-options`, {
+    method: 'PATCH',
+    body: JSON.stringify({ extended_options_enabled: enabled }),
+  });
+  btn.disabled = false;
+
+  if (!res || !res.ok) { showToast('拡張オプションを変更できませんでした', 'danger'); return; }
+  showToast('拡張オプションを変更しました', 'success');
+  await loadWnExtendedOptions(wnExtOptState.company_id);
 });
 
 document.getElementById('companyModalSave').addEventListener('click', async () => {

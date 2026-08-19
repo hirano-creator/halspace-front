@@ -6,6 +6,35 @@ function getSpaceUser() {
   const raw = sessionStorage.getItem('space_user');
   return raw ? JSON.parse(raw) : null;
 }
+
+/* What'sNo拡張オプション（メール送信/比較・並べる/マニュアル/連絡先/Knowl/注釈）は
+   6機能セットで一括契約の会社限定機能。ログイン時のuser情報に含まれるフラグで判定する。
+   ここでの判定はUIの出し分けにしか使わない — 実際のアクセス制御は必ずAPI側(403)で行う。 */
+function wnHasExtendedOptions() {
+  return !!(getSpaceUser()?.wn_extended_options_enabled);
+}
+
+/* 拡張オプション専用のUI要素を、存在するものだけまとめて隠す。
+   ページごとに使わないidは無視されるだけなので、どのページの初期化からでも安全に呼べる。 */
+function wnApplyExtendedOptionsUi() {
+  if (wnHasExtendedOptions()) return;
+  [
+    'navManuals', 'navBrainSidebar', 'bnBrain', 'contactsOpenBtn',
+    'emailSelBtn', 'alignSelBtn', 'compareSelBtn',
+    'emailShareBtn', 'annotateBtn',
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+/* 拡張オプション専用ページの入口ガード。未契約なら一覧へ戻す
+   （リンクは隠しているが、直接URLアクセス・古いブックマーク対策として二重に防ぐ）。 */
+function wnRequireExtendedOptions() {
+  if (wnHasExtendedOptions()) return true;
+  location.href = 'dashboard.html';
+  return false;
+}
 /* このファイルはWhat'sNo/MeetLog等からも直接importされる共通ファイルのため、
    ログイン画面のリダイレクト先は実行中のページがSOLID配下かどうかで分岐する。
    SOLIDページ（solid/app/*.html）はSOLID独自ログイン（solid/login.html）へ、

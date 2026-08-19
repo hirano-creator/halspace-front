@@ -9,7 +9,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
-  <script src="../../solid/assets/js/auth.js?v=6"></script>
+  <script src="../../solid/assets/js/auth.js?v=7"></script>
   <script src="../assets/js/wn-api.js?v=27"></script>
   <style>
     :root {
@@ -982,6 +982,7 @@ const annCtx      = annotCanvas.getContext('2d');
 document.addEventListener('DOMContentLoaded', async () => {
   currentUser = requireSpaceAuth();
   if (!currentUser || !fileId) { location.href = backUrl(); return; }
+  if (!wnRequireExtendedOptions()) return;
 
   document.getElementById('backBtn').addEventListener('click', () => {
     location.href = backUrl();

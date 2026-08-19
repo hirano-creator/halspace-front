@@ -246,7 +246,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.js"></script>
-<script src="../../solid/assets/js/auth.js"></script>
+<script src="../../solid/assets/js/auth.js?v=7"></script>
 <script src="../assets/js/wn-api.js"></script>
 <script src="../assets/js/wn-dxf-viewer.js"></script>
 <script>
@@ -306,6 +306,7 @@ function isLoadingVisible() {
 document.addEventListener('DOMContentLoaded', async () => {
   if (!idA || !idB) { showError('比較するファイルが指定されていません'); return; }
   requireSpaceAuth();
+  if (!wnRequireExtendedOptions()) return;
 
   document.getElementById('backBtn').href = isFilesMode ? 'dashboard.html' : `file-detail.html?id=${idB}`;
   if (isFilesMode) document.getElementById('backLabel').textContent = '一覧に戻る';

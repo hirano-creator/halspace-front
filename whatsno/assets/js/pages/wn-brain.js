@@ -7,6 +7,7 @@ let isThinking = false;
 document.addEventListener('DOMContentLoaded', async () => {
   const currentUser = requireSpaceAuth();
   if (!currentUser) return;
+  if (!wnRequireExtendedOptions()) return;
 
   const user = currentUser;
   if (user) {
