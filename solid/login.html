@@ -284,6 +284,7 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
       role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
       company: u.company_name, company_id: u.company_id,
       apps: u.apps_enabled,
+      wn_extended_options_enabled: u.wn_extended_options_enabled ?? false,
       token: data.token,
     }));
     /* このページから直接ログインしたことを記録し、SOLID内では
