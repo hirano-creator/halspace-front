@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   syncDesktopToken();
   renderSidebarUser(currentUser);
   if (isAdmin(currentUser)) document.getElementById('adminLink').style.display = '';
+  wnApplyExtendedOptionsUi();
 
   /* タグ共有リンク（?tags=1,2）で開いたときは、自分のファイルに絞らず
      見られるもの全体から該当タグを出す。絞ると共有された意味が消える。 */

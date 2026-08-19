@@ -127,6 +127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!fileId) { location.href = 'dashboard.html'; return; }
   currentUser = requireSpaceAuth();
   if (!currentUser) return;
+  wnApplyExtendedOptionsUi();
   applyMobileCommentPosition();
   window.addEventListener('resize', applyMobileCommentPosition);
   await loadFile();
