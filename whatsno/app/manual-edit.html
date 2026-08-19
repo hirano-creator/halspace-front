@@ -149,6 +149,13 @@
     .e-tagpick-list { max-height: 200px; overflow-y: auto; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
     .e-tagpick-hint { font-size: 11.5px; color: var(--muted); padding: 6px 2px; }
 
+    /* ファイルピッカーのスコープ切替 */
+    .e-pick-scope { display: flex; gap: 4px; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 100px; padding: 3px; margin-bottom: 12px; width: fit-content; }
+    .e-pick-scope button { border: none; background: none; padding: 6px 14px; border-radius: 100px; font-size: 12px;
+      font-weight: 700; color: var(--muted); cursor: pointer; font-family: inherit; }
+    .e-pick-scope button.active { background: var(--accent); color: #fff; }
+
     /* ファイルピッカーの検索 */
     .e-pick-search { position: relative; margin-bottom: 12px; }
     .e-pick-search > i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
@@ -200,7 +207,7 @@
   <div class="e-addbar">
     <div class="e-addbtn cam"  id="addCam"><div class="bic"><i class="fa-solid fa-camera"></i></div>写真を撮る</div>
     <div class="e-addbtn pick" id="addImg"><div class="bic"><i class="fa-solid fa-image"></i></div>画像を選ぶ</div>
-    <div class="e-addbtn file" id="addFile"><div class="bic"><i class="fa-solid fa-paperclip"></i></div>既存ファイル</div>
+    <div class="e-addbtn file" id="addFile"><div class="bic"><i class="fa-solid fa-paperclip"></i></div>What'sNoから選ぶ</div>
     <div class="e-addbtn text" id="addText"><div class="bic"><i class="fa-solid fa-heading"></i></div>見出し・説明</div>
   </div>
 
@@ -215,8 +222,12 @@
 <!-- 既存ファイル選択モーダル -->
 <div class="e-overlay" id="fileModal">
   <div class="e-modal">
-    <div class="e-modal-head"><h3>既存ファイルから追加</h3><button class="close" data-close="fileModal">&times;</button></div>
+    <div class="e-modal-head"><h3>What'sNoから選ぶ</h3><button class="close" data-close="fileModal">&times;</button></div>
     <div class="e-modal-body">
+      <div class="e-pick-scope" id="pickScope">
+        <button class="active" data-scope="mine">マイファイル</button>
+        <button data-scope="company">社内共有</button>
+      </div>
       <div class="e-pick-search">
         <i class="fa-solid fa-magnifying-glass"></i>
         <input type="text" id="pickSearch" placeholder="ファイル名で検索…" autocomplete="off">
@@ -566,13 +577,16 @@ function initTagPicker() {
 
 /* ---------- 既存ファイルピッカー ---------- */
 let pickSearchTimer = null;
+let pickScope = 'mine';   /* 検索中はダッシュボードと同様スコープを外し、見える範囲全体から探す */
 
 async function loadPickerFiles() {
   const grid = document.getElementById('pickGrid');
   const q    = document.getElementById('pickSearch').value.trim();
   grid.innerHTML = '<div class="e-empty">読み込み中…</div>';
 
-  const { data, error } = await wnGetFiles({ search: q, per_page: 60 });
+  const params = { search: q, per_page: 60 };
+  if (!q) params.scope = pickScope;
+  const { data, error } = await wnGetFiles(params);
   if (error || !data || !data.length) {
     grid.innerHTML = `<div class="e-empty">${q ? '該当するファイルがありません' : '追加できるファイルがありません'}</div>`;
     return;
@@ -592,6 +606,8 @@ function openFilePicker() {
   document.getElementById('fileModal').classList.add('show');
   const search = document.getElementById('pickSearch');
   search.value = '';
+  pickScope = 'mine';
+  document.querySelectorAll('#pickScope button').forEach(b => b.classList.toggle('active', b.dataset.scope === 'mine'));
   loadPickerFiles();
   setTimeout(() => search.focus(), 50);
 }
@@ -653,6 +669,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('pickSearch').addEventListener('input', () => {
     clearTimeout(pickSearchTimer);
     pickSearchTimer = setTimeout(loadPickerFiles, 400);
+  });
+  document.querySelectorAll('#pickScope button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (pickScope === btn.dataset.scope) return;
+      pickScope = btn.dataset.scope;
+      document.querySelectorAll('#pickScope button').forEach(b => b.classList.toggle('active', b === btn));
+      loadPickerFiles();
+    });
   });
   initTagPicker();
   document.getElementById('addText').addEventListener('click', () => {
