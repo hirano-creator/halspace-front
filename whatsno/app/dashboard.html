@@ -17,16 +17,19 @@
   <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260801a">
   <style>
     /* ── 連絡先モーダル（2カラム＋タグ） ── */
-    .ct-body { display: flex; align-items: stretch; min-height: 470px; }
+    /* フォームと一覧を一度に見渡せるよう画面の広さに合わせて大きく取る。
+       ペインの高さは3か所（.ct-body / .ct-nav / .ct-rows）で揃える必要があるため変数にする */
+    .ct-modal { --ct-pane-h: min(640px, 66vh); }
+    .ct-body { display: flex; align-items: stretch; min-height: var(--ct-pane-h); }
     /* .ct-left 単独に高さ上限をつけると、フォーム全体が小さな内側スクロールに閉じ込められて
        見た目が「途中で切れている」ようになるため付けない。伸びた分は .modal 本体
        （max-height:90vh; overflow-y:auto）がまとめてスクロールする */
-    .ct-left  { width: 340px; flex-shrink: 0; padding: 14px 16px 14px 0; border-right: 1px solid var(--border); }
+    .ct-left  { width: 380px; flex-shrink: 0; padding: 14px 20px 14px 0; border-right: 1px solid var(--border); }
     .ct-right { flex: 1; min-width: 0; padding: 14px 0 14px 16px; display: flex; flex-direction: column; }
-    .ct-sec { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .04em;
+    .ct-sec { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .04em;
               display: flex; align-items: center; gap: 6px; margin: 0 0 8px; }
     .ct-sec-r { margin-left: auto; font-weight: 700; }
-    .ct-in { width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 13px;
+    .ct-in { width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: 14px;
              border: 1px solid var(--border); border-radius: 6px; outline: none; font-family: inherit; }
     .ct-in:focus { border-color: var(--accent); }
     .ct-in.sm { font-size: 12px; padding: 6px 9px; }
@@ -40,7 +43,7 @@
     /* タグの色はグループごとに自動割り当て（--c をJSが指定する） */
     .ct-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; display: inline-block; background: var(--c, #9AA7B4); }
     .ct-tag { display: inline-flex; align-items: center; gap: 5px; border-radius: 6px; padding: 4px 9px;
-              font-size: 11.5px; font-weight: 700; line-height: 1.5; white-space: nowrap; background: #F1F4F7; color: #5A6B7D; }
+              font-size: 12.5px; font-weight: 700; line-height: 1.5; white-space: nowrap; background: #F1F4F7; color: #5A6B7D; }
     .ct-tag i { cursor: pointer; opacity: .7; }
     .ct-tag i:hover { opacity: 1; }
     .ct-picked { display: flex; flex-wrap: wrap; gap: 5px; min-height: 24px; align-items: center; margin-top: 8px; }
@@ -49,17 +52,18 @@
                color: #5A6B7D; margin-right: 8px; white-space: nowrap; }
 
     .ct-pop-wrap { position: relative; }
-    .ct-pop-btn { width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 8px 10px;
-                  border: 1px solid var(--border); border-radius: 6px; background: #fff; font-size: 12.5px;
+    .ct-pop-btn { width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 10px 12px;
+                  border: 1px solid var(--border); border-radius: 6px; background: #fff; font-size: 13.5px;
                   color: var(--muted); cursor: pointer; font-family: inherit; text-align: left; }
     .ct-pop-btn:hover { border-color: var(--accent); }
     /* left/top/width は開くたびにJSで算出して固定配置する（.ct-left が内側スクロールになったため、
        絶対配置のままだとスクロール位置によってボタンとパネルがずれる／切れるのを避けるため） */
     .ct-pop-panel { position: fixed; z-index: 1050; background: #fff;
                     border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 26px rgba(0,0,0,.14); padding: 8px; }
-    .ct-pop-list { max-height: 250px; overflow-y: auto; margin-top: 6px; overscroll-behavior: contain; }
-    .ct-opt { display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 5px;
-              font-size: 12.5px; cursor: pointer; color: var(--primary); }
+    /* 画面が低いときにパネルが縦にはみ出さないよう vh でも抑える */
+    .ct-pop-list { max-height: min(340px, 44vh); overflow-y: auto; margin-top: 6px; overscroll-behavior: contain; }
+    .ct-opt { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 5px;
+              font-size: 13.5px; cursor: pointer; color: var(--primary); }
     .ct-opt:hover { background: #F1F4F7; }
     .ct-opt .chk { width: 15px; height: 15px; border: 1.5px solid var(--border); border-radius: 4px; flex-shrink: 0;
                    display: flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; }
@@ -81,37 +85,37 @@
     .ct-pop-done .btn { width: 100%; box-sizing: border-box; justify-content: center; }
 
     .ct-panes { display: flex; min-height: 0; flex: 1; }
-    .ct-nav { width: 168px; flex-shrink: 0; border-right: 1px solid var(--border);
-              padding-right: 10px; margin-right: 12px; overflow-y: auto; max-height: 470px; }
-    .ct-nav-item { display: flex; align-items: center; gap: 7px; padding: 5px 7px; border-radius: 6px;
-                   font-size: 12px; color: var(--primary); cursor: pointer; white-space: nowrap; }
+    .ct-nav { width: 200px; flex-shrink: 0; border-right: 1px solid var(--border);
+              padding-right: 12px; margin-right: 14px; overflow-y: auto; max-height: var(--ct-pane-h); }
+    .ct-nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 6px;
+                   font-size: 13px; color: var(--primary); cursor: pointer; white-space: nowrap; }
     .ct-nav-item:hover { background: #F1F4F7; }
     .ct-nav-item.on { background: rgba(33,150,243,.12); color: #1565C0; font-weight: 700; }
     .ct-nav-item .nm { overflow: hidden; text-overflow: ellipsis; }
-    .ct-nav-item .cnt { margin-left: auto; font-size: 10.5px; color: var(--muted); }
-    .ct-nav-head { font-size: 10px; font-weight: 700; color: var(--muted); margin: 10px 0 4px 7px;
+    .ct-nav-item .cnt { margin-left: auto; font-size: 11.5px; color: var(--muted); }
+    .ct-nav-head { font-size: 11px; font-weight: 700; color: var(--muted); margin: 12px 0 5px 8px;
                    display: flex; align-items: center; gap: 5px; }
 
-    .ct-rows { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; max-height: 470px; }
-    .ct-r { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px;
+    .ct-rows { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; max-height: var(--ct-pane-h); }
+    .ct-r { display: flex; align-items: flex-start; gap: 10px; padding: 11px 13px;
             border: 1px solid var(--border); border-radius: 8px; }
     .ct-r:hover { border-color: #C9D6E2; background: #FAFCFE; }
-    .ct-r .nm { font-size: 13px; font-weight: 700; color: var(--primary); cursor: pointer; }
+    .ct-r .nm { font-size: 14.5px; font-weight: 700; color: var(--primary); cursor: pointer; }
     .ct-r .nm:hover { color: var(--accent); text-decoration: underline; }
-    .ct-r .kn { font-size: 11px; font-weight: 400; color: var(--muted); margin-left: 6px; }
-    .ct-r .sub { font-size: 11px; color: var(--muted); margin-top: 1px; word-break: break-all; }
-    .ct-r .meta { font-size: 10px; color: #A7B2BD; margin-top: 3px; }
-    .ct-ib { flex-shrink: 0; width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 6px;
-             background: #fff; cursor: pointer; font-size: 11px; color: var(--muted); }
+    .ct-r .kn { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 7px; }
+    .ct-r .sub { font-size: 12.5px; color: var(--muted); margin-top: 3px; word-break: break-all; }
+    .ct-r .meta { font-size: 11px; color: #A7B2BD; margin-top: 5px; }
+    .ct-ib { flex-shrink: 0; width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 6px;
+             background: #fff; cursor: pointer; font-size: 12.5px; color: var(--muted); }
     .ct-ib:hover { border-color: var(--accent); color: var(--accent); }
     .ct-ib.del:hover { border-color: #E17055; color: #E17055; }
-    .ct-empty { font-size: 12px; color: var(--muted); padding: 14px; line-height: 1.8; }
+    .ct-empty { font-size: 13px; color: var(--muted); padding: 16px; line-height: 1.8; }
     .ct-empty b { color: var(--primary); }
 
     /* 名刺スキャン */
     .ct-scan-btn { width: 100%; box-sizing: border-box; margin-bottom: 8px; padding: 9px 10px;
                    border: 1px dashed rgba(33,150,243,.55); border-radius: 6px; background: rgba(33,150,243,.06);
-                   color: var(--accent); font-size: 12.5px; font-weight: 700; font-family: inherit; cursor: pointer; }
+                   color: var(--accent); font-size: 13.5px; font-weight: 700; font-family: inherit; cursor: pointer; }
     .ct-scan-btn:hover:not(:disabled) { background: rgba(33,150,243,.12); }
     .ct-scan-btn:disabled { opacity: .6; cursor: default; }
     .ct-scan-status { font-size: 11px; line-height: 1.7; margin-bottom: 8px; padding: 7px 9px; border-radius: 6px; }
@@ -879,7 +883,7 @@
 
 <!-- 連絡先管理モーダル（左＝登録フォーム＋タグ / 右＝タグ一覧＋連絡先一覧） -->
 <div class="modal-overlay hidden" id="contactsModal">
-  <div class="modal ct-modal" style="max-width:960px;">
+  <div class="modal ct-modal" style="max-width:1280px;">
     <div class="modal-header">
       <span class="modal-title">
         <i class="fa-solid fa-address-book" style="color:var(--accent);"></i>
