@@ -169,6 +169,7 @@ if (loginForm) {
         role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
         company: u.company_name, company_id: u.company_id,
         apps: u.apps_enabled ?? ['solid'],
+        wn_extended_options_enabled: u.wn_extended_options_enabled ?? false,
         token: data.token,
       });
       location.href = 'apps.html';
@@ -220,6 +221,7 @@ if (loginForm) {
             role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
             company: u.company_name, company_id: u.company_id,
             apps: u.apps_enabled ?? ['solid'],
+            wn_extended_options_enabled: u.wn_extended_options_enabled ?? false,
             token: data.token,
           });
           location.href = 'apps.html';
