@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calcDaily,
   calcDailyPay,
+  calcLegalOvertime,
   calcWeekly,
   calcWeeklyPay,
   roundOvertime,
@@ -289,6 +290,56 @@ describe("calcDailyPay（時給1200円・割増25%、金額＝基本給／残業
   });
 });
 
+describe("calcLegalOvertime（法定外残業＝実働と法定勤務時間の差）", () => {
+  const daily = (clockIn: string, clockOut: string, breakMinutes = 60) =>
+    calcDaily({ date: "2026-08-01", clockIn, clockOut, breakMinutes }, rules);
+
+  it("実働10時間・法定8時間 → +2:00 相当の120分", () => {
+    // 9:00〜20:00 休憩60分 = 実働10時間
+    expect(calcLegalOvertime(daily("09:00", "20:00"), rules)).toBe(120);
+  });
+
+  it("実働ちょうど8時間 → 0", () => {
+    expect(calcLegalOvertime(daily("09:00", "18:00"), rules)).toBe(0);
+  });
+
+  it("実働6時間 → マイナス120分（不足はマイナスで出す）", () => {
+    expect(calcLegalOvertime(daily("09:00", "16:00"), rules)).toBe(-120);
+  });
+
+  it("計算エラーの日は0", () => {
+    expect(calcLegalOvertime(daily("bad", "18:00"), rules)).toBe(0);
+  });
+
+  it("法定勤務時間は設定値で変えられる（7時間設定なら実働8時間で+60分）", () => {
+    const sevenHourRules: WorkRuleSettings = { ...rules, legalDailyMinutes: 7 * 60 };
+    expect(calcLegalOvertime(daily("09:00", "18:00"), sevenHourRules)).toBe(60);
+  });
+
+  it("月合計は日ごとの過不足の累計（提示例: 10/9/8/6時間 → 計+60分）", () => {
+    const results = [
+      daily("09:00", "20:00"), // 10時間 → +2:00
+      daily("09:00", "19:00"), // 9時間  → +1:00
+      daily("09:00", "18:00"), // 8時間  →  0:00
+      daily("09:00", "16:00"), // 6時間  → -2:00
+    ];
+    const s = summarize(results, rules);
+    expect(s.legalOvertimeMinutes).toBe(60);
+  });
+
+  it("週単位管理でも実働ベースで同じ結果になる", () => {
+    const weeklyRules: WorkRuleSettings = {
+      ...rules,
+      weekly: { ...rules.weekly, enabled: true },
+    };
+    const calc = calcDaily(
+      { date: "2026-08-01", clockIn: "09:00", clockOut: "20:00", breakMinutes: 60 },
+      weeklyRules,
+    );
+    expect(calcLegalOvertime(calc, weeklyRules)).toBe(120);
+  });
+});
+
 describe("summarize", () => {
   it("エラー行を除いて集計する", () => {
     const results = [
@@ -296,7 +347,7 @@ describe("summarize", () => {
       calcDaily({ date: "2026-07-02", clockIn: "09:00", clockOut: "19:30", breakMinutes: 60 }, rules),
       calcDaily({ date: "2026-07-03", clockIn: "bad", clockOut: "18:00", breakMinutes: 0 }, rules),
     ];
-    const s = summarize(results);
+    const s = summarize(results, rules);
     expect(s.workDays).toBe(2);
     expect(s.normalMinutes).toBe(16 * 60);
     expect(s.overtimeMinutes).toBe(90);
@@ -629,7 +680,7 @@ describe("遅刻・早退の自動判定（実打刻基準）", () => {
       calcDaily({ date: "2026-07-02", clockIn: "09:30", clockOut: "17:00", breakMinutes: 60 }, rules),
       calcDaily({ date: "2026-07-03", clockIn: "09:00", clockOut: "18:00", breakMinutes: 60 }, rules),
     ];
-    const s = summarize(results);
+    const s = summarize(results, rules);
     expect(s.lateCount).toBe(2);
     expect(s.lateMinutes).toBe(42);
     expect(s.earlyLeaveCount).toBe(1);

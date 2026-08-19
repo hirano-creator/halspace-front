@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     overtimeRoundingMinutes: Number(get("overtimeRoundingMinutes")),
     earlyWorkStart: get("earlyWorkStart"),
     overtimeThresholdMinutes: Number(get("overtimeThresholdMinutes")),
+    legalDailyMinutes: hoursToMinutes("legalDailyHours"),
     closingDay: Number(get("closingDay")),
     breakStart: get("breakStart"),
     breakEnd: get("breakEnd"),
@@ -96,6 +97,16 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json<SettingsFormState>({
       error: "残業がつく実働時間は0〜1440分の範囲で入力してください（0=残業開始時刻以降を常に残業扱い）",
+      success: false,
+    });
+  }
+  if (
+    !Number.isInteger(rules.legalDailyMinutes) ||
+    rules.legalDailyMinutes < 0 ||
+    rules.legalDailyMinutes > 1440
+  ) {
+    return NextResponse.json<SettingsFormState>({
+      error: "法定勤務時間は0〜24時間の範囲で入力してください",
       success: false,
     });
   }

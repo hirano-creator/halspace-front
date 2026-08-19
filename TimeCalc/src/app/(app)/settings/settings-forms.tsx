@@ -155,6 +155,22 @@ export function WorkRulesForm({
               />
               <p className="mt-1 text-xs text-muted">遅刻・早退の判定基準になります</p>
             </div>
+            <div>
+              <label className={labelClass}>法定勤務時間（時間/日）</label>
+              <input
+                type="number"
+                name="legalDailyHours"
+                defaultValue={rules.legalDailyMinutes / 60}
+                min={0}
+                max={24}
+                step={0.5}
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-muted">
+                勤怠一覧の「法定外残業」列の基準（既定8時間）。実働がこれを超えた分がプラス、
+                満たない日はマイナスで表示され、月合計はその差分の累計になります
+              </p>
+            </div>
           </div>
           <p className="mt-2 text-xs text-muted">
             終業〜残業開始の間は通常勤務扱いとして計算されます

@@ -12,9 +12,14 @@ import {
   getDisplaySettings,
   workRulesFor,
 } from "@/lib/settings";
-import { calcWeekly } from "@/lib/attendance/calculator";
+import { calcLegalOvertime, calcWeekly } from "@/lib/attendance/calculator";
 import type { WeeklyBucket } from "@/lib/attendance/types";
-import { currentPeriod, minutesToHHMM, periodRange } from "@/lib/utils/time";
+import {
+  currentPeriod,
+  minutesToHHMM,
+  periodRange,
+  signedMinutesToHHMM,
+} from "@/lib/utils/time";
 
 /** CSVフィールドのエスケープ（カンマ・引用符・改行対応） */
 function csvField(value: string | number): string {
@@ -70,6 +75,7 @@ export async function GET(request: NextRequest) {
         ...(showMoney ? ["時給"] : []),
         "勤務日数",
         "勤務時間",
+        "法定外残業",
         "早出残業",
         "残業時間",
         ...(hasWeekly ? ["36H超44H以内", "44H超"] : []),
@@ -89,6 +95,8 @@ export async function GET(request: NextRequest) {
             ? s.weeklyTotals.totalMinutes
             : s.summary.normalMinutes + (s.summary.earlyMinutes - s.summary.earlyOvertimeMinutes),
         ),
+        // 法定勤務時間との過不足の累計。不足の月はマイナスになる
+        signedMinutesToHHMM(s.summary.legalOvertimeMinutes),
         minutesToHHMM(s.summary.earlyOvertimeMinutes),
         minutesToHHMM(s.summary.overtimeMinutes),
         ...(hasWeekly
@@ -175,6 +183,7 @@ export async function GET(request: NextRequest) {
         "退勤時間",
         "休憩(分)",
         "勤務時間",
+        "法定外残業",
         "早出残業",
         "残業時間",
         "遅刻(分)",
@@ -196,6 +205,10 @@ export async function GET(request: NextRequest) {
         r.calc.error ? "" : r.calc.roundedClockOut,
         r.breakMinutes,
         r.calc.error ? `エラー: ${r.calc.error}` : minutesToHHMM(r.calc.totalMinutes),
+        // 法定外残業（法定勤務時間との過不足）。法定勤務時間は会社ごとの設定を引く
+        r.calc.error
+          ? ""
+          : signedMinutesToHHMM(calcLegalOvertime(r.calc, workRulesFor(allRules, r.companyId))),
         // 週単位管理の社員は残業の区分を週側で持つため、日別の2列は空にする
         r.calc.error || weekLabelByCompanyDate.has(weekKeyOf(r))
           ? ""

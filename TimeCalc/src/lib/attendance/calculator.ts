@@ -232,6 +232,23 @@ export function calcDailyPay(
   };
 }
 
+/**
+ * 1日分の法定外残業（分）を返す。
+ *
+ * 法定勤務時間（既定8時間）に対する過不足で、実働がそれに満たない日はマイナスになる
+ * （例: 実働6時間・法定8時間 → -120）。月合計はこの差分をそのまま足し込んだ値になる。
+ *
+ * 基準にする実働は calcDaily の totalMinutes（休憩・控除外出を引いた総勤務時間）。
+ * 週単位管理の会社では画面の「勤務時間」列と同じ値になり、日単位管理の会社では
+ * 「勤務時間 ＋ 早出残業 ＋ 残業」の合計＝その日の実働と一致する。
+ *
+ * 出勤のない日・計算エラーの日は対象外（0を返す。呼び出し側は「-」を表示する）。
+ */
+export function calcLegalOvertime(calc: DailyCalcResult, rules: WorkRuleSettings): number {
+  if (calc.error) return 0;
+  return calc.totalMinutes - rules.legalDailyMinutes;
+}
+
 /** 金額を「¥12,345」形式にフォーマットする */
 export function formatYen(amount: number): string {
   return `¥${amount.toLocaleString("ja-JP")}`;
@@ -330,7 +347,7 @@ export function calcWeeklyPay(
 }
 
 /** 複数日の計算結果を月次集計する（エラー行は勤務日数に含めない） */
-export function summarize(results: DailyCalcResult[]): MonthlySummary {
+export function summarize(results: DailyCalcResult[], rules: WorkRuleSettings): MonthlySummary {
   const valid = results.filter((r) => r.error === null);
   return {
     workDays: valid.length,
@@ -342,6 +359,8 @@ export function summarize(results: DailyCalcResult[]): MonthlySummary {
     normalMinutes: valid.reduce((sum, r) => sum + r.normalMinutes, 0),
     overtimeMinutes: valid.reduce((sum, r) => sum + r.overtimeMinutes, 0),
     totalMinutes: valid.reduce((sum, r) => sum + r.totalMinutes, 0),
+    // 日ごとの過不足（8時間との差）をそのまま累計する。不足分はマイナスとして相殺される
+    legalOvertimeMinutes: valid.reduce((sum, r) => sum + calcLegalOvertime(r, rules), 0),
     lateCount: valid.filter((r) => r.lateMinutes > 0).length,
     lateMinutes: valid.reduce((sum, r) => sum + r.lateMinutes, 0),
     earlyLeaveCount: valid.filter((r) => r.earlyLeaveMinutes > 0).length,

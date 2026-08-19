@@ -70,6 +70,7 @@ export function WeekSubtotalBar({ week }: { week: WeeklyBucket }) {
  * 週の小計行。日別テーブルの中に差し込んで使う。
  * 列構成は日別行と同じで、日付〜控除外出の9列をラベルに使い、
  * 勤務時間・所定超法定内・法定超の3列に週の集計値を入れる。
+ * 間に挟まる「法定外残業」列は日単位の指標のため、週行では空にする。
  */
 export function WeekSubtotalRow({
   week,
@@ -91,6 +92,8 @@ export function WeekSubtotalRow({
         </span>
       </td>
       <td className={`${cell} text-right`}>{minutesToHHMM(week.totalMinutes)}</td>
+      {/* 法定外残業は日単位の指標で、合計は月度のみ出す方針のため週行では空にする */}
+      <td className={cell} />
       <td
         className={`${cell} text-right ${
           week.withinLegalOvertimeMinutes > 0 ? "text-amber-600" : "text-muted"

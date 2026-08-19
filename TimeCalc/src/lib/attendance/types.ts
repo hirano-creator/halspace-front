@@ -26,6 +26,13 @@ export interface WorkRuleSettings {
    */
   overtimeThresholdMinutes: number;
   /**
+   * 法定勤務時間（分/日）。8時間 = 480。
+   * 日別の「法定外残業」＝ その日の実働（休憩・控除外出を引いた勤務時間）− この時間。
+   * 8時間に満たない日はマイナスになり、月合計はその差分の累計になる。
+   * 残業の金額計算には使わない（表示専用の指標）。
+   */
+  legalDailyMinutes: number;
+  /**
    * 締め日（1〜31）。「6月」= 前月締め日翌日〜当月締め日 の期間になる。
    * 例: 25 → 6月度 = 5/26〜6/25。31を指定すると暦月（1日〜末日）扱い。
    */
@@ -79,6 +86,7 @@ export const DEFAULT_WORK_RULES: WorkRuleSettings = {
   overtimeRoundingMinutes: 30,
   earlyWorkStart: "05:00",
   overtimeThresholdMinutes: 480,
+  legalDailyMinutes: 480,
   closingDay: 25,
   breakStart: "12:00",
   breakEnd: "13:00",
@@ -182,6 +190,11 @@ export interface MonthlySummary {
   overtimeMinutes: number;
   /** 総勤務時間（分） */
   totalMinutes: number;
+  /**
+   * 法定外残業（分）。日ごとの「実働 − 法定勤務時間（legalDailyMinutes）」の累計。
+   * 8時間に満たない日はマイナスとして差し引かれるため、合計は負になりうる。
+   */
+  legalOvertimeMinutes: number;
   /** 遅刻回数（日数） */
   lateCount: number;
   /** 遅刻時間の合計（分） */

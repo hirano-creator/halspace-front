@@ -39,7 +39,15 @@ export interface EmployeeDetailResponse {
   periodRangeLabel: string;
   closingDay: number;
   rows: DailyRow[];
-  summary: { workDays: number; lateCount: number; earlyLeaveCount: number; lateMinutes: number; earlyLeaveMinutes: number };
+  summary: {
+    workDays: number;
+    /** 法定外残業の月度合計（分）。日ごとの「実働 − 法定勤務時間」の累計で、負にもなる */
+    legalOvertimeMinutes: number;
+    lateCount: number;
+    earlyLeaveCount: number;
+    lateMinutes: number;
+    earlyLeaveMinutes: number;
+  };
   monthTotal: { workMinutes: number; earlyOvertimeMinutes: number; overtimeMinutes: number };
   payTotal: { basePay: number; premiumPay: number; totalPay: number };
   /** 所属会社が週単位管理か（統計カードと列見出しの出し分けに使う） */

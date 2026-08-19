@@ -9,6 +9,7 @@ import { toRole } from "@/lib/auth/roles";
 import {
   calcDaily,
   calcDailyPay,
+  calcLegalOvertime,
   calcWeekly,
   calcWeeklyPay,
   formatYen,
@@ -37,6 +38,7 @@ import {
   formatPeriodRange,
   minutesToHHMM,
   periodRange,
+  signedMinutesToHHMM,
   timeToMinutes,
   toJst,
   todayString,
@@ -232,6 +234,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       workLabel: ok
         ? minutesToHHMM(calc.normalMinutes + (calc.earlyPremiumApplies ? 0 : calc.earlyMinutes))
         : "-",
+      // 法定勤務時間（既定8時間）に対する過不足。出勤のない日・エラーの日は対象外
+      legalOvertimeLabel: ok ? signedMinutesToHHMM(calcLegalOvertime(calc, rules)) : "-",
       earlyOvertimeLabel: ok ? minutesToHHMM(calc.earlyPremiumApplies ? calc.earlyMinutes : 0) : "-",
       overtimeLabel: ok ? minutesToHHMM(calc.overtimeMinutes) : "-",
       lateMinutes: ok ? calc.lateMinutes : 0,
@@ -249,7 +253,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     });
   }
 
-  const summary = summarize(calcResults);
+  const summary = summarize(calcResults, rules);
   const [year, monthNum] = month.split("-").map(Number);
 
   // 週単位管理の会社は、週ごとに「所定内 / 36H超44H以内 / 44H超」を出す。
@@ -294,6 +298,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     rows,
     summary: {
       workDays: summary.workDays,
+      legalOvertimeMinutes: summary.legalOvertimeMinutes,
       lateCount: summary.lateCount,
       earlyLeaveCount: summary.earlyLeaveCount,
       lateMinutes: summary.lateMinutes,

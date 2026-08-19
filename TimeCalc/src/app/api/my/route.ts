@@ -5,7 +5,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth/api-guard";
 import { resolveFeatures } from "@/lib/auth/features";
-import { calcDaily, calcWeekly, summarize, summarizeWeeks } from "@/lib/attendance/calculator";
+import {
+  calcDaily,
+  calcLegalOvertime,
+  calcWeekly,
+  summarize,
+  summarizeWeeks,
+} from "@/lib/attendance/calculator";
 import type { DailyCalcResult } from "@/lib/attendance/types";
 import {
   deriveDailyFromEvents,
@@ -22,6 +28,7 @@ import {
   formatPeriodRange,
   minutesToHHMM,
   periodRange,
+  signedMinutesToHHMM,
   timeToMinutes,
   todayString,
 } from "@/lib/utils/time";
@@ -184,6 +191,9 @@ export async function GET(request: Request) {
       workLabel: ok
         ? minutesToHHMM(calc.normalMinutes + (calc.earlyPremiumApplies ? 0 : calc.earlyMinutes))
         : "-",
+      // 法定勤務時間（既定8時間）に対する過不足。出勤のない日・エラーの日は対象外
+      legalOvertimeMinutes: ok ? calcLegalOvertime(calc, rules) : 0,
+      legalOvertimeLabel: ok ? signedMinutesToHHMM(calcLegalOvertime(calc, rules)) : "-",
       earlyOvertimeMinutes,
       earlyOvertimeLabel: ok ? minutesToHHMM(earlyOvertimeMinutes) : "-",
       overtimeMinutes,
@@ -200,7 +210,7 @@ export async function GET(request: Request) {
   }
   rows.reverse();
 
-  const summary = summarize(calcResults);
+  const summary = summarize(calcResults, rules);
   const [year, monthNum] = month.split("-").map(Number);
 
   // 週単位管理の会社のみ週別集計を返す。

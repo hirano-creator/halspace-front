@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>法定外残業（日別）UIモック</title>
+<style>
+  :root {
+    --doc-bg: #e9edf2;
+    --doc-panel: #ffffff;
+    --doc-ink: #161c2e;
+    --doc-muted: #5d6879;
+    --doc-line: #d3dae3;
+    --doc-line-soft: #e2e7ee;
+    --doc-accent: #635bff;
+    --doc-accent-soft: #ece9ff;
+    --doc-code-bg: #f3f5f9;
+
+    /* TimeCalc アプリのトークン（globals.css より） */
+    --app-bg: #f6f8fa;
+    --app-surface: #ffffff;
+    --app-ink: #1a1f36;
+    --app-muted: #697386;
+    --app-line: #e3e8ee;
+    --app-primary: #635bff;
+
+    /* 既存の2区分 */
+    --band-a-bg: #fffbeb;
+    --band-a-ink: #b45309;
+    --band-b-ink: #c2410c;
+
+    /* 新設「法定外残業」の色（プラス=橙 / マイナス=青） */
+    --ot-plus-bg: #fff7ed;
+    --ot-plus-ink: #c2410c;
+    --ot-plus-line: #fdba8c;
+    --ot-minus-ink: #0e7490;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 24px 64px;
+    background: var(--doc-bg);
+    color: var(--doc-ink);
+    font-family: "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .wrap { max-width: 1500px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: .02em; }
+  .lead { color: var(--doc-muted); margin: 0 0 28px; }
+  section { margin-bottom: 32px; }
+  h2 {
+    font-size: 15px; margin: 0 0 12px; padding-left: 10px;
+    border-left: 3px solid var(--doc-accent);
+  }
+  .note {
+    background: var(--doc-panel); border: 1px solid var(--doc-line);
+    border-radius: 10px; padding: 16px 20px;
+  }
+  .note ul { margin: 8px 0 0; padding-left: 20px; }
+  .note li { margin-bottom: 4px; }
+  .note li:last-child { margin-bottom: 0; }
+  code {
+    background: var(--doc-code-bg); border-radius: 4px;
+    padding: 1px 5px; font-size: 12px; font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  }
+
+  /* ---- アプリ画面の再現枠 ---- */
+  .app {
+    background: var(--app-bg); border: 1px solid var(--doc-line);
+    border-radius: 12px; padding: 22px 24px 8px; color: var(--app-ink);
+    overflow-x: auto;
+  }
+  .app-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .emp-name { font-size: 20px; font-weight: 700; margin: 0; }
+  .emp-sub { color: var(--app-muted); font-size: 12px; margin: 2px 0 10px; }
+  .month-box {
+    background: var(--app-surface); border: 1px solid var(--app-line); border-radius: 8px;
+    padding: 6px 12px; font-size: 13px; white-space: nowrap;
+  }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .badge { border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
+  .badge.green { background: #dcfce7; color: #15803d; }
+  .badge.purple { background: #ede9fe; color: #6d28d9; }
+  .badge.gray { background: #eef1f5; color: #5d6879; }
+  .badge.amber { background: #fef3c7; color: #b45309; }
+
+  .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 18px; }
+  .stat {
+    background: var(--app-surface); border: 1px solid var(--app-line);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .stat .lbl { font-size: 11px; color: var(--app-muted); }
+  .stat .val { font-size: 21px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .stat.amber { background: var(--band-a-bg); border-color: #fcd97a; }
+  .stat.amber .val { color: var(--band-a-ink); }
+  .stat.ot { background: var(--ot-plus-bg); border-color: var(--ot-plus-line); position: relative; }
+  .stat.ot .val { color: var(--ot-plus-ink); }
+  .stat.ot::after {
+    content: "NEW"; position: absolute; top: 8px; right: 10px;
+    font-size: 10px; font-weight: 700; color: #fff; background: var(--doc-accent);
+    border-radius: 999px; padding: 0 6px; letter-spacing: .04em;
+  }
+
+  table.tc { width: 100%; border-collapse: collapse; background: var(--app-surface); font-size: 13px; }
+  table.tc th {
+    padding: 8px 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .05em;
+    color: var(--app-muted); background: #f8fafc; border-bottom: 1px solid var(--app-line);
+    text-align: right; white-space: nowrap;
+  }
+  table.tc th.c { text-align: center; }
+  table.tc td {
+    padding: 7px 6px; text-align: right; white-space: nowrap;
+    border-bottom: 1px solid var(--doc-line-soft); font-variant-numeric: tabular-nums;
+  }
+  table.tc td.c { text-align: center; }
+  table.tc td.l { text-align: left; }
+  .muted { color: var(--app-muted); }
+  tr.weekend td { background: #fafbfc; }
+  tr.week td {
+    background: #f5f3ff; font-weight: 700;
+    border-top: 1px solid #ddd6fe; border-bottom: 1px solid #ddd6fe;
+  }
+  tr.month td {
+    background: #eef2ff; font-weight: 700; font-size: 13.5px;
+    border-top: 2px solid #c7d2fe; border-bottom: 2px solid #c7d2fe;
+  }
+  .col-ot { background: rgba(255, 247, 237, .55); }
+  th.col-ot { background: #fff1e2; color: var(--ot-plus-ink); }
+  .plus { color: var(--ot-plus-ink); font-weight: 600; }
+  .minus { color: var(--ot-minus-ink); font-weight: 600; }
+  .zero { color: var(--app-muted); }
+  .amber-ink { color: var(--band-a-ink); font-weight: 600; }
+  .orange-ink { color: var(--band-b-ink); font-weight: 600; }
+  .act { color: var(--app-primary); font-size: 12px; }
+
+  /* 週小計に法定外残業を出すか、の切替 */
+  .switcher { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; font-size: 13px; flex-wrap: wrap; }
+  .switcher button {
+    border: 1px solid var(--doc-line); background: var(--doc-panel); color: var(--doc-ink);
+    border-radius: 999px; padding: 4px 14px; font-size: 12.5px; cursor: pointer; font-family: inherit;
+  }
+  .switcher button.on { background: var(--doc-accent); border-color: var(--doc-accent); color: #fff; font-weight: 700; }
+  body.hide-week-ot .week .ot-week { visibility: hidden; }
+
+  .ex { border-collapse: collapse; background: var(--doc-panel); font-size: 13px; }
+  .ex th, .ex td {
+    border: 1px solid var(--doc-line); padding: 5px 16px; text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .ex th { background: var(--doc-code-bg); font-size: 12px; }
+  .ex tr:last-child td { font-weight: 700; background: #f8fafc; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>法定外残業（日別）列の追加 — UIモック</h1>
+  <p class="lead">社員詳細（社員管理 → 社員）の勤怠一覧に、日ごとの「法定外残業」列と月合計を追加する案。<strong>モックのみ・未実装</strong>。</p>
+
+  <section>
+    <h2>計算ルール（このモックの前提）</h2>
+    <div class="note">
+      <ul>
+        <li><strong>法定勤務時間 = 8時間 / 日</strong>。法定外残業 = <code>その日の勤務時間 − 8:00</code>。</li>
+        <li>8時間に満たない日は<strong>マイナス表示</strong>（例: 6時間 → <span class="minus">-2:00</span>）。ご提示の例のとおり、単純な差分の累計です。</li>
+        <li>出勤のない日（休日・欠勤）は計算対象外で「-」。<span class="muted">※ここを0扱いにすると -8:00 が積み上がってしまうため。</span></li>
+        <li>合計は<strong>月単位</strong>。上部サマリーの「勤務時間」と「36H超44H以内」の間に月合計カードを置きます。</li>
+        <li>既存の「36H超44H以内 / 44H超」は<em>週</em>単位の基準（週44H）で、今回の列は<em>日</em>単位の8H基準です。<strong>別々の指標なので、既存の集計値は変わりません</strong>。</li>
+      </ul>
+      <p style="margin:14px 0 6px;font-weight:700;">ご提示の例（そのまま再現）</p>
+      <table class="ex">
+        <tr><th>日付</th><th>勤務時間</th><th>法定外残業</th></tr>
+        <tr><td>8/1</td><td>10</td><td class="plus">+2</td></tr>
+        <tr><td>8/2</td><td>9</td><td class="plus">+1</td></tr>
+        <tr><td>8/3</td><td>8</td><td class="zero">0</td></tr>
+        <tr><td>8/4</td><td>6</td><td class="minus">-2</td></tr>
+        <tr><td>計</td><td>33</td><td class="plus">+1</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>画面イメージ</h2>
+    <div class="switcher">
+      <span>週小計行の法定外残業：</span>
+      <button id="btn-show" class="on" type="button">表示する（週内の合計）</button>
+      <button id="btn-hide" type="button">表示しない（月合計のみ）</button>
+      <span class="muted">← ご指定は「合計は月単位」なので、週行に出すかは要判断です</span>
+    </div>
+
+    <div class="app">
+      <div class="app-head">
+        <div>
+          <p class="emp-name">加瀬正志 Marcy</p>
+          <p class="emp-sub">社員番号 A0001 ・ affect</p>
+        </div>
+        <div class="month-box">2026年08月</div>
+      </div>
+
+      <div class="badges">
+        <span class="badge green">在籍中</span>
+        <span class="badge purple">店長</span>
+        <span class="badge gray">2026年8月度（7/26〜8/25・締め25日）</span>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="lbl">勤務日数</div><div class="val">20日</div></div>
+        <div class="stat"><div class="lbl">勤務時間</div><div class="val">164時間0分</div></div>
+        <div class="stat ot"><div class="lbl">法定外残業</div><div class="val">+4時間0分</div></div>
+        <div class="stat amber"><div class="lbl">36H超44H以内</div><div class="val">21時間0分</div></div>
+        <div class="stat amber"><div class="lbl">44H超</div><div class="val">11時間0分</div></div>
+        <div class="stat"><div class="lbl">遅刻・早退</div><div class="val">0・1回</div></div>
+      </div>
+
+      <table class="tc">
+        <thead>
+          <tr>
+            <th class="c">日付</th>
+            <th>実出勤</th><th>実退勤</th><th>出勤</th><th>退勤</th>
+            <th>外出</th><th>戻り</th><th>実外出</th><th>控除外出</th>
+            <th>勤務時間</th>
+            <th class="col-ot">法定外残業</th>
+            <th>36H超44H以内</th><th>44H超</th>
+            <th class="c">備考</th><th class="c">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 月合計行 -->
+          <tr class="month">
+            <td class="l" colspan="9">2026年8月度 合計　<span class="badge gray">20日</span></td>
+            <td>164:00</td>
+            <td class="col-ot plus">+4:00</td>
+            <td class="amber-ink">21:00</td>
+            <td class="orange-ink">11:00</td>
+            <td></td><td></td>
+          </tr>
+
+          <!-- 週1（端数週） -->
+          <tr class="week">
+            <td class="l" colspan="9">7/26（日）〜7/30（木）　<span class="badge gray">0日</span> <span class="badge gray">端数週</span></td>
+            <td>0:00</td>
+            <td class="col-ot ot-week zero">0:00</td>
+            <td class="muted">0:00</td><td class="muted">0:00</td>
+            <td></td><td></td>
+          </tr>
+          <tr class="weekend"><td class="c muted">7/26(日)</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="col-ot muted">-</td><td></td><td></td><td></td><td class="c"><span class="act">追加</span></td></tr>
+          <tr><td class="c">7/27(月)</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="col-ot muted">-</td><td></td><td></td><td></td><td class="c"><span class="act">追加</span></td></tr>
+          <tr><td class="c">7/28(火)</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="col-ot muted">-</td><td></td><td></td><td></td><td class="c"><span class="act">追加</span></td></tr>
+          <tr><td class="c">7/29(水)</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="col-ot muted">-</td><td></td><td></td><td></td><td class="c"><span class="act">追加</span></td></tr>
+          <tr><td class="c">7/30(木)</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="col-ot muted">-</td><td></td><td></td><td></td><td class="c"><span class="act">追加</span></td></tr>
+
+          <!-- 週2 -->
+          <tr class="week">
+            <td class="l" colspan="9">7/31（金）〜8/6（木）　<span class="badge gray">6日</span></td>
+            <td>50:30</td>
+            <td class="col-ot ot-week plus">+2:30</td>
+            <td class="amber-ink">8:00</td><td class="orange-ink">6:30</td>
+            <td></td><td></td>
+          </tr>
+          <tr><td class="c">7/31(金)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr class="weekend"><td class="c muted">8/1(土)</td><td>9:00</td><td>20:00</td><td class="muted">9:00</td><td class="muted">20:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>10:00</td><td class="col-ot plus">+2:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr class="weekend"><td class="c muted">8/2(日)</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="col-ot muted">-</td><td></td><td></td><td></td><td class="c"><span class="act">追加</span></td></tr>
+          <tr><td class="c">8/3(月)</td><td>9:00</td><td>19:00</td><td class="muted">9:00</td><td class="muted">19:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>9:00</td><td class="col-ot plus">+1:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr><td class="c">8/4(火)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr><td class="c">8/5(水)</td><td>9:00</td><td>16:00</td><td class="muted">9:00</td><td class="muted">16:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>6:00</td><td class="col-ot minus">-2:00</td><td></td><td></td><td class="c"><span class="badge amber">早退</span></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr><td class="c">8/6(木)</td><td>9:00</td><td>19:30</td><td class="muted">9:00</td><td class="muted">19:30</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>9:30</td><td class="col-ot plus">+1:30</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+
+          <!-- 週3 -->
+          <tr class="week">
+            <td class="l" colspan="9">8/7（金）〜8/13（木）　<span class="badge gray">6日</span></td>
+            <td>48:30</td>
+            <td class="col-ot ot-week plus">+0:30</td>
+            <td class="amber-ink">8:00</td><td class="orange-ink">4:30</td>
+            <td></td><td></td>
+          </tr>
+          <tr><td class="c">8/7(金)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr class="weekend"><td class="c muted">8/8(土)</td><td>9:00</td><td>19:00</td><td class="muted">9:00</td><td class="muted">19:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>9:00</td><td class="col-ot plus">+1:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr class="weekend"><td class="c muted">8/9(日)</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="col-ot muted">-</td><td></td><td></td><td></td><td class="c"><span class="act">追加</span></td></tr>
+          <tr><td class="c">8/10(月)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr><td class="c">8/11(火)</td><td>9:00</td><td>17:30</td><td class="muted">9:00</td><td class="muted">17:30</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>7:30</td><td class="col-ot minus">-0:30</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr><td class="c">8/12(水)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr><td class="c">8/13(木)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+
+          <!-- 週4 -->
+          <tr class="week">
+            <td class="l" colspan="9">8/14（金）〜8/20（木）　<span class="badge gray">5日</span></td>
+            <td>41:00</td>
+            <td class="col-ot ot-week plus">+1:00</td>
+            <td class="amber-ink">5:00</td><td class="muted">0:00</td>
+            <td></td><td></td>
+          </tr>
+          <tr><td class="c">8/14(金)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr class="weekend"><td class="c muted">8/15(土)</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="col-ot muted">-</td><td></td><td></td><td></td><td class="c"><span class="act">追加</span></td></tr>
+          <tr class="weekend"><td class="c muted">8/16(日)</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="col-ot muted">-</td><td></td><td></td><td></td><td class="c"><span class="act">追加</span></td></tr>
+          <tr><td class="c">8/17(月)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr><td class="c">8/18(火)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr><td class="c">8/19(水)</td><td>9:00</td><td>19:00</td><td class="muted">9:00</td><td class="muted">19:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>9:00</td><td class="col-ot plus">+1:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr><td class="c">8/20(木)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+
+          <!-- 週5（端数週） -->
+          <tr class="week">
+            <td class="l" colspan="9">8/21（金）〜8/25（火）　<span class="badge gray">3日</span> <span class="badge gray">端数週</span></td>
+            <td>24:00</td>
+            <td class="col-ot ot-week zero">0:00</td>
+            <td class="muted">0:00</td><td class="muted">0:00</td>
+            <td></td><td></td>
+          </tr>
+          <tr><td class="c">8/21(金)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr class="weekend"><td class="c muted">8/22(土)</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="col-ot muted">-</td><td></td><td></td><td></td><td class="c"><span class="act">追加</span></td></tr>
+          <tr class="weekend"><td class="c muted">8/23(日)</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="col-ot muted">-</td><td></td><td></td><td></td><td class="c"><span class="act">追加</span></td></tr>
+          <tr><td class="c">8/24(月)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr><td class="c">8/25(火)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+        </tbody>
+      </table>
+      <div style="height:14px"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>確認したい点</h2>
+    <div class="note">
+      <ul>
+        <li><strong>月合計行を表の一番上に置いたのは適切ですか。</strong> 上部サマリーカードと内容が重なるため、不要なら表からは外せます（表の最下部に置く案も可）。</li>
+        <li><strong>週小計行の法定外残業</strong>は、上のトグルで表示 / 非表示を切り替えて比較できます。「合計は月単位」というご指定に厳密に沿うなら非表示です。</li>
+        <li><strong>8時間の判定に使う「勤務時間」</strong>は、控除外出を引いた実働（現在の勤務時間列の値）でよいですか。</li>
+        <li><strong>法定勤務時間 8時間は設定値にしますか</strong>、それとも 8時間固定にしますか。<span class="muted">（会社ごとに変える可能性があるなら設定画面へ）</span></li>
+        <li><strong>CSV出力にもこの列を足しますか。</strong></li>
+        <li><strong>マイページ（本人向け画面）にも同じ列を出しますか。</strong> 現在は社員詳細と同じ列構成で統一されています。</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script>
+  const show = document.getElementById("btn-show");
+  const hide = document.getElementById("btn-hide");
+  show.addEventListener("click", () => {
+    document.body.classList.remove("hide-week-ot");
+    show.classList.add("on"); hide.classList.remove("on");
+  });
+  hide.addEventListener("click", () => {
+    document.body.classList.add("hide-week-ot");
+    hide.classList.add("on"); show.classList.remove("on");
+  });
+</script>
+</body>
+</html>

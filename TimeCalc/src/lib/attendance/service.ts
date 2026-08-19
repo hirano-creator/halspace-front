@@ -229,7 +229,7 @@ export async function getMonthlySummaries(
         userName: meta.userName,
         departmentName: meta.departmentName,
         hourlyWage: meta.hourlyWage,
-        summary: summarize(days.map((d) => d.calc)),
+        summary: summarize(days.map((d) => d.calc), userRules),
         pay: {
           ...pay,
           premiumPay: pay.premiumPay + weeklyPremiumPay,

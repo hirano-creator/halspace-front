@@ -27,7 +27,7 @@ import type { WeeklyBucket } from "@/lib/attendance/types";
 const th =
   "sticky top-0 z-10 border-b border-border bg-gray-50 px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted";
 const td = "px-2 py-2 text-sm whitespace-nowrap";
-const COLUMN_COUNT = 14;
+const COLUMN_COUNT = 15;
 
 export interface MyDailyRow {
   date: string;
@@ -58,6 +58,10 @@ export interface MyDailyRow {
   deductibleOutingLabel: string;
   /** 勤務時間（早出残業・残業を除いた実働。月次一覧の「勤務時間」列と揃えた値） */
   workLabel: string;
+  /** 法定外残業（法定勤務時間との過不足）。符号つき 例 "+1:30" / "-2:00"。対象外の日は "-" */
+  legalOvertimeLabel: string;
+  /** 法定外残業（分）。色分け・カード表示の出し分けに使う */
+  legalOvertimeMinutes: number;
   earlyOvertimeMinutes: number;
   earlyOvertimeLabel: string;
   overtimeMinutes: number;
@@ -411,19 +415,20 @@ export function MyAttendanceTable({
         {(weekly ? ungrouped : rows).map(renderCard)}
       </ul>
 
-      <table className="hidden w-full min-w-[960px] table-fixed text-sm md:table">
+      <table className="hidden w-full min-w-[1040px] table-fixed text-sm md:table">
       <colgroup>
         <col className="w-[8%]" />
-        <col className="w-[7%]" />
-        <col className="w-[7%]" />
-        <col className="w-[7%]" />
-        <col className="w-[7%]" />
         <col className="w-[6%]" />
         <col className="w-[6%]" />
+        <col className="w-[6%]" />
+        <col className="w-[6%]" />
+        <col className="w-[6%]" />
+        <col className="w-[6%]" />
+        <col className="w-[6%]" />
+        <col className="w-[7%]" />
         <col className="w-[7%]" />
         <col className="w-[8%]" />
-        <col className="w-[8%]" />
-        <col className="w-[8%]" />
+        <col className="w-[7%]" />
         <col className="w-[7%]" />
         <col className="w-[9%]" />
         <col className="w-[5%]" />
@@ -440,6 +445,12 @@ export function MyAttendanceTable({
           <th className={`${th} text-right`}>実外出</th>
           <th className={`${th} text-right`}>控除外出</th>
           <th className={`${th} text-right`}>勤務時間</th>
+          <th
+            className={`${th} text-right`}
+            title="法定勤務時間（設定値・既定8時間）に対する実働の過不足。早出残業・残業も実働に含めて判定します"
+          >
+            法定外残業
+          </th>
           <th className={`${th} text-right`}>{weekly ? "36H超44H以内" : "早出残業"}</th>
           <th className={`${th} text-right`}>{weekly ? "44H超" : "残業"}</th>
           <th className={`${th} text-center`}>備考</th>
@@ -528,6 +539,11 @@ export function MyAttendanceTable({
               {hasValue(row.deductibleOutingLabel) && (
                 <span>控除外出 {row.deductibleOutingLabel}</span>
               )}
+              {row.legalOvertimeLabel !== "-" && row.legalOvertimeMinutes !== 0 && (
+                <span className={row.legalOvertimeMinutes > 0 ? "text-orange-600" : "text-cyan-700"}>
+                  法定外残業 {row.legalOvertimeLabel}
+                </span>
+              )}
               {!weekly && row.earlyOvertimeMinutes > 0 && (
                 <span className="text-amber-600">早出残業 {row.earlyOvertimeLabel}</span>
               )}
@@ -598,6 +614,20 @@ export function MyAttendanceTable({
                   ) : (
                     row.workLabel
                   )}
+                </td>
+                {/* 法定外残業（法定勤務時間との過不足）。プラスは橙、マイナスは青で色分けする */}
+                <td
+                  className={`${td} text-right ${
+                    row.legalOvertimeLabel === "-"
+                      ? ""
+                      : row.legalOvertimeMinutes > 0
+                        ? "font-medium text-orange-600"
+                        : row.legalOvertimeMinutes < 0
+                          ? "font-medium text-cyan-700"
+                          : ""
+                  }`}
+                >
+                  {row.legalOvertimeLabel}
                 </td>
                 {/* 週単位管理では残業の区分が週行にしかないため、日別行は空欄にする */}
                 <td

@@ -26,31 +26,33 @@ const td = "px-2 py-2 text-sm whitespace-nowrap";
 // 金額3列（金額/残業代/支給額）の有無で列数が変わるため2パターン持つ。合計は各100%。
 const COL_WIDTHS = [
   "w-[8%]", // 日付
-  "w-[7%]", // 実出勤
-  "w-[7%]", // 実退勤
-  "w-[7%]", // 出勤
-  "w-[7%]", // 退勤
-  "w-[6%]", // 外出
-  "w-[6%]", // 戻り
-  "w-[7%]", // 実外出
-  "w-[8%]", // 控除外出
-  "w-[8%]", // 勤務時間
-  "w-[7%]", // 早出残業
-  "w-[6%]", // 残業
-  "w-[9%]", // 備考
-  "w-[7%]", // 操作
-];
-const COL_WIDTHS_WITH_MONEY = [
-  "w-[7%]", // 日付
   "w-[6%]", // 実出勤
   "w-[6%]", // 実退勤
   "w-[6%]", // 出勤
   "w-[6%]", // 退勤
-  "w-[5%]", // 外出
-  "w-[5%]", // 戻り
+  "w-[6%]", // 外出
+  "w-[6%]", // 戻り
   "w-[6%]", // 実外出
   "w-[7%]", // 控除外出
   "w-[7%]", // 勤務時間
+  "w-[8%]", // 法定外残業
+  "w-[7%]", // 早出残業
+  "w-[6%]", // 残業
+  "w-[8%]", // 備考
+  "w-[7%]", // 操作
+];
+const COL_WIDTHS_WITH_MONEY = [
+  "w-[7%]", // 日付
+  "w-[5%]", // 実出勤
+  "w-[5%]", // 実退勤
+  "w-[5%]", // 出勤
+  "w-[5%]", // 退勤
+  "w-[5%]", // 外出
+  "w-[5%]", // 戻り
+  "w-[5%]", // 実外出
+  "w-[6%]", // 控除外出
+  "w-[6%]", // 勤務時間
+  "w-[7%]", // 法定外残業
   "w-[6%]", // 早出残業
   "w-[5%]", // 残業
   "w-[6%]", // 備考
@@ -93,6 +95,11 @@ export interface DailyRow {
   deductibleOutingLabel: string;
   /** 勤務時間（早出残業・残業を除いた実働。マイページの「勤務時間」列と揃えた値） */
   workLabel: string;
+  /**
+   * 法定外残業（法定勤務時間との過不足）の表示。符号つき 例 "+1:30" / "-2:00"。
+   * 出勤のない日・エラーの日は "-"
+   */
+  legalOvertimeLabel: string;
   /** 早出残業（18:00以降まで勤務した日の早出時間）の表示。対象外の日は "0:00" */
   earlyOvertimeLabel: string;
   /** 残業時間（18:00以降の丸め後時間）の表示 例 "1:30" */
@@ -305,14 +312,14 @@ export function AttendanceEditor({
 }) {
   const [editingDate, setEditingDate] = useState<string | null>(null);
   // マイページと同じ列構成に統一：
-  // 日付/実出勤/実退勤/出勤/退勤/外出/戻り/実外出/控除外出/勤務時間/早出残業/残業/備考/(金額/残業代/支給額)/操作
-  const columnCount = showMoney ? 17 : 14;
+  // 日付/実出勤/実退勤/出勤/退勤/外出/戻り/実外出/控除外出/勤務時間/法定外残業/早出残業/残業/備考/(金額/残業代/支給額)/操作
+  const columnCount = showMoney ? 18 : 15;
   const weekly = weeks.length > 0;
   const { groups, ungrouped } = groupRowsByWeek(rows, weeks);
 
   return (
     <table
-      className={`w-full table-fixed text-sm ${showMoney ? "min-w-[1240px]" : "min-w-[960px]"}`}
+      className={`w-full table-fixed text-sm ${showMoney ? "min-w-[1340px]" : "min-w-[1040px]"}`}
     >
       <colgroup>
         {(showMoney ? COL_WIDTHS_WITH_MONEY : COL_WIDTHS).map((w, i) => (
@@ -333,6 +340,12 @@ export function AttendanceEditor({
           <th className={`${th} text-right`}>実外出</th>
           <th className={`${th} text-right`}>控除外出</th>
           <th className={`${th} text-right`}>勤務時間</th>
+          <th
+            className={`${th} text-right`}
+            title="法定勤務時間（設定値・既定8時間）に対する実働の過不足。早出残業・残業も実働に含めて判定します"
+          >
+            法定外残業
+          </th>
           <th className={`${th} text-right`}>{weekly ? "36H超44H以内" : "早出残業"}</th>
           <th className={`${th} text-right`}>{weekly ? "44H超" : "残業"}</th>
           <th className={`${th} text-center`}>備考</th>
@@ -402,6 +415,18 @@ export function AttendanceEditor({
                   ) : (
                     row.workLabel
                   )}
+                </td>
+                {/* 法定外残業（法定勤務時間との過不足）。プラスは橙、マイナスは青で色分けする */}
+                <td
+                  className={`${td} text-right ${
+                    row.legalOvertimeLabel.startsWith("+")
+                      ? "font-medium text-orange-600"
+                      : row.legalOvertimeLabel.startsWith("-") && row.legalOvertimeLabel !== "-"
+                        ? "font-medium text-cyan-700"
+                        : ""
+                  }`}
+                >
+                  {row.legalOvertimeLabel}
                 </td>
                 {/* 週単位管理では残業の区分が週行にしかないため、日別行は空欄にする */}
                 <td
