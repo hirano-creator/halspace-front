@@ -37,6 +37,12 @@ export default function EmployeeDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const refetch = useCallback(() => setRefreshKey((k) => k + 1), []);
+  // 「すでに表示できている内容があるか」を再取得の失敗時に参照する
+  // （取得の effect の依存配列に data を入れると再取得ループになるため ref で持つ）
+  const hasDataRef = useRef(false);
+  useEffect(() => {
+    hasDataRef.current = data !== null;
+  }, [data]);
 
   useEffect(() => {
     if (authStatus !== "authenticated") return;
@@ -46,10 +52,19 @@ export default function EmployeeDetailPage() {
     let cancelled = false;
     apiFetchJson<EmployeeDetailResponse>(`/api/employees/${params.id}/detail?${qs.toString()}`)
       .then((res) => {
-        if (!cancelled) setData(res);
+        if (cancelled) return;
+        setData(res);
+        setError(null);
       })
       .catch((e: Error) => {
-        if (!cancelled) setError(e.message);
+        if (cancelled) return;
+        // 定期再取得が一時的に失敗しただけなら、表示中の内容を消さずに次回へ回す
+        // （画面がまるごとエラーに置き換わると、読めていた勤怠まで見えなくなるため）
+        if (hasDataRef.current) {
+          console.warn("勤怠の再取得に失敗しました（表示は前回の内容を維持します）", e);
+          return;
+        }
+        setError(e.message);
       });
     return () => {
       cancelled = true;
@@ -57,11 +72,12 @@ export default function EmployeeDetailPage() {
   }, [authStatus, params.id, month, refreshKey]);
 
   // 他端末での打刻をほぼリアルタイムに反映するため、表示中は定期的に再取得する
+  // （間隔を詰めすぎると重い集計が並行して走り、サーバー側が詰まりやすくなる）
   useEffect(() => {
     if (authStatus !== "authenticated") return;
     const interval = setInterval(() => {
       if (document.visibilityState === "visible") refetch();
-    }, 15000);
+    }, 30000);
     const onVisible = () => {
       if (document.visibilityState === "visible") refetch();
     };

@@ -17,24 +17,27 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaD1 } from "@prisma/adapter-d1";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-// リクエストごとに一意な ExecutionContext(ctx) を鍵にした PrismaClient キャッシュ。
-// ctx はリクエスト終了で参照が消えるため WeakMap なら自動で解放される。
+// リクエストごとに一意なコンテキストオブジェクトを鍵にした PrismaClient キャッシュ。
+// 鍵はリクエスト終了で参照が消えるため WeakMap なら自動で解放される。
 //
 // 重要: env をキーにしてはいけない。env は同一 isolate 内でリクエスト間に
 // 共有されるため、PrismaClient がリクエストを跨いで使い回され、
 // 「A promise was resolved from a different request context」警告とともに
-// 継続がキャンセルされ、応答がハングする（編集画面が「読み込み中」のまま開かない）。
-// ctx をキーにすればリクエストスコープに閉じ、この問題が起きない。
+// 継続がキャンセルされ、応答がハングする（Workers 側が打ち切って500になる）。
+//
+// キーには getCloudflareContext() の戻り値そのもの（OpenNext が
+// AsyncLocalStorage に積む { env, ctx, cf } のストア）を使う。このオブジェクトは
+// リクエストごとに必ず新規生成されるため、ExecutionContext の実装差に関係なく
+// リクエストスコープに閉じられる。
 const clientCache = new WeakMap<object, PrismaClient>();
 
 function resolvePrisma(): PrismaClient {
-  const { env, ctx } = getCloudflareContext();
-  // ctx はリクエストごとに新規。取れない実行時（静的レンダリング等）は env で代替。
-  const key = (ctx ?? env) as unknown as object;
+  const context = getCloudflareContext();
+  const key = context as unknown as object;
   let client = clientCache.get(key);
   if (!client) {
     // env.DB は wrangler.jsonc の d1_databases[].binding = "DB" に対応
-    const adapter = new PrismaD1((env as unknown as { DB: D1Database }).DB);
+    const adapter = new PrismaD1((context.env as unknown as { DB: D1Database }).DB);
     client = new PrismaClient({ adapter });
     clientCache.set(key, client);
   }

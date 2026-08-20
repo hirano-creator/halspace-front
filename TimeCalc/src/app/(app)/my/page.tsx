@@ -4,7 +4,7 @@
 // 全社員がログイン後すぐ自分の勤怠を確認できるページ。
 // 当月の日別一覧・遅刻/早退/未退勤バッジ・月次集計・修正申請の入口を集約する。
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useRequireAuth } from "@/lib/auth/client";
@@ -25,6 +25,12 @@ export default function MyPage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const refetch = useCallback(() => setRefreshKey((k) => k + 1), []);
+  // 「すでに表示できている内容があるか」を再取得の失敗時に参照する
+  // （取得の effect の依存配列に data を入れると再取得ループになるため ref で持つ）
+  const hasDataRef = useRef(false);
+  useEffect(() => {
+    hasDataRef.current = data !== null;
+  }, [data]);
 
   useEffect(() => {
     if (authStatus !== "authenticated") return;
@@ -34,10 +40,18 @@ export default function MyPage() {
     let cancelled = false;
     apiFetchJson<MyPageResponse>(`/api/my?${qs.toString()}`)
       .then((res) => {
-        if (!cancelled) setData(res);
+        if (cancelled) return;
+        setData(res);
+        setError(null);
       })
       .catch((e: Error) => {
-        if (!cancelled) setError(e.message);
+        if (cancelled) return;
+        // 打刻後などの再取得が一時的に失敗しただけなら、表示中の勤怠を消さずに残す
+        if (hasDataRef.current) {
+          console.warn("勤怠の再取得に失敗しました（表示は前回の内容を維持します）", e);
+          return;
+        }
+        setError(e.message);
       });
     return () => {
       cancelled = true;
