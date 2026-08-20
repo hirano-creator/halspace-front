@@ -54,8 +54,8 @@ export interface MyDailyRow {
   outingEndLabel: string;
   /** 実外出（実際に外出していた時間） */
   actualOutingLabel: string;
-  /** 控除外出（休憩時間帯との重複を除いた、勤務時間から差し引かれる時間） */
-  deductibleOutingLabel: string;
+  /** 控除時間（実外出 ＋ 遅刻 ＋ 早退） */
+  deductionLabel: string;
   /** 勤務時間（早出残業・残業を除いた実働。月次一覧の「勤務時間」列と揃えた値） */
   workLabel: string;
   /** 法定外残業（法定勤務時間を超えた分）。符号つき 例 "+1:30"。超過なしは "0:00"、対象外の日は "-" */
@@ -295,7 +295,7 @@ function RowDetailFields({
               />
             </div>
             <p className="mt-2 pb-3 text-xs leading-relaxed text-muted">
-              休憩は設定画面の勤務ルール（休憩開始〜終了）から自動で勤務時間に反映されます。外出がこの休憩時間帯と重なる場合は「控除外出」で重複分を除いた時間を差し引きます。
+              休憩は設定画面の勤務ルール（休憩開始〜終了）から自動で勤務時間に反映されます。外出がこの休憩時間帯と重なる場合は、重複分を除いた時間だけが勤務時間から差し引かれます。
             </p>
           </details>
 
@@ -443,7 +443,9 @@ export function MyAttendanceTable({
           <th className={`${th} text-right`}>外出</th>
           <th className={`${th} text-right`}>戻り</th>
           <th className={`${th} text-right`}>実外出</th>
-          <th className={`${th} text-right`}>控除外出</th>
+          <th className={`${th} text-right`} title="実外出 ＋ 遅刻 ＋ 早退の合計">
+            控除時間
+          </th>
           <th className={`${th} text-right`}>勤務時間</th>
           <th
             className={`${th} text-right`}
@@ -536,9 +538,7 @@ export function MyAttendanceTable({
                 </span>
               )}
               {hasValue(row.actualOutingLabel) && <span>実外出 {row.actualOutingLabel}</span>}
-              {hasValue(row.deductibleOutingLabel) && (
-                <span>控除外出 {row.deductibleOutingLabel}</span>
-              )}
+              {hasValue(row.deductionLabel) && <span>控除時間 {row.deductionLabel}</span>}
               {row.legalOvertimeMinutes > 0 && (
                 <span className="text-orange-600">法定外残業 {row.legalOvertimeLabel}</span>
               )}
@@ -603,7 +603,7 @@ export function MyAttendanceTable({
                   {row.outingEndLabel}
                 </td>
                 <td className={`${td} text-right`}>{row.actualOutingLabel}</td>
-                <td className={`${td} text-right`}>{row.deductibleOutingLabel}</td>
+                <td className={`${td} text-right`}>{row.deductionLabel}</td>
                 <td className={`${td} text-right`}>
                   {row.error ? (
                     <span className="text-xs text-red-600" title={row.error}>

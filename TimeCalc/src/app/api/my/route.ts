@@ -15,7 +15,6 @@ import {
 import type { DailyCalcResult } from "@/lib/attendance/types";
 import {
   deriveDailyFromEvents,
-  fixedBreakMinutesFor,
   outingsFromEvents,
   outingIntervalsFromEvents,
   totalOutingMinutes,
@@ -142,20 +141,12 @@ export async function GET(request: Request) {
     }
     // 「実外出」欄は実際に外出した時間をそのまま見せる。実測値は打刻ログ・
     // 本人修正フォームの入力値から直接求める（breakMinutesからの逆算はしない）。
-    // 「控除外出」欄は休憩時間帯との重複を除いた、勤務時間の計算に使う分
-    // （= record.breakMinutes から固定休憩を引いた残り）を見せる。
-    // CSV取込は休憩・外出の実測値がそのままbreakMinutesのため、両欄とも同じ値になる
+    // 「控除時間」欄は実外出 ＋ 遅刻 ＋ 早退（本来の勤務から抜けた時間の合計）を見せる。
     let actualOutingMinutes = 0;
-    let deductibleOutingMinutes = 0;
     if (record) {
       if (record.source === "CSV") {
         actualOutingMinutes = record.breakMinutes;
-        deductibleOutingMinutes = record.breakMinutes;
       } else {
-        deductibleOutingMinutes = Math.max(
-          0,
-          record.breakMinutes - fixedBreakMinutesFor(rules, record.clockIn, record.clockOut),
-        );
         if (record.source === "CLOCK") {
           actualOutingMinutes = totalOutingMinutes(
             outingIntervalsFromEvents(eventsByDate.get(date) ?? []),
@@ -187,7 +178,9 @@ export async function GET(request: Request) {
       outingStartLabel,
       outingEndLabel,
       actualOutingLabel: record ? minutesToHHMM(actualOutingMinutes) : "-",
-      deductibleOutingLabel: record ? minutesToHHMM(deductibleOutingMinutes) : "-",
+      deductionLabel: record
+        ? minutesToHHMM(actualOutingMinutes + (ok ? calc.lateMinutes + calc.earlyLeaveMinutes : 0))
+        : "-",
       workLabel: ok
         ? minutesToHHMM(calc.normalMinutes + (calc.earlyPremiumApplies ? 0 : calc.earlyMinutes))
         : "-",

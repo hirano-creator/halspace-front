@@ -19,7 +19,6 @@ import {
 import type { DailyCalcResult } from "@/lib/attendance/types";
 import {
   deriveDailyFromEvents,
-  fixedBreakMinutesFor,
   outingsFromEvents,
   outingIntervalsFromEvents,
   totalOutingMinutes,
@@ -150,7 +149,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       monthTotal.workMinutes += calc.normalMinutes + (calc.earlyMinutes - earlyOvertime);
     }
 
-    // 外出・戻り・実外出・控除外出・未退勤の算出はマイページ（/api/my）と同一ロジック。
+    // 外出・戻り・実外出・控除時間・未退勤の算出はマイページ（/api/my）と同一ロジック。
     // 確定記録（source !== "CLOCK"）はその確定値、打刻のみの日は ClockEvent から求める。
     const dayEvents = eventsByDate.get(date) ?? [];
     const derived = record ? null : deriveDailyFromEvents(dayEvents);
@@ -190,18 +189,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       outingEndLabel = outing.count > 0 ? outing.lastEnd! : "-";
     }
 
-    // 「実外出」＝実際に外出した時間、「控除外出」＝勤務時間から差し引く分（固定休憩を除いた残り）。
+    // 「実外出」＝実際に外出した時間。
+    // 「控除時間」＝実外出 ＋ 遅刻 ＋ 早退（その日に本来の勤務から抜けた時間の合計）。
     let actualOutingMinutes = 0;
-    let deductibleOutingMinutes = 0;
     if (record) {
       if (record.source === "CSV") {
         actualOutingMinutes = record.breakMinutes;
-        deductibleOutingMinutes = record.breakMinutes;
       } else {
-        deductibleOutingMinutes = Math.max(
-          0,
-          record.breakMinutes - fixedBreakMinutesFor(rules, record.clockIn, record.clockOut),
-        );
         if (record.source === "CLOCK") {
           actualOutingMinutes = totalOutingMinutes(outingIntervalsFromEvents(dayEvents));
         } else if (record.outingStart && record.outingEnd) {
@@ -230,7 +224,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       outingStartLabel,
       outingEndLabel,
       actualOutingLabel: record ? minutesToHHMM(actualOutingMinutes) : "-",
-      deductibleOutingLabel: record ? minutesToHHMM(deductibleOutingMinutes) : "-",
+      deductionLabel: record
+        ? minutesToHHMM(actualOutingMinutes + (ok ? calc.lateMinutes + calc.earlyLeaveMinutes : 0))
+        : "-",
       workLabel: ok
         ? minutesToHHMM(calc.normalMinutes + (calc.earlyPremiumApplies ? 0 : calc.earlyMinutes))
         : "-",

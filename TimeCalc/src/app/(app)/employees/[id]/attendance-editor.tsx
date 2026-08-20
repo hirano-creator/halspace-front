@@ -33,7 +33,7 @@ const COL_WIDTHS = [
   "w-[6%]", // 外出
   "w-[6%]", // 戻り
   "w-[6%]", // 実外出
-  "w-[7%]", // 控除外出
+  "w-[7%]", // 控除時間
   "w-[7%]", // 勤務時間
   "w-[8%]", // 法定外残業
   "w-[7%]", // 早出残業
@@ -50,7 +50,7 @@ const COL_WIDTHS_WITH_MONEY = [
   "w-[5%]", // 外出
   "w-[5%]", // 戻り
   "w-[5%]", // 実外出
-  "w-[6%]", // 控除外出
+  "w-[6%]", // 控除時間
   "w-[6%]", // 勤務時間
   "w-[7%]", // 法定外残業
   "w-[6%]", // 早出残業
@@ -91,8 +91,8 @@ export interface DailyRow {
   outingEndLabel: string;
   /** 実外出（実際に外出していた時間）の表示。データなしは "-" */
   actualOutingLabel: string;
-  /** 控除外出（休憩時間帯との重複を除き、勤務時間から差し引かれる時間）の表示。データなしは "-" */
-  deductibleOutingLabel: string;
+  /** 控除時間（実外出 ＋ 遅刻 ＋ 早退）の表示。データなしは "-" */
+  deductionLabel: string;
   /** 勤務時間（早出残業・残業を除いた実働。マイページの「勤務時間」列と揃えた値） */
   workLabel: string;
   /**
@@ -312,7 +312,7 @@ export function AttendanceEditor({
 }) {
   const [editingDate, setEditingDate] = useState<string | null>(null);
   // マイページと同じ列構成に統一：
-  // 日付/実出勤/実退勤/出勤/退勤/外出/戻り/実外出/控除外出/勤務時間/法定外残業/早出残業/残業/備考/(金額/残業代/支給額)/操作
+  // 日付/実出勤/実退勤/出勤/退勤/外出/戻り/実外出/控除時間/勤務時間/法定外残業/早出残業/残業/備考/(金額/残業代/支給額)/操作
   const columnCount = showMoney ? 18 : 15;
   const weekly = weeks.length > 0;
   const { groups, ungrouped } = groupRowsByWeek(rows, weeks);
@@ -338,7 +338,9 @@ export function AttendanceEditor({
           <th className={`${th} text-right`}>外出</th>
           <th className={`${th} text-right`}>戻り</th>
           <th className={`${th} text-right`}>実外出</th>
-          <th className={`${th} text-right`}>控除外出</th>
+          <th className={`${th} text-right`} title="実外出 ＋ 遅刻 ＋ 早退の合計">
+            控除時間
+          </th>
           <th className={`${th} text-right`}>勤務時間</th>
           <th
             className={`${th} text-right`}
@@ -406,7 +408,7 @@ export function AttendanceEditor({
                   {row.outingEndLabel}
                 </td>
                 <td className={`${td} text-right`}>{row.actualOutingLabel}</td>
-                <td className={`${td} text-right`}>{row.deductibleOutingLabel}</td>
+                <td className={`${td} text-right`}>{row.deductionLabel}</td>
                 <td className={`${td} text-right`}>
                   {row.error ? (
                     <span className="text-xs text-red-600" title={row.error}>
