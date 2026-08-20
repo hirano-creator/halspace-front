@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
             ? s.weeklyTotals.totalMinutes
             : s.summary.normalMinutes + (s.summary.earlyMinutes - s.summary.earlyOvertimeMinutes),
         ),
-        // 法定勤務時間との過不足の累計。不足の月はマイナスになる
+        // 法定勤務時間を超えた分の累計（不足の日は0で止めるため負にはならない）
         signedMinutesToHHMM(s.summary.legalOvertimeMinutes),
         minutesToHHMM(s.summary.earlyOvertimeMinutes),
         minutesToHHMM(s.summary.overtimeMinutes),
@@ -205,7 +205,7 @@ export async function GET(request: NextRequest) {
         r.calc.error ? "" : r.calc.roundedClockOut,
         r.breakMinutes,
         r.calc.error ? `エラー: ${r.calc.error}` : minutesToHHMM(r.calc.totalMinutes),
-        // 法定外残業（法定勤務時間との過不足）。法定勤務時間は会社ごとの設定を引く
+        // 法定外残業（法定勤務時間を超えた分）。法定勤務時間は会社ごとの設定を引く
         r.calc.error
           ? ""
           : signedMinutesToHHMM(calcLegalOvertime(r.calc, workRulesFor(allRules, r.companyId))),

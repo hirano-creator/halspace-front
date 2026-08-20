@@ -234,7 +234,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       workLabel: ok
         ? minutesToHHMM(calc.normalMinutes + (calc.earlyPremiumApplies ? 0 : calc.earlyMinutes))
         : "-",
-      // 法定勤務時間（既定8時間）に対する過不足。出勤のない日・エラーの日は対象外
+      // 法定勤務時間（既定8時間）を超えた分。不足の日は0、出勤のない日・エラーの日は対象外
       legalOvertimeLabel: ok ? signedMinutesToHHMM(calcLegalOvertime(calc, rules)) : "-",
       earlyOvertimeLabel: ok ? minutesToHHMM(calc.earlyPremiumApplies ? calc.earlyMinutes : 0) : "-",
       overtimeLabel: ok ? minutesToHHMM(calc.overtimeMinutes) : "-",

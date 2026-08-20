@@ -235,8 +235,9 @@ export function calcDailyPay(
 /**
  * 1日分の法定外残業（分）を返す。
  *
- * 法定勤務時間（既定8時間）に対する過不足で、実働がそれに満たない日はマイナスになる
- * （例: 実働6時間・法定8時間 → -120）。月合計はこの差分をそのまま足し込んだ値になる。
+ * 法定勤務時間（既定8時間）を超えた分のみを計上する。実働がそれに満たない日は
+ * マイナスにせず0で止めるため、不足分が他の日の超過分を打ち消すことはない
+ * （例: 実働10時間 → 120 / 実働8時間 → 0 / 実働6時間 → 0）。
  *
  * 基準にする実働は calcDaily の totalMinutes（休憩・控除外出を引いた総勤務時間）。
  * 週単位管理の会社では画面の「勤務時間」列と同じ値になり、日単位管理の会社では
@@ -246,7 +247,7 @@ export function calcDailyPay(
  */
 export function calcLegalOvertime(calc: DailyCalcResult, rules: WorkRuleSettings): number {
   if (calc.error) return 0;
-  return calc.totalMinutes - rules.legalDailyMinutes;
+  return Math.max(0, calc.totalMinutes - rules.legalDailyMinutes);
 }
 
 /** 金額を「¥12,345」形式にフォーマットする */
@@ -359,7 +360,7 @@ export function summarize(results: DailyCalcResult[], rules: WorkRuleSettings): 
     normalMinutes: valid.reduce((sum, r) => sum + r.normalMinutes, 0),
     overtimeMinutes: valid.reduce((sum, r) => sum + r.overtimeMinutes, 0),
     totalMinutes: valid.reduce((sum, r) => sum + r.totalMinutes, 0),
-    // 日ごとの過不足（8時間との差）をそのまま累計する。不足分はマイナスとして相殺される
+    // 日ごとの超過分（8時間を超えた分）だけを累計する。不足の日は0のため相殺されない
     legalOvertimeMinutes: valid.reduce((sum, r) => sum + calcLegalOvertime(r, rules), 0),
     lateCount: valid.filter((r) => r.lateMinutes > 0).length,
     lateMinutes: valid.reduce((sum, r) => sum + r.lateMinutes, 0),

@@ -96,8 +96,8 @@ export interface DailyRow {
   /** 勤務時間（早出残業・残業を除いた実働。マイページの「勤務時間」列と揃えた値） */
   workLabel: string;
   /**
-   * 法定外残業（法定勤務時間との過不足）の表示。符号つき 例 "+1:30" / "-2:00"。
-   * 出勤のない日・エラーの日は "-"
+   * 法定外残業（法定勤務時間を超えた分）の表示。符号つき 例 "+1:30"。
+   * 超過のない日は "0:00"、出勤のない日・エラーの日は "-"
    */
   legalOvertimeLabel: string;
   /** 早出残業（18:00以降まで勤務した日の早出時間）の表示。対象外の日は "0:00" */
@@ -342,7 +342,7 @@ export function AttendanceEditor({
           <th className={`${th} text-right`}>勤務時間</th>
           <th
             className={`${th} text-right`}
-            title="法定勤務時間（設定値・既定8時間）に対する実働の過不足。早出残業・残業も実働に含めて判定します"
+            title="法定勤務時間（設定値・既定8時間）を超えた実働時間。8時間に満たない日は0。早出残業・残業も実働に含めて判定します"
           >
             法定外残業
           </th>
@@ -416,14 +416,10 @@ export function AttendanceEditor({
                     row.workLabel
                   )}
                 </td>
-                {/* 法定外残業（法定勤務時間との過不足）。プラスは橙、マイナスは青で色分けする */}
+                {/* 法定外残業（法定勤務時間を超えた分。不足の日は0で止める） */}
                 <td
                   className={`${td} text-right ${
-                    row.legalOvertimeLabel.startsWith("+")
-                      ? "font-medium text-orange-600"
-                      : row.legalOvertimeLabel.startsWith("-") && row.legalOvertimeLabel !== "-"
-                        ? "font-medium text-cyan-700"
-                        : ""
+                    row.legalOvertimeLabel.startsWith("+") ? "font-medium text-orange-600" : ""
                   }`}
                 >
                   {row.legalOvertimeLabel}

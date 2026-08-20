@@ -167,8 +167,8 @@ export function WorkRulesForm({
                 className={inputClass}
               />
               <p className="mt-1 text-xs text-muted">
-                勤怠一覧の「法定外残業」列の基準（既定8時間）。実働がこれを超えた分がプラス、
-                満たない日はマイナスで表示され、月合計はその差分の累計になります
+                勤怠一覧の「法定外残業」列の基準（既定8時間）。実働がこれを超えた分だけを計上し、
+                満たない日は0にします（マイナスにはしません）
               </p>
             </div>
           </div>

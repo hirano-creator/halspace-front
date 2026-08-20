@@ -58,7 +58,7 @@ export interface MyDailyRow {
   deductibleOutingLabel: string;
   /** 勤務時間（早出残業・残業を除いた実働。月次一覧の「勤務時間」列と揃えた値） */
   workLabel: string;
-  /** 法定外残業（法定勤務時間との過不足）。符号つき 例 "+1:30" / "-2:00"。対象外の日は "-" */
+  /** 法定外残業（法定勤務時間を超えた分）。符号つき 例 "+1:30"。超過なしは "0:00"、対象外の日は "-" */
   legalOvertimeLabel: string;
   /** 法定外残業（分）。色分け・カード表示の出し分けに使う */
   legalOvertimeMinutes: number;
@@ -447,7 +447,7 @@ export function MyAttendanceTable({
           <th className={`${th} text-right`}>勤務時間</th>
           <th
             className={`${th} text-right`}
-            title="法定勤務時間（設定値・既定8時間）に対する実働の過不足。早出残業・残業も実働に含めて判定します"
+            title="法定勤務時間（設定値・既定8時間）を超えた実働時間。8時間に満たない日は0。早出残業・残業も実働に含めて判定します"
           >
             法定外残業
           </th>
@@ -539,10 +539,8 @@ export function MyAttendanceTable({
               {hasValue(row.deductibleOutingLabel) && (
                 <span>控除外出 {row.deductibleOutingLabel}</span>
               )}
-              {row.legalOvertimeLabel !== "-" && row.legalOvertimeMinutes !== 0 && (
-                <span className={row.legalOvertimeMinutes > 0 ? "text-orange-600" : "text-cyan-700"}>
-                  法定外残業 {row.legalOvertimeLabel}
-                </span>
+              {row.legalOvertimeMinutes > 0 && (
+                <span className="text-orange-600">法定外残業 {row.legalOvertimeLabel}</span>
               )}
               {!weekly && row.earlyOvertimeMinutes > 0 && (
                 <span className="text-amber-600">早出残業 {row.earlyOvertimeLabel}</span>
@@ -615,16 +613,10 @@ export function MyAttendanceTable({
                     row.workLabel
                   )}
                 </td>
-                {/* 法定外残業（法定勤務時間との過不足）。プラスは橙、マイナスは青で色分けする */}
+                {/* 法定外残業（法定勤務時間を超えた分。不足の日は0で止める） */}
                 <td
                   className={`${td} text-right ${
-                    row.legalOvertimeLabel === "-"
-                      ? ""
-                      : row.legalOvertimeMinutes > 0
-                        ? "font-medium text-orange-600"
-                        : row.legalOvertimeMinutes < 0
-                          ? "font-medium text-cyan-700"
-                          : ""
+                    row.legalOvertimeMinutes > 0 ? "font-medium text-orange-600" : ""
                   }`}
                 >
                   {row.legalOvertimeLabel}

@@ -290,7 +290,7 @@ describe("calcDailyPay（時給1200円・割増25%、金額＝基本給／残業
   });
 });
 
-describe("calcLegalOvertime（法定外残業＝実働と法定勤務時間の差）", () => {
+describe("calcLegalOvertime（法定外残業＝法定勤務時間を超えた実働）", () => {
   const daily = (clockIn: string, clockOut: string, breakMinutes = 60) =>
     calcDaily({ date: "2026-08-01", clockIn, clockOut, breakMinutes }, rules);
 
@@ -303,8 +303,8 @@ describe("calcLegalOvertime（法定外残業＝実働と法定勤務時間の�
     expect(calcLegalOvertime(daily("09:00", "18:00"), rules)).toBe(0);
   });
 
-  it("実働6時間 → マイナス120分（不足はマイナスで出す）", () => {
-    expect(calcLegalOvertime(daily("09:00", "16:00"), rules)).toBe(-120);
+  it("実働6時間 → 0（不足の日はマイナスにしない）", () => {
+    expect(calcLegalOvertime(daily("09:00", "16:00"), rules)).toBe(0);
   });
 
   it("計算エラーの日は0", () => {
@@ -316,15 +316,20 @@ describe("calcLegalOvertime（法定外残業＝実働と法定勤務時間の�
     expect(calcLegalOvertime(daily("09:00", "18:00"), sevenHourRules)).toBe(60);
   });
 
-  it("月合計は日ごとの過不足の累計（提示例: 10/9/8/6時間 → 計+60分）", () => {
+  it("月合計は超過分だけの累計（10/9/8/6時間 → 計+180分。不足分は相殺しない）", () => {
     const results = [
       daily("09:00", "20:00"), // 10時間 → +2:00
       daily("09:00", "19:00"), // 9時間  → +1:00
       daily("09:00", "18:00"), // 8時間  →  0:00
-      daily("09:00", "16:00"), // 6時間  → -2:00
+      daily("09:00", "16:00"), // 6時間  →  0:00（不足でも引かない）
     ];
     const s = summarize(results, rules);
-    expect(s.legalOvertimeMinutes).toBe(60);
+    expect(s.legalOvertimeMinutes).toBe(180);
+  });
+
+  it("不足の日しかない月の合計は0", () => {
+    const s = summarize([daily("09:00", "16:00"), daily("09:00", "15:00")], rules);
+    expect(s.legalOvertimeMinutes).toBe(0);
   });
 
   it("週単位管理でも実働ベースで同じ結果になる", () => {

@@ -41,7 +41,7 @@ export interface EmployeeDetailResponse {
   rows: DailyRow[];
   summary: {
     workDays: number;
-    /** 法定外残業の月度合計（分）。日ごとの「実働 − 法定勤務時間」の累計で、負にもなる */
+    /** 法定外残業の月度合計（分）。日ごとに法定勤務時間を超えた分だけを累計した値 */
     legalOvertimeMinutes: number;
     lateCount: number;
     earlyLeaveCount: number;

@@ -191,7 +191,7 @@ export async function GET(request: Request) {
       workLabel: ok
         ? minutesToHHMM(calc.normalMinutes + (calc.earlyPremiumApplies ? 0 : calc.earlyMinutes))
         : "-",
-      // 法定勤務時間（既定8時間）に対する過不足。出勤のない日・エラーの日は対象外
+      // 法定勤務時間（既定8時間）を超えた分。不足の日は0、出勤のない日・エラーの日は対象外
       legalOvertimeMinutes: ok ? calcLegalOvertime(calc, rules) : 0,
       legalOvertimeLabel: ok ? signedMinutesToHHMM(calcLegalOvertime(calc, rules)) : "-",
       earlyOvertimeMinutes,

@@ -29,11 +29,10 @@
     --band-a-ink: #b45309;
     --band-b-ink: #c2410c;
 
-    /* 新設「法定外残業」の色（プラス=橙 / マイナス=青） */
+    /* 新設「法定外残業」の色（超過分=橙。0の日は無色） */
     --ot-plus-bg: #fff7ed;
     --ot-plus-ink: #c2410c;
     --ot-plus-line: #fdba8c;
-    --ot-minus-ink: #0e7490;
   }
   * { box-sizing: border-box; }
   body {
@@ -128,7 +127,6 @@
   .col-ot { background: rgba(255, 247, 237, .55); }
   th.col-ot { background: #fff1e2; color: var(--ot-plus-ink); }
   .plus { color: var(--ot-plus-ink); font-weight: 600; }
-  .minus { color: var(--ot-minus-ink); font-weight: 600; }
   .zero { color: var(--app-muted); }
   .amber-ink { color: var(--band-a-ink); font-weight: 600; }
   .orange-ink { color: var(--band-b-ink); font-weight: 600; }
@@ -155,26 +153,29 @@
 <body>
 <div class="wrap">
   <h1>法定外残業（日別）列の追加 — UIモック</h1>
-  <p class="lead">社員詳細（社員管理 → 社員）の勤怠一覧に、日ごとの「法定外残業」列と月合計を追加する案。<strong>モックのみ・未実装</strong>。</p>
+  <p class="lead">
+    社員詳細（社員管理 → 社員）とマイページの勤怠一覧に、日ごとの「法定外残業」列と月合計を追加する。
+    <strong>実装済み（2026-08-20 本番反映）</strong>。マイナスは出さず0で止める最終仕様に合わせて更新済み。
+  </p>
 
   <section>
     <h2>計算ルール（このモックの前提）</h2>
     <div class="note">
       <ul>
         <li><strong>法定勤務時間 = 8時間 / 日</strong>。法定外残業 = <code>その日の勤務時間 − 8:00</code>。</li>
-        <li>8時間に満たない日は<strong>マイナス表示</strong>（例: 6時間 → <span class="minus">-2:00</span>）。ご提示の例のとおり、単純な差分の累計です。</li>
+        <li>8時間に満たない日は<strong>0で止める</strong>（例: 6時間 → <span class="zero">0:00</span>）。不足分が他の日の超過分を打ち消すことはありません。</li>
         <li>出勤のない日（休日・欠勤）は計算対象外で「-」。<span class="muted">※ここを0扱いにすると -8:00 が積み上がってしまうため。</span></li>
-        <li>合計は<strong>月単位</strong>。上部サマリーの「勤務時間」と「36H超44H以内」の間に月合計カードを置きます。</li>
+        <li>合計は<strong>月単位</strong>で、超過分だけの累計。上部サマリーの「勤務時間」と「36H超44H以内」の間に月合計カードを置きます。</li>
         <li>既存の「36H超44H以内 / 44H超」は<em>週</em>単位の基準（週44H）で、今回の列は<em>日</em>単位の8H基準です。<strong>別々の指標なので、既存の集計値は変わりません</strong>。</li>
       </ul>
-      <p style="margin:14px 0 6px;font-weight:700;">ご提示の例（そのまま再現）</p>
+      <p style="margin:14px 0 6px;font-weight:700;">ご提示の例（不足の日を0にした最終仕様）</p>
       <table class="ex">
         <tr><th>日付</th><th>勤務時間</th><th>法定外残業</th></tr>
         <tr><td>8/1</td><td>10</td><td class="plus">+2</td></tr>
         <tr><td>8/2</td><td>9</td><td class="plus">+1</td></tr>
         <tr><td>8/3</td><td>8</td><td class="zero">0</td></tr>
-        <tr><td>8/4</td><td>6</td><td class="minus">-2</td></tr>
-        <tr><td>計</td><td>33</td><td class="plus">+1</td></tr>
+        <tr><td>8/4</td><td>6</td><td class="zero">0</td></tr>
+        <tr><td>計</td><td>33</td><td class="plus">+3</td></tr>
       </table>
     </div>
   </section>
@@ -185,7 +186,7 @@
       <span>週小計行の法定外残業：</span>
       <button id="btn-show" class="on" type="button">表示する（週内の合計）</button>
       <button id="btn-hide" type="button">表示しない（月合計のみ）</button>
-      <span class="muted">← ご指定は「合計は月単位」なので、週行に出すかは要判断です</span>
+      <span class="muted">← 実装では「表示しない」で確定（合計は月度のみ）</span>
     </div>
 
     <div class="app">
@@ -206,7 +207,7 @@
       <div class="stats">
         <div class="stat"><div class="lbl">勤務日数</div><div class="val">20日</div></div>
         <div class="stat"><div class="lbl">勤務時間</div><div class="val">164時間0分</div></div>
-        <div class="stat ot"><div class="lbl">法定外残業</div><div class="val">+4時間0分</div></div>
+        <div class="stat ot"><div class="lbl">法定外残業</div><div class="val">+6時間30分</div></div>
         <div class="stat amber"><div class="lbl">36H超44H以内</div><div class="val">21時間0分</div></div>
         <div class="stat amber"><div class="lbl">44H超</div><div class="val">11時間0分</div></div>
         <div class="stat"><div class="lbl">遅刻・早退</div><div class="val">0・1回</div></div>
@@ -229,7 +230,7 @@
           <tr class="month">
             <td class="l" colspan="9">2026年8月度 合計　<span class="badge gray">20日</span></td>
             <td>164:00</td>
-            <td class="col-ot plus">+4:00</td>
+            <td class="col-ot plus">+6:30</td>
             <td class="amber-ink">21:00</td>
             <td class="orange-ink">11:00</td>
             <td></td><td></td>
@@ -253,7 +254,7 @@
           <tr class="week">
             <td class="l" colspan="9">7/31（金）〜8/6（木）　<span class="badge gray">6日</span></td>
             <td>50:30</td>
-            <td class="col-ot ot-week plus">+2:30</td>
+            <td class="col-ot ot-week plus">+4:30</td>
             <td class="amber-ink">8:00</td><td class="orange-ink">6:30</td>
             <td></td><td></td>
           </tr>
@@ -262,14 +263,14 @@
           <tr class="weekend"><td class="c muted">8/2(日)</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="col-ot muted">-</td><td></td><td></td><td></td><td class="c"><span class="act">追加</span></td></tr>
           <tr><td class="c">8/3(月)</td><td>9:00</td><td>19:00</td><td class="muted">9:00</td><td class="muted">19:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>9:00</td><td class="col-ot plus">+1:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
           <tr><td class="c">8/4(火)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
-          <tr><td class="c">8/5(水)</td><td>9:00</td><td>16:00</td><td class="muted">9:00</td><td class="muted">16:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>6:00</td><td class="col-ot minus">-2:00</td><td></td><td></td><td class="c"><span class="badge amber">早退</span></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr><td class="c">8/5(水)</td><td>9:00</td><td>16:00</td><td class="muted">9:00</td><td class="muted">16:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>6:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td class="c"><span class="badge amber">早退</span></td><td class="c"><span class="act">修正</span></td></tr>
           <tr><td class="c">8/6(木)</td><td>9:00</td><td>19:30</td><td class="muted">9:00</td><td class="muted">19:30</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>9:30</td><td class="col-ot plus">+1:30</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
 
           <!-- 週3 -->
           <tr class="week">
             <td class="l" colspan="9">8/7（金）〜8/13（木）　<span class="badge gray">6日</span></td>
             <td>48:30</td>
-            <td class="col-ot ot-week plus">+0:30</td>
+            <td class="col-ot ot-week plus">+1:00</td>
             <td class="amber-ink">8:00</td><td class="orange-ink">4:30</td>
             <td></td><td></td>
           </tr>
@@ -277,7 +278,7 @@
           <tr class="weekend"><td class="c muted">8/8(土)</td><td>9:00</td><td>19:00</td><td class="muted">9:00</td><td class="muted">19:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>9:00</td><td class="col-ot plus">+1:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
           <tr class="weekend"><td class="c muted">8/9(日)</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="col-ot muted">-</td><td></td><td></td><td></td><td class="c"><span class="act">追加</span></td></tr>
           <tr><td class="c">8/10(月)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
-          <tr><td class="c">8/11(火)</td><td>9:00</td><td>17:30</td><td class="muted">9:00</td><td class="muted">17:30</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>7:30</td><td class="col-ot minus">-0:30</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
+          <tr><td class="c">8/11(火)</td><td>9:00</td><td>17:30</td><td class="muted">9:00</td><td class="muted">17:30</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>7:30</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
           <tr><td class="c">8/12(水)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
           <tr><td class="c">8/13(木)</td><td>9:00</td><td>18:00</td><td class="muted">9:00</td><td class="muted">18:00</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td class="muted">-</td><td>8:00</td><td class="col-ot zero">0:00</td><td></td><td></td><td></td><td class="c"><span class="act">修正</span></td></tr>
 
@@ -317,15 +318,16 @@
   </section>
 
   <section>
-    <h2>確認したい点</h2>
+    <h2>確定した仕様</h2>
     <div class="note">
       <ul>
-        <li><strong>月合計行を表の一番上に置いたのは適切ですか。</strong> 上部サマリーカードと内容が重なるため、不要なら表からは外せます（表の最下部に置く案も可）。</li>
-        <li><strong>週小計行の法定外残業</strong>は、上のトグルで表示 / 非表示を切り替えて比較できます。「合計は月単位」というご指定に厳密に沿うなら非表示です。</li>
-        <li><strong>8時間の判定に使う「勤務時間」</strong>は、控除外出を引いた実働（現在の勤務時間列の値）でよいですか。</li>
-        <li><strong>法定勤務時間 8時間は設定値にしますか</strong>、それとも 8時間固定にしますか。<span class="muted">（会社ごとに変える可能性があるなら設定画面へ）</span></li>
-        <li><strong>CSV出力にもこの列を足しますか。</strong></li>
-        <li><strong>マイページ（本人向け画面）にも同じ列を出しますか。</strong> 現在は社員詳細と同じ列構成で統一されています。</li>
+        <li><strong>不足の日はマイナスにせず0</strong>。月合計も超過分だけの累計。</li>
+        <li><strong>表内の月合計行は置かない</strong>（上部の合計カードのみ）。</li>
+        <li><strong>週小計行には出さない</strong>。合計は月度のみ。</li>
+        <li><strong>判定に使う実働</strong>は控除外出を引いた勤務時間（早出残業・残業も含む総実働）。
+          週単位管理の会社では「勤務時間」列と同じ値になる。</li>
+        <li><strong>法定勤務時間は設定値</strong>（設定 → 勤務ルール → 勤務時間、既定8時間）。</li>
+        <li><strong>CSV出力（月次集計・日別明細）とマイページにも同じ列を出す。</strong></li>
       </ul>
     </div>
   </section>
