@@ -145,13 +145,18 @@ export default function EmployeeDetailPage() {
 
         {/* 固定時の下余白は親の md:pb-6 が持つため、md以上ではこの mb を外す */}
         <div
-          className={`mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:mb-0 ${showMoney ? "lg:grid-cols-7" : "lg:grid-cols-6"}`}
+          className={`mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:mb-0 ${showMoney ? "lg:grid-cols-8" : "lg:grid-cols-7"}`}
         >
           <StatCard label="勤務日数" value={`${data.summary.workDays}日`} />
           {/* 週単位管理の会社は残業を週合計で区分するため、早出残業・残業の代わりに2区分を出す */}
           {data.weeklyTotals ? (
             <>
               <StatCard label="勤務時間" value={formatMinutes(data.weeklyTotals.totalMinutes)} />
+              <StatCard
+                label="控除時間"
+                value={formatMinutes(data.monthTotal.deductionMinutes)}
+                tone={data.monthTotal.deductionMinutes > 0 ? "amber" : "default"}
+              />
               <StatCard
                 label="法定外残業"
                 value={formatSignedMinutes(data.summary.legalOvertimeMinutes)}
@@ -171,6 +176,11 @@ export default function EmployeeDetailPage() {
           ) : (
             <>
               <StatCard label="勤務時間" value={formatMinutes(data.monthTotal.workMinutes)} />
+              <StatCard
+                label="控除時間"
+                value={formatMinutes(data.monthTotal.deductionMinutes)}
+                tone={data.monthTotal.deductionMinutes > 0 ? "amber" : "default"}
+              />
               <StatCard
                 label="法定外残業"
                 value={formatSignedMinutes(data.summary.legalOvertimeMinutes)}

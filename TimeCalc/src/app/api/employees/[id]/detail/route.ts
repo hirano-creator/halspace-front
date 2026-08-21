@@ -119,7 +119,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   // 週別集計用（日付つきで持つ）。週単位管理でない会社では使わない
   const dailyCalcs: { date: string; calc: DailyCalcResult }[] = [];
   const payTotal = { basePay: 0, premiumPay: 0, totalPay: 0 };
-  const monthTotal = { workMinutes: 0, earlyOvertimeMinutes: 0, overtimeMinutes: 0 };
+  const monthTotal = { workMinutes: 0, earlyOvertimeMinutes: 0, overtimeMinutes: 0, deductionMinutes: 0 };
 
   for (const date of datesInRange(period.start, period.end)) {
     const [y, m, d] = date.split("-").map(Number);
@@ -217,6 +217,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           rules,
         )
       : 0;
+    if (record) monthTotal.deductionMinutes += deductionMinutes;
 
     rows.push({
       attendanceId: record?.id ?? null,

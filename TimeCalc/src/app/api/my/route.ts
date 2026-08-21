@@ -88,7 +88,7 @@ export async function GET(request: Request) {
   // 週別集計用（日付つきで持つ）。週単位管理でない会社では使わない
   const dailyCalcs: { date: string; calc: DailyCalcResult }[] = [];
   // 月度合計（社員詳細画面と同じく日別の合計を積み上げる）
-  const monthTotal = { workMinutes: 0, earlyOvertimeMinutes: 0, overtimeMinutes: 0 };
+  const monthTotal = { workMinutes: 0, earlyOvertimeMinutes: 0, overtimeMinutes: 0, deductionMinutes: 0 };
   let openCount = 0;
 
   for (const date of datesInRange(period.start, visibleEnd)) {
@@ -168,6 +168,7 @@ export async function GET(request: Request) {
           rules,
         )
       : 0;
+    if (record) monthTotal.deductionMinutes += deductionMinutes;
 
     rows.push({
       date,

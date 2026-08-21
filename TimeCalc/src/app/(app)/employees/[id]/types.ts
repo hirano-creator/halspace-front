@@ -48,7 +48,13 @@ export interface EmployeeDetailResponse {
     lateMinutes: number;
     earlyLeaveMinutes: number;
   };
-  monthTotal: { workMinutes: number; earlyOvertimeMinutes: number; overtimeMinutes: number };
+  monthTotal: {
+    workMinutes: number;
+    earlyOvertimeMinutes: number;
+    overtimeMinutes: number;
+    /** 控除時間の月度合計（分）。日別「控除時間」列（実外出＋遅刻＋早退）の合計 */
+    deductionMinutes: number;
+  };
   payTotal: { basePay: number; premiumPay: number; totalPay: number };
   /** 所属会社が週単位管理か（統計カードと列見出しの出し分けに使う） */
   weeklyEnabled: boolean;
