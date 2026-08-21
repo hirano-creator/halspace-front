@@ -338,7 +338,7 @@ export function AttendanceEditor({
           <th className={`${th} text-right`}>外出</th>
           <th className={`${th} text-right`}>戻り</th>
           <th className={`${th} text-right`}>実外出</th>
-          <th className={`${th} text-right`} title="実外出 ＋ 遅刻 ＋ 早退の合計">
+          <th className={`${th} text-right`} title="実外出・遅刻・早退それぞれ休憩時間帯との重複を除き、丸め単位で切り上げてから合計">
             控除時間
           </th>
           <th className={`${th} text-right`}>勤務時間</th>

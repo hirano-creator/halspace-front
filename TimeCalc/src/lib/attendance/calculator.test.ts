@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calcDaily,
   calcDailyPay,
+  calcDeductionMinutes,
   calcLegalOvertime,
   calcWeekly,
   calcWeeklyPay,
@@ -690,5 +691,118 @@ describe("遅刻・早退の自動判定（実打刻基準）", () => {
     expect(s.lateMinutes).toBe(42);
     expect(s.earlyLeaveCount).toBe(1);
     expect(s.earlyLeaveMinutes).toBe(60);
+  });
+});
+
+describe("calcDeductionMinutes（控除時間＝実外出＋遅刻＋早退。休憩重複を除いてから丸め単位で切り上げ）", () => {
+  // rules: 始業9:00・終業18:00・休憩12:00〜13:00・丸め単位30分（DEFAULT_WORK_RULES）
+
+  it("休憩と無関係な外出・遅刻・早退はそのまま合計する（元の例: 3h+1h+1h=5h）", () => {
+    const minutes = calcDeductionMinutes(
+      {
+        outingIntervals: [{ start: "14:00", end: "17:00" }],
+        rawClockIn: "10:00", // 始業9:00からの遅刻1h
+        rawClockOut: "17:00", // 終業18:00までの早退1h
+      },
+      rules,
+    );
+    expect(minutes).toBe(5 * 60);
+  });
+
+  it("外出がちょうど休憩時間帯と一致すると控除0になる（12:00〜13:00）", () => {
+    const minutes = calcDeductionMinutes(
+      { outingIntervals: [{ start: "12:00", end: "13:00" }], rawClockIn: null, rawClockOut: null },
+      rules,
+    );
+    expect(minutes).toBe(0);
+  });
+
+  it("休憩をまたぐ外出は重なった分を引いてから切り上げる（11:00〜13:50 → 2:50-1:00=1:50 → 2:00）", () => {
+    const minutes = calcDeductionMinutes(
+      { outingIntervals: [{ start: "11:00", end: "13:50" }], rawClockIn: null, rawClockOut: null },
+      rules,
+    );
+    expect(minutes).toBe(120);
+  });
+
+  it("休憩の一部だけ重なる外出（12:40〜14:00 → 1:20-0:20=1:00 → 端数なしでそのまま1:00）", () => {
+    const minutes = calcDeductionMinutes(
+      { outingIntervals: [{ start: "12:40", end: "14:00" }], rawClockIn: null, rawClockOut: null },
+      rules,
+    );
+    expect(minutes).toBe(60);
+  });
+
+  it("休憩をわずかに超える外出は、はみ出した分だけ切り上げる（12:00〜13:05 → 5分 → 30分）", () => {
+    const minutes = calcDeductionMinutes(
+      { outingIntervals: [{ start: "12:00", end: "13:05" }], rawClockIn: null, rawClockOut: null },
+      rules,
+    );
+    expect(minutes).toBe(30);
+  });
+
+  it("遅刻が休憩にかかる場合も重なりを引く（始業9:00・出勤12:30 → 3:30-0:30=3:00）", () => {
+    const minutes = calcDeductionMinutes(
+      { outingIntervals: [], rawClockIn: "12:30", rawClockOut: null },
+      rules,
+    );
+    expect(minutes).toBe(180);
+  });
+
+  it("早退が休憩にかかる場合も重なりを引く（終業18:00・退勤12:30 → 5:30-0:30=5:00）", () => {
+    const minutes = calcDeductionMinutes(
+      { outingIntervals: [], rawClockIn: null, rawClockOut: "12:30" },
+      rules,
+    );
+    expect(minutes).toBe(300);
+  });
+
+  it("複数の外出区間はそれぞれ休憩重複を引いてから合算する", () => {
+    const minutes = calcDeductionMinutes(
+      {
+        outingIntervals: [
+          { start: "11:30", end: "12:30" }, // 重複30分 → 残り30分
+          { start: "15:00", end: "15:20" }, // 重複なし → 20分
+        ],
+        rawClockIn: null,
+        rawClockOut: null,
+      },
+      rules,
+    );
+    // 合算してから丸める: (30+20)=50分 → 切り上げ60分
+    expect(minutes).toBe(60);
+  });
+
+  it("3項目それぞれ端数があると、それぞれ切り上がるため合計が膨らむ（20分×3 → 30分×3=1:30）", () => {
+    const minutes = calcDeductionMinutes(
+      { outingIntervals: [{ start: "15:00", end: "15:20" }], rawClockIn: "09:20", rawClockOut: "17:40" },
+      rules,
+    );
+    expect(minutes).toBe(90);
+  });
+
+  it("外出区間の時刻が不明な日（CSV取込等）は休憩重複を判定できず、そのまま切り上げる", () => {
+    const minutes = calcDeductionMinutes(
+      { outingIntervals: [], outingMinutesFallback: 45, rawClockIn: null, rawClockOut: null },
+      rules,
+    );
+    expect(minutes).toBe(60);
+  });
+
+  it("遅刻・早退・外出のいずれもない日は0", () => {
+    const minutes = calcDeductionMinutes(
+      { outingIntervals: [], rawClockIn: null, rawClockOut: null },
+      rules,
+    );
+    expect(minutes).toBe(0);
+  });
+
+  it("丸め単位は設定値に従う（15分単位なら12:00〜13:05は0:15止まり）", () => {
+    const quarterRules: WorkRuleSettings = { ...rules, overtimeRoundingMinutes: 15 };
+    const minutes = calcDeductionMinutes(
+      { outingIntervals: [{ start: "12:00", end: "13:05" }], rawClockIn: null, rawClockOut: null },
+      quarterRules,
+    );
+    expect(minutes).toBe(15);
   });
 });

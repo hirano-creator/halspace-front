@@ -250,6 +250,72 @@ export function calcLegalOvertime(calc: DailyCalcResult, rules: WorkRuleSettings
   return Math.max(0, calc.totalMinutes - rules.legalDailyMinutes);
 }
 
+/**
+ * 「控除時間」（実外出＋遅刻＋早退）を計算する（分）。
+ *
+ * 実外出・遅刻・早退それぞれの「実際の時間帯」について、休憩時間帯（breakStart〜breakEnd）と
+ * 重なる分（そもそも働くはずのなかった時間）を先に差し引き、残りを丸め単位
+ * （overtimeRoundingMinutes）で切り上げてから3つを合計する。
+ * 3項目を合計してから丸めるのではなく、項目ごとに丸めてから合計する点に注意
+ * （例: 20分の遅刻・20分の早退が同じ日にあると、それぞれ30分に切り上がり計1時間になる）。
+ *
+ * - 実外出: outingIntervals（複数可）の合計。区間の時刻が不明な日（CSV取込等）は
+ *   outingMinutesFallback を代わりに使う（休憩重複は時刻がないと判定できないため差し引かない）。
+ * - 遅刻: 始業時刻 〜 実際の出勤時刻（rawClockIn、丸め前）。
+ * - 早退: 実際の退勤時刻（rawClockOut、丸め前）〜 終業時刻。
+ */
+export function calcDeductionMinutes(
+  input: {
+    /** 外出区間（複数可）。時刻不明の日は空配列にし、outingMinutesFallback を使う */
+    outingIntervals: { start: string; end: string }[];
+    /** outingIntervals が空のときに使う実外出時間（分）。CSV取込など時刻が不明な日用 */
+    outingMinutesFallback?: number;
+    /** 出勤時刻（丸め前の実打刻）。null なら遅刻は計算しない */
+    rawClockIn: string | null;
+    /** 退勤時刻（丸め前の実打刻）。null なら早退は計算しない */
+    rawClockOut: string | null;
+  },
+  rules: WorkRuleSettings,
+): number {
+  const unit = rules.overtimeRoundingMinutes;
+  const breakStart = timeToMinutes(rules.breakStart);
+  const breakEnd = timeToMinutes(rules.breakEnd);
+  const overlapWithBreak = (start: number, end: number): number =>
+    breakStart !== null && breakEnd !== null ? overlapMinutes(breakStart, breakEnd, start, end) : 0;
+
+  let outingMinutes = 0;
+  if (input.outingIntervals.length > 0) {
+    for (const itv of input.outingIntervals) {
+      const s = timeToMinutes(itv.start);
+      const e = timeToMinutes(itv.end);
+      if (s === null || e === null || e <= s) continue;
+      outingMinutes += Math.max(0, e - s - overlapWithBreak(s, e));
+    }
+  } else {
+    outingMinutes = Math.max(0, input.outingMinutesFallback ?? 0);
+  }
+
+  let lateMinutes = 0;
+  const workStart = timeToMinutes(rules.workStart);
+  const clockInRaw = timeToMinutes(input.rawClockIn);
+  if (workStart !== null && clockInRaw !== null && clockInRaw > workStart) {
+    lateMinutes = Math.max(0, clockInRaw - workStart - overlapWithBreak(workStart, clockInRaw));
+  }
+
+  let earlyLeaveMinutes = 0;
+  const workEnd = timeToMinutes(rules.workEnd);
+  const clockOutRaw = timeToMinutes(input.rawClockOut);
+  if (workEnd !== null && clockOutRaw !== null && clockOutRaw < workEnd) {
+    earlyLeaveMinutes = Math.max(0, workEnd - clockOutRaw - overlapWithBreak(clockOutRaw, workEnd));
+  }
+
+  return (
+    ceilToUnit(outingMinutes, unit) +
+    ceilToUnit(lateMinutes, unit) +
+    ceilToUnit(earlyLeaveMinutes, unit)
+  );
+}
+
 /** 金額を「¥12,345」形式にフォーマットする */
 export function formatYen(amount: number): string {
   return `¥${amount.toLocaleString("ja-JP")}`;

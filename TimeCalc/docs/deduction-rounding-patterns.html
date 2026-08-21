@@ -1,0 +1,344 @@
+<title>控除時間の丸めルール</title>
+<style>
+  :root {
+    --bg: #eef1f6;
+    --panel: #ffffff;
+    --ink: #161c2e;
+    --muted: #5d6879;
+    --line: #d5dbe4;
+    --line-soft: #e6eaf0;
+    --accent: #635bff;
+    --code-bg: #f3f5f9;
+
+    --up-ink: #b45309;      /* 切り上げで増えた値 */
+    --up-bg: #fff8ec;
+    --up-line: #f4cf94;
+    --break-ink: #0e7490;   /* 休憩重複による控除 */
+    --break-bg: #ecfbfe;
+    --break-line: #9fdbe8;
+    --same-ink: #5d6879;    /* 変化なし */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 34px 24px 72px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14.5px;
+    line-height: 1.75;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 24px; margin: 0 0 6px; }
+  .lead { color: var(--muted); margin: 0 0 30px; }
+  section { margin-bottom: 34px; }
+  h2 {
+    font-size: 16px; margin: 0 0 14px; padding-left: 11px;
+    border-left: 4px solid var(--accent);
+  }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 20px 24px;
+  }
+  .tag {
+    display: inline-block; border-radius: 999px; padding: 1px 10px;
+    font-size: 12px; font-weight: 700;
+    background: var(--up-bg); color: var(--up-ink); border: 1px solid var(--up-line);
+  }
+  .tag.brk { background: var(--break-bg); color: var(--break-ink); border-color: var(--break-line); }
+
+  .headline {
+    background: var(--panel); border: 1px solid var(--up-line);
+    border-left: 5px solid var(--up-ink);
+    border-radius: 12px; padding: 18px 22px; margin-bottom: 16px;
+  }
+  .headline b { color: var(--up-ink); }
+  .headline.brk { border-color: var(--break-line); border-left-color: var(--break-ink); }
+  .headline.brk b { color: var(--break-ink); }
+
+  /* 手順ステップ */
+  .steps { display: flex; align-items: stretch; gap: 10px; margin: 16px 0 4px; flex-wrap: wrap; }
+  .step {
+    flex: 1; min-width: 220px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 16px; position: relative;
+  }
+  .step .no {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff;
+    font-size: 12px; font-weight: 700; margin-right: 8px;
+  }
+  .step h3 { display: inline; font-size: 14.5px; margin: 0; }
+  .step p { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+  .arrow {
+    align-self: center; font-size: 20px; color: var(--muted); padding: 0 2px;
+  }
+
+  .rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .rule {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .rule h3 { margin: 0 0 4px; font-size: 15px; }
+  .rule .dir { font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--up-ink); }
+  .rule p { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+  .rule .ex {
+    margin-top: 10px; font-size: 12.5px; font-variant-numeric: tabular-nums;
+    border-top: 1px dashed var(--line); padding-top: 8px;
+  }
+  .rule .ex div { display: flex; justify-content: space-between; gap: 8px; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--panel); font-size: 13.5px; }
+  th, td {
+    border: 1px solid var(--line-soft); padding: 8px 10px; text-align: center;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  th { background: #f5f7fb; font-size: 12px; color: var(--muted); font-weight: 700; }
+  thead tr.grp th { background: #eef1f8; }
+  td.case { text-align: left; white-space: normal; min-width: 210px; }
+  td.case b { display: block; font-size: 13px; }
+  td.case span { color: var(--muted); font-size: 12px; }
+  .raw { color: var(--muted); }
+  .up { color: var(--up-ink); font-weight: 700; background: var(--up-bg); }
+  .brk { color: var(--break-ink); font-weight: 700; background: var(--break-bg); }
+  .same { color: var(--same-ink); }
+  .total { font-weight: 700; background: #f5f3ff; font-size: 14.5px; }
+  .scroll { overflow-x: auto; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+  .legend span::before {
+    content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px;
+    margin-right: 6px; vertical-align: -1px;
+  }
+  .legend .l-up::before { background: var(--up-bg); border: 1px solid var(--up-line); }
+  .legend .l-brk::before { background: var(--break-bg); border: 1px solid var(--break-line); }
+  .legend .l-same::before { background: #fff; border: 1px solid var(--line); }
+
+  ul { margin: 8px 0 0; padding-left: 20px; }
+  li { margin-bottom: 5px; }
+  .calc { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* タイムバー（休憩との重なりを視覚化） */
+  .timebar-wrap { margin-top: 10px; }
+  .timebar {
+    position: relative; height: 26px; background: #f2f4f8; border: 1px solid var(--line);
+    border-radius: 6px; overflow: hidden; margin-top: 4px;
+  }
+  .timebar .break {
+    position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(
+      45deg, #dbeafe, #dbeafe 5px, #eef6ff 5px, #eef6ff 10px
+    );
+    border-left: 1px dashed #93c5fd; border-right: 1px dashed #93c5fd;
+  }
+  .timebar .span {
+    position: absolute; top: 4px; bottom: 4px; background: var(--up-bg);
+    border: 1.5px solid var(--up-ink); border-radius: 4px;
+  }
+  .timebar .overlap {
+    position: absolute; top: 4px; bottom: 4px; background: var(--break-bg);
+    border: 1.5px solid var(--break-ink); border-radius: 4px;
+  }
+  .timeaxis { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+</style>
+
+<div class="wrap">
+  <h1>控除時間の丸めルール</h1>
+  <p class="lead">
+    控除時間＝<b>実外出 ＋ 遅刻 ＋ 早退</b>。<strong>休憩時間帯（既定 12:00〜13:00）と重なる分を先に除いてから</strong>、
+    30分単位で切り上げます。<strong>実装前の確認用</strong>です。
+  </p>
+
+  <section>
+    <h2>今回追加するルール</h2>
+    <div class="headline brk">
+      休憩時間帯（設定の「休憩開始〜休憩終了」。既定 <b>12:00〜13:00</b>）と重なる時間は、
+      <b>そもそも働くはずのなかった時間</b>なので控除から除きます。<br>
+      例：外出がちょうど 12:00〜13:00 の1時間なら、重なりも1時間 → <b>差し引くと0分 → 控除0:00</b>（＝ご指定の「1時間マイナス」）。
+    </div>
+    <p style="color:var(--muted);font-size:13px;margin:0">
+      対象は実外出・遅刻・早退の3項目すべて。それぞれの時間帯（下記参照）が休憩時間帯とどれだけ重なるかを見て、重なった分だけ引きます。
+    </p>
+  </section>
+
+  <section>
+    <h2>計算の手順（2段階）</h2>
+    <div class="steps">
+      <div class="step">
+        <h3><span class="no">1</span>休憩との重複を引く</h3>
+        <p>実外出・遅刻・早退それぞれの実際の時間帯から、休憩時間帯（12:00〜13:00）と重なる分を差し引きます。</p>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step">
+        <h3><span class="no">2</span>30分単位で切り上げる</h3>
+        <p>①で残った時間を、1分でも端数があれば次の30分に切り上げます（0分はそのまま0分）。</p>
+      </div>
+    </div>
+    <p style="color:var(--muted);font-size:13px;margin-top:10px">
+      3項目をそれぞれ①②の順で計算してから合計します（合計してから丸めるのではありません）。
+    </p>
+  </section>
+
+  <section>
+    <h2>各項目の「実際の時間帯」</h2>
+    <div class="rules">
+      <div class="rule">
+        <h3>実外出</h3>
+        <p>外出開始 〜 戻り の時刻そのもの。</p>
+        <div class="ex"><div><span>例</span><span>11:00〜13:50</span></div></div>
+      </div>
+      <div class="rule">
+        <h3>遅刻</h3>
+        <p>始業時刻 〜 実際の出勤時刻。</p>
+        <div class="ex"><div><span>例（始業9:00）</span><span>9:00〜12:30</span></div></div>
+      </div>
+      <div class="rule">
+        <h3>早退</h3>
+        <p>実際の退勤時刻 〜 終業時刻。</p>
+        <div class="ex"><div><span>例（終業16:00）</span><span>12:30〜16:00</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>タイムバーで見る重なり方</h2>
+    <div class="panel">
+      <div class="timebar-wrap">
+        <p style="margin:0 0 2px;font-size:13px"><b>ケースA：外出 11:00〜13:50</b>（休憩とまたぐ）</p>
+        <div class="timebar">
+          <div class="break" style="left:41.7%;width:8.3%"></div>
+          <div class="span" style="left:33.3%;width:24%"></div>
+          <div class="overlap" style="left:41.7%;width:8.3%"></div>
+        </div>
+        <div class="timeaxis"><span>10:00</span><span>11:00</span><span>12:00</span><span>13:00</span><span>14:00</span></div>
+        <p class="calc" style="margin:6px 0 0">実外出 2:50 − 休憩重複 1:00 = 1:50 → 切り上げ <b>2:00</b></p>
+      </div>
+      <div class="timebar-wrap" style="margin-top:22px">
+        <p style="margin:0 0 2px;font-size:13px"><b>ケースB：外出 12:00〜13:00 ちょうど</b>（休憩とぴったり一致）</p>
+        <div class="timebar">
+          <div class="break" style="left:41.7%;width:8.3%"></div>
+          <div class="overlap" style="left:41.7%;width:8.3%"></div>
+        </div>
+        <div class="timeaxis"><span>10:00</span><span>11:00</span><span>12:00</span><span>13:00</span><span>14:00</span></div>
+        <p class="calc" style="margin:6px 0 0">実外出 1:00 − 休憩重複 1:00 = 0:00 → 切り上げ <b>0:00</b>（ご指定の例）</p>
+      </div>
+      <div class="timebar-wrap" style="margin-top:22px">
+        <p style="margin:0 0 2px;font-size:13px"><b>ケースC：外出 13:30〜14:30</b>（休憩と重ならない）</p>
+        <div class="timebar">
+          <div class="break" style="left:41.7%;width:8.3%"></div>
+          <div class="span" style="left:58.3%;width:16.7%"></div>
+        </div>
+        <div class="timeaxis"><span>10:00</span><span>11:00</span><span>12:00</span><span>13:00</span><span>14:00</span></div>
+        <p class="calc" style="margin:6px 0 0">実外出 1:00 − 休憩重複 0:00 = 1:00 → 切り上げ <b>1:00</b>（従来どおり）</p>
+      </div>
+    </div>
+    <div class="legend">
+      <span class="l-up">実際の時間帯</span>
+      <span class="l-brk">休憩との重なり（差し引く分）</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>パターン一覧（始業 9:00・終業 16:00・休憩 12:00〜13:00 の会社の例）</h2>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr class="grp">
+            <th rowspan="2" style="text-align:left">ケース</th>
+            <th colspan="3">実際の時間帯</th>
+            <th colspan="3">休憩重複を除いた後</th>
+            <th colspan="3">30分切り上げ後</th>
+            <th rowspan="2">控除時間</th>
+          </tr>
+          <tr>
+            <th>実外出</th><th>遅刻</th><th>早退</th>
+            <th>実外出</th><th>遅刻</th><th>早退</th>
+            <th>実外出</th><th>遅刻</th><th>早退</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="case"><b>① ご提示の元の例</b><span>外出3h（休憩時間帯とは重ならない時間帯）、遅刻1h、早退1h</span></td>
+            <td class="raw">3:00</td><td class="raw">1:00</td><td class="raw">1:00</td>
+            <td class="same">3:00</td><td class="same">1:00</td><td class="same">1:00</td>
+            <td class="same">3:00</td><td class="same">1:00</td><td class="same">1:00</td>
+            <td class="total">5:00</td>
+          </tr>
+          <tr>
+            <td class="case"><b>② 外出がちょうど休憩と一致</b><span>外出 12:00〜13:00</span></td>
+            <td class="raw">1:00</td><td class="raw">–</td><td class="raw">–</td>
+            <td class="brk">0:00</td><td class="same">–</td><td class="same">–</td>
+            <td class="same">0:00</td><td class="same">–</td><td class="same">–</td>
+            <td class="total">0:00</td>
+          </tr>
+          <tr>
+            <td class="case"><b>③ 休憩をまたぐ外出</b><span>外出 11:00〜13:50（重複1:00）</span></td>
+            <td class="raw">2:50</td><td class="raw">–</td><td class="raw">–</td>
+            <td class="brk">1:50</td><td class="same">–</td><td class="same">–</td>
+            <td class="up">2:00</td><td class="same">–</td><td class="same">–</td>
+            <td class="total">2:00</td>
+          </tr>
+          <tr>
+            <td class="case"><b>④ 休憩の一部だけ重なる外出</b><span>外出 12:40〜14:00（重複0:20）</span></td>
+            <td class="raw">1:20</td><td class="raw">–</td><td class="raw">–</td>
+            <td class="brk">1:00</td><td class="same">–</td><td class="same">–</td>
+            <td class="same">1:00</td><td class="same">–</td><td class="same">–</td>
+            <td class="total">1:00</td>
+          </tr>
+          <tr>
+            <td class="case"><b>⑤ 休憩と無関係な外出</b><span>外出 13:30〜14:30</span></td>
+            <td class="raw">1:00</td><td class="raw">–</td><td class="raw">–</td>
+            <td class="same">1:00</td><td class="same">–</td><td class="same">–</td>
+            <td class="same">1:00</td><td class="same">–</td><td class="same">–</td>
+            <td class="total">1:00</td>
+          </tr>
+          <tr>
+            <td class="case"><b>⑥ 遅刻が休憩にかかる</b><span>9:00始業・実出勤12:30（遅刻帯9:00〜12:30、重複0:30）</span></td>
+            <td class="raw">–</td><td class="raw">3:30</td><td class="raw">–</td>
+            <td class="same">–</td><td class="brk">3:00</td><td class="same">–</td>
+            <td class="same">–</td><td class="same">3:00</td><td class="same">–</td>
+            <td class="total">3:00</td>
+          </tr>
+          <tr>
+            <td class="case"><b>⑦ 早退が休憩にかかる</b><span>16:00終業・実退勤12:30（早退帯12:30〜16:00、重複0:30）</span></td>
+            <td class="raw">–</td><td class="raw">–</td><td class="raw">3:30</td>
+            <td class="same">–</td><td class="same">–</td><td class="brk">3:00</td>
+            <td class="same">–</td><td class="same">–</td><td class="same">3:00</td>
+            <td class="total">3:00</td>
+          </tr>
+          <tr>
+            <td class="case"><b>⑧ 早退が休憩と重ならない</b><span>16:00終業・実退勤14:40（早退帯14:40〜16:00、休憩と重複なし）</span></td>
+            <td class="raw">–</td><td class="raw">–</td><td class="raw">1:20</td>
+            <td class="same">–</td><td class="same">–</td><td class="same">1:20</td>
+            <td class="same">–</td><td class="same">–</td><td class="up">1:30</td>
+            <td class="total">1:30</td>
+          </tr>
+          <tr>
+            <td class="case"><b>⑨ 休憩をわずかに超える外出</b><span>外出 12:00〜13:05（重複1:00）</span></td>
+            <td class="raw">1:05</td><td class="raw">–</td><td class="raw">–</td>
+            <td class="brk">0:05</td><td class="same">–</td><td class="same">–</td>
+            <td class="up">0:30</td><td class="same">–</td><td class="same">–</td>
+            <td class="total">0:30</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="calc" style="margin-top:10px">
+      <b>②③⑨</b>が今回のルールで変わるケースです。休憩とぴったり重なる外出は控除0（②）、
+      休憩をまたぐ外出は重なった分だけ短くなり（③）、休憩をわずかに超えるだけの外出は
+      「はみ出した5分」だけが評価されて切り上げ30分になります（⑨）。
+    </p>
+  </section>
+
+  <section>
+    <h2>実装するときの決めごと</h2>
+    <div class="panel">
+      <ul>
+        <li><b>休憩時間帯</b>：設定画面の「休憩開始・休憩終了」（既定 12:00〜13:00）を使います。会社ごとに設定が違えば、その会社の値で判定します。</li>
+        <li><b>重複の計算順</b>：①各項目の実際の時間帯から休憩との重なりを引く → ②残りを30分単位で切り上げる、の順で3項目それぞれに適用してから合計します。</li>
+        <li><b>丸め単位</b>：設定画面の「丸め単位（分）」（既定30分）に従います。<span style="color:var(--muted)">※30分固定がよければそのようにします。</span></li>
+        <li><b>「実外出」列自体は変えません</b>。これまでどおり実際の外出時間（重複を引く前の値）を表示します。休憩重複の控除は「控除時間」列の計算にだけ使います。</li>
+        <li><b>勤務時間の計算は変わりません</b>。控除時間は表示専用の列で、給与計算には影響しません。</li>
+        <li>既存のコードには外出と休憩の重複を計算する仕組み（<code>splitOutingMinutes</code>）が既にあるため、同じ考え方を遅刻・早退にも広げる形で実装します。</li>
+      </ul>
+    </div>
+  </section>
+</div>

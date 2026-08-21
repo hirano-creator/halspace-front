@@ -9,6 +9,7 @@ import { toRole } from "@/lib/auth/roles";
 import {
   calcDaily,
   calcDailyPay,
+  calcDeductionMinutes,
   calcLegalOvertime,
   calcWeekly,
   calcWeeklyPay,
@@ -38,7 +39,6 @@ import {
   minutesToHHMM,
   periodRange,
   signedMinutesToHHMM,
-  timeToMinutes,
   toJst,
   todayString,
 } from "@/lib/utils/time";
@@ -189,22 +189,34 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       outingEndLabel = outing.count > 0 ? outing.lastEnd! : "-";
     }
 
-    // 「実外出」＝実際に外出した時間。
-    // 「控除時間」＝実外出 ＋ 遅刻 ＋ 早退（その日に本来の勤務から抜けた時間の合計）。
+    // 「実外出」＝実際に外出した時間（丸めない）。
+    // 「控除時間」＝実外出・遅刻・早退それぞれ休憩時間帯との重複を除いて丸め単位で
+    // 切り上げたものの合計（calcDeductionMinutes）。CSV取込は外出区間の時刻が不明なため
+    // 休憩重複は判定できず、breakMinutesをそのまま実外出として扱う。
     let actualOutingMinutes = 0;
+    let outingIntervals: { start: string; end: string }[] = [];
     if (record) {
       if (record.source === "CSV") {
         actualOutingMinutes = record.breakMinutes;
-      } else {
-        if (record.source === "CLOCK") {
-          actualOutingMinutes = totalOutingMinutes(outingIntervalsFromEvents(dayEvents));
-        } else if (record.outingStart && record.outingEnd) {
-          const start = timeToMinutes(record.outingStart) ?? 0;
-          const end = timeToMinutes(record.outingEnd) ?? 0;
-          actualOutingMinutes = Math.max(0, end - start);
-        }
+      } else if (record.source === "CLOCK") {
+        outingIntervals = outingIntervalsFromEvents(dayEvents);
+        actualOutingMinutes = totalOutingMinutes(outingIntervals);
+      } else if (record.outingStart && record.outingEnd) {
+        outingIntervals = [{ start: record.outingStart, end: record.outingEnd }];
+        actualOutingMinutes = totalOutingMinutes(outingIntervals);
       }
     }
+    const deductionMinutes = record
+      ? calcDeductionMinutes(
+          {
+            outingIntervals,
+            outingMinutesFallback: record.source === "CSV" ? record.breakMinutes : 0,
+            rawClockIn: ok ? record.clockIn : null,
+            rawClockOut: ok ? record.clockOut : null,
+          },
+          rules,
+        )
+      : 0;
 
     rows.push({
       attendanceId: record?.id ?? null,
@@ -224,9 +236,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       outingStartLabel,
       outingEndLabel,
       actualOutingLabel: record ? minutesToHHMM(actualOutingMinutes) : "-",
-      deductionLabel: record
-        ? minutesToHHMM(actualOutingMinutes + (ok ? calc.lateMinutes + calc.earlyLeaveMinutes : 0))
-        : "-",
+      deductionLabel: record ? minutesToHHMM(deductionMinutes) : "-",
       workLabel: ok
         ? minutesToHHMM(calc.normalMinutes + (calc.earlyPremiumApplies ? 0 : calc.earlyMinutes))
         : "-",

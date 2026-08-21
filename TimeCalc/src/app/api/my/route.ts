@@ -7,6 +7,7 @@ import { requireApiUser } from "@/lib/auth/api-guard";
 import { resolveFeatures } from "@/lib/auth/features";
 import {
   calcDaily,
+  calcDeductionMinutes,
   calcLegalOvertime,
   calcWeekly,
   summarize,
@@ -28,7 +29,6 @@ import {
   minutesToHHMM,
   periodRange,
   signedMinutesToHHMM,
-  timeToMinutes,
   todayString,
 } from "@/lib/utils/time";
 import type { MyDailyRow } from "@/app/(app)/my/my-attendance-table";
@@ -139,25 +139,35 @@ export async function GET(request: Request) {
       monthTotal.overtimeMinutes += overtimeMinutes;
       monthTotal.workMinutes += calc.normalMinutes + (calc.earlyMinutes - earlyOvertimeMinutes);
     }
-    // 「実外出」欄は実際に外出した時間をそのまま見せる。実測値は打刻ログ・
+    // 「実外出」欄は実際に外出した時間をそのまま見せる（丸めない）。実測値は打刻ログ・
     // 本人修正フォームの入力値から直接求める（breakMinutesからの逆算はしない）。
-    // 「控除時間」欄は実外出 ＋ 遅刻 ＋ 早退（本来の勤務から抜けた時間の合計）を見せる。
+    // 「控除時間」欄は実外出・遅刻・早退それぞれ休憩時間帯との重複を除いて丸め単位で
+    // 切り上げたものの合計（calcDeductionMinutes）。CSV取込は外出区間の時刻が不明なため
+    // 休憩重複は判定できず、breakMinutesをそのまま実外出として扱う。
     let actualOutingMinutes = 0;
+    let outingIntervals: { start: string; end: string }[] = [];
     if (record) {
       if (record.source === "CSV") {
         actualOutingMinutes = record.breakMinutes;
-      } else {
-        if (record.source === "CLOCK") {
-          actualOutingMinutes = totalOutingMinutes(
-            outingIntervalsFromEvents(eventsByDate.get(date) ?? []),
-          );
-        } else if (record.outingStart && record.outingEnd) {
-          const start = timeToMinutes(record.outingStart) ?? 0;
-          const end = timeToMinutes(record.outingEnd) ?? 0;
-          actualOutingMinutes = Math.max(0, end - start);
-        }
+      } else if (record.source === "CLOCK") {
+        outingIntervals = outingIntervalsFromEvents(eventsByDate.get(date) ?? []);
+        actualOutingMinutes = totalOutingMinutes(outingIntervals);
+      } else if (record.outingStart && record.outingEnd) {
+        outingIntervals = [{ start: record.outingStart, end: record.outingEnd }];
+        actualOutingMinutes = totalOutingMinutes(outingIntervals);
       }
     }
+    const deductionMinutes = record
+      ? calcDeductionMinutes(
+          {
+            outingIntervals,
+            outingMinutesFallback: record.source === "CSV" ? record.breakMinutes : 0,
+            rawClockIn: ok ? record.clockIn : null,
+            rawClockOut: ok ? record.clockOut : null,
+          },
+          rules,
+        )
+      : 0;
 
     rows.push({
       date,
@@ -178,9 +188,7 @@ export async function GET(request: Request) {
       outingStartLabel,
       outingEndLabel,
       actualOutingLabel: record ? minutesToHHMM(actualOutingMinutes) : "-",
-      deductionLabel: record
-        ? minutesToHHMM(actualOutingMinutes + (ok ? calc.lateMinutes + calc.earlyLeaveMinutes : 0))
-        : "-",
+      deductionLabel: record ? minutesToHHMM(deductionMinutes) : "-",
       workLabel: ok
         ? minutesToHHMM(calc.normalMinutes + (calc.earlyPremiumApplies ? 0 : calc.earlyMinutes))
         : "-",
