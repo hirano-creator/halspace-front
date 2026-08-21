@@ -17,49 +17,56 @@ import type { WeeklyBucket } from "@/lib/attendance/types";
 // 後続の text-center 指定と衝突して中央揃えが効かなくなる）。
 // 下線は thead ではなく各thの内側shadowで引く。border-collapse下のsticky theadは
 // スクロール時にborderが描かれず、線が消えてしまうため。
+// print:はA4横向き印刷用の詰め（globals.cssのprint-attendance-sheetとセット）。
+// 画面表示には影響しない
 const th =
-  "px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted shadow-[inset_0_-1px_0_var(--border)]";
-const td = "px-2 py-2 text-sm whitespace-nowrap";
+  "px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted shadow-[inset_0_-1px_0_var(--border)] print:px-1 print:py-1 print:text-[8px] print:tracking-normal print:shadow-none print:border-b print:border-border";
+const td = "px-2 py-2 text-sm whitespace-nowrap print:px-1 print:py-0.5 print:text-[9px]";
 
 // 列幅。table-fixed と組み合わせて、ヘッダーとデータ行の列位置を確実に一致させる
 // （table-layout:auto のままだと列幅がブラウザ任せになり、ヘッダーと中身がずれる）。
 // 金額3列（金額/残業代/支給額）の有無で列数が変わるため2パターン持つ。合計は各100%。
+//
+// print:w-[...%] は印刷（A4横向き）時専用の幅で、最終列（操作）を非表示にした残り列で
+// 100%になるよう比率を保ったまま再配分した値（操作列の分だけ画面用より少し広い）。
+// table-auto は print:table-fixed! に対する印刷時の上書きに使うが、列を1つ隠すと
+// auto-layoutでは空いた分が自動で埋まらないため、印刷用の実数％を別途持たせている。
 const COL_WIDTHS = [
-  "w-[8%]", // 日付
-  "w-[6%]", // 実出勤
-  "w-[6%]", // 実退勤
-  "w-[6%]", // 出勤
-  "w-[6%]", // 退勤
-  "w-[6%]", // 外出
-  "w-[6%]", // 戻り
-  "w-[6%]", // 実外出
-  "w-[7%]", // 控除時間
-  "w-[7%]", // 勤務時間
-  "w-[8%]", // 法定外残業
-  "w-[7%]", // 早出残業
-  "w-[6%]", // 残業
-  "w-[8%]", // 備考
-  "w-[7%]", // 操作
+  "w-[8%] print:w-[8.6%]", // 日付
+  "w-[6%] print:w-[6.5%]", // 実出勤
+  "w-[6%] print:w-[6.5%]", // 実退勤
+  "w-[6%] print:w-[6.5%]", // 出勤
+  "w-[6%] print:w-[6.5%]", // 退勤
+  "w-[6%] print:w-[6.5%]", // 外出
+  "w-[6%] print:w-[6.5%]", // 戻り
+  "w-[6%] print:w-[6.5%]", // 実外出
+  "w-[7%] print:w-[7.5%]", // 控除時間
+  "w-[7%] print:w-[7.5%]", // 勤務時間
+  "w-[8%] print:w-[8.6%]", // 法定外残業
+  "w-[7%] print:w-[7.5%]", // 早出残業
+  "w-[6%] print:w-[6.5%]", // 残業
+  "w-[8%] print:w-[8.3%]", // 備考
+  "w-[7%]", // 操作（印刷時は非表示）
 ];
 const COL_WIDTHS_WITH_MONEY = [
-  "w-[7%]", // 日付
-  "w-[5%]", // 実出勤
-  "w-[5%]", // 実退勤
-  "w-[5%]", // 出勤
-  "w-[5%]", // 退勤
-  "w-[5%]", // 外出
-  "w-[5%]", // 戻り
-  "w-[5%]", // 実外出
-  "w-[6%]", // 控除時間
-  "w-[6%]", // 勤務時間
-  "w-[7%]", // 法定外残業
-  "w-[6%]", // 早出残業
-  "w-[5%]", // 残業
-  "w-[6%]", // 備考
-  "w-[6%]", // 金額
-  "w-[5%]", // 残業代
-  "w-[5%]", // 支給額
-  "w-[6%]", // 操作
+  "w-[7%] print:w-[7.4%]", // 日付
+  "w-[5%] print:w-[5.3%]", // 実出勤
+  "w-[5%] print:w-[5.3%]", // 実退勤
+  "w-[5%] print:w-[5.3%]", // 出勤
+  "w-[5%] print:w-[5.3%]", // 退勤
+  "w-[5%] print:w-[5.3%]", // 外出
+  "w-[5%] print:w-[5.3%]", // 戻り
+  "w-[5%] print:w-[5.3%]", // 実外出
+  "w-[6%] print:w-[6.4%]", // 控除時間
+  "w-[6%] print:w-[6.4%]", // 勤務時間
+  "w-[7%] print:w-[7.4%]", // 法定外残業
+  "w-[6%] print:w-[6.4%]", // 早出残業
+  "w-[5%] print:w-[5.3%]", // 残業
+  "w-[6%] print:w-[6.4%]", // 備考
+  "w-[6%] print:w-[6.4%]", // 金額
+  "w-[5%] print:w-[5.3%]", // 残業代
+  "w-[5%] print:w-[5.5%]", // 支給額
+  "w-[6%]", // 操作（印刷時は非表示）
 ];
 
 export interface DailyRow {
@@ -318,18 +325,21 @@ export function AttendanceEditor({
   const weekly = weeks.length > 0;
   const { groups, ungrouped } = groupRowsByWeek(rows, weeks);
 
+  const colWidths = showMoney ? COL_WIDTHS_WITH_MONEY : COL_WIDTHS;
+
   return (
     <table
-      className={`w-full table-fixed text-sm ${showMoney ? "min-w-[1340px]" : "min-w-[1040px]"}`}
+      className={`w-full table-fixed text-sm print:min-w-0! print:text-[9px] ${showMoney ? "min-w-[1340px]" : "min-w-[1040px]"}`}
     >
       <colgroup>
-        {(showMoney ? COL_WIDTHS_WITH_MONEY : COL_WIDTHS).map((w, i) => (
-          <col key={i} className={w} />
+        {colWidths.map((w, i) => (
+          // 最終列（操作）は印刷時に列ごと消し、残りの列幅で紙面いっぱいに広がるようにする
+          <col key={i} className={i === colWidths.length - 1 ? `${w} print:hidden` : w} />
         ))}
       </colgroup>
       {/* 表を下にたどっても列名を見失わないよう、スクロール領域の上端に固定する
           （半透明だと下の行が透けるので、固定する分ここは不透明にする） */}
-      <thead className="sticky top-0 z-10 bg-gray-50">
+      <thead className="sticky top-0 z-10 bg-gray-50 print:static">
         <tr>
           <th className={`${th} text-center`}>日付</th>
           <th className={`${th} text-right`}>実出勤</th>
@@ -355,7 +365,7 @@ export function AttendanceEditor({
           {showMoney && <th className={`${th} text-right`}>金額</th>}
           {showMoney && <th className={`${th} text-right`}>残業代</th>}
           {showMoney && <th className={`${th} text-right`}>支給額</th>}
-          <th className={`${th} text-center`}>{editable ? "操作" : ""}</th>
+          <th className={`${th} text-center print:hidden`}>{editable ? "操作" : ""}</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-border">
@@ -470,7 +480,7 @@ export function AttendanceEditor({
                 {showMoney && (
                   <td className={`${td} text-right font-semibold`}>{row.totalPayLabel}</td>
                 )}
-                <td className={`${td} text-center`}>
+                <td className={`${td} text-center print:hidden`}>
                   {editable && (
                     <span className="whitespace-nowrap">
                       <button

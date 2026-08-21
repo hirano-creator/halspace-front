@@ -11,6 +11,7 @@ import { formatMinutes } from "@/lib/utils/time";
 import { Badge, Card, PageHeader, StatCard, TableCard } from "@/components/ui";
 import { MonthPicker } from "@/components/month-picker";
 import { AttendanceEditor } from "./attendance-editor";
+import { PrintButton } from "./print-button";
 import type { EmployeeDetailResponse } from "./types";
 
 /** 修正履歴の変更内容を「前 → 後」で表示する */
@@ -115,18 +116,21 @@ export default function EmployeeDetailPage() {
   const showMoney = data.showMoney;
 
   return (
-    <>
+    <div className="print-attendance-sheet">
       <div
         ref={stickyHeadRef}
-        className="bg-background md:sticky md:top-0 md:z-30 md:pb-6"
+        className="bg-background md:sticky md:top-0 md:z-30 md:pb-6 print:static print:pb-0"
       >
         <PageHeader
           title={data.employee.name}
           description={`社員番号 ${data.employee.employeeCode} ・ ${data.employee.departmentName ?? "部署未設定"}${showMoney ? ` ・ 時給 ${formatYen(data.employee.hourlyWage)}` : ""}`}
           action={
-            <form method="get">
-              <MonthPicker defaultValue={data.month} />
-            </form>
+            <div className="flex flex-wrap items-center gap-2">
+              <PrintButton />
+              <form method="get">
+                <MonthPicker defaultValue={data.month} />
+              </form>
+            </div>
           }
         />
 
@@ -214,9 +218,11 @@ export default function EmployeeDetailPage() {
         </div>
       </div>
 
-      {/* 表だけを画面の残り高さの中でスクロールさせ、列見出し（表ヘッダー）を上端に固定する */}
+      {/* 表だけを画面の残り高さの中でスクロールさせ、列見出し（表ヘッダー）を上端に固定する。
+          印刷時は高さ制限・スクロールを解除し、月度の全日をそのまま複数ページに流し込む
+          （表のheadは印刷時もページをまたいで自動的に繰り返される） */}
       <TableCard
-        scrollClassName="md:max-h-[var(--tc-table-max-h)] md:overflow-y-auto"
+        scrollClassName="md:max-h-[var(--tc-table-max-h)] md:overflow-y-auto print:max-h-none! print:overflow-visible!"
         scrollStyle={
           { "--tc-table-max-h": `calc(100vh - ${stickyHeadHeight}px - 4.5rem)` } as CSSProperties
         }
@@ -231,8 +237,9 @@ export default function EmployeeDetailPage() {
         />
       </TableCard>
 
+      {/* 修正履歴は監査用の補足情報のため、印刷（月次勤怠表）には含めない */}
       {data.logs.length > 0 && (
-        <Card className="mt-6">
+        <Card className="mt-6 print:hidden">
           <h2 className="mb-2 text-sm font-semibold text-muted">修正履歴（この月度・直近30件）</h2>
           <ul className="divide-y divide-border">
             {data.logs.map((log) => (
@@ -267,6 +274,6 @@ export default function EmployeeDetailPage() {
           </ul>
         </Card>
       )}
-    </>
+    </div>
   );
 }

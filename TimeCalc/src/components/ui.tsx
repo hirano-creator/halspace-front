@@ -50,7 +50,7 @@ export function TableCard({
   return (
     <Card className={`p-0! ${className}`}>
       {header}
-      <p className="border-b border-border bg-gray-50/50 px-4 py-1.5 text-xs text-muted md:hidden">
+      <p className="border-b border-border bg-gray-50/50 px-4 py-1.5 text-xs text-muted md:hidden print:hidden">
         ← 横にスクロールできます
       </p>
       <div className={`overflow-x-auto ${scrollClassName}`} style={scrollStyle}>

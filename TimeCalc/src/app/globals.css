@@ -58,5 +58,24 @@ input:-webkit-autofill:focus {
   }
   main {
     margin-left: 0 !important;
+    padding: 0 !important;
   }
+  body {
+    background: #fff;
+  }
+}
+
+/*
+ * 社員詳細（月次勤怠表）の印刷をA4横向きに固定する。
+ * ページサイズは要素単位で指定できないため、named page（CSS Paged Media）を使い、
+ * print-attendance-sheet クラスを付けた要素の印刷にだけ適用する
+ * （QRコード印刷など他画面のページサイズには影響しない）。
+ * 対応: Chrome/Edge。未対応ブラウザでは既定のページサイズ・向きにフォールバックする。
+ */
+@page attendance-sheet {
+  size: A4 landscape;
+  margin: 10mm;
+}
+.print-attendance-sheet {
+  page: attendance-sheet;
 }
