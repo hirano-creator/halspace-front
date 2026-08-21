@@ -20,8 +20,8 @@ import type { WeeklyBucket } from "@/lib/attendance/types";
 // print:はA4横向き印刷用の詰め（globals.cssのprint-attendance-sheetとセット）。
 // 画面表示には影響しない
 const th =
-  "px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted shadow-[inset_0_-1px_0_var(--border)] print:px-1 print:py-1 print:text-[8px] print:tracking-normal print:shadow-none print:border-b print:border-border";
-const td = "px-2 py-2 text-sm whitespace-nowrap print:px-1 print:py-0.5 print:text-[9px]";
+  "px-2 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted shadow-[inset_0_-1px_0_var(--border)] print:px-1 print:py-1.5 print:text-[11px] print:tracking-normal print:shadow-none print:border-b print:border-border";
+const td = "px-2 py-2 text-sm whitespace-nowrap print:px-1 print:py-1 print:text-[12px]";
 
 // 列幅。table-fixed と組み合わせて、ヘッダーとデータ行の列位置を確実に一致させる
 // （table-layout:auto のままだと列幅がブラウザ任せになり、ヘッダーと中身がずれる）。
@@ -329,7 +329,7 @@ export function AttendanceEditor({
 
   return (
     <table
-      className={`w-full table-fixed text-sm print:min-w-0! print:text-[9px] ${showMoney ? "min-w-[1340px]" : "min-w-[1040px]"}`}
+      className={`w-full table-fixed text-sm print:min-w-0! print:text-[12px] ${showMoney ? "min-w-[1340px]" : "min-w-[1040px]"}`}
     >
       <colgroup>
         {colWidths.map((w, i) => (
@@ -359,7 +359,10 @@ export function AttendanceEditor({
           >
             法定外残業
           </th>
-          <th className={`${th} text-right`}>{weekly ? "36H超44H以内" : "早出残業"}</th>
+          {/* 「36H超44H以内」は他の見出しより長いため、印刷時は1行に収まるよう少し小さくする */}
+          <th className={`${th} text-right ${weekly ? "print:text-[9px]!" : ""}`}>
+            {weekly ? "36H超44H以内" : "早出残業"}
+          </th>
           <th className={`${th} text-right`}>{weekly ? "44H超" : "残業"}</th>
           <th className={`${th} text-center`}>備考</th>
           {showMoney && <th className={`${th} text-right`}>金額</th>}

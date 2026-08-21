@@ -80,7 +80,7 @@ export function WeekSubtotalRow({
   /** 金額3列を表示中か（週行では金額を出さないため、空セルの数を合わせるのに使う） */
   showMoney: boolean;
 }) {
-  const cell = "px-2 py-2 text-sm font-semibold whitespace-nowrap print:px-1 print:py-0.5 print:text-[9px]";
+  const cell = "px-2 py-2 text-sm font-semibold whitespace-nowrap print:px-1 print:py-1 print:text-[12px]";
   return (
     <tr className="border-y border-violet-200/70 bg-violet-50/50">
       <td colSpan={9} className={`${cell} text-left`}>
