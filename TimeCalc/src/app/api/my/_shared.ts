@@ -5,6 +5,7 @@ import { resolveFeatures } from "@/lib/auth/features";
 import { getAllWorkRules, workRulesFor } from "@/lib/settings";
 import { normalizeDate, nowTimeString, timeToMinutes, todayString } from "@/lib/utils/time";
 import { fixedBreakMinutesFor, splitOutingMinutes } from "@/lib/attendance/clock";
+import { roundClockTimes } from "@/lib/attendance/calculator";
 import type { WorkRuleSettings } from "@/lib/attendance/types";
 
 /** 本人の機能設定をDBの最新値から解決する */
@@ -101,7 +102,12 @@ export function parseCorrectionForm(
       ? splitOutingMinutes([{ start: outingStart, end: outingEnd }], rules.breakStart, rules.breakEnd)
           .deductibleMinutes
       : 0;
-  const breakMinutes = fixedBreakMinutesFor(rules, clockIn, clockOut) + deductibleOutingMinutes;
+  // 固定休憩の重複は、丸め前の実打刻ではなく calcDaily と同じ丸め後の時刻で判定する
+  // （丸めで既に切り捨てられた時間を休憩としてさらに二重に控除しないため）。
+  const rounded = clockIn && clockOut ? roundClockTimes(clockIn, clockOut, rules) : null;
+  const breakMinutes =
+    fixedBreakMinutesFor(rules, rounded?.roundedClockIn ?? clockIn, rounded?.roundedClockOut ?? clockOut) +
+    deductibleOutingMinutes;
 
   return { date, clockIn, clockOut, breakMinutes, outingStart, outingEnd };
 }

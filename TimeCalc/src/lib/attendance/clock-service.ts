@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { getAllWorkRules, workRulesFor } from "@/lib/settings";
 import { todayString } from "@/lib/utils/time";
+import { roundClockTimes } from "./calculator";
 import {
   applyAttendanceToTimeline,
   deriveDailyFromEvents,
@@ -159,6 +160,63 @@ export async function getTimelineWithCorrections(
   );
 }
 
+/** deriveAndSaveAttendance の計算部分（DB書き込みなし）。再計算バッチのプレビューにも使う */
+export interface DerivedAttendance {
+  clockIn: string;
+  clockOut: string;
+  breakMinutes: number;
+  lateReason: string | null;
+  earlyLeaveReason: string | null;
+}
+
+/**
+ * 指定日の打刻イベントから1日分の勤怠を導出する（DB書き込みは行わない）。
+ * 未退勤（status:"open"、外出中を含む）の場合は null を返す。
+ */
+export async function computeDerivedAttendance(
+  userId: string,
+  date: string,
+): Promise<DerivedAttendance | null> {
+  const [events, user, allRules] = await Promise.all([
+    prisma.clockEvent.findMany({ where: { userId, date }, orderBy: { timestamp: "asc" } }),
+    prisma.user.findUnique({ where: { id: userId }, include: { department: true } }),
+    getAllWorkRules(),
+  ]);
+
+  const mappedEvents = events.map((e) => ({ type: e.type as ClockEventType, time: e.time }));
+  const derived = deriveDailyFromEvents(mappedEvents);
+
+  if (derived.status !== "closed") return null;
+
+  const rules = workRulesFor(allRules, user?.department?.companyId);
+  // 外出（中抜け）が会社の休憩時間帯と重なる分は、固定休憩と二重に控除しない
+  const { deductibleMinutes } = splitOutingMinutes(
+    outingIntervalsFromEvents(mappedEvents),
+    rules.breakStart,
+    rules.breakEnd,
+  );
+  // 固定休憩の重複は、丸め前の実打刻ではなく calcDaily と同じ丸め後の時刻で判定する。
+  // 丸め前で判定すると、丸めで既に切り捨てられた時間（例: 退勤直前の数分）を
+  // 休憩としてさらに二重に控除してしまう（例: 休憩12:00〜13:00・実退勤12:27の会社で、
+  // 丸め後の退勤は12:00となり休憩と重ならないのに、12:27を基準にすると27分が
+  // 誤って休憩扱いになり、実働3:00のはずが2:33に減ってしまう）。
+  const rounded = roundClockTimes(derived.clockIn, derived.clockOut, rules);
+  const breakMinutes =
+    fixedBreakMinutesFor(
+      rules,
+      rounded?.roundedClockIn ?? derived.clockIn,
+      rounded?.roundedClockOut ?? derived.clockOut,
+    ) + deductibleMinutes;
+
+  return {
+    clockIn: derived.clockIn,
+    clockOut: derived.clockOut,
+    breakMinutes,
+    lateReason: events.find((e) => e.type === "IN")?.reason ?? null,
+    earlyLeaveReason: [...events].reverse().find((e) => e.type === "OUT")?.reason ?? null,
+  };
+}
+
 /**
  * 指定日の打刻イベントから1日分の勤怠を導出し、確定していれば Attendance に書き戻す。
  * 未退勤（status:"open"、外出中を含む）の場合は書き戻さない
@@ -169,50 +227,29 @@ export async function getTimelineWithCorrections(
  * （入力がなければ既存値を保持し、後からの記入を上書きしない）。
  */
 export async function deriveAndSaveAttendance(userId: string, date: string): Promise<void> {
-  const [events, user, allRules] = await Promise.all([
-    prisma.clockEvent.findMany({ where: { userId, date }, orderBy: { timestamp: "asc" } }),
-    prisma.user.findUnique({ where: { id: userId }, include: { department: true } }),
-    getAllWorkRules(),
-  ]);
-
-  const mappedEvents = events.map((e) => ({ type: e.type as ClockEventType, time: e.time }));
-  const derived = deriveDailyFromEvents(mappedEvents);
-
-  if (derived.status !== "closed") return;
-
-  const rules = workRulesFor(allRules, user?.department?.companyId);
-  // 外出（中抜け）が会社の休憩時間帯と重なる分は、固定休憩と二重に控除しない
-  const { deductibleMinutes } = splitOutingMinutes(
-    outingIntervalsFromEvents(mappedEvents),
-    rules.breakStart,
-    rules.breakEnd,
-  );
-  const breakMinutes =
-    fixedBreakMinutesFor(rules, derived.clockIn, derived.clockOut) + deductibleMinutes;
-
-  const firstInReason = events.find((e) => e.type === "IN")?.reason ?? null;
-  const lastOutReason = [...events].reverse().find((e) => e.type === "OUT")?.reason ?? null;
+  const result = await computeDerivedAttendance(userId, date);
+  if (!result) return;
 
   await prisma.attendance.upsert({
     where: { userId_date: { userId, date } },
     update: {
-      clockIn: derived.clockIn,
-      clockOut: derived.clockOut,
-      breakMinutes,
+      clockIn: result.clockIn,
+      clockOut: result.clockOut,
+      breakMinutes: result.breakMinutes,
       source: "CLOCK",
       // 打刻時の理由入力がある場合のみ転記する（undefined = 変更しない）
-      lateReason: firstInReason ?? undefined,
-      earlyLeaveReason: lastOutReason ?? undefined,
+      lateReason: result.lateReason ?? undefined,
+      earlyLeaveReason: result.earlyLeaveReason ?? undefined,
     },
     create: {
       userId,
       date,
-      clockIn: derived.clockIn,
-      clockOut: derived.clockOut,
-      breakMinutes,
+      clockIn: result.clockIn,
+      clockOut: result.clockOut,
+      breakMinutes: result.breakMinutes,
       source: "CLOCK",
-      lateReason: firstInReason,
-      earlyLeaveReason: lastOutReason,
+      lateReason: result.lateReason,
+      earlyLeaveReason: result.earlyLeaveReason,
     },
   });
 }

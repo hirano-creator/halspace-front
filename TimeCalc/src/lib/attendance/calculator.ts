@@ -44,6 +44,36 @@ function ceilToUnit(minutes: number, unitMinutes: number): number {
   return Math.ceil(minutes / unitMinutes) * unitMinutes;
 }
 
+/**
+ * calcDaily と同じルールで出退勤を丸める。
+ *
+ * - 出勤: 始業より前の打刻のみ、始業側へ切り上げる（始業以降の打刻＝遅刻はそのまま）
+ * - 退勤: 常に切り捨てる
+ *
+ * 「実際に支払われる勤務時間帯」を calcDaily の外（休憩時間帯との重複判定など）で
+ * 知りたい場面で使う。ここで丸めた時刻をもとに休憩重複を判定しないと、丸めで
+ * 除外された時間（例: 退勤直前の数分）を休憩としてさらに二重に控除してしまう
+ * （例: 退勤12:27・休憩12:00〜13:00の会社で、丸め後の退勤は12:00となり休憩とは
+ * 重ならないのに、丸め前の12:27を基準にすると27分が休憩と誤認され二重控除になる）。
+ *
+ * 時刻の形式が不正な場合は null を返す。
+ */
+export function roundClockTimes(
+  clockIn: string,
+  clockOut: string,
+  rules: Pick<WorkRuleSettings, "workStart" | "overtimeRoundingMinutes">,
+): { roundedClockIn: string; roundedClockOut: string } | null {
+  const clockInRaw = timeToMinutes(clockIn);
+  const clockOutRaw = timeToMinutes(clockOut);
+  const workStart = timeToMinutes(rules.workStart);
+  if (clockInRaw === null || clockOutRaw === null || workStart === null) return null;
+
+  const unit = rules.overtimeRoundingMinutes;
+  const roundedIn = clockInRaw < workStart ? ceilToUnit(clockInRaw, unit) : clockInRaw;
+  const roundedOut = floorToUnit(clockOutRaw, unit);
+  return { roundedClockIn: minutesToTime(roundedIn), roundedClockOut: minutesToTime(roundedOut) };
+}
+
 const emptyResult = (
   error: string,
   rawClockIn: string | null,

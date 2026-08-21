@@ -6,10 +6,12 @@ import {
   calcLegalOvertime,
   calcWeekly,
   calcWeeklyPay,
+  roundClockTimes,
   roundOvertime,
   summarize,
   summarizeWeeks,
 } from "./calculator";
+import { fixedBreakMinutesFor } from "./clock";
 import { DEFAULT_WORK_RULES } from "./types";
 import type { DailyCalcResult, WorkRuleSettings } from "./types";
 
@@ -804,5 +806,60 @@ describe("calcDeductionMinutes（控除時間＝実外出＋遅刻＋早退。�
       quarterRules,
     );
     expect(minutes).toBe(15);
+  });
+});
+
+describe("roundClockTimes（calcDaily と同じ丸めを外部から再現する）", () => {
+  it("出勤は始業より前のときだけ切り上げ、始業以降（遅刻）はそのまま", () => {
+    expect(roundClockTimes("08:19", "18:00", rules)?.roundedClockIn).toBe("08:30"); // 始業前 → 丸め単位で切り上げ
+    expect(roundClockTimes("09:12", "18:00", rules)?.roundedClockIn).toBe("09:12"); // 遅刻はそのまま
+  });
+
+  it("退勤は常に切り捨て", () => {
+    expect(roundClockTimes("09:00", "18:29", rules)?.roundedClockOut).toBe("18:00");
+    expect(roundClockTimes("09:00", "18:31", rules)?.roundedClockOut).toBe("18:30");
+  });
+
+  it("時刻の形式が不正なら null を返す", () => {
+    expect(roundClockTimes("bad", "18:00", rules)).toBeNull();
+  });
+});
+
+describe("固定休憩の重複判定は丸め後の時刻で行う（勤務時間の二重控除を防ぐ回帰テスト）", () => {
+  // 実際に本番で起きた不具合の再現: 休憩12:00〜13:00の会社で、
+  // 実退勤が休憩に27分食い込んでいても、丸め（退勤は切り捨て）で
+  // 支払対象の勤務時間帯が休憩前で終わっているなら、休憩は控除されるべきではない。
+  const shortDayRules: WorkRuleSettings = { ...rules, workEnd: "16:00" };
+
+  it("丸め前の実打刻を基準にすると誤って休憩を二重控除してしまう（旧実装の再現）", () => {
+    // 実出勤08:46・実退勤12:27。丸め前の時刻をそのまま fixedBreakMinutesFor に渡すと
+    // 12:00〜12:27が休憩と誤認され、27分が控除されてしまう（バグの再現）
+    expect(fixedBreakMinutesFor(shortDayRules, "08:46", "12:27")).toBe(27);
+  });
+
+  it("roundClockTimes で丸めてから判定すると、休憩と重ならないため控除0になる", () => {
+    const rounded = roundClockTimes("08:46", "12:27", shortDayRules);
+    expect(rounded).toEqual({ roundedClockIn: "09:00", roundedClockOut: "12:00" });
+    expect(fixedBreakMinutesFor(shortDayRules, rounded!.roundedClockIn, rounded!.roundedClockOut)).toBe(0);
+  });
+
+  it("breakMinutesが正しく0になれば、勤務時間はちょうど3時間になる（加瀬さん8/14の例）", () => {
+    const calc = calcDaily(
+      { date: "2026-08-14", clockIn: "08:46", clockOut: "12:27", breakMinutes: 0 },
+      shortDayRules,
+    );
+    expect(calc.error).toBeNull();
+    expect(calc.roundedClockIn).toBe("09:00");
+    expect(calc.roundedClockOut).toBe("12:00");
+    expect(calc.normalMinutes).toBe(3 * 60);
+    expect(calc.totalMinutes).toBe(3 * 60);
+  });
+
+  it("退勤が休憩をまたいで残る場合は、丸め後に残った分だけ休憩を控除する", () => {
+    // 実退勤13:20（休憩の後まで在社）。丸め後の退勤も13:00より後なので、
+    // 休憩の残り（12:00〜13:00の1時間）はそのまま控除する
+    const rounded = roundClockTimes("08:46", "13:20", shortDayRules);
+    expect(rounded).toEqual({ roundedClockIn: "09:00", roundedClockOut: "13:00" });
+    expect(fixedBreakMinutesFor(shortDayRules, rounded!.roundedClockIn, rounded!.roundedClockOut)).toBe(60);
   });
 });
