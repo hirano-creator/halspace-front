@@ -14,12 +14,7 @@ import {
 } from "@/lib/settings";
 import { calcLegalOvertime, calcWeekly } from "@/lib/attendance/calculator";
 import type { WeeklyBucket } from "@/lib/attendance/types";
-import {
-  currentPeriod,
-  minutesToHHMM,
-  periodRange,
-  signedMinutesToHHMM,
-} from "@/lib/utils/time";
+import { currentPeriod, minutesToHHMM, periodRange } from "@/lib/utils/time";
 
 /** CSVフィールドのエスケープ（カンマ・引用符・改行対応） */
 function csvField(value: string | number): string {
@@ -96,7 +91,7 @@ export async function GET(request: NextRequest) {
             : s.summary.normalMinutes + (s.summary.earlyMinutes - s.summary.earlyOvertimeMinutes),
         ),
         // 法定勤務時間を超えた分の累計（不足の日は0で止めるため負にはならない）
-        signedMinutesToHHMM(s.summary.legalOvertimeMinutes),
+        minutesToHHMM(s.summary.legalOvertimeMinutes),
         minutesToHHMM(s.summary.earlyOvertimeMinutes),
         minutesToHHMM(s.summary.overtimeMinutes),
         ...(hasWeekly
@@ -208,7 +203,7 @@ export async function GET(request: NextRequest) {
         // 法定外残業（法定勤務時間を超えた分）。法定勤務時間は会社ごとの設定を引く
         r.calc.error
           ? ""
-          : signedMinutesToHHMM(calcLegalOvertime(r.calc, workRulesFor(allRules, r.companyId))),
+          : minutesToHHMM(calcLegalOvertime(r.calc, workRulesFor(allRules, r.companyId))),
         // 週単位管理の社員は残業の区分を週側で持つため、日別の2列は空にする
         r.calc.error || weekLabelByCompanyDate.has(weekKeyOf(r))
           ? ""

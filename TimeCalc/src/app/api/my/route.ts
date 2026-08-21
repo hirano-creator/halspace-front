@@ -28,7 +28,6 @@ import {
   formatPeriodRange,
   minutesToHHMM,
   periodRange,
-  signedMinutesToHHMM,
   todayString,
 } from "@/lib/utils/time";
 import type { MyDailyRow } from "@/app/(app)/my/my-attendance-table";
@@ -189,13 +188,14 @@ export async function GET(request: Request) {
       outingStartLabel,
       outingEndLabel,
       actualOutingLabel: record ? minutesToHHMM(actualOutingMinutes) : "-",
+      deductionMinutes,
       deductionLabel: record ? minutesToHHMM(deductionMinutes) : "-",
       workLabel: ok
         ? minutesToHHMM(calc.normalMinutes + (calc.earlyPremiumApplies ? 0 : calc.earlyMinutes))
         : "-",
       // 法定勤務時間（既定8時間）を超えた分。不足の日は0、出勤のない日・エラーの日は対象外
       legalOvertimeMinutes: ok ? calcLegalOvertime(calc, rules) : 0,
-      legalOvertimeLabel: ok ? signedMinutesToHHMM(calcLegalOvertime(calc, rules)) : "-",
+      legalOvertimeLabel: ok ? minutesToHHMM(calcLegalOvertime(calc, rules)) : "-",
       earlyOvertimeMinutes,
       earlyOvertimeLabel: ok ? minutesToHHMM(earlyOvertimeMinutes) : "-",
       overtimeMinutes,

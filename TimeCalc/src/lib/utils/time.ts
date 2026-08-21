@@ -39,21 +39,6 @@ export function minutesToHHMM(minutes: number): string {
 }
 
 /**
- * 過不足を表す分数を符号つき "H:MM"（例: +1:30 / -2:00 / 0:00）に変換する。
- * 法定外残業のように「基準に対してどれだけ多い・少ないか」を出す欄で使う。
- */
-export function signedMinutesToHHMM(minutes: number): string {
-  const sign = minutes > 0 ? "+" : minutes < 0 ? "-" : "";
-  return `${sign}${minutesToHHMM(Math.abs(minutes))}`;
-}
-
-/** 過不足を表す分数を符号つきの "X時間Y分"（例: +4時間0分 / -30分）に変換する。合計カード用 */
-export function formatSignedMinutes(minutes: number): string {
-  const sign = minutes > 0 ? "+" : minutes < 0 ? "-" : "";
-  return `${sign}${formatMinutes(Math.abs(minutes))}`;
-}
-
-/**
  * 様々な日付表記を "YYYY-MM-DD" に正規化する。
  * 対応形式: "2026-07-01" / "2026/07/01" / "2026/7/1" / "20260701"
  * 不正な形式は null を返す。

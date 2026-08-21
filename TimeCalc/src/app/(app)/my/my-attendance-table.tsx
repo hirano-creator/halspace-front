@@ -54,11 +54,13 @@ export interface MyDailyRow {
   outingEndLabel: string;
   /** 実外出（実際に外出していた時間） */
   actualOutingLabel: string;
+  /** 控除時間（実外出 ＋ 遅刻 ＋ 早退）。色分け・カード表示の出し分けに使う */
+  deductionMinutes: number;
   /** 控除時間（実外出 ＋ 遅刻 ＋ 早退） */
   deductionLabel: string;
   /** 勤務時間（早出残業・残業を除いた実働。月次一覧の「勤務時間」列と揃えた値） */
   workLabel: string;
-  /** 法定外残業（法定勤務時間を超えた分）。符号つき 例 "+1:30"。超過なしは "0:00"、対象外の日は "-" */
+  /** 法定外残業（法定勤務時間を超えた分） 例 "1:30"。超過なしは "0:00"、対象外の日は "-" */
   legalOvertimeLabel: string;
   /** 法定外残業（分）。色分け・カード表示の出し分けに使う */
   legalOvertimeMinutes: number;
@@ -538,7 +540,9 @@ export function MyAttendanceTable({
                 </span>
               )}
               {hasValue(row.actualOutingLabel) && <span>実外出 {row.actualOutingLabel}</span>}
-              {hasValue(row.deductionLabel) && <span>控除時間 {row.deductionLabel}</span>}
+              {row.deductionMinutes > 0 && (
+                <span className="text-orange-600">控除時間 {row.deductionLabel}</span>
+              )}
               {row.legalOvertimeMinutes > 0 && (
                 <span className="text-orange-600">法定外残業 {row.legalOvertimeLabel}</span>
               )}
@@ -603,7 +607,13 @@ export function MyAttendanceTable({
                   {row.outingEndLabel}
                 </td>
                 <td className={`${td} text-right`}>{row.actualOutingLabel}</td>
-                <td className={`${td} text-right`}>{row.deductionLabel}</td>
+                <td
+                  className={`${td} text-right ${
+                    row.deductionMinutes > 0 ? "font-medium text-orange-600" : ""
+                  }`}
+                >
+                  {row.deductionLabel}
+                </td>
                 <td className={`${td} text-right`}>
                   {row.error ? (
                     <span className="text-xs text-red-600" title={row.error}>

@@ -7,7 +7,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useRequireAuth } from "@/lib/auth/client";
 import { apiFetchJson } from "@/lib/auth/api-fetch";
 import { formatYen } from "@/lib/attendance/calculator";
-import { formatMinutes, formatSignedMinutes } from "@/lib/utils/time";
+import { formatMinutes } from "@/lib/utils/time";
 import { Badge, Card, PageHeader, StatCard, TableCard } from "@/components/ui";
 import { MonthPicker } from "@/components/month-picker";
 import { AttendanceEditor } from "./attendance-editor";
@@ -159,7 +159,7 @@ export default function EmployeeDetailPage() {
               />
               <StatCard
                 label="法定外残業"
-                value={formatSignedMinutes(data.summary.legalOvertimeMinutes)}
+                value={formatMinutes(data.summary.legalOvertimeMinutes)}
                 tone="amber"
               />
               <StatCard
@@ -183,7 +183,7 @@ export default function EmployeeDetailPage() {
               />
               <StatCard
                 label="法定外残業"
-                value={formatSignedMinutes(data.summary.legalOvertimeMinutes)}
+                value={formatMinutes(data.summary.legalOvertimeMinutes)}
                 tone="amber"
               />
               <StatCard
