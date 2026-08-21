@@ -38,6 +38,10 @@ if (!IS_SUPER) {
   document.getElementById('optEditRoleSuperAdmin')?.remove();
   /* 自社ユーザーしか返らないため会社フィルタは意味を持たない */
   document.getElementById('filterUserCompany').style.display = 'none';
+  /* 通知先はHaLSpace／PT.HILANOの社内アドレス。発注者会社のadminに見せると
+     取引先の内部連絡先が漏れる（サーバー側もsuper_admin限定で弾いている） */
+  document.getElementById('tabBtnNotify')?.remove();
+  document.getElementById('tab-notify')?.remove();
 }
 
 /* ============================================================
@@ -534,10 +538,189 @@ function populateInviteCompany(companies) {
 }
 
 /* ============================================================
+   通知先管理（super_adminのみ）
+
+   受注通知の宛先は「組織の窓口アドレス」で、ユーザー単位の通知設定
+   （notification_settings）とは別物。担当者が退職してもアドレスは残る。
+   言語は会社名から推測せず、宛先ごとに明示して持つ。
+   ============================================================ */
+const NOTIFY_CHANNELS = [
+  { key:'order_halspace', label:'受注通知先（株式会社HaLSpace）',        defaultLocale:'ja' },
+  { key:'order_hilano',   label:'受注通知先（PT.HILANO LCZ INDONESIA）', defaultLocale:'en' },
+];
+const LOCALE_LABEL = { ja:'日本語', en:'English' };
+
+/* channelキー → 行の配列。保存はchannel単位の一括置換なのでここが正 */
+let notifyRows = {};
+
+async function loadNotifyRecipients() {
+  try {
+    const data = await api.get('/admin/solid/notify-recipients');
+    notifyRows = {};
+    NOTIFY_CHANNELS.forEach(c => { notifyRows[c.key] = []; });
+    (data.recipients || []).forEach(r => {
+      if (!notifyRows[r.channel]) notifyRows[r.channel] = [];
+      notifyRows[r.channel].push({
+        email: r.email, label: r.label || '', locale: r.locale, is_active: !!r.is_active,
+      });
+    });
+    renderNotifyGroups();
+  } catch (err) {
+    showToast('通知先の取得に失敗しました: ' + err.message, 'danger');
+  }
+}
+
+function renderNotifyGroups() {
+  const wrap = document.getElementById('notifyGroups');
+  if (!wrap) return;
+
+  wrap.innerHTML = NOTIFY_CHANNELS.map(ch => {
+    const rows = notifyRows[ch.key] || [];
+    const rowsHtml = rows.length ? rows.map((r, i) => `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+        <input type="email" class="form-input" value="${esc(r.email)}" placeholder="メールアドレス"
+               style="flex:2;min-width:200px;"
+               oninput="updateNotifyRow('${ch.key}',${i},'email',this.value)">
+        <input type="text" class="form-input" value="${esc(r.label)}" placeholder="表示名（任意）"
+               style="flex:1;min-width:120px;"
+               oninput="updateNotifyRow('${ch.key}',${i},'label',this.value)">
+        <select class="form-input" style="flex:0 0 110px;"
+                onchange="updateNotifyRow('${ch.key}',${i},'locale',this.value)">
+          ${Object.keys(LOCALE_LABEL).map(l =>
+            `<option value="${l}" ${r.locale === l ? 'selected' : ''}>${LOCALE_LABEL[l]}</option>`).join('')}
+        </select>
+        <label class="toggle-switch" title="有効／無効">
+          <input type="checkbox" ${r.is_active ? 'checked' : ''}
+                 onchange="updateNotifyRow('${ch.key}',${i},'is_active',this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+        <button class="btn btn-outline btn-sm" onclick="removeNotifyRow('${ch.key}',${i})"
+                style="color:var(--danger);border-color:var(--danger);flex-shrink:0;">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
+    `).join('') : '<p style="font-size:12px;color:var(--muted);margin-bottom:8px;">送信先が登録されていません。</p>';
+
+    return `
+      <div style="margin-bottom:28px;">
+        <div style="font-weight:700;font-size:13px;margin-bottom:12px;">
+          <i class="fa-solid fa-building"></i> ${esc(ch.label)}
+        </div>
+        ${rowsHtml}
+        <button class="btn btn-outline btn-sm" onclick="addNotifyRow('${ch.key}','${ch.defaultLocale}')">
+          <i class="fa-solid fa-plus"></i> 送信先を追加
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+function updateNotifyRow(channel, i, field, value) {
+  notifyRows[channel][i][field] = value;
+}
+
+function addNotifyRow(channel, defaultLocale) {
+  if (!notifyRows[channel]) notifyRows[channel] = [];
+  notifyRows[channel].push({ email:'', label:'', locale:defaultLocale, is_active:true });
+  renderNotifyGroups();
+  const inputs = document.querySelectorAll('#notifyGroups input[type=email]');
+  if (inputs.length) inputs[inputs.length - 1].focus();
+}
+
+function removeNotifyRow(channel, i) {
+  notifyRows[channel].splice(i, 1);
+  renderNotifyGroups();
+}
+
+document.getElementById('notifySaveBtn')?.addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+
+  /* 空行はサーバーのemailバリデーションで弾かれて全体が保存できなくなるため、
+     入力途中の行はここで落としてから送る */
+  const payloads = NOTIFY_CHANNELS.map(ch => ({
+    channel: ch.key,
+    recipients: (notifyRows[ch.key] || []).filter(r => r.email.trim()),
+  }));
+
+  btn.disabled = true;
+  try {
+    /* channel単位の一括置換。送っていないchannelはサーバー側で触らない */
+    for (const p of payloads) {
+      await api.put('/admin/solid/notify-recipients', p);
+    }
+    showToast('送信先を保存しました', 'success');
+    await loadNotifyRecipients();
+  } catch (err) {
+    showToast('保存に失敗しました: ' + err.message, 'danger');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function loadNotifyLogs() {
+  const wrap = document.getElementById('notifyLogList');
+  if (!wrap) return;
+
+  const EVENT_LABEL = { order_submitted:'受注通知', project_delivered:'納品通知' };
+  try {
+    const data = await api.get('/admin/solid/mail-logs');
+    const logs = data.logs || [];
+    if (!logs.length) {
+      wrap.innerHTML = '<p style="font-size:12px;color:var(--muted);">送信履歴はまだありません。</p>';
+      return;
+    }
+    wrap.innerHTML = `
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="text-align:left;color:var(--muted);border-bottom:1px solid var(--border);">
+              <th style="padding:8px 12px 8px 0;white-space:nowrap;">日時</th>
+              <th style="padding:8px 12px 8px 0;white-space:nowrap;">種別</th>
+              <th style="padding:8px 12px 8px 0;white-space:nowrap;">案件</th>
+              <th style="padding:8px 12px 8px 0;">宛先</th>
+              <th style="padding:8px 0;white-space:nowrap;">結果</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${logs.map(l => `
+              <tr style="border-bottom:1px solid var(--border);">
+                <td style="padding:8px 12px 8px 0;white-space:nowrap;">${esc(formatLogTime(l.created_at))}</td>
+                <td style="padding:8px 12px 8px 0;white-space:nowrap;">${esc(EVENT_LABEL[l.event] || l.event)}</td>
+                <td style="padding:8px 12px 8px 0;white-space:nowrap;">${esc(l.project?.project_code || '-')}</td>
+                <td style="padding:8px 12px 8px 0;word-break:break-all;">${esc(l.to_email)}</td>
+                <td style="padding:8px 0;white-space:nowrap;">
+                  ${l.status === 'sent'
+                    ? '<span style="color:var(--accent);font-weight:700;">送信</span>'
+                    : `<span style="color:var(--danger);font-weight:700;" title="${esc(l.error || '')}">失敗</span>`}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch (err) {
+    wrap.innerHTML = `<p style="font-size:12px;color:var(--danger);">送信履歴の取得に失敗しました: ${esc(err.message)}</p>`;
+  }
+}
+
+/* APIはUTCで返す。ブラウザのローカル時刻へ寄せてから表示する */
+function formatLogTime(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+document.getElementById('notifyLogsReload')?.addEventListener('click', loadNotifyLogs);
+
+/* ============================================================
    初期化（会社 → ユーザー・削除管理を並行ロード）
    ============================================================ */
 async function init() {
   await loadCompanies();
-  await Promise.all([loadUsers(), loadCleanup()]);
+  const tasks = [loadUsers(), loadCleanup()];
+  if (IS_SUPER) tasks.push(loadNotifyRecipients(), loadNotifyLogs());
+  await Promise.all(tasks);
 }
 init();

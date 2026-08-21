@@ -244,6 +244,17 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     }
   }
 
+  /* ── Step3: 受注通知メール ──
+     プロジェクト作成時点ではまだ添付が0件なので、ファイル送信まで終えたここで叩く。
+     発注自体はStep1で確定済みなので、通知の失敗でエラーを見せない
+     （発注できているのに「失敗しました」と出すと二重発注を招く）。
+     サーバー側は order_notified_at のアトミック確保で二重送信を防いでいる */
+  try {
+    await api.post(`/projects/${newProjId}/notify-submitted`);
+  } catch (err) {
+    console.warn('受注通知の送信に失敗しました', err);
+  }
+
   /* ── 完了 ── */
   showToast('発注が完了しました！', 'success');
   setTimeout(() => { location.href = `project-detail.html?id=${newProjId}`; }, 1200);

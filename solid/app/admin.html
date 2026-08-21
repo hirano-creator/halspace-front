@@ -183,6 +183,9 @@
         <button class="tab-btn" data-tab="cleanup">
           <i class="fa-solid fa-trash-can"></i> 自動削除管理
         </button>
+        <button class="tab-btn" data-tab="notify" id="tabBtnNotify">
+          <i class="fa-solid fa-envelope"></i> 通知先管理
+        </button>
       </div>
 
       <!-- タブ1: ユーザー管理 -->
@@ -283,6 +286,39 @@
             <i class="fa-solid fa-circle-info"></i>
             毎日 02:00 JST に自動実行。14日前・7日前にメール通知送信。
           </p>
+        </div>
+      </div>
+
+      <!-- タブ3: 通知先管理（super_adminのみ。HaLSpace／PT.HILANOの社内アドレスを扱う） -->
+      <div class="tab-pane" id="tab-notify">
+        <div class="card" style="margin-bottom:24px;">
+          <div class="card-header">
+            <h3 style="font-size:16px;font-weight:700;">受注通知の送信先</h3>
+          </div>
+          <div style="padding:20px;">
+            <p style="font-size:12px;color:var(--muted);margin-bottom:20px;">
+              <i class="fa-solid fa-circle-info"></i>
+              お客様が発注を確定したとき、ここに登録したアドレスへ自動でメールが届きます。言語は宛先ごとに指定できます。
+            </p>
+            <div id="notifyGroups"></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:20px;">
+              <button class="btn btn-primary btn-sm" id="notifySaveBtn">
+                <i class="fa-solid fa-floppy-disk"></i> 送信先を保存
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3 style="font-size:16px;font-weight:700;">送信履歴</h3>
+            <button class="btn btn-outline btn-sm" id="notifyLogsReload" style="margin-left:auto;">
+              <i class="fa-solid fa-rotate"></i> 更新
+            </button>
+          </div>
+          <div style="padding:20px;">
+            <div id="notifyLogList"></div>
+          </div>
         </div>
       </div>
     </div>
