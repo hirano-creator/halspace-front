@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="assets/css/space.css">
+  <link rel="stylesheet" href="assets/css/space.css?v=20260823a">
 </head>
 <body class="apps-page">
 
@@ -57,8 +57,38 @@
         <i class="fa-solid fa-chevron-right"></i>
       </button>
     </div>
+
+    <!-- 提携企業からのお知らせ（協賛バナー枠） -->
+    <section class="sponsor-section">
+      <div class="apps-section-header">
+        <div>
+          <div class="sponsor-eyebrow">SPONSORED</div>
+          <h2 class="sponsor-title">提携企業からのお知らせ</h2>
+          <p class="sponsor-sub">おすすめの取引先・サービス</p>
+        </div>
+        <a class="apps-all-link" href="#" id="sponsorMoreLink">MORE <i class="fa-solid fa-arrow-right"></i></a>
+      </div>
+      <div class="sponsor-grid" id="sponsorGrid">
+        <!-- JSで描画 -->
+      </div>
+    </section>
+
+    <!-- Space.app ストア -->
+    <section class="store-section">
+      <div class="apps-section-header">
+        <div>
+          <div class="store-eyebrow">SPACE.APP STORE</div>
+          <h2 class="store-title">これから追加できるアプリ</h2>
+          <p class="store-sub">気になるアプリはお申し込み・先行受付にご登録いただけます</p>
+        </div>
+        <a class="apps-all-link store-link" href="#" id="storeMoreLink">すべて見る <i class="fa-solid fa-arrow-right"></i></a>
+      </div>
+      <div class="store-grid" id="storeGrid">
+        <!-- JSで描画 -->
+      </div>
+    </section>
   </main>
 
-  <script src="assets/js/space.js"></script>
+  <script src="assets/js/space.js?v=20260823a"></script>
 </body>
 </html>

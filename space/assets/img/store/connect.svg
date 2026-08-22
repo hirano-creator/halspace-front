@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450" role="img" aria-label="Connect">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7e22ce"/><stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+    
+  <pattern id="h" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+    <line x1="0" y1="0" x2="0" y2="26" stroke="#ffffff" stroke-opacity=".06" stroke-width="7"/>
+  </pattern>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg)"/>
+  <rect width="800" height="450" fill="url(#h)"/>
+  <g transform="translate(400,225)" opacity=".62">
+    <g stroke="#fff" stroke-width="4" stroke-opacity=".55">
+      <line x1="-90" y1="0" x2="0" y2="-70"/><line x1="-90" y1="0" x2="0" y2="70"/>
+      <line x1="0" y1="-70" x2="90" y2="0"/><line x1="0" y1="70" x2="90" y2="0"/>
+      <line x1="0" y1="-70" x2="0" y2="70"/>
+    </g>
+    <g fill="#fff">
+      <circle cx="-90" cy="0" r="24" fill-opacity=".9"/>
+      <circle cx="0" cy="-70" r="18" fill-opacity=".62"/>
+      <circle cx="0" cy="70" r="18" fill-opacity=".62"/>
+      <circle cx="90" cy="0" r="24" fill-opacity=".9"/>
+    </g>
+  </g>
+</svg>

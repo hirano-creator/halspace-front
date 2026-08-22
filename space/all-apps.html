@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="assets/css/space.css">
+  <link rel="stylesheet" href="assets/css/space.css?v=20260823a">
   <style>
     /* ── ALL APPS ページ固有スタイル ── */
     .all-header {
@@ -177,18 +177,18 @@
 
     <!-- 利用中 -->
     <div class="all-section">
-      <div class="all-section-label">利用中</div>
+      <div class="all-section-label">ご利用中・ご契約可能</div>
       <div class="all-grid" id="activeGrid"></div>
     </div>
 
-    <!-- 近日公開 -->
+    <!-- これから追加されるアプリ -->
     <div class="all-section">
-      <div class="all-section-label">近日公開</div>
+      <div class="all-section-label">これから追加されるアプリ</div>
       <div class="all-grid" id="futureGrid"></div>
     </div>
   </main>
 
-  <script src="assets/js/space.js"></script>
+  <script src="assets/js/space.js?v=20260823a"></script>
   <script>
   (function () {
     const user = getAuth();
@@ -197,18 +197,17 @@
     const activeGrid = document.getElementById('activeGrid');
     const futureGrid = document.getElementById('futureGrid');
 
+    /* 契約すれば開けるアプリ */
     APP_CATALOG.forEach(app => {
-      const isActive = user.apps.includes(app.id) && app.id !== 'future';
-      const isFuture = app.id === 'future';
-      const target = isFuture ? futureGrid : activeGrid;
+      const isActive = user.apps.includes(app.id);
 
       const card = document.createElement(isActive ? 'a' : 'div');
       if (isActive && app.url) card.href = app.url;
-      card.className = `all-card${isFuture ? ' all-card-locked' : ''}`;
+      card.className = `all-card${isActive ? '' : ' all-card-locked'}`;
 
       const iconClass = {
         solid: 'icon-solid', whatsno: 'icon-whatsno',
-        meetlog: 'icon-meetlog', future: 'icon-future'
+        meetlog: 'icon-meetlog'
       }[app.id] ?? 'icon-future';
 
       card.innerHTML = `
@@ -221,12 +220,37 @@
           <span class="all-card-tag ${isActive ? 'tag-active' : 'tag-soon'}">
             ${isActive
               ? '<i class="fa-solid fa-circle-check"></i> 利用中'
-              : '<i class="fa-regular fa-clock"></i> 近日公開'}
+              : '<i class="fa-regular fa-clock"></i> 未契約'}
           </span>
         </div>
         ${isActive ? '<i class="fa-solid fa-arrow-right all-card-arrow"></i>' : ''}
       `;
-      target.appendChild(card);
+      activeGrid.appendChild(card);
+    });
+
+    /* これから追加されるアプリ（トップ下段の Space.app ストアと同じ情報源） */
+    const STORE_ICON = {
+      analytics: 'fa-solid fa-chart-line', timecalc: 'fa-solid fa-clock',
+      invoice: 'fa-solid fa-file-invoice',  workflow: 'fa-solid fa-diagram-project',
+      connect: 'fa-solid fa-link',          quote:    'fa-solid fa-file-signature',
+    };
+    STORE_APPS.forEach(app => {
+      const st = STORE_STATUS[app.status] ?? STORE_STATUS.planned;
+      const card = document.createElement('div');
+      card.className = 'all-card all-card-locked';
+      card.innerHTML = `
+        <div class="all-card-icon icon-future">
+          <i class="${STORE_ICON[app.id] ?? 'fa-solid fa-cube'}"></i>
+        </div>
+        <div class="all-card-body">
+          <div class="all-card-name">${app.name}</div>
+          <div class="all-card-desc">${app.desc}</div>
+          <span class="all-card-tag tag-soon">
+            <i class="fa-regular fa-clock"></i> ${st.label}
+          </span>
+        </div>
+      `;
+      futureGrid.appendChild(card);
     });
   })();
   </script>
