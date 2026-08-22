@@ -61,6 +61,21 @@ const APP_CATALOG = [
 /* 未提供のアプリ（旧 id:'future' の枠）は下段の STORE_APPS に移した。
    APP_CATALOG は「契約すれば今すぐ開けるアプリ」だけを持つ。 */
 
+/* 今月のおすすめ（ヒーロー）。毎月ここを差し替えて画面に動きを出す。
+   画像は space/assets/img/featured/ に置き、960×600px 程度を推奨。
+   見出しは行ごとに配列で持つ（HTMLを混ぜずに改行位置を指定するため）。 */
+const FEATURED = {
+  appId: 'whatsno',
+  eyebrow: "TODAY'S PICK — 今月のおすすめ",
+  titleLines: ['図面も、動画も、CADも。', "ぜんぶ What'sNo に。"],
+  desc: '製造業向けクラウドストレージ。今月からマニュアル機能・連絡先タグが追加されました。あなたの会社では23名が利用中です。',
+  image: 'assets/img/featured/whatsno.svg',
+  openLabel: "What'sNo を開く",
+  openUrl: '../whatsno/app/dashboard.html',
+  subLabel: '新機能を見る',
+  subUrl: null,
+};
+
 /* 提携企業からのお知らせ（協賛バナー）。
    Phase 1 は掲載社が少ないためここに直接書く。管理画面からの登録はPhase 2で対応する。
    画像は space/assets/img/sponsor/ に置き、1200×400px を推奨。 */
@@ -423,8 +438,58 @@ if (appsGrid) {
   appsGrid.addEventListener('scroll', updateArrows, { passive: true });
   updateArrows();
 
+  renderHero(user);
   renderSponsors();
   renderStore();
+}
+
+/* ── 今月のおすすめ（ヒーロー） ── */
+function renderHero(user) {
+  const hero = document.getElementById('hero');
+  if (!hero || !FEATURED) { hero?.remove(); return; }
+
+  document.getElementById('heroEyebrow').textContent = FEATURED.eyebrow;
+  document.getElementById('heroTitle').innerHTML =
+    FEATURED.titleLines.map(esc).join('<br>');
+  document.getElementById('heroDesc').textContent = FEATURED.desc;
+
+  const img = document.getElementById('heroImage');
+  if (FEATURED.image) {
+    img.src = FEATURED.image;
+  } else {
+    img.closest('.hero-visual').remove();
+  }
+
+  /* 未契約のアプリを特集することもあるので、その場合は開かせずストアへ送る */
+  const owned = user?.apps?.includes(FEATURED.appId);
+  const actions = document.getElementById('heroActions');
+
+  const main = document.createElement('button');
+  main.type = 'button';
+  main.className = 'hero-btn hero-btn-main';
+  main.innerHTML = owned
+    ? `<i class="fa-solid fa-arrow-right"></i>${esc(FEATURED.openLabel)}`
+    : '<i class="fa-solid fa-circle-info"></i>詳しく見る';
+  main.addEventListener('click', () => {
+    if (owned && FEATURED.openUrl) {
+      if (FEATURED.appId === 'aa') { openAa(); return; }
+      location.href = FEATURED.openUrl;
+      return;
+    }
+    document.querySelector('.store-section')?.scrollIntoView({ behavior: 'smooth' });
+  });
+  actions.appendChild(main);
+
+  if (FEATURED.subLabel) {
+    const sub = document.createElement('button');
+    sub.type = 'button';
+    sub.className = 'hero-btn hero-btn-sub';
+    sub.innerHTML = `<i class="fa-solid fa-circle-info"></i>${esc(FEATURED.subLabel)}`;
+    sub.addEventListener('click', () => {
+      if (FEATURED.subUrl) location.href = FEATURED.subUrl;
+    });
+    actions.appendChild(sub);
+  }
 }
 
 /* 掲載内容は将来管理画面から入るため、HTMLへ差し込む前に必ずエスケープする */
