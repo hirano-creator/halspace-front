@@ -30,6 +30,9 @@
   .back-btn{background:none;border:none;font-size:15px;color:var(--mute);cursor:pointer;padding:0;margin-bottom:18px;display:flex;align-items:center;gap:4px}
   .code-display{font-family:var(--mono);font-size:15px;font-weight:700;letter-spacing:.05em;background:var(--soft);padding:8px 12px;border-radius:10px;margin-bottom:16px;color:var(--ink)}
   .note-tag{font-size:13.5px;color:var(--mute);margin-bottom:18px}
+  .mfa-code{font-family:var(--mono);font-size:22px !important;letter-spacing:.5em;text-align:center}
+  .mfa-remember{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.5;color:var(--mute);margin:0 0 14px;cursor:pointer}
+  .mfa-remember input{margin:2px 0 0;flex:none}
 </style>
 </head>
 <body>
@@ -51,6 +54,27 @@
           <button id="toJoinBtn">新規参加</button>
         </div>
         <div class="terms">続けることで<u>利用規約</u>と<u>プライバシーポリシー</u>に同意したものとみなされます。</div>
+      </div>
+
+      <!-- ステップ1.5: 2段階認証の確認コード（信頼していない端末のときだけ表示） -->
+      <div class="actions step" id="stepMfa">
+        <button class="back-btn" id="backFromMfaBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+          ログインに戻る
+        </button>
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px">確認コードを入力</div>
+        <div class="note-tag">
+          <b id="mfaTo"></b> に6桁のコードをお送りしました。<br>メールをご確認ください。
+        </div>
+        <input class="input mfa-code" id="mfaCode" type="text" inputmode="numeric"
+               autocomplete="one-time-code" maxlength="6" placeholder="000000">
+        <label class="mfa-remember">
+          <input type="checkbox" id="mfaRemember" checked>
+          <span>この端末を記憶する（次回から90日間、コードの入力は不要です）</span>
+        </label>
+        <button class="btn primary" id="mfaSubmitBtn">ログイン</button>
+        <div id="mfaMsg" class="errmsg"></div>
+        <button class="back-btn" id="mfaResendBtn" style="margin:14px 0 0">コードを再送する</button>
       </div>
 
       <!-- ステップ2: 招待コード入力 -->
@@ -114,7 +138,7 @@
     // ── ステップ切り替え ──
     let confirmedCode = '';
     function showStep(id) {
-      ['stepLogin', 'stepCode', 'stepRegister'].forEach(s => {
+      ['stepLogin', 'stepMfa', 'stepCode', 'stepRegister'].forEach(s => {
         document.getElementById(s).classList.toggle('on', s === id);
       });
     }
@@ -132,11 +156,104 @@
       const btn = document.getElementById('loginBtn');
       btn.disabled = true; btn.textContent = 'ログイン中…';
       try {
-        await AA.login(email, password);
+        const r = await AA.login(email, password);
+        /* 信頼していない端末では、この時点ではまだトークンが出ていない */
+        if (r.mfaRequired) { openMfaStep(email, r); return; }
         location.href = './app/feed.html';
       } catch (e) {
         loginMsg.textContent = e.message || 'ログインに失敗しました';
+      } finally {
         btn.disabled = false; btn.textContent = 'ログイン';
+      }
+    });
+
+    // ── 2段階認証（確認コード） ──
+    const mfaMsg       = document.getElementById('mfaMsg');
+    const mfaCode      = document.getElementById('mfaCode');
+    const mfaSubmitBtn = document.getElementById('mfaSubmitBtn');
+    const mfaResendBtn = document.getElementById('mfaResendBtn');
+    let mfaState = null;      // { email, challenge }
+    let mfaCountdown = null;
+
+    function openMfaStep(email, r) {
+      mfaState = { email: email, challenge: r.challenge };
+      document.getElementById('mfaTo').textContent = r.maskedEmail || email;
+      mfaMsg.textContent = '';
+      mfaCode.value = '';
+      showStep('stepMfa');
+      startResendCountdown(r.resendAfter);
+      mfaCode.focus();
+    }
+
+    function startResendCountdown(seconds) {
+      clearInterval(mfaCountdown);
+      let left = Math.max(0, Math.ceil(seconds || 60));
+      const tick = () => {
+        if (left <= 0) {
+          clearInterval(mfaCountdown);
+          mfaResendBtn.disabled = false;
+          mfaResendBtn.textContent = 'コードを再送する';
+          return;
+        }
+        mfaResendBtn.disabled = true;
+        mfaResendBtn.textContent = 'コードを再送する（' + left + '秒後）';
+        left--;
+      };
+      tick();
+      mfaCountdown = setInterval(tick, 1000);
+    }
+
+    /* チャレンジが無効になったら（期限切れ・試行超過）メール入力からやり直す */
+    function backToLogin(message) {
+      clearInterval(mfaCountdown);
+      mfaState = null;
+      showStep('stepLogin');
+      loginMsg.textContent = message || '';
+    }
+
+    mfaCode.addEventListener('input', () => {
+      mfaCode.value = mfaCode.value.replace(/[^0-9]/g, '').slice(0, 6);
+    });
+    mfaCode.addEventListener('keydown', e => { if (e.key === 'Enter') mfaSubmitBtn.click(); });
+    document.getElementById('backFromMfaBtn').onclick = () => backToLogin('');
+
+    mfaSubmitBtn.addEventListener('click', async () => {
+      if (!mfaState) return;
+      const code = mfaCode.value.trim();
+      if (code.length !== 6) { mfaMsg.textContent = '確認コードを6桁で入力してください'; return; }
+
+      mfaMsg.textContent = '';
+      mfaSubmitBtn.disabled = true; mfaSubmitBtn.textContent = '確認中…';
+      try {
+        await AA.verifyLoginCode({
+          email: mfaState.email,
+          challenge: mfaState.challenge,
+          code: code,
+          rememberDevice: document.getElementById('mfaRemember').checked,
+        });
+        location.href = './app/feed.html';
+      } catch (e) {
+        if (e.restart) { backToLogin(e.message); return; }
+        mfaMsg.textContent = e.message || '確認コードが正しくありません';
+        mfaCode.select();
+      } finally {
+        mfaSubmitBtn.disabled = false; mfaSubmitBtn.textContent = 'ログイン';
+      }
+    });
+
+    mfaResendBtn.addEventListener('click', async () => {
+      if (!mfaState) return;
+      mfaResendBtn.disabled = true;
+      try {
+        const r = await AA.resendLoginCode(mfaState.challenge);
+        mfaMsg.textContent = '';
+        mfaCode.value = '';
+        mfaCode.focus();
+        startResendCountdown(r.resend_after);
+      } catch (e) {
+        if (e.restart) { backToLogin(e.message); return; }
+        mfaMsg.textContent = e.message || '再送に失敗しました';
+        startResendCountdown((e.data && e.data.retry_after) || 10);
       }
     });
 

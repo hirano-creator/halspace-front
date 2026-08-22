@@ -341,6 +341,7 @@
   </div>
 
   <script src="assets/js/api.js"></script>
+  <script src="../space/assets/js/mfa.js"></script>
   <script>
   /* 既にこのタブでログイン済みなら、フォームを出さずダッシュボードへ */
   if (sessionStorage.getItem('space_user')) {
@@ -425,58 +426,79 @@
   });
 
   /* ── ログイン送信 ── */
+  const loginErr    = document.getElementById('loginError');
+  const loginErrMsg = document.getElementById('loginErrorMsg');
+
+  function showLoginError(msg) {
+    if (!msg) { loginErr.classList.remove('show'); return; }
+    loginErrMsg.textContent = msg;
+    loginErr.classList.add('show');
+  }
+
+  /* ログイン成立。信頼済み端末で1回で通った場合も、確認コードを通った場合も同じ。
+     SOLIDの利用可否チェックはここ（＝本人確認が済んだ後）で行う。 */
+  function completeLogin(data) {
+    const u = data.user;
+
+    if (!(u.apps_enabled || []).includes('solid')) {
+      showLoginError('このアカウントはSOLIDをご利用いただけません。管理者にお問い合わせください。');
+      return false;
+    }
+
+    sessionStorage.setItem('space_token', data.token);
+    sessionStorage.setItem('space_user', JSON.stringify({
+      id: u.id, name: u.name, email: u.email,
+      role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
+      company: u.company_name, company_id: u.company_id,
+      apps: u.apps_enabled,
+      wn_extended_options_enabled: u.wn_extended_options_enabled ?? false,
+      token: data.token,
+    }));
+    /* このページから直接ログインしたことを記録し、SOLID内では
+       「アプリ選択に戻る」の代わりに「ログアウト」を出せるようにする */
+    sessionStorage.setItem('solid_standalone', '1');
+    location.href = 'app/dashboard.html';
+    return true;
+  }
+
   document.getElementById('loginForm').addEventListener('submit', async e => {
     e.preventDefault();
-    const btn    = document.getElementById('loginBtn');
-    const err    = document.getElementById('loginError');
-    const errMsg = document.getElementById('loginErrorMsg');
+    const btn = document.getElementById('loginBtn');
     const email    = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
 
     btn.classList.add('loading');
-    err.classList.remove('show');
+    showLoginError('');
     const resetBtn = () => btn.classList.remove('loading');
 
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const res = await mfaLogin({ apiBase: API_BASE, email, password });
+
+      if (res.mode === 'done') {
+        completeLogin(res.data);
+        resetBtn();
+        return;
+      }
+
+      /* 信頼していない端末：メールで届いた確認コードの入力へ進む */
+      resetBtn();
+      mfaOpenPanel({
+        maskedEmail: res.maskedEmail,
+        resendAfter: res.resendAfter,
+        onError: showLoginError,
+        onVerify: async (code, rememberDevice) => {
+          const data = await mfaVerify({
+            apiBase: API_BASE, email, challenge: res.challenge, code, rememberDevice,
+          });
+          completeLogin(data);
+        },
+        onResend: () => mfaResend({ apiBase: API_BASE, challenge: res.challenge }),
+        onBack: () => showLoginError(''),
       });
-      const data = await res.json();
-
-      if (!res.ok) {
-        errMsg.textContent = data.message || 'ログインに失敗しました。';
-        err.classList.add('show');
-        resetBtn();
-        return;
-      }
-
-      const u = data.user;
-      if (!(u.apps_enabled || []).includes('solid')) {
-        errMsg.textContent = 'このアカウントはSOLIDをご利用いただけません。管理者にお問い合わせください。';
-        err.classList.add('show');
-        resetBtn();
-        return;
-      }
-
-      sessionStorage.setItem('space_token', data.token);
-      sessionStorage.setItem('space_user', JSON.stringify({
-        id: u.id, name: u.name, email: u.email,
-        role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
-        company: u.company_name, company_id: u.company_id,
-        apps: u.apps_enabled,
-        wn_extended_options_enabled: u.wn_extended_options_enabled ?? false,
-        token: data.token,
-      }));
-      /* このページから直接ログインしたことを記録し、SOLID内では
-         「アプリ選択に戻る」の代わりに「ログアウト」を出せるようにする */
-      sessionStorage.setItem('solid_standalone', '1');
-      location.href = 'app/dashboard.html';
 
     } catch (ex) {
-      errMsg.textContent = 'サーバーに接続できません。しばらく経ってから再度お試しください。';
-      err.classList.add('show');
+      /* ex.status があればAPIが返したエラー、無ければ通信そのものが届いていない */
+      showLoginError(ex.status ? ex.message : 'サーバーに接続できません。しばらく経ってから再度お試しください。');
       resetBtn();
     }
   });
