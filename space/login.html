@@ -265,10 +265,12 @@
       /* ロゴエリア */
       .login-brand {
         flex: 0 0 auto;
+        min-height: 38vh;
         background: none;
-        padding: 60px 24px 16px;
+        padding: 60px 24px 32px;
         animation: none;
         z-index: 1;
+        justify-content: center;
       }
       .login-brand-name { font-size: 38px; }
       .login-brand-tagline { font-size: 12px; margin-top: 10px; opacity: .7; }
@@ -277,7 +279,8 @@
       /* フォームエリア */
       .login-form-panel {
         background: transparent;
-        padding: 24px 28px 52px;
+        align-items: flex-start;
+        padding: 8px 28px 52px;
         z-index: 1;
         position: relative;
       }
