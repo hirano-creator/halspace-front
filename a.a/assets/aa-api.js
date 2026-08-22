@@ -57,16 +57,93 @@
     let json;
     try { json = text ? JSON.parse(text) : {}; }
     catch (e) { throw new Error('レスポンスの解析に失敗しました'); } // indexが返る系のエラー対策
-    if (!res.ok) throw new Error(json.message || ('エラー ' + res.status));
+    if (!res.ok) {
+      // 2段階認証のように、呼び出し側がステータスや付随情報で分岐したいケースがある
+      const err = new Error(json.message || ('エラー ' + res.status));
+      err.status = res.status;
+      err.data = json;
+      err.restart = !!json.restart;
+      throw err;
+    }
     return json;
   }
 
   // ── 認証 ──
+
+  /* 信頼済み端末のトークン。ユーザー情報を一切含まない不透明な文字列で、
+     サーバー側で「そのユーザーのものか」を必ず検証している。
+     1台の端末を複数アカウントで使うため、メールごとに分けて保存する
+     （メールアドレスは平文で残さず、短いダイジェストをキーにする）。
+     Space/SOLID側の同等処理は space/assets/js/mfa.js にある（直すときは両方）。 */
+  const DEVICE_STORE_KEY = 'aa_device_tokens';
+
+  function emailKey(email) {
+    let h = 0x811c9dc5;
+    const s = String(email || '').trim().toLowerCase();
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h.toString(16).padStart(8, '0');
+  }
+
+  function readDeviceStore() {
+    try {
+      const obj = JSON.parse(localStorage.getItem(DEVICE_STORE_KEY) || '{}');
+      return (obj && typeof obj === 'object') ? obj : {};
+    } catch (e) { return {}; }
+  }
+
+  function deviceToken(email) { return readDeviceStore()[emailKey(email)] || null; }
+
+  function saveDeviceToken(email, t) {
+    if (!t) return;
+    try {
+      const store = readDeviceStore();
+      store[emailKey(email)] = t;
+      localStorage.setItem(DEVICE_STORE_KEY, JSON.stringify(store));
+    } catch (e) { /* 保存できなければ毎回コード入力になるだけ */ }
+  }
+
+  /* 信頼済み端末なら { mfaRequired: false } でそのままログイン完了。
+     そうでなければトークンは発行されず、確認コードの入力へ進む。 */
   async function login(email, password) {
-    const r = await aaFetch('/auth/login', { method: 'POST', body: { email, password } });
+    const r = await aaFetch('/auth/login', {
+      method: 'POST',
+      body: { email, password, device_token: deviceToken(email) },
+    });
+
+    if (r.mfa_required) {
+      return {
+        mfaRequired: true,
+        challenge: r.challenge,
+        maskedEmail: r.masked_email,
+        resendAfter: r.resend_after || 60,
+      };
+    }
+
     if (r.token) setToken(r.token);
+    return Object.assign({ mfaRequired: false }, r);
+  }
+
+  /* 確認コードの照合。成功でトークンと（記憶する場合は）端末トークンを保存する。
+     コード誤りはAPIが422を返す（401だとaaFetchがトークンを破棄してしまうため）。 */
+  async function verifyLoginCode(o) {
+    const r = await aaFetch('/auth/login/verify', {
+      method: 'POST',
+      body: {
+        challenge: o.challenge,
+        code: o.code,
+        remember_device: !!o.rememberDevice,
+      },
+    });
+    if (r.token) setToken(r.token);
+    if (r.device_token) saveDeviceToken(o.email, r.device_token);
     return r;
   }
+
+  const resendLoginCode = (challenge) => aaFetch('/auth/login/resend', { method: 'POST', body: { challenge } });
+
   function logout() { setToken(null); }
 
   // ── 投稿 / フィード ──
@@ -309,7 +386,7 @@
 
   global.AA = {
     apiBase, token, setToken, isAuthed, aaFetch,
-    login, logout, me, forceUpdateApp,
+    login, verifyLoginCode, resendLoginCode, logout, me, forceUpdateApp,
     feed, getPost, createPost, publishFromWn, wnFiles, wnFileRawUrl, updatePost, updatePostMedia, deletePost,
     comments, postComment, react, reactionUsers, reactComment, commentReactionUsers, relTime, commentCardHtml, avatarHtml, shareLink, mediaUrl, mediaThumbUrl, storeMediaThumb,
     profile, updateProfile, updateLogo, addSkill, deleteSkill,

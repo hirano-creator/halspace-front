@@ -135,46 +135,74 @@ if (loginForm) {
     loginForm.requestSubmit();
   }
 
+  const loginErr    = document.getElementById('loginError');
+  const loginErrMsg = document.getElementById('loginErrorMsg');
+
+  function showLoginError(msg) {
+    if (!msg) { loginErr.classList.remove('show'); return; }
+    loginErrMsg.textContent = msg;
+    loginErr.classList.add('show');
+  }
+
+  /* ログイン成立。信頼済み端末で1回で通った場合も、確認コードを通った場合も同じ */
+  function completeLogin(data) {
+    const u = data.user;
+    saveAuth({
+      id: u.id, name: u.name, email: u.email,
+      role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
+      company: u.company_name, company_id: u.company_id,
+      apps: u.apps_enabled ?? ['solid'],
+      wn_extended_options_enabled: u.wn_extended_options_enabled ?? false,
+      token: data.token,
+    });
+    location.href = 'apps.html';
+  }
+
+  /* 2段階認証つきログイン。信頼していない端末では確認コードの入力へ進む。
+     APIが応答したエラーは throw し、ネットワーク不通は err.status なしで区別できる。 */
+  async function startLogin(email, password) {
+    const res = await mfaLogin({ apiBase: SPACE_API, email, password });
+
+    if (res.mode === 'done') { completeLogin(res.data); return; }
+
+    showLoginError('');
+    mfaOpenPanel({
+      maskedEmail: res.maskedEmail,
+      resendAfter: res.resendAfter,
+      onError: showLoginError,
+      onVerify: async (code, rememberDevice) => {
+        const data = await mfaVerify({
+          apiBase: SPACE_API, email, challenge: res.challenge, code, rememberDevice,
+        });
+        completeLogin(data);
+      },
+      onResend: () => mfaResend({ apiBase: SPACE_API, challenge: res.challenge }),
+      onBack: () => showLoginError(''),
+    });
+  }
+
   loginForm.addEventListener('submit', async e => {
     e.preventDefault();
-    const btn    = document.getElementById('loginBtn');
-    const err    = document.getElementById('loginError');
-    const errMsg = document.getElementById('loginErrorMsg');
+    const btn = document.getElementById('loginBtn');
     const email    = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
 
     btn.classList.add('loading');
-    err.classList.remove('show');
+    showLoginError('');
 
     const resetBtn = () => btn.classList.remove('loading');
 
     try {
-      const res = await fetch(`${SPACE_API}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        errMsg.textContent = data.message || 'ログインに失敗しました。';
-        err.classList.add('show');
+      await startLogin(email, password);
+      resetBtn(); /* 確認コードの入力に進んだ場合。ログイン成立時は遷移済み */
+    } catch (ex) {
+      /* APIが返したエラー（401/403/503等）はそのまま伝える */
+      if (ex.status) {
+        showLoginError(ex.message);
         resetBtn();
         return;
       }
 
-      const u = data.user;
-      saveAuth({
-        id: u.id, name: u.name, email: u.email,
-        role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
-        company: u.company_name, company_id: u.company_id,
-        apps: u.apps_enabled ?? ['solid'],
-        wn_extended_options_enabled: u.wn_extended_options_enabled ?? false,
-        token: data.token,
-      });
-      location.href = 'apps.html';
-
-    } catch (ex) {
       /* Laragon未起動時はモックユーザーで開発継続 */
       const mockUser = Object.values(MOCK_USERS).find(u => u.email === email);
       if (mockUser && password === 'password') {
@@ -182,13 +210,13 @@ if (loginForm) {
         location.href = 'apps.html';
         return;
       }
-      errMsg.textContent = 'サーバーに接続できません。しばらく経ってから再度お試しください。';
-      err.classList.add('show');
+      showLoginError('サーバーに接続できません。しばらく経ってから再度お試しください。');
       resetBtn();
     }
   });
 
-  /* クイックログインボタン（実APIで認証） */
+  /* クイックログインボタン（実APIで認証）。
+     一度確認コードを通せば端末が記憶されるので、以後はワンクリックで入れる。 */
   const QUICK_CREDS = {
     client:  { email: 'sato@sample-seizo.co.jp',  password: 'password' },
     modeler: { email: 'budi@halspace.co.jp',       password: 'password' },
@@ -201,37 +229,15 @@ if (loginForm) {
       if (!creds) return;
 
       btn.disabled = true;
-
-      const useMock = () => {
-        const mock = MOCK_USERS[role];
-        if (mock) { saveAuth(mock); location.href = 'apps.html'; }
-      };
+      showLoginError('');
 
       try {
-        const res = await fetch(`${SPACE_API}/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify(creds),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const u = data.user;
-          saveAuth({
-            id: u.id, name: u.name, email: u.email,
-            role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
-            company: u.company_name, company_id: u.company_id,
-            apps: u.apps_enabled ?? ['solid'],
-            wn_extended_options_enabled: u.wn_extended_options_enabled ?? false,
-            token: data.token,
-          });
-          location.href = 'apps.html';
-          return;
-        }
-        /* API返却エラー（401/422等）→ モックフォールバック */
-        useMock();
-      } catch {
-        /* ネットワーク不通（Laragon未起動）→ モックフォールバック */
-        useMock();
+        await startLogin(creds.email, creds.password);
+      } catch (ex) {
+        /* API返却エラーもネットワーク不通も、開発用ボタンなのでモックへ倒す */
+        const mock = MOCK_USERS[role];
+        if (mock) { saveAuth(mock); location.href = 'apps.html'; return; }
+        showLoginError(ex.message);
       }
       btn.disabled = false;
     });

@@ -158,6 +158,7 @@
 </div>
 
 <script src="assets/js/api.js"></script>
+<script src="../space/assets/js/mfa.js"></script>
 <script>
 /* 既にこのタブでログイン済みなら、フォームを出さずダッシュボードへ */
 if (sessionStorage.getItem('space_user')) {
@@ -239,62 +240,88 @@ document.getElementById('pwToggle').addEventListener('click', function () {
 });
 
 /* ── ログイン送信 ── */
+const loginBtn    = document.getElementById('loginBtn');
+const loginCard   = document.getElementById('loginCard');
+const loginErr    = document.getElementById('loginError');
+const loginErrMsg = document.getElementById('loginErrorMsg');
+
+/* 失敗表示。カードを揺らし、組み上がったキューブを崩す */
+function fail(msg) {
+  loginErrMsg.textContent = msg;
+  loginErr.classList.add('show');
+  loginBtn.classList.remove('loading');
+  asState.disperse();
+  loginCard.classList.remove('shake');
+  void loginCard.offsetWidth;
+  loginCard.classList.add('shake');
+}
+
+/* 確認コードのパネルからのエラーもここへ集約する（空文字なら消すだけ） */
+function showLoginError(msg) {
+  if (!msg) { loginErr.classList.remove('show'); return; }
+  fail(msg);
+}
+
+/* ログイン成立。信頼済み端末で1回で通った場合も、確認コードを通った場合も同じ。
+   SOLIDの利用可否チェックはここ（＝本人確認が済んだ後）で行う。 */
+function completeLogin(data) {
+  const u = data.user;
+
+  if (!(u.apps_enabled || []).includes('solid')) {
+    fail('このアカウントはSOLIDをご利用いただけません。管理者にお問い合わせください。');
+    return;
+  }
+
+  sessionStorage.setItem('space_token', data.token);
+  sessionStorage.setItem('space_user', JSON.stringify({
+    id: u.id, name: u.name, email: u.email,
+    role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
+    company: u.company_name, company_id: u.company_id,
+    apps: u.apps_enabled,
+    wn_extended_options_enabled: u.wn_extended_options_enabled ?? false,
+    token: data.token,
+  }));
+  /* このページから直接ログインしたことを記録し、SOLID内では
+     「アプリ選択に戻る」の代わりに「ログアウト」を出せるようにする */
+  sessionStorage.setItem('solid_standalone', '1');
+
+  setTimeout(() => { location.href = 'app/dashboard.html'; }, 700);
+}
+
 document.getElementById('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const btn    = document.getElementById('loginBtn');
-  const card   = document.getElementById('loginCard');
-  const err    = document.getElementById('loginError');
-  const errMsg = document.getElementById('loginErrorMsg');
   const email    = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
 
-  const fail = msg => {
-    errMsg.textContent = msg;
-    err.classList.add('show');
-    btn.classList.remove('loading');
-    asState.disperse();
-    card.classList.remove('shake');
-    void card.offsetWidth;
-    card.classList.add('shake');
-  };
-
-  btn.classList.add('loading');
-  err.classList.remove('show');
+  loginBtn.classList.add('loading');
+  loginErr.classList.remove('show');
   asState.assemble();
 
   try {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ email, password }),
+    const res = await mfaLogin({ apiBase: API_BASE, email, password });
+
+    if (res.mode === 'done') { completeLogin(res.data); return; }
+
+    /* 信頼していない端末：メールで届いた確認コードの入力へ進む。
+       キューブは組み上がった状態のまま、本人確認の完了を待つ */
+    loginBtn.classList.remove('loading');
+    mfaOpenPanel({
+      maskedEmail: res.maskedEmail,
+      resendAfter: res.resendAfter,
+      onError: showLoginError,
+      onVerify: async (code, rememberDevice) => {
+        const data = await mfaVerify({
+          apiBase: API_BASE, email, challenge: res.challenge, code, rememberDevice,
+        });
+        completeLogin(data);
+      },
+      onResend: () => mfaResend({ apiBase: API_BASE, challenge: res.challenge }),
+      onBack: () => showLoginError(''),
     });
-    const data = await res.json();
-
-    if (!res.ok) { fail(data.message || 'ログインに失敗しました。'); return; }
-
-    const u = data.user;
-    if (!(u.apps_enabled || []).includes('solid')) {
-      fail('このアカウントはSOLIDをご利用いただけません。管理者にお問い合わせください。');
-      return;
-    }
-
-    sessionStorage.setItem('space_token', data.token);
-    sessionStorage.setItem('space_user', JSON.stringify({
-      id: u.id, name: u.name, email: u.email,
-      role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
-      company: u.company_name, company_id: u.company_id,
-      apps: u.apps_enabled,
-      wn_extended_options_enabled: u.wn_extended_options_enabled ?? false,
-      token: data.token,
-    }));
-    /* このページから直接ログインしたことを記録し、SOLID内では
-       「アプリ選択に戻る」の代わりに「ログアウト」を出せるようにする */
-    sessionStorage.setItem('solid_standalone', '1');
-
-    setTimeout(() => { location.href = 'app/dashboard.html'; }, 700);
 
   } catch (ex) {
-    fail('サーバーに接続できません。しばらく経ってから再度お試しください。');
+    /* ex.status があればAPIが返したエラー、無ければ通信そのものが届いていない */
+    fail(ex.status ? ex.message : 'サーバーに接続できません。しばらく経ってから再度お試しください。');
   }
 });
 </script>

@@ -1,5 +1,5 @@
 /* a.a Service Worker — アプリシェルをキャッシュしてインストール可能化＆高速起動 */
-const CACHE = 'aa-shell-v10';
+const CACHE = 'aa-shell-v11';
 const SHELL = [
   './',
   './index.html',
