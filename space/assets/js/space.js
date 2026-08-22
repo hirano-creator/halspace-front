@@ -144,6 +144,19 @@ if (loginForm) {
     loginErr.classList.add('show');
   }
 
+  /* ログイン成立後の遷移。login.html が演出フック（spaceLoginFx）を持っていれば
+     その再生を待ってから移る。フックがない・演出が終わらない場合でも必ず遷移する。 */
+  function enterApps() {
+    const go = () => { location.href = 'apps.html'; };
+    const fx = window.spaceLoginFx;
+    if (!fx || typeof fx.play !== 'function') { go(); return; }
+
+    let moved = false;
+    const once = () => { if (!moved) { moved = true; go(); } };
+    setTimeout(once, 2500);              /* 演出が固まっても取り残されないための保険 */
+    Promise.resolve(fx.play()).then(once, once);
+  }
+
   /* ログイン成立。信頼済み端末で1回で通った場合も、確認コードを通った場合も同じ */
   function completeLogin(data) {
     const u = data.user;
@@ -155,7 +168,7 @@ if (loginForm) {
       wn_extended_options_enabled: u.wn_extended_options_enabled ?? false,
       token: data.token,
     });
-    location.href = 'apps.html';
+    enterApps();
   }
 
   /* 2段階認証つきログイン。信頼していない端末では確認コードの入力へ進む。
@@ -207,7 +220,7 @@ if (loginForm) {
       const mockUser = Object.values(MOCK_USERS).find(u => u.email === email);
       if (mockUser && password === 'password') {
         saveAuth(mockUser);
-        location.href = 'apps.html';
+        enterApps();
         return;
       }
       showLoginError('サーバーに接続できません。しばらく経ってから再度お試しください。');
@@ -236,7 +249,7 @@ if (loginForm) {
       } catch (ex) {
         /* API返却エラーもネットワーク不通も、開発用ボタンなのでモックへ倒す */
         const mock = MOCK_USERS[role];
-        if (mock) { saveAuth(mock); location.href = 'apps.html'; return; }
+        if (mock) { saveAuth(mock); enterApps(); return; }
         showLoginError(ex.message);
       }
       btn.disabled = false;

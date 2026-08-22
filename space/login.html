@@ -70,6 +70,7 @@
       opacity: 0;
       transform: translateY(20px);
       animation: slideUp .7s .3s ease forwards;
+      transition: text-shadow .55s ease;
     }
     .login-brand-name span { color: #FF6B35; }
     .login-brand-tagline {
@@ -240,6 +241,39 @@
     }
     .login-error.show { display: flex; }
 
+    /* ── ログイン演出（認証成立から apps.html へ移るまでの間） ──
+       種類は spaceLoginFx がランダムに選び、body[data-fx] に入れる。
+       canvas 側の動きが主役で、ここは付随するロゴとフォームの見せ方だけ。 */
+    .login-brand-copy {
+      position: relative;
+      z-index: 1;
+      transition: transform .55s cubic-bezier(.2,.8,.2,1), filter .55s ease;
+    }
+    .fx-flash {
+      position: fixed;
+      inset: 0;
+      background: #fff;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 50;
+    }
+    .login-page.fx-run .login-form-panel {
+      opacity: .22;
+      transform: translateX(14px);
+      transition: opacity .45s ease, transform .45s ease;
+      pointer-events: none;
+    }
+    .login-page.fx-run[data-fx="converge"] .login-brand-copy {
+      transform: scale(1.14);
+      filter: blur(.4px);
+    }
+    .login-page.fx-run[data-fx="constellation"] .login-brand-name {
+      text-shadow: 0 0 18px rgba(255,255,255,.8), 0 0 46px rgba(255,107,53,.6);
+    }
+    .login-page.fx-run[data-fx="sweep"]  .login-brand-copy { transform: translateX(6px); }
+    .login-page.fx-run[data-fx="ripple"] .login-brand-copy { transform: scale(1.05); }
+    .login-page.fx-run[data-fx="grid"]   .login-brand-copy { transform: translateY(-10px) scale(1.02); }
+
     @media (max-width: 700px) {
       /* セーフエリア（上下余白）をグラデーション端色に統一 */
       html {
@@ -363,7 +397,7 @@
   <!-- 左：ブランドパネル -->
   <div class="login-brand">
     <canvas id="brandCanvas"></canvas>
-    <div>
+    <div class="login-brand-copy">
       <div class="login-brand-name">Space<span>.</span>app</div>
       <p class="login-brand-tagline">
         HaLSpace のサービスポータル<br>
@@ -411,18 +445,50 @@
     </div>
   </div>
 
+  <!-- ログイン演出の白フラッシュ（案A 収束でのみ使う） -->
+  <div class="fx-flash" id="fxFlash"></div>
+
   <script src="assets/js/mfa.js"></script>
   <script src="assets/js/space.js"></script>
   <script>
-  /* ── パーティクル ── */
+  /* ── パーティクル背景 ＋ ログイン演出 ──
+     待機中は従来どおり点が漂い、近いものを線で結ぶ。
+     ログインが成立すると spaceLoginFx.play() が呼ばれ、5種類の演出から
+     ランダムに1つを再生してから apps.html へ移る。?fx=grid のように
+     URLパラメータを付けると種類を固定できる（動作確認用）。 */
   (function () {
     const canvas = document.getElementById('brandCanvas');
-    const ctx = canvas.getContext('2d');
+    const ctx    = canvas.getContext('2d');
+    const flash  = document.getElementById('fxFlash');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /* 演出の種類と再生時間(ms)。この時間ぶん遷移が遅れるので、長くしすぎない */
+    const MODES = {
+      converge:      1150,
+      constellation: 1200,
+      sweep:         1300,
+      ripple:        1350,
+      grid:          1200,
+    };
+    const COUNT = 90;
+
     let W, H, particles;
+    let cols, rows, gapX, gapY;
+    let fx = null;   /* 演出中のみ { mode, dur, t0, origin } が入る */
+
+    const clamp01       = v => (v < 0 ? 0 : v > 1 ? 1 : v);
+    const lerp          = (a, b, t) => a + (b - a) * t;
+    const easeOutCubic  = t => 1 - Math.pow(1 - t, 3);
+    const easeInOutCubic = t => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
     function resize() {
       W = canvas.width  = canvas.offsetWidth;
       H = canvas.height = canvas.offsetHeight;
+      /* 整列演出で使う格子。粒子数と縦横比から列数を決める */
+      cols = Math.max(4, Math.round(Math.sqrt(COUNT * W / Math.max(H, 1))));
+      rows = Math.max(4, Math.ceil(COUNT / cols));
+      gapX = W / (cols + 1);
+      gapY = H / (rows + 1);
     }
 
     function mkParticle() {
@@ -433,16 +499,19 @@
         vx: (Math.random() - 0.5) * 0.35,
         vy: (Math.random() - 0.5) * 0.35,
         alpha: Math.random() * 0.5 + 0.15,
+        sx: 0, sy: 0,   /* 演出開始時の座標 */
+        gx: 0, gy: 0,   /* 整列先の格子点 */
+        heat: 0,        /* 発光量 0..1 */
       };
     }
 
     function init() {
       resize();
-      particles = Array.from({ length: 90 }, mkParticle);
+      particles = Array.from({ length: COUNT }, mkParticle);
     }
 
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
+    /* ══════ 待機中の漂い ══════ */
+    function drift() {
       particles.forEach(p => {
         p.x += p.vx;
         p.y += p.vy;
@@ -450,31 +519,283 @@
         if (p.x > W) p.x = 0;
         if (p.y < 0) p.y = H;
         if (p.y > H) p.y = 0;
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${p.alpha})`;
-        ctx.fill();
       });
+    }
 
-      /* 近い粒子を線でつなぐ */
+    /* ══════ 案A 収束 ══════ */
+    function stepConverge(p) {
+      const cx = W / 2, cy = H / 2;
+      const pull = p * p * 0.14;
+      particles.forEach(q => {
+        q.x += (cx - q.x) * pull;
+        q.y += (cy - q.y) * pull;
+        q.heat = easeOutCubic(clamp01((p - 0.15) / 0.6)) * 0.8;
+        q.alpha = Math.min(1, q.alpha + p * 0.012);
+      });
+      flash.style.opacity = p > 0.72 ? ((p - 0.72) / 0.28) * 0.95 : 0;
+    }
+    function drawConvergeGlow(p) {
+      const cx = W / 2, cy = H / 2;
+      const r = 6 + easeInOutCubic(p) * 78;
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0,   `rgba(255,255,255,${0.28 + p * 0.6})`);
+      g.addColorStop(0.4, `rgba(255,107,53,${0.22 + p * 0.35})`);
+      g.addColorStop(1,   'rgba(255,107,53,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    /* ══════ 案B 星座結線 ══════ */
+    function stepConstellation(p) {
+      const cx = W / 2, cy = H / 2;
+      const front = easeOutCubic(p) * Math.sqrt(cx * cx + cy * cy) * 1.15;
+      particles.forEach(q => {
+        q.x += q.vx * 0.3;
+        q.y += q.vy * 0.3;
+        q.heat = clamp01((front - Math.hypot(q.x - cx, q.y - cy)) / 70);
+        q.alpha = Math.min(1, q.alpha + q.heat * 0.02);
+      });
+    }
+
+    /* ══════ 案C 走査 ══════ */
+    let sweepX = 0;
+    function stepSweep(p) {
+      sweepX = -40 + easeInOutCubic(p) * (W + 80);
+      particles.forEach(q => {
+        q.x += q.vx * 0.25;
+        q.y += q.vy * 0.25;
+        if (q.x < sweepX) {
+          q.heat = Math.max(0.55, clamp01(1 - (sweepX - q.x) / 60));
+        }
+      });
+    }
+    function drawSweepBeam() {
+      if (sweepX < -40 || sweepX > W + 40) return;
+      const g = ctx.createLinearGradient(sweepX - 46, 0, sweepX + 14, 0);
+      g.addColorStop(0,   'rgba(255,107,53,0)');
+      g.addColorStop(0.7, 'rgba(255,150,90,.30)');
+      g.addColorStop(1,   'rgba(255,255,255,.85)');
+      ctx.fillStyle = g;
+      ctx.fillRect(sweepX - 46, 0, 60, H);
+      ctx.fillStyle = 'rgba(255,255,255,.9)';
+      ctx.fillRect(sweepX, 0, 1.6, H);
+    }
+
+    /* ══════ 案D 波紋 ══════ */
+    let waves = [];
+    function stepRipple(p) {
+      const t = p * fx.dur;
+      const o = fx.origin;
+      /* 波面は等速で進める。イージングを掛けると序盤で通り過ぎて見えなくなる */
+      const maxR = Math.hypot(W, H) * 1.6;
+      const travel = fx.dur - 150;
+      waves = [];
+      [0, 260, 520].forEach(delay => {
+        const age = t - delay;
+        if (age <= 0) return;
+        const prog = clamp01(age / travel);
+        waves.push({ r: prog * maxR, fade: 1 - prog * 0.75 });
+      });
+      particles.forEach(q => {
+        q.x += q.vx * 0.4;
+        q.y += q.vy * 0.4;
+        const dx = q.x - o.x, dy = q.y - o.y;
+        const d = Math.hypot(dx, dy) || 1;
+        let heat = 0;
+        waves.forEach(w => {
+          const diff = Math.abs(d - w.r);
+          if (diff >= 52) return;
+          const f = (1 - diff / 52) * w.fade;
+          heat = Math.max(heat, f);
+          q.x += (dx / d) * f * 2.2;
+          q.y += (dy / d) * f * 2.2;
+        });
+        q.heat = heat;
+        q.x = Math.max(0, Math.min(W, q.x));
+        q.y = Math.max(0, Math.min(H, q.y));
+      });
+    }
+    function drawRippleRings() {
+      const o = fx.origin;
+      waves.forEach(w => {
+        ctx.beginPath();
+        ctx.arc(o.x, o.y, w.r, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255,150,90,${0.40 * w.fade})`;
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+      });
+    }
+
+    /* ══════ 案E 整列 ══════ */
+    function assignGrid() {
+      /* 現在位置から最も近い未使用の格子点を割り当てる。粒子90個なら総当たりで十分速い */
+      const slots = [];
+      for (let r = 1; r <= rows; r++) {
+        for (let c = 1; c <= cols; c++) slots.push({ x: gapX * c, y: gapY * r, used: false });
+      }
+      particles.forEach(q => {
+        let best = -1, bestD = Infinity;
+        for (let s = 0; s < slots.length; s++) {
+          if (slots[s].used) continue;
+          const d = (q.x - slots[s].x) ** 2 + (q.y - slots[s].y) ** 2;
+          if (d < bestD) { bestD = d; best = s; }
+        }
+        if (best >= 0) {
+          slots[best].used = true;
+          q.gx = slots[best].x;
+          q.gy = slots[best].y;
+        }
+      });
+    }
+    function stepGrid(p) {
+      const e = easeInOutCubic(clamp01(p / 0.7));
+      particles.forEach(q => {
+        q.x = lerp(q.sx, q.gx, e);
+        q.y = lerp(q.sy, q.gy, e);
+        q.heat = e * 0.55;
+        q.alpha = Math.min(1, q.alpha + e * 0.01);
+      });
+    }
+    function drawGridLines(p) {
+      const e = easeOutCubic(clamp01(p / 0.8));
+      ctx.strokeStyle = `rgba(255,255,255,${0.13 * e})`;
+      ctx.lineWidth = 1;
+      for (let x = gapX; x < W; x += gapX) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+      for (let y = gapY; y < H; y += gapY) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+    }
+    function drawGridMarks(p) {
+      const e = easeOutCubic(clamp01((p - 0.45) / 0.55));
+      if (e <= 0) return;
+      ctx.strokeStyle = `rgba(255,107,53,${0.55 * e})`;
+      ctx.lineWidth = 1.2;
+      const s = 7;
+      [[0.22, 0.24], [0.78, 0.24], [0.22, 0.76], [0.78, 0.76]].forEach(([fxr, fyr]) => {
+        const x = W * fxr, y = H * fyr;
+        ctx.beginPath();
+        ctx.moveTo(x - s, y); ctx.lineTo(x + s, y);
+        ctx.moveTo(x, y - s); ctx.lineTo(x, y + s);
+        ctx.stroke();
+      });
+    }
+
+    /* ══════ 共通描画 ══════ */
+    function drawLinks(linkDist, lineBase) {
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 80) {
-            ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.strokeStyle = `rgba(255,255,255,${0.08 * (1 - dist / 80)})`;
-            ctx.lineWidth = 0.6;
-            ctx.stroke();
-          }
+          const a = particles[i], b = particles[j];
+          const dist = Math.hypot(a.x - b.x, a.y - b.y);
+          if (dist >= linkDist) continue;
+          const k = 1 - dist / linkDist;
+          const heat = Math.min(a.heat, b.heat);
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.strokeStyle = heat > 0.05
+            ? `rgba(255,${Math.round(lerp(255, 130, heat))},${Math.round(lerp(255, 70, heat))},${lineBase * k * (1 + heat * 2.2)})`
+            : `rgba(255,255,255,${lineBase * k})`;
+          ctx.lineWidth = 0.6 + heat * 0.7;
+          ctx.stroke();
         }
       }
+    }
+    function drawParticles() {
+      particles.forEach(q => {
+        ctx.beginPath();
+        ctx.arc(q.x, q.y, q.r * (1 + q.heat * 1.5), 0, Math.PI * 2);
+        if (q.heat > 0.05) {
+          ctx.fillStyle = `rgba(255,${Math.round(lerp(255, 120, q.heat))},${Math.round(lerp(255, 60, q.heat))},${Math.min(1, q.alpha + q.heat)})`;
+          ctx.shadowColor = 'rgba(255,107,53,.9)';
+          ctx.shadowBlur = 10 * q.heat;
+        } else {
+          ctx.fillStyle = `rgba(255,255,255,${q.alpha})`;
+          ctx.shadowBlur = 0;
+        }
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+
+      const run = fx !== null;
+      const p   = run ? clamp01((performance.now() - fx.t0) / fx.dur) : 0;
+      let linkDist = 80;
+      let lineBase = 0.08;
+
+      if (!run) {
+        drift();
+      } else if (fx.mode === 'converge') {
+        stepConverge(p);
+      } else if (fx.mode === 'constellation') {
+        /* 結線距離は画面の短辺に対する比率で頭打ちにする。
+           スマホでは canvas が全画面になるため、固定値だと線で埋め尽くされる */
+        const maxLink = Math.min(190, Math.min(W, H) * 0.33);
+        linkDist = lerp(80, maxLink, easeInOutCubic(p));
+        lineBase = lerp(0.08, 0.20, easeOutCubic(p));
+        stepConstellation(p);
+      } else if (fx.mode === 'sweep') {
+        stepSweep(p);
+      } else if (fx.mode === 'ripple') {
+        stepRipple(p);
+      } else if (fx.mode === 'grid') {
+        drawGridLines(p);
+        stepGrid(p);
+      }
+
+      drawLinks(linkDist, lineBase);
+      drawParticles();
+
+      if (run) {
+        if (fx.mode === 'converge')    drawConvergeGlow(p);
+        else if (fx.mode === 'sweep')  drawSweepBeam();
+        else if (fx.mode === 'ripple') drawRippleRings();
+        else if (fx.mode === 'grid')   drawGridMarks(p);
+      }
+
       requestAnimationFrame(draw);
     }
+
+    /* ══════ 演出の起動 ══════ */
+    function play() {
+      if (reduceMotion || fx) return Promise.resolve();
+
+      const keys  = Object.keys(MODES);
+      const fixed = new URLSearchParams(location.search).get('fx');
+      const mode  = MODES[fixed] ? fixed : keys[Math.floor(Math.random() * keys.length)];
+
+      /* 波紋の発生源はログインボタンの中心。canvas 内の座標に直す */
+      const btn   = document.getElementById('loginBtn');
+      const cRect = canvas.getBoundingClientRect();
+      const bRect = btn ? btn.getBoundingClientRect() : cRect;
+
+      particles.forEach(q => { q.sx = q.x; q.sy = q.y; q.heat = 0; });
+      if (mode === 'grid') assignGrid();
+
+      fx = {
+        mode,
+        dur: MODES[mode],
+        t0: performance.now(),
+        origin: {
+          x: bRect.left + bRect.width / 2 - cRect.left,
+          y: bRect.top  + bRect.height / 2 - cRect.top,
+        },
+      };
+
+      document.body.dataset.fx = mode;
+      document.body.classList.add('fx-run');
+
+      return new Promise(resolve => setTimeout(resolve, MODES[mode]));
+    }
+
+    /* space.js から呼ばれる。未定義でも遷移するので、読み込み順が崩れても壊れない */
+    window.spaceLoginFx = { play };
 
     window.addEventListener('resize', () => { resize(); });
     init();
