@@ -152,7 +152,10 @@ const MFA_PANEL_CSS = `
    メールアドレス欄をまるごと複製してコード入力欄に作り替える。 */
 function mfaBuildCodeField(form) {
   const src = form.querySelector('input[type="email"]') || form.querySelector('input');
-  const group = src?.closest('div');
+  /* 掴むのはフォーム直下のグループ（.form-group / .field）。単に closest('div') に
+     すると、入力欄を包む内側のラッパ（.fwrap 等）だけを取ってしまい、
+     .field input のような子孫セレクタで当たっているstyleが全部外れる。 */
+  const group = src?.closest('form > div') || src?.closest('div');
   if (!group) return null;
 
   const field = group.cloneNode(true);
