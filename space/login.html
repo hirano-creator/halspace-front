@@ -30,7 +30,7 @@
 
     /* ── 左パネル ── */
     .login-brand {
-      flex: 0 0 40%;
+      flex: 0 0 45%;
       background: linear-gradient(160deg, #1a1a2e, #0f3460, #1a1a2e, #16213e);
       background-size: 400% 400%;
       animation: gradShift 8s ease infinite;
@@ -240,45 +240,6 @@
     }
     .login-error.show { display: flex; }
 
-    /* 開発用クイックログイン */
-    .dev-section {
-      margin-top: 32px;
-      padding-top: 24px;
-      border-top: 1px solid #eee;
-    }
-    .dev-section-label {
-      font-size: 11px;
-      color: #bbb;
-      text-align: center;
-      margin-bottom: 10px;
-      letter-spacing: .05em;
-    }
-    .quick-login-btn {
-      width: 100%;
-      padding: 10px 14px;
-      background: #f8f8f8;
-      border: 1px solid #e8e8e8;
-      border-radius: 8px;
-      color: #555;
-      font-size: 13px;
-      font-weight: 600;
-      text-align: left;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: background .2s, border-color .2s, transform .15s;
-      cursor: pointer;
-      font-family: inherit;
-      margin-bottom: 8px;
-    }
-    .quick-login-btn:last-child { margin-bottom: 0; }
-    .quick-login-btn:hover {
-      background: #f0f4ff;
-      border-color: #0f3460;
-      color: #0f3460;
-      transform: translateX(3px);
-    }
-
     @media (max-width: 700px) {
       /* セーフエリア（上下余白）をグラデーション端色に統一 */
       html {
@@ -391,21 +352,6 @@
         color: #fca5a5;
       }
 
-      /* クイックログイン */
-      .dev-section { margin-top: 28px; border-top-color: rgba(255,255,255,.1); }
-      .dev-section-label { color: rgba(255,255,255,.25); }
-      .quick-login-btn {
-        background: rgba(255,255,255,.06);
-        border: 1px solid rgba(255,255,255,.12);
-        border-radius: 10px;
-        color: rgba(255,255,255,.6);
-      }
-      .quick-login-btn:hover {
-        background: rgba(255,255,255,.12);
-        border-color: rgba(255,255,255,.3);
-        color: #fff;
-        transform: none;
-      }
     }
   </style>
 </head>
@@ -458,20 +404,6 @@
           <span class="btn-spinner"></span>
         </button>
       </form>
-
-      <!-- 開発用クイックログイン -->
-      <div class="dev-section">
-        <p class="dev-section-label">DEV — クイックログイン</p>
-        <button class="quick-login-btn" data-role="client">
-          <i class="fa-solid fa-user"></i> 発注担当（日本）でログイン
-        </button>
-        <button class="quick-login-btn" data-role="modeler">
-          <i class="fa-solid fa-drafting-compass"></i> モデラー（インドネシア）でログイン
-        </button>
-        <button class="quick-login-btn" data-role="admin">
-          <i class="fa-solid fa-gear"></i> 管理者でログイン
-        </button>
-      </div>
 
     </div>
   </div>
