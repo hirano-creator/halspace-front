@@ -146,31 +146,56 @@ const MFA_PANEL_CSS = `
   .mfa-link:disabled { cursor: default; opacity: .4; text-decoration: none; }
 `;
 
-const MFA_PANEL_HTML = `
-  <p class="mfa-lead">
-    確認コードを <strong class="mfa-to"></strong> にお送りしました。<br>
-    メールに記載された6桁の数字を入力してください。
-  </p>
-  <form class="mfa-form" novalidate>
-    <div class="form-group">
-      <label for="mfaCode">確認コード</label>
-      <input type="text" id="mfaCode" class="mfa-code-input" inputmode="numeric"
-             autocomplete="one-time-code" maxlength="6" placeholder="000000" required>
-    </div>
-    <label class="mfa-remember">
-      <input type="checkbox" class="mfa-remember-check" checked>
-      <span>この端末を記憶する（次回から90日間、コードの入力は不要です）</span>
-    </label>
-    <button type="submit" class="btn-login mfa-submit">
-      <span class="btn-text">ログイン</span>
-      <span class="btn-spinner"></span>
-    </button>
-  </form>
-  <div class="mfa-actions">
-    <button type="button" class="mfa-link mfa-resend">コードを再送する</button>
-    <button type="button" class="mfa-link mfa-back">メールアドレスの入力に戻る</button>
-  </div>
-`;
+/* ログイン画面はアプリごとにデザインが違い、入力欄のクラス名も
+   （.form-group だったり .field + .fwrap だったり）そろっていない。
+   クラス名を決め打ちするとどこかで無style化するため、そのページの
+   メールアドレス欄をまるごと複製してコード入力欄に作り替える。 */
+function mfaBuildCodeField(form) {
+  const src = form.querySelector('input[type="email"]') || form.querySelector('input');
+  const group = src?.closest('div');
+  if (!group) return null;
+
+  const field = group.cloneNode(true);
+
+  const label = field.querySelector('label');
+  if (label) {
+    label.textContent = '確認コード';
+    label.setAttribute('for', 'mfaCode');
+  }
+
+  const input = field.querySelector('input');
+  input.type = 'text';
+  input.id = 'mfaCode';
+  input.value = '';
+  input.removeAttribute('name');
+  input.classList.add('mfa-code-input');
+  input.setAttribute('inputmode', 'numeric');
+  /* スマートフォンがメールの確認コードを自動入力してくれる。
+     お客様の手間を最も減らす一手なので必ず付ける */
+  input.setAttribute('autocomplete', 'one-time-code');
+  input.setAttribute('maxlength', '6');
+  input.setAttribute('placeholder', '000000');
+
+  return field;
+}
+
+/* 送信ボタンも、そのページのボタンをそのまま複製して文言だけ差し替える */
+function mfaBuildSubmitButton(form) {
+  const src = form.querySelector('button[type="submit"]') || form.querySelector('button');
+  const btn = src ? src.cloneNode(true) : document.createElement('button');
+
+  btn.type = 'submit';
+  btn.removeAttribute('id');
+  btn.classList.add('mfa-submit');
+  btn.disabled = false;
+  btn.classList.remove('loading');
+
+  const text = btn.querySelector('.btn-text');
+  if (text) text.textContent = 'ログイン';
+  else btn.textContent = 'ログイン';
+
+  return btn;
+}
 
 /**
  * コード入力パネルを開く。
@@ -199,7 +224,30 @@ function mfaOpenPanel(o) {
 
   const panel = document.createElement('div');
   panel.className = 'mfa-panel';
-  panel.innerHTML = MFA_PANEL_HTML;
+  panel.innerHTML = `
+    <p class="mfa-lead">
+      確認コードを <strong class="mfa-to"></strong> にお送りしました。<br>
+      メールに記載された6桁の数字を入力してください。
+    </p>
+    <form class="mfa-form" novalidate>
+      <label class="mfa-remember">
+        <input type="checkbox" class="mfa-remember-check" checked>
+        <span>この端末を記憶する（次回から90日間、コードの入力は不要です）</span>
+      </label>
+    </form>
+    <div class="mfa-actions">
+      <button type="button" class="mfa-link mfa-resend">コードを再送する</button>
+      <button type="button" class="mfa-link mfa-back">メールアドレスの入力に戻る</button>
+    </div>
+  `;
+
+  /* 入力欄と送信ボタンは、そのページの既存要素の複製で組み立てる */
+  const codeField  = mfaBuildCodeField(form);
+  const submitNode = mfaBuildSubmitButton(form);
+  const mfaForm    = panel.querySelector('.mfa-form');
+  if (codeField) mfaForm.insertBefore(codeField, mfaForm.firstChild);
+  mfaForm.appendChild(submitNode);
+
   form.insertAdjacentElement('afterend', panel);
 
   const codeInput = panel.querySelector('.mfa-code-input');
