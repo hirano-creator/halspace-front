@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="assets/css/space.css?v=20260823a">
+  <link rel="stylesheet" href="assets/css/space.css?v=20260823b">
 </head>
 <body class="apps-page">
 
@@ -35,13 +35,24 @@
     </div>
   </header>
 
+  <!-- 今月のおすすめ（ヒーロー） -->
+  <section class="hero" id="hero">
+    <div class="hero-inner">
+      <div class="hero-text">
+        <p class="hero-greeting" id="welcomeMsg">おかえりなさい</p>
+        <span class="hero-eyebrow" id="heroEyebrow"></span>
+        <h1 class="hero-title" id="heroTitle"></h1>
+        <p class="hero-desc" id="heroDesc"></p>
+        <div class="hero-actions" id="heroActions"></div>
+      </div>
+      <div class="hero-visual">
+        <img id="heroImage" src="" alt="">
+      </div>
+    </div>
+  </section>
+
   <!-- メイン -->
   <main class="apps-body">
-    <div class="apps-welcome">
-      <h1 id="welcomeMsg">おかえりなさい</h1>
-      <p>ご利用になるサービスを選択してください。</p>
-    </div>
-
     <div class="apps-section-header">
       <div class="apps-section-label">サービス一覧</div>
       <a class="apps-all-link" href="all-apps.html">ALL APPS <i class="fa-solid fa-arrow-right"></i></a>
@@ -89,6 +100,6 @@
     </section>
   </main>
 
-  <script src="assets/js/space.js?v=20260823a"></script>
+  <script src="assets/js/space.js?v=20260823b"></script>
 </body>
 </html>
