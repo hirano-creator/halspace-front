@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450" role="img" aria-label="Quote">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#475569"/><stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+    
+  <pattern id="h" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+    <line x1="0" y1="0" x2="0" y2="26" stroke="#ffffff" stroke-opacity=".06" stroke-width="7"/>
+  </pattern>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg)"/>
+  <rect width="800" height="450" fill="url(#h)"/>
+  <g transform="translate(314,119)" opacity=".6">
+    <rect x="0" y="0" width="172" height="212" rx="10" fill="#fff" fill-opacity=".16" stroke="#fff" stroke-width="4" stroke-opacity=".6"/>
+    <g stroke="#fff" stroke-opacity=".45" stroke-width="3">
+      <line x1="0" y1="56" x2="172" y2="56"/><line x1="0" y1="104" x2="172" y2="104"/>
+      <line x1="0" y1="152" x2="172" y2="152"/><line x1="104" y1="56" x2="104" y2="212"/>
+    </g>
+    <g stroke="#fff" stroke-width="7" stroke-opacity=".6" stroke-linecap="round">
+      <line x1="22" y1="30" x2="96" y2="30"/><line x1="22" y1="80" x2="78" y2="80"/>
+      <line x1="22" y1="128" x2="82" y2="128"/><line x1="22" y1="176" x2="70" y2="176"/>
+      <line x1="124" y1="80" x2="152" y2="80"/><line x1="124" y1="128" x2="152" y2="128"/><line x1="124" y1="176" x2="152" y2="176"/>
+    </g>
+  </g>
+</svg>

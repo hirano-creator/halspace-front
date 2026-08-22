@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450" role="img" aria-label="Invoice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4338ca"/><stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+    
+  <pattern id="h" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+    <line x1="0" y1="0" x2="0" y2="26" stroke="#ffffff" stroke-opacity=".06" stroke-width="7"/>
+  </pattern>
+  </defs>
+  <rect width="800" height="450" fill="url(#bg)"/>
+  <rect width="800" height="450" fill="url(#h)"/>
+  <g transform="translate(320,125)" opacity=".6">
+    <rect x="0" y="0" width="160" height="200" rx="10" fill="#fff" fill-opacity=".16" stroke="#fff" stroke-width="4" stroke-opacity=".62"/>
+    <g stroke="#fff" stroke-width="7" stroke-opacity=".5" stroke-linecap="round">
+      <line x1="28" y1="44" x2="106" y2="44"/><line x1="28" y1="76" x2="132" y2="76"/>
+      <line x1="28" y1="108" x2="94" y2="108"/><line x1="28" y1="140" x2="120" y2="140"/>
+    </g>
+    <g transform="translate(132,168)">
+      <circle r="34" fill="#fff" fill-opacity=".92"/>
+      <path d="M-15 2 l10 11 l20 -23" fill="none" stroke="#4338ca" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+</svg>

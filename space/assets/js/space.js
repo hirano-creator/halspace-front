@@ -57,25 +57,68 @@ const APP_CATALOG = [
     icon: 'fa-solid fa-comments',
     iconClass: 'app-icon-aa',
     url: '../a.a/app/feed.html' },
-  { id: 'future',
-    name: 'Analytics',
-    desc: '各サービスの利用状況・アクセスデータをリアルタイムで可視化するダッシュボード。',
-    icon: 'fa-solid fa-chart-line',
-    iconClass: 'app-icon-future',
+];
+/* 未提供のアプリ（旧 id:'future' の枠）は下段の STORE_APPS に移した。
+   APP_CATALOG は「契約すれば今すぐ開けるアプリ」だけを持つ。 */
+
+/* 提携企業からのお知らせ（協賛バナー）。
+   Phase 1 は掲載社が少ないためここに直接書く。管理画面からの登録はPhase 2で対応する。
+   画像は space/assets/img/sponsor/ に置き、1200×400px を推奨。 */
+const SPONSOR_BANNERS = [
+  { id: 'yamada',
+    company: '山田工業株式会社',
+    headline: '薄物でも、浮かない。',
+    desc: '電磁チャック MC-200。試作1個から対応します。',
+    image: 'assets/img/sponsor/yamada-kogyo.svg',
     url: null },
-  { id: 'future',
-    name: 'Workflow',
-    desc: '承認フロー・タスク管理・通知を一元化。チーム間の業務連携をスムーズに。',
-    icon: 'fa-solid fa-diagram-project',
-    iconClass: 'app-icon-future',
+  { id: 'aoyama',
+    company: 'アオヤマ精機',
+    headline: '写真と寸法だけで、治具になる。',
+    desc: '治具設計サポート。1点からご相談いただけます。',
+    image: 'assets/img/sponsor/aoyama-seiki.svg',
     url: null },
-  { id: 'future',
-    name: 'Connect',
-    desc: '取引先・仕入先とのデータ共有・やりとりを安全に。外部コラボレーション機能。',
-    icon: 'fa-solid fa-link',
-    iconClass: 'app-icon-future',
+  { id: 'chubu',
+    company: '中部運輸ロジスティクス',
+    headline: '揺らさず、その日のうちに。',
+    desc: '精密機械専用便。名古屋圏は当日配送に対応。',
+    image: 'assets/img/sponsor/chubu-logi.svg',
     url: null },
 ];
+
+/* Space.app ストアに並べるアプリ。
+   status: 'available'（申し込める） / 'preorder'（先行受付） / 'planned'（構想中）
+   画像は space/assets/img/store/ に置き、800×450px を推奨。
+   金額はこの画面には出さない——会社規模で条件が変わるため、詳細ページと個別のご案内で伝える。 */
+const STORE_APPS = [
+  { id: 'analytics', name: 'Analytics', cat: '業務効率',
+    desc: '各サービスの利用状況・アクセスデータをリアルタイムで可視化するダッシュボード。',
+    image: 'assets/img/store/analytics.svg', status: 'available' },
+  { id: 'timecalc', name: 'TimeCalc', cat: '業務効率',
+    desc: '打刻・勤怠計算・月次勤怠表の印刷まで。Square連携にも対応します。',
+    image: 'assets/img/store/timecalc.svg', status: 'available' },
+  { id: 'invoice', name: 'Invoice', cat: '業務効率',
+    desc: '請求書をOCRで自動読み取り。受発注データと突き合わせて管理します。',
+    image: 'assets/img/store/invoice.svg', status: 'preorder' },
+  { id: 'workflow', name: 'Workflow', cat: '業務効率',
+    desc: '承認フロー・タスク管理・通知を一元化。チーム間の業務連携をスムーズに。',
+    image: 'assets/img/store/workflow.svg', status: 'preorder' },
+  { id: 'connect', name: 'Connect', cat: 'コミュニケーション',
+    desc: '取引先・仕入先とのデータ共有・やりとりを安全に。外部コラボレーション機能。',
+    image: 'assets/img/store/connect.svg', status: 'planned' },
+  { id: 'quote', name: 'Quote', cat: '業務効率',
+    desc: '図面から見積を作成し、そのままSOLIDの発注につなげられます。',
+    image: 'assets/img/store/quote.svg', status: 'planned' },
+];
+
+/* 掲載状態ごとのバッジとボタンの出しわけ */
+const STORE_STATUS = {
+  available: { label: 'ご利用可能', badge: 'store-badge-available', action: '申し込む',          primary: true  },
+  preorder:  { label: '先行受付',   badge: 'store-badge-preorder',  action: '先行受付に登録',    primary: false },
+  planned:   { label: '準備中',     badge: 'store-badge-planned',   action: 'お知らせを受け取る', primary: false },
+};
+
+/* 問い合わせ先。Phase 3で申し込みフォームに差し替える。 */
+const STORE_CONTACT = 'info@halspace.co.jp';
 
 /* ===== ユーティリティ ===== */
 function saveAuth(user) {
@@ -379,4 +422,115 @@ if (appsGrid) {
   });
   appsGrid.addEventListener('scroll', updateArrows, { passive: true });
   updateArrows();
+
+  renderSponsors();
+  renderStore();
+}
+
+/* 掲載内容は将来管理画面から入るため、HTMLへ差し込む前に必ずエスケープする */
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+/* 掲載枠より候補が多いときは日替わりで回し、特定の1社が出続けないようにする */
+function pickRotating(list, count) {
+  if (list.length <= count) return list.slice();
+  const offset = Math.floor(Date.now() / 86400000) % list.length;
+  return Array.from({ length: count }, (_, i) => list[(offset + i) % list.length]);
+}
+
+/* ── 提携企業からのお知らせ（協賛バナー） ── */
+function renderSponsors() {
+  const grid = document.getElementById('sponsorGrid');
+  if (!grid) return;
+
+  const items = pickRotating(SPONSOR_BANNERS, 2);
+  if (!items.length) {
+    document.querySelector('.sponsor-section')?.remove();
+    return;
+  }
+
+  grid.innerHTML = items.map(b => `
+    <article class="sponsor-card"${b.url ? ' role="link" tabindex="0"' : ''}>
+      <img class="sponsor-img" src="${esc(b.image)}" alt="" loading="lazy">
+      <span class="sponsor-ad">広告</span>
+      <div class="sponsor-body">
+        <div class="sponsor-company">${esc(b.company)}</div>
+        <h3 class="sponsor-headline">${esc(b.headline)}</h3>
+        <p class="sponsor-desc">${esc(b.desc)}</p>
+      </div>
+    </article>`).join('');
+
+  /* リンク先が未設定の掲載はクリックしても何も起きないようにする（空遷移を防ぐ） */
+  grid.querySelectorAll('.sponsor-card').forEach((card, i) => {
+    const url = items[i].url;
+    if (!url) return;
+    card.classList.add('is-linked');
+    const open = () => window.open(url, '_blank', 'noopener');
+    card.addEventListener('click', open);
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    });
+  });
+}
+
+/* ── Space.app ストア ── */
+function renderStore() {
+  const grid = document.getElementById('storeGrid');
+  if (!grid) return;
+
+  /* すでに契約中のアプリは上段の「サービス一覧」に出るので、ストアには並べない */
+  const user = getAuth();
+  const owned = user?.apps ?? [];
+  const items = STORE_APPS.filter(a => !owned.includes(a.id)).slice(0, 6);
+
+  if (!items.length) {
+    document.querySelector('.store-section')?.remove();
+    return;
+  }
+
+  grid.innerHTML = items.map(app => {
+    const st = STORE_STATUS[app.status] ?? STORE_STATUS.planned;
+    return `
+    <article class="store-card">
+      <div class="store-thumb">
+        <img src="${esc(app.image)}" alt="" loading="lazy">
+        <span class="store-badge ${st.badge}">${esc(st.label)}</span>
+      </div>
+      <div class="store-body">
+        <h3 class="store-name">${esc(app.name)}</h3>
+        <div class="store-cat">${esc(app.cat)}</div>
+        <p class="store-desc">${esc(app.desc)}</p>
+        <div class="store-actions">
+          <button type="button" class="store-btn store-btn-sub" data-app="${esc(app.id)}" data-kind="detail">詳しく見る</button>
+          <button type="button" class="store-btn ${st.primary ? 'store-btn-main' : 'store-btn-alt'}" data-app="${esc(app.id)}" data-kind="apply">${esc(st.action)}</button>
+        </div>
+      </div>
+    </article>`;
+  }).join('');
+
+  /* Phase 1 は申し込みフォームを作らず、件名を用意したメールで受け付ける */
+  grid.querySelectorAll('.store-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const app = STORE_APPS.find(a => a.id === btn.dataset.app);
+      if (!app) return;
+      const st = STORE_STATUS[app.status] ?? STORE_STATUS.planned;
+      const subject = btn.dataset.kind === 'detail'
+        ? `【Space.app】${app.name} について詳しく知りたい`
+        : `【Space.app】${app.name} の${st.action}`;
+      const body = [
+        `${app.name}（${st.label}）についてご連絡します。`,
+        '',
+        `会社名：${user?.company ?? ''}`,
+        `お名前：${user?.name ?? ''}`,
+        `ご連絡先：${user?.email ?? ''}`,
+        '',
+        'ご要望・ご質問：',
+        '',
+      ].join('\n');
+      location.href = `mailto:${STORE_CONTACT}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    });
+  });
 }

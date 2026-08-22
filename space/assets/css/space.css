@@ -254,6 +254,7 @@ input { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   margin-bottom: 14px;
 }
 .apps-section-label {
@@ -267,6 +268,8 @@ input { font-family: inherit; }
   color: #2563eb; letter-spacing: .03em;
   display: flex; align-items: center; gap: 5px;
   text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: gap .2s ease, opacity .2s ease;
 }
 .apps-all-link:hover { opacity: .75; gap: 8px; }
@@ -401,6 +404,186 @@ input { font-family: inherit; }
 .app-card:hover:not(.locked)::after { color: #635bff; transform: translateX(3px); }
 
 /* ══════════════════════════════════════════
+   提携企業からのお知らせ（協賛バナー）
+══════════════════════════════════════════ */
+.sponsor-section { margin-top: 56px; }
+.sponsor-eyebrow {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 1.4px; color: #635bff;
+  margin-bottom: 4px;
+}
+.sponsor-title {
+  font-size: 19px; font-weight: 700; color: #1c1c1e;
+  letter-spacing: -.3px; line-height: 1.4;
+}
+.sponsor-sub { font-size: 12px; color: #8e8e93; margin-top: 3px; }
+
+.sponsor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+.sponsor-card {
+  position: relative;
+  height: 168px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,.06);
+  background: #e9e9ee;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.sponsor-card.is-linked { cursor: pointer; }
+.sponsor-card.is-linked:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0,0,0,.16);
+}
+.sponsor-img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* 左側にテキストを重ねるので、その範囲だけ暗く落とす */
+.sponsor-card::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(15,20,35,.82) 0%, rgba(15,20,35,.55) 52%, rgba(15,20,35,.12) 100%);
+}
+.sponsor-ad {
+  position: absolute; left: 14px; top: 13px; z-index: 2;
+  background: rgba(255,255,255,.92);
+  color: #6b7280;
+  font-size: 10px; font-weight: 700;
+  padding: 2px 8px; border-radius: 5px;
+  letter-spacing: .04em;
+}
+.sponsor-body {
+  position: relative; z-index: 2;
+  height: 100%;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 0 26px;
+  color: #fff;
+}
+.sponsor-company {
+  font-size: 12px; font-weight: 600;
+  color: rgba(255,255,255,.82);
+  margin-bottom: 6px;
+}
+.sponsor-headline {
+  font-size: 20px; font-weight: 800;
+  line-height: 1.45; letter-spacing: -.2px;
+  max-width: 76%;
+}
+.sponsor-desc {
+  font-size: 12.5px;
+  color: rgba(255,255,255,.8);
+  margin-top: 7px;
+  max-width: 76%;
+  line-height: 1.7;
+}
+
+/* ══════════════════════════════════════════
+   Space.app ストア
+══════════════════════════════════════════ */
+.store-section { margin-top: 56px; }
+.store-eyebrow {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 1.4px; color: #FF6B35;
+  margin-bottom: 4px;
+}
+.store-title {
+  font-size: 19px; font-weight: 700; color: #1c1c1e;
+  letter-spacing: -.3px; line-height: 1.4;
+}
+.store-sub { font-size: 12px; color: #8e8e93; margin-top: 3px; }
+.apps-all-link.store-link { color: #FF6B35; }
+
+.store-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.store-card {
+  background: rgba(255,255,255,.95);
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.store-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0,0,0,.1);
+}
+.store-thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #e9e9ee;
+}
+.store-thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.store-badge {
+  position: absolute; left: 10px; top: 10px;
+  font-size: 10.5px; font-weight: 700;
+  padding: 3px 9px; border-radius: 20px;
+  background: rgba(255,255,255,.94);
+}
+.store-badge-available { color: #0f9d58; }
+.store-badge-preorder  { color: #FF6B35; }
+.store-badge-planned   { color: #6b7280; }
+
+.store-body {
+  padding: 15px 16px 16px;
+  display: flex; flex-direction: column;
+  flex: 1;
+}
+.store-name {
+  font-size: 15px; font-weight: 700; color: #1c1c1e;
+  letter-spacing: -.2px;
+}
+.store-cat { font-size: 11px; color: #aeaeb2; margin-top: 2px; }
+.store-desc {
+  font-size: 12px; color: #8e8e93;
+  line-height: 1.75;
+  margin: 9px 0 14px;
+  flex: 1;
+}
+.store-actions { display: flex; gap: 8px; }
+.store-btn {
+  flex: 1;
+  font-family: inherit;
+  font-size: 12px; font-weight: 700;
+  padding: 9px 8px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all .18s ease;
+  white-space: nowrap;
+}
+.store-btn-sub {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,.1);
+  color: #6b7280;
+}
+.store-btn-sub:hover { background: rgba(0,0,0,.04); color: #374151; }
+.store-btn-main {
+  background: #FF6B35;
+  border: 1px solid #FF6B35;
+  color: #fff;
+}
+.store-btn-main:hover { background: #e85a26; border-color: #e85a26; }
+.store-btn-alt {
+  background: #fff;
+  border: 1px solid rgba(255,107,53,.35);
+  color: #FF6B35;
+}
+.store-btn-alt:hover { background: rgba(255,107,53,.08); }
+
+/* ══════════════════════════════════════════
    レスポンシブ
 ══════════════════════════════════════════ */
 
@@ -410,6 +593,11 @@ input { font-family: inherit; }
   .apps-arrow-left  { left: -44px; }
   .apps-arrow-right { right: -44px; }
   .app-card { flex: 0 0 200px; }
+
+  /* 3列だとカードが痩せすぎるので2列に落とす */
+  .store-grid { grid-template-columns: repeat(2, 1fr); }
+  .sponsor-card { height: 152px; }
+  .sponsor-headline { font-size: 18px; max-width: 84%; }
 }
 
 /* スマホ（〜767px） */
@@ -446,6 +634,24 @@ input { font-family: inherit; }
 
   /* 右端に余白を設けて「まだ続く」感を演出 */
   .apps-grid { padding-right: 32px; }
+
+  /* 協賛バナー・ストアは1列に積む */
+  .sponsor-section, .store-section { margin-top: 40px; }
+  .sponsor-grid { grid-template-columns: 1fr; gap: 12px; }
+  .sponsor-card { height: 138px; }
+  .sponsor-body { padding: 0 18px; }
+  .sponsor-headline { font-size: 16px; max-width: 90%; }
+  .sponsor-desc { font-size: 11.5px; max-width: 90%; }
+  .sponsor-title, .store-title { font-size: 17px; }
+  /* 狭い画面では説明文がリンクとぶつかるので畳む */
+  .store-sub { display: none; }
+
+  .store-grid { grid-template-columns: 1fr; gap: 12px; }
+  .store-card { flex-direction: row; }
+  .store-thumb { width: 132px; aspect-ratio: auto; flex-shrink: 0; }
+  .store-badge { font-size: 9.5px; padding: 2px 7px; left: 7px; top: 7px; }
+  .store-body { padding: 13px 14px 14px; }
+  .store-desc { margin: 7px 0 11px; }
 
   /* ログイン */
   .login-card { padding: 32px 22px; }
