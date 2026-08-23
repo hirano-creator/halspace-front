@@ -32,7 +32,7 @@ const manualFixture = () => ({
   const ctx = await browser.newContext({ serviceWorkers: 'block' });
 
   await ctx.addInitScript(() => {
-    const u = JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com', company_id: 1 });
+    const u = JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com', company_id: 1, wn_extended_options_enabled: true });
     sessionStorage.setItem('space_token', 'mock-token-e2e');
     sessionStorage.setItem('space_user', u);
     localStorage.setItem('space_token', 'mock-token-e2e');

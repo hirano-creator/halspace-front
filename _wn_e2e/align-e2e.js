@@ -49,9 +49,9 @@ function readAlignRows(page) {
 
   await ctx.addInitScript(() => {
     sessionStorage.setItem('space_token', 'mock-token-e2e');
-    sessionStorage.setItem('space_user', JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com' }));
+    sessionStorage.setItem('space_user', JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com', wn_extended_options_enabled: true }));
     localStorage.setItem('space_token', 'mock-token-e2e');
-    localStorage.setItem('space_user', JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com' }));
+    localStorage.setItem('space_user', JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com', wn_extended_options_enabled: true }));
   });
 
   /* テスト画像生成（縦長・横長・正方形をミックスしてmasonryらしさを出す） */
