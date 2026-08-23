@@ -45,6 +45,19 @@
     .v-sbody { flex: 1; min-width: 0; }
     .v-shot { width: 100%; max-width: 320px; border-radius: var(--radius); background: var(--bg-card);
       border: 1px solid var(--border); cursor: zoom-in; display: block; }
+    /* サムネイル待ちの受け皿。読み込めたら display:contents にして中の <img class="v-shot"> だけを
+       残し、PCの「写真＋右にコメント」の並びを従来どおりにする */
+    .v-shotwrap { width: 100%; max-width: 320px; aspect-ratio: 4 / 3; border-radius: var(--radius);
+      background: var(--bg-card); border: 1px solid var(--border); display: grid; place-items: center;
+      color: var(--muted); font-size: 26px; text-decoration: none; }
+    .v-shotwrap.wn-has-thumb { display: contents; }
+    /* ファイル（PDF等）はサムネイルを出せたときだけ見せる。
+       出せなければ下のファイル行だけになり、空のアイコン枠を残さない。 */
+    .v-fileshot { display: none; }
+    .v-fileshot.wn-has-thumb { display: contents; }
+    /* ファイルの手順は「サムネイル → ファイル行」を縦に積む1列にする
+       （PCでは説明文がその右に並ぶ） */
+    .v-filecol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
     .v-cap { font-size: 15px; font-weight: 600; color: var(--primary); margin-top: 8px; white-space: pre-wrap; }
     .v-filerow { display: flex; align-items: center; gap: 14px; background: var(--bg-card); border: 1px solid var(--border);
       border-radius: var(--radius); padding: 12px 14px; text-decoration: none; }
@@ -74,7 +87,9 @@
       .v-wrap { max-width: 900px; }
       .v-sbody { display: flex; align-items: flex-start; gap: 20px; }
       .v-shot { flex: none; width: 380px; max-width: 50%; }
-      .v-filerow { flex: 1; }
+      .v-shotwrap { flex: none; width: 380px; max-width: 50%; }
+      .v-filecol { flex: 1; }
+      .v-filecol .v-shot { width: 100%; max-width: 380px; }
       .v-cap { flex: 1; min-width: 0; margin-top: 2px; font-size: 15.5px; line-height: 1.7; }
     }
   </style>
@@ -97,6 +112,7 @@
 
 <script src="../../solid/assets/js/auth.js?v=7"></script>
 <script src="../assets/js/wn-api.js?v=27"></script>
+<script src="../assets/js/wn-thumb.js?v=20260824a"></script>
 <script>
 'use strict';
 /* マニュアル閲覧画面（社内） */
@@ -125,18 +141,25 @@ function stepHtml(s) {
   if (s.file) {
     const isImg = (s.file.mime_type || '').startsWith('image/') || s.type === 'photo';
     if (isImg) {
-      media = `<img class="v-shot" src="${wnThumbUrl(s.file.id, s.file.updated_at)}" alt="" loading="lazy"
-        onclick="openLightbox(${s.file.id})"
-        onerror="this.style.display='none'">`;
+      media = `<div class="v-shotwrap" onclick="openLightbox(${s.file.id})">${
+        wnThumbSlotHtml(s.file, { imgClass: 'v-shot', icon: 'fa-image' })}</div>`;
     } else {
       const ic = wnFileIcon(s.file.file_name, s.file.mime_type);
-      media = `<a class="v-filerow" href="file-detail.html?id=${s.file.id}">
-        <div class="v-fic"><i class="fa-solid ${ic.icon}"></i></div>
-        <div style="min-width:0;">
-          <div class="v-fn">${escapeHtml(s.file.file_name)}</div>
-          <div class="v-fmeta">タップして開く</div>
-        </div>
-      </a>`;
+      /* 図面PDFなどサムネイルを出せるものは写真と同じ大きさで見せる。
+         中身が分かった上で「タップして開く」行に進めるようにファイル行は残す。 */
+      const shot = wnThumbSupported(s.file)
+        ? `<a class="v-fileshot" href="file-detail.html?id=${s.file.id}">${
+            wnThumbSlotHtml(s.file, { imgClass: 'v-shot', icon: ic.icon })}</a>`
+        : '';
+      media = `<div class="v-filecol">${shot}
+        <a class="v-filerow" href="file-detail.html?id=${s.file.id}">
+          <div class="v-fic">${wnThumbSlotHtml(s.file, { icon: ic.icon })}</div>
+          <div style="min-width:0;">
+            <div class="v-fn">${escapeHtml(s.file.file_name)}</div>
+            <div class="v-fmeta">タップして開く</div>
+          </div>
+        </a>
+      </div>`;
     }
   }
   const cap = s.caption ? `<div class="v-cap">${escapeHtml(s.caption)}</div>` : '';
@@ -174,6 +197,7 @@ function render(m) {
       </div>
     </div>
     <div class="v-steps">${stepsHtml}</div>`;
+  wnThumbHydrate(document.getElementById('content'));   /* 描画後にサムネイルを解決する */
 }
 
 /* ライトボックス（原寸画像） */

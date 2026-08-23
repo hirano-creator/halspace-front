@@ -19,7 +19,21 @@ node email-e2e.js          # メール送信導線（iPhone/PC両方でmailto生
 node unknown-contact-e2e.js # 連絡先に未登録の宛先ポップアップ（報告・その場で登録・登録せず送信・再確認しない）
 node manual-annotate-e2e.js # マニュアル編集のサムネ→注釈編集の導線（back/manual_id受け渡し・ステップ差し替え）
 node large-upload-e2e.js   # 大容量アップロード（R2直送マルチパート）の分割・リトライ・abort・フォールバック
+node manual-thumb-e2e.js   # マニュアルのサムネイル（PDF等をクライアント生成→サーバー保存、生成不可は崩れない）
+node align-e2e.js          # 並べる機能（justified layout・ライトボックス・PDF/DXFのサムネ生成）
 ```
+
+## 重要な教訓（マニュアルのサムネイル 2026-08-24）
+
+- **サーバーサムネは画像とOfficeだけ**: `/wn/files/{id}/thumb` は PDF/HEIC/動画/DXF に 404 を返す。
+  `<img src="${wnThumbUrl(...)}">` を貼るだけの画面ではこれらが永久にアイコンのままになる。
+  クライアント生成（`assets/js/wn-thumb.js`）を通してから表示し、生成物は POST で保存し直す
+- **IntersectionObserver は display:none の要素で発火しない**: 「サムネが出たときだけ見せる枠」を
+  作ると、隠しているせいで永久に解決されないデッドロックになる。非表示の受け皿は監視せず即解決する
+- **成功したときだけ差し替える**: `<img>` の onload まではアイコンを残す。差し替えを先にやると
+  生成に失敗した種別（xlsx等）で空枠が残る
+- 同じ穴が「並べる」(align.html) にもあった。`wnThumbUrl` を直に貼っている画面は全部同じ症状になるので、
+  新しい画面を足すときは `wn-thumb.js`（`wnThumbResolve` / `wnThumbSlotHtml`）を通す
 
 ## 重要な教訓（並べる機能のjustified layout 2026-08-04）
 
