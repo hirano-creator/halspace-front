@@ -45,6 +45,12 @@ function manualJson() {
   const page = await ctx.newPage();
   page.on('pageerror', e => console.log('PAGE ERROR:', e.message));
   await page.route('**/api/wn/**', r => r.fulfill({ json: { data: [] } }));
+  /* 画像の実体（原本 / サムネ）。中身は1x1でよく、寸法別の検証は data URL を流し込んで行う */
+  const PNG_1x1 = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64');
+  await page.route('**/wn/files/*/public-view*', r => r.fulfill({ contentType: 'image/png', body: PNG_1x1 }));
+  await page.route('**/wn/files/*/thumb*',       r => r.fulfill({ contentType: 'image/png', body: PNG_1x1 }));
   await page.route('**/api/wn/manuals/5', r => r.fulfill({ json: manualJson() }));
 
   await page.goto(`${BASE}/app/manual-edit.html?id=5`, { waitUntil: 'domcontentloaded' });
@@ -107,6 +113,34 @@ function manualJson() {
       (await page.textContent('#detail .e-voice')).trim());
   } else {
     check('非対応ブラウザでは音声入力ボタンを出さない', await page.locator('#detail .e-voice').count() === 0);
+  }
+
+  /* 写真は切れずに全体が見えること（縦長でも横長でも枠に収まる） */
+  for (const [w, h, label] of [[300, 900, '縦長'], [1600, 500, '横長']]) {
+    await page.evaluate(([w, h]) => {
+      const img = document.querySelector('#detail .e-detail-shot img');
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const x = c.getContext('2d');
+      x.fillStyle = '#c00'; x.fillRect(0, 0, w, h);
+      img.onerror = null;
+      img.src = c.toDataURL('image/png');
+    }, [w, h]);
+    await page.waitForFunction(([w]) => {
+      const img = document.querySelector('#detail .e-detail-shot img');
+      return img && img.complete && img.naturalWidth === w;
+    }, [w], { timeout: 5000 });
+
+    const fit = await page.evaluate(() => {
+      const img = document.querySelector('#detail .e-detail-shot img');
+      const box = document.querySelector('#detail .e-detail-shot');
+      const i = img.getBoundingClientRect(), b = box.getBoundingClientRect();
+      return { iw: Math.round(i.width), ih: Math.round(i.height),
+               bw: Math.round(b.width), bh: Math.round(b.height) };
+    });
+    check(`${label}の写真が枠に収まり切れない`,
+      fit.iw <= fit.bw + 1 && fit.ih <= fit.bh + 1,
+      `画像 ${fit.iw}x${fit.ih} / 枠 ${fit.bw}x${fit.bh}`);
   }
 
   /* 説明欄は一番よく使うので、固定バーに隠れず1画面に収まっていること */

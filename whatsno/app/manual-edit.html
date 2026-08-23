@@ -41,9 +41,12 @@
       padding: 10px; display: flex; gap: 11px; box-shadow: var(--shadow-sm); align-items: flex-start; }
     .e-num { flex: none; width: 25px; height: 25px; border-radius: 50%; background: var(--primary); color: #fff;
       font-weight: 700; font-size: 12px; display: grid; place-items: center; margin-top: 2px; }
-    .e-thumb { flex: none; width: 200px; height: 200px; border-radius: var(--radius); object-fit: cover;
-      display: grid; place-items: center; color: #fff; font-size: 34px; background: linear-gradient(135deg,#2d3d52,#0a2540); overflow: hidden; }
-    .e-thumb img { width: 100%; height: 100%; object-fit: contain; }
+    /* 中央寄せは grid ではなく flex を使う。grid のトラック内では画像の max-height:100% が
+       解決されず、実寸まで伸びて枠に切られてしまうため（縦長写真で顕著） */
+    .e-thumb { flex: none; width: 200px; height: 200px; border-radius: var(--radius);
+      display: flex; align-items: center; justify-content: center; color: #fff; font-size: 34px;
+      background: linear-gradient(135deg,#2d3d52,#0a2540); overflow: hidden; }
+    .e-thumb img { max-width: 100%; max-height: 100%; width: auto; height: auto; }
     /* スマホでは説明欄が潰れるのでサムネイルを控えめにする */
     @media (max-width: 480px) {
       .e-thumb { width: 130px; height: 130px; font-size: 24px; }
@@ -217,8 +220,9 @@
       padding: 16px; box-shadow: var(--shadow-sm); }
     .e-detail-kind { font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: .06em; }
     .e-detail-shot { margin-top: 10px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border);
-      height: 360px; display: grid; place-items: center; color: var(--muted); font-size: 34px; overflow: hidden; }
-    .e-detail-shot img { width: 100%; height: 100%; object-fit: contain; }
+      height: 360px; display: flex; align-items: center; justify-content: center;
+      color: var(--muted); font-size: 34px; overflow: hidden; }
+    .e-detail-shot img { max-width: 100%; max-height: 100%; width: auto; height: auto; }
     .e-detail-acts { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
     .e-dbtn { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px;
       border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card);
@@ -251,7 +255,7 @@
       /* 二面のときは説明欄まで1画面に収めたいので、上の入力欄を1行にまとめて写真を可変にする */
       .e-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
       .e-fields .e-field { margin-bottom: 12px; }
-      .e-detail-shot { height: clamp(150px, 28vh, 320px); }
+      .e-detail-shot { height: clamp(200px, 36vh, 380px); }
     }
 
     .hidden { display: none !important; }
@@ -448,9 +452,13 @@ function detailHtml(s, i) {
     let inner = '<i class="fa-solid fa-image"></i>';
     if (s.file) {
       const isImg = (s.file.mime_type || '').startsWith('image/') || s.type === 'photo';
+      /* ここは写真を確認しながら説明を書く場所なので、360x480のサムネではなく原本を出す。
+         読めなかったときだけサムネへ、それも駄目ならアイコンへ落とす。 */
       inner = isImg
-        ? `<img src="${wnThumbUrl(s.file.id, s.file.updated_at)}" alt=""
-             onerror="this.parentElement.innerHTML='<i class=&quot;fa-solid fa-image&quot;></i>'">`
+        ? `<img src="${wnPublicViewUrl(s.file.id)}" alt=""
+             data-thumb="${wnThumbUrl(s.file.id, s.file.updated_at)}"
+             onerror="if(this.dataset.thumb){this.src=this.dataset.thumb;this.dataset.thumb='';}
+                      else{this.parentElement.innerHTML='<i class=&quot;fa-solid fa-image&quot;></i>';}">`
         : `<i class="fa-solid ${wnFileIcon(s.file.file_name, s.file.mime_type).icon}"></i>`;
     }
     shot = `<div class="e-detail-shot">${inner}</div>`;
