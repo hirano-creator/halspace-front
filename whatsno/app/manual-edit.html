@@ -43,9 +43,10 @@
       font-weight: 700; font-size: 12px; display: grid; place-items: center; margin-top: 2px; }
     /* 中央寄せは grid ではなく flex を使う。grid のトラック内では画像の max-height:100% が
        解決されず、実寸まで伸びて枠に切られてしまうため（縦長写真で顕著） */
+    /* 縦横比が枠と違う写真は余白ができるので、地の色は明るい面に合わせる */
     .e-thumb { flex: none; width: 200px; height: 200px; border-radius: var(--radius);
-      display: flex; align-items: center; justify-content: center; color: #fff; font-size: 34px;
-      background: linear-gradient(135deg,#2d3d52,#0a2540); overflow: hidden; }
+      display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 34px;
+      background: var(--bg); border: 1px solid var(--border); overflow: hidden; }
     .e-thumb img { max-width: 100%; max-height: 100%; width: auto; height: auto; }
     /* スマホでは説明欄が潰れるのでサムネイルを控えめにする */
     @media (max-width: 480px) {
@@ -174,10 +175,38 @@
        ────────────────────────────────────────────── */
     .e-wrap { padding-bottom: calc(162px + env(safe-area-inset-bottom)); }
 
+    /* タイトルはヘッダーで直接編集する（モック同様、上の入力欄で場所を取らない） */
+    .e-htitle { flex: 1; min-width: 0; border: 1px solid transparent; border-radius: var(--radius);
+      background: none; font-family: inherit; font-weight: 800; font-size: 16px; color: var(--primary);
+      padding: 6px 8px; }
+    .e-htitle:hover { border-color: var(--border); }
+    .e-htitle:focus { outline: none; border-color: var(--accent); background: var(--bg-card); }
+    .e-saved { flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); }
+    .e-saved i { color: var(--green); }
+    .e-saved.saving i { color: var(--muted); }
+    .e-headbtn { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+      border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card);
+      color: var(--primary); font-size: 12.5px; font-weight: 700; text-decoration: none; }
+    .e-headbtn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .e-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 0 0 12px; }
+    .e-metafield { flex: 1 1 260px; min-width: 0; display: flex; align-items: center; gap: 8px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0 11px; height: 38px; }
+    .e-metafield > i { flex: none; color: var(--muted); font-size: 12px; }
+    .e-metafield input { flex: 1; min-width: 0; border: none; background: none; font-family: inherit;
+      font-size: 13px; color: var(--primary); }
+    .e-metafield input:focus { outline: none; }
+
+    .e-listhead { display: none; align-items: baseline; gap: 8px; padding: 0 4px 8px;
+      font-size: 11.5px; font-weight: 700; color: var(--muted); letter-spacing: .04em; }
+    .e-listhead .hint { margin-left: auto; font-weight: 500; }
+
     .e-addbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; margin-top: 0; display: block;
       background: var(--bg-card); border-top: 1px solid var(--border);
       padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); box-shadow: 0 -2px 12px rgba(10,37,64,.06); }
+    .e-addbar.dragover { background: #eef0ff; box-shadow: inset 0 0 0 2px var(--accent); }
     .e-addbar-inner { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+    .e-drophint { display: none; }
     .e-addprim { width: 100%; height: 62px; border: none; border-radius: 10px; background: var(--accent);
       color: #fff; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
       display: flex; align-items: center; justify-content: center; gap: 10px; }
@@ -194,6 +223,9 @@
     .e-voice:hover { border-color: var(--accent); }
     .e-voice.listening { background: var(--accent); border-color: var(--accent); color: #fff; }
     .e-voice-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    /* 説明欄の枠内に入れるときは幅を詰めて右端に置く */
+    .e-caphints .e-voice { margin-top: 0; width: auto; height: 34px; padding: 0 14px; border-radius: 100px;
+      border-color: var(--accent); background: #eef0ff; font-size: 12.5px; }
 
     /* 手順リスト（PC二面のときの左カラム） */
     .e-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px;
@@ -207,9 +239,10 @@
       color: var(--muted); cursor: grab; }
     .e-rownum:active { cursor: grabbing; }
     .e-rowth { flex: none; width: 46px; height: 46px; border-radius: 6px; background: var(--bg);
-      border: 1px solid var(--border); display: grid; place-items: center; color: var(--muted);
-      overflow: hidden; font-size: 15px; }
-    .e-rowth img { width: 100%; height: 100%; object-fit: cover; }
+      border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+      color: var(--muted); overflow: hidden; font-size: 15px; }
+    /* 一覧の小さな枠は、余白を作らず正方形いっぱいに埋めたいので cover */
+    .e-rowth img { width: 100%; height: 100%; object-fit: cover; flex: none; }
     .e-rowtx { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.5;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .e-rowtx.empty { color: var(--muted); font-weight: 400; }
@@ -218,26 +251,51 @@
     .e-detail { display: none; }
     .e-detail-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
       padding: 16px; box-shadow: var(--shadow-sm); }
+    .e-detail-head { display: flex; align-items: center; gap: 10px; }
     .e-detail-kind { font-size: 11px; font-weight: 800; color: var(--accent); letter-spacing: .06em; }
+    .e-detail-sub { font-size: 12px; color: var(--muted); }
+    .e-detail-hint { margin-left: auto; font-size: 11.5px; color: var(--muted); }
+
+    /* 写真の操作は写真の上に置く（モック同様、視線を写真から外さない） */
     .e-detail-shot { margin-top: 10px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border);
       height: 360px; display: flex; align-items: center; justify-content: center;
-      color: var(--muted); font-size: 34px; overflow: hidden; }
+      color: var(--muted); font-size: 34px; overflow: hidden; position: relative; }
     .e-detail-shot img { max-width: 100%; max-height: 100%; width: auto; height: auto; }
-    .e-detail-acts { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .e-shot-acts { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .e-shot-acts.right { left: auto; right: 12px; }
     .e-dbtn { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px;
       border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card);
-      color: var(--primary); font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+      color: var(--primary); font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+      box-shadow: var(--shadow-sm); }
     .e-dbtn:hover { border-color: var(--accent); color: var(--accent); }
     .e-dbtn.del:hover { border-color: var(--red); color: var(--red); }
     .e-dbtn.on { border-color: var(--orange); color: var(--orange); }
-    .e-detail-cap { width: 100%; margin-top: 12px; min-height: 96px; border: 1px solid var(--border);
-      border-radius: 8px; padding: 11px 12px; font-family: inherit; font-size: 15px; line-height: 1.7;
-      color: var(--primary); box-sizing: border-box; resize: vertical; }
-    .e-detail-cap:focus { outline: none; border-color: var(--accent); }
+
+    /* 説明欄はキー操作と音声を1つの枠にまとめる */
+    .e-capbox { margin-top: 12px; border: 1.5px solid var(--accent); border-radius: 8px;
+      background: var(--bg-card); overflow: hidden; }
+    .e-detail-cap { width: 100%; min-height: 74px; border: none; background: none; padding: 12px 13px 8px;
+      font-family: inherit; font-size: 15px; line-height: 1.7; color: var(--primary);
+      box-sizing: border-box; resize: none; display: block; }
+    .e-detail-cap:focus { outline: none; }
+    .e-caphints { display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+      border-top: 1px solid var(--border); padding: 8px 11px; }
+    .e-key { font-size: 11px; font-weight: 700; padding: 2px 7px; border: 1px solid var(--border);
+      border-bottom-width: 2px; border-radius: var(--radius); background: var(--bg-card); color: var(--muted); }
+    .e-caphints .lbl { font-size: 11.5px; color: var(--muted); }
+    .e-caphints .sp { margin-left: auto; }
 
     /* スマホは横に並べると説明欄が潰れるので縦に積む。
        写真を全幅にして、操作ボタンは指で押せる大きさで下にまとめる。 */
     @media (max-width: 620px) {
+      /* ヘッダーは幅が足りないので、タイトルに場所を譲って補助表示を畳む */
+      .e-saved { display: none; }
+      .e-headbtn .lbl { display: none; }
+      .e-headbtn { width: 34px; padding: 0; justify-content: center; }
+      .e-htitle { font-size: 15px; padding: 5px 6px; }
+      .e-status button { padding: 5px 10px; font-size: 11.5px; white-space: nowrap; }
+      .e-head { gap: 7px; }
+
       .e-step { flex-direction: column; align-items: stretch; gap: 9px; }
       .e-num { align-self: flex-start; }
       .e-thumb, .e-thumb.file { width: 100%; height: 190px; font-size: 30px; }
@@ -246,16 +304,42 @@
       .e-sctrl button { width: 44px; height: 40px; font-size: 13px; }
     }
 
+    /* ── PC: モックの二面ワークスペース ──
+       画面を1枚のアプリとして固定し、左右のペインだけが内側でスクロールする。
+       ページ全体が伸びないので、写真も説明欄も常に同じ位置にある。 */
     @media (min-width: 1000px) {
-      .e-wrap { max-width: 1180px; }
-      .e-main.two { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 18px; align-items: start; }
-      .e-main.two .e-detail { display: block; }
-      .e-main.two .e-steps { gap: 2px; background: var(--bg-card); border: 1px solid var(--border);
-        border-radius: var(--radius-lg); padding: 8px; box-shadow: var(--shadow-sm); }
-      /* 二面のときは説明欄まで1画面に収めたいので、上の入力欄を1行にまとめて写真を可変にする */
-      .e-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-      .e-fields .e-field { margin-bottom: 12px; }
-      .e-detail-shot { height: clamp(200px, 36vh, 380px); }
+      .e-wrap { max-width: 1180px; height: calc(100dvh - 92px); display: flex; flex-direction: column;
+        padding: 8px 16px 0; overflow: hidden; }
+      .e-head { padding: 6px 0 10px; }
+
+      .e-main.two { flex: 1; min-height: 0; display: grid; grid-template-columns: 340px minmax(0, 1fr);
+        gap: 16px; padding-bottom: 14px; }
+      .e-main.two .e-left { min-height: 0; display: flex; flex-direction: column;
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+        padding: 12px 10px 6px; box-shadow: var(--shadow-sm); }
+      .e-main.two .e-listhead { display: flex; }
+      .e-main.two .e-steps { flex: 1; min-height: 0; overflow-y: auto; gap: 2px; }
+      .e-main.two .e-danger { flex: none; margin-top: 6px; border-top: 1px solid var(--border); padding-top: 4px; }
+      .e-main.two .e-danger button { font-size: 11.5px; }
+
+      .e-main.two .e-detail { display: flex; min-height: 0; }
+      .e-main.two .e-detail-card { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      .e-main.two .e-detail-shot { flex: 1; min-height: 120px; height: auto; margin-top: 12px; }
+
+      /* 下端の帯はPCでは1行。PCで一番よく使うのは撮影ではなく「画像を選ぶ」なので、
+         主役をそちらに移し、カメラは並の操作に落とす（スマホは逆のまま） */
+      .e-addbar { padding: 9px 16px; }
+      .e-addbar-inner { flex-direction: row; align-items: center; gap: 10px; }
+      .e-addprim { flex: none; width: 210px; background: var(--bg-card); color: var(--primary);
+        border: 1px solid var(--border); font-size: 13px; }
+      .e-addprim:hover { background: var(--bg); border-color: var(--accent); color: var(--accent); }
+      .e-addsub { flex: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .e-addsub .e-addbtn { height: 62px; justify-content: center; }
+      .e-addsub .e-addbtn.pick { background: var(--accent); border-color: var(--accent); color: #fff; }
+      .e-addsub .e-addbtn.pick:hover { background: var(--accent-dk); }
+      .e-addsub .e-addbtn.pick .bic { background: rgba(255,255,255,.2); color: #fff; }
+      .e-drophint { display: flex; align-items: center; justify-content: center; gap: 7px;
+        max-width: 1180px; margin: 7px auto 0; font-size: 11.5px; color: var(--muted); }
     }
 
     .hidden { display: none !important; }
@@ -265,62 +349,65 @@
 <div class="e-wrap">
   <div class="e-head">
     <a href="manuals.html" class="e-back" aria-label="戻る"><i class="fa-solid fa-arrow-left"></i></a>
-    <div class="e-htitle" id="hTitle">マニュアル編集</div>
-    <a class="e-view-link" id="viewLink" href="#" title="閲覧"><i class="fa-solid fa-eye"></i></a>
+    <input class="e-htitle" id="fTitle" type="text" placeholder="マニュアルのタイトル" maxlength="200"
+           aria-label="タイトル">
+    <span class="e-saved" id="savedMark"><i class="fa-solid fa-check"></i> 自動保存</span>
+    <a class="e-headbtn" id="viewLink" href="#" title="プレビュー"><i class="fa-solid fa-eye"></i><span class="lbl">プレビュー</span></a>
     <div class="e-status">
       <button id="stDraft" data-v="draft">下書き</button>
       <button id="stPub" data-v="published">公開</button>
     </div>
   </div>
 
-  <div class="e-fields">
-    <div class="e-field">
-      <div class="e-field-label">タイトル</div>
-      <input id="fTitle" type="text" placeholder="マニュアルのタイトル" maxlength="200">
+  <!-- 説明とタグ（一覧の絞り込みに使う）。手順に場所を譲るため1行にまとめる -->
+  <div class="e-meta">
+    <div class="e-metafield">
+      <i class="fa-solid fa-align-left"></i>
+      <input id="fDesc" type="text" placeholder="説明（任意）— 所要時間・注意など" maxlength="2000">
     </div>
-    <div class="e-field desc">
-      <div class="e-field-label">説明（任意）</div>
-      <input id="fDesc" type="text" placeholder="作業の概要・所要時間・注意など" maxlength="2000">
-    </div>
-  </div>
-
-  <!-- タグ（一覧の絞り込みに使う） -->
-  <div class="e-tags">
-    <span class="e-tags-label">タグ</span>
-    <div class="tag-list" id="tagChips"></div>
-    <div class="e-tagpick">
-      <button class="e-tag-add" id="tagAddBtn"><i class="fa-solid fa-plus"></i> タグ</button>
-      <div class="e-tagpick-panel" id="tagPickPanel">
-        <input type="text" id="tagPickSearch" placeholder="タグ名で絞り込み / 新規作成" autocomplete="off" maxlength="100">
-        <div class="e-tagpick-list" id="tagPickList"></div>
-        <div class="e-tagpick-hint" id="tagPickHint"></div>
+    <div class="e-tags">
+      <div class="tag-list" id="tagChips"></div>
+      <div class="e-tagpick">
+        <button class="e-tag-add" id="tagAddBtn"><i class="fa-solid fa-plus"></i> タグ</button>
+        <div class="e-tagpick-panel" id="tagPickPanel">
+          <input type="text" id="tagPickSearch" placeholder="タグ名で絞り込み / 新規作成" autocomplete="off" maxlength="100">
+          <div class="e-tagpick-list" id="tagPickList"></div>
+          <div class="e-tagpick-hint" id="tagPickHint"></div>
+        </div>
       </div>
     </div>
   </div>
 
   <div class="e-main" id="mainArea">
-    <div class="e-steps" id="steps"></div>
-    <div class="e-detail" id="detail"></div>
-  </div>
-
-  <div class="e-addbar">
-    <div class="e-addbar-inner">
-      <button class="e-addprim" id="addCam"><i class="fa-solid fa-camera"></i> 写真を撮って手順にする</button>
-      <div class="e-addsub">
-        <div class="e-addbtn pick" id="addImg"><div class="bic"><i class="fa-solid fa-image"></i></div>画像を選ぶ</div>
-        <div class="e-addbtn file" id="addFile"><div class="bic"><i class="fa-solid fa-paperclip"></i></div>What'sNoから選ぶ</div>
-        <div class="e-addbtn text" id="addText"><div class="bic"><i class="fa-solid fa-heading"></i></div>見出し・説明</div>
+    <div class="e-left">
+      <div class="e-listhead">
+        <span>手順</span><span id="stepCount"></span>
+        <span class="hint"><i class="fa-solid fa-bars"></i> ドラッグで並べ替え</span>
+      </div>
+      <div class="e-steps" id="steps"></div>
+      <div class="e-danger">
+        <button id="delManualBtn"><i class="fa-solid fa-trash-can"></i> このマニュアルを削除</button>
       </div>
     </div>
-  </div>
-
-  <input type="file" id="inCam"  accept="image/*" capture="environment" multiple style="display:none;">
-  <input type="file" id="inImg"  accept="image/*" multiple style="display:none;">
-
-  <div class="e-danger">
-    <button id="delManualBtn"><i class="fa-solid fa-trash-can"></i> このマニュアルを削除</button>
+    <div class="e-detail" id="detail"></div>
   </div>
 </div>
+
+<div class="e-addbar" id="addBar">
+  <div class="e-addbar-inner">
+    <button class="e-addprim" id="addCam"><i class="fa-solid fa-camera"></i> 写真を撮って手順にする</button>
+    <div class="e-addsub">
+      <div class="e-addbtn pick" id="addImg"><div class="bic"><i class="fa-solid fa-image"></i></div>画像を選ぶ</div>
+      <div class="e-addbtn file" id="addFile"><div class="bic"><i class="fa-solid fa-paperclip"></i></div>What'sNoから選ぶ</div>
+      <div class="e-addbtn text" id="addText"><div class="bic"><i class="fa-solid fa-heading"></i></div>見出し・説明</div>
+    </div>
+  </div>
+  <div class="e-drophint"><i class="fa-solid fa-arrow-up-from-bracket"></i> この帯に写真を落としても手順にできます</div>
+</div>
+
+<input type="file" id="inCam"  accept="image/*" capture="environment" multiple style="display:none;">
+<input type="file" id="inImg"  accept="image/*" multiple style="display:none;">
+<input type="file" id="inSwap" accept="image/*" style="display:none;">
 
 <!-- 既存ファイル選択モーダル -->
 <div class="e-overlay" id="fileModal">
@@ -461,7 +548,15 @@ function detailHtml(s, i) {
                       else{this.parentElement.innerHTML='<i class=&quot;fa-solid fa-image&quot;></i>';}">`
         : `<i class="fa-solid ${wnFileIcon(s.file.file_name, s.file.mime_type).icon}"></i>`;
     }
-    shot = `<div class="e-detail-shot">${inner}</div>`;
+    /* 写真の操作は写真の上に重ねる（視線を写真から外さない） */
+    const onShot = [];
+    if (s.file && wnIsAnnotatable(s.file.file_name, s.file.mime_type)) {
+      onShot.push(`<button class="e-dbtn" onclick="openAnnotate(${s.id})"><i class="fa-solid fa-pen"></i> 注釈を入れる</button>`);
+    }
+    onShot.push(`<button class="e-dbtn" onclick="swapStepFile(${s.id})"><i class="fa-solid fa-rotate"></i> 差し替え</button>`);
+    shot = `<div class="e-detail-shot">${inner}
+      <div class="e-shot-acts">${onShot.join('')}</div>
+    </div>`;
   }
 
   const field = isText
@@ -473,33 +568,79 @@ function detailHtml(s, i) {
     : `<textarea class="e-detail-cap" placeholder="一言説明（例: 電源をOFFにする）"
          onchange="saveCaption(${s.id}, this.value)">${escapeHtml(s.caption)}</textarea>`;
 
-  const acts = [];
-  if (s.file && wnIsAnnotatable(s.file.file_name, s.file.mime_type)) {
-    acts.push(`<button class="e-dbtn" onclick="openAnnotate(${s.id})"><i class="fa-solid fa-pen"></i> 注釈を入れる</button>`);
-  }
+  /* 表紙・削除は写真の操作ではないのでヘッダー側に置く */
+  const head = [];
   if (s.file) {
-    acts.push(`<button class="e-dbtn ${s.file.id === manual.cover_file_id ? 'on' : ''}"
-      onclick="setCover(${s.file.id})"><i class="fa-solid fa-star"></i> 表紙にする</button>`);
+    head.push(`<button class="e-dbtn ${s.file.id === manual.cover_file_id ? 'on' : ''}" title="一覧の表紙にする"
+      onclick="setCover(${s.file.id})"><i class="fa-solid fa-star"></i> 表紙</button>`);
   }
-  acts.push(`<button class="e-dbtn del" onclick="removeStep(${s.id})"><i class="fa-solid fa-trash-can"></i> 削除</button>`);
+  head.push(`<button class="e-dbtn del" title="この手順を削除"
+    onclick="removeStep(${s.id})"><i class="fa-solid fa-trash-can"></i></button>`);
+
+  const voice = WnSR
+    ? `<button type="button" class="e-voice"><i class="fa-solid fa-microphone"></i> 音声で入力</button>`
+    : '';
+  const voiceHint = WnSR
+    ? `<span class="lbl${voice ? ' sp' : ''}">押している間だけ聞く</span><span class="e-key">F2</span>`
+    : '';
 
   return `<div class="e-detail-card">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div class="e-detail-kind">STEP ${i + 1}</div>
-      <div style="font-size:12px;color:var(--muted);">${manual.steps.length}件中${i + 1}件目・${KIND_LABEL[s.type] || ''}</div>
-      <div style="margin-left:auto;font-size:11.5px;color:var(--muted);">↑↓ で手順を選ぶ</div>
+    <div class="e-detail-head">
+      <span class="e-detail-kind">STEP ${i + 1}</span>
+      <span class="e-detail-sub">${manual.steps.length}件中${i + 1}件目・${KIND_LABEL[s.type] || ''}</span>
+      <span class="e-detail-hint">↑↓ で手順を選ぶ</span>
+      ${head.join('')}
     </div>
     ${shot}
-    <div class="e-detail-acts">${acts.join('')}</div>
-    ${field}
-    ${voiceBtnHtml()}
+    <div class="e-capbox">
+      ${field}
+      <div class="e-caphints">
+        <span class="e-key">Enter</span><span class="lbl">確定して次の手順へ</span>
+        <span class="e-key">Shift</span><span class="e-key">Enter</span><span class="lbl">改行</span>
+        ${voiceHint}${voice}
+      </div>
+    </div>
   </div>`;
+}
+
+/* 写真の差し替え（ステップはそのままにファイルだけ入れ替える） */
+let swapTargetStepId = null;
+function swapStepFile(stepId) {
+  swapTargetStepId = stepId;
+  document.getElementById('inSwap').click();
+}
+window.swapStepFile = swapStepFile;
+
+async function doSwapFile(file) {
+  const stepId = swapTargetStepId;
+  swapTargetStepId = null;
+  if (!stepId || !file || file.size === 0) return;
+  const s = manual.steps.find(x => x.id === stepId);
+  if (!s) return;
+  const wasCover = s.file && s.file.id === manual.cover_file_id;
+  try {
+    wnShowToast(`${file.name} をアップロード中…`);
+    const up = await wnUploadFile(file);
+    const fileId = up?.data?.id;
+    if (!fileId) throw new Error('アップロードに失敗しました');
+    await wnUpdateManualStep(manual.id, stepId, { file_id: fileId });
+    /* 差し替え前の写真が表紙だったら表紙も追従させる（注釈保存と同じ扱い） */
+    if (wasCover) {
+      manual.cover_file_id = fileId;
+      await wnUpdateManual(manual.id, { cover_file_id: fileId });
+    }
+    await load();
+    wnShowToast('写真を差し替えました', 'success');
+  } catch (e) {
+    wnShowToast(e.message || '差し替えに失敗しました', 'danger');
+  }
 }
 
 function renderSteps() {
   const box    = document.getElementById('steps');
   const detail = document.getElementById('detail');
   document.getElementById('mainArea').classList.toggle('two', isWide);
+  document.getElementById('stepCount').textContent = `${manual.steps.length}件`;
 
   if (!manual.steps.length) {
     box.innerHTML = `<div class="e-empty">下のボタンから写真・ファイル・見出しを追加してください</div>`;
@@ -616,6 +757,8 @@ function startVoice(textarea, btn) {
   voiceBase   = textarea.value.trim();
   voiceBtn    = btn;
   try { recog.start(); } catch (_) { return; }   /* 連打で InvalidStateError になるのは無視 */
+  /* 文言は置き場所ごとに違う（スマホの大ボタン / PCの枠内ボタン）ので元に戻せるよう控える */
+  if (!btn.dataset.label) btn.dataset.label = btn.innerHTML;
   btn.classList.add('listening');
   btn.innerHTML = '<i class="fa-solid fa-microphone-lines"></i> 話し終わったら離す';
 }
@@ -628,7 +771,7 @@ function stopVoice() {
 function endVoice() {
   if (voiceBtn) {
     voiceBtn.classList.remove('listening');
-    voiceBtn.innerHTML = '<i class="fa-solid fa-microphone"></i> 押している間、話す';
+    if (voiceBtn.dataset.label) voiceBtn.innerHTML = voiceBtn.dataset.label;
   }
   if (voiceTarget) voiceTarget.dispatchEvent(new Event('change'));
   voiceTarget = null; voiceBtn = null; voiceBase = '';
@@ -650,7 +793,6 @@ function bindVoiceButtons() {
 }
 
 function renderAll() {
-  document.getElementById('hTitle').textContent = manual.title || 'マニュアル編集';
   document.getElementById('fTitle').value = manual.title || '';
   document.getElementById('fDesc').value = manual.description || '';
   document.getElementById('viewLink').href = `manual-view.html?id=${manual.id}`;
@@ -947,7 +1089,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('fTitle').addEventListener('change', async e => {
     const v = e.target.value.trim();
     if (!v) { e.target.value = manual.title; return; }
-    manual.title = v; document.getElementById('hTitle').textContent = v;
+    manual.title = v;
     await wnUpdateManual(manual.id, { title: v });
   });
   document.getElementById('fDesc').addEventListener('change', async e => {
@@ -971,6 +1113,23 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('addImg').addEventListener('click', () => document.getElementById('inImg').click());
   document.getElementById('inCam').addEventListener('change', function () { addFileSteps(Array.from(this.files), 'photo'); this.value = ''; });
   document.getElementById('inImg').addEventListener('change', function () { addFileSteps(Array.from(this.files), 'photo'); this.value = ''; });
+  document.getElementById('inSwap').addEventListener('change', function () { doSwapFile(this.files[0]); this.value = ''; });
+
+  /* 下端の帯に写真を落としても手順にできる（PCで手が届きやすい場所に的を置く） */
+  const bar = document.getElementById('addBar');
+  const hasFiles = e => Array.from(e.dataTransfer?.types || []).includes('Files');
+  bar.addEventListener('dragover', e => {
+    if (!hasFiles(e)) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+    bar.classList.add('dragover');
+  });
+  bar.addEventListener('dragleave', e => { if (e.target === bar) bar.classList.remove('dragover'); });
+  bar.addEventListener('drop', e => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    bar.classList.remove('dragover');
+    addFileSteps(Array.from(e.dataTransfer.files), 'photo');
+  });
   document.getElementById('addFile').addEventListener('click', openFilePicker);
   document.getElementById('pickSearch').addEventListener('input', () => {
     clearTimeout(pickSearchTimer);
@@ -1024,10 +1183,30 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', e => {
     if (!isWide || !manual || !manual.steps.length) return;
     const tag = (e.target.tagName || '').toLowerCase();
+
+    /* 説明欄で Enter → 確定して次の手順へ（改行は Shift+Enter） */
+    if (e.key === 'Enter' && !e.shiftKey && e.target.classList?.contains('e-detail-cap')) {
+      e.preventDefault();
+      e.target.blur();                                   /* change を発火させて保存 */
+      focusStep(Math.min(focusIdx + 1, manual.steps.length - 1));
+      const next = document.querySelector('#detail .e-detail-cap');
+      if (next) next.focus();
+      return;
+    }
+
+    /* F2 を押している間だけ聞く（キーボードから手を離さずに声で書ける） */
+    if (e.key === 'F2' && !e.repeat) {
+      const btn = document.querySelector('#detail .e-voice');
+      const ta  = document.querySelector('#detail .e-detail-cap');
+      if (btn && ta) { e.preventDefault(); startVoice(ta, btn); }
+      return;
+    }
+
     if (tag === 'input' || tag === 'textarea') return;
     if (e.key === 'ArrowDown') { e.preventDefault(); focusStep(Math.min(focusIdx + 1, manual.steps.length - 1)); }
     if (e.key === 'ArrowUp')   { e.preventDefault(); focusStep(Math.max(focusIdx - 1, 0)); }
   });
+  document.addEventListener('keyup', e => { if (e.key === 'F2') stopVoice(); });
 
   /* マニュアル削除 */
   document.getElementById('delManualBtn').addEventListener('click', async () => {
