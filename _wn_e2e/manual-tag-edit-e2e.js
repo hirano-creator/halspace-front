@@ -26,7 +26,7 @@ const FILES = Array.from({ length: 12 }, (_, i) => ({
 
   await ctx.addInitScript(() => {
     sessionStorage.setItem('space_token', 'mock-token-e2e');
-    sessionStorage.setItem('space_user', JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com' }));
+    sessionStorage.setItem('space_user', JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com', wn_extended_options_enabled: true }));
   });
 
   /* サーバー側のタグ状態を模す */

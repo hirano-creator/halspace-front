@@ -52,7 +52,7 @@ async function newPage(browser, canEdit) {
   const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1280, height: 900 } });
   await ctx.addInitScript(() => {
     sessionStorage.setItem('space_token', 'mock-token-e2e');
-    sessionStorage.setItem('space_user', JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com' }));
+    sessionStorage.setItem('space_user', JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com', wn_extended_options_enabled: true }));
   });
   const page = await ctx.newPage();
   page.on('pageerror', e => console.log('  [pageerror]', e.message));

@@ -117,6 +117,33 @@
     .m-create { background: var(--accent); color: #fff; border-color: var(--accent) !important; }
     .m-create:hover { background: var(--accent-dk); }
     .m-create:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── C案「親指ファースト」──
+       主要動作（作りはじめる）は画面幅にかかわらず常に画面下端に固定する。
+       編集画面の追加バーと同じ位置なので、探す→作るで手の位置が変わらない。 */
+    .m-wrap { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
+    .m-bottombar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+      background: var(--bg-card); border-top: 1px solid var(--border);
+      padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+      box-shadow: 0 -2px 12px rgba(10,37,64,.06); }
+    .m-bb-inner { max-width: 1080px; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
+    .m-bb-btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; height: 54px;
+      padding: 0 22px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card);
+      color: var(--primary); font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+      white-space: nowrap; }
+    .m-bb-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .m-bb-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .m-bb-btn.primary:hover { background: var(--accent-dk); color: #fff; }
+    .m-bb-hint { font-size: 12px; color: var(--muted); margin-left: auto; }
+
+    /* 写真で思い出せるよう、表紙を大きめに取る */
+    .m-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+
+    @media (max-width: 560px) {
+      .m-grid { grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); }
+      .m-bb-btn { flex: 1; padding: 0 10px; font-size: 13.5px; }
+      .m-bb-hint { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -127,7 +154,6 @@
       <div class="m-title">マニュアル</div>
       <div class="m-sub">工場の作業手順・保守点検・安全手順をまとめて共有</div>
     </div>
-    <button class="m-new-btn" id="newBtn"><i class="fa-solid fa-plus"></i> 新規マニュアル</button>
   </div>
 
   <!-- 検索・絞り込み・並べ替え -->
@@ -171,11 +197,21 @@
   <div id="scrollSentinel" style="height:1px;"></div>
 </div>
 
+<!-- 主要動作は常に画面下端（C案） -->
+<div class="m-bottombar">
+  <div class="m-bb-inner">
+    <button class="m-bb-btn primary" id="newBtn"><i class="fa-solid fa-plus"></i> 新しいマニュアル</button>
+    <button class="m-bb-btn" id="fromPhotosBtn"><i class="fa-solid fa-image"></i> 写真から作る</button>
+    <span class="m-bb-hint">写真を選ぶと、1枚が1手順になった下書きができます</span>
+  </div>
+</div>
+<input type="file" id="photoInput" accept="image/*" multiple style="display:none;">
+
 <!-- 新規作成モーダル -->
 <div class="m-overlay" id="newModal">
   <div class="m-modal">
     <h3>新規マニュアル</h3>
-    <p>タイトルを入力すると編集画面が開きます</p>
+    <p id="modalHint">タイトルを入力すると編集画面が開きます</p>
     <label class="m-label" for="newTitle">タイトル</label>
     <input class="m-input" id="newTitle" type="text" placeholder="例: 集塵機フィルター交換手順" maxlength="200" autocomplete="off">
     <div class="m-modal-actions">
@@ -441,8 +477,20 @@ function initTools() {
 /* 新規作成モーダル */
 const modal = document.getElementById('newModal');
 const titleInput = document.getElementById('newTitle');
-function openModal()  { modal.classList.add('show'); titleInput.value = ''; setTimeout(() => titleInput.focus(), 50); }
-function closeModal() { modal.classList.remove('show'); }
+
+/* 「写真から作る」で選んだファイル。作成後に1枚=1手順として積む */
+let pendingPhotos = [];
+
+function openModal(hint) {
+  modal.classList.add('show');
+  titleInput.value = '';
+  document.getElementById('modalHint').textContent = hint || 'タイトルを入力すると編集画面が開きます';
+  setTimeout(() => titleInput.focus(), 50);
+}
+function closeModal() {
+  modal.classList.remove('show');
+  pendingPhotos = [];
+}
 
 async function createManual() {
   const title = titleInput.value.trim();
@@ -451,6 +499,20 @@ async function createManual() {
   btn.disabled = true; btn.textContent = '作成中…';
   try {
     const m = await wnCreateManual(title);
+    /* 選んだ写真をそのまま手順にする。1枚失敗しても残りは続ける */
+    for (let i = 0; i < pendingPhotos.length; i++) {
+      const f = pendingPhotos[i];
+      btn.textContent = `写真を追加中… ${i + 1}/${pendingPhotos.length}`;
+      try {
+        const up = await wnUploadFile(f);
+        const fileId = up?.data?.id;
+        if (!fileId) throw new Error('アップロードに失敗しました');
+        await wnAddManualStep(m.id, { type: 'photo', fileId, caption: '' });
+      } catch (err) {
+        wnShowToast(`${f.name} を手順にできませんでした`, 'warning');
+      }
+    }
+    pendingPhotos = [];
     location.href = `manual-edit.html?id=${m.id}`;
   } catch (e) {
     wnShowToast(e.message || '作成に失敗しました', 'danger');
@@ -459,7 +521,15 @@ async function createManual() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('newBtn').addEventListener('click', openModal);
+  document.getElementById('newBtn').addEventListener('click', () => openModal());
+  document.getElementById('fromPhotosBtn').addEventListener('click',
+    () => document.getElementById('photoInput').click());
+  document.getElementById('photoInput').addEventListener('change', function () {
+    pendingPhotos = Array.from(this.files).filter(f => f && f.size > 0);
+    this.value = '';
+    if (!pendingPhotos.length) return;
+    openModal(`${pendingPhotos.length}枚の写真を、1枚=1手順の下書きにします`);
+  });
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
   document.getElementById('createBtn').addEventListener('click', createManual);
   titleInput.addEventListener('keydown', e => { if (e.key === 'Enter') createManual(); });

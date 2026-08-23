@@ -19,9 +19,9 @@ function check(name, ok, detail = '') {
 
   await ctx.addInitScript(() => {
     sessionStorage.setItem('space_token', 'mock-token-e2e');
-    sessionStorage.setItem('space_user', JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com' }));
+    sessionStorage.setItem('space_user', JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com', wn_extended_options_enabled: true }));
     localStorage.setItem('space_token', 'mock-token-e2e');
-    localStorage.setItem('space_user', JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com' }));
+    localStorage.setItem('space_user', JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com', wn_extended_options_enabled: true }));
   });
 
   /* ── テスト画像を生成（赤い矩形＋対角線 / 青い円） ── */

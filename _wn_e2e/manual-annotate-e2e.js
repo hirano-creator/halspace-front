@@ -9,6 +9,10 @@ const SHOTS = path.join(__dirname, 'shots');
 fs.mkdirSync(SHOTS, { recursive: true });
 
 const results = [];
+async function popupUrl(p) {
+  for (let i = 0; i < 60 && !p.url(); i++) await p.waitForTimeout(100);
+  return p.url();
+}
 function check(name, ok, detail = '') {
   results.push({ name, ok, detail });
   console.log(`${ok ? 'PASS' : 'FAIL'}: ${name}${detail ? ' — ' + detail : ''}`);
@@ -36,7 +40,7 @@ const manualFixture = () => ({
   const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 900, height: 1000 } });
 
   await ctx.addInitScript(() => {
-    const u = JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com', company_id: 1 });
+    const u = JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com', company_id: 1, wn_extended_options_enabled: true });
     sessionStorage.setItem('space_token', 'mock-token-e2e');
     sessionStorage.setItem('space_user', u);
     localStorage.setItem('space_token', 'mock-token-e2e');
@@ -95,10 +99,11 @@ const manualFixture = () => ({
   {
     const page = await ctx.newPage();
     await openManualEdit(page, { stubAnnotate: true });
-    await page.click('.e-step:nth-child(2) .e-thumb');
-    await page.waitForURL('**/annotate.html*', { timeout: 5000 });
-
-    const u = new URL(page.url());
+    const [pop2] = await Promise.all([
+      page.waitForEvent('popup', { timeout: 5000 }),
+      page.click('.e-step:nth-child(2) .e-thumb'),
+    ]);
+    const u = new URL(await popupUrl(pop2));
     const q = u.searchParams;
     check('遷移先が annotate.html', u.pathname.endsWith('/app/annotate.html'), u.pathname);
     check('id が写真のファイルID', q.get('id') === '101', String(q.get('id')));
@@ -113,10 +118,11 @@ const manualFixture = () => ({
   {
     const page = await ctx.newPage();
     await openManualEdit(page, { stubAnnotate: true });
-    await page.click('.e-step:nth-child(3) .e-thumb');
-    await page.waitForURL('**/annotate.html*', { timeout: 5000 });
-
-    const q = new URL(page.url()).searchParams;
+    const [pop3] = await Promise.all([
+      page.waitForEvent('popup', { timeout: 5000 }),
+      page.click('.e-step:nth-child(3) .e-thumb'),
+    ]);
+    const q = new URL(await popupUrl(pop3)).searchParams;
     check('PDFステップのIDが渡る', q.get('id') === '102' && q.get('step_id') === '73', `${q.get('id')}/${q.get('step_id')}`);
     check('表紙でなければ cover は付かない', q.get('cover') === null, String(q.get('cover')));
     await page.close();
@@ -155,9 +161,12 @@ const manualFixture = () => ({
     await page.waitForSelector('.e-step', { timeout: 5000 });
 
     /* 写真ステップのキャプションを書き換え、Enterもblurもせずに別のサムネをクリック */
-    await page.fill('.e-step:nth-child(2) .e-scap input', '電源をOFFにする');
-    await page.click('.e-step:nth-child(3) .e-thumb');
-    await page.waitForURL('**/annotate.html*', { timeout: 5000 });
+    await page.fill('.e-step:nth-child(2) .e-scap textarea.cap', '電源をOFFにする');
+    const [pop5] = await Promise.all([
+      page.waitForEvent('popup', { timeout: 5000 }),
+      page.click('.e-step:nth-child(3) .e-thumb'),
+    ]);
+    await popupUrl(pop5);
 
     check('キャプションのPATCHが送信された', patchBody && patchBody.caption === '電源をOFFにする', JSON.stringify(patchBody));
     check('遷移前に保存が完走している（中断されない）', patchFulfilled === true, String(patchFulfilled));
