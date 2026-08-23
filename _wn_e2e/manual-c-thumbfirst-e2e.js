@@ -98,22 +98,64 @@ function manualJson() {
   });
   check('追加バーが画面下端に固定されている', bar.pos === 'fixed' && Math.abs(bar.bottom - bar.vh) <= 1,
     `${bar.pos} / bottom=${bar.bottom} vh=${bar.vh}`);
-  check('主要動作は「写真を撮って手順にする」',
-    (await page.textContent('#addCam')).trim() === '写真を撮って手順にする',
-    (await page.textContent('#addCam')).trim());
-  const primH = await page.locator('#addCam').evaluate(el => Math.round(el.getBoundingClientRect().height));
-  check('主要動作の高さが62px', primH === 62, `${primH}px`);
+  /* PCで一番よく使うのは撮影ではなく「画像を選ぶ」なので、そちらが目立つ側にいること */
+  const emph = await page.evaluate(() => {
+    const pick = getComputedStyle(document.querySelector('#addImg'));
+    const cam  = getComputedStyle(document.querySelector('#addCam'));
+    const acc  = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    const norm = c => c.replace(/\s/g, '');
+    const toRgb = hex => {
+      const m = hex.replace('#', '');
+      return `rgb(${parseInt(m.slice(0,2),16)},${parseInt(m.slice(2,4),16)},${parseInt(m.slice(4,6),16)})`;
+    };
+    return { pickBg: norm(pick.backgroundColor), camBg: norm(cam.backgroundColor), accent: toRgb(acc),
+             pickH: Math.round(document.querySelector('#addImg').getBoundingClientRect().height) };
+  });
+  check('PCでは「画像を選ぶ」がアクセント色で主役', emph.pickBg === emph.accent,
+    `${emph.pickBg} / accent=${emph.accent}`);
+  check('PCではカメラは主役ではない', emph.camBg !== emph.accent, emph.camBg);
+  check('PCの追加ボタンの高さが62px', emph.pickH === 62, `${emph.pickH}px`);
 
   /* 音声入力ボタン（Chromeは webkitSpeechRecognition を持つ） */
   const srSupported = await page.evaluate(() => !!(window.SpeechRecognition || window.webkitSpeechRecognition));
   if (srSupported) {
-    check('説明欄に音声入力ボタンが出る', await page.locator('#detail .e-voice').isVisible());
-    check('音声入力は押している間だけ聞く文言',
-      (await page.textContent('#detail .e-voice')).trim() === '押している間、話す',
-      (await page.textContent('#detail .e-voice')).trim());
+    check('説明欄の枠内に音声入力ボタンが出る',
+      await page.locator('#detail .e-caphints .e-voice').isVisible());
+    check('PCの音声入力ボタンは「音声で入力」',
+      (await page.textContent('#detail .e-caphints .e-voice')).trim() === '音声で入力',
+      (await page.textContent('#detail .e-caphints .e-voice')).trim());
+    const hints = (await page.textContent('#detail .e-caphints')).replace(/\s+/g, ' ').trim();
+    check('押している間だけ聞くこととF2が示されている',
+      hints.includes('押している間だけ聞く') && hints.includes('F2'), hints);
   } else {
     check('非対応ブラウザでは音声入力ボタンを出さない', await page.locator('#detail .e-voice').count() === 0);
   }
+
+  /* モックどおりの構成になっていること */
+  const capHints = (await page.textContent('#detail .e-caphints')).replace(/\s+/g, ' ').trim();
+  check('説明欄にキー操作の案内がある',
+    capHints.includes('Enter') && capHints.includes('確定して次の手順へ') && capHints.includes('改行'), capHints);
+  check('写真の操作が写真の上に重なっている',
+    await page.locator('#detail .e-detail-shot .e-shot-acts').isVisible());
+  check('「差し替え」がある',
+    (await page.textContent('#detail .e-shot-acts')).includes('差し替え'));
+  check('表紙・削除はヘッダー側にある',
+    await page.locator('#detail .e-detail-head .e-dbtn').count() === 2,
+    `${await page.locator('#detail .e-detail-head .e-dbtn').count()}個`);
+  check('タイトルはヘッダーで直接編集できる',
+    await page.locator('.e-head input#fTitle').isVisible());
+  check('プレビューボタンがある', await page.locator('#viewLink').isVisible());
+  check('手順の件数が左パネルに出る',
+    (await page.textContent('#stepCount')).trim() === '3件',
+    (await page.textContent('#stepCount')).trim());
+
+  /* 二面はページ全体が伸びず、左右のペインが内側でスクロールする */
+  const shell = await page.evaluate(() => ({
+    pageScroll: document.documentElement.scrollHeight - window.innerHeight,
+    listScrolls: getComputedStyle(document.querySelector('#steps')).overflowY,
+  }));
+  check('PCではページ全体がスクロールしない', shell.pageScroll <= 1, `${shell.pageScroll}px`);
+  check('手順リストが内側でスクロールする', shell.listScrolls === 'auto', shell.listScrolls);
 
   /* 写真は切れずに全体が見えること（縦長でも横長でも枠に収まる） */
   for (const [w, h, label] of [[300, 900, '縦長'], [1600, 500, '横長']]) {
@@ -168,6 +210,33 @@ function manualJson() {
   const noHScroll = await page.evaluate(() =>
     document.documentElement.scrollWidth <= window.innerWidth + 1);
   check('スマホ幅で横スクロールが発生しない', noHScroll);
+
+  /* スマホでもヘッダーが1行に収まり、タイトルが押し出されないこと */
+  const head = await page.evaluate(() => {
+    const h = document.querySelector('.e-head').getBoundingClientRect();
+    const t = document.querySelector('#fTitle').getBoundingClientRect();
+    const st = document.querySelector('.e-status').getBoundingClientRect();
+    return { headH: Math.round(h.height), titleW: Math.round(t.width),
+             statusH: Math.round(st.height), sameRow: Math.abs(t.top - st.top) < 20 };
+  });
+  check('スマホのヘッダーが1行に収まる', head.headH <= 68 && head.sameRow,
+    `高さ${head.headH}px / 同じ行=${head.sameRow}`);
+  check('スマホでもタイトル欄が確保される', head.titleW >= 100, `${head.titleW}px`);
+  check('下書き/公開が潰れていない', head.statusH <= 44, `${head.statusH}px`);
+
+  /* スマホは逆に、撮影が62pxの主役であること */
+  const spEmph = await page.evaluate(() => {
+    const cam = document.querySelector('#addCam');
+    const acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    const m = acc.replace('#', '');
+    return { text: cam.textContent.trim(),
+             h: Math.round(cam.getBoundingClientRect().height),
+             bg: getComputedStyle(cam).backgroundColor.replace(/\s/g, ''),
+             accent: `rgb(${parseInt(m.slice(0,2),16)},${parseInt(m.slice(2,4),16)},${parseInt(m.slice(4,6),16)})` };
+  });
+  check('スマホの主要動作は「写真を撮って手順にする」', spEmph.text === '写真を撮って手順にする', spEmph.text);
+  check('スマホの主要動作がアクセント色で62px',
+    spEmph.bg === spEmph.accent && spEmph.h === 62, `${spEmph.bg} / ${spEmph.h}px`);
 
   const barM = await page.evaluate(() => {
     const r = document.querySelector('.e-addbar').getBoundingClientRect();
