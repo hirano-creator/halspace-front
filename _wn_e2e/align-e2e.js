@@ -407,7 +407,47 @@ EOF
     await page.close();
   }
 
-  /* ════ 6. align.html: idsが1件以下なら全体エラー表示 ════ */
+  /* ════ 6. align.html: サーバーにサムネが無い種別(PDF/DXF)もクライアント生成で表示する ════ */
+  {
+    const page = await ctx.newPage();
+    page.on('pageerror', e => console.log('PAGE ERROR(align-gen):', e.message));
+
+    const stored = [];
+    await page.route('**/api/wn/**', r => r.fulfill({ json: { data: [] } }));
+    await page.route('**/api/wn/files/31', r => r.fulfill({ json: { data: { id: 31, file_name: '部品図.pdf', mime_type: 'application/pdf', updated_at: '2026-07-01T00:00:00Z' } } }));
+    await page.route('**/api/wn/files/32', r => r.fulfill({ json: { data: { id: 32, file_name: '図面.dxf', mime_type: 'application/dxf', updated_at: '2026-07-01T00:00:00Z' } } }));
+    /* 本番と同じく PDF/DXF のサムネは 404。POST は生成物の保存 */
+    await page.route('**/api/wn/files/3*/thumb*', r => {
+      const req = r.request();
+      if (req.method() === 'POST') {
+        stored.push(Number(req.url().match(/\/files\/(\d+)\/thumb/)[1]));
+        return r.fulfill({ json: { ok: true } });
+      }
+      return r.fulfill({ status: 404, json: { message: 'thumbnail not available' } });
+    });
+    await page.route('**/api/wn/files/31/public-view*', r => r.fulfill({ contentType: 'application/pdf', body: pdfBuf }));
+    await page.route('**/api/wn/files/32/public-view*', r => r.fulfill({ contentType: 'text/plain', body: dxfText }));
+
+    await page.goto(`${BASE}/app/align.html?ids=31,32`, { waitUntil: 'domcontentloaded' });
+    const gen = await page.waitForFunction(() => {
+      const a = document.querySelector('#alignThumb-31 img');
+      const b = document.querySelector('#alignThumb-32 img');
+      return a && b && a.naturalWidth > 50 && b.naturalWidth > 50;
+    }, { timeout: 30000 }).then(() => true).catch(() => false);
+    check('サーバーにサムネが無いPDF/DXFでもカードに画像が出る', gen);
+
+    const noPreview = await page.locator('.align-card-noPreview').count();
+    check('「プレビューなし」に落ちない', noPreview === 0, `${noPreview}件`);
+
+    await page.waitForTimeout(500);
+    check('生成したサムネをサーバーへ保存している', stored.includes(31) && stored.includes(32),
+      JSON.stringify(stored));
+
+    await page.screenshot({ path: path.join(SHOTS, 'align-thumb-generated.png'), fullPage: true });
+    await page.close();
+  }
+
+  /* ════ 7. align.html: idsが1件以下なら全体エラー表示 ════ */
   {
     const page = await ctx.newPage();
     await page.route('**/api/wn/**', r => r.fulfill({ json: { data: [] } }));

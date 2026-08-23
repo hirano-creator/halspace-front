@@ -54,6 +54,8 @@
       .e-thumb.annotatable::after { font-size: 20px; }
     }
     .e-thumb.file { background: #eef0ff; color: var(--accent-dk); border: 1px solid #dfe1fb; }
+    /* サムネイルが出た枠は写真と同じ地色に戻す（アイコン用の青地を残さない） */
+    .e-thumb.file.wn-has-thumb { background: var(--bg); border-color: var(--border); }
     /* 注釈編集へ飛べるサムネイル（ホバーでペンアイコンを重ねる） */
     .e-thumb.annotatable { cursor: pointer; position: relative; }
     .e-thumb.annotatable::after { content: '\f304'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
@@ -449,6 +451,7 @@
 
 <script src="../../solid/assets/js/auth.js?v=7"></script>
 <script src="../assets/js/wn-api.js?v=27"></script>
+<script src="../assets/js/wn-thumb.js?v=20260824a"></script>
 <script>
 'use strict';
 /* マニュアル編集画面 */
@@ -480,13 +483,11 @@ function stepThumbHtml(s) {
     const canAnnotate = wnIsAnnotatable(s.file.file_name, s.file.mime_type);
     const mod   = canAnnotate ? ' annotatable' : '';
     const attrs = canAnnotate ? ` onclick="openAnnotate(${s.id})" title="クリックして注釈を編集"` : '';
-    const isImg = (s.file.mime_type || '').startsWith('image/');
-    if (isImg || s.type === 'photo') {
-      return `<div class="e-thumb${mod}"${attrs}><img src="${wnThumbUrl(s.file.id, s.file.updated_at)}" alt=""
-        onerror="this.parentElement.innerHTML='<i class=&quot;fa-solid fa-image&quot;></i>'"></div>`;
-    }
-    const ic = wnFileIcon(s.file.file_name, s.file.mime_type);
-    return `<div class="e-thumb file${mod}"${attrs}><i class="fa-solid ${ic.icon}"></i></div>`;
+    const isImg = (s.file.mime_type || '').startsWith('image/') || s.type === 'photo';
+    /* PDF・DXF・動画もサムネイルにする（サーバーに無ければ wn-thumb.js が生成して保存する）。
+       出せなかったときだけ従来どおりアイコンが残る。 */
+    const slot = wnThumbSlotHtml(s.file, isImg ? { icon: 'fa-image' } : {});
+    return `<div class="e-thumb${isImg ? '' : ' file'}${mod}"${attrs}>${slot}</div>`;
   }
   return '';
 }
@@ -513,10 +514,7 @@ function rowHtml(s, i) {
   let th = '<i class="fa-solid fa-heading"></i>';
   if (!isText && s.file) {
     const isImg = (s.file.mime_type || '').startsWith('image/') || s.type === 'photo';
-    th = isImg
-      ? `<img src="${wnThumbUrl(s.file.id, s.file.updated_at)}" alt=""
-           onerror="this.parentElement.innerHTML='<i class=&quot;fa-solid fa-image&quot;></i>'">`
-      : `<i class="fa-solid ${wnFileIcon(s.file.file_name, s.file.mime_type).icon}"></i>`;
+    th = wnThumbSlotHtml(s.file, isImg ? { icon: 'fa-image' } : {});
   }
   const raw = (isText ? s.body : s.caption) || '';
   const has = raw.trim() !== '';
@@ -546,7 +544,8 @@ function detailHtml(s, i) {
              data-thumb="${wnThumbUrl(s.file.id, s.file.updated_at)}"
              onerror="if(this.dataset.thumb){this.src=this.dataset.thumb;this.dataset.thumb='';}
                       else{this.parentElement.innerHTML='<i class=&quot;fa-solid fa-image&quot;></i>';}">`
-        : `<i class="fa-solid ${wnFileIcon(s.file.file_name, s.file.mime_type).icon}"></i>`;
+        /* PDF等は原本を <img> で出せないのでサムネイル（無ければ生成）を大きく出す */
+        : wnThumbSlotHtml(s.file);
     }
     /* 写真の操作は写真の上に重ねる（視線を写真から外さない） */
     const onShot = [];
@@ -656,6 +655,8 @@ function renderSteps() {
     box.innerHTML    = manual.steps.map(cardHtml).join('');
     detail.innerHTML = '';
   }
+  wnThumbHydrate(box);      /* 描画後にサムネイルを解決してアイコンと差し替える */
+  wnThumbHydrate(detail);
   bindVoiceButtons();
 }
 
@@ -1039,16 +1040,12 @@ async function loadPickerFiles() {
     grid.innerHTML = `<div class="e-empty">${q ? '該当するファイルがありません' : '追加できるファイルがありません'}</div>`;
     return;
   }
-  grid.innerHTML = data.map(f => {
-    const isImg = (f.mime_type || '').startsWith('image/');
-    const thumb = isImg || /\.(pdf|jpg|jpeg|png|webp|heic|gif)$/i.test(f.file_name)
-      ? `<img src="${wnThumbUrl(f.id, f.created_at)}" alt="" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=&quot;fa-solid ${wnFileIcon(f.file_name, f.mime_type).icon}&quot;></i>'">`
-      : `<i class="fa-solid ${wnFileIcon(f.file_name, f.mime_type).icon}"></i>`;
-    return `<div class="e-pick-item" onclick="pickFile(${f.id})">
-      <div class="e-pick-thumb">${thumb}</div>
+  grid.innerHTML = data.map(f => `
+    <div class="e-pick-item" onclick="pickFile(${f.id})">
+      <div class="e-pick-thumb">${wnThumbSlotHtml(f)}</div>
       <div class="e-pick-name">${escapeHtml(f.file_name)}</div>
-    </div>`;
-  }).join('');
+    </div>`).join('');
+  wnThumbHydrate(grid);   /* 画像だけでなくPDF等もサムネイルで選べるようにする */
 }
 function openFilePicker() {
   document.getElementById('fileModal').classList.add('show');

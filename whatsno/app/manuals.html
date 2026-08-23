@@ -227,6 +227,7 @@
 
 <script src="../../solid/assets/js/auth.js?v=7"></script>
 <script src="../assets/js/wn-api.js?v=27"></script>
+<script src="../assets/js/wn-thumb.js?v=20260824a"></script>
 <script>
 'use strict';
 /* マニュアル一覧画面 */
@@ -269,15 +270,16 @@ function hasFilter() {
   return !!(state.search || state.tags.length || state.status);
 }
 
-/* 表紙。公開中は既定の状態なのでバッジを出さず、下書きだけ印を付ける */
+/* 表紙。公開中は既定の状態なのでバッジを出さず、下書きだけ印を付ける。
+   表紙がPDFや動画でもサムネイルが出るよう wn-thumb.js の受け皿を使う
+   （出せなければアイコンのまま残る）。 */
 function coverHtml(m) {
   const badge = m.status === 'draft' ? '<span class="m-badge">下書き</span>' : '';
   const steps = `<span class="m-steps">${m.step_count}ステップ</span>`;
-  let inner = '<i class="fa-solid fa-image"></i>';
-  if (m.cover && m.cover.id) {
-    inner = `<img src="${wnThumbUrl(m.cover.id, m.cover.updated_at)}" alt="" loading="lazy"
-      onerror="this.outerHTML='<i class=&quot;fa-solid fa-image&quot;></i>'">`;
-  }
+  /* 旧APIは表紙に file_name を返さないので、その場合だけ画像アイコンで代用する */
+  const inner = (m.cover && m.cover.id)
+    ? wnThumbSlotHtml(m.cover, m.cover.file_name ? {} : { icon: 'fa-image' })
+    : '<i class="fa-solid fa-image"></i>';
   return `<div class="m-cover">${inner}${badge}${steps}</div>`;
 }
 
@@ -350,6 +352,7 @@ function renderManuals() {
   const rest = Math.max(state.total - state.items.length, 0);
   const more = rest ? `<div class="m-more">ほか${rest}件</div>` : '';
   area.innerHTML = `<div class="m-grid">${state.items.map(cardHtml).join('')}</div>${more}`;
+  wnThumbHydrate(area);   /* 表紙のサムネイルを描画後に解決する */
 }
 
 function renderCount() {

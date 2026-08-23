@@ -199,6 +199,7 @@
 <script src="../../solid/assets/js/auth.js?v=7"></script>
 <script src="../assets/js/wn-api.js"></script>
 <script src="../assets/js/wn-dxf-viewer.js"></script>
+<script src="../assets/js/wn-thumb.js?v=20260824a"></script>
 <script>
 'use strict';
 
@@ -417,14 +418,16 @@ async function loadCard(id, i) {
     nameEl.title = file.file_name;
     cardEl.addEventListener('click', () => openLightbox(i));
 
-    const thumbUrl = wnThumbUrl(file.id, file.updated_at ?? file.created_at);
+    /* サーバーが作れない種別（PDF/HEIC/動画/DXF）は wn-thumb.js が生成して保存し直す。
+       出せなければ null が返り、下の「プレビューなし」に落ちる。 */
+    const thumbUrl = await wnThumbResolve(file);
     const img = document.createElement('img');
     img.alt = '';
-    const ok = await new Promise(resolve => {
+    const ok = thumbUrl ? await new Promise(resolve => {
       img.onload  = () => resolve(true);
       img.onerror = () => resolve(false);
       img.src = thumbUrl;
-    });
+    }) : false;
     const spin = thumbEl.querySelector('.align-card-spin');
     if (spin) spin.remove();
     if (ok) {
@@ -592,16 +595,16 @@ async function renderLightboxContent(file, wrap) {
     lbDispose = handle?.dispose ?? null;
 
   } else {
-    /* Office文書・その他: サーバー生成サムネイルにフォールバック */
-    const thumbUrl = wnThumbUrl(file.id, file.updated_at ?? file.created_at);
+    /* Office文書・その他: サムネイル（無ければ生成）にフォールバック */
+    const thumbUrl = await wnThumbResolve(file);
     const img = document.createElement('img');
     img.className = 'align-content';
     img.alt = '';
-    const ok = await new Promise(resolve => {
+    const ok = thumbUrl ? await new Promise(resolve => {
       img.onload  = () => resolve(true);
       img.onerror = () => resolve(false);
       img.src = thumbUrl;
-    });
+    }) : false;
     if (!ok) {
       const { icon, cls } = (typeof wnFileIcon === 'function')
         ? wnFileIcon(file.file_name, file.mime_type) : { icon: 'fa-file', cls: '' };
