@@ -546,7 +546,7 @@ function renderStore() {
   const grid = document.getElementById('storeGrid');
   if (!grid) return;
 
-  /* すでに契約中のアプリは上段の「サービス一覧」に出るので、ストアには並べない */
+  /* すでに契約中のアプリは上段の「利用中のアプリ」に出るので、ストアには並べない */
   const user = getAuth();
   const owned = user?.apps ?? [];
   const items = STORE_APPS.filter(a => !owned.includes(a.id)).slice(0, 6);
