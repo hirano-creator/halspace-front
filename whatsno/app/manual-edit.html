@@ -47,7 +47,9 @@
     .e-thumb { flex: none; width: 200px; height: 200px; border-radius: var(--radius);
       display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 34px;
       background: var(--bg); border: 1px solid var(--border); overflow: hidden; }
-    .e-thumb img { max-width: 100%; max-height: 100%; width: auto; height: auto; }
+    /* 枠に合わせて拡大・縮小する（縦横比は保つ）。max-width だけだと小さい画像が
+       原寸のまま点のように表示されてしまう */
+    .e-thumb img { width: 100%; height: 100%; object-fit: contain; }
     /* スマホでは説明欄が潰れるのでサムネイルを控えめにする */
     @media (max-width: 480px) {
       .e-thumb { width: 130px; height: 130px; font-size: 24px; }
@@ -262,7 +264,9 @@
     .e-detail-shot { margin-top: 10px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border);
       height: 360px; display: flex; align-items: center; justify-content: center;
       color: var(--muted); font-size: 34px; overflow: hidden; position: relative; }
-    .e-detail-shot img { max-width: 100%; max-height: 100%; width: auto; height: auto; }
+    /* 右ペインは枠が大きいので、サムネの原寸ではなく枠いっぱいに合わせて表示する
+       （引き伸ばしでぼやけないよう、中身は wn-thumb.js が拡大表示用の大きい版を作る） */
+    .e-detail-shot img { width: 100%; height: 100%; object-fit: contain; }
     .e-shot-acts { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
     .e-shot-acts.right { left: auto; right: 12px; }
     .e-dbtn { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px;
@@ -451,7 +455,7 @@
 
 <script src="../../solid/assets/js/auth.js?v=7"></script>
 <script src="../assets/js/wn-api.js?v=27"></script>
-<script src="../assets/js/wn-thumb.js?v=20260824a"></script>
+<script src="../assets/js/wn-thumb.js?v=20260824b"></script>
 <script>
 'use strict';
 /* マニュアル編集画面 */
@@ -544,8 +548,8 @@ function detailHtml(s, i) {
              data-thumb="${wnThumbUrl(s.file.id, s.file.updated_at)}"
              onerror="if(this.dataset.thumb){this.src=this.dataset.thumb;this.dataset.thumb='';}
                       else{this.parentElement.innerHTML='<i class=&quot;fa-solid fa-image&quot;></i>';}">`
-        /* PDF等は原本を <img> で出せないのでサムネイル（無ければ生成）を大きく出す */
-        : wnThumbSlotHtml(s.file);
+        /* PDF等は原本を <img> で出せないので、拡大表示用の大きいサムネを生成して出す */
+        : wnThumbSlotHtml(s.file, { preview: true });
     }
     /* 写真の操作は写真の上に重ねる（視線を写真から外さない） */
     const onShot = [];

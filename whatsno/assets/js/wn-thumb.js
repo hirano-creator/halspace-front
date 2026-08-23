@@ -12,6 +12,9 @@
    の順で解決する。キャッシュキーと保存APIはダッシュボードと共通なので、
    どちらかで一度生成すれば、もう片方は通信ゼロ or 即配信になる。
 
+   ・表示枠が大きい場所（編集画面の右ペインなど）は `{ preview: true }` で大きい版を作る。
+     サーバーは長辺400pxに正規化して保存するため、それを引き伸ばすとぼやけるため。
+     大きい版は端末内(IndexedDB)にだけ置き、サーバーへは送らない（一覧の通信量を増やさない）
    ・重い canvas 処理（PDF/DXF/動画/HEIC）は同時 1〜3 本に絞る（モバイルのOOM対策）
    ・pdf.js / three.js は「その種別が実際に画面に出たときだけ」CDNから遅延読込する
    ・キャッシュ版 WN_TH_VER は wn-dashboard.js の THUMB_VER と揃える
@@ -83,8 +86,9 @@ const WnThumbStore = (() => {
     });
   }
 
-  /* 同じファイルの古い版（別 updated_at / 別バージョン）を掃除する */
-  async function evictOld(fileId) {
+  /* 同じファイルの古い版（別 updated_at / 別バージョン）を掃除する。
+     prefix はサイズ違いのキャッシュ種別（thumb=一覧用 / preview=拡大表示用）。 */
+  async function evictOld(fileId, prefix = 'thumb') {
     const d = await open();
     return new Promise(resolve => {
       const store = d.transaction(STORE, 'readwrite').objectStore(STORE);
@@ -92,7 +96,7 @@ const WnThumbStore = (() => {
       req.onsuccess = e => {
         const cursor = e.target.result;
         if (!cursor) { resolve(); return; }
-        if (String(cursor.key).startsWith(`thumb_${fileId}_`)) cursor.delete();
+        if (String(cursor.key).startsWith(`${prefix}_${fileId}_`)) cursor.delete();
         cursor.continue();
       };
       req.onerror = () => resolve();
@@ -117,6 +121,15 @@ function wnThTargetLong() {
   if (WN_TH_MOBILE) return 720;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   return Math.round(Math.min(1440, Math.max(720, 720 * dpr)));
+}
+
+/* 拡大表示用（マニュアル編集の右ペインなど、枠が大きい場所）の長辺。
+   一覧用サムネはサーバー側で長辺400pxに正規化されるため、大きな枠に引き伸ばすとぼやける。
+   こちらは端末内(IndexedDB)にだけ持つ大きめの版で、サーバーへは送らない。 */
+function wnThPreviewLong() {
+  if (WN_TH_MOBILE) return 1200;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  return Math.round(Math.min(2200, Math.max(1400, 1100 * dpr)));
 }
 
 /* 1/2ずつ段階縮小（一気に縮めると図面の細線が飛ぶ） */
@@ -315,11 +328,11 @@ function wnThumbSupported(file) {
 }
 
 /* ── クライアント生成（サーバーが404を返した種別だけここへ来る） ── */
-async function wnThRenderPdfPage(pdf) {
+async function wnThRenderPdfPage(pdf, targetLong = wnThTargetLong()) {
   const page   = await pdf.getPage(1);
-  /* 大きめに描画（スーパーサンプリング）してから高品質縮小で保存サイズへ落とす。
+  /* 大きめに描画（スーパーサンプリング）してから高品質縮小で表示サイズへ落とす。
      モバイルは getImageData のメモリが致命的なので長辺を絞る。 */
-  const ssLong = WN_TH_MOBILE ? 1400 : 2600;
+  const ssLong = Math.max(WN_TH_MOBILE ? 1400 : 2600, Math.round(targetLong * 1.4));
   const base   = page.getViewport({ scale: 1 });
   const scale  = Math.min(WN_TH_MOBILE ? 2 : 4,
                           Math.max(1.5, ssLong / Math.max(base.width, base.height)));
@@ -334,7 +347,8 @@ async function wnThRenderPdfPage(pdf) {
   return canvas;
 }
 
-async function wnThGenerateBlob(file) {
+/* targetLong を変えるだけで一覧用サムネ / 拡大表示用プレビューを作り分ける */
+async function wnThGenerateBlob(file, targetLong = wnThTargetLong()) {
   const ext = wnThExt(file);
   const url = wnPublicViewUrl(file.id);
 
@@ -348,9 +362,9 @@ async function wnThGenerateBlob(file) {
       standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@3.11.174/standard_fonts/',
     }).promise;
     try {
-      const canvas  = await wnThRenderPdfPage(pdf);
+      const canvas  = await wnThRenderPdfPage(pdf, targetLong);
       const trimmed = wnThTrim(canvas);              /* 図面は余白が多いので内容を大きく写す */
-      const out     = wnThShrink(trimmed, wnThTargetLong());
+      const out     = wnThShrink(trimmed, targetLong);
       wnThEnhance(out);
       const blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
       wnThFree(canvas, trimmed, out);
@@ -365,9 +379,9 @@ async function wnThGenerateBlob(file) {
     if (!res || !res.ok) return null;
     const pdf = await pdfjsLib.getDocument({ data: await res.arrayBuffer() }).promise;
     try {
-      const canvas = await wnThRenderPdfPage(pdf);
+      const canvas = await wnThRenderPdfPage(pdf, targetLong);
       /* スライドは全面デザインなので余白カット・線画強調はかけない */
-      const out  = wnThShrink(canvas, wnThTargetLong());
+      const out  = wnThShrink(canvas, targetLong);
       const blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
       wnThFree(canvas, out);
       return blob;
@@ -387,7 +401,7 @@ async function wnThGenerateBlob(file) {
         c.width = bmp.width; c.height = bmp.height;
         c.getContext('2d').drawImage(bmp, 0, 0);
         bmp.close?.();
-        const out  = wnThShrink(c, wnThTargetLong());
+        const out  = wnThShrink(c, targetLong);
         const blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.85));
         wnThFree(c, out);
         if (blob) return blob;
@@ -407,7 +421,7 @@ async function wnThGenerateBlob(file) {
     const canvas = document.createElement('canvas');
     canvas.width = 2048; canvas.height = 1024;
     if (!wnDxfThumbnail(canvas, text)) { wnThFree(canvas); return null; }
-    const out = wnThShrink(canvas, wnThTargetLong());
+    const out = wnThShrink(canvas, targetLong);
     wnThEnhance(out);
     const blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
     wnThFree(canvas, out);
@@ -491,7 +505,7 @@ async function wnThGenerateBlob(file) {
       c.width = bmp.width; c.height = bmp.height;
       c.getContext('2d').drawImage(bmp, 0, 0);
       bmp.close?.();
-      const out  = wnThShrink(c, wnThTargetLong());
+      const out  = wnThShrink(c, targetLong);
       const blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
       wnThFree(c, out);
       return blob || srcBlob;
@@ -517,47 +531,56 @@ async function wnThFetchServerThumb(file) {
   }
 }
 
-/* ── 1枚を解決して表示可能なURLを返す（出せなければ null） ── */
-function wnThumbResolve(file) {
+/* ── 1枚を解決して表示可能なURLを返す（出せなければ null） ──
+   opts.preview=true で「拡大表示用の大きい版」を作る。サーバーのサムネは長辺400pxに
+   正規化されるので、編集画面の右ペインのような大きな枠ではそれを引き伸ばさず、
+   端末内キャッシュ(IndexedDB)に持つ大きい版を使う（サーバーへは送らない）。 */
+function wnThumbResolve(file, opts = {}) {
   if (!file || !file.id) return Promise.resolve(null);
 
-  const stamp = file.updated_at ?? file.created_at ?? '';
-  const gen   = (typeof WN_THUMB_GEN !== 'undefined') ? WN_THUMB_GEN : '';
-  const key   = `thumb_${file.id}_${stamp}_${WN_TH_VER}_${gen}`;
+  const preview = !!opts.preview;
+  const stamp   = file.updated_at ?? file.created_at ?? '';
+  const gen     = (typeof WN_THUMB_GEN !== 'undefined') ? WN_THUMB_GEN : '';
+  const prefix  = preview ? 'preview' : 'thumb';
+  const key     = `${prefix}_${file.id}_${stamp}_${WN_TH_VER}_${gen}`;
 
   if (wnThMem[key])     return Promise.resolve(wnThMem[key]);
   if (wnThPending[key]) return wnThPending[key];
 
   wnThPending[key] = (async () => {
     try {
-      /* 1) IndexedDB（同一端末で生成済み。ダッシュボードで作った分もここでヒットする） */
+      /* 1) IndexedDB（同一端末で生成済み。一覧用はダッシュボードで作った分もヒットする） */
       const cached = await WnThumbStore.get(key).catch(() => null);
       if (cached) return (wnThMem[key] = URL.createObjectURL(cached));
 
-      /* 2) サーバー保存サムネ（画像/Office、および誰かが生成済みのPDF等） */
-      const serverBlob = await wnThFetchServerThumb(file);
-      if (serverBlob) {
-        await WnThumbStore.evictOld(file.id).catch(() => {});
-        await WnThumbStore.set(key, serverBlob).catch(() => {});
-        return (wnThMem[key] = URL.createObjectURL(serverBlob));
+      /* 2) サーバー保存サムネ（画像/Office、および誰かが生成済みのPDF等）。
+            拡大表示用は 400px では足りないのでここは通さない。 */
+      if (!preview) {
+        const serverBlob = await wnThFetchServerThumb(file);
+        if (serverBlob) {
+          await WnThumbStore.evictOld(file.id, prefix).catch(() => {});
+          await WnThumbStore.set(key, serverBlob).catch(() => {});
+          return (wnThMem[key] = URL.createObjectURL(serverBlob));
+        }
       }
 
-      /* 3) クライアント生成（PDF/HEIC/動画/DXF）。生成物はサーバーへも返す */
-      if (!wnThumbSupported(file)) return null;
+      /* 3) クライアント生成（PDF/HEIC/動画/DXF）。一覧用の生成物はサーバーへも返す */
+      if (!wnThumbSupported(file)) return preview ? wnThumbResolve(file) : null;
       let blob = null;
       await wnThGenSem.acquire();
-      try { blob = await wnThGenerateBlob(file); }
+      try { blob = await wnThGenerateBlob(file, preview ? wnThPreviewLong() : wnThTargetLong()); }
       finally { wnThGenSem.release(); }
 
       if (!blob) {
         /* SVGだけは原本をそのまま <img> で出せる */
         if (wnThIsSvg(file)) return (wnThMem[key] = wnPublicViewUrl(file.id));
-        return null;
+        /* 大きい版を作れない種別（Office等）は一覧用サムネで妥協する */
+        return preview ? wnThumbResolve(file) : null;
       }
 
-      await WnThumbStore.evictOld(file.id).catch(() => {});
+      await WnThumbStore.evictOld(file.id, prefix).catch(() => {});
       await WnThumbStore.set(key, blob).catch(() => {});
-      wnUploadThumb(file.id, blob);     /* 他端末・他ユーザーの次回を即配信化 */
+      if (!preview) wnUploadThumb(file.id, blob);  /* 他端末・他ユーザーの次回を即配信化 */
       return (wnThMem[key] = URL.createObjectURL(blob));
     } catch (e) {
       console.warn('thumb resolve failed:', file.file_name, e);
@@ -583,7 +606,7 @@ function wnThAttr(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-/* 受け皿HTML。opts: { imgClass, iconClass, icon, alt } */
+/* 受け皿HTML。opts: { imgClass, iconClass, icon, alt, preview } */
 function wnThumbSlotHtml(file, opts = {}) {
   const fallback = (typeof wnFileIcon === 'function')
     ? wnFileIcon(file?.file_name, file?.mime_type)
@@ -596,7 +619,8 @@ function wnThumbSlotHtml(file, opts = {}) {
        + ` data-wn-thumb-stamp="${wnThAttr(file.updated_at ?? file.created_at ?? '')}"`
        + ` data-wn-thumb-size="${file.file_size ?? ''}"`
        + ` data-wn-thumb-img="${wnThAttr(opts.imgClass || '')}"`
-       + ` data-wn-thumb-alt="${wnThAttr(opts.alt || '')}"></i>`;
+       + ` data-wn-thumb-alt="${wnThAttr(opts.alt || '')}"`
+       + (opts.preview ? ' data-wn-thumb-preview="1"' : '') + `></i>`;
 }
 
 let wnThObserver = null;
@@ -612,7 +636,7 @@ function wnThSwap(el) {
     updated_at: el.dataset.wnThumbStamp || null,
     file_size:  el.dataset.wnThumbSize ? Number(el.dataset.wnThumbSize) : null,
   };
-  wnThumbResolve(file).then(url => {
+  wnThumbResolve(file, { preview: el.dataset.wnThumbPreview === '1' }).then(url => {
     if (!url || !el.isConnected) return;
     const img = document.createElement('img');
     if (el.dataset.wnThumbImg) img.className = el.dataset.wnThumbImg;

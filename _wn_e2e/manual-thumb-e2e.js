@@ -213,11 +213,19 @@ function newPage(ctx, width, height) {
       .then(() => true).catch(() => false);
     check('編集: 右ペインのPDFにサムネイルが出る', detailOk);
 
-    const bg = await page.evaluate(() => {
-      const el = document.querySelector('.e-detail-shot img');
-      return el ? el.getBoundingClientRect().width : 0;
+    /* 枠に対して小さく表示されていないこと（幅か高さのどちらかが枠いっぱい） */
+    const fit = await page.evaluate(() => {
+      const img = document.querySelector('.e-detail-shot img');
+      const box = document.querySelector('.e-detail-shot');
+      if (!img || !box) return null;
+      const i = img.getBoundingClientRect(), b = box.getBoundingClientRect();
+      return { fillW: i.width / b.width, fillH: i.height / b.height,
+               natural: img.naturalWidth, boxW: Math.round(b.width) };
     });
-    check('編集: 右ペインのサムネイルが枠内に収まっている', bg > 50, `w=${Math.round(bg)}`);
+    check('編集: 右ペインのサムネイルが枠いっぱいに表示される',
+      fit && (fit.fillW > 0.95 || fit.fillH > 0.95), JSON.stringify(fit));
+    check('編集: 右ペインは拡大表示用の大きい版を使う（引き伸ばしでぼやけない）',
+      fit && fit.natural >= 1000, JSON.stringify(fit));
 
     /* ファイル選択モーダル（What'sNoから選ぶ）でもPDFがサムネイルになる */
     await page.click('#addFile');
