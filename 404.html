@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ページが見つかりません | Space.app</title>
+  <link rel="icon" type="image/svg+xml" href="/space/favicon.svg">
+  <meta name="theme-color" content="#0b1b3a">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(120deg, #0b1b3a 0%, #123a72 55%, #0984E3 100%);
+      color: #fff;
+      font-family: 'Noto Sans JP', sans-serif;
+      padding: 24px;
+    }
+    .box { max-width: 520px; text-align: center; }
+    .logo {
+      font-family: 'Poppins', sans-serif;
+      font-size: 24px; font-weight: 800; letter-spacing: -.5px;
+      margin-bottom: 40px;
+    }
+    .logo span { color: #ff8f5e; }
+    .code {
+      font-family: 'Poppins', sans-serif;
+      font-size: 92px; font-weight: 800; line-height: 1;
+      color: rgba(255,255,255,.22);
+      letter-spacing: -2px;
+    }
+    h1 {
+      font-size: 22px; font-weight: 900;
+      margin: 18px 0 14px; letter-spacing: -.2px;
+    }
+    p {
+      font-size: 13.5px; line-height: 2;
+      color: rgba(255,255,255,.72);
+    }
+    .actions { display: flex; gap: 10px; justify-content: center; margin-top: 32px; flex-wrap: wrap; }
+    a.btn {
+      font-size: 13.5px; font-weight: 700;
+      padding: 13px 26px; border-radius: 10px;
+      text-decoration: none;
+      display: inline-flex; align-items: center; gap: 8px;
+      transition: transform .18s ease, background .18s ease;
+    }
+    a.main { background: #fff; color: #0b1b3a; }
+    a.main:hover { transform: translateY(-2px); }
+    a.sub {
+      background: rgba(255,255,255,.12); color: #fff;
+      border: 1px solid rgba(255,255,255,.3);
+    }
+    a.sub:hover { background: rgba(255,255,255,.2); }
+    .hint {
+      margin-top: 34px;
+      font-size: 11.5px; color: rgba(255,255,255,.5);
+      line-height: 1.9;
+    }
+    @media (max-width: 480px) {
+      .code { font-size: 68px; }
+      h1 { font-size: 18px; }
+      a.btn { flex: 1; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="logo">Space<span>.app</span></div>
+    <div class="code">404</div>
+    <h1>お探しのページは見つかりませんでした</h1>
+    <p>
+      URLが変更されたか、削除された可能性があります。<br>
+      アドレスの末尾に余分な文字が入っていないかご確認ください。
+    </p>
+    <div class="actions">
+      <a class="btn main" href="/space/apps.html">アプリ一覧へ</a>
+      <a class="btn sub" href="/space/login.html">ログイン画面へ</a>
+    </div>
+    <p class="hint">
+      お困りの場合は HaLSpace までお問い合わせください。
+    </p>
+  </div>
+</body>
+</html>
