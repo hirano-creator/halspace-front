@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260725a">
   <style>
     /* PCの左縦帯（追加メニュー）の幅。本文の左余白と揃えるので変数で1か所にまとめる */
-    :root { --e-side: 228px; }
+    :root { --e-side: 278px; }
     .e-wrap { max-width: 640px; margin: 0 auto; padding: 8px 14px calc(28px + env(safe-area-inset-bottom)); }
     .e-head { display: flex; align-items: center; gap: 10px; padding: 8px 0 12px; position: sticky; top: 0;
       background: var(--bg); z-index: 20; }
@@ -329,7 +329,7 @@
         padding: 8px 18px 0 calc(var(--e-side) + 18px); overflow: hidden; }
       .e-head { padding: 6px 0 10px; }
 
-      .e-main.two { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 330px;
+      .e-main.two { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 380px;
         gap: 16px; padding-bottom: 14px; }
       /* 手順リストは右、編集中の手順は中央。DOM順（スマホの並び）は変えずに order だけ入れ替える */
       .e-main.two .e-detail { order: 1; display: flex; min-height: 0; }
@@ -386,8 +386,8 @@
 
     /* 幅の狭いノートPCでは両脇を詰めて、主役の写真と説明欄に幅を回す */
     @media (min-width: 1000px) and (max-width: 1279px) {
-      :root { --e-side: 188px; }
-      .e-main.two { grid-template-columns: minmax(0, 1fr) 272px; gap: 12px; }
+      :root { --e-side: 238px; }
+      .e-main.two { grid-template-columns: minmax(0, 1fr) 322px; gap: 12px; }
       .e-wrap { padding-right: 12px; padding-left: calc(var(--e-side) + 12px); }
       .e-addbar { padding-left: 10px; padding-right: 10px; }
       .e-addprim, .e-addbar .e-addbtn { height: 46px; font-size: 12px; gap: 8px; padding: 0 9px; }
