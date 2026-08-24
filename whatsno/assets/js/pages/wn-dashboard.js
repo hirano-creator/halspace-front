@@ -5321,6 +5321,15 @@ async function executeAaPost() {
    ダッシュボード読み込み時に whatsno:// プロトコル経由で
    config.json を最新トークンで更新する（アカウント切り替え対応）
    ──────────────────────────────── */
+const WN_DESKTOP_SYNC_KEY = 'wn_desktop_synced_fp';
+
+/* 同期済みかどうかの目印。トークン本体は localStorage に置かない
+   （認証はタブ独立の sessionStorage という方針を崩さないため）。 */
+async function wnTokenFingerprint(token) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+}
+
 async function syncDesktopToken() {
   // デスクトップ連携はPC専用。モバイルでは whatsno:// プロトコルが未登録のため
   // 「ページを開けません。アドレスが無効です」警告が毎回出てしまう → 何もしない
@@ -5332,6 +5341,18 @@ async function syncDesktopToken() {
   const token = sessionStorage.getItem('space_token');
   if (!token) return;
 
+  // 同期が要るのはトークンが変わったときだけ。毎回走らせると、後段の
+  // whatsno:// フォールバックが PowerShell を起動するため、ダッシュボードを
+  // 開くたびにコンソールウィンドウが立ち上がってしまう。
+  let fp = null;
+  try {
+    fp = await wnTokenFingerprint(token);
+    if (localStorage.getItem(WN_DESKTOP_SYNC_KEY) === fp) return;
+  } catch {}
+  const rememberSynced = () => {
+    try { if (fp) localStorage.setItem(WN_DESKTOP_SYNC_KEY, fp); } catch {}
+  };
+
   // 主: ローカル同期サーバー経由（ログイン時に自動起動 / ユーザー操作不要）
   try {
     const res = await fetch('http://localhost:39876/sync', {
@@ -5340,16 +5361,19 @@ async function syncDesktopToken() {
       body: JSON.stringify({ token }),
       signal: AbortSignal.timeout(1500),
     });
-    if (res.ok) return;
+    if (res.ok) { rememberSynced(); return; }
   } catch {}
 
   // 副: whatsno:// プロトコル（サーバー未起動時のフォールバック）
+  // 成否は取れないので、起動を試みた時点で同期済みとして記録する。
+  // ハンドラ未登録の環境でも繰り返し起動しないことを優先する。
   try {
     const a = document.createElement('a');
     a.href = `whatsno://sync?token=${encodeURIComponent(token)}`;
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
+    rememberSynced();
     setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 500);
   } catch {}
 }

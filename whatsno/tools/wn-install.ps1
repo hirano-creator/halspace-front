@@ -48,24 +48,29 @@ if (Test-Path $srcSyncServer) {
 }
 
 # ── 非表示ランチャー(wn-launch.vbs)を生成 ──
-# powershell.exe を直接右クリックメニューに登録すると -WindowStyle Hidden を付けても
-# コンソールが一瞬表示される。複数ファイルを選ぶとファイル数だけ点滅して目立つため、
-# WScript.Shell.Run の非表示モード(0)経由で起動するランチャーを挟む。
+# powershell.exe を直接登録すると -WindowStyle Hidden を付けてもコンソールが出る
+# （既定のターミナルが Windows Terminal の環境では隠れずに残ってしまう）。
+# 複数ファイルを選ぶとファイル数だけ窓が出るため、WScript.Shell.Run の
+# 非表示モード(0)経由で起動するランチャーを挟む。
+# 第1引数に実行したい .ps1、それ以降がそのスクリプトへの引数。右クリック保存 /
+# whatsno:// ハンドラ / 同期サーバーの3つとも、この1本を通して起動する
+# （どれか1つでも powershell.exe 直起動のまま残すと、そこだけ窓が出る）。
 # 中身は環境依存を避けるためASCIIのみで書き、ファイルはUTF-16(BOM付き)で保存する
 # （ユーザー名に日本語が含まれてもパスが壊れないようにするため）。
 $launcherScript = Join-Path $appDir 'wn-launch.vbs'
-$vbs = @"
-' What'sNo desktop integration - launches PowerShell with no visible console window.
+$vbs = @'
+' What'sNo desktop integration - launches a PowerShell script with no visible console window.
+' Usage: wscript.exe wn-launch.vbs "<script.ps1>" ["<arg>" ...]
 Option Explicit
-Dim sh, args, i, cmd
-Set sh = CreateObject("WScript.Shell")
-args = ""
-For i = 0 To WScript.Arguments.Count - 1
-  args = args & " """ & WScript.Arguments(i) & """"
+Dim sh, i, cmd
+If WScript.Arguments.Count = 0 Then WScript.Quit 0
+cmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File """ & WScript.Arguments(0) & """"
+For i = 1 To WScript.Arguments.Count - 1
+  cmd = cmd & " """ & WScript.Arguments(i) & """"
 Next
-cmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ""$uploadScript""" & args
+Set sh = CreateObject("WScript.Shell")
 sh.Run cmd, 0, False
-"@
+'@
 [System.IO.File]::WriteAllText($launcherScript, $vbs, [System.Text.Encoding]::Unicode)
 
 # ── トークン取得（パラメータ優先、なければ InputBox） ──
@@ -155,7 +160,7 @@ Remove-WnLegacyMenuKeys 'Software\Classes\DesktopBackground\shell'    @($openKey
 # 使えない環境では従来どおり powershell.exe を直接呼ぶ（一瞬コンソールが出る）。
 $wscript = Join-Path $env:SystemRoot 'System32\wscript.exe'
 $psCmd = if (Test-Path $wscript) {
-    "`"$wscript`" `"$launcherScript`" `"%1`""
+    "`"$wscript`" `"$launcherScript`" `"$uploadScript`" `"%1`""
 } else {
     "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$uploadScript`" `"%1`""
 }
@@ -189,7 +194,11 @@ foreach ($openBase in $openRoots) {
 # ── whatsno:// プロトコルハンドラ登録（自動トークン同期用） ──
 Write-Host "[4/5] プロトコルハンドラを登録中…" -ForegroundColor Cyan
 if (Test-Path $handlerScript) {
-    $protoCmd = "powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$handlerScript`" `"%1`""
+    $protoCmd = if (Test-Path $wscript) {
+        "`"$wscript`" `"$launcherScript`" `"$handlerScript`" `"%1`""
+    } else {
+        "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$handlerScript`" `"%1`""
+    }
     Set-WnRegKey 'Software\Classes\whatsno' @{
         ''             = 'URL:WhatsNo Protocol'
         'URL Protocol' = ''
@@ -200,18 +209,30 @@ if (Test-Path $handlerScript) {
 # ── 同期サーバーをスケジュールタスクに登録してすぐ起動（タスクスケジューラ無応答対策でタイムアウト付き） ──
 Write-Host "[5/5] 同期サーバーを登録中…" -ForegroundColor Cyan
 if (Test-Path $syncServerScript) {
+    $taskLauncher = if (Test-Path $wscript) { $wscript } else { '' }
+
     $taskJob = Start-Job -ScriptBlock {
-        param($taskName, $syncServerScript, $userName)
+        param($taskName, $syncServerScript, $userName, $wscript, $launcherScript)
         Stop-ScheduledTask       -TaskName $taskName -ErrorAction SilentlyContinue
         Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
 
-        $action   = New-ScheduledTaskAction -Execute 'powershell.exe' `
-                        -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$syncServerScript`""
-        $trigger  = New-ScheduledTaskTrigger -AtLogOn -User $userName
-        $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit 0 -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+        # 常駐プロセスなので、ここもランチャー経由。powershell.exe を直接タスクに
+        # 登録すると、ログオンのたびにコンソールが出たまま居座る環境がある。
+        $action = if ($wscript) {
+            New-ScheduledTaskAction -Execute $wscript -Argument "`"$launcherScript`" `"$syncServerScript`""
+        } else {
+            New-ScheduledTaskAction -Execute 'powershell.exe' `
+                -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$syncServerScript`""
+        }
+        $trigger = New-ScheduledTaskTrigger -AtLogOn -User $userName
+        # バッテリー駆動だと既定では起動せず・途中で止められる。同期サーバーが
+        # 落ちていると whatsno:// フォールバックが毎回走ってしまうので明示的に許可する。
+        $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit 0 -RestartCount 3 `
+                        -RestartInterval (New-TimeSpan -Minutes 1) `
+                        -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
         Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
         Start-ScheduledTask    -TaskName $taskName
-    } -ArgumentList 'WhatsNoSyncServer', $syncServerScript, $env:USERNAME
+    } -ArgumentList 'WhatsNoSyncServer', $syncServerScript, $env:USERNAME, $taskLauncher, $launcherScript
 
     if (Wait-Job $taskJob -Timeout 20) {
         Receive-Job $taskJob -ErrorAction SilentlyContinue | Out-Null
