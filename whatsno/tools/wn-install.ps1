@@ -29,22 +29,54 @@ if (-not (Test-Path $srcUpload)) {
     exit 1
 }
 
+# ── スクリプトの配置 ──
+# Windows PowerShell 5.1 は BOM の無い .ps1 を CP932 として読む。このスクリプト群は
+# 日本語コメントを含むので、BOM が落ちると化けたバイト列が構文を壊し、右クリック保存が
+# パースエラーで「無言のまま何も起きない」状態になる（非表示起動なのでエラーも見えない）。
+# 配布ファイルがどうであれ、配置時に必ず BOM 付き UTF-8 へ揃え直す。
+function Copy-WnScript {
+    param([string]$Source, [string]$Dest)
+
+    $text = [System.IO.File]::ReadAllText($Source, (New-Object System.Text.UTF8Encoding($false)))
+    $text = $text.TrimStart([char]0xFEFF)   # 二重BOMを避ける
+    [System.IO.File]::WriteAllText($Dest, $text, (New-Object System.Text.UTF8Encoding($true)))
+
+    # 配置したものが本当に実行できる形かを確認する。ここを黙って通すと
+    # 「セットアップ完了」と出たうえで保存だけが効かない、という壊れ方をする。
+    $errs = $null
+    [System.Management.Automation.Language.Parser]::ParseFile($Dest, [ref]$null, [ref]$errs) | Out-Null
+    if ($errs -and $errs.Count -gt 0) {
+        Write-Host "  ※ $(Split-Path -Leaf $Dest) に構文エラー: $($errs[0].Message)" -ForegroundColor Red
+        return $false
+    }
+    return $true
+}
+
 Write-Host "[1/5] ファイルを配置中…" -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path $appDir | Out-Null
-Copy-Item $srcUpload $uploadScript -Force
+
+if (-not (Copy-WnScript $srcUpload $uploadScript)) {
+    $msg = "wn-upload.ps1 が壊れています。ダッシュボードからスクリプトをダウンロードし直してください。"
+    if ($interactive) {
+        [System.Windows.Forms.MessageBox]::Show($msg, "What'sNo セットアップ", 'OK', 'Error') | Out-Null
+    } else {
+        Write-Host "ERROR: $msg" -ForegroundColor Red
+    }
+    exit 1
+}
 
 # ── wn-token-handler.ps1 を配置（存在する場合） ──
 $srcHandler    = Join-Path $srcDir 'wn-token-handler.ps1'
 $handlerScript = Join-Path $appDir 'wn-token-handler.ps1'
 if (Test-Path $srcHandler) {
-    Copy-Item $srcHandler $handlerScript -Force
+    Copy-WnScript $srcHandler $handlerScript | Out-Null
 }
 
 # ── wn-sync-server.ps1 を配置（存在する場合） ──
 $srcSyncServer  = Join-Path $srcDir 'wn-sync-server.ps1'
 $syncServerScript = Join-Path $appDir 'wn-sync-server.ps1'
 if (Test-Path $srcSyncServer) {
-    Copy-Item $srcSyncServer $syncServerScript -Force
+    Copy-WnScript $srcSyncServer $syncServerScript | Out-Null
 }
 
 # ── 非表示ランチャー(wn-launch.vbs)を生成 ──

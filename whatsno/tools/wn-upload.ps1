@@ -1,4 +1,4 @@
-# What'sNo コンテキストメニュー アップロードスクリプト
+﻿# What'sNo コンテキストメニュー アップロードスクリプト
 # 使い方: wn-install.ps1 でレジストリ登録後、右クリックから自動実行される
 #
 # 複数ファイルを選択すると Windows はファイルの数だけこのスクリプトを起動する。
@@ -54,6 +54,13 @@ try {
     $isWorker = $true
 }
 if (-not $isWorker) { exit 0 }
+
+$lockHeld = $true
+function Close-WnLock {
+    if (-not $script:lockHeld) { return }
+    $script:lockHeld = $false
+    try { $script:mutex.ReleaseMutex() } catch {}
+}
 
 try {
     # ── トークン読み込み ──
@@ -174,6 +181,13 @@ try {
         if ($authError) { break }
     }
 
+    # ── 知らせる前に送信役の座を手放す ──
+    # バルーンは3.5秒の表示待ちがあり、MessageBox はユーザーが閉じるまで戻らない。
+    # その間ロックを握ったままだと、ちょうどその最中に右クリックされたファイルが
+    # 「キューに積まれたのに送る役がいない」状態で取り残され、次に誰かが保存するまで
+    # 送られないままになる（＝保存したのに出てこない）。
+    Close-WnLock
+
     # ── 結果はまとめて1回だけ知らせる ──
     if ($authError) {
         Show-WnMessage "トークンの有効期限が切れています。`nWhat'sNo ダッシュボードで新しいトークンをコピーし、wn-install.ps1 を再実行してください。" "What'sNo — エラー" 'Error'
@@ -194,6 +208,6 @@ try {
         Show-WnBalloon "$($okNames.Count) 件のファイルをアップロードしました"
     }
 } finally {
-    try { $mutex.ReleaseMutex() } catch {}
+    Close-WnLock
     $mutex.Dispose()
 }
