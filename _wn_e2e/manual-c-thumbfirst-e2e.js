@@ -1,6 +1,7 @@
 /* C案「親指ファースト」の検証
-   ・一覧/編集とも主要動作が画面下端の固定帯にある
-   ・編集はスマホ=1列カード、PC(>=1000px)=左リスト＋右エディタの二面
+   ・一覧はスマホ/PCとも主要動作が画面下端の固定帯にある
+   ・編集はスマホ=1列カード＋下端の帯、
+     PC(>=1000px)=左に追加メニューの縦帯・中央にエディタ・右に手順リストの3面（画面幅いっぱい）
    ・説明欄に音声入力（プッシュトゥトーク）が出る
    ・一覧の「写真から作る」で 1枚=1手順の下書きができる
    （バックエンドなし・APIモック） */
@@ -58,21 +59,21 @@ function manualJson() {
 
   check('PC幅では手順が1行リストになる', await page.locator('.e-row').count() === 3,
     `${await page.locator('.e-row').count()}行`);
-  check('PC幅では右に選択中の手順が出る', await page.locator('#detail .e-detail-card').isVisible());
+  check('PC幅では中央に選択中の手順が出る', await page.locator('#detail .e-detail-card').isVisible());
   check('最初の手順が選択されている',
     await page.locator('.e-row').first().evaluate(el => el.classList.contains('active')));
-  check('右ペインに STEP 1 と出る',
+  check('中央ペインに STEP 1 と出る',
     (await page.textContent('#detail .e-detail-kind')).trim() === 'STEP 1',
     (await page.textContent('#detail .e-detail-kind')).trim());
-  check('右ペインの説明が1件目のキャプションになっている',
+  check('中央ペインの説明が1件目のキャプションになっている',
     (await page.inputValue('#detail .e-detail-cap')) === STEPS[0].caption);
 
   /* 行クリックで右ペインが切り替わる */
   await page.locator('.e-row').nth(1).click();
   await page.waitForFunction(() =>
     document.querySelector('#detail .e-detail-kind').textContent.trim() === 'STEP 2', { timeout: 5000 })
-    .then(() => check('行をクリックすると右ペインが切り替わる', true))
-    .catch(() => check('行をクリックすると右ペインが切り替わる', false));
+    .then(() => check('行をクリックすると中央ペインが切り替わる', true))
+    .catch(() => check('行をクリックすると中央ペインが切り替わる', false));
   check('切り替え後の説明が2件目になっている',
     (await page.inputValue('#detail .e-detail-cap')) === STEPS[1].caption);
 
@@ -90,14 +91,33 @@ function manualJson() {
     .then(() => check('↑キーで前の手順へ戻る', true))
     .catch(() => check('↑キーで前の手順へ戻る', false));
 
-  /* 追加バーが画面下端に固定されている */
+  /* PCは追加メニューが画面左端の縦帯 */
   const bar = await page.evaluate(() => {
     const el = document.querySelector('.e-addbar');
     const r  = el.getBoundingClientRect();
-    return { pos: getComputedStyle(el).position, bottom: Math.round(r.bottom), vh: window.innerHeight };
+    return { pos: getComputedStyle(el).position, left: Math.round(r.left), top: Math.round(r.top),
+             w: Math.round(r.width), h: Math.round(r.height), vh: window.innerHeight };
   });
-  check('追加バーが画面下端に固定されている', bar.pos === 'fixed' && Math.abs(bar.bottom - bar.vh) <= 1,
-    `${bar.pos} / bottom=${bar.bottom} vh=${bar.vh}`);
+  check('PCでは追加メニューが画面左端の縦帯になっている',
+    bar.pos === 'fixed' && bar.left === 0 && bar.top === 0 && Math.abs(bar.h - bar.vh) <= 1 && bar.w <= 280,
+    `${bar.pos} / left=${bar.left} top=${bar.top} ${bar.w}x${bar.h} vh=${bar.vh}`);
+
+  /* 手順リストが右、編集中の手順が中央（左端は追加メニュー） */
+  const cols = await page.evaluate(() => {
+    const box = el => { const r = document.querySelector(el).getBoundingClientRect();
+      return { l: Math.round(r.left), r: Math.round(r.right), w: Math.round(r.width) }; };
+    return { side: box('.e-addbar'), detail: box('#detail'), list: box('.e-left'), vw: window.innerWidth };
+  });
+  check('手順リストが編集ペインより右にある', cols.list.l > cols.detail.l,
+    `リスト left=${cols.list.l} / 編集 left=${cols.detail.l}`);
+  check('追加メニューが編集ペインより左にある', cols.side.r <= cols.detail.l,
+    `メニュー right=${cols.side.r} / 編集 left=${cols.detail.l}`);
+  check('3面が重ならない', cols.detail.r <= cols.list.l,
+    `編集 right=${cols.detail.r} / リスト left=${cols.list.l}`);
+  check('画面幅いっぱいを使う（右端まで30px以内）', cols.vw - cols.list.r <= 30,
+    `リスト right=${cols.list.r} / 画面幅=${cols.vw}`);
+  check('編集ペインが一番広い', cols.detail.w > cols.list.w && cols.detail.w > cols.side.w,
+    `編集=${cols.detail.w} リスト=${cols.list.w} メニュー=${cols.side.w}`);
   /* PCで一番よく使うのは撮影ではなく「画像を選ぶ」なので、そちらが目立つ側にいること */
   const emph = await page.evaluate(() => {
     const pick = getComputedStyle(document.querySelector('#addImg'));
@@ -114,7 +134,7 @@ function manualJson() {
   check('PCでは「画像を選ぶ」がアクセント色で主役', emph.pickBg === emph.accent,
     `${emph.pickBg} / accent=${emph.accent}`);
   check('PCではカメラは主役ではない', emph.camBg !== emph.accent, emph.camBg);
-  check('PCの追加ボタンの高さが62px', emph.pickH === 62, `${emph.pickH}px`);
+  check('PCの主要ボタンが押しやすい高さ（50px以上）', emph.pickH >= 50, `${emph.pickH}px`);
 
   /* 音声入力ボタン（Chromeは webkitSpeechRecognition を持つ） */
   const srSupported = await page.evaluate(() => !!(window.SpeechRecognition || window.webkitSpeechRecognition));
@@ -145,7 +165,7 @@ function manualJson() {
   check('タイトルはヘッダーで直接編集できる',
     await page.locator('.e-head input#fTitle').isVisible());
   check('プレビューボタンがある', await page.locator('#viewLink').isVisible());
-  check('手順の件数が左パネルに出る',
+  check('手順の件数が手順リストに出る',
     (await page.textContent('#stepCount')).trim() === '3件',
     (await page.textContent('#stepCount')).trim());
 
@@ -185,19 +205,57 @@ function manualJson() {
       `画像 ${fit.iw}x${fit.ih} / 枠 ${fit.bw}x${fit.bh}`);
   }
 
-  /* 説明欄は一番よく使うので、固定バーに隠れず1画面に収まっていること */
+  /* 説明欄は一番よく使うので、縦帯に隠れず1画面に収まっていること */
   const capFits = await page.evaluate(() => {
     const cap = document.querySelector('#detail .e-detail-cap');
     const bar = document.querySelector('.e-addbar');
     if (!cap) return null;
     const c = cap.getBoundingClientRect(), b = bar.getBoundingClientRect();
-    return { capBottom: Math.round(c.bottom), barTop: Math.round(b.top) };
+    return { capBottom: Math.round(c.bottom), capLeft: Math.round(c.left),
+             barRight: Math.round(b.right), vh: window.innerHeight };
   });
-  check('説明欄が固定バーに隠れず1画面に収まっている',
-    capFits && capFits.capBottom <= capFits.barTop,
-    capFits ? `説明欄の下端=${capFits.capBottom} / バー上端=${capFits.barTop}` : '説明欄が無い');
+  check('説明欄が1画面に収まっている', capFits && capFits.capBottom <= capFits.vh,
+    capFits ? `説明欄の下端=${capFits.capBottom} / 画面高=${capFits.vh}` : '説明欄が無い');
+  check('説明欄が左の縦帯に隠れていない', capFits && capFits.capLeft >= capFits.barRight,
+    capFits ? `説明欄 left=${capFits.capLeft} / 縦帯 right=${capFits.barRight}` : '説明欄が無い');
 
   await page.screenshot({ path: 'shots/c-edit-pc.png' });
+
+  /* 幅の狭いノートPCでも3面が崩れないこと（両脇を詰めて中央に幅を回す） */
+  await page.setViewportSize({ width: 1120, height: 800 });
+  await page.waitForTimeout(250);
+  const narrow = await page.evaluate(() => {
+    const box = el => { const r = document.querySelector(el).getBoundingClientRect();
+      return { l: Math.round(r.left), r: Math.round(r.right), w: Math.round(r.width) }; };
+    return { side: box('.e-addbar'), detail: box('#detail'), list: box('.e-left'),
+             pageScroll: document.documentElement.scrollHeight - window.innerHeight };
+  });
+  check('1120px幅でも3面が重ならない',
+    narrow.side.r <= narrow.detail.l && narrow.detail.r <= narrow.list.l,
+    `メニュー=${narrow.side.r} 編集=${narrow.detail.l}〜${narrow.detail.r} リスト=${narrow.list.l}`);
+  check('1120px幅でも編集ペインが一番広い',
+    narrow.detail.w > narrow.list.w && narrow.detail.w > narrow.side.w,
+    `編集=${narrow.detail.w} リスト=${narrow.list.w} メニュー=${narrow.side.w}`);
+  check('1120px幅でもページ全体がスクロールしない', narrow.pageScroll <= 1, `${narrow.pageScroll}px`);
+  await page.screenshot({ path: 'shots/c-edit-pc-narrow.png' });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.waitForTimeout(200);
+
+  /* 手順ゼロのとき、中央ペインが真っ白のままにならないこと */
+  const ep = await ctx.newPage();
+  ep.on('pageerror', e => console.log('PAGE ERROR(empty):', e.message));
+  await ep.route('**/api/wn/**', r => r.fulfill({ json: { data: [] } }));
+  await ep.route('**/api/wn/manuals/6', r =>
+    r.fulfill({ json: { data: { ...manualJson().data, id: 6, steps: [] } } }));
+  await ep.goto(`${BASE}/app/manual-edit.html?id=6`, { waitUntil: 'domcontentloaded' });
+  await ep.waitForSelector('#detail .e-blank', { timeout: 8000 })
+    .then(() => check('手順ゼロでも中央に次にやることが出る', true))
+    .catch(() => check('手順ゼロでも中央に次にやることが出る', false));
+  check('空の案内が左のメニューを指している',
+    ((await ep.textContent('#steps .e-empty')) || '').includes('左のメニュー'),
+    ((await ep.textContent('#steps .e-empty')) || '').trim());
+  await ep.screenshot({ path: 'shots/c-edit-pc-empty.png' });
+  await ep.close();
 
   /* ───── 編集画面（スマホ幅 = 1列） ───── */
   await page.setViewportSize({ width: 390, height: 844 });
@@ -205,7 +263,7 @@ function manualJson() {
     .then(() => check('スマホ幅では1列のカードに切り替わる', true))
     .catch(async () => check('スマホ幅では1列のカードに切り替わる', false,
       `${await page.locator('.e-step').count()}枚`));
-  check('スマホ幅では右ペインを出さない', !(await page.locator('#detail .e-detail-card').isVisible()));
+  check('スマホ幅では二面にしない', !(await page.locator('#detail .e-detail-card').isVisible()));
 
   const noHScroll = await page.evaluate(() =>
     document.documentElement.scrollWidth <= window.innerWidth + 1);
@@ -229,7 +287,7 @@ function manualJson() {
     const cam = document.querySelector('#addCam');
     const acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
     const m = acc.replace('#', '');
-    return { text: cam.textContent.trim(),
+    return { text: cam.innerText.trim(),
              h: Math.round(cam.getBoundingClientRect().height),
              bg: getComputedStyle(cam).backgroundColor.replace(/\s/g, ''),
              accent: `rgb(${parseInt(m.slice(0,2),16)},${parseInt(m.slice(2,4),16)},${parseInt(m.slice(4,6),16)})` };
