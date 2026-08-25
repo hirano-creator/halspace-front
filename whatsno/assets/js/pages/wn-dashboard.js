@@ -1685,8 +1685,9 @@ async function runSkill(instruction) {
     // AIを使わなかった実行も履歴に残す（メーラー起動後に投げるので待ち時間には出ない）
     if (draft.local) wnLogSkillRun(instruction, file.id, draft);
 
-    // 遅いときにどこで待っているかを切り分けられるようにする（連絡先→AI→リンクの累積ms）
-    console.debug('[skill] mode=%s contacts=%dms ai=%dms share=%dms total=%dms files=%d',
+    /* 遅いときにどこで待っているかを切り分けられるようにする（連絡先→AI→リンクの累積ms）。
+       console.debug は DevTools の Verbose を開かないと見えず、報告してもらうのに不便だった */
+    console.log('[skill] mode=%s contacts=%dms ai=%dms share=%dms total=%dms files=%d',
       draft.local ? 'local' : 'ai', lap.contacts ?? 0, lap.ai ?? 0, lap.share ?? lap.ai ?? 0,
       Math.round(performance.now() - t0), files.length);
   } catch (err) {
