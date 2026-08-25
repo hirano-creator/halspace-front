@@ -1016,10 +1016,28 @@ async function wnScanBusinessCard(blob) {
   return (await res.json()).data;
 }
 
-/* 連絡先に添付した名刺画像のURL（<img> で直接読める） */
-function wnContactCardUrl(contactId) {
+/* 名刺画像だけを保存する（読み取りはしない）。回転など向きを直しただけのとき用 */
+async function wnSaveContactCardImage(blob) {
+  const fd = new FormData();
+  fd.append('card', blob, 'card.jpg');
+  const res = await wnFetch('/wn/contacts/card-image', { method: 'POST', body: fd });
+  if (!res || !res.ok) {
+    const err = await res?.json().catch(() => ({}));
+    throw new Error(err.message || '名刺画像を保存できませんでした');
+  }
+  return (await res.json()).data;
+}
+
+/* 連絡先に添付した名刺画像のURL（<img> で直接読める）。
+   URLは連絡先IDだけなので、ver（一覧が返す card_ver）を付けないと画像を差し替えても
+   ブラウザが古いものを出し続ける（回転した名刺が元に戻って見える）。 */
+function wnContactCardUrl(contactId, ver) {
   const token = sessionStorage.getItem('space_token');
-  return WN_API_BASE + `/wn/contacts/${contactId}/card` + (token ? `?token=${encodeURIComponent(token)}` : '');
+  const qs = new URLSearchParams();
+  if (token) qs.set('token', token);
+  if (ver)   qs.set('v', ver);
+  const q = qs.toString();
+  return WN_API_BASE + `/wn/contacts/${contactId}/card` + (q ? `?${q}` : '');
 }
 
 /* ── ローマ字 → カタカナ（ヘボン式・辞書不要） ──

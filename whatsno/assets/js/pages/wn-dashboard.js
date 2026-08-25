@@ -538,8 +538,9 @@ function _ctCloseCardLightbox() {
 /* 名刺プレビューを90度回転する。
    横向きに写った写真をその場で直したいという要望への対応。
    ctScanPreviewBlob があればそれを使い（スキャン直後）、無ければ表示中のURL
-   （編集時の保存済み名刺）を取得して回転する。scan-card に送り直すのは、
-   回転後の画像を保存するAPIが他に無いため（副作用としてOCRも再実行される）。 */
+   （編集時の保存済み名刺）を取得して回転する。保存は card-image（読み取りなし）へ。
+   以前は scan-card に送り直していたが、OCRが失敗すると 422 で画像も残らず、
+   回転が保存されなかった。 */
 let ctRotateBusy = false;
 async function _ctRotateCardPreview() {
   if (ctRotateBusy) return;
@@ -563,7 +564,7 @@ async function _ctRotateCardPreview() {
     const rotatedBlob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
     if (!rotatedBlob) throw new Error('画像を回転できませんでした');
 
-    const data = await wnScanBusinessCard(rotatedBlob);
+    const data = await wnSaveContactCardImage(rotatedBlob);
     ctCardPath = data.card_image_path || ctCardPath;
     ctScanPreviewBlob = rotatedBlob;
 
@@ -1407,11 +1408,12 @@ function editContact(c) {
 
   // 名刺が添付されていれば控えを出す（読み取り違いをその場で見比べられる）
   ctScanPreviewBlob = null;   // 保存済みの名刺はローカルにBlobが無いので、回転時はURLから取得し直す
+  ctCardPath = null;          // 直前に編集していた連絡先の名刺を持ち越さない
   const prev = document.getElementById('contactCardPreview');
   if (prev) {
     if (c.has_card) {
       prev.innerHTML = `<div class="ct-card-preview-frame">
-          <img src="${wnContactCardUrl(c.id)}" alt="${wnEscapeHtml(c.name)}の名刺" loading="lazy">
+          <img src="${wnContactCardUrl(c.id, c.card_ver)}" alt="${wnEscapeHtml(c.name)}の名刺" loading="lazy">
           <button type="button" class="ct-rotate-btn" title="90度回転"><i class="fa-solid fa-arrow-rotate-right"></i></button>
         </div>
         <div class="cap">登録時に読み取った名刺</div>`;
