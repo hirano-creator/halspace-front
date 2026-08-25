@@ -16,7 +16,7 @@ node compare-e2e.js        # 比較機能フル（選択導線・4モード・�
 node compare-multipage.js  # 複数ページA4 PDF・モード巡回・フィット/スクロール/ズーム往復
 node compare-prod.js       # 本番(space-apps.pages.dev)のデプロイ済みページを直接検証（サーバー不要）
 node email-e2e.js          # メール送信導線（iPhone/PC両方でmailto生成・URL長・起動失敗時のフォールバック）
-node skill-speed-e2e.js    # スキルバー（検索欄→メーラー自動起動）の待ち時間（リンク発行をAI待ちに重ねる・連絡先の先読み）
+node skill-speed-e2e.js    # スキルバー（検索欄→メーラー自動起動）の待ち時間（AI非依存の即時経路・先読み・AI経路の重ね合わせ）
 node unknown-contact-e2e.js # 連絡先に未登録の宛先ポップアップ（報告・その場で登録・登録せず送信・再確認しない）
 node manual-annotate-e2e.js # マニュアル編集のサムネ→注釈編集の導線（back/manual_id受け渡し・ステップ差し替え）
 node large-upload-e2e.js   # 大容量アップロード（R2直送マルチパート）の分割・リトライ・abort・フォールバック
@@ -69,6 +69,21 @@ node align-e2e.js          # 並べる機能（justified layout・ライトボ�
 - **PCコンテキストで page.click が一切効かない**: `syncDesktopToken()` が localhost:39876 に失敗すると `whatsno://` へフォールバックし、Chromeの外部プロトコルダイアログが実クリックを飲み込む。`page.route('http://localhost:39876/sync', ...)` を成功で返してから操作する
 - **mailto: は実ブラウザで検証できない**（外部ハンドラ任せ）→ `document.createElement` をフックして `<a>.click()` の href を捕捉する。ハンドラ未登録＝実機の「起動しない」状態がそのまま再現できる
 - **日本語は %エンコードで1文字9文字**: mailto の長さテストは必ず日本語本文（500字）＋署名で行う。ASCIIだけでは上限に届かない
+
+## 重要な教訓（スキルバーの待ち時間 2026-08-25）
+
+- **待ち時間の犯人はほぼLLMの往復**。Gemini(2.5-flash-lite) は1往復1.6秒前後かかるので、
+  「連絡先で宛先が決まる定型の指示ならAIを呼ばない」経路を作るのが唯一の効く手だった（49ms）。
+  リンク発行の並列化やキャッシュは効くが、AI待ちが残る限り体感は変わらない
+- **速度のE2Eは遅延つきモックで測る**: `wnRunSkill` / `wnCreateSharesBulk` に固定の遅延を入れ、
+  「合計 < AI + リンク発行」で重なりを、`aiCalls === 0` でAI未使用を判定する。実時間は環境で揺れるので
+  絶対値ではなく**足し算になっていないこと**を条件にする
+- **先読みを測るテストは待ち時間の設計に注意**: 入力デバウンス(500ms)＋発行(モック600ms)が終わる前に
+  Enterを押すと残りを待たされ、実装は正しいのにFAILする。実際の入力は数秒かかるので、
+  テストでも `デバウンス + 発行 + α` 待ってからEnterする
+- **未登録宛先のポップアップが送信を止める**: 連絡先に無いアドレスを使うケースでは
+  `localStorage['wn_unknown_contact_popup_off']='1'` を入れておかないと mailto が来ずタイムアウトする
+  （ポップアップ自体の検証は unknown-contact-e2e.js の担当）
 
 ## 共通パターン（メモリ whatsno_ui_testing より）
 
