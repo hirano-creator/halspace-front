@@ -545,6 +545,11 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   transition: color var(--trans), background var(--trans);
 }
 .voice-search-btn:hover { color: var(--accent); background: rgba(33,150,243,.1); }
+/* LINE導線はブランド色のまま。`.search-bar i` がアイコンを直接塗るので i まで指定する
+   （ボタンだけに色を当てても継承が上書きされて灰色に戻る） */
+#lineSendBtn, #lineSendBtn i { color: #06C755; }
+#lineSendBtn:hover, #lineSendBtn:hover i { color: #05A648; }
+#lineSendBtn:hover { background: rgba(6,199,85,.12); }
 .voice-search-btn.listening {
   color: #fff;
   background: #E53935;

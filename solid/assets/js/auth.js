@@ -22,6 +22,7 @@ function wnApplyExtendedOptionsUi() {
     'navManuals', 'navBrainSidebar', 'bnBrain', 'contactsOpenBtn',
     'emailSelBtn', 'alignSelBtn', 'compareSelBtn',
     'emailShareBtn', 'annotateBtn',
+    'lineSendBtn', 'lineSelBtn', 'lineShareBtn',   // メール送信と同じ拡張オプション扱い
   ].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';

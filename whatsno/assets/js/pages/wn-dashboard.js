@@ -239,6 +239,18 @@ function initSkillBar() {
     if (e.key === 'Enter' && !send.disabled) { e.preventDefault(); runSkill(input.value.trim()); }
   });
   send.addEventListener('click', () => { if (!send.disabled) runSkill(input.value.trim()); });
+
+  /* 検索欄のLINEボタン。選択中のファイルをそのままLINEの送信画面へ渡す。
+     選択が要ることは押すまで分からないので、未選択なら選択モードに入れて促す。 */
+  document.getElementById('lineSendBtn')?.addEventListener('click', () => {
+    const files = wnSelectedFilesForShare();
+    if (files.length === 0) {
+      if (!selectMode) toggleSelectMode();
+      wnShowToast('LINEで送るファイルを選択してください', 'info');
+      return;
+    }
+    openLineModal(files);
+  });
 }
 
 /* ────────────────────────────────
@@ -1645,11 +1657,13 @@ async function runSkill(instruction) {
       draft = res.draft || {};
     }
 
-    // メール送信モーダルを開く（共有リンクは上で発行済みのものを再利用する）
-    openEmailModal(files.map(f => ({ id: f.id, name: f.file_name })));
+    // 共有モーダルを開く（共有リンクは上で発行済みのものを再利用する）
+    const modalFiles = files.map(f => ({ id: f.id, name: f.file_name }));
+    if (draft.channel === 'line') openLineModal(modalFiles);
+    else                          openEmailModal(modalFiles);
 
-    // LLMの下書きを流し込む
-    if (draft.to_email) {
+    // LLMの下書きを流し込む（LINEは宛先欄が無いので本文だけ）
+    if (draft.to_email && draft.channel !== 'line') {
       emailFieldChips.to = [{ email: draft.to_email }];
       renderEmailChips('to');
     }
@@ -4448,6 +4462,7 @@ function jsq(str) {
    メール送信モーダル
    ──────────────────────────────── */
 let emailModalFiles    = [];   // [{ id, name }]
+let emailModalChannel  = 'email';   // 'email' | 'line'（モーダルの見た目と送信ボタンを決める）
 let emailPregenShares  = null; // [{ id, name, url }] | null
 const emailShareCache  = new Map(); // fileId → Promise<share>（hover先行発行キャッシュ）
 let emailUnknownConfirmed = false;  // 未登録の宛先ポップアップで確認済み（モーダルを開くたびリセット）
@@ -4563,8 +4578,51 @@ function prefetchEmailShare(fileId) {
   emailShareCache.set(fileId, wnCreateShare(fileId, { expiresDays: 30 }));
 }
 
-function openEmailModal(files, prefillEmail = null) {
+/* 共有モーダルを「LINEで送る」モードで開く。
+   中身（共有リンク・メッセージ・署名）はメールと共通で、宛先欄と送信ボタンだけ差し替える。 */
+function openLineModal(files) {
+  openEmailModal(files, null, { channel: 'line' });
+}
+
+/* 開いた直後に置くフォーカス。LINEは宛先欄が無いのでメッセージ欄に置く */
+function _emailFocusFirstField() {
+  const id = emailModalChannel === 'line' ? 'emailMessage' : 'emailInput';
+  document.getElementById(id)?.focus();
+}
+
+/* モードに応じてモーダルの見た目と送信ボタンを切り替える */
+function _emailApplyChannelUi() {
+  const isLine = emailModalChannel === 'line';
+  const set = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+
+  const icon = document.getElementById('emailModalIcon');
+  if (icon) {
+    icon.className = isLine ? 'fa-brands fa-line' : 'fa-solid fa-envelope';
+    icon.style.color = isLine ? '#06C755' : 'var(--accent)';
+  }
+  const title = document.getElementById('emailModalTitleText');
+  if (title) title.textContent = isLine ? 'LINEで送る' : 'メールを送る';
+
+  // LINEは宛先を指定できないので、TO/CC/BCC はまとめて隠す
+  set('emailToSection',  !isLine);
+  set('emailHintMail',   !isLine);
+  set('emailHintLine',    isLine);
+  set('emailLineBtn',     isLine);
+  set('emailMailtoBtn',  !isLine);
+  set('emailGmailBtn',   !isLine);
+  if (isLine) {
+    document.getElementById('emailCcSection')?.classList.add('hidden');
+    document.getElementById('emailBccSection')?.classList.add('hidden');
+  }
+  // スマホ向けの案内はメールアプリ／Gmailの話なのでLINEでは出さない
+  const hint = document.getElementById('emailMobileHint');
+  if (hint) hint.classList.toggle('hidden', isLine || !wnIsMobileDevice());
+  if (!isLine) _emailApplyMobileLayout();   // スマホ向けの主従入れ替えはメールのときだけ
+}
+
+function openEmailModal(files, prefillEmail = null, opts = {}) {
   if (document.getElementById('emailModal').classList.contains('hidden')) wnLockBodyScroll();
+  emailModalChannel = opts.channel === 'line' ? 'line' : 'email';
   emailModalFiles   = Array.isArray(files) ? files : (files ? [files] : []);
   emailPregenShares = null;
   emailUnknownConfirmed = false;
@@ -4589,6 +4647,7 @@ function openEmailModal(files, prefillEmail = null) {
     _emailHideSuggest(field);
   }
   _emailRenderSigPreview();
+  _emailApplyChannelUi();
   wnRenderUnknownContactNotice();   // 未登録の宛先のお知らせを切っているときの「元に戻す」導線
   // 連絡先は未取得のときだけ読む（モーダルを開くたびに1往復していた）
   if (!allContactsLoaded) {
@@ -4599,7 +4658,7 @@ function openEmailModal(files, prefillEmail = null) {
     emailPregenShares = [];
     setEmailBtnsLoading(false);
     document.getElementById('emailModal').classList.remove('hidden');
-    setTimeout(() => document.getElementById('emailInput').focus(), 100);
+    setTimeout(() => _emailFocusFirstField(), 100);
     return;
   }
 
@@ -4650,7 +4709,7 @@ function openEmailModal(files, prefillEmail = null) {
   });
 
   document.getElementById('emailModal').classList.remove('hidden');
-  setTimeout(() => document.getElementById('emailInput').focus(), 100);
+  setTimeout(() => _emailFocusFirstField(), 100);
 }
 
 function _emailLinkShowLoading() {
@@ -4683,6 +4742,7 @@ function _emailLinkShowReadyMulti(count) {
 function closeEmailModal() {
   if (!document.getElementById('emailModal').classList.contains('hidden')) wnUnlockBodyScroll();
   document.getElementById('emailModal').classList.add('hidden');
+  emailModalChannel   = 'email';
   emailModalFiles     = [];
   emailPregenShares   = null;
   emailFieldChips.to  = [];
@@ -4948,6 +5008,14 @@ function wnIsComparable(fA, fB) {
   return kA !== null && kA === kB;
 }
 
+/* 選択中のファイルを共有モーダルに渡す形（{ id, name }）で取り出す */
+function wnSelectedFilesForShare() {
+  return selectedIds
+    .map(id => allFiles.find(f => String(f.id) === String(id)))
+    .filter(Boolean)
+    .map(f => ({ id: f.id, name: f.file_name }));
+}
+
 function initMergeSelect() {
   document.getElementById('selectModeBtn')?.addEventListener('click', toggleSelectMode);
   document.getElementById('mergeCancelBtn')?.addEventListener('click', () => { if (selectMode) toggleSelectMode(); });
@@ -4956,17 +5024,15 @@ function initMergeSelect() {
   document.getElementById('mergeModalCancelBtn')?.addEventListener('click', closeMergeModal);
   document.getElementById('mergeExecBtn')?.addEventListener('click', executeMerge);
   document.getElementById('emailSelBtn')?.addEventListener('click', () => {
-    const files = selectedIds.map(id => {
-      const f = allFiles.find(f => String(f.id) === String(id));
-      return f ? { id: f.id, name: f.file_name } : null;
-    }).filter(Boolean);
+    const files = wnSelectedFilesForShare();
     if (files.length > 0) openEmailModal(files);
   });
+  document.getElementById('lineSelBtn')?.addEventListener('click', () => {
+    const files = wnSelectedFilesForShare();
+    if (files.length > 0) openLineModal(files);
+  });
   document.getElementById('aaPostSelBtn')?.addEventListener('click', () => {
-    const files = selectedIds.map(id => {
-      const f = allFiles.find(f => String(f.id) === String(id));
-      return f ? { id: f.id, name: f.file_name } : null;
-    }).filter(Boolean);
+    const files = wnSelectedFilesForShare();
     if (files.length > 0) openAaPostModal(files);
   });
   document.getElementById('aaPostModalClose')?.addEventListener('click', closeAaPostModal);
@@ -5064,6 +5130,8 @@ function updateMergeActionBar() {
   }
   if (lbl)      lbl.textContent = allPdf ? `${sel.length}件を結合` : '結合';
   if (emailBtn) emailBtn.disabled = selectedIds.length === 0;
+  const lineBtn = document.getElementById('lineSelBtn');
+  if (lineBtn) lineBtn.disabled = selectedIds.length === 0;
   const bulkTagBtn = document.getElementById('bulkTagBtn');
   if (bulkTagBtn) bulkTagBtn.disabled = selectedIds.length === 0;
   const aaBtn = document.getElementById('aaPostSelBtn');

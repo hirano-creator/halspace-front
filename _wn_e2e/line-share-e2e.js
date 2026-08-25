@@ -53,12 +53,42 @@ async function prepare(page) {
 /* LINEモーダルを開いてリンク発行完了まで待つ */
 async function openAndWait(page, files, message = '') {
   await page.evaluate(({ files, message }) => {
-    openEmailModal(files);
+    openLineModal(files);
     document.getElementById('emailMessage').value = message;
   }, { files, message });
   await page.waitForFunction(
     (n) => Array.isArray(emailPregenShares) && emailPregenShares.length === n,
     files.length, { timeout: 5000 });
+}
+
+/* 一覧にダミーのファイルを流し込んで選択モードで選ぶ（下部メニューを出すため） */
+async function selectFiles(page, files) {
+  await page.evaluate((files) => {
+    allFiles = files.map(f => ({ id: f.id, file_name: f.name, visibility: 'company', can_edit: true }));
+    if (!selectMode) toggleSelectMode();
+    for (const f of files) toggleMergeSelect(f.id);
+  }, files);
+}
+
+/* モーダルがどちらのモードで開いているか */
+async function readModalMode(page) {
+  return page.evaluate(() => {
+    const vis = (id) => {
+      const el = document.getElementById(id);
+      return !!el && el.style.display !== 'none' && !el.classList.contains('hidden');
+    };
+    return {
+      open:   !document.getElementById('emailModal').classList.contains('hidden'),
+      title:  document.getElementById('emailModalTitleText')?.textContent || '',
+      toShown:     vis('emailToSection'),
+      lineBtn:     vis('emailLineBtn'),
+      mailtoBtn:   vis('emailMailtoBtn'),
+      gmailBtn:    vis('emailGmailBtn'),
+      hintLine:    vis('emailHintLine'),
+      hintMail:    vis('emailHintMail'),
+      hintMobile:  vis('emailMobileHint'),
+    };
+  });
 }
 
 (async () => {
@@ -88,9 +118,59 @@ async function openAndWait(page, files, message = '') {
     await page.goto(`${BASE}/app/dashboard.html`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1200);
 
-    /* ── 1. ボタンが出ている ── */
-    const btnExists = await page.evaluate(() => !!document.getElementById('emailLineBtn'));
-    check(`[${device.label}] 「LINEで送る」ボタンがある`, btnExists);
+    /* ── 1. 独立した導線が3か所ある（検索欄・下部メニュー・モーダル内） ── */
+    const entries = await page.evaluate(() => ({
+      searchBar: !!document.getElementById('lineSendBtn'),
+      selBar:    !!document.getElementById('lineSelBtn'),
+      modalBtn:  !!document.getElementById('emailLineBtn'),
+      selBarDisabled: document.getElementById('lineSelBtn')?.disabled,
+    }));
+    check(`[${device.label}] 検索欄にLINEボタンがある`, entries.searchBar);
+    check(`[${device.label}] 下部メニューにLINEボタンがある`, entries.selBar);
+    check(`[${device.label}] 未選択では下部メニューのLINEは押せない`, entries.selBarDisabled === true);
+
+    /* ── 1b. 検索欄のLINEは未選択なら選択モードに入れて促す ── */
+    await page.click('#lineSendBtn');
+    await page.waitForTimeout(200);
+    const promoted = await page.evaluate(() => ({
+      selectMode,
+      modalOpen: !document.getElementById('emailModal').classList.contains('hidden'),
+      toast: document.getElementById('toastContainer')?.textContent || '',
+    }));
+    check(`[${device.label}] 未選択なら選択モードに入る`, promoted.selectMode === true);
+    check(`[${device.label}] 未選択ではモーダルを開かない`, !promoted.modalOpen);
+    check(`[${device.label}] 選択を促す案内が出る`, promoted.toast.includes('選択してください'), promoted.toast.trim().slice(0, 40));
+
+    /* ── 1c. 選択してから押すとLINEモードで開く ── */
+    await prepare(page);
+    await selectFiles(page, [{ id: 7, name: '図面_C棟.pdf' }]);
+    const selBarOn = await page.evaluate(() => !document.getElementById('lineSelBtn').disabled);
+    check(`[${device.label}] 選択すると下部メニューのLINEが押せる`, selBarOn);
+
+    await page.click('#lineSendBtn');
+    await page.waitForTimeout(300);
+    const lineMode = await readModalMode(page);
+    check(`[${device.label}] 検索欄のLINEからモーダルが開く`, lineMode.open);
+    check(`[${device.label}] タイトルがLINEになる`, lineMode.title.includes('LINE'), lineMode.title);
+    check(`[${device.label}] 宛先メールアドレス欄は出ない`, !lineMode.toShown);
+    check(`[${device.label}] 送信ボタンはLINEだけ`,
+      lineMode.lineBtn && !lineMode.mailtoBtn && !lineMode.gmailBtn,
+      `line=${lineMode.lineBtn} mailto=${lineMode.mailtoBtn} gmail=${lineMode.gmailBtn}`);
+    check(`[${device.label}] LINE向けの案内に切り替わる`, lineMode.hintLine && !lineMode.hintMail);
+    // 「メールアプリ／Gmailが開きます」の案内はLINEでは的外れなので出さない
+    check(`[${device.label}] スマホ向けメール案内は出ない`, !lineMode.hintMobile);
+
+    /* ── 1d. メールで開いたときはLINEボタンが混ざらない ── */
+    await page.evaluate(() => { closeEmailModal(); openEmailModal([{ id: 7, name: '図面_C棟.pdf' }]); });
+    await page.waitForTimeout(200);
+    const mailMode = await readModalMode(page);
+    check(`[${device.label}] メールのモーダルにLINEボタンは出ない`, !mailMode.lineBtn);
+    check(`[${device.label}] メールでは宛先欄と2つの送信ボタンが出る`,
+      mailMode.toShown && mailMode.mailtoBtn && mailMode.gmailBtn);
+    check(`[${device.label}] メールの案内に戻る`, mailMode.hintMail && !mailMode.hintLine);
+    check(`[${device.label}] スマホ向けメール案内はメールでは${device.mobile ? '出る' : '出ない'}`,
+      mailMode.hintMobile === device.mobile);
+    await page.evaluate(() => { closeEmailModal(); });
 
     /* ── 2. 日本語500字＋署名でもURLが上限内に収まり、共有リンクが残る ── */
     await prepare(page);
