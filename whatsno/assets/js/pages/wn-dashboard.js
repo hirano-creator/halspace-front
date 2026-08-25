@@ -215,6 +215,18 @@ function initSkillBar() {
   // ここでは送信ボタンの状態だけ同期する専用リスナーを追加する
   input.addEventListener('input', syncSend);
 
+  /* 打っている間に共有リンクを用意しておく（Enterの時点では発行済みにする）。
+     選択が無いときは検索目的の入力なので何もしない。 */
+  let skillPrefetchTimer = null;
+  input.addEventListener('input', () => {
+    clearTimeout(skillPrefetchTimer);
+    if (input.value.trim() === '' || selectedIds.length === 0) return;
+    skillPrefetchTimer = setTimeout(() => {
+      const files = selectedIds.map(id => allFiles.find(f => String(f.id) === String(id))).filter(Boolean);
+      if (files.length) ensureShareLinks(files);
+    }, 500);
+  });
+
   /* 入力を始める段階で連絡先を読んでおく。
      宛先の解決に使うので、実行時に必ず1往復ぶん待たされていた（打っている間に済ませる） */
   input.addEventListener('focus', () => {
@@ -1462,6 +1474,98 @@ function deleteContactById(id) {
     });
 }
 
+/* ────────────────────────────────
+   ブラウザ内で完結するメール下書き（AIの往復を使わない経路）
+
+   Geminiは1往復でも1.6秒前後かかる。宛先が連絡先で特定できて用件も定型なら、
+   その1.6秒は「待つ意味のない待ち時間」なので、同じ判定をここでやって即メーラーを起動する。
+   判定できないとき（宛先が不明・メール以外の指示）だけ従来どおりAIに任せる。
+   ──────────────────────────────── */
+
+// メールを送る意図のキーワード（サーバーの routeSkillFallback と揃える）
+const WN_MAIL_INTENT_RE = /(メール|送信|送って|送付|送る|依頼|連絡)/;
+// メール以外のスキルに振るべき指示。こちらはAIの判定に任せる
+const WN_OTHER_SKILL_RE = /(共有リンク|リンクを|承認|決裁|申請|タグ)/;
+
+/* 用件ごとの本文。指示文に含まれる言葉で選ぶ（先に書いたものが優先） */
+const WN_MAIL_BODY_TEMPLATES = [
+  { re: /(見積|御見積|みつもり)/,
+    body: 'お世話になっております。\n下記ファイルにつきまして、お見積もりをご依頼いたします。\nご確認のうえ、ご回答いただけますと幸いです。\nよろしくお願いいたします。' },
+  { re: /(発注|注文)/,
+    body: 'お世話になっております。\n下記ファイルの内容にて、発注させていただきます。\nご確認のほど、よろしくお願いいたします。' },
+  { re: /(修正|変更|訂正)/,
+    body: 'お世話になっております。\n修正した下記ファイルをお送りいたします。\nご確認のほど、よろしくお願いいたします。' },
+  { re: /(納期|日程|スケジュール)/,
+    body: 'お世話になっております。\n下記ファイルにつきまして、納期のご相談をさせていただきたくご連絡いたしました。\nご確認のほど、よろしくお願いいたします。' },
+  { re: /(確認|チェック|査収)/,
+    body: 'お世話になっております。\n下記ファイルをお送りいたします。\nご査収のうえ、ご確認いただけますでしょうか。\nよろしくお願いいたします。' },
+];
+const WN_MAIL_BODY_DEFAULT =
+  'お世話になっております。\n下記ファイルを共有させていただきます。\nご確認のほど、よろしくお願いいたします。';
+
+/* 指示文と連絡先を照合して宛先を1件特定する（サーバーの matchContactFromInstruction と同じ規則）。
+   会社名・フルネーム・姓のいずれでも当たるよう、双方向の部分一致で見る。 */
+function wnMatchContactLocal(instruction, contacts) {
+  // 「○○さん / ○○様」等の宛名候補（敬称の直前2〜12文字）
+  const cands = [];
+  const re = /([\u3040-\u30FF\u4E00-\u9FFFA-Za-z]{2,12}?)(さん|様|氏|くん|ちゃん|殿)/g;
+  let m;
+  while ((m = re.exec(instruction)) !== null) {
+    if (!cands.includes(m[1])) cands.push(m[1]);
+  }
+
+  for (const c of contacts) {
+    const name    = (c.name         || '').trim();
+    const company = (c.company_name || '').trim();
+    if (!c.email) continue;
+    // 1) 会社名が指示にそのまま含まれる
+    if (company && instruction.includes(company)) return c;
+    // 2) 連絡先名が指示にそのまま含まれる（姓のみ登録「松戸」← 指示「松戸さん」）
+    if (name && instruction.includes(name)) return c;
+    // 3) 宛名候補と連絡先名（フルネーム＋姓名分割）の双方向部分一致
+    if (name && cands.length) {
+      const parts = name.split(/[\s\u3000]+/).filter(Boolean);
+      parts.push(name);
+      for (const cand of cands) {
+        for (const p of parts) {
+          if (p.includes(cand) || cand.includes(p)) return c;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/* 宛名ブロック（会社名＋氏名様）を付けた本文を組み立てる。
+   サーバーの SendEmailSkill::draft と同じ形にして、AI経路と見た目を揃える。 */
+function wnBuildLocalMailBody(instruction, contact) {
+  const hit  = WN_MAIL_BODY_TEMPLATES.find(t => t.re.test(instruction));
+  const body = hit ? hit.body : WN_MAIL_BODY_DEFAULT;
+  const company = (contact.company_name || '').trim();
+  const name    = (contact.name         || '').trim();
+  let prefix = '';
+  if (company) prefix += company + '\n';
+  if (name)    prefix += name + '様\n\n';
+  return prefix + body;
+}
+
+/* AIを使わずに下書きを作れるなら作る。作れなければ null（＝AIに任せる） */
+function wnLocalMailDraft(instruction, contacts) {
+  if (!instruction) return null;
+  if (WN_OTHER_SKILL_RE.test(instruction)) return null;   // 共有リンク・承認・タグはAIの判定に任せる
+  if (!WN_MAIL_INTENT_RE.test(instruction)) return null;  // メールの指示に見えないものも任せる
+
+  const c = wnMatchContactLocal(instruction, contacts || []);
+  if (!c || !c.email) return null;                        // 宛先が特定できなければ任せる
+
+  return {
+    to_name:      (c.name || '').trim(),
+    to_email:     c.email,
+    body_message: wnBuildLocalMailBody(instruction, c),
+    local:        true,
+  };
+}
+
 /* 選択ファイルの共有リンクをまとめて発行し、キャッシュに載せる（発行済みは再利用）。
    キャッシュの中身は「共有オブジェクトに解決するPromise」で統一する（待つ側はこれをawaitする）。 */
 function ensureShareLinks(files) {
@@ -1504,26 +1608,34 @@ async function runSkill(instruction) {
     }
     lap.contacts = Math.round(performance.now() - t0);
 
-    const res = await wnRunSkill(instruction, file.id, allContactsCache);
-    lap.ai = Math.round(performance.now() - t0);
+    /* ① ブラウザ内で宛先と本文を組み立てられるならAIを呼ばない。
+          Geminiは1往復でも1.6秒前後かかるが、連絡先で宛先が特定できる定型の指示なら
+          同じ結果をここで即座に作れるので、その待ち時間には意味がない。 */
+    let draft = wnLocalMailDraft(instruction, allContactsCache);
 
-    // スキルが特定できなかった場合は入力を残してエラーを表示
-    if (!res.action_type) {
-      wnShowToast(res.message || '対応するスキルが見つかりませんでした', 'warning');
-      skillBusy = false;
-      if (sendIcon) sendIcon.className = iconBase;
-      const hasText = input.value.trim() !== '';
-      send.disabled = !hasText;
-      send.style.opacity = hasText ? '1' : '.4';
-      return;
+    if (!draft) {
+      // ② 宛先が特定できない・メール以外の指示のときだけAIに任せる
+      const res = await wnRunSkill(instruction, file.id, allContactsCache);
+      lap.ai = Math.round(performance.now() - t0);
+
+      // スキルが特定できなかった場合は入力を残してエラーを表示
+      if (!res.action_type) {
+        wnShowToast(res.message || '対応するスキルが見つかりませんでした', 'warning');
+        skillBusy = false;
+        if (sendIcon) sendIcon.className = iconBase;
+        const hasText = input.value.trim() !== '';
+        send.disabled = !hasText;
+        send.style.opacity = hasText ? '1' : '.4';
+        return;
+      }
+
+      // AIの無料枠切れ・障害でルールベース判定に落ちたことを黙って隠さない
+      if (res.quota_exhausted) {
+        wnShowToast('AIの利用上限に達したため、簡易的な下書きを作成しました', 'warning');
+      }
+
+      draft = res.draft || {};
     }
-
-    // AIの無料枠切れ・障害でルールベース判定に落ちたことを黙って隠さない
-    if (res.quota_exhausted) {
-      wnShowToast('AIの利用上限に達したため、簡易的な下書きを作成しました', 'warning');
-    }
-
-    const draft = res.draft || {};
 
     // メール送信モーダルを開く（共有リンクは上で発行済みのものを再利用する）
     openEmailModal(files.map(f => ({ id: f.id, name: f.file_name })));
@@ -1570,9 +1682,12 @@ async function runSkill(instruction) {
       skillPendingName = draft.to_name || '';
       wnShowToast(`「${draft.to_name || '宛先'}」のメールアドレスを入力してください`, 'info');
     }
+    // AIを使わなかった実行も履歴に残す（メーラー起動後に投げるので待ち時間には出ない）
+    if (draft.local) wnLogSkillRun(instruction, file.id, draft);
+
     // 遅いときにどこで待っているかを切り分けられるようにする（連絡先→AI→リンクの累積ms）
-    console.debug('[skill] contacts=%dms ai=%dms share=%dms total=%dms files=%d',
-      lap.contacts ?? 0, lap.ai ?? 0, lap.share ?? lap.ai ?? 0,
+    console.debug('[skill] mode=%s contacts=%dms ai=%dms share=%dms total=%dms files=%d',
+      draft.local ? 'local' : 'ai', lap.contacts ?? 0, lap.ai ?? 0, lap.share ?? lap.ai ?? 0,
       Math.round(performance.now() - t0), files.length);
   } catch (err) {
     wnShowToast(err?.message || 'スキルの実行に失敗しました', 'danger');
