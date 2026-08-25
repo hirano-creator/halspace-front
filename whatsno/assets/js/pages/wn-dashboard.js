@@ -215,6 +215,13 @@ function initSkillBar() {
   // ここでは送信ボタンの状態だけ同期する専用リスナーを追加する
   input.addEventListener('input', syncSend);
 
+  /* 入力を始める段階で連絡先を読んでおく。
+     宛先の解決に使うので、実行時に必ず1往復ぶん待たされていた（打っている間に済ませる） */
+  input.addEventListener('focus', () => {
+    if (allContactsLoaded) return;
+    wnGetContacts().then(list => { allContactsCache = list; allContactsLoaded = true; }).catch(() => {});
+  });
+
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !send.disabled) { e.preventDefault(); runSkill(input.value.trim()); }
   });
@@ -1455,6 +1462,15 @@ function deleteContactById(id) {
     });
 }
 
+/* 選択ファイルの共有リンクをまとめて発行し、キャッシュに載せる（発行済みは再利用）。
+   キャッシュの中身は「共有オブジェクトに解決するPromise」で統一する（待つ側はこれをawaitする）。 */
+function ensureShareLinks(files) {
+  const missing = files.filter(f => !emailShareCache.has(f.id));
+  if (missing.length === 0) return;
+  const bulk = wnCreateSharesBulk(missing.map(f => f.id), { expiresDays: 30 });
+  missing.forEach(f => emailShareCache.set(f.id, bulk.then(map => map?.[f.id] ?? null)));
+}
+
 async function runSkill(instruction) {
   if (skillBusy || !instruction) return;
 
@@ -1465,30 +1481,51 @@ async function runSkill(instruction) {
   const file = files[0]; // スキルAPI（宛先・下書き解決）には代表ファイルを渡す
 
   skillBusy = true;
-  const input = document.getElementById('searchInput');
-  const send  = document.getElementById('skillSendBtn');
+  const input    = document.getElementById('searchInput');
+  const send     = document.getElementById('skillSendBtn');
+  const sendIcon = send.querySelector('i');
+  const iconBase = sendIcon ? sendIcon.className : '';
   send.disabled = true;
   send.style.opacity = '.4';
+  if (sendIcon) sendIcon.className = 'fa-solid fa-spinner fa-spin';   // 押した手応えをその場で返す
 
+  const t0  = performance.now();
+  const lap = {};
   try {
-    const contacts = await wnGetContacts();
-    allContactsCache  = contacts;
-    allContactsLoaded = true;
-    const res   = await wnRunSkill(instruction, file.id, contacts);
+    /* 共有リンクの発行をAIの応答待ちより先に始める。
+       以前は下書きが返ってきてから発行していたため、待ち時間が
+       「AIの応答 ＋ リンク発行」の足し算になり、ファイルが多いほど遅かった。 */
+    ensureShareLinks(files);
+
+    // 連絡先は取得済みならキャッシュを使う（スキル実行のたびに1往復していた）
+    if (!allContactsLoaded) {
+      allContactsCache  = await wnGetContacts();
+      allContactsLoaded = true;
+    }
+    lap.contacts = Math.round(performance.now() - t0);
+
+    const res = await wnRunSkill(instruction, file.id, allContactsCache);
+    lap.ai = Math.round(performance.now() - t0);
 
     // スキルが特定できなかった場合は入力を残してエラーを表示
     if (!res.action_type) {
       wnShowToast(res.message || '対応するスキルが見つかりませんでした', 'warning');
       skillBusy = false;
+      if (sendIcon) sendIcon.className = iconBase;
       const hasText = input.value.trim() !== '';
       send.disabled = !hasText;
       send.style.opacity = hasText ? '1' : '.4';
       return;
     }
 
+    // AIの無料枠切れ・障害でルールベース判定に落ちたことを黙って隠さない
+    if (res.quota_exhausted) {
+      wnShowToast('AIの利用上限に達したため、簡易的な下書きを作成しました', 'warning');
+    }
+
     const draft = res.draft || {};
 
-    // メール送信モーダルを開く（全選択ファイルの共有リンクを先行発行）
+    // メール送信モーダルを開く（共有リンクは上で発行済みのものを再利用する）
     openEmailModal(files.map(f => ({ id: f.id, name: f.file_name })));
 
     // LLMの下書きを流し込む
@@ -1508,11 +1545,12 @@ async function runSkill(instruction) {
     send.style.opacity = '.4';
 
     if (draft.to_email) {
-      // 宛先が解決できた → 全ファイルの共有リンク発行完了を待つ
+      // 宛先が解決できた → 全ファイルの共有リンク発行完了を待つ（多くはAI待ちの間に完了済み）
       skillPendingName = '';
       const sharePromises = files.map(f => emailShareCache.get(f.id) ?? Promise.resolve(null));
       const rawShares = await Promise.all(sharePromises);
       const shareResults = files.map((f, i) => ({ id: f.id, name: f.file_name, url: rawShares[i]?.url ?? null }));
+      lap.share = Math.round(performance.now() - t0);
       if (shareResults.some(s => !s.url)) {
         wnShowToast('共有リンクの生成を待っています。完了後に送信してください', 'info');
       } else {
@@ -1532,10 +1570,15 @@ async function runSkill(instruction) {
       skillPendingName = draft.to_name || '';
       wnShowToast(`「${draft.to_name || '宛先'}」のメールアドレスを入力してください`, 'info');
     }
+    // 遅いときにどこで待っているかを切り分けられるようにする（連絡先→AI→リンクの累積ms）
+    console.debug('[skill] contacts=%dms ai=%dms share=%dms total=%dms files=%d',
+      lap.contacts ?? 0, lap.ai ?? 0, lap.share ?? lap.ai ?? 0,
+      Math.round(performance.now() - t0), files.length);
   } catch (err) {
     wnShowToast(err?.message || 'スキルの実行に失敗しました', 'danger');
   } finally {
     skillBusy = false;
+    if (sendIcon) sendIcon.className = iconBase;
     const hasText = input.value.trim() !== '';
     send.disabled = !hasText;
     send.style.opacity = hasText ? '1' : '.4';
@@ -4417,7 +4460,10 @@ function openEmailModal(files, prefillEmail = null) {
   }
   _emailRenderSigPreview();
   wnRenderUnknownContactNotice();   // 未登録の宛先のお知らせを切っているときの「元に戻す」導線
-  wnGetContacts().then(list => { allContactsCache = list; allContactsLoaded = true; }).catch(() => {});
+  // 連絡先は未取得のときだけ読む（モーダルを開くたびに1往復していた）
+  if (!allContactsLoaded) {
+    wnGetContacts().then(list => { allContactsCache = list; allContactsLoaded = true; }).catch(() => {});
+  }
 
   if (!hasFiles) {
     emailPregenShares = [];
@@ -4442,15 +4488,10 @@ function openEmailModal(files, prefillEmail = null) {
   _emailLinkShowLoading();
   setEmailBtnsLoading(true);
 
-  /* 全ファイルの共有リンクを1リクエストでまとめて発行（hoverキャッシュがあれば再利用）。
+  /* 全ファイルの共有リンクを1リクエストでまとめて発行する（発行済み・先行発行中のものは再利用）。
      ファイル1件につき1リクエストだと、単一ワーカーのAPIで直列化して
      待ち時間がファイル数に比例していた */
-  const missing = emailModalFiles.filter(f => !emailShareCache.has(f.id));
-  if (missing.length > 0) {
-    const bulk = wnCreateSharesBulk(missing.map(f => f.id), { expiresDays: 30 });
-    // キャッシュの中身は「共有オブジェクトに解決するPromise」で統一（スキル側もこれを待つ）
-    missing.forEach(f => emailShareCache.set(f.id, bulk.then(map => map?.[f.id] ?? null)));
-  }
+  ensureShareLinks(emailModalFiles);
   const promises = emailModalFiles.map(f =>
     emailShareCache.get(f.id).then(share => ({ id: f.id, name: f.name, url: share?.url ?? null }))
   );
