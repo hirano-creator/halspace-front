@@ -1498,11 +1498,41 @@ async function wnBrainDeleteNote(id) {
 // PCは従来どおり無制限（これまで問題が出ていないため挙動を変えない）。
 const WN_MAILTO_MAX_LEN_MOBILE = 4000;
 
+// LINEの共有URL（line.me/R/share?text=）も長すぎると開けないため同じ上限にする。
+// こちらは宛先を持たないぶん余裕があるが、PC・スマホとも同じ制限で揃える。
+const WN_LINE_MAX_LEN = 4000;
+
 /* スマホ・タブレット判定（iPadOSはMacを名乗るため maxTouchPoints も見る） */
 function wnIsMobileDevice() {
   const ua = navigator.userAgent || '';
   return /iPhone|iPad|iPod|Android/i.test(ua)
     || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1);
+}
+
+/* URLが上限を超えるとき、署名 → メッセージ の順で本文を削って収める。
+   共有リンク（parts.core）だけは必ず残す。mailto と LINE で共通。
+   build(body) は本文からURL文字列を組み立てる関数。
+   戻り値: { url, trimmed } */
+function _wnTrimBodyToLimit(body, parts, build, max) {
+  const full = build(body);
+  if (full.length <= max || !parts) return { url: full, trimmed: false };
+
+  const compose = (msg, sig) => [msg, parts.core].filter(Boolean).join('\r\n\r\n') + (sig || '');
+
+  // 1) まず署名を落とす
+  let url = build(compose(parts.message, ''));
+  if (url.length <= max) return { url, trimmed: true };
+
+  // 2) それでも長ければメッセージを後ろから削る
+  let msg = parts.message || '';
+  while (msg) {
+    msg = msg.slice(0, Math.max(0, Math.floor(msg.length * 0.8) - 1));
+    url = build(compose(msg ? `${msg}…` : '', ''));
+    if (url.length <= max) return { url, trimmed: true };
+  }
+
+  // 3) 共有リンクだけで上限を超える（ファイル多数）→ 削らずそのまま返す
+  return { url: build(compose('', '')), trimmed: true };
 }
 
 /* mailto: URL を組み立てる。
@@ -1521,25 +1551,18 @@ function wnBuildMailtoUrl(m) {
     return `mailto:${m.to}?${q.join('&')}`;
   };
 
-  const full = build(m.body);
-  if (full.length <= max || !m.parts) return { url: full, trimmed: false };
+  return _wnTrimBodyToLimit(m.body, m.parts, build, max);
+}
 
-  const compose = (msg, sig) => [msg, m.parts.core].filter(Boolean).join('\r\n\r\n') + (sig || '');
-
-  // 1) まず署名を落とす
-  let url = build(compose(m.parts.message, ''));
-  if (url.length <= max) return { url, trimmed: true };
-
-  // 2) それでも長ければメッセージを後ろから削る
-  let msg = m.parts.message || '';
-  while (msg) {
-    msg = msg.slice(0, Math.max(0, Math.floor(msg.length * 0.8) - 1));
-    url = build(compose(msg ? `${msg}…` : '', ''));
-    if (url.length <= max) return { url, trimmed: true };
-  }
-
-  // 3) 共有リンクだけで上限を超える（ファイル多数）→ 削らずそのまま返す
-  return { url: build(compose('', '')), trimmed: true };
+/* LINEの送信画面を開くURLを組み立てる。
+   LINEには件名欄がないので、メールの件名にあたる行を本文の先頭に固定で入れる
+   （build の中で付けるので、長すぎて削るときも件名は残る）。
+   宛先は指定できない仕様で、送り先はLINEのトーク一覧から利用者が選ぶ。
+   戻り値: { url, trimmed } */
+function wnBuildLineShareUrl(m) {
+  const head  = m.subject ? `${m.subject}\r\n\r\n` : '';
+  const build = (body) => `https://line.me/R/share?text=${encodeURIComponent(head + body)}`;
+  return _wnTrimBodyToLimit(m.body, m.parts, build, WN_LINE_MAX_LEN);
 }
 
 /* mailto: を開く。

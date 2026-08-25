@@ -190,14 +190,15 @@ function applyMobileLayout() {
 let skillBusy        = false;
 let skillPendingName = '';   // 宛先未解決時に保持する人物名（送信時に連絡先へ保存）
 
-// スキルで使うメーラーの記憶（1回目に選んだら2回目以降は自動でそのメーラーを起動）
-const WN_MAILER_PREF_KEY = 'wn_mailer_pref';   // 'gmail' | 'mailto'
+// スキルで使う送信手段の記憶（1回目に選んだら2回目以降は自動でそのアプリを起動）
+const WN_MAILER_PREF_KEY   = 'wn_mailer_pref';   // 'gmail' | 'mailto' | 'line'
+const WN_MAILER_PREF_VALUES = ['gmail', 'mailto', 'line'];
 function wnGetMailerPref() {
   const v = localStorage.getItem(WN_MAILER_PREF_KEY);
-  return (v === 'gmail' || v === 'mailto') ? v : null;
+  return WN_MAILER_PREF_VALUES.includes(v) ? v : null;
 }
 function wnSetMailerPref(v) {
-  if (v === 'gmail' || v === 'mailto') localStorage.setItem(WN_MAILER_PREF_KEY, v);
+  if (WN_MAILER_PREF_VALUES.includes(v)) localStorage.setItem(WN_MAILER_PREF_KEY, v);
 }
 
 function initSkillBar() {
@@ -1486,6 +1487,9 @@ function deleteContactById(id) {
 const WN_MAIL_INTENT_RE = /(メール|送信|送って|送付|送る|依頼|連絡)/;
 // メール以外のスキルに振るべき指示。こちらはAIの判定に任せる
 const WN_OTHER_SKILL_RE = /(共有リンク|リンクを|承認|決裁|申請|タグ)/;
+// LINEで送る意図。LINEは宛先を持たないのでAIに宛先を解決させる必要がなく、
+// ここで拾えたぶんは Gemini の往復（無料枠1日20回）を消費せずに済む
+const WN_LINE_INTENT_RE = /(LINE|ライン)/i;
 
 /* 用件ごとの本文。指示文に含まれる言葉で選ぶ（先に書いたものが優先） */
 const WN_MAIL_BODY_TEMPLATES = [
@@ -1538,11 +1542,11 @@ function wnMatchContactLocal(instruction, contacts) {
 
 /* 宛名ブロック（会社名＋氏名様）を付けた本文を組み立てる。
    サーバーの SendEmailSkill::draft と同じ形にして、AI経路と見た目を揃える。 */
-function wnBuildLocalMailBody(instruction, contact) {
+function wnBuildLocalMailBody(instruction, contact = {}) {
   const hit  = WN_MAIL_BODY_TEMPLATES.find(t => t.re.test(instruction));
   const body = hit ? hit.body : WN_MAIL_BODY_DEFAULT;
-  const company = (contact.company_name || '').trim();
-  const name    = (contact.name         || '').trim();
+  const company = (contact?.company_name || '').trim();
+  const name    = (contact?.name         || '').trim();
   let prefix = '';
   if (company) prefix += company + '\n';
   if (name)    prefix += name + '様\n\n';
@@ -1553,15 +1557,19 @@ function wnBuildLocalMailBody(instruction, contact) {
 function wnLocalMailDraft(instruction, contacts) {
   if (!instruction) return null;
   if (WN_OTHER_SKILL_RE.test(instruction)) return null;   // 共有リンク・承認・タグはAIの判定に任せる
-  if (!WN_MAIL_INTENT_RE.test(instruction)) return null;  // メールの指示に見えないものも任せる
+
+  const isLine = WN_LINE_INTENT_RE.test(instruction);
+  if (!isLine && !WN_MAIL_INTENT_RE.test(instruction)) return null;   // メールの指示に見えないものも任せる
 
   const c = wnMatchContactLocal(instruction, contacts || []);
-  if (!c || !c.email) return null;                        // 宛先が特定できなければ任せる
+  // メールは宛先が要るのでAIに任せる。LINEは送り先をアプリ側で選ぶため宛先なしでも下書きできる
+  if (!isLine && (!c || !c.email)) return null;
 
   return {
-    to_name:      (c.name || '').trim(),
-    to_email:     c.email,
+    to_name:      (c?.name  || '').trim(),
+    to_email:     c?.email  || '',
     body_message: wnBuildLocalMailBody(instruction, c),
+    channel:      isLine ? 'line' : 'email',
     local:        true,
   };
 }
@@ -1656,7 +1664,10 @@ async function runSkill(instruction) {
     send.disabled = true;
     send.style.opacity = '.4';
 
-    if (draft.to_email) {
+    // LINEは送り先をアプリ側で選ぶ仕様なので、宛先が解決できていなくても送信まで進める
+    const isLine = draft.channel === 'line';
+
+    if (isLine || draft.to_email) {
       // 宛先が解決できた → 全ファイルの共有リンク発行完了を待つ（多くはAI待ちの間に完了済み）
       skillPendingName = '';
       const sharePromises = files.map(f => emailShareCache.get(f.id) ?? Promise.resolve(null));
@@ -1671,8 +1682,12 @@ async function runSkill(instruction) {
         const pref = wnGetMailerPref();
         // スマホはタップ直後でないと mailto / 新規タブがブロックされ「何も起きない」ため自動起動しない
         if (wnIsMobileDevice()) {
-          wnShowToast('下の「メールアプリ」または「Gmailで送る」をタップしてください', 'info');
+          wnShowToast(isLine
+            ? '下の「LINEで送る」をタップしてください'
+            : '下の「メールアプリ」または「Gmailで送る」をタップしてください', 'info');
         }
+        // 指示がLINEなら記憶より指示を優先する（逆にメールの指示で記憶のLINEを開くと宛先が捨てられる）
+        else if (isLine)            doSendEmailLine();
         else if (pref === 'gmail')  doSendEmailGmail();   // 2回目以降: 記憶したGmailを自動起動
         else if (pref === 'mailto') doSendEmailMailto();  // 2回目以降: 記憶した既定メールアプリを自動起動
         else wnShowToast('送信方法を選んでください（次回から自動で起動します）', 'info');  // 初回はモーダルで選択
@@ -4503,6 +4518,7 @@ function initEmailModal() {
       .catch(() => wnShowToast('コピーに失敗しました', 'danger'));
   });
 
+  document.getElementById('emailLineBtn')?.addEventListener('click', doSendEmailLine);
   document.getElementById('emailMailtoBtn').addEventListener('click', doSendEmailMailto);
   document.getElementById('emailGmailBtn').addEventListener('click', doSendEmailGmail);
   _emailApplyMobileLayout();
@@ -4791,7 +4807,7 @@ function renderEmailChips(field) {
 }
 
 function setEmailBtnsLoading(loading) {
-  ['emailMailtoBtn', 'emailGmailBtn'].forEach(id => {
+  ['emailLineBtn', 'emailMailtoBtn', 'emailGmailBtn'].forEach(id => {
     const b = document.getElementById(id);
     if (b) b.disabled = loading;
   });
@@ -4892,6 +4908,22 @@ function doSendEmailMailto() {
     // モーダルは閉じずに残し、代替手段を案内する
     onFail: () => wnShowToast('メールアプリを起動できませんでした。「Gmailで送る」かリンクのコピーをお試しください', 'danger'),
   });
+}
+
+/* LINEの送信画面を開く。
+   LINEは宛先を指定できない仕様なので、入力済みのメールアドレスは使わない
+   （＝連絡先未登録チェックも通さない）。送り先はLINEのトーク一覧から選んでもらう。 */
+function doSendEmailLine() {
+  const m = _buildEmailContent();
+  if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
+  wnSetMailerPref('line');   // 次回スキルから自動でLINEを起動
+
+  const { url, trimmed } = wnBuildLineShareUrl(m);
+  if (trimmed) wnShowToast('本文が長いため一部を省略しました（共有リンクは含まれています）', 'warning');
+
+  wnOpenExternalUrl(url);   // standalone PWA でも開けるよう <a target="_blank"> 経由（wn-api.js）
+  if (!wnIsMobileDevice()) wnShowToast('LINEの送信画面を開きました', 'success');
+  closeEmailModal();
 }
 
 /* ────────────────────────────────
