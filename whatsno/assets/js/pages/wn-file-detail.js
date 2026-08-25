@@ -3732,6 +3732,7 @@ function initEmailModal() {
       .catch(() => wnShowToast('コピーに失敗しました', 'danger'));
   });
 
+  document.getElementById('emailLineBtn')?.addEventListener('click', doSendEmailLine);
   document.getElementById('emailMailtoBtn').addEventListener('click', doSendEmailMailto);
   document.getElementById('emailGmailBtn').addEventListener('click', doSendEmailGmail);
 
@@ -4045,7 +4046,7 @@ function renderEmailChips(field) {
 }
 
 function setEmailBtnsLoading(loading) {
-  ['emailMailtoBtn', 'emailGmailBtn'].forEach(id => {
+  ['emailLineBtn', 'emailMailtoBtn', 'emailGmailBtn'].forEach(id => {
     const b = document.getElementById(id);
     if (b) b.disabled = loading;
   });
@@ -4133,4 +4134,19 @@ function doSendEmailMailto() {
     // モーダルは閉じずに残し、代替手段を案内する
     onFail: () => wnShowToast('メールアプリを起動できませんでした。「Gmailで送る」かリンクのコピーをお試しください', 'danger'),
   });
+}
+
+/* LINEの送信画面を開く。
+   LINEは宛先を指定できない仕様なので、入力済みのメールアドレスは使わない
+   （＝連絡先未登録チェックも通さない）。送り先はLINEのトーク一覧から選んでもらう。 */
+function doSendEmailLine() {
+  const m = _buildEmailContent();
+  if (!m) { wnShowToast('共有リンクを生成中です。少々お待ちください', 'info'); return; }
+
+  const { url, trimmed } = wnBuildLineShareUrl(m);
+  if (trimmed) wnShowToast('本文が長いため一部を省略しました（共有リンクは含まれています）', 'warning');
+
+  wnOpenExternalUrl(url);   // standalone PWA でも開けるよう <a target="_blank"> 経由（wn-api.js）
+  if (!wnIsMobileDevice()) wnShowToast('LINEの送信画面を開きました', 'success');
+  closeEmailModal();
 }
