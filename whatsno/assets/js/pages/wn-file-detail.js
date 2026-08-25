@@ -2272,6 +2272,10 @@ function initActions() {
     openEmailModal(fileId, fileData?.file_name ?? '');
   });
 
+  document.getElementById('lineShareBtn')?.addEventListener('click', () => {
+    openLineModal(fileId, fileData?.file_name ?? '');
+  });
+
   document.getElementById('aaPostBtn')?.addEventListener('click', () => {
     openAaPostModal(fileId, fileData?.file_name ?? '');
   });
@@ -3671,6 +3675,7 @@ function wnFileIconClass(mimeType) {
    ──────────────────────────────── */
 let _emailFileId     = null;
 let _emailFileName   = '';
+let _emailChannel    = 'email';   // 'email' | 'line'（モーダルの見た目と送信ボタンを決める）
 let _emailPregenShare = null; // モーダルオープン時に先行発行した共有リンク
 let _allContactsCache  = [];  // 登録済み連絡先（オートコンプリート用）
 let _allContactsLoaded = false;   // 未取得のまま「未登録です」と誤報告しないためのフラグ
@@ -3770,7 +3775,49 @@ function _emailRenderSigPreview() {
   el.style.color = sig ? 'var(--muted)' : '#bbb';
 }
 
-function openEmailModal(fileId, fileName) {
+/* 共有モーダルを「LINEで送る」モードで開く。
+   中身（共有リンク・メッセージ・署名）はメールと共通で、宛先欄と送信ボタンだけ差し替える。 */
+function openLineModal(fileId, fileName) {
+  openEmailModal(fileId, fileName, { channel: 'line' });
+}
+
+/* 開いた直後に置くフォーカス。LINEは宛先欄が無いのでメッセージ欄に置く */
+function _emailFocusFirstField() {
+  const id = _emailChannel === 'line' ? 'emailMessage' : 'emailInput';
+  document.getElementById(id)?.focus();
+}
+
+/* モードに応じてモーダルの見た目と送信ボタンを切り替える */
+function _emailApplyChannelUi() {
+  const isLine = _emailChannel === 'line';
+  const set = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+
+  const icon = document.getElementById('emailModalIcon');
+  if (icon) {
+    icon.className = isLine ? 'fa-brands fa-line' : 'fa-solid fa-envelope';
+    icon.style.color = isLine ? '#06C755' : 'var(--accent)';
+  }
+  const title = document.getElementById('emailModalTitleText');
+  if (title) title.textContent = isLine ? 'ファイルをLINEで共有' : 'ファイルをメールで共有';
+
+  // LINEは宛先を指定できないので、TO/CC/BCC はまとめて隠す
+  set('emailToSection',  !isLine);
+  set('emailHintMail',   !isLine);
+  set('emailHintLine',    isLine);
+  set('emailLineBtn',     isLine);
+  set('emailMailtoBtn',  !isLine);
+  set('emailGmailBtn',   !isLine);
+  if (isLine) {
+    document.getElementById('emailCcSection')?.classList.add('hidden');
+    document.getElementById('emailBccSection')?.classList.add('hidden');
+  }
+  // スマホ向けの案内はメールアプリ／Gmailの話なのでLINEでは出さない
+  const hint = document.getElementById('emailMobileHint');
+  if (hint) hint.classList.toggle('hidden', isLine || !wnIsMobileDevice());
+}
+
+function openEmailModal(fileId, fileName, opts = {}) {
+  _emailChannel     = opts.channel === 'line' ? 'line' : 'email';
   _emailFileId      = fileId;
   _emailFileName    = fileName;
   _emailPregenShare = null;
@@ -3795,6 +3842,7 @@ function openEmailModal(fileId, fileName) {
     _emailHideSuggest(field);
   }
   _emailRenderSigPreview();
+  _emailApplyChannelUi();
   wnRenderUnknownContactNotice();   // 未登録の宛先のお知らせを切っているときの「元に戻す」導線
   wnGetContacts().then(list => { _allContactsCache = list; _allContactsLoaded = true; }).catch(() => {});
 
@@ -3819,7 +3867,7 @@ function openEmailModal(fileId, fileName) {
   });
 
   document.getElementById('emailModal').classList.remove('hidden');
-  setTimeout(() => document.getElementById('emailInput').focus(), 100);
+  setTimeout(() => _emailFocusFirstField(), 100);
 }
 
 function _emailLinkShowLoading() {
@@ -3843,6 +3891,7 @@ function _emailLinkShowError() {
 
 function closeEmailModal() {
   document.getElementById('emailModal').classList.add('hidden');
+  _emailChannel     = 'email';
   _emailFileId      = null;
   _emailPregenShare = null;
   emailFieldChips.to  = [];
