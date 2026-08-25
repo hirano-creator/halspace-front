@@ -939,6 +939,18 @@ async function wnRunSkill(instruction, fileId, contacts) {
   return res.json();
 }
 
+/* ブラウザ側で作った下書き（AI未使用）の実行記録。
+   記録専用モードなのでサーバーはGeminiを呼ばない。メーラーを起動した後に
+   投げれば待ち時間には出ないので、履歴だけ従来どおり残せる。 */
+async function wnLogSkillRun(instruction, fileId, args) {
+  try {
+    await wnFetch('/wn/skills/run', {
+      method: 'POST',
+      body: JSON.stringify({ instruction, file_id: fileId, log_only: true, args: args || {} }),
+    });
+  } catch { /* 記録が落ちても操作は止めない */ }
+}
+
 /* スキル実行の確定結果を記録（status: 'executed' | 'canceled'） */
 async function wnConfirmSkillRun(runId, status) {
   if (!runId) return null;

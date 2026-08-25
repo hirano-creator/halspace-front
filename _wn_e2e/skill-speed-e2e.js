@@ -2,9 +2,11 @@
 
    直したかった構造:
      旧: 連絡先取得 → AI応答待ち → そこから共有リンク発行 → メーラー起動（全部足し算）
-     新: 共有リンク発行はAI待ちの裏で走らせ、連絡先は入力開始時に先読みする
+     新: ①宛先が連絡先で特定できる定型の指示はブラウザ内で下書きしてAIを呼ばない
+         ②AIを使う場合も共有リンク発行はAI待ちの裏で走らせる
+         ③連絡先は入力開始時、共有リンクは入力中に先読みする
 
-   ここではAPIを遅延つきモックにして「合計時間が足し算になっていないこと」を測る。
+   APIは遅延つきモックにして「AIを呼んでいないこと」と「足し算になっていないこと」を測る。
    実ブラウザでは mailto が外部ハンドラに渡るため、<a>.click() をフックしてURLだけ捕まえる。 */
 const { chromium } = require('../_aa_e2e/node_modules/playwright-core');
 
@@ -27,6 +29,7 @@ function check(name, ok, detail = '') {
     localStorage.setItem('space_token', 'mock-token-e2e');
     localStorage.setItem('space_user', JSON.stringify({ id: 1, name: 'テスト', role: 'admin', email: 't@example.com', wn_extended_options_enabled: true }));
     localStorage.setItem('wn_mailer_pref', 'mailto');   // 2回目以降＝メーラー自動起動の状態
+    localStorage.setItem('wn_unknown_contact_popup_off', '1');   // 未登録宛先の確認ポップアップは別E2Eの担当
   });
 
   const page = await ctx.newPage();
@@ -38,36 +41,39 @@ function check(name, ok, detail = '') {
 
   const FILE_N = 8;
   await page.evaluate(({ n, aiMs, shrMs }) => {
-    window.__t = { bulkStart: null, aiDone: null, mailto: null, contactCalls: 0, bulkCalls: 0, singleCalls: 0, t0: 0 };
+    window.__t = { bulkStart: null, aiDone: null, aiCalls: 0, logCalls: 0, mailto: null, mailtoAt: null,
+                   contactCalls: 0, bulkCalls: 0, singleCalls: 0, t0: 0 };
     const now = () => performance.now();
 
     // 選択済みのファイル一覧を用意する（一覧APIを通さず直接状態を作る）
-    allFiles = Array.from({ length: n }, (_, i) => ({ id: 100 + i, file_name: `図面_${i + 1}.pdf` }));
+    allFiles = Array.from({ length: n }, (_, i) => ({ id: 100 + i, file_name: '図面_' + (i + 1) + '.pdf' }));
     selectedIds = allFiles.map(f => f.id);
 
     window.wnGetContacts = async () => {
       window.__t.contactCalls++;
       await new Promise(r => setTimeout(r, 200));
-      return [{ id: 1, name: '取引先 太郎', email: 'to@example.com' }];
+      return [{ id: 1, name: '取引先 太郎', company_name: '取引先工業', email: 'to@example.com' }];
     };
-    window.wnCreateShare = async (id) => { window.__t.singleCalls++; return { url: `https://x/app/share.html?token=${id}` }; };
+    window.wnCreateShare = async (id) => { window.__t.singleCalls++; return { url: 'https://x/app/share.html?token=' + id }; };
     window.wnCreateSharesBulk = async (ids) => {
       window.__t.bulkCalls++;
       if (window.__t.bulkStart === null) window.__t.bulkStart = now() - window.__t.t0;
       await new Promise(r => setTimeout(r, shrMs));
       const map = {};
-      for (const id of ids) map[id] = { url: `https://x/app/share.html?token=${id}` };
+      for (const id of ids) map[id] = { url: 'https://x/app/share.html?token=' + id };
       return map;
     };
     window.wnRunSkill = async () => {
+      window.__t.aiCalls++;
       await new Promise(r => setTimeout(r, aiMs));
       window.__t.aiDone = now() - window.__t.t0;
       return {
         action_type: 'email',
-        draft: { to_email: 'to@example.com', to_name: '取引先 太郎', subject: '件名', body_message: 'お世話になっております。' },
+        draft: { to_email: 'ai@example.com', to_name: '鈴木', subject: '件名', body_message: 'AIが書いた本文' },
         missing: [], run_id: 1,
       };
     };
+    window.wnLogSkillRun = async () => { window.__t.logCalls++; };
 
     // mailto の <a>.click() を捕捉（実際の外部起動はさせない）
     const origCreate = document.createElement.bind(document);
@@ -88,40 +94,67 @@ function check(name, ok, detail = '') {
   await page.waitForTimeout(400);
   const preloaded = await page.evaluate(() => ({ calls: window.__t.contactCalls, loaded: allContactsLoaded }));
   check('入力開始で連絡先を先読みする', preloaded.calls === 1 && preloaded.loaded === true,
-    `calls=${preloaded.calls} loaded=${preloaded.loaded}`);
+    'calls=' + preloaded.calls + ' loaded=' + preloaded.loaded);
 
-  /* スキル実行（Enter） */
-  await page.evaluate(() => { window.__t.t0 = performance.now(); });
+  /* 打っている間に共有リンクを先読みしているか（Enterより前に発行が始まる） */
   await page.fill('#searchInput', '取引先 太郎さんに見積依頼メールして');
+  await page.waitForTimeout(500 + SHR_MS + 200);   // デバウンス＋発行ぶん（実際は文章を打つ数秒で終わる）
+  const prefetched = await page.evaluate(() => window.__t.bulkCalls);
+  check('入力中に共有リンクの発行が始まる', prefetched === 1, 'bulkCalls=' + prefetched);
+
+  /* ケースA: 連絡先で宛先が特定できる定型の指示 → AIを呼ばずに即メーラー */
+  await page.evaluate(() => { window.__t.t0 = performance.now(); });
   await page.press('#searchInput', 'Enter');
   await page.waitForFunction(() => window.__t.mailto !== null, null, { timeout: 15000 });
 
-  const t = await page.evaluate(() => window.__t);
-  const total = Math.round(t.mailtoAt);
+  const a = await page.evaluate(() => window.__t);
+  const totalA = Math.round(a.mailtoAt);
 
-  check('メーラー（mailto）が自動で起動する', !!t.mailto && t.mailto.startsWith('mailto:to@example.com?'),
-    t.mailto ? `len=${t.mailto.length}` : 'null');
+  check('メーラー（mailto）が自動で起動する', !!a.mailto && a.mailto.startsWith('mailto:to@example.com?'),
+    a.mailto ? 'len=' + a.mailto.length : 'null');
+  check('連絡先で決まる指示ではAIを呼ばない', a.aiCalls === 0, 'aiCalls=' + a.aiCalls);
 
-  const links = (decodeURIComponent((t.mailto || '').split('body=')[1] || '').match(/share\.html\?token=/g) || []).length;
-  check(`${FILE_N}件ぶんの共有リンクが本文に入る`, links === FILE_N, `links=${links}`);
+  const bodyA = decodeURIComponent((a.mailto || '').split('body=')[1] || '');
+  check('宛名（会社名＋様）が本文の先頭に付く',
+    bodyA.startsWith('取引先工業\r\n取引先 太郎様') || bodyA.startsWith('取引先工業\n取引先 太郎様'),
+    JSON.stringify(bodyA.slice(0, 24)));
+  check('用件（見積）に沿った本文になる', bodyA.includes('お見積もりをご依頼いたします'), '');
 
-  check(`${FILE_N}件でも発行APIは1回`, t.bulkCalls === 1 && t.singleCalls === 0,
-    `bulk=${t.bulkCalls} single=${t.singleCalls}`);
+  const links = (bodyA.match(/share\.html\?token=/g) || []).length;
+  check(FILE_N + '件ぶんの共有リンクが本文に入る', links === FILE_N, 'links=' + links);
+  check(FILE_N + '件でも発行APIは1回', a.bulkCalls === 1 && a.singleCalls === 0,
+    'bulk=' + a.bulkCalls + ' single=' + a.singleCalls);
 
-  // 本命: リンク発行をAIの応答より先に始めている（＝待ち時間が足し算にならない）
-  check('共有リンクの発行がAI応答より先に始まる', t.bulkStart !== null && t.bulkStart < t.aiDone,
-    `bulkStart=${Math.round(t.bulkStart)}ms aiDone=${Math.round(t.aiDone)}ms`);
+  // 本命: 先読み済みなので、Enterからメーラー起動までがほぼ待ちなし
+  check('Enterからメーラー起動まで100ms未満', totalA < 100,
+    'total=' + totalA + 'ms（AI経路なら' + (AI_MS + SHR_MS) + 'ms相当）');
+  check('実行時に連絡先を取り直さない', a.contactCalls === 1, 'calls=' + a.contactCalls);
+  check('AI未使用でも履歴に記録を投げる', a.logCalls === 1, 'logCalls=' + a.logCalls);
 
-  // 合計が「AI + リンク発行」の足し算になっていない（重なっている）
-  check('合計待ち時間が足し算になっていない', total < AI_MS + SHR_MS,
-    `total=${total}ms < ${AI_MS}+${SHR_MS}=${AI_MS + SHR_MS}ms`);
+  /* ケースB: 連絡先に無い宛先 → 従来どおりAIに任せる。リンク発行はAI待ちに重ねる */
+  await page.evaluate(() => {
+    window.__t.mailto = null; window.__t.mailtoAt = null; window.__t.bulkStart = null;
+    window.__t.t0 = performance.now();
+    emailShareCache.clear();          // 別ファイル群を送る状況を再現（発行済みキャッシュを使わせない）
+    closeEmailModal();
+  });
+  await page.fill('#searchInput', '新規取引の鈴木さんにメールして');
+  await page.press('#searchInput', 'Enter');
+  await page.waitForFunction(() => window.__t.mailto !== null, null, { timeout: 15000 });
 
-  // 実行中に連絡先を再取得していない（先読み済みを使う）
-  check('実行時に連絡先を取り直さない', t.contactCalls === 1, `calls=${t.contactCalls}`);
+  const b = await page.evaluate(() => window.__t);
+  const totalB = Math.round(b.mailtoAt);
+
+  check('連絡先に無い宛先はAIに任せる', b.aiCalls === 1 && b.mailto.startsWith('mailto:ai@example.com?'),
+    'aiCalls=' + b.aiCalls);
+  check('AI経路でもリンク発行がAI応答より先に始まる', b.bulkStart !== null && b.bulkStart < b.aiDone,
+    'bulkStart=' + Math.round(b.bulkStart) + 'ms aiDone=' + Math.round(b.aiDone) + 'ms');
+  check('AI経路でも合計が足し算にならない', totalB < AI_MS + SHR_MS,
+    'total=' + totalB + 'ms < ' + AI_MS + '+' + SHR_MS + '=' + (AI_MS + SHR_MS) + 'ms');
 
   await ctx.close();
   await browser.close();
   const failed = results.filter(r => !r.ok);
-  console.log(`\n${results.length - failed.length}/${results.length} passed`);
+  console.log('\n' + (results.length - failed.length) + '/' + results.length + ' passed');
   process.exit(failed.length ? 1 : 0);
 })();
