@@ -1554,15 +1554,39 @@ function wnBuildMailtoUrl(m) {
   return _wnTrimBodyToLimit(m.body, m.parts, build, max);
 }
 
-/* LINEの送信画面を開くURLを組み立てる。
+/* LINEの送信画面を開くURLを組み立てる。宛先は指定できない仕様で、
+   送り先はどちらの経路でも利用者がトーク一覧から選ぶ。
    LINEには件名欄がないので、メールの件名にあたる行を本文の先頭に固定で入れる
    （build の中で付けるので、長すぎて削るときも件名は残る）。
-   宛先は指定できない仕様で、送り先はLINEのトーク一覧から利用者が選ぶ。
+
+   スマホ: URLスキームでLINEアプリが開き、そのまま送り先の選択に進む。
+   PC:     同じURLスキームは**PC版LINEが非対応**で、www.line.me のトップページに
+           飛ぶだけになる（実測・公式ドキュメントとも）。ブラウザから送れる共有
+           プラグインに切り替える。LINEへのログインが要る代わりにトークへ送れる。
+   m.shareUrls（共有リンクの配列）を渡すと、PCでは1件目を url= に載せてトークに
+   プレビューを出し、本文からは外して重複させない。
    戻り値: { url, trimmed } */
 function wnBuildLineShareUrl(m) {
-  const head  = m.subject ? `${m.subject}\r\n\r\n` : '';
-  const build = (body) => `https://line.me/R/share?text=${encodeURIComponent(head + body)}`;
-  return _wnTrimBodyToLimit(m.body, m.parts, build, WN_LINE_MAX_LEN);
+  const head = m.subject ? `${m.subject}\r\n\r\n` : '';
+
+  if (wnIsMobileDevice()) {
+    const build = (body) => `https://line.me/R/share?text=${encodeURIComponent(head + body)}`;
+    return _wnTrimBodyToLimit(m.body, m.parts, build, WN_LINE_MAX_LEN);
+  }
+
+  const links   = (Array.isArray(m.shareUrls) ? m.shareUrls : []).filter(Boolean);
+  const primary = links[0] || '';
+  const rest    = links.slice(1);
+  // 1件目は url= でトークに載るので、本文には2件目以降だけを並べる
+  const core    = rest.length ? ['▼ ほかのファイル', ...rest].join('\r\n') : '';
+  const message = m.parts?.message || '';
+  const sig     = m.parts?.signature || '';
+  const body    = [message, core].filter(Boolean).join('\r\n\r\n') + sig;
+  const build   = (b) => 'https://social-plugins.line.me/lineit/share'
+    + `?url=${encodeURIComponent(primary)}`
+    + `&text=${encodeURIComponent(head + b)}`;
+
+  return _wnTrimBodyToLimit(body, { message, core, signature: sig }, build, WN_LINE_MAX_LEN);
 }
 
 /* mailto: を開く。

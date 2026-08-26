@@ -182,14 +182,26 @@ async function readModalMode(page) {
     await page.click('#emailLineBtn');
     await page.waitForTimeout(300);
 
+    /* スマホはURLスキームでLINEアプリへ。PCは同じスキームだと www.line.me の
+       トップページに飛ぶだけなので、ブラウザから送れる共有プラグインを使う。 */
     const nav = await page.evaluate(() => window.__nav);
-    check(`[${device.label}] LINEの共有URLを開く`, !!nav && nav.startsWith('https://line.me/R/share?text='),
-      nav ? `len=${nav.length}` : 'null');
+    const expected = device.mobile
+      ? 'https://line.me/R/share?text='
+      : 'https://social-plugins.line.me/lineit/share?url=';
+    check(`[${device.label}] ${device.mobile ? 'LINEアプリの共有URL' : 'ブラウザ用の共有プラグインURL'}を開く`,
+      !!nav && nav.startsWith(expected), nav ? nav.slice(0, 52) : 'null');
     if (nav) {
-      const text = decodeURIComponent(nav.split('text=')[1] || '');
-      check(`[${device.label}] 共有リンクを含む`, text.includes('/app/share.html?token='));
+      const text = decodeURIComponent(nav.split('&text=')[1] ?? nav.split('text=')[1] ?? '');
       check(`[${device.label}] 件名にあたる行が先頭に入る`, text.startsWith("【What'sNo】"), text.slice(0, 30));
       check(`[${device.label}] URL長が上限内`, nav.length <= 4000, `len=${nav.length}`);
+      if (device.mobile) {
+        check(`[${device.label}] 本文に共有リンクを含む`, text.includes('/app/share.html?token='));
+      } else {
+        // PCは url= でトークにプレビューが載るので、本文には重ねない
+        const shareUrl = decodeURIComponent((nav.split('url=')[1] || '').split('&')[0]);
+        check(`[${device.label}] url= に共有リンクを載せる`, shareUrl.includes('/app/share.html?token='), shareUrl.slice(0, 50));
+        check(`[${device.label}] 本文にリンクを重複させない`, !text.includes('/app/share.html?token='));
+      }
     }
     // line:// のカスタムスキームは未インストール端末で「アドレスが無効です」になるため使わない
     check(`[${device.label}] カスタムスキームを使わない`, !nav || !nav.startsWith('line:'), String(nav).slice(0, 12));
@@ -211,9 +223,11 @@ async function readModalMode(page) {
 
     const multi = await page.evaluate(() => window.__nav);
     if (multi) {
-      const text  = decodeURIComponent(multi.split('text=')[1] || '');
-      const links = (text.match(/\/app\/share\.html\?token=/g) || []).length;
-      check(`[${device.label}] ${FILE_N}件ぶんの共有リンクが本文に入る`, links === FILE_N, `links=${links}`);
+      const text  = decodeURIComponent(multi.split('&text=')[1] ?? multi.split('text=')[1] ?? '');
+      const inBody = (text.match(/\/app\/share\.html\?token=/g) || []).length;
+      // PCは1件目を url= に載せるぶん本文は1件少ない（合計は必ずFILE_N件）
+      const total = device.mobile ? inBody : inBody + 1;
+      check(`[${device.label}] ${FILE_N}件ぶんの共有リンクが渡る`, total === FILE_N, `本文=${inBody} 合計=${total}`);
     } else {
       check(`[${device.label}] ${FILE_N}件でもLINE共有URLが生成される`, false, 'null');
     }
