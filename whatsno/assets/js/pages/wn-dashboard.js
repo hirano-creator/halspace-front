@@ -4617,6 +4617,15 @@ function _emailApplyChannelUi() {
   // スマホ向けの案内はメールアプリ／Gmailの話なのでLINEでは出さない
   const hint = document.getElementById('emailMobileHint');
   if (hint) hint.classList.toggle('hidden', isLine || !wnIsMobileDevice());
+
+  /* LINEの案内はPCとスマホで経路が違う。
+     PCはLINEアプリを直接開けないため、ブラウザのLINE（要ログイン）を経由する。 */
+  const lineText = document.getElementById('emailHintLineText');
+  if (lineText && isLine) {
+    lineText.textContent = wnIsMobileDevice()
+      ? '「LINEで送る」を押すとLINEが開きます。送り先はトーク一覧から選んでください。ファイルはダウンロードリンクで共有されます（添付ではありません）。'
+      : '「LINEで送る」を押すとブラウザのLINEが開きます。LINEにログインすると送り先のトークを選べます（パソコンではLINEアプリを直接開けないためです）。';
+  }
   if (!isLine) _emailApplyMobileLayout();   // スマホ向けの主従入れ替えはメールのときだけ
 }
 
@@ -4913,7 +4922,8 @@ function _buildEmailContent() {
   const core = coreLines.join('\r\n');
   const body = (message ? `${message}\r\n\r\n` : '') + core + sigText;
 
-  return { to, cc, bcc, subject, body, parts: { message, core, signature: sigText } };
+  return { to, cc, bcc, subject, body, shareUrls: emailPregenShares.map(s => s.url),
+           parts: { message, core, signature: sigText } };
 }
 
 /* 送信前チェック: TO/CC/BCC に連絡先へ未登録の宛先があればポップアップで報告する。
