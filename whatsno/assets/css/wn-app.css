@@ -925,7 +925,12 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   gap: 8px;
   font-size: 11px;
   color: var(--muted);
+  /* カードが狭いと flex が中身を min-content まで縮め、「1.2 / MB」のように
+     単語の途中で改行される。項目ごとには折り返さず、入らないときだけ行を送る */
+  flex-wrap: wrap;
+  row-gap: 2px;
 }
+.file-card-meta > span { white-space: nowrap; }
 .file-card-ext {
   margin-left: auto;
   padding: 1px 7px;
@@ -962,6 +967,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   justify-content: flex-start;
   gap: 6px;
   margin-top: 8px;
+  /* カードは overflow:hidden なので、はみ出したボタン（ダウンロード等）は
+     切られて押せなくなる。狭いときは折り返して全部残す */
+  flex-wrap: wrap;
+  row-gap: 4px;
 }
 .file-card-stat {
   display: inline-flex;
@@ -1787,6 +1796,15 @@ tbody tr:last-child { border-bottom: none; }
   /* グリッド */
   .file-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 
+  /* カードが150px級まで細るので、日付/サイズ行と操作アイコンを詰めて1行に収める
+     （入らなければ上の flex-wrap で折り返す。切り落とさない） */
+  .file-card-meta { gap: 6px; }
+  .file-card-ext  { padding: 1px 5px; }
+  .file-card-actions { gap: 3px; }
+  .file-card-actions .file-action-btn { padding: 3px 2px; }
+  .file-card-stat { font-size: 11px; }
+  .file-card-stat i { font-size: 11px; }
+
   /* ページパディング */
   .page-body { padding: 16px; }
 
@@ -1795,6 +1813,15 @@ tbody tr:last-child { border-bottom: none; }
 
   /* 通知ドロップダウン */
   .notif-dropdown { width: 300px; }
+}
+
+/* ==============================
+   タブレット  768px 〜 1023px
+   ============================== */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* 150px枠だと1枚が細くなりすぎて日付・操作アイコンが2段に割れる。
+     枠を大きめにして列数を減らし、1枚あたりを読みやすくする */
+  .file-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
 }
 
 /* ==============================
@@ -2378,10 +2405,12 @@ tbody tr:last-child { border-bottom: none; }
 
 /* スマホ対応 */
 @media (max-width: 768px) {
-  /* レイアウト：ボトムナビ分を引く */
+  /* レイアウト：トップバーとボトムナビ分を引く。
+     ヘッダー高は 56px 決め打ちだと実際の 72px と合わず、入力欄と
+     「新しい会話」がボトムナビの下へ潜り込む（実測16px）ので変数から取る */
   .brain-layout {
     padding: 8px 12px 0;
-    height: calc(100svh - 56px - 60px);
+    height: calc(100svh - var(--header-h) - 60px);
     gap: 8px;
     max-width: 100%;
     width: 100%;
@@ -2627,7 +2656,7 @@ body.select-mode .ig-post { cursor: pointer; user-select: none; }
 /* 下部アクションバー */
 .merge-action-bar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
-  display: flex; align-items: center; gap: 12px; justify-content: flex-end;
+  display: flex; align-items: center; gap: 12px;
   padding: 10px 16px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom));
   background: var(--white);
@@ -2635,11 +2664,25 @@ body.select-mode .ig-post { cursor: pointer; user-select: none; }
   box-shadow: 0 -4px 16px rgba(0,0,0,.10);
 }
 .merge-action-bar.hidden { display: none; }
-.merge-action-bar .merge-sel-count {
-  margin-right: auto; font-size: 13px; font-weight: 700; color: var(--primary);
+
+/* PC: 左に「◯件選択中＋キャンセル」、右にアクション。
+   入りきらないときはアクション側だけを折り返す。
+   （全部を1行に押し込む justify-content:flex-end だと、はみ出しが画面左の
+     スクロールで追えない領域へ流れ、さらに件数表示が1文字幅まで潰れて
+     縦書きになる。折り返しは幅の予測が外れても壊れない受け皿） */
+.mab-head {
+  display: flex; align-items: center; gap: 10px;
+  flex: 0 0 auto; margin-right: auto;
 }
-/* PC/タブレット: 従来どおり1行に並べる（ラッパーは透過させる） */
-.mab-head, .mab-actions { display: contents; }
+.mab-actions {
+  display: flex; align-items: center; flex-wrap: wrap;
+  justify-content: flex-end; gap: 8px;
+  flex: 1 1 auto; min-width: 0;
+}
+.merge-action-bar .merge-sel-count {
+  flex: 0 0 auto; white-space: nowrap;
+  font-size: 13px; font-weight: 700; color: var(--primary);
+}
 .mab-t-sm, .mab-icon-sm { display: none; }
 
 /* 一括タグ付けピッカー（アクションバーの上にポップ） */
@@ -2648,6 +2691,25 @@ body.select-mode .ig-post { cursor: pointer; user-select: none; }
   background: var(--white); border: 1px solid var(--border); border-radius: 10px;
   padding: 12px; min-width: 240px; z-index: 300;
   box-shadow: 0 4px 16px rgba(0,0,0,.2);
+}
+
+/* PC標準〜タブレット(768〜1499px): サイドバーのぶん横が足りないので
+   ボタンのラベルを短い方に差し替えて1行に収める（1500px以上は従来どおり全文表示）。
+   境目は実測から: 全文表示は 1400px でも余裕27pxしか無く、フォントが変わるだけで
+   2行に落ちる。折り返しても壊れはしないが、短縮したほうが収まりがよい */
+@media (min-width: 768px) and (max-width: 1499px) {
+  .merge-action-bar { gap: 10px; padding-left: 12px; padding-right: 12px; }
+  .mab-actions { gap: 6px; }
+  .mab-actions .btn { padding: 8px 12px; }
+  .mab-actions .mab-t { display: none; }
+  .mab-actions .mab-t-sm { display: inline; }
+}
+
+/* さらに狭い帯(768〜1279px)はボタン同士を詰める。ここを詰めないと
+   短縮ラベルでも9個が1行に収まらない（実測 -30px 前後） */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .mab-actions { gap: 5px; }
+  .mab-actions .btn { padding: 8px 9px; }
 }
 
 @media (max-width: 767px) {
@@ -2668,9 +2730,9 @@ body.select-mode .ig-post { cursor: pointer; user-select: none; }
     padding-bottom: calc(8px + env(safe-area-inset-bottom));
   }
   .mab-head {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    justify-content: space-between; gap: 8px; margin-right: 0;
   }
-  .merge-action-bar .merge-sel-count { margin-right: 0; font-size: 13px; }
+  .merge-action-bar .merge-sel-count { font-size: 13px; }
   .mab-head .btn { padding: 5px 10px; font-size: 12px; }
 
   .mab-actions {
