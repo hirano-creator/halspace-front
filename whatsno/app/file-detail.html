@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260530f">
+  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260827a">
   <link rel="stylesheet" href="../assets/css/wn-sheeteye.css">
   <style>
     body { background: var(--bg); }
@@ -60,7 +60,18 @@
       margin: 0 8px; padding: 2px 8px; border: 1.5px solid var(--accent);
       border-radius: 6px; outline: none; min-width: 0; background: var(--white);
     }
-    .detail-topbar-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    /* ボタン帯。幅が足りないときは帯の中で横スクロールさせる。
+       flex-shrink:0 のまま並べるとバーの外へ流れて切り落とされ、
+       印刷・削除などが永久に押せなくなる（見た目でも気づけない） */
+    .detail-topbar-actions {
+      display: flex; align-items: center; gap: 6px;
+      flex-shrink: 1; min-width: 0;
+      overflow-x: auto; overflow-y: hidden;
+      scrollbar-width: thin;
+      overscroll-behavior-x: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .detail-topbar-actions > * { flex-shrink: 0; }
 
 
     /* メイン2カラム */
@@ -461,6 +472,20 @@
 
     /* QRモーダル */
     .qr-modal-inner { text-align: center; }
+
+    /* ── ノートPC・ウィンドウ半分（〜1499px） ──
+       ボタンが11個あり、ラベル付きで全部並べるには実測で1500px級の幅が要る。
+       足りない帯ではラベルを畳んでアイコンだけにする（意味は title 属性で残る） */
+    @media (max-width: 1499px) {
+      .btn-label { display: none; }
+      .detail-topbar-actions .btn { padding: 6px 8px; font-size: 13px; }
+    }
+
+    /* 下部の情報カードは4列固定だと1枚が130px級まで細り、見出しが折り返す。
+       入る数だけ並べる（幅が広ければ従来どおり4列） */
+    @media (min-width: 769px) {
+      .detail-info-row { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    }
 
     /* ── モバイル Google Drive スタイル ── */
     @media (max-width: 768px) {
