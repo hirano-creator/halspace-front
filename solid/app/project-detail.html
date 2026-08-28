@@ -111,6 +111,16 @@
             <div id="drawingFileArea"></div>
           </div>
 
+          <!-- 希望納期・納期回答
+               モデリング開始ボタンより「上」に置く。下にあると、上から順に画面を触った
+               モデラーが納期回答フォームに気づく前に開始を押してしまう -->
+          <div class="card" id="deadlineCard">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-calendar-check text-blue"></i> 希望納期・納期確認</span>
+            </div>
+            <div id="deadlinePanel"></div>
+          </div>
+
           <!-- ステータスタイムライン -->
           <div class="card">
             <div class="timeline" id="timeline"></div>
@@ -133,6 +143,9 @@
                 <button class="btn btn-outline btn-sm" id="resumeModelingBtn" style="display:none;">
                   <i class="fa-solid fa-rotate-left"></i> モデリング再開
                 </button>
+                <!-- 納期の状況を知らせるだけの行。ボタンは止めない（確定は管理者・発注者待ちで、
+                     ブロックすると緊急案件で手が止まるため）。文言は updateModelerDeadlineHint() -->
+                <span id="modelerDeadlineHint" style="color:var(--muted);font-size:13px;align-self:center;display:none;"></span>
               </div>
             </div>
           </div>
@@ -179,14 +192,6 @@
             <!-- 状態別の件数サマリー（クリックで絞り込み）＋表示中を全選択 -->
             <div id="modelFileSummary" class="file-status-summary" style="display:none;"></div>
             <div id="modelFileArea"></div>
-          </div>
-
-          <!-- 希望納期・納期回答 -->
-          <div class="card" id="deadlineCard">
-            <div class="card-header">
-              <span class="card-title"><i class="fa-solid fa-calendar-check text-blue"></i> 希望納期・納期確認</span>
-            </div>
-            <div id="deadlinePanel"></div>
           </div>
 
           <!-- 修正依頼ファイル -->
