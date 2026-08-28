@@ -104,6 +104,11 @@ function isOperator(user) { return !!user?.is_operator; }
 /* admin相当の全権限（全プロジェクト閲覧、発注者/モデラー両チャンネル閲覧等）を持つか。
    role=admin/super_adminに加え、HaLSpace運営会社所属者はrole=generalでも同等に扱う。 */
 function hasAdminLevelAccess(user) { return isAdmin(user) || isOperator(user); }
+/* 社内側（HaLSpace運営会社・スーパー管理者）の管理者か。
+   発注者会社の管理者(role=admin)は外部なので含めない。納期回答や検査など
+   「社内 → 発注者」の操作は hasAdminLevelAccess ではなくこちらで判定する。
+   バックエンドの User::isInternalAdmin() と揃えること。 */
+function isInternalAdmin(user) { return isSuperAdmin(user) || isOperator(user); }
 
 /* ハンバーガーメニュー（モバイル用サイドバー開閉） */
 function initMobileMenu() {

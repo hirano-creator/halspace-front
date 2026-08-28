@@ -88,7 +88,7 @@ function renderTimeline() {
   // 管理者検査バー: review_pending × 管理者（approved の既存案件も納品確定できるよう表示する）
   const adminReviewBar = document.getElementById('adminReviewBar');
   adminReviewBar.style.display =
-    (['review_pending','approved'].includes(project.status) && hasAdminLevelAccess(user)) ? '' : 'none';
+    (['review_pending','approved'].includes(project.status) && isInternalAdmin(user)) ? '' : 'none';
 
   // モデラー用アクションバー
   // 検査依頼はファイル単位（一覧の「検査依頼」）に一本化したため、ここには開始／再開のみ置く
@@ -212,7 +212,7 @@ function renderFiles() {
     renderModelGuide(visibleModelFiles, opts);
     renderModelSummary(visibleModelFiles, shownModelFiles, selectable);
     renderFileSection(modelArea, shownModelFiles, {
-      canDelete: !isClient(user),
+      canDelete: isInternalAdmin(user) || isModeler(user),
       showAdminBtns: opts.showAdminBtns,
       showModelerBtns: opts.showModelerBtns,
       selectable,
@@ -225,7 +225,7 @@ function renderFiles() {
 
   // 図面・参考資料エリア（全員表示）
   renderFileSection(document.getElementById('drawingFileArea'), drawingFiles, {
-    canDelete: hasAdminLevelAccess(user) || isModeler(user),
+    canDelete: isInternalAdmin(user) || isModeler(user),
   });
 
   // 修正依頼ファイルエリア: file_type=revision OR (model_3d && review_status=revision)
@@ -237,7 +237,7 @@ function renderFiles() {
   if (allRevisionFiles.length > 0) {
     revisionCard.style.display = '';
     renderFileSection(document.getElementById('revisionFileArea'), allRevisionFiles, {
-      canDelete: hasAdminLevelAccess(user) || isModeler(user),
+      canDelete: isInternalAdmin(user) || isModeler(user),
     });
   } else {
     revisionCard.style.display = 'none';
@@ -554,7 +554,7 @@ let bulkBusy = false;
 function currentReviewOpts() {
   return {
     // 管理者はプロジェクト進行中ならいつでもファイル単位の検査・納品が可能
-    showAdminBtns: hasAdminLevelAccess(user)
+    showAdminBtns: isInternalAdmin(user)
       && ['in_progress','review_pending','revision_requested','approved'].includes(project.status),
     // モデラーはファイル単位で検査依頼が可能
     showModelerBtns: isModeler(user)
@@ -1385,7 +1385,7 @@ async function apiFetchForm(path, formData) {
    モデラーは発注者⇄管理者間の「お客様連絡」には入らない。
    バックエンドの User::accessibleCommentChannels() と揃えること。 */
 function canAccessChannel(ch) {
-  if (isSuperAdmin(user) || isOperator(user)) return true;
+  if (isInternalAdmin(user)) return true;
   if (ch === 'client')  return !isModeler(user);
   if (ch === 'modeler') return isModeler(user);
   return false;
@@ -1514,7 +1514,7 @@ function renderChat() {
     const textHtml = c.body ? `<div>${escapeHtml(c.body)}</div>` : '';
     const role = c.user_role ?? c.role ?? '';
     const solidType = c.user_solid_type ?? c.solid_type ?? '';
-    const canDel = Number(c.user_id) === Number(user.id) || hasAdminLevelAccess(user);
+    const canDel = Number(c.user_id) === Number(user.id) || isInternalAdmin(user);
     const delBtn = canDel
       ? `<button class="chat-del-btn" data-comment-id="${c.id}" title="削除"><i class="fa-solid fa-trash-can"></i></button>`
       : '';
@@ -2006,7 +2006,10 @@ function renderDeadlinePanel() {
   const deadlineVal = project.deadline_requested || project.deadline_at || '—';
 
   /* ── 発注者ビュー ── */
-  if (!isModeler(user) && !hasAdminLevelAccess(user)) {
+  /* 発注者への回答納期を出すのは社内側（HaLSpace運営会社・スーパー管理者）だけ。
+     発注者会社の管理者(role=admin)は回答を受け取る側なので発注者ビューを見せる
+     （チャンネル判定と同じ理由で hasAdminLevelAccess では判定しない）。 */
+  if (!isModeler(user) && !isInternalAdmin(user)) {
     let html = `
       <div style="display:flex;align-items:center;gap:16px;padding:12px 0;flex-wrap:wrap;">
         <div style="flex:1;min-width:160px;">
@@ -2044,10 +2047,15 @@ function renderDeadlinePanel() {
     panel.innerHTML = html;
 
     document.getElementById('deadlineAcceptBtn')?.addEventListener('click', async () => {
+      /* 了承は必ずサーバーに保存する。失敗を握り潰すと画面上だけ了承済みになり、
+         リロードで元に戻ってしまうため、エラーはそのまま知らせる。 */
       try {
         const data = await api.post(`/projects/${projId}/deadline-reply`, { date: replyDate, status: 'ok', note: replyNote || '' });
         project = data.project; comments = project.comments ?? [];
-      } catch { project.deadline_reply_status = 'ok'; }
+      } catch {
+        showToast('了承の送信に失敗しました', 'danger');
+        return;
+      }
       renderDeadlinePanel(); renderInfo();
       showToast('日程を了承しました', 'success');
     });
@@ -2138,7 +2146,7 @@ function renderDeadlinePanel() {
     return;
   }
 
-  /* ── 管理者ビュー ── */
+  /* ── 社内管理者ビュー ── */
   let html = `
     <div style="display:flex;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
       <div style="flex:1;min-width:140px;">
@@ -2208,9 +2216,8 @@ function renderDeadlinePanel() {
       const data = await api.post(`/projects/${projId}/deadline-reply`, { date, status, note });
       project = data.project; comments = project.comments ?? [];
     } catch {
-      project.deadline_replied = date;
-      project.deadline_reply_status = status;
-      project.deadline_reply_note = note;
+      showToast('回答の送信に失敗しました', 'danger');
+      return;
     }
     renderDeadlinePanel(); renderInfo();
     showToast('発注者へ回答を送信しました', 'success');
@@ -2219,7 +2226,7 @@ function renderDeadlinePanel() {
 
 /* ── 初期化 ── */
 async function init() {
-  if (hasAdminLevelAccess(user) || isModeler(user)) {
+  if (isInternalAdmin(user) || isModeler(user)) {
     try {
       const data = await api.get('/projects/modelers');
       allModelers = data.modelers || [];
