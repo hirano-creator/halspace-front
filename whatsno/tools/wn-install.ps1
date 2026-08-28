@@ -3,7 +3,11 @@
 #          スクリプトと同じフォルダで PowerShell に貼り付けて実行
 
 param(
-    [string]$Token = ''
+    [string]$Token = '',
+    # Windows 11 の右クリックメニューを従来型に戻すか
+    #   ask  = 確認する（既定）/ on = 戻す / off = Windows 11 の新メニューに戻す / keep = 触らない
+    [ValidateSet('ask', 'on', 'off', 'keep')]
+    [string]$ClassicMenu = 'ask'
 )
 
 $interactive = (-not $Token)  # Token未指定 = 対話モード（ダイアログ表示）
@@ -52,7 +56,7 @@ function Copy-WnScript {
     return $true
 }
 
-Write-Host "[1/5] ファイルを配置中…" -ForegroundColor Cyan
+Write-Host "[1/6] ファイルを配置中…" -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path $appDir | Out-Null
 
 if (-not (Copy-WnScript $srcUpload $uploadScript)) {
@@ -133,7 +137,7 @@ if (-not $Token) {
 }
 
 # ── config.json 保存 & ACL制限 ──
-Write-Host "[2/5] トークンを保存中…" -ForegroundColor Cyan
+Write-Host "[2/6] トークンを保存中…" -ForegroundColor Cyan
 @{ token = $Token } | ConvertTo-Json | Set-Content $configFile -Encoding utf8
 icacls $configFile /inheritance:r /grant:r "${env:USERNAME}:F" 2>&1 | Out-Null
 
@@ -176,7 +180,7 @@ function Remove-WnLegacyMenuKeys {
     }
 }
 
-Write-Host "[3/5] 右クリックメニューを登録中…" -ForegroundColor Cyan
+Write-Host "[3/6] 右クリックメニューを登録中…" -ForegroundColor Cyan
 
 # メニューの並び順は shell 配下のキー名の昇順で決まる。
 # 「保存」を「開く」より上に出すため、キー名に連番を付けて順序を固定し、
@@ -224,7 +228,7 @@ foreach ($openBase in $openRoots) {
 }
 
 # ── whatsno:// プロトコルハンドラ登録（自動トークン同期用） ──
-Write-Host "[4/5] プロトコルハンドラを登録中…" -ForegroundColor Cyan
+Write-Host "[4/6] プロトコルハンドラを登録中…" -ForegroundColor Cyan
 if (Test-Path $handlerScript) {
     $protoCmd = if (Test-Path $wscript) {
         "`"$wscript`" `"$launcherScript`" `"$handlerScript`" `"%1`""
@@ -239,7 +243,7 @@ if (Test-Path $handlerScript) {
 }
 
 # ── 同期サーバーをスケジュールタスクに登録してすぐ起動（タスクスケジューラ無応答対策でタイムアウト付き） ──
-Write-Host "[5/5] 同期サーバーを登録中…" -ForegroundColor Cyan
+Write-Host "[5/6] 同期サーバーを登録中…" -ForegroundColor Cyan
 if (Test-Path $syncServerScript) {
     $taskLauncher = if (Test-Path $wscript) { $wscript } else { '' }
 
@@ -275,11 +279,78 @@ if (Test-Path $syncServerScript) {
     Remove-Job $taskJob -Force -ErrorAction SilentlyContinue
 }
 
+# ── Windows 11 の右クリックメニューを従来型に戻す（任意） ──
+# Windows 11 の新しい右クリックメニュー（1階層目）は、MSIX パッケージ済みアプリが
+# IExplorerCommand で登録したコマンドしか描画しない。ここで登録している HKCU の
+# shell 動詞は仕様上どうやっても「その他のオプションを確認」の中に入る
+# （Position=Top は旧メニュー内の並び順にしか効かない）。
+# 下記 CLSID の InprocServer32 を空で置くと従来型メニューが既定になり、
+# 「What'sNoに保存」が1クリック目で出るようになる。HKCU なので管理者権限は不要で、
+# wn-uninstall.ps1 から元に戻せる。
+Write-Host "[6/6] 右クリックメニューの表示形式を確認中…" -ForegroundColor Cyan
+
+$classicRoot  = 'Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}'
+$classicClsid = "$classicRoot\InprocServer32"
+
+function Test-WnClassicMenu {
+    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($classicClsid)
+    if ($key) { $key.Close(); return $true }
+    return $false
+}
+
+# 反映にはエクスプローラーの再起動が必要。開いているフォルダのウィンドウは閉じる。
+function Restart-WnExplorer {
+    Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
+        Start-Process explorer.exe
+    }
+}
+
+$classicOn = Test-WnClassicMenu
+
+$applyClassic = switch ($ClassicMenu) {
+    'on'   { $true }
+    'off'  { $false }
+    'keep' { $classicOn }
+    default {
+        if ($classicOn) {
+            $true                                   # 既に従来型。黙って維持する
+        } elseif (-not [Environment]::UserInteractive) {
+            $classicOn                              # 問いかけ先がないので触らない
+        } elseif ($interactive) {
+            $msg = "Windows 11 では「What'sNoに保存」が『その他のオプションを確認』の中に入ります。`n" +
+                   "右クリックメニューを従来型に戻すと、1クリック目で表示されるようになります。`n`n" +
+                   "戻しますか？（アンインストール時に元へ戻せます）"
+            ([System.Windows.Forms.MessageBox]::Show(
+                $msg, "What'sNo セットアップ", 'YesNo', 'Question') -eq 'Yes')
+        } else {
+            Write-Host "  Windows 11 では「What'sNoに保存」が『その他のオプションを確認』の中に入ります。" -ForegroundColor Yellow
+            $ans = Read-Host "  右クリックメニューを従来型に戻しますか？（エクスプローラーが再起動します）[Y/n]"
+            ($ans -eq '' -or $ans -match '^[Yy]')
+        }
+    }
+}
+
+if ($applyClassic -ne $classicOn) {
+    if ($applyClassic) {
+        Set-WnRegKey $classicClsid @{ '' = '' }
+    } else {
+        try { [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKeyTree($classicRoot, $false) } catch {}
+    }
+    Restart-WnExplorer
+    Write-Host "  右クリックメニューを$(if ($applyClassic) { '従来型' } else { 'Windows 11 標準' })にしました。" -ForegroundColor Green
+}
+
 # ── 完了 ──
+# 従来型メニューにしなかった場合は、項目がどこに出るかを明示しておく
+# （黙っていると「登録されていない」と誤解されるため）
+$where = if (Test-WnClassicMenu) { '右クリック' } else { '右クリック →「その他のオプションを確認」' }
+
 if ($interactive) {
     [System.Windows.Forms.MessageBox]::Show(
-        "セットアップが完了しました！`n`n・ファイルを右クリック →「What'sNoに保存」`n・ファイル／デスクトップの背景を右クリック →「What'sNoを開く」",
+        "セットアップが完了しました！`n`n・ファイルを$where →「What'sNoに保存」`n・ファイル／デスクトップの背景を$where →「What'sNoを開く」",
         "What'sNo セットアップ完了", 'OK', 'Information') | Out-Null
 } else {
-    Write-Host "セットアップ完了！右クリック →「What'sNoに保存」/「What'sNoを開く」が使えます。" -ForegroundColor Green
+    Write-Host "セットアップ完了！$where →「What'sNoに保存」/「What'sNoを開く」が使えます。" -ForegroundColor Green
 }

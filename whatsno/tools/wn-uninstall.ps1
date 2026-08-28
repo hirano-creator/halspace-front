@@ -44,6 +44,26 @@ Remove-WnMenuKeys 'Software\Classes\DesktopBackground\shell'
 
 Remove-WnRegKey 'Software\Classes\whatsno'
 
+# ── Windows 11 の右クリックメニューを元に戻す（セットアップで従来型にしていた場合） ──
+# 従来型メニューは OS 全体の見た目に関わる設定なので、What'sNo の都合で勝手に戻さず
+# 必ず確認する（気に入って使い続けている利用者がいるため）。
+$classicRoot = 'Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}'
+$classicKey  = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey("$classicRoot\InprocServer32")
+if ($classicKey) {
+    $classicKey.Close()
+    $restore = [System.Windows.Forms.MessageBox]::Show(
+        "右クリックメニューを従来型にする設定が残っています。`nWindows 11 標準のメニューに戻しますか？`n（エクスプローラーが再起動し、開いているフォルダのウィンドウは閉じます）",
+        "What'sNo アンインストール", 'YesNo', 'Question')
+    if ($restore -eq 'Yes') {
+        Remove-WnRegKey $classicRoot
+        Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
+            Start-Process explorer.exe
+        }
+    }
+}
+
 # AppData フォルダ削除
 $appDir = Join-Path $env:APPDATA 'WhatsNo'
 if (Test-Path $appDir) {

@@ -234,6 +234,40 @@ function addToQueue(files) {
   renderQueue();
 }
 
+/* 共有／ファイルハンドラ経由の自動保存が二重に走らないようにする印 */
+let autoStarted = false;
+
+function autoUpload(files) {
+  if (autoStarted) return;
+  addToQueue(files);
+  if (!queue.length) return;
+  autoStarted = true;
+  doUpload();                       /* 手間ゼロで自動保存 */
+}
+
+/* ---------- ファイルハンドラ経由の起動（「プログラムから開く」→ What'sNo） ----------
+   manifest.json の file_handlers で登録した拡張子を What'sNo が開いたときに呼ばれる。
+   launch_type: single-client なので、複数選択でも1回の起動にまとめて渡ってくる。 */
+function setupLaunchQueue() {
+  if (!('launchQueue' in window)) return;
+  if (typeof LaunchParams === 'undefined' || !('files' in LaunchParams.prototype)) return;
+
+  window.launchQueue.setConsumer(async params => {
+    if (!params || !params.files || !params.files.length) return;
+    const files = [];
+    for (const handle of params.files) {
+      try {
+        files.push(await handle.getFile());
+      } catch (e) { /* 読み取り権限が下りなかったファイルは飛ばす */ }
+    }
+    if (!files.length) {
+      wnShowToast('ファイルを読み取れませんでした。手動で選択してください', 'warning');
+      return;
+    }
+    autoUpload(files);
+  });
+}
+
 /* ---------- 共有ファイル復元（?shared=1） ---------- */
 async function loadSharedFiles() {
   try {
@@ -332,13 +366,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     sb.disabled = true; sb.textContent = '保存する';
   });
 
+  /* ファイルハンドラ経由の起動を待ち受ける（起動直後に来るので早めに登録する） */
+  setupLaunchQueue();
+
   /* 共有経由なら退避ファイルを復元してそのまま保存 */
   const params = new URLSearchParams(location.search);
   if (params.get('shared') === '1') {
     const files = await loadSharedFiles();
     if (files.length) {
-      addToQueue(files);
-      if (queue.length) doUpload();   /* 手間ゼロで自動保存 */
+      autoUpload(files);
     } else {
       wnShowToast('共有ファイルを取得できませんでした。手動で選択してください', 'warning');
     }
