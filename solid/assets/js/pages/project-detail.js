@@ -100,6 +100,7 @@ function renderTimeline() {
     modelerActionBar.style.display = ['submitted','revision_requested'].includes(s) ? '' : 'none';
     startBtn.style.display  = s === 'submitted' ? '' : 'none';
     resumeBtn.style.display = s === 'revision_requested' ? '' : 'none';
+    updateModelerDeadlineHint();
   } else {
     modelerActionBar.style.display = 'none';
   }
@@ -109,6 +110,45 @@ function renderTimeline() {
   const canCancel = (isClient(user) || hasAdminLevelAccess(user))
     && !['delivered', 'cancelled'].includes(project.status);
   cancelBtn.style.display = canCancel ? '' : 'none';
+}
+
+/* ── モデラーから見た納期の状況 ──
+   モデリング開始をブロックする判断には使わない。確定は「管理者→発注者→（要調整なら）
+   モデラー」の往復待ちなので、確定するまで着手させないと緊急案件で手が止まる。
+   自分で今すぐ解消できる not_replied のときだけ、開始時に一度確認を挟む。 */
+function modelerDeadlineState() {
+  const replyStatus = project.deadline_reply_status ?? project.deadline_reply?.status;
+  const replyDate   = project.deadline_replied      ?? project.deadline_reply?.date;
+
+  if (!project.modeler_deadline_replied_at) return 'not_replied';    // モデラーが未回答
+  if (replyStatus === 'negotiating')        return 'negotiating';    // 発注者と調整中
+  if (!replyDate)                           return 'awaiting_admin'; // 管理者の回答待ち
+  return 'fixed';
+}
+
+const MODELER_DEADLINE_HINT = {
+  not_replied:    { icon:'fa-triangle-exclamation', color:'var(--warning)', text:'納期回答がまだ管理者へ送られていません' },
+  awaiting_admin: { icon:'fa-clock',                color:'var(--muted)',   text:'発注者への回答納期は未確定です（管理者確認中）' },
+  negotiating:    { icon:'fa-arrows-rotate',        color:'var(--danger)',  text:'納期を調整中です。日程が変わる可能性があります' },
+};
+
+function updateModelerDeadlineHint() {
+  const el = document.getElementById('modelerDeadlineHint');
+  if (!el) return;
+
+  const hint = isModeler(user) ? MODELER_DEADLINE_HINT[modelerDeadlineState()] : null;
+  if (!hint) { el.style.display = 'none'; return; }
+
+  el.style.display = '';
+  el.style.color   = hint.color;
+  el.innerHTML     = `<i class="fa-solid ${hint.icon}" style="margin-right:4px;"></i>${hint.text}`;
+}
+
+/* 納期回答フォームまでスクロールして日付欄にフォーカスする */
+function focusDeadlineReply() {
+  document.getElementById('deadlineCard')?.scrollIntoView({ behavior:'smooth', block:'center' });
+  // スムーススクロールの途中でフォーカスすると位置が飛ぶため、着地を待ってから
+  setTimeout(() => document.getElementById('replyDateInput')?.focus({ preventScroll:true }), 400);
 }
 
 /* ── プロジェクト情報テーブル ── */
@@ -1219,8 +1259,12 @@ function showUndoToast(msg, undoFn, type = 'success', seconds = 8) {
 }
 
 /* 取り消せない操作の確認モーダル。OK なら true を返す */
+/* cancelLabel / cancelValue はキャンセルボタンを「第2の選択肢」にするためのもの。
+   渡さなければ従来どおり「キャンセル」＝false なので、既存の呼び出しは影響を受けない。
+   ×・Esc・オーバーレイクリックは cancelValue を渡しても常に false（＝何もしない）。 */
 function openConfirmModal({ title, icon = 'fa-circle-question', body = '', files = [],
-                           warn = '', okLabel = '実行する', danger = false }) {
+                           warn = '', okLabel = '実行する', danger = false,
+                           cancelLabel = 'キャンセル', cancelValue = false }) {
   return new Promise(resolve => {
     const overlay = document.getElementById('confirmActionModal');
     if (!overlay) { resolve(false); return; }
@@ -1242,25 +1286,29 @@ function openConfirmModal({ title, icon = 'fa-circle-question', body = '', files
     okBtn.textContent = okLabel;
     okBtn.className = `btn ${danger ? 'btn-danger' : 'btn-primary'}`;
 
+    const cancelBtn = overlay.querySelector('#confirmActionCancel');
+    cancelBtn.textContent = cancelLabel;
+
     overlay.classList.remove('hidden');
 
     const done = (result) => {
       overlay.classList.add('hidden');
       okBtn.removeEventListener('click', onOk);
-      overlay.querySelector('#confirmActionCancel').removeEventListener('click', onCancel);
-      overlay.querySelector('#confirmActionClose').removeEventListener('click', onCancel);
+      cancelBtn.removeEventListener('click', onCancel);
+      overlay.querySelector('#confirmActionClose').removeEventListener('click', onDismiss);
       overlay.removeEventListener('click', onOverlay);
       document.removeEventListener('keydown', onKey);
       resolve(result);
     };
     const onOk      = () => done(true);
-    const onCancel  = () => done(false);
+    const onCancel  = () => done(cancelValue);
+    const onDismiss = () => done(false);
     const onOverlay = e => { if (e.target === overlay) done(false); };
     const onKey     = e => { if (e.key === 'Escape') done(false); };
 
     okBtn.addEventListener('click', onOk);
-    overlay.querySelector('#confirmActionCancel').addEventListener('click', onCancel);
-    overlay.querySelector('#confirmActionClose').addEventListener('click', onCancel);
+    cancelBtn.addEventListener('click', onCancel);
+    overlay.querySelector('#confirmActionClose').addEventListener('click', onDismiss);
     overlay.addEventListener('click', onOverlay);
     document.addEventListener('keydown', onKey);
   });
@@ -1899,6 +1947,22 @@ document.getElementById('adminPublishBtn')?.addEventListener('click', async () =
 
 /* ── モデラーアクション ── */
 document.getElementById('startModelingBtn')?.addEventListener('click', async () => {
+  /* 納期回答を送らないまま着手すると、日程が動いたときに手戻りになる。
+     ただし開始自体は止めない——モデラー自身がまだ送っていないとき（自分ですぐ
+     解消できるとき）だけ、一度気づかせる。 */
+  if (modelerDeadlineState() === 'not_replied') {
+    const answer = await openConfirmModal({
+      title: '納期回答がまだ送られていません',
+      icon:  'fa-triangle-exclamation',
+      body:  '管理者への納期回答を送らないままモデリングを開始しようとしています。',
+      okLabel:     'このまま開始する',
+      cancelLabel: '先に納期を回答する',
+      cancelValue: 'reply',
+    });
+    if (answer === 'reply') { focusDeadlineReply(); return; }
+    if (!answer) return;
+  }
+
   await updateStatus('in_progress');
   showToast('モデリングを開始しました', 'success');
 });
@@ -2143,6 +2207,15 @@ function renderDeadlinePanel() {
 
       const msg = `【納期回答】${date}（${status === 'ok' ? '対応可能' : '要調整'}）${note ? '\n' + note : ''}`;
       try { await submitComment(msg, null, 'modeler'); } catch { return; }
+
+      /* 回答した事実だけをサーバーに残す（内容はコメントが正）。これがないと
+         モデリング開始のたびに「まだ回答していません」と聞かれてしまう。
+         コメントは既に届いているので、ここが失敗しても回答自体は成立させる。 */
+      try {
+        const data = await api.post(`/projects/${projId}/modeler-deadline-reply`, {});
+        if (data?.project) { project = data.project; comments = project.comments ?? []; }
+      } catch {}
+      updateModelerDeadlineHint();
       showToast('管理者へ回答を送りました', 'success');
     });
     return;
@@ -2242,7 +2315,8 @@ async function init() {
   const reviewSig   = fs => (fs ?? []).map(f => `${f.id}:${f.review_status}`).join(',');
   const commentsSig = cs => (cs ?? []).map(c => `${c.id}:${c.edited_at ?? ''}`).join(',');
   const deadlineSig = p  => [p.deadline_requested, p.deadline_replied, p.deadline_reply_status,
-                             p.deadline_reply_note, p.deadline_at].join('|');
+                             p.deadline_reply_note, p.deadline_at,
+                             p.modeler_deadline_replied_at].join('|');
 
   startAutoRefresh(async () => {
     const v = await api.get(`/projects/${projId}/version`);
@@ -2274,6 +2348,8 @@ async function init() {
         && !document.getElementById('deadlinePanel')?.contains(document.activeElement)) {
       renderDeadlinePanel();
     }
+    // 注意文はフォームの外なので、入力中でも最新の納期状況に追従させる
+    if (deadlineChanged) updateModelerDeadlineHint();
   }, 3000);
 }
 init();
