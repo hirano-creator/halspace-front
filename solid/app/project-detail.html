@@ -119,8 +119,11 @@
           <div class="card card-tight" id="deadlineCard">
             <div class="card-header">
               <span class="card-title"><i class="fa-solid fa-calendar-check text-blue"></i> 希望納期・納期確認</span>
-              <!-- 納期サマリー＋フォームの開閉ボタン（renderDeadlinePanel が描画） -->
+              <!-- 納期サマリー（チップ）と開閉ボタン。どちらも renderDeadlinePanel が描画する。
+                   ボタンを別枠にしておくと、カードが狭いときにサマリーだけを次の行へ
+                   落として「タイトル＋ボタン／サマリー」の2段に組み替えられる -->
               <div class="deadline-summary" id="deadlineHead"></div>
+              <div class="deadline-actions" id="deadlineActions"></div>
             </div>
             <div id="deadlinePanel"></div>
           </div>

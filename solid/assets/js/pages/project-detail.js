@@ -2063,8 +2063,9 @@ let deadlineFormOpen = null;   // null=未回答なら開く / true・false は�
 
 function renderDeadlinePanel() {
   const head  = document.getElementById('deadlineHead');
+  const acts  = document.getElementById('deadlineActions');
   const panel = document.getElementById('deadlinePanel');
-  if (!head || !panel) return;
+  if (!head || !acts || !panel) return;
 
   /* 管理者→発注者への回答（全員が参照する公式回答） */
   const replyStatus = project.deadline_reply_status ?? project.deadline_reply?.status;
@@ -2089,6 +2090,10 @@ function renderDeadlinePanel() {
   const chip = (label, value, color) =>
     `<span class="deadline-chip"><em>${label}</em><b${color ? ` style="color:${color};"` : ''}>${value}</b></span>`;
   const arrow  = '<i class="fa-solid fa-arrow-right-long deadline-arrow"></i>';
+  /* チップ類は1つの塊にまとめ、開閉ボタンはその外に置く。幅が足りないときは
+     チップ側だけが折り返し、ボタンは行の右端に残る。ボタンだけが次の行へ落ちると
+     タイトルの右が大きく空いて崩れて見えるため */
+  const chips  = html => `<div class="deadline-chips">${html}</div>`;
   const badge  = b => `<span class="badge ${b.cls}"><i class="fa-solid ${b.icon}"></i>${b.label}</span>`;
   const toggle = (label, open) => `
     <button type="button" class="deadline-toggle" id="deadlineToggleBtn" aria-expanded="${open}">
@@ -2107,10 +2112,11 @@ function renderDeadlinePanel() {
      発注者会社の管理者(role=admin)は回答を受け取る側なので発注者ビューを見せる
      （チャンネル判定と同じ理由で hasAdminLevelAccess では判定しない）。 */
   if (!isModeler(user) && !isInternalAdmin(user)) {
-    head.innerHTML = chip('希望納期', deadlineVal)
+    head.innerHTML = chips(chip('希望納期', deadlineVal)
       + arrow
       + chip('回答納期', replyDate || '—', replyColor)
-      + badge(rs);
+      + badge(rs));
+    acts.innerHTML = '';   // 発注者は開閉ボタンを持たない
 
     let html = '';
     if (replyDate && replyNote) {
@@ -2163,10 +2169,10 @@ function renderDeadlinePanel() {
       ? { label:'回答済み', cls:'badge-approved',  icon:'fa-circle-check' }
       : { label:'未回答',   cls:'badge-submitted', icon:'fa-clock' };
 
-    head.innerHTML = chip('発注者の希望納期', deadlineVal)
+    head.innerHTML = chips(chip('発注者の希望納期', deadlineVal)
       + (replyDate ? arrow + chip('確定回答', replyDate, replyColor) : '')
-      + badge(selfBadge)
-      + (editable ? toggle(replied ? '回答を修正' : '納期を回答', open) : '');
+      + badge(selfBadge));
+    acts.innerHTML = editable ? toggle(replied ? '回答を修正' : '納期を回答', open) : '';
 
     panel.innerHTML = open ? `
       <div class="deadline-body">
@@ -2244,11 +2250,11 @@ function renderDeadlinePanel() {
   /* ── 社内管理者ビュー ── */
   const open = editable && (deadlineFormOpen ?? !replyDate);
 
-  head.innerHTML = chip('発注者の希望納期', deadlineVal)
+  head.innerHTML = chips(chip('発注者の希望納期', deadlineVal)
     + arrow
     + chip('回答納期', replyDate || '未回答', replyColor)
-    + badge(rs)
-    + (editable ? toggle(replyDate ? '回答を修正' : '回答を入力', open) : '');
+    + badge(rs));
+  acts.innerHTML = editable ? toggle(replyDate ? '回答を修正' : '回答を入力', open) : '';
 
   /* 回答済みの署名行。編集フォームでは回答納期・ステータスがヘッダーに、コメントが入力欄に
      入っていて重複するので出さない。編集できない納品済み・キャンセルのときだけ、
