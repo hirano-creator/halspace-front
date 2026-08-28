@@ -1109,6 +1109,66 @@ const Viewer = (() => {
     return text;
   }
 
+  /* PDFに3Dモデル（PRC / U3D）が埋め込まれているかを判定する。
+     Chrome/Edgeの内蔵ビューアもpdf.jsも3D注釈を描画しないため、この種のPDFは
+     iframeに載せても真っ白なページになる（実際に扱っているものはいずれも
+     3D注釈だけで、テキスト・画像・ベクター描画をひとつも持たない）。
+     オブジェクトストリームに圧縮されていると検出できないが、その場合は
+     従来どおりiframeで開くだけなので表示は悪化しない。 */
+  function _hasPdf3D(buf) {
+    return /\/Subtype\s*\/(?:PRC|U3D|3D)[^A-Za-z]/.test(new TextDecoder('latin1').decode(buf));
+  }
+
+  /* 3D PDFの案内を描画する。ブラウザでは3Dを表示できないため、
+     ダウンロードとAcrobat Reader（3Dを表示できるのはデスクトップ版のみ）へ誘導する。 */
+  function _render3dPdfNotice(container, file, buf) {
+    const btn = 'display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border-radius:8px;'
+      + 'font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;border:1px solid transparent;';
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;'
+      + 'justify-content:center;gap:14px;padding:32px;text-align:center;color:#6c7086;font-size:14px;';
+    wrap.innerHTML = `
+      <i class="fa-solid fa-cube" style="font-size:56px;color:#00b894;"></i>
+      <strong style="font-size:16px;color:#cdd6f4;">3Dモデル埋め込みPDF（PRC形式）</strong>
+      <span style="max-width:540px;line-height:1.9;">
+        このPDFは3Dモデルだけが入っているため、ブラウザでは表示できません。<br>
+        ダウンロードして <b style="color:#cdd6f4;">Adobe Acrobat Reader</b> で開くと、回転・拡大して確認できます。
+      </span>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px;">
+        <button type="button" data-act="dl" style="${btn}background:#ff6b35;color:#fff;">
+          <i class="fa-solid fa-download"></i> ダウンロード
+        </button>
+        <a href="https://get.adobe.com/jp/reader/" target="_blank" rel="noopener"
+           style="${btn}background:rgba(255,255,255,.08);color:#cdd6f4;border-color:rgba(255,255,255,.16);">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> Acrobat Reader を入手
+        </a>
+      </div>
+      <button type="button" data-act="raw" style="background:none;border:none;color:#6c7086;font-size:12px;
+              text-decoration:underline;cursor:pointer;margin-top:2px;">
+        それでもPDFとして表示する（3D部分は表示されません）
+      </button>`;
+    container.appendChild(wrap);
+
+    const blobUrl = URL.createObjectURL(new Blob([buf], { type: 'application/pdf' }));
+    wrap.dataset.blobUrl = blobUrl;
+
+    wrap.querySelector('[data-act="dl"]').addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = file.file_name || 'model.pdf';
+      a.click();
+    });
+    /* 2Dページを併せ持つ複合PDF向けの逃げ道。3D注釈のみのPDFなら白紙が出る */
+    wrap.querySelector('[data-act="raw"]').addEventListener('click', () => {
+      wrap.remove();
+      const iframe = document.createElement('iframe');
+      iframe.id = 'pdfFrame';
+      iframe.src = blobUrl + '#toolbar=1&navpanes=0';
+      iframe.dataset.blobUrl = blobUrl;
+      container.appendChild(iframe);
+    });
+  }
+
   function _openPdf(file, content, loading) {
     const url = file.preview_url
       || (file.id ? `${API_BASE}/files/${file.id}/view` : null);
@@ -1120,6 +1180,7 @@ const Viewer = (() => {
     }
 
     if (file.preview_url) {
+      /* 公開URLは本体を取得しないためここでは3D判定を行わない */
       loading.remove();
       const iframe = document.createElement('iframe');
       iframe.id = 'pdfFrame';
@@ -1128,10 +1189,11 @@ const Viewer = (() => {
     } else {
       _resolveFileUrl(url)
         .then(realUrl => fetch(realUrl))
-        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
-        .then(blob => {
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
+        .then(buf => {
           loading.remove();
-          const blobUrl = URL.createObjectURL(blob);
+          if (_hasPdf3D(buf)) { _render3dPdfNotice(content, file, buf); return; }
+          const blobUrl = URL.createObjectURL(new Blob([buf], { type: 'application/pdf' }));
           const iframe = document.createElement('iframe');
           iframe.id = 'pdfFrame';
           iframe.src = blobUrl + '#toolbar=1&navpanes=0';
@@ -1339,5 +1401,6 @@ const Viewer = (() => {
     return DXF;
   }
 
-  return { open, close, _parseDXF: parseDXF, _drawDXF, _createDxfEngine, _occtToGeometry };
+  return { open, close, _parseDXF: parseDXF, _drawDXF, _createDxfEngine, _occtToGeometry,
+           _hasPdf3D, _render3dPdfNotice };
 })();

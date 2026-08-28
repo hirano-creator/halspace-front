@@ -242,10 +242,20 @@ async function _openFile(file) {
 async function _openPdf(file, content, loading) {
   const url = `${API_BASE}/files/${file.id}/view`;
   try {
-    const buf  = await _fetchFileBuffer(url);
-    const blob = new Blob([buf], { type: 'application/pdf' });
+    const buf = await _fetchFileBuffer(url);
     loading.remove();
-    const blobUrl = URL.createObjectURL(blob);
+
+    /* 3Dモデル埋め込みPDF（PRC）はブラウザが3D注釈を描画できず白紙になるため、
+       iframeに載せずにダウンロード＋Acrobat Readerへ誘導する */
+    if (Viewer._hasPdf3D(buf)) {
+      document.getElementById('viewerFileType').textContent = '3D PDF (PRC)';
+      document.getElementById('viewerIcon').innerHTML =
+        '<i class="fa-solid fa-cube" style="color:#00b894;"></i>';
+      Viewer._render3dPdfNotice(content, file, buf);
+      return;
+    }
+
+    const blobUrl = URL.createObjectURL(new Blob([buf], { type: 'application/pdf' }));
     const iframe = document.createElement('iframe');
     iframe.src = blobUrl + '#toolbar=1&navpanes=0';
     content.appendChild(iframe);
