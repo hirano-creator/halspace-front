@@ -1681,16 +1681,30 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 /* ── 納期カード（コンパクト表示） ──
    ここが縦に伸びると下のステータス・3Dモデルが初期表示から押し出されるため、
    サマリーはカードヘッダーの1行に収め、入力フォームだけを開閉する */
-.card-tight { padding: 22px 20px; }
+.card-tight { padding: 22px 20px; container-type: inline-size; }
 .card-tight .card-header { margin-bottom: 0; gap: 10px 16px; flex-wrap: wrap; }
+.card-tight .card-title { flex: 0 0 auto; }
+.deadline-actions { display: flex; align-items: center; flex: 0 0 auto; }
+/* 開閉ボタンを持たない発注者ビューでは、空の枠が gap 分だけ右に隙間を作るので消す */
+.deadline-actions:empty { display: none; }
 
 .deadline-summary {
   display: flex;
   align-items: center;
   gap: 8px 14px;
   flex: 1;
+  min-width: 0;
+  justify-content: flex-end;
+}
+/* 折り返すのはチップ側だけ。開閉ボタンは常にチップ群と同じ行の右端に置く
+   （ボタンだけが下の行に落ちると、タイトルの右に大きな空白ができて崩れて見える） */
+.deadline-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px 14px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  min-width: 0;
 }
 .deadline-chip { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
 .deadline-chip em { font-style: normal; font-size: 11px; color: var(--muted); }
@@ -1720,6 +1734,27 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   color: var(--blue);
   border-color: rgba(9,132,227,.45);
   background: rgba(9,132,227,.07);
+}
+
+/* カードが狭いとき（＝サイドのコメント欄に押されて1行に収まらないとき）は
+   「タイトル＋開閉ボタン」／「納期サマリー」の2段に組み替える。ウィンドウ幅ではなく
+   カード自身の幅で切り替えるので、コメント欄が下に回って横幅が戻れば1行表示に戻る */
+@container (max-width: 720px) {
+  .card-tight .card-title { flex: 1 1 auto; }
+  .deadline-summary { flex: 1 1 100%; order: 1; justify-content: flex-start; }
+  .deadline-chips   { justify-content: flex-start; }
+  /* 開閉ボタンを持たない発注者ビューは、タイトルだけの行を作らず従来どおり横に並べる */
+  .card-tight .card-header:has(.deadline-actions:empty) .deadline-summary {
+    flex: 1 1 auto; order: 0; justify-content: flex-end;
+  }
+  .card-tight .card-header:has(.deadline-actions:empty) .deadline-chips { justify-content: flex-end; }
+}
+
+/* さらに狭いカード幅では、サマリー1行に収めるため文字も一段小さくする */
+@container (max-width: 520px) {
+  .deadline-chips { gap: 4px 10px; }
+  .deadline-chip b  { font-size: 14px; }
+  .deadline-chip em { font-size: 10px; }
 }
 
 /* 展開部（回答フォーム・回答メモ） */
@@ -1755,7 +1790,8 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 .deadline-form-row .btn { flex-shrink: 0; }
 
 @media (max-width: 700px) {
-  .deadline-summary { justify-content: flex-start; }
+  .deadline-summary,
+  .deadline-chips { justify-content: flex-start; }
   .deadline-field { flex: 1 1 100% !important; }
 }
 
