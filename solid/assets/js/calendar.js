@@ -148,26 +148,32 @@ function makeCell(date, otherMonth) {
   items.slice(0, MAX_VISIBLE).forEach(({ p, type }) => {
     const bar = document.createElement('div');
     const co  = _companyLine(p);
+    let reason;
     if (type === 'delivered') {
       bar.className = 'cal-bar cal-bar-delivered';
       bar.innerHTML = `<div class="cal-bar-title"><i class="fa-solid fa-circle-check" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}</div>${co}`;
+      reason = `納品完了: ${p.delivered_at}`;
     } else if (type === 'replied') {
       bar.className = `cal-bar cal-bar-${p.status}`;
       bar.innerHTML = `<div class="cal-bar-title"><i class="fa-solid fa-flag" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}</div>${co}`;
-      bar.title = `${p.title}（回答納期: ${p.deadline_replied}）`;
+      reason = `回答納期: ${p.deadline_replied}`;
     } else if (type === 'requested') {
       bar.className = `cal-bar cal-bar-${p.status}`;
       bar.innerHTML = `<div class="cal-bar-title"><i class="fa-solid fa-clock" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}</div>${co}`;
-      bar.title = `${p.title}（希望納期: ${p.deadline_requested} / 未回答）`;
+      reason = `希望納期: ${p.deadline_requested}（回答待ち）`;
     } else if (type === 'overdue') {
       bar.className = `cal-bar cal-bar-${p.status}`;
       bar.innerHTML = `<div class="cal-bar-title"><i class="fa-solid fa-triangle-exclamation" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}</div>${co}`;
-      bar.title = `${p.title}（期限超過）`;
+      reason = `期限超過（納期: ${p.deadline_replied || p.deadline_requested}）`;
     } else {
       bar.className = `cal-bar cal-bar-${p.status}`;
       bar.innerHTML = `<div class="cal-bar-title">${_short(p.title)}</div>${co}`;
+      reason = '納期未設定';
     }
-    bar.title = _companyName(p) ? `${p.title}（${_companyName(p)}）` : p.title;
+    /* この日に出ている理由（納期の種別）が分かるようにする。会社名は末尾に添える */
+    const coName = _companyName(p);
+    bar.title = `${p.title}${coName ? '（' + coName + '）' : ''}
+${reason}`;
     bar.style.cursor = 'pointer';
     bar.addEventListener('click', () => { location.href = `project-detail.html?id=${p.id}`; });
     cell.appendChild(bar);
@@ -236,10 +242,11 @@ function showDayPopup(items, dateStr, anchorEl) {
     else if (type === 'requested') icon = '<i class="fa-solid fa-clock" style="margin-right:5px;"></i>';
     else if (type === 'overdue')   icon = '<i class="fa-solid fa-triangle-exclamation" style="margin-right:5px;"></i>';
 
-    const dateInfo = type === 'delivered' ? p.delivered_at
+    const dateInfo = type === 'delivered' ? `納品完了: ${p.delivered_at}`
       : type === 'replied'   ? `回答納期: ${p.deadline_replied}`
-      : type === 'requested' ? `希望納期: ${p.deadline_requested}`
-      : type === 'overdue'   ? '期限超過' : '';
+      : type === 'requested' ? `希望納期: ${p.deadline_requested}（回答待ち）`
+      : type === 'overdue'   ? `期限超過（納期: ${p.deadline_replied || p.deadline_requested}）`
+      : '納期未設定';
 
     const coName = _companyName(p);
     item.innerHTML = `
