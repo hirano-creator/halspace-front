@@ -663,6 +663,8 @@ function renderFileSection(area, files, opts = {}) {
     const canPreview = ['pdf', 'dxf', 'dwg', 'stl', 'stp', 'step'].includes(ext);
     const name  = escapeHtml(f.file_name);
     const isSel = selectedFileIds.has(f.id);
+    // アップロード日時（APIは Y-m-d H:i 形式の文字列で返す）
+    const uploadedAt = f.created_at ? ` · ${escapeHtml(f.created_at)}` : '';
 
     // 検査依頼前（pending）バッジは3Dモデルエリア（検査対象）でのみ表示
     const badge = (f.review_status === 'pending' || !f.review_status)
@@ -710,7 +712,7 @@ function renderFileSection(area, files, opts = {}) {
         <div class="file-item-info">
           <div class="file-item-name">${name}</div>
           <div style="font-size:12px;color:var(--muted);">
-            ${TYPE_LABEL[f.file_type]||f.file_type||'ファイル'} · ${formatBytes(f.file_size)} · ${escapeHtml(f.uploaded_by_name||f.uploaded_by||'')}
+            ${TYPE_LABEL[f.file_type]||f.file_type||'ファイル'} · ${formatBytes(f.file_size)} · ${escapeHtml(f.uploaded_by_name||f.uploaded_by||'')}${uploadedAt}
           </div>
           ${reviewMeta}
         </div>
