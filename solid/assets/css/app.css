@@ -1163,6 +1163,9 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   font-size: 11px;
   color: var(--muted);
 }
+/* hoverで編集・削除ボタンが増えたときに「編集済み」や役割名が縦に潰れないよう、
+   メタ行は折り返さず、必要なら bubble-wrap 側の幅を広げる */
+.chat-meta > * { flex-shrink: 0; white-space: nowrap; }
 .chat-msg.mine .chat-meta { flex-direction: row-reverse; }
 .chat-meta-name { font-weight: 700; color: var(--dark); font-size: 12px; }
 
@@ -1182,6 +1185,71 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 }
 .chat-del-btn:hover { color: var(--danger); background: rgba(225,112,85,.12); }
 .chat-bubble-wrap:hover .chat-del-btn { display: flex; }
+
+.chat-edit-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px; height: 20px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--trans), background var(--trans);
+  margin-left: 2px;
+}
+.chat-edit-btn:hover { color: var(--blue); background: rgba(9,132,227,.12); }
+.chat-bubble-wrap:hover .chat-edit-btn { display: flex; }
+
+.chat-edited { font-size: 10px; font-style: italic; color: var(--muted); }
+
+/* 編集中バブル（自分の投稿は青地なので、入力欄まわりだけ白地に戻す。
+   .chat-msg.mine .chat-bubble が後方に定義されているため mine 側も明示する） */
+.chat-bubble.chat-bubble-editing,
+.chat-msg.mine .chat-bubble.chat-bubble-editing {
+  background: var(--white);
+  color: var(--text);
+  border: 1.5px solid var(--blue);
+  padding: 8px;
+  min-width: 240px;
+}
+.chat-edit-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text);
+  background: var(--white);
+  resize: none;
+  outline: none;
+}
+.chat-edit-textarea:focus { border-color: var(--blue); }
+.chat-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 6px;
+}
+.chat-edit-actions button {
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--trans), color var(--trans);
+}
+.chat-edit-cancel { background: #f1f5f9; color: var(--muted); }
+.chat-edit-cancel:hover { background: #e2e8f0; color: var(--text); }
+.chat-edit-save { background: var(--blue); color: var(--white); }
+.chat-edit-save:hover { filter: brightness(1.08); }
 
 .chat-bubble {
   padding: 10px 14px;
