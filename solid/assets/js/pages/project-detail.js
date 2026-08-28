@@ -10,6 +10,10 @@ const projId = Number(params.get('id')) || 1;
 let project  = null;
 let comments = [];
 let allModelers = [];
+/* チャットのインライン編集中の状態（再描画をまたいで入力を保持する） */
+let editingCommentId = null;
+let editingDraft = '';
+let focusEditor = false;
 
 /* タイムライン設定 */
 /* 発注者確認（approved）ステップは廃止し、管理者検査 → 納品完了 で確定する。
@@ -1475,6 +1479,12 @@ function renderChat() {
   const prevScrollTop = box.scrollTop;
   const list = comments.filter(c => c.channel === currentChannel);
 
+  // 編集中のコメントが表示対象から外れたとき（チャンネル切替・他端末での削除）は編集状態を落とす
+  if (editingCommentId && !list.some(c => Number(c.id) === Number(editingCommentId))) {
+    editingCommentId = null;
+    editingDraft = '';
+  }
+
   if (!list.length) {
     box.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:32px 0;">まだメッセージがありません</div>';
     return;
@@ -1508,6 +1518,23 @@ function renderChat() {
     const delBtn = canDel
       ? `<button class="chat-del-btn" data-comment-id="${c.id}" title="削除"><i class="fa-solid fa-trash-can"></i></button>`
       : '';
+    // 編集は本人のみ（管理者でも他人の発言は書き換えない = APIの権限と揃える）
+    const isEditing = Number(c.id) === Number(editingCommentId);
+    const editBtn = Number(c.user_id) === Number(user.id) && !isEditing
+      ? `<button class="chat-edit-btn" data-edit-id="${c.id}" title="編集"><i class="fa-solid fa-pen"></i></button>`
+      : '';
+    const editedMark = c.edited_at ? '<span class="chat-edited">編集済み</span>' : '';
+
+    const bubbleHtml = isEditing
+      ? `<div class="chat-bubble chat-bubble-editing">
+          <textarea class="chat-edit-textarea" data-edit-input rows="2">${escapeTextValue(editingDraft)}</textarea>
+          ${imgHtml}
+          <div class="chat-edit-actions">
+            <button class="chat-edit-cancel" data-edit-cancel>キャンセル</button>
+            <button class="chat-edit-save" data-edit-save>保存</button>
+          </div>
+         </div>`
+      : `<div class="chat-bubble">${textHtml}${imgHtml}</div>`;
 
     return `${divider}
     <div class="chat-msg${isMine?' mine':''}">
@@ -1517,9 +1544,11 @@ function renderChat() {
           <span class="chat-meta-name">${isMine ? 'あなた' : userName}</span>
           <span>${roleLabel(role, solidType)}</span>
           <span>${(c.created_at||'').split(' ')[1] || c.created_at || ''}</span>
+          ${editedMark}
+          ${editBtn}
           ${delBtn}
         </div>
-        <div class="chat-bubble">${textHtml}${imgHtml}</div>
+        ${bubbleHtml}
       </div>
       ${isMine ? `<div class="chat-avatar ${avatarCls(role, solidType)}">${userName.charAt(0)}</div>` : ''}
     </div>`;
@@ -1534,6 +1563,32 @@ function renderChat() {
   box.querySelectorAll('.chat-del-btn').forEach(btn => {
     btn.addEventListener('click', () => deleteComment(Number(btn.dataset.commentId)));
   });
+
+  box.querySelectorAll('.chat-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => startEditComment(Number(btn.dataset.editId)));
+  });
+
+  const editor = box.querySelector('[data-edit-input]');
+  if (editor) {
+    autoGrowEditor(editor);
+    editor.addEventListener('input', () => {
+      editingDraft = editor.value;
+      autoGrowEditor(editor);
+    });
+    editor.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.preventDefault(); cancelEditComment(); return; }
+      // 入力欄と同じ操作感（Enterで確定 / Shift+Enterで改行）。IME変換中は無視
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); saveEditComment(); }
+    });
+    box.querySelector('[data-edit-save]')?.addEventListener('click', saveEditComment);
+    box.querySelector('[data-edit-cancel]')?.addEventListener('click', cancelEditComment);
+    // フォーカスは編集開始時だけ。ポーリング再描画のたびに奪うとカーソルが飛ぶ
+    if (focusEditor) {
+      focusEditor = false;
+      editor.focus();
+      editor.setSelectionRange(editor.value.length, editor.value.length);
+    }
+  }
 
   // 認証付きで画像を非同期ロード
   loadAuthImages(box);
@@ -1577,6 +1632,52 @@ function loadAuthImages(container) {
   });
 }
 
+function autoGrowEditor(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+}
+
+function startEditComment(commentId) {
+  const target = comments.find(c => Number(c.id) === Number(commentId));
+  if (!target) return;
+  editingCommentId = Number(commentId);
+  editingDraft = target.body ?? '';
+  focusEditor = true;
+  renderChat();
+}
+
+function cancelEditComment() {
+  editingCommentId = null;
+  editingDraft = '';
+  renderChat();
+}
+
+async function saveEditComment() {
+  const commentId = editingCommentId;
+  if (!commentId) return;
+  const target = comments.find(c => Number(c.id) === Number(commentId));
+  if (!target) { cancelEditComment(); return; }
+
+  const body = (editingDraft ?? '').trim();
+  const hasImage = !!(target.image_path || target.image || target._blobUrl);
+  if (!body && !hasImage) { showToast('本文を入力してください', 'error'); return; }
+  if (body === (target.body ?? '')) { cancelEditComment(); return; }
+
+  try {
+    const data = await api.patch(`/comments/${commentId}`, { body });
+    // 添付画像のBlob URLはローカルにしかないので引き継ぐ
+    const blobUrl = target._blobUrl;
+    Object.assign(target, data?.comment ?? { body, edited_at: '' });
+    if (blobUrl) target._blobUrl = blobUrl;
+    editingCommentId = null;
+    editingDraft = '';
+    renderChat();
+    showToast('メッセージを編集しました', 'success');
+  } catch (e) {
+    showToast(e.message || '編集に失敗しました', 'error');
+  }
+}
+
 async function deleteComment(commentId) {
   if (!confirm('このメッセージを削除しますか？')) return;
   try {
@@ -1587,6 +1688,12 @@ async function deleteComment(commentId) {
   } catch {
     showToast('削除に失敗しました', 'error');
   }
+}
+
+/* textarea の初期値用。escapeHtml と違い改行を <br> に変換しない */
+function escapeTextValue(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 function escapeHtml(str) {
@@ -2124,7 +2231,7 @@ async function init() {
   // ほぼリアルタイム更新: 3秒ごとに軽量version APIをポーリングし、
   // 変化があったときだけ詳細を再取得して差分単位で再描画する
   const reviewSig   = fs => (fs ?? []).map(f => `${f.id}:${f.review_status}`).join(',');
-  const commentsSig = cs => (cs ?? []).map(c => c.id).join(',');
+  const commentsSig = cs => (cs ?? []).map(c => `${c.id}:${c.edited_at ?? ''}`).join(',');
   const deadlineSig = p  => [p.deadline_requested, p.deadline_replied, p.deadline_reply_status,
                              p.deadline_reply_note, p.deadline_at].join('|');
 
