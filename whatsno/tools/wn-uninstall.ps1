@@ -56,10 +56,35 @@ if ($classicKey) {
         "What'sNo アンインストール", 'YesNo', 'Question')
     if ($restore -eq 'Yes') {
         Remove-WnRegKey $classicRoot
-        Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Seconds 2
-        if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
-            Start-Process explorer.exe
+        # 強制終了はしない。設定を保存せずに落ちるとデスクトップのアイコン配置が
+        # 壊れるため、正規の終了経路（Ctrl+Shift+右クリックの「エクスプローラーの
+        # 終了」と同じ WM_USER+436）を使う。失敗したら再起動せず次回サインインに任せる。
+        if (-not ([System.Management.Automation.PSTypeName]'WnShellExit').Type) {
+            Add-Type -Language CSharp -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public class WnShellExit {
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string c, string w);
+  [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr wp, IntPtr lp);
+}
+'@
+        }
+        $exited = $false
+        $tray = [WnShellExit]::FindWindow('Shell_TrayWnd', $null)
+        if ($tray -ne [IntPtr]::Zero) {
+            [WnShellExit]::PostMessage($tray, 0x5B4, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+            for ($i = 0; $i -lt 60; $i++) {
+                Start-Sleep -Milliseconds 250
+                if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) { $exited = $true; break }
+            }
+        }
+        if ($exited) {
+            Start-Sleep -Seconds 1
+            if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) { Start-Process explorer.exe }
+        } else {
+            [System.Windows.Forms.MessageBox]::Show(
+                'エクスプローラーを再起動できませんでした。次回サインイン時に元へ戻ります。',
+                "What'sNo アンインストール", 'OK', 'Information') | Out-Null
         }
     }
 }

@@ -5672,7 +5672,7 @@ function initDesktopIntegrationModal() {
   const copyBtn      = document.getElementById('desktopTokenCopy');
   const saveAllBtn   = document.getElementById('desktopSaveAllBtn');
   const saveAllStatus = document.getElementById('desktopSaveAllStatus');
-  const DESKTOP_SCRIPT_FILES = ['wn-install.ps1', 'wn-upload.ps1', 'wn-token-handler.ps1', 'wn-sync-server.ps1'];
+  const DESKTOP_SCRIPT_FILES = ['wn-install.ps1', 'wn-upload.ps1', 'wn-token-handler.ps1', 'wn-sync-server.ps1', 'wn-fix-desktop-icons.ps1'];
 
   async function fetchScriptBlob(name) {
     const res = await fetch(`../tools/${name}`);
