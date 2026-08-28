@@ -2250,7 +2250,9 @@ function renderDeadlinePanel() {
     + badge(rs)
     + (editable ? toggle(replyDate ? '回答を修正' : '回答を入力', open) : '');
 
-  /* 回答済みの署名行はフォームを開いたときだけ出す（畳んだ状態は1行に保つ） */
+  /* 回答済みの署名行。編集フォームでは回答納期・ステータスがヘッダーに、コメントが入力欄に
+     入っていて重複するので出さない。編集できない納品済み・キャンセルのときだけ、
+     回答内容を確認できる唯一の場所として残す。 */
   const replyMeta = replyDate ? `
         <div class="deadline-note" style="margin-bottom:8px;">
           <i class="fa-solid fa-user" style="margin-right:4px;"></i>${repliedBy || '管理者'} &nbsp;·&nbsp; ${repliedAt || ''}
@@ -2265,7 +2267,6 @@ function renderDeadlinePanel() {
   if (open) {
     html += `
       <div class="deadline-body">
-        ${replyMeta}
         <div class="deadline-hint deadline-hint-orange">
           <i class="fa-solid fa-bullhorn"></i>ここで入力した回答は発注者に表示されます。制作チームとの確認後に入力してください。
         </div>
