@@ -61,6 +61,7 @@ async function loadAndRender() {
     if (cf) url += `&company_id=${cf}`;
     const data = await api.get(url);
     cachedProjects = data?.projects ?? [];
+    cachedProjects.forEach(p => { p._slot = _displaySlot(p); });
   } catch(e) {
     console.error('カレンダーAPI取得失敗:', e);
     showToast('カレンダーデータの取得に失敗しました: ' + e.message, 'danger');
@@ -96,6 +97,20 @@ function renderCalendar() {
   }
 }
 
+/* 1案件につきカレンダーに出すバーは1本だけ。
+   納品日 > 回答納期 > 希望納期 の優先順で表示日を決める。
+   回答納期が決まった時点で希望納期のバーは出さない（重複表示の防止）。 */
+function _displaySlot(p) {
+  const delivered = p.delivered_at       ? p.delivered_at.slice(0, 10)       : null;
+  const replied   = p.deadline_replied   ? p.deadline_replied.slice(0, 10)   : null;
+  const requested = p.deadline_requested ? p.deadline_requested.slice(0, 10) : null;
+
+  if (delivered) return { date: delivered, type: 'delivered' };
+  if (replied)   return { date: replied,   type: 'replied'   };
+  if (requested) return { date: requested, type: 'requested' };
+  return { date: null, type: 'no_date' };
+}
+
 function makeCell(date, otherMonth) {
   const cell = document.createElement('div');
   const ds   = fmt(date);
@@ -112,25 +127,20 @@ function makeCell(date, otherMonth) {
 
   const items = [];
   cachedProjects.forEach(p => {
-    const replied   = p.deadline_replied   ? p.deadline_replied.slice(0, 10)   : null;
-    const requested = p.deadline_requested ? p.deadline_requested.slice(0, 10) : null;
-    const delivered = p.delivered_at       ? p.delivered_at.slice(0, 10)       : null;
+    const slot = p._slot ?? _displaySlot(p);
 
-    // 1. 納品日がこの日
-    if (delivered === ds) { items.push({ p, type: 'delivered' }); return; }
+    // 1. 表示日がこの日（当月より前のセルには出さず、3. の期限超過として月初にまとめる）
+    if (slot.date && slot.date === ds && ds >= curMonthFirst) {
+      items.push({ p, type: slot.type });
+      return;
+    }
 
-    // 2. 回答納期がこの日
-    if (replied && replied === ds) { items.push({ p, type: 'replied' }); return; }
+    // 2. 納期未設定 → 当月1日に表示
+    if (!slot.date && ds === curMonthFirst) { items.push({ p, type: 'no_date' }); return; }
 
-    // 3. 回答納期なし・希望納期がこの日
-    if (!replied && requested && requested === ds) { items.push({ p, type: 'requested' }); return; }
-
-    // 4. 回答納期も希望納期も当月より前または未設定 → 当月1日に表示
-    const showDate = replied || requested;
-    const isOverdue = showDate && showDate < curMonthFirst;
-    const noDate = !showDate;
-    if ((isOverdue || noDate) && ds === curMonthFirst) {
-      items.push({ p, type: isOverdue ? 'overdue' : 'no_date' });
+    // 3. 表示日が当月より前の未納品案件（期限超過）→ 当月1日に表示
+    if (slot.date && slot.date < curMonthFirst && slot.type !== 'delivered' && ds === curMonthFirst) {
+      items.push({ p, type: 'overdue' });
     }
   });
 
