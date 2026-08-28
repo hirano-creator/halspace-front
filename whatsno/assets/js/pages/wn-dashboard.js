@@ -218,19 +218,15 @@ function initSkillBar() {
 
   /* 打っている間に共有リンクを用意しておく（Enterの時点では発行済みにする）。
      選択が無いときは検索目的の入力なので何もしない。 */
-  let skillPrefetchTimer = null;
   input.addEventListener('input', () => {
-    clearTimeout(skillPrefetchTimer);
-    if (input.value.trim() === '' || selectedIds.length === 0) return;
-    skillPrefetchTimer = setTimeout(() => {
-      const files = selectedIds.map(id => allFiles.find(f => String(f.id) === String(id))).filter(Boolean);
-      if (files.length) ensureShareLinks(files);
-    }, 500);
+    if (input.value.trim() === '') return;
+    scheduleSharePrefetch();
   });
 
   /* 入力を始める段階で連絡先を読んでおく。
      宛先の解決に使うので、実行時に必ず1往復ぶん待たされていた（打っている間に済ませる） */
   input.addEventListener('focus', () => {
+    scheduleSharePrefetch();   // すでに選択済みなら共有リンクもここで用意しておく
     if (allContactsLoaded) return;
     wnGetContacts().then(list => { allContactsCache = list; allContactsLoaded = true; }).catch(() => {});
   });
@@ -1495,8 +1491,6 @@ function deleteContactById(id) {
    判定できないとき（宛先が不明・メール以外の指示）だけ従来どおりAIに任せる。
    ──────────────────────────────── */
 
-// メールを送る意図のキーワード（サーバーの routeSkillFallback と揃える）
-const WN_MAIL_INTENT_RE = /(メール|送信|送って|送付|送る|依頼|連絡)/;
 // メール以外のスキルに振るべき指示。こちらはAIの判定に任せる
 const WN_OTHER_SKILL_RE = /(共有リンク|リンクを|承認|決裁|申請|タグ)/;
 // LINEで送る意図。LINEは宛先を持たないのでAIに宛先を解決させる必要がなく、
@@ -1571,10 +1565,10 @@ function wnLocalMailDraft(instruction, contacts) {
   if (WN_OTHER_SKILL_RE.test(instruction)) return null;   // 共有リンク・承認・タグはAIの判定に任せる
 
   const isLine = WN_LINE_INTENT_RE.test(instruction);
-  if (!isLine && !WN_MAIL_INTENT_RE.test(instruction)) return null;   // メールの指示に見えないものも任せる
-
   const c = wnMatchContactLocal(instruction, contacts || []);
-  // メールは宛先が要るのでAIに任せる。LINEは送り先をアプリ側で選ぶため宛先なしでも下書きできる
+  /* メールは宛先が要るのでAIに任せる。LINEは送り先をアプリ側で選ぶため宛先なしでも下書きできる。
+     宛先が連絡先で特定できたなら言い回しは問わない（"平野さんに" だけの指示まで
+     AIに回すと、同じ結果を出すのに1.6秒よけいにかかる）。 */
   if (!isLine && (!c || !c.email)) return null;
 
   return {
@@ -1593,6 +1587,22 @@ function ensureShareLinks(files) {
   if (missing.length === 0) return;
   const bulk = wnCreateSharesBulk(missing.map(f => f.id), { expiresDays: 30 });
   missing.forEach(f => emailShareCache.set(f.id, bulk.then(map => map?.[f.id] ?? null)));
+}
+
+/* 選択が落ち着いたところで共有リンクを先に発行しておく。
+   メール送信の待ち時間はほぼこの発行（API 1往復）で、実行時に出すと
+   そのまま待たされる。選んだ時点で済ませておけば押した瞬間に開ける。
+   送らなかったぶんは未使用のまま30日で失効するので副作用はない。 */
+let sharePrefetchTimer = null;
+function scheduleSharePrefetch() {
+  clearTimeout(sharePrefetchTimer);
+  if (selectedIds.length === 0) return;
+  // メール送信は拡張オプション。使わない会社では発行しない
+  if (typeof wnHasExtendedOptions === 'function' && !wnHasExtendedOptions()) return;
+  sharePrefetchTimer = setTimeout(() => {
+    const files = selectedIds.map(id => allFiles.find(f => String(f.id) === String(id))).filter(Boolean);
+    if (files.length) ensureShareLinks(files);
+  }, 500);   // 範囲選択の連打や連続入力で毎回叩かないための間
 }
 
 async function runSkill(instruction) {
@@ -5172,6 +5182,9 @@ function updateMergeActionBar() {
     unshareBtn.disabled = n === 0;
     unshareBtn.title = n === 0 ? '個人に戻せるファイルが選択されていません' : `${n}件を自分だけが見られる状態に戻します`;
   }
+
+  // 選んだ時点で共有リンクを用意しておく（実行時の待ちを消す）
+  scheduleSharePrefetch();
 
   // ファイル選択中はスキル入力モードとしてプレースホルダーを切り替え
   const si = document.getElementById('searchInput');
