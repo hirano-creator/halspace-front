@@ -113,10 +113,14 @@
 
           <!-- 希望納期・納期回答
                モデリング開始ボタンより「上」に置く。下にあると、上から順に画面を触った
-               モデラーが納期回答フォームに気づく前に開始を押してしまう -->
-          <div class="card" id="deadlineCard">
+               モデラーが納期回答フォームに気づく前に開始を押してしまう。
+               ただし場所を取りすぎると下のステータス・3Dモデルが初期表示から外れるので、
+               回答済みならヘッダーの1行だけに畳む（未回答なら開いたまま） -->
+          <div class="card card-tight" id="deadlineCard">
             <div class="card-header">
               <span class="card-title"><i class="fa-solid fa-calendar-check text-blue"></i> 希望納期・納期確認</span>
+              <!-- 納期サマリー＋フォームの開閉ボタン（renderDeadlinePanel が描画） -->
+              <div class="deadline-summary" id="deadlineHead"></div>
             </div>
             <div id="deadlinePanel"></div>
           </div>

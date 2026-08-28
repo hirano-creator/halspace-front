@@ -146,6 +146,9 @@ function updateModelerDeadlineHint() {
 
 /* 納期回答フォームまでスクロールして日付欄にフォーカスする */
 function focusDeadlineReply() {
+  // 回答済みだとフォームは畳まれているので、先に開いてから運ぶ
+  deadlineFormOpen = true;
+  renderDeadlinePanel();
   document.getElementById('deadlineCard')?.scrollIntoView({ behavior:'smooth', block:'center' });
   // スムーススクロールの途中でフォーカスすると位置が飛ぶため、着地を待ってから
   setTimeout(() => document.getElementById('replyDateInput')?.focus({ preventScroll:true }), 400);
@@ -2052,9 +2055,16 @@ document.getElementById('revisionSubmit')?.addEventListener('click', async () =>
   showToast('修正依頼を送りました', 'warning');
 });
 
-/* ── 希望納期・納期回答パネル ── */
+/* ── 希望納期・納期回答パネル ──
+   カードヘッダーの右に納期サマリーを1行で出し、入力フォームは折りたためるようにする。
+   閉じていればカードが1行に収まり、下のステータス・3Dモデルが最初の画面に入る。
+   未回答のときは開いた状態で描くので、回答前に見落とすことはない。 */
+let deadlineFormOpen = null;   // null=未回答なら開く / true・false はユーザーの操作を優先
+
 function renderDeadlinePanel() {
+  const head  = document.getElementById('deadlineHead');
   const panel = document.getElementById('deadlinePanel');
+  if (!head || !panel) return;
 
   /* 管理者→発注者への回答（全員が参照する公式回答） */
   const replyStatus = project.deadline_reply_status ?? project.deadline_reply?.status;
@@ -2070,37 +2080,45 @@ function renderDeadlinePanel() {
   const rs = statusMap[replyStatus] ?? { label:'未回答', cls:'badge-submitted', icon:'fa-clock' };
 
   const deadlineVal = project.deadline_requested || project.deadline_at || '—';
+  const replyColor  = replyStatus === 'ok'          ? 'var(--accent)'
+                    : replyStatus === 'negotiating' ? 'var(--danger)'
+                    : 'var(--muted)';
+  const editable = !['delivered','cancelled'].includes(project.status);
+
+  /* ヘッダー1行を組み立てる部品 */
+  const chip = (label, value, color) =>
+    `<span class="deadline-chip"><em>${label}</em><b${color ? ` style="color:${color};"` : ''}>${value}</b></span>`;
+  const arrow  = '<i class="fa-solid fa-arrow-right-long deadline-arrow"></i>';
+  const badge  = b => `<span class="badge ${b.cls}"><i class="fa-solid ${b.icon}"></i>${b.label}</span>`;
+  const toggle = (label, open) => `
+    <button type="button" class="deadline-toggle" id="deadlineToggleBtn" aria-expanded="${open}">
+      <i class="fa-solid ${open ? 'fa-chevron-up' : 'fa-pen'}"></i>${open ? '閉じる' : label}
+    </button>`;
+  const bindToggle = open => {
+    document.getElementById('deadlineToggleBtn')?.addEventListener('click', () => {
+      deadlineFormOpen = !open;
+      renderDeadlinePanel();
+      if (!open) setTimeout(() => document.getElementById('replyDateInput')?.focus({ preventScroll:true }), 0);
+    });
+  };
 
   /* ── 発注者ビュー ── */
   /* 発注者への回答納期を出すのは社内側（HaLSpace運営会社・スーパー管理者）だけ。
      発注者会社の管理者(role=admin)は回答を受け取る側なので発注者ビューを見せる
      （チャンネル判定と同じ理由で hasAdminLevelAccess では判定しない）。 */
   if (!isModeler(user) && !isInternalAdmin(user)) {
-    let html = `
-      <div style="display:flex;align-items:center;gap:16px;padding:12px 0;flex-wrap:wrap;">
-        <div style="flex:1;min-width:160px;">
-          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">希望納期</div>
-          <div style="font-size:20px;font-weight:700;font-family:'Poppins',sans-serif;color:var(--dark);">${deadlineVal}</div>
-        </div>
-        <div style="flex:1;min-width:160px;">
-          <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">回答納期</div>
-          <div style="font-size:20px;font-weight:700;font-family:'Poppins',sans-serif;color:${
-            replyStatus === 'ok' ? 'var(--accent)' : replyStatus === 'negotiating' ? 'var(--danger)' : 'var(--muted)'
-          };">${replyDate || '—'}</div>
-        </div>
-        <span class="badge ${rs.cls}" style="align-self:center;">
-          <i class="fa-solid ${rs.icon}" style="margin-right:4px;"></i>${rs.label}
-        </span>
-      </div>`;
+    head.innerHTML = chip('希望納期', deadlineVal)
+      + arrow
+      + chip('回答納期', replyDate || '—', replyColor)
+      + badge(rs);
 
+    let html = '';
     if (replyDate && replyNote) {
-      html += `
-        <div style="padding:10px 0;border-top:1px solid var(--border);font-size:13px;color:var(--muted);white-space:pre-wrap;">${escapeHtml(replyNote)}</div>`;
+      html += `<div class="deadline-body deadline-note">${escapeHtml(replyNote)}</div>`;
     }
-
     if (replyStatus === 'negotiating') {
       html += `
-        <div style="padding:12px 0;border-top:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;">
+        <div class="deadline-body" style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn btn-success btn-sm" id="deadlineAcceptBtn">
             <i class="fa-solid fa-check"></i> この日程で了承する
           </button>
@@ -2139,53 +2157,53 @@ function renderDeadlinePanel() {
 
   /* ── モデラービュー ── */
   if (isModeler(user)) {
-    let html = `
-      <div style="padding:12px 0;border-bottom:1px solid var(--border);">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">発注者の希望納期</div>
-        <div style="font-size:20px;font-weight:700;font-family:'Poppins',sans-serif;color:var(--dark);">${deadlineVal}</div>
-      </div>`;
+    const replied = !!project.modeler_deadline_replied_at;
+    const open    = editable && (deadlineFormOpen ?? !replied);
+    const selfBadge = replied
+      ? { label:'回答済み', cls:'badge-approved',  icon:'fa-circle-check' }
+      : { label:'未回答',   cls:'badge-submitted', icon:'fa-clock' };
 
-    if (!['delivered','cancelled'].includes(project.status)) {
-      html += `
-        <div style="padding:14px 0 4px;">
-          <div style="font-size:13px;font-weight:700;margin-bottom:10px;">
-            <i class="fa-solid fa-pen text-blue"></i> 管理者へ納期を回答する
+    head.innerHTML = chip('発注者の希望納期', deadlineVal)
+      + (replyDate ? arrow + chip('確定回答', replyDate, replyColor) : '')
+      + badge(selfBadge)
+      + (editable ? toggle(replied ? '回答を修正' : '納期を回答', open) : '');
+
+    panel.innerHTML = open ? `
+      <div class="deadline-body">
+        <div class="deadline-hint deadline-hint-blue">
+          <i class="fa-solid fa-lock"></i>この回答は管理者にのみ通知されます。発注者には直接表示されません。
+        </div>
+        <div class="deadline-form-row">
+          <div class="deadline-field" style="flex:0 0 150px;">
+            <label for="replyDateInput">回答納期</label>
+            <input type="date" id="replyDateInput" class="form-input"
+                   value="${project.deadline_requested || project.deadline_at || ''}">
           </div>
-          <div style="background:rgba(9,132,227,.06);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--muted);">
-            <i class="fa-solid fa-lock" style="margin-right:4px;"></i>この回答は管理者にのみ通知されます。発注者には直接表示されません。
+          <div class="deadline-field" style="flex:0 0 120px;">
+            <label for="replyStatusSelect">ステータス</label>
+            <select id="replyStatusSelect" class="form-select">
+              <option value="ok">対応可能</option>
+              <option value="negotiating">要調整</option>
+            </select>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:10px;">
-            <div>
-              <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">回答納期</label>
-              <input type="date" id="replyDateInput" class="form-input"
-                     value="${project.deadline_requested || project.deadline_at || ''}"
-                     style="font-size:13px;padding:8px 10px;">
-            </div>
-            <div>
-              <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">ステータス</label>
-              <select id="replyStatusSelect" class="form-select" style="font-size:13px;padding:8px 10px;">
-                <option value="ok">対応可能</option>
-                <option value="negotiating">要調整</option>
-              </select>
-            </div>
-            <div>
-              <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">担当モデラー</label>
-              <select id="replyModelerSelect" class="form-select" style="font-size:13px;padding:8px 10px;">
-                <option value="">— 未割当 —</option>
-                ${allModelers.map(m => `<option value="${m.id}" ${project.modeler_id == m.id ? 'selected' : ''}>${m.name}</option>`).join('')}
-              </select>
-            </div>
+          <div class="deadline-field" style="flex:0 0 150px;">
+            <label for="replyModelerSelect">担当モデラー</label>
+            <select id="replyModelerSelect" class="form-select">
+              <option value="">— 未割当 —</option>
+              ${allModelers.map(m => `<option value="${m.id}" ${project.modeler_id == m.id ? 'selected' : ''}>${m.name}</option>`).join('')}
+            </select>
           </div>
-          <textarea id="replyNoteInput" class="form-textarea" rows="2"
-                    placeholder="管理者へのコメント（任意）"
-                    style="font-size:13px;margin-bottom:8px;"></textarea>
+          <div class="deadline-field" style="flex:1 1 200px;">
+            <label for="replyNoteInput">管理者へのコメント（任意）</label>
+            <textarea id="replyNoteInput" class="form-textarea" rows="1" placeholder="任意"></textarea>
+          </div>
           <button class="btn btn-primary btn-sm" id="deadlineReplySubmit">
-            <i class="fa-solid fa-paper-plane"></i> 管理者へ送信する
+            <i class="fa-solid fa-paper-plane"></i> 送信
           </button>
-        </div>`;
-    }
+        </div>
+      </div>` : '';
 
-    panel.innerHTML = html;
+    bindToggle(open);
 
     document.getElementById('deadlineReplySubmit')?.addEventListener('click', async () => {
       const date     = document.getElementById('replyDateInput').value;
@@ -2215,6 +2233,8 @@ function renderDeadlinePanel() {
         const data = await api.post(`/projects/${projId}/modeler-deadline-reply`, {});
         if (data?.project) { project = data.project; comments = project.comments ?? []; }
       } catch {}
+      deadlineFormOpen = false;   // 送信後は畳んで下の作業エリアを広く見せる
+      renderDeadlinePanel();
       updateModelerDeadlineHint();
       showToast('管理者へ回答を送りました', 'success');
     });
@@ -2222,65 +2242,60 @@ function renderDeadlinePanel() {
   }
 
   /* ── 社内管理者ビュー ── */
-  let html = `
-    <div style="display:flex;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
-      <div style="flex:1;min-width:140px;">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">発注者の希望納期</div>
-        <div style="font-size:18px;font-weight:700;font-family:'Poppins',sans-serif;color:var(--dark);">${deadlineVal}</div>
-      </div>
-      <div style="flex:1;min-width:140px;">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">発注者への回答納期</div>
-        <div style="font-size:18px;font-weight:700;font-family:'Poppins',sans-serif;color:${
-          replyStatus === 'ok' ? 'var(--accent)' : replyStatus === 'negotiating' ? 'var(--danger)' : 'var(--muted)'
-        };">${replyDate || '未回答'}</div>
-      </div>
-      <span class="badge ${rs.cls}" style="align-self:center;">
-        <i class="fa-solid ${rs.icon}" style="margin-right:4px;"></i>${rs.label}
-      </span>
-    </div>`;
+  const open = editable && (deadlineFormOpen ?? !replyDate);
 
-  if (replyDate) {
-    html += `
-      <div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);">
-        <i class="fa-solid fa-user" style="margin-right:4px;"></i>${repliedBy || '管理者'} &nbsp;·&nbsp; ${repliedAt || ''}
-        ${replyNote ? `<div style="margin-top:4px;font-size:13px;color:var(--dark);white-space:pre-wrap;">${escapeHtml(replyNote)}</div>` : ''}
-      </div>`;
+  head.innerHTML = chip('発注者の希望納期', deadlineVal)
+    + arrow
+    + chip('回答納期', replyDate || '未回答', replyColor)
+    + badge(rs)
+    + (editable ? toggle(replyDate ? '回答を修正' : '回答を入力', open) : '');
+
+  /* 回答済みの署名行はフォームを開いたときだけ出す（畳んだ状態は1行に保つ） */
+  const replyMeta = replyDate ? `
+        <div class="deadline-note" style="margin-bottom:8px;">
+          <i class="fa-solid fa-user" style="margin-right:4px;"></i>${repliedBy || '管理者'} &nbsp;·&nbsp; ${repliedAt || ''}
+          ${replyNote ? `<span style="margin-left:8px;color:var(--dark);">${escapeHtml(replyNote)}</span>` : ''}
+        </div>` : '';
+
+  let html = '';
+  if (!editable && replyDate) {
+    html += `<div class="deadline-body">${replyMeta}</div>`;
   }
 
-  if (!['delivered','cancelled'].includes(project.status)) {
+  if (open) {
     html += `
-      <div style="padding:14px 0 4px;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:6px;">
-          <i class="fa-solid fa-pen text-blue"></i> 発注者への回答納期を入力する
+      <div class="deadline-body">
+        ${replyMeta}
+        <div class="deadline-hint deadline-hint-orange">
+          <i class="fa-solid fa-bullhorn"></i>ここで入力した回答は発注者に表示されます。制作チームとの確認後に入力してください。
         </div>
-        <div style="background:rgba(255,107,53,.06);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--muted);">
-          <i class="fa-solid fa-bullhorn" style="margin-right:4px;"></i>ここで入力した回答は発注者に表示されます。制作チームとの確認後に入力してください。
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;">
-          <div>
-            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">回答納期</label>
+        <div class="deadline-form-row">
+          <div class="deadline-field" style="flex:0 0 150px;">
+            <label for="replyDateInput">回答納期</label>
             <input type="date" id="replyDateInput" class="form-input"
-                   value="${replyDate || project.deadline_requested || project.deadline_at || ''}"
-                   style="font-size:13px;padding:8px 10px;">
+                   value="${replyDate || project.deadline_requested || project.deadline_at || ''}">
           </div>
-          <div>
-            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">ステータス</label>
-            <select id="replyStatusSelect" class="form-select" style="font-size:13px;padding:8px 10px;">
+          <div class="deadline-field" style="flex:0 0 120px;">
+            <label for="replyStatusSelect">ステータス</label>
+            <select id="replyStatusSelect" class="form-select">
               <option value="ok"          ${replyStatus==='ok'?'selected':''}>対応可能</option>
               <option value="negotiating" ${replyStatus==='negotiating'?'selected':''}>要調整</option>
             </select>
           </div>
+          <div class="deadline-field" style="flex:1 1 200px;">
+            <label for="replyNoteInput">発注者へのコメント（任意）</label>
+            <textarea id="replyNoteInput" class="form-textarea" rows="1" placeholder="任意">${replyNote || ''}</textarea>
+          </div>
+          <button class="btn btn-primary btn-sm" id="deadlineReplySubmit">
+            <i class="fa-solid fa-paper-plane"></i> 発注者へ送信
+          </button>
         </div>
-        <textarea id="replyNoteInput" class="form-textarea" rows="2"
-                  placeholder="発注者へのコメント（任意）"
-                  style="font-size:13px;margin-bottom:8px;">${replyNote || ''}</textarea>
-        <button class="btn btn-primary btn-sm" id="deadlineReplySubmit">
-          <i class="fa-solid fa-paper-plane"></i> 発注者へ回答を送信する
-        </button>
       </div>`;
   }
 
   panel.innerHTML = html;
+
+  bindToggle(open);
 
   document.getElementById('deadlineReplySubmit')?.addEventListener('click', async () => {
     const date   = document.getElementById('replyDateInput').value;
@@ -2294,6 +2309,7 @@ function renderDeadlinePanel() {
       showToast('回答の送信に失敗しました', 'danger');
       return;
     }
+    deadlineFormOpen = false;   // 送信後は畳んで下の作業エリアを広く見せる
     renderDeadlinePanel(); renderInfo();
     showToast('発注者へ回答を送信しました', 'success');
   });
