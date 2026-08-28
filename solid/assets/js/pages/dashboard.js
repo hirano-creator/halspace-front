@@ -14,10 +14,7 @@ if (user) {
     if (label && name) label.textContent = name;
   }
 
-  /* 管理者・モデラー：会社フィルタ表示（管理リンクは管理者のみ） */
-  if (isAdmin(user) || isModeler(user)) {
-    document.getElementById('companyFilter').style.display = '';
-  }
+  /* 会社フィルタの表示はrenderCompanyFilter()が選択肢の数で決める（管理リンクは管理者のみ） */
   if (isAdmin(user)) {
     document.getElementById('adminLink').style.display     = '';
     const adminNav = document.getElementById('adminNav');
@@ -40,24 +37,42 @@ if (user) {
   }
 
   /* ── 会社フィルタ選択肢 ──
-     モデラーは/admin/companiesにアクセスできない（管理者専用API）ため、
-     モデラー向けの選択肢はloadProjects()内でプロジェクトデータから生成する。 */
+     選択肢は一覧に出ているプロジェクトの会社から作る（loadProjects()内で追加）。
+     /admin/companiesは会社スコープがかかり super_admin 以外には自社1件しか返さないため、
+     モデラー専属会社の管理者のように「自社は発注元ではないが他社の案件を見る」ユーザーでは
+     フィルタとして成立しない。運営者だけは発注実績0件の会社も選べるようAPIを併用する。 */
+  const companyOptions = new Map();   // String(company_id) → 会社名
+
   async function loadCompanyFilter() {
-    if (!isAdmin(user)) return;
+    if (user.role !== 'super_admin') return;
     try {
       const data = await api.get('/admin/companies');
-      (data?.companies ?? MOCK.companies).forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id; opt.textContent = c.name;
-        document.getElementById('companyFilter').appendChild(opt);
-      });
+      /* SOLIDを契約していない会社は発注元になり得ないので選択肢に出さない
+         （apps_enabledが無い古いレコードは判定できないため残す） */
+      (data?.companies ?? MOCK.companies)
+        .filter(c => !Array.isArray(c.apps_enabled) || c.apps_enabled.includes('solid'))
+        .forEach(c => companyOptions.set(String(c.id), c.name));
     } catch {
-      MOCK.companies.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id; opt.textContent = c.name;
-        document.getElementById('companyFilter').appendChild(opt);
-      });
+      MOCK.companies.forEach(c => companyOptions.set(String(c.id), c.name));
     }
+  }
+
+  /* 会社が1つしか見えないユーザー（自社の案件だけを見る発注者会社）にはフィルタ自体を出さない */
+  function renderCompanyFilter() {
+    const sel = document.getElementById('companyFilter');
+    if (!sel) return;
+    if (companyOptions.size < 2) { sel.style.display = 'none'; return; }
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">全会社</option>';
+    [...companyOptions.entries()]
+      .sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'ja'))
+      .forEach(([id, name]) => {
+        const opt = document.createElement('option');
+        opt.value = id; opt.textContent = name;
+        if (id === cur) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    sel.style.display = '';
   }
 
   /* ── プロジェクト取得 ── */
@@ -70,26 +85,14 @@ if (user) {
     } catch {
       allProjects = MOCK.projects;
     }
-    /* モデラー：会社フィルタの選択肢を更新。
-       絞り込み済みのallProjectsからは全社分の選択肢を復元できないため、
-       会社フィルタが未選択（＝全件取得）のときだけ選択肢を作り直す。
-       /admin/companiesは管理者専用APIのためモデラーは呼べない。 */
-    if (isModeler(user) && !isAdmin(user) && !cf) {
-      const sel = document.getElementById('companyFilter');
-      const cur = sel.value;
-      sel.innerHTML = '<option value="">すべての会社</option>';
-      const companies = [...new Map(
-        allProjects
-          .filter(p => p.company_id != null)
-          .map(p => [p.company_id, p.company_name ?? p.company])
-      ).entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'ja'));
-      companies.forEach(([id, name]) => {
-        const opt = document.createElement('option');
-        opt.value = id; opt.textContent = name;
-        if (String(id) === cur) opt.selected = true;
-        sel.appendChild(opt);
-      });
-    }
+    /* 会社フィルタの選択肢を更新。絞り込み中のallProjectsからは全社分を復元できないため、
+       一度見つけた会社は消さずに積み上げる */
+    allProjects.forEach(p => {
+      if (p.company_id != null) {
+        companyOptions.set(String(p.company_id), p.company_name ?? p.company ?? '(会社名なし)');
+      }
+    });
+    renderCompanyFilter();
     /* モデラーフィルタの選択肢を更新 */
     if (isAdmin(user) || isModeler(user)) {
       const sel = document.getElementById('modelerFilter');

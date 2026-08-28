@@ -4,23 +4,64 @@ const user = requireSpaceAuth();
 if (!user) throw new Error('未認証');
 renderSidebarUser(user);
 if (isAdmin(user)) {
-  const cf = document.getElementById('companyFilter');
-  cf.style.display = '';
   document.getElementById('adminLink').style.display = '';
-  api.get('/admin/companies').then(data => {
-    (data?.companies ?? MOCK.companies).forEach(c => {
-      const o = document.createElement('option');
-      o.value = c.id; o.textContent = c.name; cf.appendChild(o);
-    });
-  }).catch(() => {
-    MOCK.companies.forEach(c => {
-      const o = document.createElement('option');
-      o.value = c.id; o.textContent = c.name; cf.appendChild(o);
-    });
-  });
-  cf.addEventListener('change', loadAndRender);
   const adminNav = document.getElementById('adminNav');
   if (adminNav) adminNav.style.display = '';
+}
+
+/* ── 会社フィルタ ──
+   /admin/companiesは会社スコープがかかりsuper_admin以外には自社1件しか返さないため、
+   モデラー専属会社の管理者のように「自社は発注元ではないが他社の案件を見る」ユーザーでは
+   フィルタとして成立しない。選択肢はプロジェクトの会社から作る。 */
+const companyOptions = new Map();   // String(company_id) → 会社名
+
+document.getElementById('companyFilter')?.addEventListener('change', loadAndRender);
+
+function collectCompanies(projects) {
+  projects.forEach(p => {
+    if (p.company_id != null) {
+      companyOptions.set(String(p.company_id), p.company_name ?? p.company ?? '(会社名なし)');
+    }
+  });
+}
+
+async function loadCompanyFilter() {
+  /* 表示中の月に案件が無い会社が選択肢から抜けないよう、会社は全期間の一覧から拾う */
+  try {
+    const data = await api.get('/projects');
+    collectCompanies(data?.projects ?? []);
+  } catch { /* カレンダーの取得結果からも拾うので握り潰してよい */ }
+
+  /* 運営者だけは発注実績0件の会社も選べるようにする（SOLID未契約の会社は除く） */
+  if (user.role === 'super_admin') {
+    try {
+      const data = await api.get('/admin/companies');
+      (data?.companies ?? MOCK.companies)
+        .filter(c => !Array.isArray(c.apps_enabled) || c.apps_enabled.includes('solid'))
+        .forEach(c => companyOptions.set(String(c.id), c.name));
+    } catch {
+      MOCK.companies.forEach(c => companyOptions.set(String(c.id), c.name));
+    }
+  }
+  renderCompanyFilter();
+}
+
+/* 会社が1つしか見えないユーザー（自社の案件だけを見る発注者会社）にはフィルタ自体を出さない */
+function renderCompanyFilter() {
+  const sel = document.getElementById('companyFilter');
+  if (!sel) return;
+  if (companyOptions.size < 2) { sel.style.display = 'none'; return; }
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全会社</option>';
+  [...companyOptions.entries()]
+    .sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'ja'))
+    .forEach(([id, name]) => {
+      const opt = document.createElement('option');
+      opt.value = id; opt.textContent = name;
+      if (id === cur) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  sel.style.display = '';
 }
 
 /* 会社名は全ロールで物件名の下に表示する */
@@ -62,6 +103,9 @@ async function loadAndRender() {
     const data = await api.get(url);
     cachedProjects = data?.projects ?? [];
     cachedProjects.forEach(p => { p._slot = _displaySlot(p); });
+    /* 絞り込み中は全社分を取り直せないため、一度見つけた会社は消さずに積み上げる */
+    collectCompanies(cachedProjects);
+    renderCompanyFilter();
   } catch(e) {
     console.error('カレンダーAPI取得失敗:', e);
     showToast('カレンダーデータの取得に失敗しました: ' + e.message, 'danger');
@@ -316,4 +360,5 @@ document.getElementById('todayBtn').addEventListener('click', () => {
   loadAndRender();
 });
 
+loadCompanyFilter();
 loadAndRender();
