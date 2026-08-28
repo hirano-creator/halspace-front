@@ -7,7 +7,12 @@ param(
     # Windows 11 の右クリックメニューを従来型に戻すか
     #   ask  = 確認する（既定）/ on = 戻す / off = Windows 11 の新メニューに戻す / keep = 触らない
     [ValidateSet('ask', 'on', 'off', 'keep')]
-    [string]$ClassicMenu = 'ask'
+    [string]$ClassicMenu = 'ask',
+    # 従来型メニューをいつ反映するか
+    #   ask = 確認する（既定）/ now = 今すぐ（エクスプローラーを再起動）
+    #   next-logon = 次回サインイン時（再起動しない・既定の推奨）
+    [ValidateSet('ask', 'now', 'next-logon')]
+    [string]$ApplyNow = 'ask'
 )
 
 $interactive = (-not $Token)  # Token未指定 = 対話モード（ダイアログ表示）
@@ -74,6 +79,16 @@ $srcHandler    = Join-Path $srcDir 'wn-token-handler.ps1'
 $handlerScript = Join-Path $appDir 'wn-token-handler.ps1'
 if (Test-Path $srcHandler) {
     Copy-WnScript $srcHandler $handlerScript | Out-Null
+}
+
+# ── wn-fix-desktop-icons.ps1 を配置（存在する場合） ──
+# 右クリックメニュー反映のためエクスプローラーを再起動したあと、拡大率の違う
+# ディスプレイを併用している環境ではアイコンの間隔が崩れることがある。
+# その場で直せるように復旧ツールも一緒に置いておく。
+$srcFixIcons  = Join-Path $srcDir 'wn-fix-desktop-icons.ps1'
+$fixIconsScript = Join-Path $appDir 'wn-fix-desktop-icons.ps1'
+if (Test-Path $srcFixIcons) {
+    Copy-WnScript $srcFixIcons $fixIconsScript | Out-Null
 }
 
 # ── wn-sync-server.ps1 を配置（存在する場合） ──
@@ -298,13 +313,57 @@ function Test-WnClassicMenu {
     return $false
 }
 
-# 反映にはエクスプローラーの再起動が必要。開いているフォルダのウィンドウは閉じる。
+# 反映前にデスクトップのアイコン配置を控えておく。
+# 万一崩れても wn-fix-desktop-icons.ps1 と合わせて復旧できるようにするため。
+function Backup-WnDesktopLayout {
+    $dir = Join-Path $appDir 'desktop-backup'
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    reg.exe export 'HKCU\Software\Microsoft\Windows\Shell\Bags\1\Desktop' (Join-Path $dir "icons-$stamp.reg") /y 2>&1 | Out-Null
+    reg.exe export 'HKCU\Control Panel\Desktop\WindowMetrics'                 (Join-Path $dir "metrics-$stamp.reg") /y 2>&1 | Out-Null
+}
+
+# エクスプローラーを「正規の手順で」終了させる。
+# Ctrl+Shift+右クリックの「エクスプローラーの終了」と同じ経路（WM_USER+436）で、
+# 終了前に設定を保存する。
+# Stop-Process -Force で落とすと、デスクトップのアイコン座標が保存されないまま
+# 終了するため、次の起動で配置が壊れる（画面いっぱいに散らばる）。
+# ここでは絶対に強制終了へフォールバックしないこと。
+function Stop-WnExplorerGracefully {
+    if (-not ([System.Management.Automation.PSTypeName]'WnShellExit').Type) {
+        Add-Type -Language CSharp -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public class WnShellExit {
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string c, string w);
+  [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr wp, IntPtr lp);
+}
+'@
+    }
+    $tray = [WnShellExit]::FindWindow('Shell_TrayWnd', $null)
+    if ($tray -eq [IntPtr]::Zero) { return $false }
+    [WnShellExit]::PostMessage($tray, 0x5B4, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+    for ($i = 0; $i -lt 60; $i++) {
+        Start-Sleep -Milliseconds 250
+        if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) { return $true }
+    }
+    return $false
+}
+
+# 戻り値: 反映できたら $true、できなければ $false（次回サインイン時に反映される）
 function Restart-WnExplorer {
-    Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 2
+    Backup-WnDesktopLayout
+    if (-not (Stop-WnExplorerGracefully)) {
+        Write-Host "  エクスプローラーを正常に終了できませんでした。強制終了はしません" -ForegroundColor Yellow
+        Write-Host "  （アイコン配置が壊れるため）。次回サインイン時に反映されます。" -ForegroundColor Yellow
+        return $false
+    }
+    Start-Sleep -Seconds 1
     if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
         Start-Process explorer.exe
     }
+    Start-Sleep -Seconds 4
+    return $true
 }
 
 $classicOn = Test-WnClassicMenu
@@ -326,20 +385,51 @@ $applyClassic = switch ($ClassicMenu) {
                 $msg, "What'sNo セットアップ", 'YesNo', 'Question') -eq 'Yes')
         } else {
             Write-Host "  Windows 11 では「What'sNoに保存」が『その他のオプションを確認』の中に入ります。" -ForegroundColor Yellow
-            $ans = Read-Host "  右クリックメニューを従来型に戻しますか？（エクスプローラーが再起動します）[Y/n]"
+            $ans = Read-Host "  右クリックメニューを従来型に戻しますか？ [Y/n]"
             ($ans -eq '' -or $ans -match '^[Yy]')
         }
     }
 }
 
+$menuApplied = $true
 if ($applyClassic -ne $classicOn) {
     if ($applyClassic) {
         Set-WnRegKey $classicClsid @{ '' = '' }
     } else {
         try { [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKeyTree($classicRoot, $false) } catch {}
     }
-    Restart-WnExplorer
-    Write-Host "  右クリックメニューを$(if ($applyClassic) { '従来型' } else { 'Windows 11 標準' })にしました。" -ForegroundColor Green
+    $style = if ($applyClassic) { '従来型' } else { 'Windows 11 標準' }
+    Write-Host "  右クリックメニューを$style に設定しました。" -ForegroundColor Green
+
+    # 反映にはエクスプローラーの再起動が必要。既定は「次回サインイン時」。
+    # 今すぐ再起動すると開いているフォルダのウィンドウが閉じるうえ、
+    # 拡大率の違うディスプレイを併用している環境ではデスクトップのアイコン間隔が
+    # 崩れることがあるため、勝手には再起動しない。
+    $restartNow = switch ($ApplyNow) {
+        'now'        { $true }
+        'next-logon' { $false }
+        default {
+            if (-not [Environment]::UserInteractive) {
+                $false
+            } elseif ($interactive) {
+                $m = "設定を今すぐ反映しますか？`n`n" +
+                     "「はい」… エクスプローラーを再起動します（開いているフォルダのウィンドウが閉じます）`n" +
+                     "「いいえ」… 次回サインイン時に反映します（推奨）"
+                ([System.Windows.Forms.MessageBox]::Show(
+                    $m, "What'sNo セットアップ", 'YesNo', 'Question') -eq 'Yes')
+            } else {
+                $a = Read-Host "  今すぐ反映しますか？ エクスプローラーを再起動します [y/N]"
+                ($a -match '^[Yy]')
+            }
+        }
+    }
+
+    if ($restartNow) {
+        $menuApplied = Restart-WnExplorer
+    } else {
+        $menuApplied = $false
+        Write-Host "  次回サインイン時に反映されます。" -ForegroundColor DarkGray
+    }
 }
 
 # ── 完了 ──
@@ -347,10 +437,16 @@ if ($applyClassic -ne $classicOn) {
 # （黙っていると「登録されていない」と誤解されるため）
 $where = if (Test-WnClassicMenu) { '右クリック' } else { '右クリック →「その他のオプションを確認」' }
 
+# 再起動していない場合、メニューの表示形式だけは次回サインインまで変わらない
+$pending = if ($menuApplied) { '' } else { "`n`n※ 右クリックメニューの表示形式は次回サインイン時から変わります。" }
+
 if ($interactive) {
     [System.Windows.Forms.MessageBox]::Show(
-        "セットアップが完了しました！`n`n・ファイルを$where →「What'sNoに保存」`n・ファイル／デスクトップの背景を$where →「What'sNoを開く」",
+        "セットアップが完了しました！`n`n・ファイルを$where →「What'sNoに保存」`n・ファイル／デスクトップの背景を$where →「What'sNoを開く」$pending",
         "What'sNo セットアップ完了", 'OK', 'Information') | Out-Null
 } else {
     Write-Host "セットアップ完了！$where →「What'sNoに保存」/「What'sNoを開く」が使えます。" -ForegroundColor Green
+    if (-not $menuApplied) {
+        Write-Host "※ 右クリックメニューの表示形式は次回サインイン時から変わります。" -ForegroundColor Yellow
+    }
 }
