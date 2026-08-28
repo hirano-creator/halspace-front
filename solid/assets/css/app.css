@@ -1760,9 +1760,12 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 }
 
 /* プロジェクト情報（横長グリッド） */
+/* 8項目を1行に保つ。等幅(1fr)だと一番長い「プロジェクトコード」に全カラムが
+   引きずられて画面が狭まると折り返すため、minmax(0, auto) で中身の量に応じた
+   幅にする（余りは各カラムに均等配分、幅が足りないときはカラム側が縮む） */
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, auto));
   gap: 16px 20px;
 }
 .info-item {
@@ -1785,9 +1788,11 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
    レスポンシブ
    ===================== */
 
-/* ── 小さめのノートPC (〜1400px): 8項目を2段に折り返す ── */
+/* ── 小さめのノートPC (〜1400px) ──
+   PCではプロジェクト情報を8項目1行のまま見せたいので、段組みは変えず
+   項目間の隔たりだけを詰めて幅を稼ぐ */
 @media (max-width: 1400px) {
-  .info-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .info-grid { gap: 14px 14px; }
 }
 
 /* ── タブレット横 (〜1024px) ── */
