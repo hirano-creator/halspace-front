@@ -1681,7 +1681,7 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 /* ── 納期カード（コンパクト表示） ──
    ここが縦に伸びると下のステータス・3Dモデルが初期表示から押し出されるため、
    サマリーはカードヘッダーの1行に収め、入力フォームだけを開閉する */
-.card-tight { padding: 13px 20px; }
+.card-tight { padding: 22px 20px; }
 .card-tight .card-header { margin-bottom: 0; gap: 10px 16px; flex-wrap: wrap; }
 
 .deadline-summary {
