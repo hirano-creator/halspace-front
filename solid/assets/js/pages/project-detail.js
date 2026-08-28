@@ -1026,9 +1026,12 @@ function renderBulkBar() {
   document.getElementById('fileBulkCount').textContent = `${files.length}件を選択中`;
 
   const opts = currentReviewOpts();
-  const keys = opts.showAdminBtns   ? ['ok', 'revision', 'deliver']
-             : opts.showModelerBtns ? ['request', 'cancel']
-             : [];
+  // モデラー管理者は admin と modeler の両方に当たるため、両方のボタンを出す。
+  // 自分で検査依頼してから検査する流れなので、依頼系を先に並べる
+  const keys = [
+    ...(opts.showModelerBtns ? ['request', 'cancel'] : []),
+    ...(opts.showAdminBtns   ? ['ok', 'revision', 'deliver'] : []),
+  ];
   const notes = [];
 
   let html = keys.map(key => {
