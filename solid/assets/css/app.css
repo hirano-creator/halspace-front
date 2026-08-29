@@ -2154,11 +2154,19 @@ body.chat-page .top-bar { position: static; flex-shrink: 0; }
 .cr-room.on { background: rgba(9,132,227,.07); border-left-color: var(--blue); }
 .cr-room-b { flex: 1; min-width: 0; }
 .cr-room-t { display: flex; align-items: center; gap: 6px; }
-.cr-room-name { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cr-room.unread .cr-room-name { font-weight: 800; color: #000; }
-.cr-room-time { font-size: 10px; color: var(--muted); margin-left: auto; flex-shrink: 0; }
-.cr-room-last { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-.cr-room.unread .cr-room-last { color: #4b5257; font-weight: 500; }
+.cr-room-name {
+  font-size: 15px; font-weight: 500; color: #8a949e;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cr-room-time { font-size: 10.5px; color: #a4adb5; margin-left: auto; flex-shrink: 0; }
+.cr-room-last { font-size: 11.5px; color: #a4adb5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+/* 着信あり（未読）は濃く・太く。既読は上の薄い色のまま残して差を出す */
+.cr-room.unread .cr-room-name { font-weight: 800; color: #14181c; }
+.cr-room.unread .cr-room-last { color: #3c4348; font-weight: 600; }
+.cr-room.unread .cr-room-time { color: var(--primary); font-weight: 700; }
+/* 開いている部屋は既読でも沈み込ませない */
+.cr-room.on .cr-room-name { color: var(--text); }
+.cr-room.on .cr-room-last { color: var(--muted); }
 .cr-badge {
   background: var(--primary); color: var(--white); font-size: 9.5px; font-weight: 800;
   min-width: 17px; height: 17px; border-radius: 999px; display: grid; place-items: center; padding: 0 5px; flex-shrink: 0;
