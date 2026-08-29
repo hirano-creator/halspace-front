@@ -56,6 +56,28 @@ const api = {
   delete: path          => apiFetch(path, { method:'DELETE' }),
 };
 
+/* FormData（画像添付など）用のPOST。Content-Typeはブラウザに任せる */
+async function apiFetchForm(path, formData) {
+  const token = sessionStorage.getItem('space_token');
+  const res = await fetch(API_BASE + path, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+  if (!res.ok) {
+    let msg = `API Error ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body.message) msg = body.message;
+    } catch {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
 /* ===== 自動更新ヘルパー =====
    - タブ表示中のみ intervalMs ごとに fn を実行（多重実行ガード付き）
    - タブ復帰・ウィンドウフォーカス時は即時実行

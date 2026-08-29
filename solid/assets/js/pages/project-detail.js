@@ -1406,28 +1406,6 @@ function renderModelGuide(visible, opts) {
     : '';
 }
 
-/* FormData用fetch */
-async function apiFetchForm(path, formData) {
-  const token = sessionStorage.getItem('space_token');
-  const res = await fetch(API_BASE + path, {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    },
-    body: formData,
-  });
-  if (!res.ok) {
-    let msg = `API Error ${res.status}`;
-    try {
-      const body = await res.json();
-      if (body.message) msg = body.message;
-    } catch {}
-    throw new Error(msg);
-  }
-  return res.json();
-}
-
 /* ══════════════════════════════════════════
    チャットルーム
    ══════════════════════════════════════════ */
