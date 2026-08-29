@@ -110,6 +110,33 @@ function hasAdminLevelAccess(user) { return isAdmin(user) || isOperator(user); }
    バックエンドの User::isInternalAdmin() と揃えること。 */
 function isInternalAdmin(user) { return isSuperAdmin(user) || isOperator(user); }
 
+/* チャット画面を使えるユーザーか。
+   発注者（お客様）には出さない。社内側（HaLSpace運営会社・サイト管理者）と
+   モデラーのみ。バックエンドの SolidChatController::canUseChat() と揃えること。 */
+function canUseChat(user) { return isInternalAdmin(user) || isModeler(user); }
+
+/* サイドバーの「チャット」を出し入れする。未読バッジもここで更新する。
+   各ページの renderSidebarUser() から呼ばれる。 */
+function applyChatNav(user) {
+  const link = document.getElementById('navChat');
+  if (!link) return;
+  if (!canUseChat(user)) {
+    link.style.display = 'none';
+    return;
+  }
+  link.style.display = 'flex';
+
+  /* チャット画面自身は自前でバッジを更新するので、ここでは他ページのぶんだけ取りに行く */
+  if (document.body.classList.contains('chat-page')) return;
+  const badge = document.getElementById('navChatBadge');
+  if (!badge || typeof api === 'undefined') return;
+  api.get('/chat/unread').then(d => {
+    const n = d?.unread ?? 0;
+    badge.textContent = n > 99 ? '99+' : n;
+    badge.style.display = n > 0 ? 'grid' : 'none';
+  }).catch(() => { /* バッジが出ないだけなので黙って諦める */ });
+}
+
 /* ハンバーガーメニュー（モバイル用サイドバー開閉） */
 function initMobileMenu() {
   const toggle  = document.getElementById('menuToggle');
@@ -159,6 +186,9 @@ function renderSidebarUser(user) {
     back.style.display   = standalone ? 'none' : '';
     logout.style.display = standalone ? '' : 'none';
   }
+
+  /* 「チャット」は発注者には出さない */
+  applyChatNav(user);
 }
 /* role=サイト権限、solidType=発注者/モデラー種別（solidアプリ内でのみ意味を持つ） */
 function roleLabel(role, solidType) {

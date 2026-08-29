@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLID チャット画面 モック</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Poppins:wght@700;800&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+/* ══════════ ページ（案の見せ枠） ══════════ */
+:root{
+  --primary:#FF6B35; --blue:#0984E3; --dark:#2D3436; --accent:#00B894;
+  --danger:#e17055; --warning:#fdcb6e; --purple:#6C5CE7;
+  --bg:#F0F2F5; --border:#e5e7eb; --text:#2D3436; --muted:#636e72; --surface:#f7f8fa;
+  --page-bg:#0b0c10; --ink:#e8eaf0; --ink-dim:#9aa1b0; --line:rgba(255,255,255,.09);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--page-bg);color:var(--ink);font-family:'Noto Sans JP',sans-serif;-webkit-font-smoothing:antialiased;}
+a{text-decoration:none;color:inherit;} ul{list-style:none;}
+button{cursor:pointer;border:none;background:none;font-family:inherit;font-size:inherit;color:inherit;}
+input,textarea{font-family:inherit;font-size:inherit;}
+.wrap{max-width:1420px;margin:0 auto;padding:44px 20px 90px;}
+.eyebrow{font-family:'Chakra Petch',monospace;font-size:12px;letter-spacing:.22em;color:#ffb08c;text-transform:uppercase;margin-bottom:10px;}
+.page-title{font-size:29px;font-weight:900;letter-spacing:.02em;}
+.page-lead{color:var(--ink-dim);font-size:14px;line-height:1.9;margin-top:12px;max-width:900px;}
+.page-lead b{color:var(--ink);}
+
+.tabs{display:flex;gap:9px;margin:26px 0 18px;flex-wrap:wrap;}
+.tab{background:#14161d;border:1px solid var(--line);color:var(--ink-dim);padding:11px 18px;border-radius:12px;font-size:13.5px;font-weight:700;transition:all .2s;display:flex;align-items:center;gap:9px;}
+.tab .k{font-family:'Chakra Petch',monospace;font-size:11px;background:rgba(255,255,255,.07);padding:3px 8px;border-radius:6px;}
+.tab:hover{border-color:rgba(255,255,255,.3);color:var(--ink);}
+.tab.active{background:#2a1a12;border-color:#FF6B3566;color:#fff;}
+.tab.active .k{background:#FF6B3530;color:#ffb08c;}
+
+.proposal{display:none;}
+.proposal.active{display:block;animation:fadeIn .35s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+.frame{border-radius:14px;overflow:hidden;border:1px solid var(--line);box-shadow:0 30px 80px rgba(0,0,0,.55);}
+.frame-bar{height:38px;background:#191b22;display:flex;align-items:center;padding:0 15px;gap:13px;border-bottom:1px solid var(--line);}
+.frame-dots{display:flex;gap:7px;}
+.frame-dots i{width:10px;height:10px;border-radius:50%;background:#3a3f4d;}
+.frame-dots i:first-child{background:#e0604f;} .frame-dots i:nth-child(2){background:#d9a53f;} .frame-dots i:nth-child(3){background:#58a35f;}
+.frame-url{flex:1;background:#10121a;border-radius:7px;height:23px;display:flex;align-items:center;padding:0 13px;font-family:'Chakra Petch',monospace;font-size:11px;color:#59606f;}
+.stage{height:clamp(600px,80vh,880px);background:var(--bg);color:var(--text);overflow:hidden;font-size:13px;line-height:1.7;}
+
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;margin-top:18px;}
+.note{background:#14161d;border:1px solid var(--line);border-radius:12px;padding:16px 18px;}
+.note h3{font-size:12px;font-weight:800;letter-spacing:.08em;color:#ffb08c;margin-bottom:8px;}
+.note p{font-size:13px;line-height:1.85;color:var(--ink-dim);}
+.note p+p{margin-top:8px;}
+.note strong{color:var(--ink);}
+.note ul{display:grid;gap:6px;}
+.note li{font-size:12.5px;line-height:1.7;color:var(--ink-dim);padding-left:16px;position:relative;}
+.note li::before{content:'\25B8';position:absolute;left:0;color:#ffb08c;}
+.cost{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;margin-top:11px;}
+.cost.s{background:rgba(0,184,148,.15);color:#4fd6b6;}
+.cost.m{background:rgba(253,203,110,.15);color:#f0c274;}
+.cost.l{background:rgba(225,112,85,.18);color:#f0917a;}
+
+/* ══════════ 画面モック共通 ══════════ */
+.mk-app{display:flex;height:100%;background:var(--bg);}
+
+/* サイドバー（SOLID本体と同じ） */
+.mk-sb{width:198px;flex-shrink:0;background:var(--dark);display:flex;flex-direction:column;}
+.mk-sb-logo{padding:16px 16px 13px;border-bottom:1px solid rgba(255,255,255,.08);}
+.mk-sb-logo b{font-family:'Poppins',sans-serif;font-size:19px;font-weight:800;color:var(--primary);display:block;letter-spacing:-.5px;}
+.mk-sb-logo em{font-size:10px;color:rgba(255,255,255,.35);display:block;font-style:normal;}
+.mk-nav{flex:1;padding:12px 9px;}
+.mk-nav-l{font-size:9.5px;font-weight:700;letter-spacing:1.4px;color:rgba(255,255,255,.3);padding:10px 8px 5px;}
+.mk-nav a{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:12.5px;color:rgba(255,255,255,.6);transition:.2s;}
+.mk-nav a i{width:15px;text-align:center;font-size:12px;}
+.mk-nav a:hover{background:rgba(255,255,255,.06);color:#fff;}
+.mk-nav a.on{background:rgba(255,107,53,.16);color:#fff;font-weight:700;}
+.mk-nav a.on i{color:var(--primary);}
+.mk-nav .nb{margin-left:auto;background:var(--primary);color:#fff;font-size:9.5px;font-weight:700;min-width:17px;height:17px;padding:0 5px;border-radius:999px;display:grid;place-items:center;}
+.mk-sb-btm{padding:12px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:9px;}
+.mk-sb-btm .mk-av{width:28px;height:28px;font-size:11px;}
+.mk-sb-btm div{min-width:0;}
+.mk-sb-btm b{display:block;font-size:11.5px;color:#fff;font-weight:600;}
+.mk-sb-btm em{display:block;font-size:10px;color:rgba(255,255,255,.4);font-style:normal;}
+
+/* トップバー */
+.mk-top{height:52px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:11px;padding:0 16px;flex-shrink:0;}
+.mk-top-t{font-size:15px;font-weight:700;}
+.mk-top .sp{flex:1;}
+.mk-ib{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--muted);font-size:13px;transition:.2s;}
+.mk-ib:hover{background:var(--surface);color:var(--text);}
+.mk-ib.on{background:rgba(9,132,227,.1);color:var(--blue);}
+
+/* アバター */
+.mk-av{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;}
+.mk-av.rd{border-radius:50%;}
+.mk-av.sm{width:26px;height:26px;font-size:10px;}
+.c-org{background:var(--primary);} .c-blu{background:var(--blue);} .c-grn{background:var(--accent);}
+.c-pur{background:var(--purple);} .c-red{background:var(--danger);} .c-gry{background:#7b8794;}
+.c-tel{background:#00857a;} .c-ind{background:#c0392b;} .c-drk{background:#2D3436;}
+
+/* ルームリスト */
+.mk-list{width:300px;flex-shrink:0;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;min-width:0;}
+.mk-list-h{padding:11px 13px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);}
+.mk-search{flex:1;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:6px 12px;color:var(--muted);font-size:12px;}
+.mk-search input{border:none;background:none;outline:none;flex:1;font-size:12px;color:var(--text);min-width:0;}
+.mk-newbtn{width:30px;height:30px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-size:12px;flex-shrink:0;}
+.mk-chips{display:flex;gap:5px;padding:9px 12px 7px;flex-wrap:wrap;}
+.mk-chip{font-size:11px;padding:3px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--border);color:var(--muted);}
+.mk-chip.on{background:rgba(9,132,227,.1);border-color:rgba(9,132,227,.35);color:var(--blue);font-weight:700;}
+.mk-toggle-row{display:flex;align-items:center;gap:7px;padding:0 13px 9px;font-size:11.5px;color:var(--muted);}
+.mk-sw{width:30px;height:17px;border-radius:999px;background:#d5d9de;position:relative;transition:.2s;flex-shrink:0;}
+.mk-sw::after{content:'';position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.25);}
+.mk-sw.on{background:var(--blue);} .mk-sw.on::after{left:15px;}
+.mk-rooms{flex:1;overflow-y:auto;padding-bottom:10px;}
+.mk-rooms::-webkit-scrollbar{width:7px;} .mk-rooms::-webkit-scrollbar-thumb{background:#d8dde3;border-radius:9px;}
+.mk-sec{font-size:10px;font-weight:800;letter-spacing:.09em;color:var(--muted);padding:13px 14px 5px;display:flex;align-items:center;gap:6px;}
+.mk-sec i{font-size:9px;}
+.mk-sec .n{margin-left:auto;font-weight:600;opacity:.7;}
+.mk-room{display:flex;gap:10px;padding:8px 12px;align-items:center;cursor:pointer;border-left:3px solid transparent;transition:background .15s;}
+.mk-room:hover{background:var(--surface);}
+.mk-room.on{background:rgba(9,132,227,.07);border-left-color:var(--blue);}
+.mk-room-b{flex:1;min-width:0;}
+.mk-room-t{display:flex;align-items:center;gap:6px;}
+.mk-room-name{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mk-room.unread .mk-room-name{font-weight:800;color:#000;}
+.mk-room-time{font-size:10px;color:var(--muted);margin-left:auto;flex-shrink:0;}
+.mk-room-last{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.mk-room.unread .mk-room-last{color:#4b5257;font-weight:500;}
+.mk-badge{background:var(--primary);color:#fff;font-size:9.5px;font-weight:800;min-width:17px;height:17px;border-radius:999px;display:grid;place-items:center;padding:0 5px;flex-shrink:0;}
+.mk-badge.mute{background:#b2bec3;}
+.mk-mini{font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;flex-shrink:0;white-space:nowrap;}
+.m-code{background:rgba(9,132,227,.12);color:var(--blue);font-family:'Chakra Petch',monospace;}
+.m-lock{background:rgba(99,110,114,.13);color:var(--muted);}
+.m-urg{background:rgba(225,112,85,.15);color:#c0392b;}
+.m-ok{background:rgba(0,184,148,.15);color:#0d9c80;}
+.m-rev{background:rgba(255,107,53,.16);color:#E55A2B;}
+.m-pur{background:rgba(108,92,231,.13);color:var(--purple);}
+
+/* ルーム一覧と会話の仕切り（ドラッグで幅を変えられる） */
+.mk-split{width:5px;flex-shrink:0;background:var(--border);cursor:col-resize;position:relative;transition:background .15s;}
+.mk-split::after{content:'';position:absolute;top:0;bottom:0;left:-4px;right:-4px;}  /* 掴みやすいよう当たり判定を広げる */
+.mk-split::before{content:'';position:absolute;top:50%;left:1px;width:3px;height:36px;transform:translateY(-50%);
+  border-radius:9px;background:rgba(0,0,0,.15);transition:background .15s;}
+.mk-split:hover,.mk-split.on{background:var(--blue);}
+.mk-split:hover::before,.mk-split.on::before{background:#fff;}
+.mk-resizing{cursor:col-resize;user-select:none;}
+
+/* 会話ペイン */
+.mk-conv{flex:1;display:flex;flex-direction:column;background:#fff;min-width:0;}
+.mk-conv-h{padding:9px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:11px;flex-shrink:0;}
+.mk-conv-h .t{min-width:0;flex:1;}
+.mk-conv-h .t b{font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:7px;}
+.mk-conv-h .t em{font-size:11px;color:var(--muted);display:block;font-style:normal;}
+.mk-faces{display:flex;margin-right:3px;}
+.mk-faces .mk-av{width:24px;height:24px;font-size:9px;border-radius:50%;border:2px solid #fff;margin-left:-7px;}
+.mk-faces .mk-av:first-child{margin-left:0;}
+.mk-msgs{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:15px;background:#fdfdfe;}
+.mk-msgs::-webkit-scrollbar{width:8px;} .mk-msgs::-webkit-scrollbar-thumb{background:#dfe4ea;border-radius:9px;}
+.mk-day{align-self:center;font-size:10.5px;color:var(--muted);background:#eef1f4;padding:3px 12px;border-radius:999px;}
+.mk-msg{display:flex;gap:10px;}
+.mk-msg-b{min-width:0;flex:1;}
+.mk-msg-h{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;}
+.mk-name{font-weight:700;font-size:12.5px;}
+.mk-time{font-size:10px;color:var(--muted);}
+.mk-tag{font-size:9px;padding:1px 6px;border-radius:4px;font-weight:700;position:relative;top:-1px;}
+.t-cli{background:rgba(9,132,227,.12);color:var(--blue);}
+.t-adm{background:rgba(0,184,148,.15);color:#0d9c80;}
+.t-mod{background:rgba(108,92,231,.13);color:var(--purple);}
+.mk-text{font-size:13px;line-height:1.8;margin-top:2px;white-space:pre-wrap;}
+.mk-text .mention{color:var(--blue);background:rgba(9,132,227,.09);border-radius:4px;padding:0 3px;font-weight:700;}
+.mk-sys{align-self:center;display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--border);padding:5px 14px;border-radius:999px;max-width:88%;text-align:center;}
+.mk-sys i{color:var(--blue);}
+.mk-unread-line{display:flex;align-items:center;gap:10px;color:var(--danger);font-size:10px;font-weight:800;letter-spacing:.06em;}
+.mk-unread-line::before,.mk-unread-line::after{content:'';flex:1;height:1px;background:rgba(225,112,85,.35);}
+.mk-file{display:flex;align-items:center;gap:11px;border:1px solid var(--border);border-radius:10px;padding:9px 12px;margin-top:7px;max-width:340px;background:#fff;cursor:pointer;transition:.2s;}
+.mk-file:hover{border-color:var(--blue);box-shadow:0 3px 10px rgba(9,132,227,.1);}
+.mk-file .ic{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;color:#fff;font-size:14px;flex-shrink:0;}
+.mk-file b{display:block;font-size:12px;font-weight:600;}
+.mk-file em{display:block;font-size:10.5px;color:var(--muted);font-style:normal;}
+.mk-thumb{width:158px;height:106px;border-radius:9px;margin-top:7px;background:linear-gradient(140deg,#eef1f5,#ccd4dd);display:grid;place-items:center;color:#8e9bab;font-size:24px;border:1px solid var(--border);}
+.mk-react{display:flex;gap:5px;margin-top:6px;}
+.mk-react span{font-size:11px;border:1px solid var(--border);background:#fff;border-radius:999px;padding:1px 8px;color:var(--muted);cursor:pointer;}
+.mk-react span.on{background:rgba(9,132,227,.09);border-color:rgba(9,132,227,.3);color:var(--blue);font-weight:700;}
+.mk-react .add{color:#aab2ba;}
+/* 引用返信（LINEの返信と同じ形。元メッセージを1行だけ引いて返す） */
+.mk-quote{display:flex;gap:8px;align-items:center;border-left:3px solid var(--blue);background:rgba(9,132,227,.05);
+  border-radius:0 7px 7px 0;padding:4px 10px;margin:3px 0 4px;font-size:11.5px;color:var(--muted);max-width:420px;}
+.mk-quote b{color:var(--blue);font-weight:700;flex-shrink:0;}
+.mk-quote span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* ピン留めバー（確定仕様を会話の一番上に固定） */
+.mk-pinbar{display:flex;align-items:center;gap:9px;padding:7px 16px;background:rgba(253,203,110,.16);
+  border-bottom:1px solid rgba(253,203,110,.55);font-size:11.5px;flex-shrink:0;}
+.mk-pinbar i.pn{color:#d69e2e;}
+.mk-pinbar b{font-weight:800;color:#8a6410;flex-shrink:0;}
+.mk-pinbar .tx{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mk-pinbar .ed{color:var(--muted);font-size:10.5px;cursor:pointer;flex-shrink:0;}
+.mk-pinbar .ed:hover{color:var(--blue);}
+.mk-read{font-size:10px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:5px;}
+
+/* 入力欄 */
+.mk-input{padding:11px 16px 13px;border-top:1px solid var(--border);background:#fff;flex-shrink:0;}
+.mk-input-box{border:1.5px solid var(--border);border-radius:12px;padding:9px 12px;display:flex;flex-direction:column;gap:8px;background:#fff;}
+.mk-input-box:focus-within{border-color:var(--blue);}
+.mk-ph{color:#9aa4ad;font-size:12.5px;}
+.mk-input-tools{display:flex;align-items:center;gap:2px;}
+.mk-input-tools .sp{flex:1;}
+.mk-send{width:31px;height:31px;border-radius:9px;background:var(--primary);color:#fff;display:grid;place-items:center;font-size:12px;}
+.mk-hint{font-size:10px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:6px;}
+.mk-quick{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+.mk-quick span{font-size:11px;border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:3px 10px;color:var(--muted);cursor:pointer;}
+.mk-quick span:hover{border-color:var(--blue);color:var(--blue);}
+
+/* 右レール（案2） */
+.mk-rail{width:264px;flex-shrink:0;background:#fff;border-left:1px solid var(--border);overflow-y:auto;}
+.mk-rail::-webkit-scrollbar{width:7px;} .mk-rail::-webkit-scrollbar-thumb{background:#dfe4ea;border-radius:9px;}
+.mk-rail-sec{padding:13px 15px;border-bottom:1px solid var(--border);}
+.mk-rail-sec h4{font-size:10px;font-weight:800;letter-spacing:.09em;color:var(--muted);margin-bottom:9px;display:flex;align-items:center;gap:6px;}
+.mk-rail-sec h4 .more{margin-left:auto;color:var(--blue);font-weight:700;font-size:10px;}
+.mk-kv{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;gap:8px;}
+.mk-kv em{color:var(--muted);font-style:normal;} .mk-kv b{font-weight:600;text-align:right;}
+.mk-step{display:flex;gap:9px;font-size:11.5px;padding:3px 0;align-items:center;}
+.mk-step .d{width:9px;height:9px;border-radius:50%;background:#dfe4ea;flex-shrink:0;}
+.mk-step.done .d{background:var(--accent);} .mk-step.now .d{background:var(--primary);box-shadow:0 0 0 4px rgba(255,107,53,.16);}
+.mk-step.done{color:var(--muted);} .mk-step.now{font-weight:700;}
+.mk-btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:8px;border-radius:9px;font-size:12px;font-weight:700;}
+.mk-btn.p{background:var(--primary);color:#fff;} .mk-btn.o{border:1.5px solid var(--border);color:var(--text);}
+.mk-btn+.mk-btn{margin-top:7px;}
+.mk-mini-file{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11.5px;}
+.mk-mini-file .ic{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:#fff;font-size:10px;flex-shrink:0;}
+.mk-mini-file b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* メッセージhover時のアクション（返信・リアクション） */
+.mk-msg{position:relative;}
+.mk-msg-acts{position:absolute;top:-9px;right:0;display:none;gap:2px;background:#fff;border:1px solid var(--border);
+  border-radius:9px;box-shadow:0 3px 10px rgba(0,0,0,.08);padding:2px;}
+.mk-msg:hover .mk-msg-acts{display:flex;}
+.mk-msg-acts span{width:25px;height:25px;border-radius:7px;display:grid;place-items:center;color:var(--muted);font-size:11.5px;cursor:pointer;}
+.mk-msg-acts span:hover{background:var(--surface);color:var(--blue);}
+
+/* ── 案4 受信箱 ── */
+.mk-inbox{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:12px;}
+.mk-inbox::-webkit-scrollbar{width:8px;} .mk-inbox::-webkit-scrollbar-thumb{background:#dfe4ea;border-radius:9px;}
+.mk-card{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.04);overflow:hidden;flex-shrink:0;}
+.mk-card.hot{border-left:4px solid var(--danger);}
+.mk-card.warn{border-left:4px solid var(--warning);}
+.mk-card-h{display:flex;align-items:center;gap:9px;padding:10px 14px;border-bottom:1px solid #f1f3f5;background:#fcfcfd;}
+.mk-card-h .nm{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:7px;min-width:0;}
+.mk-card-h .sp{flex:1;}
+.mk-card-b{padding:11px 14px;}
+.mk-card-reply{display:flex;align-items:center;gap:8px;padding:8px 14px 11px;}
+.mk-card-reply .box{flex:1;border:1.5px solid var(--border);border-radius:999px;padding:6px 14px;color:#9aa4ad;font-size:12px;}
+.mk-side{width:210px;flex-shrink:0;background:#fff;border-right:1px solid var(--border);padding:14px 10px;}
+.mk-side-i{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:9px;font-size:12.5px;color:var(--muted);cursor:pointer;}
+.mk-side-i i{width:15px;text-align:center;}
+.mk-side-i .n{margin-left:auto;font-size:10.5px;font-weight:700;}
+.mk-side-i.on{background:rgba(255,107,53,.1);color:var(--primary);font-weight:700;}
+.mk-side-i:hover:not(.on){background:var(--surface);color:var(--text);}
+.mk-progress{height:5px;border-radius:999px;background:#eceff2;overflow:hidden;margin:9px 0 4px;}
+.mk-progress i{display:block;height:100%;background:linear-gradient(90deg,var(--primary),#ffa06b);}
+
+/* ── 案5 翻訳／モバイル ── */
+.mk-tr{margin-top:6px;padding:7px 11px;background:rgba(9,132,227,.05);border-left:2.5px solid rgba(9,132,227,.45);border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.75;color:#3d4c5a;}
+.mk-tr .lbl{font-size:9.5px;font-weight:800;color:var(--blue);letter-spacing:.06em;display:flex;align-items:center;gap:5px;margin-bottom:2px;}
+.mk-lang{display:flex;align-items:center;gap:6px;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px 10px;color:var(--muted);}
+.mk-lang b{color:var(--blue);font-weight:700;}
+.mk-phone-wrap{width:322px;flex-shrink:0;background:linear-gradient(160deg,#1c2530,#0f151c);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;padding:20px;}
+.mk-phone-wrap .cap{color:rgba(255,255,255,.5);font-size:11px;text-align:center;line-height:1.7;}
+/* 共通スマホ表示（4案とも同じ画面になる） */
+.mk-phones{height:100%;background:linear-gradient(160deg,#1c2530,#0f151c);display:flex;align-items:center;gap:20px;padding:24px 26px;overflow-x:auto;}
+.mk-phones::-webkit-scrollbar{height:8px;} .mk-phones::-webkit-scrollbar-thumb{background:#3a4552;border-radius:9px;}
+.mk-phones .col{display:flex;flex-direction:column;align-items:center;gap:12px;flex-shrink:0;}
+.mk-phones .cap{color:rgba(255,255,255,.62);font-size:11.5px;text-align:center;line-height:1.7;max-width:262px;}
+.mk-phones .cap b{color:#ffb08c;display:block;font-size:12px;margin-bottom:2px;}
+.mk-ph-hd{background:var(--dark);color:#fff;padding:24px 12px 9px;display:flex;align-items:center;gap:9px;flex-shrink:0;}
+.mk-ph-hd b{font-size:13px;flex:1;}
+.mk-ph-chips{display:flex;gap:5px;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.mk-ph-body{flex:1;overflow-y:auto;background:#fff;}
+.mk-ph-body::-webkit-scrollbar{width:0;}
+.mk-ph-row{display:flex;gap:9px;padding:8px 10px;align-items:center;border-bottom:1px solid #f2f4f6;}
+.mk-ph-row .mk-av{width:30px;height:30px;font-size:10.5px;}
+.mk-ph-row .b{flex:1;min-width:0;}
+.mk-ph-row .nm{font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mk-ph-row.un .nm{font-weight:800;color:#000;}
+.mk-ph-row .ls{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mk-ph-row .tm{font-size:9.5px;color:var(--muted);flex-shrink:0;align-self:flex-start;}
+.mk-ph-pin{display:flex;gap:7px;align-items:center;background:rgba(253,203,110,.18);border-bottom:1px solid rgba(253,203,110,.5);
+  padding:6px 10px;font-size:10px;line-height:1.5;flex-shrink:0;}
+.mk-ph-pin i{color:#d69e2e;}
+.mk-ph-tab{display:flex;border-top:1px solid var(--border);background:#fff;flex-shrink:0;}
+.mk-ph-tab div{flex:1;text-align:center;padding:7px 0 9px;font-size:9px;color:var(--muted);}
+.mk-ph-tab div i{display:block;font-size:14px;margin-bottom:2px;}
+.mk-ph-tab div.on{color:var(--primary);font-weight:700;}
+.mk-ph-sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:16px 16px 0 0;
+  box-shadow:0 -8px 30px rgba(0,0,0,.28);padding:9px 14px 14px;z-index:6;max-height:62%;overflow-y:auto;}
+.mk-ph-sheet::-webkit-scrollbar{width:0;}
+.mk-ph-sheet .grip{width:36px;height:4px;border-radius:9px;background:#d7dce1;margin:0 auto 10px;}
+.mk-ph-sheet h5{font-size:12px;font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.mk-ph-card{border:1px solid var(--border);border-radius:11px;margin:9px;overflow:hidden;}
+.mk-ph-card.hot{border-left:3px solid var(--danger);}
+.mk-ph-card .hd{display:flex;align-items:center;gap:7px;padding:7px 10px;background:#fcfcfd;border-bottom:1px solid #f1f3f5;font-size:11px;font-weight:700;}
+.mk-ph-card .bd{padding:8px 10px;font-size:11px;line-height:1.65;}
+.mk-ph-card .rp{display:flex;align-items:center;gap:6px;padding:0 10px 9px;}
+.mk-ph-card .rp .box{flex:1;border:1.5px solid var(--border);border-radius:999px;padding:4px 10px;font-size:10px;color:#9aa4ad;}
+.mk-phone{width:262px;height:530px;border-radius:30px;background:#fff;border:9px solid #000;box-shadow:0 22px 50px rgba(0,0,0,.55);overflow:hidden;display:flex;flex-direction:column;position:relative;}
+.mk-phone .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:96px;height:20px;background:#000;border-radius:0 0 14px 14px;z-index:5;}
+.mk-ph-top{background:var(--dark);color:#fff;padding:24px 12px 9px;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.mk-ph-top b{font-size:12.5px;} .mk-ph-top em{font-size:9.5px;color:rgba(255,255,255,.5);font-style:normal;display:block;}
+.mk-ph-msgs{flex:1;overflow-y:auto;padding:11px 10px;display:flex;flex-direction:column;gap:9px;background:#f3f5f7;}
+.mk-ph-msgs::-webkit-scrollbar{width:0;}
+.mk-bub{max-width:83%;padding:7px 11px;border-radius:13px;font-size:11.5px;line-height:1.65;background:#fff;border:1px solid var(--border);}
+.mk-bub.me{align-self:flex-end;background:var(--primary);color:#fff;border-color:transparent;}
+.mk-bub .who{font-size:9.5px;font-weight:700;color:var(--muted);margin-bottom:2px;}
+.mk-bub .trs{margin-top:4px;padding-top:4px;border-top:1px dashed rgba(0,0,0,.12);font-size:10.5px;color:#5b6875;}
+.mk-bub.me .trs{border-top-color:rgba(255,255,255,.35);color:rgba(255,255,255,.9);}
+.mk-ph-in{padding:8px 10px;border-top:1px solid var(--border);display:flex;align-items:center;gap:7px;background:#fff;flex-shrink:0;}
+.mk-ph-in .b{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:6px 12px;font-size:11px;color:#9aa4ad;}
+
+/* ── 新規ルーム作成モーダル（案1・案3で使用） ── */
+.mk-modal{position:absolute;inset:0;background:rgba(20,24,30,.5);display:grid;place-items:center;z-index:30;padding:20px;}
+.mk-modal-box{width:430px;max-width:100%;background:#fff;border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.3);overflow:hidden;}
+.mk-modal-h{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px;font-size:14.5px;font-weight:700;}
+.mk-modal-b{padding:16px 18px;display:grid;gap:13px;}
+.mk-fld label{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px;}
+.mk-fld .inp{border:1.5px solid var(--border);border-radius:9px;padding:8px 12px;font-size:12.5px;color:#9aa4ad;}
+.mk-fld .inp.filled{color:var(--text);}
+.mk-seg{display:flex;gap:6px;}
+.mk-seg span{flex:1;text-align:center;border:1.5px solid var(--border);border-radius:9px;padding:7px;font-size:11.5px;color:var(--muted);cursor:pointer;}
+.mk-seg span.on{border-color:var(--primary);background:rgba(255,107,53,.08);color:var(--primary);font-weight:700;}
+.mk-mem{display:flex;flex-wrap:wrap;gap:6px;}
+.mk-mem span{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px 9px 3px 4px;font-size:11.5px;}
+.mk-modal-f{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.mk-modal-f .mk-btn{width:auto;padding:8px 18px;}
+
+/* 空状態（会話未選択） */
+.mk-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:11px;background:#fdfdfe;color:var(--muted);text-align:center;padding:20px;}
+.mk-empty .big{width:78px;height:78px;border-radius:22px;background:linear-gradient(150deg,#eef1f5,#dae1e8);display:grid;place-items:center;font-size:30px;color:#a9b4c0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="page-head">
+    <div class="eyebrow">SOLID / Chat Screen — Mockup</div>
+    <h1 class="page-title">チャット専用画面 モック</h1>
+    <p class="page-lead">
+      ダッシュボードの左メニューに <b>チャット</b> を追加し、<b>物件（プロジェクト）ごとのルーム＋会社スペース＋グループ＋DM</b> を
+      着信順に並べた専用画面のモックです。最初のタブが<b>採用案（案4＋案2）</b>で、以降は比較用に残した4案と、スマホ表示です。
+      ルームはクリックで切り替わり、絞り込み・翻訳の表示切替は実際に動きます（送信内容は保存されません）。
+    </p>
+    <p class="page-lead">
+      採用案は <b>案4のバイリンガル会話</b>（自動翻訳・定型文・翻訳して送信）をベースに、<b>ルーム一覧の幅を広げて</b>社名や最終メッセージまで読めるようにしたものです。
+      全案に <b>ピン留めバー</b> と <b>引用返信</b> が入っています。スレッド型（旧・案3）は、ルームが物件単位で分かれている以上は不要と判断して取り下げました。
+    </p>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" role="tab" data-target="p0"><span class="k">採用案</span>案4ベース — 翻訳付きチャット・一覧を広く</button>
+    <button class="tab" role="tab" data-target="p1"><span class="k">案1</span>GOOGLE CHAT 型 — 画像に忠実な3ペイン</button>
+    <button class="tab" role="tab" data-target="p2"><span class="k">案2</span>物件コンテキスト型 — 右に案件情報</button>
+    <button class="tab" role="tab" data-target="p3"><span class="k">案3</span>受信箱型 — 未読を1本にまとめて捌く</button>
+    <button class="tab" role="tab" data-target="p4"><span class="k">案4</span>バイリンガル型 — 日⇄IDの自動翻訳</button>
+    <button class="tab" role="tab" data-target="pm"><span class="k">共通</span>スマホ表示 — 4案とも同じ</button>
+  </nav>
+
+  <!-- ═══ 採用案（案4 ＋ 案2） ═══ -->
+  <section class="proposal active" id="p0">
+    <div class="frame">
+      <div class="frame-bar"><div class="frame-dots"><i></i><i></i><i></i></div><div class="frame-url">space-apps.pages.dev/solid/app/chat.html &mdash; 採用案（案4ベース）</div></div>
+      <div class="stage" id="s0"></div>
+    </div>
+    <div class="notes" id="n0"></div>
+  </section>
+
+  <!-- ═══ 案1 ═══ -->
+  <section class="proposal" id="p1">
+    <div class="frame">
+      <div class="frame-bar"><div class="frame-dots"><i></i><i></i><i></i></div><div class="frame-url">space-apps.pages.dev/solid/app/chat.html &mdash; 案1 GOOGLE CHAT 型</div></div>
+      <div class="stage" id="s1"></div>
+    </div>
+    <div class="notes" id="n1"></div>
+  </section>
+
+  <!-- ═══ 案2 ═══ -->
+  <section class="proposal" id="p2">
+    <div class="frame">
+      <div class="frame-bar"><div class="frame-dots"><i></i><i></i><i></i></div><div class="frame-url">space-apps.pages.dev/solid/app/chat.html &mdash; 案2 物件コンテキスト型</div></div>
+      <div class="stage" id="s2"></div>
+    </div>
+    <div class="notes" id="n2"></div>
+  </section>
+
+  <!-- ═══ 案3 ═══ -->
+  <section class="proposal" id="p3">
+    <div class="frame">
+      <div class="frame-bar"><div class="frame-dots"><i></i><i></i><i></i></div><div class="frame-url">space-apps.pages.dev/solid/app/chat.html &mdash; 案3 受信箱型</div></div>
+      <div class="stage" id="s3"></div>
+    </div>
+    <div class="notes" id="n3"></div>
+  </section>
+
+  <!-- ═══ 案4 ═══ -->
+  <section class="proposal" id="p4">
+    <div class="frame">
+      <div class="frame-bar"><div class="frame-dots"><i></i><i></i><i></i></div><div class="frame-url">space-apps.pages.dev/solid/app/chat.html &mdash; 案4 バイリンガル型</div></div>
+      <div class="stage" id="s4"></div>
+    </div>
+    <div class="notes" id="n4"></div>
+  </section>
+
+  <!-- ═══ 共通：スマホ表示 ═══ -->
+  <section class="proposal" id="pm">
+    <div class="frame">
+      <div class="frame-bar"><div class="frame-dots"><i></i><i></i><i></i></div><div class="frame-url">space-apps.pages.dev/solid/app/chat.html &mdash; スマートフォン表示（4案共通）</div></div>
+      <div class="stage">
+        <div class="mk-phones">
+
+          <!-- ① ルーム一覧 -->
+          <div class="col">
+            <div class="mk-phone">
+              <div class="notch"></div>
+              <div class="mk-ph-hd"><i class="fa-solid fa-bars"></i><b>チャット</b>
+                <i class="fa-solid fa-magnifying-glass"></i><i class="fa-solid fa-pen"></i></div>
+              <div class="mk-ph-chips">
+                <span class="mk-chip on">すべて</span><span class="mk-chip">未読 9</span>
+                <span class="mk-chip">物件</span><span class="mk-chip">DM</span>
+              </div>
+              <div class="mk-ph-body">
+                <div class="mk-ph-row un"><div class="mk-av c-red">配</div>
+                  <div class="b"><div class="nm">配管サポート金具（×4種）</div><div class="ls">佐藤 健: 至急でお願いします。3枚目の…</div></div>
+                  <div style="display:grid;gap:3px;justify-items:end;"><span class="tm">10:42</span><span class="mk-badge">3</span></div></div>
+                <div class="mk-ph-row un"><div class="mk-av c-org">H</div>
+                  <div class="b"><div class="nm">HaLSpace 全社連絡</div><div class="ls">管理者 花子: 【周知】9/1よりSOLID…</div></div>
+                  <div style="display:grid;gap:3px;justify-items:end;"><span class="tm">10:15</span><span class="mk-badge">1</span></div></div>
+                <div class="mk-ph-row"><div class="mk-av c-blu">底</div>
+                  <div class="b"><div class="nm">底抜きポンプ安全カバー</div><div class="ls">Budi: モデリング完了しました。検査を…</div></div>
+                  <span class="tm">09:58</span></div>
+                <div class="mk-ph-row un"><div class="mk-av c-ind">ID</div>
+                  <div class="b"><div class="nm">PT.HILANO LCZ INDONESIA</div><div class="ls">Ahmad: Selamat pagi! 本日の割当を…</div></div>
+                  <div style="display:grid;gap:3px;justify-items:end;"><span class="tm">09:30</span><span class="mk-badge">5</span></div></div>
+                <div class="mk-ph-row"><div class="mk-av c-red">!</div>
+                  <div class="b"><div class="nm">緊急対応チーム</div><div class="ls">管理者 花子: XYZ工業の件、明日朝一で…</div></div>
+                  <span class="tm">09:12</span></div>
+                <div class="mk-ph-row"><div class="mk-av rd c-pur">BS</div>
+                  <div class="b"><div class="nm">Budi Santoso</div><div class="ls">ありがとうございます。確認します。</div></div>
+                  <span class="tm">08:40</span></div>
+                <div class="mk-ph-row"><div class="mk-av c-blu">搬</div>
+                  <div class="b"><div class="nm">搬送ローラーブラケット</div><div class="ls">Ahmad: 形状が複雑なため3日の延長を…</div></div>
+                  <span class="tm">昨日</span></div>
+              </div>
+              <div class="mk-ph-tab">
+                <div><i class="fa-solid fa-gauge"></i>ダッシュ</div>
+                <div class="on"><i class="fa-solid fa-comments"></i>チャット</div>
+                <div><i class="fa-solid fa-calendar-days"></i>カレンダー</div>
+                <div><i class="fa-solid fa-plus-circle"></i>新規発注</div>
+              </div>
+            </div>
+            <div class="cap"><b>① ルーム一覧</b>着信順に並ぶ。未読は太字＋バッジ。下のタブバーからダッシュボードへ戻れる</div>
+          </div>
+
+          <!-- ② 会話 -->
+          <div class="col">
+            <div class="mk-phone">
+              <div class="notch"></div>
+              <div class="mk-ph-top"><i class="fa-solid fa-chevron-left"></i>
+                <div style="flex:1"><b>底抜きポンプ安全カバー</b><em>SOLID-2026-0001 · 検査待ち</em></div>
+                <i class="fa-solid fa-circle-info"></i></div>
+              <div class="mk-ph-pin"><i class="fa-solid fa-thumbtack"></i>
+                <span><b>確定仕様</b> 板厚 4.5mm / SS400 / 溶接部グラインダー仕上げ</span></div>
+              <div class="mk-ph-msgs">
+                <div class="mk-bub"><div class="who">山田 太郎</div>板厚4.5mmで間違いありません。溶接部はグラインダー仕上げでお願いします。</div>
+                <div class="mk-bub me">承知しました。制作チームに伝えます。</div>
+                <div class="mk-bub"><div class="who">Budi Santoso</div>モデリング完了しました。検査をお願いします。
+                  <div class="trs"><i class="fa-solid fa-language"></i> Pemodelan telah selesai.</div></div>
+                <div class="mk-bub" style="padding:7px;">
+                  <div class="mk-file" style="margin:0;max-width:100%;padding:6px 8px;">
+                    <div class="ic c-pur" style="width:26px;height:26px;font-size:11px;"><i class="fa-solid fa-cube"></i></div>
+                    <div><b style="font-size:11px;">安全カバー_v1.stp</b><em style="font-size:9.5px;">3.4 MB</em></div></div></div>
+                <div class="mk-bub me">@山田 太郎 モデルが上がりました。ご確認ください。</div>
+              </div>
+              <div class="mk-ph-in"><i class="fa-solid fa-plus" style="color:var(--muted)"></i>
+                <div class="b">メッセージ</div>
+                <i class="fa-solid fa-language" style="color:var(--blue)"></i>
+                <i class="fa-solid fa-microphone" style="color:var(--muted)"></i></div>
+            </div>
+            <div class="cap"><b>② 会話</b>ピン留めは上部に固定。案4の自動翻訳もこの画面に出る（吹き出しの下段）</div>
+          </div>
+
+          <!-- ③ 案件情報シート -->
+          <div class="col">
+            <div class="mk-phone">
+              <div class="notch"></div>
+              <div class="mk-ph-top"><i class="fa-solid fa-chevron-left"></i>
+                <div style="flex:1"><b>底抜きポンプ安全カバー</b><em>SOLID-2026-0001 · 検査待ち</em></div>
+                <i class="fa-solid fa-circle-info" style="color:var(--primary)"></i></div>
+              <div class="mk-ph-msgs" style="filter:brightness(.97);">
+                <div class="mk-bub"><div class="who">Budi Santoso</div>モデリング完了しました。検査をお願いします。</div>
+                <div class="mk-bub me">@山田 太郎 モデルが上がりました。</div>
+              </div>
+              <div class="mk-ph-sheet">
+                <div class="grip"></div>
+                <h5><i class="fa-solid fa-cube" style="color:var(--primary)"></i> 案件情報</h5>
+                <div class="mk-kv"><em>ステータス</em><b><span class="mk-mini m-rev">検査待ち</span></b></div>
+                <div class="mk-kv"><em>希望納期</em><b>2026/09/10</b></div>
+                <div class="mk-kv"><em>回答納期</em><b>2026/09/10（了承済み）</b></div>
+                <div class="mk-kv"><em>担当モデラー</em><b>Budi Santoso</b></div>
+                <div class="mk-progress"><i style="width:70%"></i></div>
+                <div style="font-size:9.5px;color:var(--muted);text-align:right;margin-bottom:8px;">進捗 70%</div>
+                <button class="mk-btn p" style="font-size:11px;padding:7px;"><i class="fa-solid fa-magnifying-glass-chart"></i> 検査結果を登録</button>
+                <button class="mk-btn o" style="font-size:11px;padding:7px;"><i class="fa-solid fa-paperclip"></i> 共有ファイル 5件</button>
+              </div>
+            </div>
+            <div class="cap"><b>③ 案件情報</b>案2の右レールはスマホでは下から出るシートになる。会話を閉じずに納期と進捗を確認できる</div>
+          </div>
+
+          <!-- ④ 受信箱 -->
+          <div class="col">
+            <div class="mk-phone">
+              <div class="notch"></div>
+              <div class="mk-ph-hd"><i class="fa-solid fa-bars"></i><b>受信箱 · 要返信 4</b><i class="fa-solid fa-check-double"></i></div>
+              <div class="mk-ph-body" style="background:var(--bg);">
+                <div class="mk-ph-card hot">
+                  <div class="hd"><div class="mk-av c-red sm">配</div>配管サポート金具
+                    <span class="sp" style="flex:1"></span><span class="mk-badge">3</span></div>
+                  <div class="bd"><b>佐藤 健</b> 10:42<br>至急でお願いします。3枚目の穴位置が図面と現物で食い違っているので…</div>
+                  <div class="rp"><div class="box">この場で返信…</div><span class="mk-send" style="width:26px;height:26px;font-size:10px;"><i class="fa-solid fa-paper-plane"></i></span></div>
+                </div>
+                <div class="mk-ph-card">
+                  <div class="hd"><div class="mk-av c-ind sm">ID</div>PT.HILANO LCZ
+                    <span class="sp" style="flex:1"></span><span class="mk-badge">5</span></div>
+                  <div class="bd"><b>Dewi Rahayu</b> 09:29<br>Untuk SOLID-2026-0005, saya perlu tambahan 1 hari…
+                    <div style="color:var(--blue);font-size:10px;margin-top:3px;"><i class="fa-solid fa-language"></i> 1日追加をお願いします</div></div>
+                  <div class="rp"><div class="box">この場で返信…</div><span class="mk-send" style="width:26px;height:26px;font-size:10px;"><i class="fa-solid fa-paper-plane"></i></span></div>
+                </div>
+                <div class="mk-ph-card">
+                  <div class="hd"><div class="mk-av c-org sm">H</div>HaLSpace 全社連絡
+                    <span class="sp" style="flex:1"></span><span class="mk-badge">1</span></div>
+                  <div class="bd"><b>管理者 花子</b> 10:15<br>【周知】9/1よりSOLIDの納期回答フローが…</div>
+                </div>
+              </div>
+              <div class="mk-ph-tab">
+                <div><i class="fa-solid fa-gauge"></i>ダッシュ</div>
+                <div class="on"><i class="fa-solid fa-comments"></i>チャット</div>
+                <div><i class="fa-solid fa-calendar-days"></i>カレンダー</div>
+                <div><i class="fa-solid fa-plus-circle"></i>新規発注</div>
+              </div>
+            </div>
+            <div class="cap"><b>④ 受信箱</b>案3のスマホ版。移動中に未読だけ片付けたいときはこちら</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+    <div class="notes" id="nm"></div>
+  </section>
+
+</div>
+<script>
+/* ══════════════════════════════════════════
+   共通データ（5案すべてが同じデータを描画）
+   ══════════════════════════════════════════ */
+const U = {
+  hanako:{n:'管理者 花子', a:'花', c:'c-grn', tag:'HaLSpace', tc:'t-adm'},
+  yamada:{n:'山田 太郎',   a:'山', c:'c-blu', tag:'発注者',   tc:'t-cli', co:'株式会社ABC製作所'},
+  sato:  {n:'佐藤 健',     a:'佐', c:'c-blu', tag:'発注者',   tc:'t-cli', co:'有限会社XYZ工業'},
+  budi:  {n:'Budi Santoso',a:'BS', c:'c-pur', tag:'モデラー', tc:'t-mod'},
+  ahmad: {n:'Ahmad Rizki', a:'AR', c:'c-ind', tag:'モデラー', tc:'t-mod'},
+  dewi:  {n:'Dewi Rahayu', a:'DR', c:'c-pur', tag:'モデラー', tc:'t-mod'},
+  kenta: {n:'田中 健太',   a:'田', c:'c-tel', tag:'HaLSpace', tc:'t-adm'},
+};
+const ME = 'hanako';
+
+const ROOMS = [
+  { id:'prj3', kind:'project', name:'配管サポート金具（×4種）', code:'SOLID-2026-0003', co:'有限会社XYZ工業',
+    av:{a:'配',c:'c-red'}, time:'10:42', unread:3, mini:['m-urg','緊急'],
+    last:'佐藤 健: 至急でお願いします。3枚目の穴位置が…',
+    members:['sato','hanako','ahmad'],
+    pin:{ label:'確定仕様', text:'穴位置は現物合わせ。3枚目図面の寸法は参考値（8/28 佐藤様と合意）' },
+    meta:{status:'提出済み', statusCls:'m-rev', deadline:'2026/09/04', reply:'未回答', modeler:'未割当', files:3, progress:15,
+      steps:[['提出済み','now'],['モデリング中',''],['検査待ち',''],['納品完了','']]},
+    msgs:[
+      {day:'2026年8月29日（金）'},
+      {u:'sato', t:'10:38', body:'配管サポート金具の件、追加で図面を1枚送ります。'},
+      {u:'sato', t:'10:39', body:'', file:{name:'ZTSPA-004_rev1.pdf', size:'1.8 MB', ic:'fa-file-pdf', c:'c-red'}},
+      {unread:3},
+      {u:'sato', t:'10:42', body:'至急でお願いします。3枚目の穴位置が図面と現物で食い違っているので、\n現物合わせでお願いできますか。'},
+    ]},
+  { id:'sp-hal', kind:'space', name:'HaLSpace 全社連絡', sub:'メンバー 12名 · 社内スペース',
+    av:{a:'H',c:'c-org'}, time:'10:15', unread:1, mini:['m-lock','社内'],
+    last:'管理者 花子: 【周知】9/1よりSOLIDの納期回答フローが…',
+    members:['hanako','kenta','budi','ahmad'],
+    pin:{ label:'周知', text:'9/1より納期回答フローが2段階になります（モデラー回答 → 管理者確定）' },
+    msgs:[
+      {day:'2026年8月29日（金）'},
+      {u:'kenta', t:'09:20', body:'おはようございます。今週の受注は12件、うち緊急が2件です。'},
+      {unread:1},
+      {u:'hanako', t:'10:15', body:'【周知】9/1よりSOLIDの納期回答フローが2段階になります。\nモデラーの回答 → 管理者確定 の順です。詳細はマニュアルを確認してください。',
+        react:[['👍',6,true],['✅',3,false]]},
+    ]},
+  { id:'prj1', kind:'project', name:'底抜きポンプ安全カバー', code:'SOLID-2026-0001', co:'株式会社ABC製作所',
+    av:{a:'底',c:'c-blu'}, time:'09:58', unread:0, mini:['m-rev','検査待ち'],
+    last:'Budi Santoso: モデリング完了しました。検査をお願いします',
+    members:['yamada','hanako','budi'],
+    pin:{ label:'確定仕様', text:'板厚 4.5mm / SS400 / 溶接部グラインダー仕上げ / フィレット R3' },
+    meta:{status:'検査待ち', statusCls:'m-rev', deadline:'2026/09/10', reply:'2026/09/10（了承済み）', modeler:'Budi Santoso', files:5, progress:70,
+      steps:[['提出済み','done'],['モデリング中','done'],['検査待ち','now'],['納品完了','']]},
+    msgs:[
+      {day:'2026年8月27日（水）'},
+      {sys:true, icon:'fa-arrow-right-arrow-left', body:'ステータスが「モデリング中」に変更されました（管理者 花子）'},
+      {u:'yamada', t:'10:32', body:'板厚4.5mmで間違いありません。溶接部の仕上げはグラインダー仕上げでお願いします。'},
+      {u:'hanako', t:'10:45', body:'承知しました。制作チームに伝えます。'},
+      {day:'2026年8月29日（金）'},
+      {u:'budi', t:'09:55', body:'モデリング完了しました。検査をお願いします。',
+        tr:'Pemodelan telah selesai. Mohon dilakukan pemeriksaan.'},
+      {u:'budi', t:'09:56', body:'', file:{name:'安全カバー_v1.stp', size:'3.4 MB', ic:'fa-cube', c:'c-pur'}, thumb:true,
+        react:[['👀',2,true]], read:'既読 3'},
+      {u:'hanako', t:'09:57', quote:{u:'budi', body:'モデリング完了しました。検査をお願いします。'},
+        body:'フィレット半径だけ確認させてください。R3で合っていますか？'},
+      {u:'budi', t:'09:57', body:'R3で作成しています。図面指示どおりです。', react:[['✅',1,true]]},
+      {sys:true, icon:'fa-circle-check', body:'ステータスが「検査待ち」に変更されました（Budi Santoso）'},
+      {u:'hanako', t:'09:58', body:'@山田 太郎 モデルが上がりました。ビューアでご確認ください。', mention:true},
+    ]},
+  { id:'sp-id', kind:'space', name:'PT.HILANO LCZ INDONESIA', sub:'メンバー 8名 · モデラー拠点',
+    av:{a:'ID',c:'c-ind'}, time:'09:30', unread:5, mini:['m-lock','社内'],
+    last:'Ahmad Rizki: Selamat pagi! 本日の割当を確認しました',
+    members:['ahmad','budi','dewi','hanako'],
+    pin:{ label:'運用', text:'割当は毎朝9時に更新／Penugasan diperbarui setiap pukul 09.00' },
+    msgs:[
+      {day:'2026年8月29日（金）'},
+      {u:'hanako', t:'09:05', body:'おはようございます。本日の割当を共有します。緊急案件が1件あります。',
+        tr:'Selamat pagi. Berikut pembagian tugas hari ini. Ada 1 kasus mendesak.'},
+      {unread:5},
+      {u:'ahmad', t:'09:28', body:'Selamat pagi! Saya sudah cek pembagian tugas hari ini.',
+        tr:'おはようございます！本日の割当を確認しました。'},
+      {u:'dewi', t:'09:29', body:'Untuk SOLID-2026-0005, saya perlu tambahan 1 hari karena bentuknya kompleks.',
+        tr:'SOLID-2026-0005について、形状が複雑なため1日追加をお願いします。'},
+      {u:'budi', t:'09:30', body:'Saya bisa bantu kalau perlu.', tr:'必要であれば手伝えます。', react:[['🙏',2,true]]},
+    ]},
+  { id:'g-urg', kind:'group', name:'緊急対応チーム', sub:'メンバー 5名 · 期限3日以内の案件',
+    av:{a:'!',c:'c-red'}, time:'09:12', unread:0, mini:['m-pur','グループ'],
+    last:'管理者 花子: XYZ工業の件、明日朝一で対応します',
+    members:['hanako','kenta','ahmad','budi'],
+    pin:{ label:'ルール', text:'期限3日以内になった案件は必ずここで進捗を共有する' },
+    msgs:[
+      {day:'2026年8月29日（金）'},
+      {sys:true, icon:'fa-triangle-exclamation', body:'SOLID-2026-0003 が「期限3日以内」になったため、このグループに自動追加されました'},
+      {u:'kenta', t:'09:10', body:'XYZ工業の配管サポート、まだモデラー未割当です。'},
+      {u:'hanako', t:'09:12', body:'XYZ工業の件、明日朝一で対応します。Ahmadさんに割り当てました。'},
+    ]},
+  { id:'dm-budi', kind:'dm', name:'Budi Santoso', sub:'PT.HILANO LCZ INDONESIA · オンライン',
+    av:{a:'BS',c:'c-pur',rd:true}, time:'08:40', unread:0,
+    last:'ありがとうございます。確認します。',
+    members:['budi','hanako'],
+    msgs:[
+      {day:'2026年8月29日（金）'},
+      {u:'hanako', t:'08:35', body:'Budiさん、0001の検査、今日中にこちらで確認します。'},
+      {u:'budi', t:'08:40', body:'Terima kasih. Saya akan menunggu.', tr:'ありがとうございます。お待ちしています。'},
+    ]},
+  { id:'prj2', kind:'project', name:'搬送ローラーブラケット', code:'SOLID-2026-0002', co:'株式会社ABC製作所',
+    av:{a:'搬',c:'c-blu'}, time:'昨日', unread:0, mini:['m-code','納期交渉中'],
+    last:'Ahmad Rizki: 形状が複雑なため3日の延長をお願いします',
+    members:['yamada','hanako','ahmad'],
+    pin:{ label:'注意', text:'納期が確定するまでモデリングは開始しない（9/6で交渉中）' },
+    meta:{status:'モデリング中', statusCls:'m-code', deadline:'2026/09/03', reply:'2026/09/06（交渉中）', modeler:'Ahmad Rizki', files:4, progress:45,
+      steps:[['提出済み','done'],['モデリング中','now'],['検査待ち',''],['納品完了','']]},
+    msgs:[
+      {day:'2026年8月28日（木）'},
+      {u:'ahmad', t:'14:30', body:'形状が複雑なため3日の延長をお願いします。',
+        tr:'Karena bentuknya rumit, mohon perpanjangan 3 hari.'},
+      {sys:true, icon:'fa-calendar-day', body:'納期回答が登録されました：2026/09/06（交渉中）'},
+    ]},
+  { id:'dm-yamada', kind:'dm', name:'山田 太郎', sub:'株式会社ABC製作所 · 30分前',
+    av:{a:'山',c:'c-blu',rd:true}, time:'昨日', unread:0,
+    last:'来週の打ち合わせ、水曜でお願いします。',
+    members:['yamada','hanako'],
+    msgs:[
+      {day:'2026年8月28日（木）'},
+      {u:'yamada', t:'17:20', body:'来週の打ち合わせ、水曜でお願いします。'},
+    ]},
+  { id:'prj5', kind:'project', name:'モーターマウントベース', code:'SOLID-2026-0005', co:'有限会社XYZ工業',
+    av:{a:'モ',c:'c-gry'}, time:'8/27', unread:0, mini:['m-ok','納品待ち'],
+    last:'Dewi Rahayu: 問題ありません。予定通り進めます。',
+    members:['sato','hanako','dewi'],
+    meta:{status:'納品待ち', statusCls:'m-ok', deadline:'2026/09/20', reply:'2026/09/20（了承済み）', modeler:'Dewi Rahayu', files:6, progress:85,
+      steps:[['提出済み','done'],['モデリング中','done'],['検査待ち','done'],['納品完了','now']]},
+    msgs:[
+      {day:'2026年8月27日（水）'},
+      {u:'dewi', t:'08:45', body:'問題ありません。予定通り進めます。'},
+    ]},
+  { id:'prj4', kind:'project', name:'制御盤取付ブラケット', code:'SOLID-2026-0004', co:'株式会社ABC製作所',
+    av:{a:'制',c:'c-gry'}, time:'8/20', unread:0, mini:['m-ok','納品完了'], archived:true,
+    last:'納品完了により自動アーカイブされました',
+    members:['yamada','hanako','budi'],
+    meta:{status:'納品完了', statusCls:'m-ok', deadline:'2026/08/15', reply:'2026/08/15（了承済み）', modeler:'Budi Santoso', files:7, progress:100,
+      steps:[['提出済み','done'],['モデリング中','done'],['検査待ち','done'],['納品完了','done']]},
+    msgs:[
+      {day:'2026年8月20日（木）'},
+      {sys:true, icon:'fa-box-archive', body:'納品完了から7日経過したため、このルームはアーカイブされました'},
+    ]},
+];
+const R = id => ROOMS.find(r => r.id === id);
+
+/* ══════ 共通パーツ ══════ */
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const AV  = (u, cls='') => `<div class="mk-av rd ${U[u].c} ${cls}">${U[u].a}</div>`;
+const RAV = (r, cls='') => `<div class="mk-av ${r.av.rd?'rd':''} ${r.av.c} ${cls}">${r.av.a}</div>`;
+const FACES = r => `<div class="mk-faces">${r.members.slice(0,4).map(m=>AV(m)).join('')}</div>`;
+
+/* SOLIDサイドバー（左メニューに「チャット」を追加した状態） */
+function SB(unread){
+  return `<aside class="mk-sb">
+    <div class="mk-sb-logo"><b>SOLID</b><em>by HaLSpace</em></div>
+    <nav class="mk-nav">
+      <div class="mk-nav-l">メニュー</div>
+      <a href="#"><i class="fa-solid fa-gauge"></i> ダッシュボード</a>
+      <a href="#" class="on"><i class="fa-solid fa-comments"></i> チャット <span class="nb">${unread}</span></a>
+      <a href="#"><i class="fa-solid fa-calendar-days"></i> 受注カレンダー</a>
+      <a href="#"><i class="fa-solid fa-plus-circle"></i> 新規発注</a>
+      <div class="mk-nav-l">管理</div>
+      <a href="#"><i class="fa-solid fa-gear"></i> 管理者画面</a>
+    </nav>
+    <div class="mk-sb-btm">${AV(ME)}<div><b>管理者 花子</b><em>株式会社HaLSpace</em></div></div>
+  </aside>`;
+}
+function TOP(title, right=''){
+  return `<div class="mk-top"><span class="mk-top-t">${title}</span>
+    <span style="font-size:11.5px;color:var(--muted);">株式会社HaLSpace（社内）</span>
+    <span class="sp"></span>${right}</div>`;
+}
+
+/* メッセージ1件 */
+function MSG(m, o={}){
+  if(m.day)    return `<div class="mk-day">${m.day}</div>`;
+  if(m.unread) return `<div class="mk-unread-line">ここから未読 ${m.unread}件</div>`;
+  if(m.sys)    return `<div class="mk-sys"><i class="fa-solid ${m.icon}"></i>${m.body}</div>`;
+  const u = U[m.u];
+  const body = m.mention
+    ? esc(m.body).replace(/@[^\s]+\s?[^\s]*/, s=>`<span class="mention">${s}</span>`)
+    : esc(m.body);
+  return `<div class="mk-msg">
+    ${AV(m.u)}
+    <div class="mk-msg-b">
+      ${o.acts ? `<div class="mk-msg-acts">
+        <span title="引用して返信"><i class="fa-solid fa-reply"></i></span>
+        <span title="リアクション"><i class="fa-regular fa-face-smile"></i></span>
+        <span title="ピン留め"><i class="fa-solid fa-thumbtack"></i></span>
+        <span title="ToDoにする"><i class="fa-solid fa-list-check"></i></span></div>` : ''}
+      <div class="mk-msg-h">
+        <span class="mk-name">${u.n}</span>
+        <span class="mk-tag ${u.tc}">${u.tag}</span>
+        <span class="mk-time">${m.t}</span>
+      </div>
+      ${m.quote ? `<div class="mk-quote"><i class="fa-solid fa-reply" style="font-size:9px"></i><b>${U[m.quote.u].n}</b><span>${esc(m.quote.body)}</span></div>` : ''}
+      ${m.body ? `<div class="mk-text">${body}</div>` : ''}
+      ${m.tr && o.tr ? `<div class="mk-tr"><span class="lbl"><i class="fa-solid fa-language"></i> 自動翻訳</span>${esc(m.tr)}</div>` : ''}
+      ${m.file ? `<div class="mk-file"><div class="ic ${m.file.c}"><i class="fa-solid ${m.file.ic}"></i></div>
+        <div><b>${m.file.name}</b><em>${m.file.size} · クリックでビューア表示</em></div></div>` : ''}
+      ${m.thumb ? `<div class="mk-thumb"><i class="fa-solid fa-cube"></i></div>` : ''}
+      ${m.react && o.react ? `<div class="mk-react">${m.react.map(r=>`<span class="${r[2]?'on':''}">${r[0]} ${r[1]}</span>`).join('')}<span class="add"><i class="fa-regular fa-face-smile"></i></span></div>` : ''}
+      ${m.read && o.read ? `<div class="mk-read"><i class="fa-solid fa-check-double" style="color:var(--accent)"></i> ${m.read}</div>` : ''}
+    </div></div>`;
+}
+const MSGS = (r, o) => r.msgs.map(m => MSG(m, o)).join('');
+
+/* ピン留めバー：その部屋の確定事項を会話の一番上に固定する */
+const PINBAR = r => r.pin ? `<div class="mk-pinbar">
+  <i class="fa-solid fa-thumbtack pn"></i><b>${r.pin.label}</b>
+  <span class="tx">${r.pin.text}</span>
+  <span class="ed"><i class="fa-solid fa-pen"></i> 編集</span></div>` : '';
+
+/* ルーム1件（リスト用） */
+function ROOM(r, active, opt={}){
+  const un = r.unread > 0;
+  return `<div class="mk-room ${un?'unread':''} ${r.id===active?'on':''}" data-room="${r.id}">
+    ${RAV(r)}
+    <div class="mk-room-b">
+      <div class="mk-room-t">
+        <span class="mk-room-name">${r.kind==='project'&&opt.code?`<span style="color:var(--blue);font-family:'Chakra Petch',monospace;font-size:11px;">${r.code.slice(-4)}</span> `:''}${r.name}</span>
+        ${r.mini&&opt.mini?`<span class="mk-mini ${r.mini[0]}">${r.mini[1]}</span>`:''}
+        <span class="mk-room-time">${r.time}</span>
+      </div>
+      <div class="mk-room-t">
+        <span class="mk-room-last">${r.co&&opt.co?r.co+' · ':''}${r.last}</span>
+        ${un?`<span class="mk-badge">${r.unread}</span>`:''}
+      </div>
+    </div></div>`;
+}
+const SEC = (label, icon, n) => `<div class="mk-sec"><i class="fa-solid ${icon}"></i>${label}<span class="n">${n??''}</span></div>`;
+const byKind = k => ROOMS.filter(r => r.kind === k && !r.archived);
+
+/* 右レール：案件情報（物件ルーム）／ルーム情報（それ以外） */
+const railProject = r => {
+  const m = r.meta;
+  return `
+    <div class="mk-rail-sec">
+      <h4><i class="fa-solid fa-cube"></i> 案件情報 <a class="more" href="#">詳細を開く</a></h4>
+      <div class="mk-kv"><em>コード</em><b style="font-family:'Chakra Petch',monospace;color:var(--blue)">${r.code}</b></div>
+      <div class="mk-kv"><em>発注会社</em><b>${r.co}</b></div>
+      <div class="mk-kv"><em>ステータス</em><b><span class="mk-mini ${m.statusCls}">${m.status}</span></b></div>
+      <div class="mk-kv"><em>希望納期</em><b>${m.deadline}</b></div>
+      <div class="mk-kv"><em>回答納期</em><b>${m.reply}</b></div>
+      <div class="mk-kv"><em>担当モデラー</em><b>${m.modeler}</b></div>
+      <div class="mk-progress"><i style="width:${m.progress}%"></i></div>
+      <div style="font-size:10.5px;color:var(--muted);text-align:right;">進捗 ${m.progress}%</div>
+    </div>
+    <div class="mk-rail-sec">
+      <h4><i class="fa-solid fa-timeline"></i> 進行状況</h4>
+      ${m.steps.map(s=>`<div class="mk-step ${s[1]}"><span class="d"></span>${s[0]}</div>`).join('')}
+    </div>
+    <div class="mk-rail-sec">
+      <h4><i class="fa-solid fa-paperclip"></i> 共有ファイル <a class="more" href="#">${m.files}件</a></h4>
+      <div class="mk-mini-file"><div class="ic c-red"><i class="fa-solid fa-file-pdf"></i></div><b>ZTSPA001_rev2.pdf</b></div>
+      <div class="mk-mini-file"><div class="ic c-blu"><i class="fa-solid fa-ruler-combined"></i></div><b>ZTSPA001_v2.dxf</b></div>
+      <div class="mk-mini-file"><div class="ic c-pur"><i class="fa-solid fa-cube"></i></div><b>安全カバー_v1.stp</b></div>
+    </div>
+    <div class="mk-rail-sec">
+      <h4><i class="fa-solid fa-bolt"></i> この会話からできること</h4>
+      <button class="mk-btn p"><i class="fa-solid fa-magnifying-glass-chart"></i> 検査結果を登録</button>
+      <button class="mk-btn o"><i class="fa-solid fa-rotate-left"></i> 修正依頼を作成</button>
+      <button class="mk-btn o"><i class="fa-solid fa-list-check"></i> このメッセージをToDo化</button>
+    </div>`;
+};
+const railOther = r => `
+    <div class="mk-rail-sec">
+      <h4><i class="fa-solid fa-circle-info"></i> ルーム情報</h4>
+      <div class="mk-kv"><em>種別</em><b>${r.kind==='space'?'スペース':r.kind==='group'?'グループ':'ダイレクト'}</b></div>
+      <div class="mk-kv"><em>公開範囲</em><b>${r.mini&&r.mini[1]==='社内'?'社内のみ':'参加者のみ'}</b></div>
+    </div>
+    <div class="mk-rail-sec">
+      <h4><i class="fa-solid fa-users"></i> メンバー ${r.members.length}名 <a class="more" href="#">追加</a></h4>
+      ${r.members.map(u=>`<div class="mk-mini-file">${AV(u,'sm')}<b>${U[u].n}</b><span class="mk-mini ${U[u].tc}" style="margin-left:auto">${U[u].tag}</span></div>`).join('')}
+    </div>
+    <div class="mk-rail-sec">
+      <h4><i class="fa-solid fa-thumbtack"></i> ピン留め</h4>
+      <div style="font-size:11.5px;color:var(--muted);line-height:1.7;">【周知】9/1よりSOLIDの納期回答フローが2段階になります。</div>
+    </div>`;
+
+/* 入力欄 */
+function INPUT(ph, extra=''){
+  return `<div class="mk-input">${extra}
+    <div class="mk-input-box">
+      <div class="mk-ph">${ph}</div>
+      <div class="mk-input-tools">
+        <span class="mk-ib"><i class="fa-solid fa-paperclip"></i></span>
+        <span class="mk-ib"><i class="fa-solid fa-image"></i></span>
+        <span class="mk-ib" title="What'sNoからファイルを添付"><i class="fa-solid fa-folder-open"></i></span>
+        <span class="mk-ib"><i class="fa-solid fa-at"></i></span>
+        <span class="mk-ib"><i class="fa-regular fa-face-smile"></i></span>
+        <span class="sp"></span>
+        <span class="mk-send"><i class="fa-solid fa-paper-plane"></i></span>
+      </div>
+    </div>
+    <div class="mk-hint"><i class="fa-solid fa-circle-info"></i> Enterで送信 / Shift+Enterで改行</div>
+  </div>`;
+}
+
+/* 案の切り替え */
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.proposal').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  const pane = document.getElementById(t.dataset.target);
+  pane.classList.add('active');
+  // 非表示中はスクロール位置が効かないので、表示された時点で最新メッセージまで送る
+  pane.querySelectorAll('.mk-msgs, .mk-ph-msgs').forEach(b => b.scrollTop = b.scrollHeight);
+}));
+
+/* ══════════════════════════════════════════
+   採用案 ＝ 案4ベース（翻訳付きチャット・ルーム一覧を広く）
+   ══════════════════════════════════════════ */
+(function(){
+  const stage = document.getElementById('s0');
+  let active = 'prj1', tr = true, listW = 388;   // listW はドラッグで変わる
+
+  function render(){
+    const r = R(active);
+    stage.innerHTML = `<div class="mk-app">
+      ${SB(9)}
+      <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+        ${TOP('チャット', `<span class="mk-lang"><i class="fa-solid fa-language"></i> 日本語 <b>⇄</b> Bahasa Indonesia</span>
+          <span class="mk-ib"><i class="fa-solid fa-gear"></i></span>`)}
+        <div style="flex:1;display:flex;min-height:0;">
+
+          <!-- ルーム一覧（幅を広く取り、社名・最終メッセージまで読める） -->
+          <div class="mk-list" style="width:${listW}px;">
+            <div class="mk-list-h">
+              <div class="mk-search"><i class="fa-solid fa-magnifying-glass"></i><input placeholder="検索（訳文・物件コードも対象）"></div>
+              <button class="mk-newbtn" title="新しいチャット"><i class="fa-solid fa-pen"></i></button>
+            </div>
+            <div class="mk-rooms">
+              ${SEC('物件チャット（着信順）','fa-cube')}
+              ${byKind('project').map(x => ROOM(x, active, {mini:1, co:1})).join('')}
+              ${SEC('スペース・グループ','fa-users')}
+              ${[...byKind('space'), ...byKind('group')].map(x => ROOM(x, active, {mini:1})).join('')}
+              ${SEC('ダイレクトメッセージ','fa-user')}
+              ${byKind('dm').map(x => ROOM(x, active, {})).join('')}
+              ${SEC('アーカイブ','fa-box-archive')}
+              ${ROOMS.filter(x=>x.archived).map(x => ROOM(x, active, {mini:1})).join('')}
+            </div>
+          </div>
+
+          <!-- ドラッグで一覧の幅を変える仕切り（ダブルクリックで既定に戻る） -->
+          <div class="mk-split" title="ドラッグで幅を調整 / ダブルクリックで既定に戻す"></div>
+
+          <!-- 会話（案4：自動翻訳・定型文・翻訳して送信） -->
+          <div class="mk-conv">
+            <div class="mk-conv-h">
+              ${RAV(r)}
+              <div class="t"><b>${r.name}
+                ${r.code?`<span class="mk-mini m-code">${r.code}</span>`:''}
+                ${r.mini?`<span class="mk-mini ${r.mini[0]}">${r.mini[1]}</span>`:''}</b>
+                <em>${r.co ? r.co+' · ' : ''}${r.sub || 'メンバー '+r.members.length+'名'}</em></div>
+              ${FACES(r)}
+              <span class="mk-ib ${tr?'on':''}" data-tr="1" title="自動翻訳の表示切替"><i class="fa-solid fa-language"></i></span>
+              <span class="mk-ib"><i class="fa-solid fa-magnifying-glass"></i></span>
+              <span class="mk-ib"><i class="fa-solid fa-user-plus"></i></span>
+              <span class="mk-ib"><i class="fa-solid fa-ellipsis-vertical"></i></span>
+            </div>
+            ${PINBAR(r)}
+            <div class="mk-msgs" id="s0msgs">${MSGS(r, {tr:tr, react:1, read:1, acts:1})}</div>
+            <div class="mk-input">
+              <div class="mk-quick">
+                <span>お世話になっております</span><span>確認をお願いします</span><span>納期はいつになりますか？</span>
+                <span>検査依頼</span><span><i class="fa-solid fa-gear"></i> 定型文</span>
+              </div>
+              <div class="mk-input-box">
+                <div style="color:var(--text);font-size:12.5px;">本日中に検査結果をお送りします。</div>
+                <div class="mk-tr" style="margin-top:2px;">
+                  <span class="lbl"><i class="fa-solid fa-paper-plane"></i> 送信される訳文（相手には両方表示されます）</span>
+                  Kami akan mengirimkan hasil pemeriksaan hari ini.</div>
+                <div class="mk-input-tools">
+                  <span class="mk-ib"><i class="fa-solid fa-paperclip"></i></span>
+                  <span class="mk-ib"><i class="fa-solid fa-image"></i></span>
+                  <span class="mk-ib" title="What'sNoからファイルを添付"><i class="fa-solid fa-folder-open"></i></span>
+                  <span class="mk-ib"><i class="fa-solid fa-at"></i></span>
+                  <span class="mk-ib"><i class="fa-solid fa-microphone"></i></span>
+                  <span class="mk-lang" style="margin-left:4px;"><i class="fa-solid fa-language"></i> 翻訳して送信 <span class="mk-sw on" style="width:26px;height:15px;"></span></span>
+                  <span class="sp"></span>
+                  <span class="mk-send"><i class="fa-solid fa-paper-plane"></i></span>
+                </div>
+              </div>
+              <div class="mk-hint"><i class="fa-solid fa-circle-info"></i> Enterで送信 / Shift+Enterで改行 · 原文は必ず残ります</div>
+            </div>
+          </div>
+
+        </div>
+      </div></div>`;
+
+    stage.querySelectorAll('[data-room]').forEach(e => e.addEventListener('click', () => {
+      active = e.dataset.room; R(active).unread = 0; render();
+    }));
+    stage.querySelectorAll('[data-tr]').forEach(e => e.addEventListener('click', () => {
+      tr = !tr; render();
+    }));
+    const ms = stage.querySelector('#s0msgs'); if(ms) ms.scrollTop = ms.scrollHeight;
+    bindSplit();
+  }
+
+  /* 仕切りのドラッグ：再描画せず幅だけ更新する（本番では localStorage に保存して次回も維持） */
+  function bindSplit(){
+    const sp = stage.querySelector('.mk-split');
+    const list = stage.querySelector('.mk-list');
+    if(!sp || !list) return;
+    sp.addEventListener('mousedown', e => {
+      e.preventDefault();
+      const x0 = e.clientX, w0 = list.getBoundingClientRect().width;
+      sp.classList.add('on');
+      document.body.classList.add('mk-resizing');
+      const move = ev => {
+        listW = Math.round(Math.max(250, Math.min(660, w0 + ev.clientX - x0)));
+        list.style.width = listW + 'px';
+      };
+      const up = () => {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        sp.classList.remove('on');
+        document.body.classList.remove('mk-resizing');
+      };
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    });
+    sp.addEventListener('dblclick', () => { listW = 388; list.style.width = listW + 'px'; });
+  }
+  render();
+})();
+
+/* ══════════════════════════════════════════
+   案1 GOOGLE CHAT 型
+   ══════════════════════════════════════════ */
+(function(){
+  const stage = document.getElementById('s1');
+  let active = 'prj1', unreadOnly = false, modal = false;
+
+  const listHtml = () => {
+    const f = r => !unreadOnly || r.unread > 0;
+    const prj = byKind('project').filter(f), spc = byKind('space').filter(f),
+          grp = byKind('group').filter(f),   dm  = byKind('dm').filter(f);
+    return `
+      <div class="mk-list-h">
+        <div class="mk-search"><i class="fa-solid fa-magnifying-glass"></i><input placeholder="チャットを検索"></div>
+        <button class="mk-newbtn" id="s1new"><i class="fa-solid fa-pen"></i></button>
+      </div>
+      <div class="mk-toggle-row" style="padding-top:9px;">
+        <b style="font-size:13px;color:var(--text);">ホーム</b>
+        <span class="sp" style="flex:1"></span>
+        未読 <span class="mk-sw ${unreadOnly?'on':''}" id="s1sw"></span>
+        <span class="mk-ib on"><i class="fa-solid fa-table-columns"></i></span>
+      </div>
+      <div class="mk-rooms">
+        ${SEC('ショートカット','fa-bookmark')}
+        <div class="mk-room"><div class="mk-av c-gry"><i class="fa-solid fa-house"></i></div><div class="mk-room-b"><div class="mk-room-name">ホーム</div></div></div>
+        <div class="mk-room"><div class="mk-av c-blu"><i class="fa-solid fa-at"></i></div><div class="mk-room-b"><div class="mk-room-name">メンション</div></div><span class="mk-badge">2</span></div>
+        <div class="mk-room"><div class="mk-av c-org"><i class="fa-solid fa-star"></i></div><div class="mk-room-b"><div class="mk-room-name">スター付き</div></div></div>
+        ${SEC('物件チャット（着信順）','fa-cube', prj.length)}
+        ${prj.map(r => ROOM(r, active, {mini:1, co:1, code:1})).join('')}
+        ${SEC('スペース','fa-users', spc.length + grp.length)}
+        ${[...spc, ...grp].map(r => ROOM(r, active, {mini:1})).join('')}
+        ${SEC('ダイレクトメッセージ','fa-user', dm.length)}
+        ${dm.map(r => ROOM(r, active, {})).join('')}
+        ${SEC('アーカイブ','fa-box-archive')}
+        ${ROOMS.filter(r=>r.archived).map(r => ROOM(r, active, {mini:1})).join('')}
+      </div>`;
+  };
+
+  const convHtml = () => {
+    const r = R(active);
+    return `
+      <div class="mk-conv-h">
+        ${RAV(r)}
+        <div class="t">
+          <b>${r.name}
+            ${r.code?`<span class="mk-mini m-code">${r.code}</span>`:''}
+            ${r.mini?`<span class="mk-mini ${r.mini[0]}">${r.mini[1]}</span>`:''}</b>
+          <em>${r.co ? r.co + ' · ' : ''}${r.sub || 'メンバー ' + r.members.length + '名'}</em>
+        </div>
+        ${FACES(r)}
+        <span class="mk-ib"><i class="fa-solid fa-user-plus"></i></span>
+        <span class="mk-ib"><i class="fa-solid fa-magnifying-glass"></i></span>
+        <span class="mk-ib"><i class="fa-solid fa-bell-slash"></i></span>
+        <span class="mk-ib"><i class="fa-solid fa-ellipsis-vertical"></i></span>
+      </div>
+      ${PINBAR(r)}
+      <div class="mk-msgs" id="s1msgs">${MSGS(r, {react:1, read:1, acts:1})}</div>
+      ${INPUT('メッセージを送信：' + r.name)}`;
+  };
+
+  const modalHtml = () => !modal ? '' : `
+    <div class="mk-modal" id="s1modal">
+      <div class="mk-modal-box">
+        <div class="mk-modal-h"><i class="fa-solid fa-pen-to-square" style="color:var(--primary)"></i> 新しいチャット</div>
+        <div class="mk-modal-b">
+          <div class="mk-fld"><label>種類</label>
+            <div class="mk-seg"><span>ダイレクト</span><span class="on">グループ</span><span>物件に紐づける</span></div></div>
+          <div class="mk-fld"><label>グループ名</label><div class="inp filled">図面レビュー会（毎週火）</div></div>
+          <div class="mk-fld"><label>メンバー</label>
+            <div class="mk-mem">
+              ${['hanako','budi','ahmad','yamada'].map(u=>`<span>${AV(u,'sm')}${U[u].n}</span>`).join('')}
+              <span style="color:var(--blue);font-weight:700;padding:3px 9px;"><i class="fa-solid fa-plus"></i> 追加</span>
+            </div></div>
+          <div class="mk-fld"><label>公開範囲</label>
+            <div class="mk-seg"><span class="on"><i class="fa-solid fa-lock"></i> 社内のみ</span><span>発注者も参加</span></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:6px;">社内のみ＝HaLSpace／PT.HILANO LCZ INDONESIA の所属者だけが閲覧できます</div></div>
+        </div>
+        <div class="mk-modal-f"><button class="mk-btn o" id="s1cancel">キャンセル</button><button class="mk-btn p">作成</button></div>
+      </div></div>`;
+
+  function render(){
+    stage.innerHTML = `<div class="mk-app" style="position:relative;">
+      ${SB(9)}
+      <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+        ${TOP('チャット', `<span class="mk-ib"><i class="fa-solid fa-filter"></i></span><span class="mk-ib"><i class="fa-solid fa-gear"></i></span>`)}
+        <div style="flex:1;display:flex;min-height:0;">
+          <div class="mk-list">${listHtml()}</div>
+          <div class="mk-conv">${convHtml()}</div>
+        </div>
+      </div>
+      ${modalHtml()}
+    </div>`;
+    stage.querySelectorAll('[data-room]').forEach(e => e.addEventListener('click', () => {
+      active = e.dataset.room; const r = R(active); r.unread = 0; render();
+    }));
+    const sw = stage.querySelector('#s1sw');
+    if(sw) sw.addEventListener('click', () => { unreadOnly = !unreadOnly; render(); });
+    stage.querySelector('#s1new').addEventListener('click', () => { modal = true; render(); });
+    const cn = stage.querySelector('#s1cancel');
+    if(cn) cn.addEventListener('click', () => { modal = false; render(); });
+    const ms = stage.querySelector('#s1msgs'); if(ms) ms.scrollTop = ms.scrollHeight;
+  }
+  render();
+})();
+
+/* ══════════════════════════════════════════
+   案2 物件コンテキスト型
+   ══════════════════════════════════════════ */
+(function(){
+  const stage = document.getElementById('s2');
+  let active = 'prj1';
+
+  function render(){
+    const r = R(active);
+    const prj = byKind('project');
+    stage.innerHTML = `<div class="mk-app">
+      ${SB(9)}
+      <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+        ${TOP('チャット', `<span class="mk-ib on"><i class="fa-solid fa-columns"></i></span>`)}
+        <div style="flex:1;display:flex;min-height:0;">
+          <div class="mk-list" style="width:266px;">
+            <div class="mk-list-h">
+              <div class="mk-search"><i class="fa-solid fa-magnifying-glass"></i><input placeholder="物件コード・社名で検索"></div>
+              <button class="mk-newbtn"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <div class="mk-chips">
+              <span class="mk-chip on">すべて</span><span class="mk-chip">自分の担当</span>
+              <span class="mk-chip">未読</span><span class="mk-chip">期限3日以内</span>
+            </div>
+            <div class="mk-rooms">
+              ${SEC('物件チャット（着信順）','fa-cube', prj.length)}
+              ${prj.map(x => ROOM(x, active, {mini:1, co:1})).join('')}
+              ${SEC('スペース・グループ','fa-users')}
+              ${[...byKind('space'), ...byKind('group')].map(x => ROOM(x, active, {mini:1})).join('')}
+              ${SEC('ダイレクトメッセージ','fa-user')}
+              ${byKind('dm').map(x => ROOM(x, active, {})).join('')}
+            </div>
+          </div>
+          <div class="mk-conv">
+            <div class="mk-conv-h">
+              ${RAV(r)}
+              <div class="t"><b>${r.name}${r.code?`<span class="mk-mini m-code">${r.code}</span>`:''}</b>
+                <em>${r.co ? r.co + ' · ' : ''}${r.sub || 'メンバー ' + r.members.length + '名'}</em></div>
+              ${FACES(r)}
+              <span class="mk-ib"><i class="fa-solid fa-magnifying-glass"></i></span>
+              <span class="mk-ib"><i class="fa-solid fa-ellipsis-vertical"></i></span>
+            </div>
+            ${PINBAR(r)}
+            <div class="mk-msgs" id="s2msgs">${MSGS(r, {react:1, read:1, acts:1})}</div>
+            ${INPUT('メッセージを入力… （@でメンション、/ で定型文）',
+              `<div class="mk-quick"><span>お世話になっております</span><span>納期を確認させてください</span><span>検査依頼</span><span>修正をお願いします</span><span><i class="fa-solid fa-plus"></i> 定型文を管理</span></div>`)}
+          </div>
+          <div class="mk-rail">${r.kind==='project' ? railProject(r) : railOther(r)}</div>
+        </div>
+      </div></div>`;
+    stage.querySelectorAll('[data-room]').forEach(e => e.addEventListener('click', () => {
+      active = e.dataset.room; R(active).unread = 0; render();
+    }));
+    const ms = stage.querySelector('#s2msgs'); if(ms) ms.scrollTop = ms.scrollHeight;
+  }
+  render();
+})();
+
+/* ══════════════════════════════════════════
+   案3 受信箱型
+   ══════════════════════════════════════════ */
+(function(){
+  const stage = document.getElementById('s3');
+  let done = 0;
+
+  const card = (r, cls, badge) => {
+    const ms = r.msgs.filter(m => !m.day && !m.unread);
+    const show = ms.slice(-2);
+    return `<div class="mk-card ${cls}" data-card="${r.id}">
+      <div class="mk-card-h">
+        ${RAV(r,'sm')}
+        <span class="nm">${r.name}
+          ${r.code?`<span class="mk-mini m-code">${r.code}</span>`:''}
+          ${badge?`<span class="mk-mini ${badge[0]}">${badge[1]}</span>`:''}</span>
+        <span class="sp"></span>
+        ${r.unread?`<span class="mk-badge">${r.unread}</span>`:''}
+        <span class="mk-room-time">${r.time}</span>
+        <span class="mk-ib" title="スヌーズ"><i class="fa-regular fa-clock"></i></span>
+        <span class="mk-ib" title="既読にする" data-done="${r.id}"><i class="fa-solid fa-check"></i></span>
+        <span class="mk-ib" title="ルームを開く"><i class="fa-solid fa-up-right-from-square"></i></span>
+      </div>
+      <div class="mk-card-b">
+        ${show.map(m => m.sys
+          ? `<div class="mk-sys" style="align-self:flex-start;max-width:100%;margin-bottom:6px;"><i class="fa-solid ${m.icon}"></i>${m.body}</div>`
+          : `<div class="mk-msg" style="margin-bottom:8px;">${AV(m.u)}
+              <div class="mk-msg-b">
+                <div class="mk-msg-h"><span class="mk-name">${U[m.u].n}</span>
+                  <span class="mk-tag ${U[m.u].tc}">${U[m.u].tag}</span><span class="mk-time">${m.t}</span></div>
+                ${m.body?`<div class="mk-text">${esc(m.body)}</div>`:''}
+                ${m.file?`<div class="mk-file"><div class="ic ${m.file.c}"><i class="fa-solid ${m.file.ic}"></i></div>
+                  <div><b>${m.file.name}</b><em>${m.file.size}</em></div></div>`:''}
+              </div></div>`).join('')}
+      </div>
+      <div class="mk-card-reply">
+        <div class="box">この場で返信…</div>
+        <span class="mk-ib"><i class="fa-solid fa-paperclip"></i></span>
+        <span class="mk-send"><i class="fa-solid fa-paper-plane"></i></span>
+      </div></div>`;
+  };
+
+  function render(){
+    stage.innerHTML = `<div class="mk-app">
+      ${SB(9)}
+      <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+        ${TOP('チャット受信箱', `<span class="mk-ib"><i class="fa-solid fa-list"></i></span><span class="mk-ib on"><i class="fa-solid fa-inbox"></i></span>`)}
+        <div style="flex:1;display:flex;min-height:0;">
+          <div class="mk-side">
+            <div class="mk-side-i on"><i class="fa-solid fa-inbox"></i> 要返信 <span class="n">4</span></div>
+            <div class="mk-side-i"><i class="fa-solid fa-at"></i> メンション <span class="n">2</span></div>
+            <div class="mk-side-i"><i class="fa-solid fa-triangle-exclamation"></i> 期限3日以内 <span class="n">2</span></div>
+            <div class="mk-side-i"><i class="fa-solid fa-user-check"></i> 自分の担当 <span class="n">5</span></div>
+            <div class="mk-side-i"><i class="fa-regular fa-clock"></i> スヌーズ中 <span class="n">1</span></div>
+            <div class="mk-side-i"><i class="fa-solid fa-check-double"></i> 対応済み</div>
+            <div style="border-top:1px solid var(--border);margin:11px 0;"></div>
+            <div class="mk-nav-l" style="color:var(--muted);padding:4px 11px;">ルーム一覧</div>
+            <div class="mk-side-i"><i class="fa-solid fa-cube"></i> 物件チャット <span class="n">6</span></div>
+            <div class="mk-side-i"><i class="fa-solid fa-users"></i> スペース <span class="n">3</span></div>
+            <div class="mk-side-i"><i class="fa-solid fa-user"></i> ダイレクト <span class="n">2</span></div>
+            <div style="border-top:1px solid var(--border);margin:11px 0;"></div>
+            <div style="padding:0 11px;">
+              <div style="font-size:11px;color:var(--muted);">本日の処理</div>
+              <div class="mk-progress"><i style="width:${20 + done*20}%"></i></div>
+              <div style="font-size:10.5px;color:var(--muted);">${2 + done} / 10 件</div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg);">
+            <div style="padding:13px 18px 0;display:flex;align-items:center;gap:10px;">
+              <b style="font-size:15px;">要返信</b>
+              <span style="font-size:12px;color:var(--muted);">未読 9件 · 古い順に並べています</span>
+              <span style="flex:1"></span>
+              <span class="mk-chip on">古い順</span><span class="mk-chip">緊急優先</span>
+              <span class="mk-chip"><i class="fa-solid fa-check-double"></i> すべて既読</span>
+            </div>
+            <div class="mk-inbox">
+              ${card(R('prj3'), 'hot', ['m-urg','期限まで残り2日'])}
+              ${card(R('sp-id'), 'warn', ['m-lock','要返答 2件'])}
+              ${card(R('sp-hal'), '', null)}
+              ${card(R('prj2'), 'warn', ['m-code','納期交渉中'])}
+              <div style="text-align:center;padding:8px 0 20px;color:var(--muted);font-size:12px;">
+                <i class="fa-solid fa-mug-hot"></i> ここまでで要返信は終わりです
+              </div>
+            </div>
+          </div>
+        </div>
+      </div></div>`;
+    stage.querySelectorAll('[data-done]').forEach(e => e.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const c = e.closest('.mk-card');
+      c.style.transition = 'opacity .25s, transform .25s';
+      c.style.opacity = '0'; c.style.transform = 'translateX(30px)';
+      setTimeout(() => { c.remove(); done = Math.min(done + 1, 4); }, 250);
+    }));
+  }
+  render();
+})();
+
+/* ══════════════════════════════════════════
+   案4 バイリンガル型
+   ══════════════════════════════════════════ */
+(function(){
+  const stage = document.getElementById('s4');
+  let active = 'sp-id', tr = true;
+
+  function render(){
+    const r = R(active);
+    stage.innerHTML = `<div class="mk-app">
+      ${SB(9)}
+      <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
+        ${TOP('チャット', `<span class="mk-lang"><i class="fa-solid fa-language"></i> 日本語 <b>⇄</b> Bahasa Indonesia</span>`)}
+        <div style="flex:1;display:flex;min-height:0;">
+          <div class="mk-list" style="width:256px;">
+            <div class="mk-list-h">
+              <div class="mk-search"><i class="fa-solid fa-magnifying-glass"></i><input placeholder="検索（訳文も対象）"></div>
+              <button class="mk-newbtn"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <div class="mk-rooms">
+              ${SEC('スペース','fa-users')}
+              ${[...byKind('space'), ...byKind('group')].map(x => ROOM(x, active, {mini:1})).join('')}
+              ${SEC('物件チャット（着信順）','fa-cube')}
+              ${byKind('project').map(x => ROOM(x, active, {mini:1})).join('')}
+              ${SEC('ダイレクトメッセージ','fa-user')}
+              ${byKind('dm').map(x => ROOM(x, active, {})).join('')}
+            </div>
+          </div>
+          <div class="mk-conv">
+            <div class="mk-conv-h">
+              ${RAV(r)}
+              <div class="t"><b>${r.name}${r.code?`<span class="mk-mini m-code">${r.code}</span>`:''}</b>
+                <em>${r.co ? r.co+' · ' : ''}${r.sub || 'メンバー '+r.members.length+'名'}</em></div>
+              ${FACES(r)}
+              <span class="mk-ib ${tr?'on':''}" id="s4tr" title="自動翻訳の表示切替"><i class="fa-solid fa-language"></i></span>
+              <span class="mk-ib"><i class="fa-solid fa-magnifying-glass"></i></span>
+              <span class="mk-ib"><i class="fa-solid fa-ellipsis-vertical"></i></span>
+            </div>
+            ${PINBAR(r)}
+            <div class="mk-msgs" id="s4msgs">${MSGS(r, {tr:tr, react:1, read:1, acts:1})}</div>
+            <div class="mk-input">
+              <div class="mk-quick">
+                <span>おはようございます</span><span>確認をお願いします</span><span>納期はいつになりますか？</span>
+                <span>ありがとうございます</span><span><i class="fa-solid fa-gear"></i> 定型文</span>
+              </div>
+              <div class="mk-input-box">
+                <div style="color:var(--text);font-size:12.5px;">本日中に検査結果をお送りします。</div>
+                <div class="mk-tr" style="margin-top:2px;">
+                  <span class="lbl"><i class="fa-solid fa-paper-plane"></i> 送信される訳文（相手には両方表示されます）</span>
+                  Kami akan mengirimkan hasil pemeriksaan hari ini.</div>
+                <div class="mk-input-tools">
+                  <span class="mk-ib"><i class="fa-solid fa-paperclip"></i></span>
+                  <span class="mk-ib"><i class="fa-solid fa-image"></i></span>
+                  <span class="mk-ib"><i class="fa-solid fa-microphone"></i></span>
+                  <span class="mk-lang" style="margin-left:4px;"><i class="fa-solid fa-language"></i> 翻訳して送信 <span class="mk-sw on" style="width:26px;height:15px;"></span></span>
+                  <span class="sp"></span>
+                  <span class="mk-send"><i class="fa-solid fa-paper-plane"></i></span>
+                </div>
+              </div>
+              <div class="mk-hint"><i class="fa-solid fa-circle-info"></i> 相手の表示言語に合わせて自動で訳文を付けます（原文は必ず残ります）</div>
+            </div>
+          </div>
+        </div>
+      </div></div>`;
+    stage.querySelectorAll('[data-room]').forEach(e => e.addEventListener('click', () => {
+      active = e.dataset.room; R(active).unread = 0; render();
+    }));
+    const t = stage.querySelector('#s4tr');
+    if(t) t.addEventListener('click', () => { tr = !tr; render(); });
+    const ms = stage.querySelector('#s4msgs'); if(ms) ms.scrollTop = ms.scrollHeight;
+    const ph = stage.querySelector('.mk-ph-msgs'); if(ph) ph.scrollTop = ph.scrollHeight;
+  }
+  render();
+})();
+
+/* ══════════════════════════════════════════
+   各案の解説
+   ══════════════════════════════════════════ */
+const NOTE = (id, arr) => document.getElementById(id).innerHTML =
+  arr.map(n => `<div class="note"><h3>${n[0]}</h3>${n[1]}</div>`).join('');
+
+NOTE('n0', [
+  ['この画面の構成', `<p>左から <strong>SOLIDサイドバー → ルーム一覧 → 会話</strong> の3カラム。会話に画面を集中させ、
+    <strong>ルーム一覧を広く取って</strong>社名・最終メッセージ・ステータスまで一覧のまま読めるようにしています。</p>
+   <p>案件情報は右レールを置かず、<strong>会話ヘッダーの物件コードとステータスバッジ</strong>で足りる範囲に留めました。
+    詳しい納期やファイルは既存のプロジェクト詳細画面で見る、という切り分けです。</p>`],
+  ['盛り込んだ機能', `<ul>
+    <li><strong>自動翻訳</strong>：原文は必ず残し、訳文を下に添える。ヘッダーの <i class="fa-solid fa-language"></i> で表示ON/OFF</li>
+    <li><strong>送信前の訳文プレビュー</strong>：意図と違う訳のまま送る事故を防ぐ</li>
+    <li><strong>翻訳済みの定型文</strong>：よく使う指示の訳の品質を固定できる</li>
+    <li><strong>ピン留めバー</strong>：確定仕様を会話の一番上に固定</li>
+    <li><strong>引用返信</strong>・リアクション・既読数・メンション（メッセージにマウスを乗せると出ます）</li>
+    <li>システムメッセージ（ステータス変更・納期回答・ファイル追加を自動投稿）</li>
+    <li>物件チャットは<strong>着信順</strong>、納品完了から7日で<strong>自動アーカイブ</strong></li>
+    <li><strong>一覧と会話の境目はドラッグで幅を変えられます</strong>（ダブルクリックで既定に戻る）</li></ul>`],
+  ['一覧の幅について', `<p>一覧と会話の境目にある<strong>グレーの仕切りを左右にドラッグ</strong>すると、一覧の幅が変わります。
+    掴んでいる間だけ青くなり、<strong>ダブルクリックで既定（388px）に戻ります</strong>。可動域は 250〜660px です。</p>
+   <p>本番では<strong>変更した幅を localStorage に保存</strong>して、次回そのユーザーが開いたときも同じ幅で表示します。
+    人によって「一覧を広く取りたい」「会話を広く取りたい」が分かれるので、固定値を決め打ちにせず選べるようにします。</p>
+   <p>スマホでは一覧と会話が別画面になるため、この仕切りは出しません（幅の調整はPCのみ）。</p>`],
+  ['実装の進め方（提案）', `<p><strong>Phase 1</strong>：チャット画面と左メニュー追加、物件ルーム／スペース／グループ／DM、着信順、未読、ピン留め、引用返信。
+    <span style="color:#4fd6b6">ここまでで日常業務は回ります。</span></p>
+   <p><strong>Phase 2</strong>：自動翻訳と定型文。翻訳APIの費用が投稿数に比例するため、<strong>訳文はDBにキャッシュして再翻訳しない</strong>設計にします。</p>
+   <p><strong>Phase 3</strong>：受信箱ビュー（案3）をタブとして追加、グループ作成のUI、プッシュ通知。</p>
+    <span class="cost m"><i class="fa-solid fa-gauge-simple-high"></i> Phase 1 は中規模 / Phase 2・3 は追加で中規模</span>`],
+]);
+
+NOTE('n1', [
+  ['コンセプト', `<p><strong>いただいた画像のGoogleチャットをほぼそのまま移植した案。</strong>左＝SOLIDのサイドバー（チャットを追加）、中＝ルーム一覧、右＝会話の3ペイン。
+    一覧は<strong>ショートカット／物件チャット／スペース／ダイレクトメッセージ／アーカイブ</strong>のセクションに分かれ、物件チャットは<strong>着信順</strong>に並びます。</p>
+   <p>「未読」トグル・分割ペイン切替も画像どおり上部に配置しています（スレッドは物件単位のルームでは不要と判断し、外しました）。</p>`],
+  ['盛り込んだ機能', `<ul>
+    <li>右上の <i class="fa-solid fa-pen"></i> から<strong>グループ作成</strong>（種類＝ダイレクト／グループ／物件紐づけ、公開範囲＝社内のみ／発注者も参加）</li>
+    <li>社内スペースには <i class="fa-solid fa-lock"></i> を表示。<strong>発注者には社内ルーム自体が出ません</strong></li>
+    <li>ステータス変更・納期回答・ファイル追加が<strong>システムメッセージ</strong>として自動で流れる</li>
+    <li><strong>ピン留めバー</strong>：確定仕様（板厚・材質・仕上げ）を会話の一番上に固定表示</li>
+    <li><strong>引用返信</strong>：元のメッセージを1行引用して返す（LINEの返信と同じ形）</li>
+    <li>絵文字リアクション／既読数／メンション</li>
+    <li>納品完了から7日でルームを<strong>自動アーカイブ</strong>（一覧が無限に伸びない）</li></ul>`],
+  ['向いている相手 / コスト', `<p>Googleチャット・LINEに慣れた人がそのまま使えるのが最大の利点。<strong>説明なしで使える</strong>ことを最優先にするならこの案。</p>
+    <p>反面、SOLIDならではの情報（案件ステータス・納期）は会話ヘッダーのバッジ程度に留まります。</p>
+    <span class="cost s"><i class="fa-solid fa-gauge-simple-high"></i> 実装コスト：小（既存のコメント機能の拡張で到達可能）</span>`],
+]);
+
+NOTE('n2', [
+  ['コンセプト', `<p><strong>チャットを「案件の作業画面」に格上げした案。</strong>右に案件情報レール（ステータス／希望納期／回答納期／担当モデラー／進捗／共有ファイル）を常時表示し、
+    <strong>チャットを見ながら案件の状況が一目でわかる</strong>ようにしています。</p>
+   <p>スペースやDMを選んだときは、レールが「メンバー・公開範囲・ピン留め」に自動で切り替わります。</p>`],
+  ['盛り込んだ機能', `<ul>
+    <li><strong>会話から直接アクション</strong>：検査結果を登録／修正依頼を作成／メッセージをToDo化</li>
+    <li>共有ファイルの一覧（DXF・PDF・STPを既存ビューアでその場表示）</li>
+    <li><strong>定型文チップ</strong>（「納期を確認させてください」等）をワンタップ挿入・管理者が編集可能</li>
+    <li>What'sNo連携ボタンで<strong>既存ファイルを選んで添付</strong>（wn-pickerの流用）</li>
+    <li>絞り込みチップ：自分の担当／未読／期限3日以内</li>
+    <li>ピン留めバー＋引用返信（案1と共通）</li></ul>`],
+  ['向いている相手 / コスト', `<p>1日に何十件も案件を回す<strong>社内管理者・モデラー</strong>向け。プロジェクト詳細画面とチャット画面を往復する手間がほぼ消えます。</p>
+    <p>逆に発注者にとっては情報量が多く、初見では圧が強い可能性があります（発注者にはレールを簡略表示にするのが現実的）。</p>
+    <span class="cost m"><i class="fa-solid fa-gauge-simple-high"></i> 実装コスト：中（案件APIとの結合・アクション実装が必要）</span>`],
+]);
+
+NOTE('n3', [
+  ['コンセプト', `<p><strong>「ルームを開いて回る」のをやめ、未読だけを1本の受信箱にまとめた案。</strong>
+    上から順に読んで<strong>その場で返信 → チェックで消す</strong>だけで、その日のやり取りが片付きます。</p>
+   <p>緊急案件は赤、納期交渉中は黄のラインが付き、古い順に並ぶので<strong>放置された会話が必ず一番上</strong>に来ます。</p>`],
+  ['盛り込んだ機能', `<ul>
+    <li><strong>インライン返信</strong>：カードを開かずに返信 → 次のカードへ</li>
+    <li><strong>スヌーズ</strong>（後で対応）と「すべて既読」の一括処理</li>
+    <li>絞り込み：要返信／メンション／期限3日以内／自分の担当／対応済み</li>
+    <li>本日の処理件数バーで「あと何件」が見える</li>
+    <li>通常のルーム一覧にも切り替え可能（受信箱はあくまで入口）</li></ul>`],
+  ['向いている相手 / コスト', `<p>全案件を横断で見る<strong>管理者（御社）</strong>にとって最も速い案。朝イチで受信箱をゼロにする運用が作れます。</p>
+    <p>一方で「特定の物件の履歴を追う」用途には弱いため、<strong>案1・案2と併存させる（タブで切り替える）のが現実的</strong>です。</p>
+    <span class="cost m"><i class="fa-solid fa-gauge-simple-high"></i> 実装コスト：中（未読集約APIとインライン返信が必要）</span>`],
+]);
+
+NOTE('n4', [
+  ['コンセプト', `<p><strong>日本 ⇄ インドネシアの言語差をチャット側で吸収する案。</strong>
+    投稿は原文のまま保存し、読み手の言語に合わせて<strong>訳文を自動で添える</strong>（原文は必ず残す）。
+    送信前にも訳文をプレビューできるので、意図と違う訳のまま送る事故を防げます。</p>
+   <p>翻訳はこの案の中心ですが、<strong>UI自体は案1と同じ</strong>です。後から他の案に乗せることもできます。</p>`],
+  ['盛り込んだ機能', `<ul>
+    <li><strong>自動翻訳</strong>（日本語 / Bahasa Indonesia / English）と、ヘッダーでの表示ON/OFF</li>
+    <li><strong>翻訳済みの定型文</strong>：よく使う指示をワンタップ（訳文の品質を固定できる）</li>
+    <li>訳文も含めた<strong>全文検索</strong>（日本語で検索してインドネシア語の投稿を見つけられる）</li>
+    <li>音声メモ送信（現場で打つのが難しい場面向け）＋既読表示</li>
+    <li>モバイル最適化：片手で返信できるバブルUI</li></ul>`],
+  ['向いている相手 / コスト', `<p>PT.HILANO LCZ INDONESIA との日常のやり取りが多いほど効きます。<strong>「英語で書き直す時間」がまるごと消える</strong>のが最大の効果。</p>
+    <p>注意点として、翻訳APIの費用が投稿数に比例します（訳文をDBにキャッシュして再翻訳しない設計が前提）。</p>
+    <span class="cost m"><i class="fa-solid fa-gauge-simple-high"></i> 実装コスト：中（翻訳API連携＋訳文キャッシュ。UI自体は案1と同じ）</span>`],
+]);
+
+NOTE('nm', [
+  ['なぜ案ごとに分けないか', `<p><strong>スマホでは4案の差がほとんど出ません。</strong>画面が狭いため、どの案でも
+    「一覧を出す → 1つ開く → 戻る」の2画面構成に収束するからです。</p>
+   <p>案ごとの違い（右レールを常時出すか、受信箱にまとめるか）は、<strong>横に情報を並べられるPCだから成立する</strong>話です。
+    スマホでは、案2の右レールは③のように下から出るシート、案3の受信箱は④のように専用タブになります。</p>`],
+  ['4案とも共通で対応すること', `<ul>
+    <li>ルーム一覧・会話・入力の<strong>2画面遷移</strong>と、下部タブバーからのダッシュボード復帰</li>
+    <li>ピン留めバーは会話上部に固定（②）</li>
+    <li>写真・図面の添付とその場プレビュー、音声メモ</li>
+    <li>案4の自動翻訳は吹き出しの下段に表示（②・④）</li>
+    <li>PWAとしてホーム画面に追加でき、<strong>プッシュ通知</strong>で未読を知らせる</li></ul>`],
+  ['作り方', `<p>SOLIDは既にレスポンシブなので、<strong>チャット画面もCSSのブレークポイントで同じHTMLを切り替える</strong>方針でいきます。
+    スマホ専用ページは作りません。</p>
+   <p>そのため<strong>どの案を選んでもスマホ対応の追加コストはほぼ同じ</strong>で、案を選ぶ判断材料にはなりません。</p>
+    <span class="cost s"><i class="fa-solid fa-gauge-simple-high"></i> 追加コスト：小（案の選択とは独立）</span>`],
+]);
+</script>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="../icon-180.png">
+  <link rel="manifest" href="../manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#FF6B35">
+  <title>チャット | SOLID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body class="chat-page">
+<div class="app-layout">
+
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-title">SOLID</span>
+      <span class="sidebar-logo-sub">by HaLSpace</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+      <a href="dashboard.html">
+        <i class="fa-solid fa-gauge"></i> ダッシュボード
+      </a>
+      <a href="chat.html" id="navChat" class="active" style="display:none">
+        <i class="fa-solid fa-comments"></i> チャット
+        <span class="nav-badge" id="navChatBadge" style="display:none"></span>
+      </a>
+      <a href="calendar.html">
+        <i class="fa-solid fa-calendar-days"></i> 受注カレンダー
+      </a>
+      <a href="project-new.html">
+        <i class="fa-solid fa-plus-circle"></i> 新規発注
+      </a>
+      <div class="sidebar-nav-label" id="adminNav" style="display:none">管理</div>
+      <a href="admin.html" id="adminLink" style="display:none">
+        <i class="fa-solid fa-gear"></i> 管理者画面
+      </a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div id="sidebarUser"></div>
+      <button class="btn-sidebar-logout" id="btnBackToApps" onclick="solidLogout()">
+        <i class="fa-solid fa-arrow-left"></i> アプリ選択に戻る
+      </button>
+      <button class="btn-sidebar-logout" id="btnStandaloneLogout" onclick="spaceLogout()" style="display:none">
+        <i class="fa-solid fa-right-from-bracket"></i> ログアウト
+      </button>
+    </div>
+  </aside>
+
+  <!-- メインコンテンツ -->
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <span class="top-bar-title">チャット</span>
+        <span id="companyLabel" style="font-size:13px;color:var(--muted);"></span>
+      </div>
+      <div class="top-bar-right">
+        <button class="btn btn-outline btn-sm" id="btnReload" title="最新の状態に更新">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="chat-shell" id="chatShell">
+      <!-- ルーム一覧 -->
+      <div class="cr-list" id="crList">
+        <div class="cr-list-h">
+          <div class="cr-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="roomSearch" placeholder="検索（社名・物件コードも対象）">
+          </div>
+          <button class="cr-newbtn" id="btnNewRoom" title="新しいチャット"><i class="fa-solid fa-pen"></i></button>
+        </div>
+        <div class="cr-rooms" id="roomList"></div>
+      </div>
+
+      <!-- ドラッグで一覧の幅を変える仕切り -->
+      <div class="cr-split" id="crSplit" title="ドラッグで幅を調整 / ダブルクリックで既定に戻す"></div>
+
+      <!-- 会話 -->
+      <div class="cr-conv" id="crConv">
+        <div class="cr-empty" id="convEmpty">
+          <div class="big"><i class="fa-solid fa-comments"></i></div>
+          <div>左の一覧からチャットを選んでください</div>
+        </div>
+        <div id="convBody" style="display:none;flex:1;flex-direction:column;min-height:0;">
+          <div class="cr-conv-h">
+            <button class="cr-back" id="btnBack"><i class="fa-solid fa-chevron-left"></i></button>
+            <div id="convAvatar"></div>
+            <div class="t">
+              <b id="convTitle"></b>
+              <span id="convSub"></span>
+            </div>
+            <div class="cr-faces" id="convFaces"></div>
+            <button class="cr-ib" id="btnPin" title="ピン留めを編集"><i class="fa-solid fa-thumbtack"></i></button>
+            <button class="cr-ib" id="btnOpenProject" title="プロジェクト詳細を開く" style="display:none"><i class="fa-solid fa-up-right-from-square"></i></button>
+          </div>
+          <div class="cr-chtabs" id="convChannels" style="display:none;"></div>
+          <div class="cr-pinbar" id="convPin" style="display:none;">
+            <i class="fa-solid fa-thumbtack pn"></i>
+            <b id="pinLabel"></b>
+            <span class="tx" id="pinText"></span>
+            <button class="ed" id="pinEdit"><i class="fa-solid fa-pen"></i> 編集</button>
+          </div>
+          <div class="cr-msgs" id="msgList"></div>
+          <div class="cr-input">
+            <div class="cr-reply-bar" id="replyBar" style="display:none;">
+              <i class="fa-solid fa-reply"></i>
+              <b id="replyName"></b>
+              <span id="replyBody"></span>
+              <button class="cr-ib" id="replyCancel" style="width:22px;height:22px;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="cr-preview" id="imgPreview" style="display:none;"></div>
+            <div class="cr-input-box">
+              <textarea class="cr-textarea" id="msgInput" rows="1" placeholder="メッセージを入力…"></textarea>
+              <div class="cr-input-tools">
+                <label class="cr-ib" for="imgInput" title="画像を添付"><i class="fa-solid fa-image"></i></label>
+                <input type="file" id="imgInput" accept="image/*" style="display:none">
+                <span class="sp"></span>
+                <button class="cr-send" id="btnSend"><i class="fa-solid fa-paper-plane"></i></button>
+              </div>
+            </div>
+            <div class="cr-hint"><i class="fa-solid fa-circle-info"></i> Enterで送信 / Shift+Enterで改行</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新しいチャット -->
+<div class="modal-overlay hidden" id="newRoomModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-pen-to-square" style="color:var(--primary)"></i> 新しいチャット</span>
+      <button class="modal-close" id="newRoomClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="display:grid;gap:14px;">
+      <div>
+        <label class="form-label">種類</label>
+        <div class="cr-seg" id="newRoomKind">
+          <button type="button" data-kind="dm">ダイレクト</button>
+          <button type="button" data-kind="group" class="on">グループ</button>
+        </div>
+      </div>
+      <div id="groupNameField">
+        <label class="form-label">グループ名</label>
+        <input type="text" class="form-input" id="newRoomName" placeholder="例: 図面レビュー会">
+      </div>
+      <div>
+        <label class="form-label">メンバー<span id="memberCount" style="color:var(--muted);font-weight:400;"></span></label>
+        <div class="cr-userlist" id="userList"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">
+          チャットを利用できるユーザー（社内・モデラー）のみ表示しています
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="newRoomCancel">キャンセル</button>
+      <button class="btn btn-primary" id="newRoomCreate">作成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ピン留めの編集 -->
+<div class="modal-overlay hidden" id="pinModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-thumbtack" style="color:#d69e2e"></i> ピン留め</span>
+      <button class="modal-close" id="pinClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="display:grid;gap:14px;">
+      <div>
+        <label class="form-label">ラベル</label>
+        <input type="text" class="form-input" id="pinLabelInput" maxlength="20" placeholder="確定仕様">
+      </div>
+      <div>
+        <label class="form-label">内容</label>
+        <textarea class="form-input" id="pinTextInput" rows="3" maxlength="300"
+                  placeholder="例: 板厚 4.5mm / SS400 / 溶接部グラインダー仕上げ"></textarea>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">
+          会話の一番上に固定表示されます。空にすると解除されます。
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="pinCancel">キャンセル</button>
+      <button class="btn btn-primary" id="pinSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/pages/chat.js"></script>
+</body>
+</html>
