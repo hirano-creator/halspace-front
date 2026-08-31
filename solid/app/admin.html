@@ -395,7 +395,7 @@
       <button class="modal-close" id="editUserModalClose"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <input type="hidden" id="editUserId">
-    <div class="form-row">
+    <div class="form-row" style="align-items:flex-end;">
       <div class="form-group">
         <label class="form-label">名前 <span class="req">*</span></label>
         <input type="text" class="form-input" id="editUserName">
@@ -406,7 +406,7 @@
                style="background:var(--bg);color:var(--muted);">
       </div>
     </div>
-    <div class="form-row">
+    <div class="form-row" style="align-items:flex-end;">
       <div class="form-group">
         <label class="form-label">ロール</label>
         <select class="form-select" id="editUserRole">
@@ -444,35 +444,40 @@
       </div>
     </div>
     <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:8px;">
-      <div style="font-weight:700;font-size:13px;margin-bottom:14px;color:var(--muted);">
-        <i class="fa-solid fa-bell"></i> メール通知設定
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-        <div>
-          <div style="font-size:13px;font-weight:600;">モデリング完了通知</div>
-          <div style="font-size:11px;color:var(--muted);">3Dデータ提出時にメールを受信</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div style="font-weight:700;font-size:13px;color:var(--muted);">
+          <i class="fa-solid fa-bell"></i> メール通知設定
         </div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="editToggleModeling">
-          <span class="toggle-slider"></span>
-        </label>
+        <span style="font-size:11px;font-weight:700;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:50px;padding:3px 10px;">準備中</span>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
-        <div>
-          <div style="font-size:13px;font-weight:600;">ファイル削除警告通知</div>
-          <div style="font-size:11px;color:var(--muted);">削除14日前にメールを受信</div>
+      <div style="opacity:.5;pointer-events:none;" aria-disabled="true">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div>
+            <div style="font-size:13px;font-weight:600;">モデリング完了通知</div>
+            <div style="font-size:11px;color:var(--muted);">3Dデータ提出時にメールを受信</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="editToggleModeling" disabled>
+            <span class="toggle-slider"></span>
+          </label>
         </div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="editToggleExpiring">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <div style="padding-top:12px;">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">追加送信先</div>
-        <div id="editExtraEmailList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
-        <button class="btn btn-outline btn-sm" id="editAddExtraEmailBtn">
-          <i class="fa-solid fa-plus"></i> 追加
-        </button>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div>
+            <div style="font-size:13px;font-weight:600;">ファイル削除警告通知</div>
+            <div style="font-size:11px;color:var(--muted);">削除14日前にメールを受信</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="editToggleExpiring" disabled>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div style="padding-top:12px;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px;">追加送信先</div>
+          <div id="editExtraEmailList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px;"></div>
+          <button class="btn btn-outline btn-sm" id="editAddExtraEmailBtn" disabled>
+            <i class="fa-solid fa-plus"></i> 追加
+          </button>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
