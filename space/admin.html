@@ -1483,12 +1483,7 @@ function renderCompanyTable(list) {
           <i class="fa-solid fa-users"></i> ユーザー一覧
         </button>
         ${isSuperAdmin && c.id !== currentUser.company_id ? `
-        <div class="action-menu">
-          <button class="action-menu-btn" onclick="toggleActionMenu(this)"><i class="fa-solid fa-ellipsis"></i></button>
-          <div class="action-dropdown">
-            <button class="action-dropdown-item danger" onclick="deleteCompany(${c.id})"><i class="fa-solid fa-trash"></i> 削除</button>
-          </div>
-        </div>` : ''}
+        <button class="btn btn-danger btn-xs" onclick="deleteCompany(${c.id})" title="削除"><i class="fa-solid fa-trash"></i></button>` : ''}
       </td>
     </tr>
   `).join('');
