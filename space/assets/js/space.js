@@ -68,7 +68,7 @@ const FEATURED = {
   appId: 'whatsno',
   eyebrow: "TODAY'S PICK — 今月のおすすめ",
   titleLines: ['図面も、動画も、CADも。', "ぜんぶ What'sNo に。"],
-  desc: '製造業向けクラウドストレージ。今月からマニュアル機能・連絡先タグが追加されました。あなたの会社では23名が利用中です。',
+  desc: '製造業向けクラウドストレージ。図面・仕様書・写真・動画を1か所にためて、そのまま次の仕事に使えるようにします。マニュアル機能・連絡先タグにも対応。',
   image: 'assets/img/featured/whatsno.svg',
   openLabel: "What'sNo を開く",
   openUrl: '../whatsno/app/dashboard.html',
