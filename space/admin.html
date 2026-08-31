@@ -1200,7 +1200,7 @@
         <select class="form-input" id="userModalSolidType">
           <option value="">— なし —</option>
           <option value="jp_client">発注担当（日本）</option>
-          <option value="id_modeler">モデラー（インドネシア）</option>
+          <option value="id_modeler" id="userModalSolidTypeModelerOpt">モデラー（インドネシア）</option>
         </select>
       </div>
       <div id="userModalPwArea" style="display:none;">
@@ -1934,7 +1934,19 @@ function collectUserApps() {
 
 document.getElementById('userModalCompany')?.addEventListener('change', function() {
   renderUserAppsCheckboxes(this.value, null);
+  syncSolidTypeModelerOption(this.value);
 });
+
+/* モデラー種別はPT.HILANO LCZ INDONESIA専属（SOLID側のサーバーでも強制されるため、選択中の会社がそれ以外では選ばせない） */
+function syncSolidTypeModelerOption(companyId) {
+  const company = companiesCache.find(c => c.id == companyId);
+  const opt = document.getElementById('userModalSolidTypeModelerOpt');
+  if (!opt) return;
+  opt.hidden = !company?.is_modeler_only;
+  if (opt.hidden && document.getElementById('userModalSolidType').value === 'id_modeler') {
+    document.getElementById('userModalSolidType').value = '';
+  }
+}
 
 function openAddUser() {
   document.getElementById('userModalId').value    = '';
@@ -1983,6 +1995,7 @@ async function openEditUser(id) {
   // SOLIDを使えるユーザーにだけSOLID種別を出す（使わないユーザーに無関係な項目を見せない）
   document.getElementById('userModalSolidTypeGroup').style.display = userUsesSolid(u) ? '' : 'none';
   document.getElementById('userModalSolidType').value = u.solid_type ?? '';
+  syncSolidTypeModelerOption(u.company_id);
   openModal('userModal');
 
   // 仮パスワードが未変更のまま残っていれば再表示する（顧客が変更済みなら404で何も表示しない）

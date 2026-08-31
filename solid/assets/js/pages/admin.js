@@ -255,6 +255,8 @@ async function openEditUserModal(userId) {
   document.getElementById('editUserEmail').value = u.email;
   document.getElementById('editUserRole').value = u.role;
   document.getElementById('editUserSolidType').value = u.solid_type ?? '';
+  /* モデラー種別はPT.HILANO LCZ INDONESIA専属（サーバー側でも強制されるため、他社では選ばせない） */
+  document.getElementById('optEditSolidTypeModeler').hidden = !u.company?.is_modeler_only;
   document.getElementById('editUserActive').checked = !!u.is_active;
   document.getElementById('editTempPwArea').style.display = 'none';
 
@@ -374,6 +376,18 @@ document.getElementById('editUserModalSubmit').addEventListener('click', async (
   }
 });
 
+/* モデラー種別はPT.HILANO LCZ INDONESIA専属（サーバー側でも強制されるため、選択中の会社がそれ以外では選ばせない） */
+function syncInviteSolidTypeOption() {
+  const companyId = Number(document.getElementById('inviteCompany').value);
+  const company   = allCompanies.find(c => c.id === companyId);
+  const opt       = document.getElementById('optInviteSolidTypeModeler');
+  opt.hidden = !company?.is_modeler_only;
+  if (opt.hidden && document.getElementById('inviteSolidType').value === 'id_modeler') {
+    document.getElementById('inviteSolidType').value = '';
+  }
+}
+document.getElementById('inviteCompany').addEventListener('change', syncInviteSolidTypeOption);
+
 function openInviteModal() {
   document.querySelector('#userModal .modal-title').textContent = 'ユーザーを招待';
   document.getElementById('inviteName').value    = '';
@@ -383,6 +397,7 @@ function openInviteModal() {
   document.getElementById('inviteTempPwArea').style.display = 'none';
   document.getElementById('userModalSubmit').style.display = '';
   document.getElementById('userModal').classList.remove('hidden');
+  syncInviteSolidTypeOption();
 }
 
 document.getElementById('inviteUserBtn').addEventListener('click', openInviteModal);
