@@ -109,16 +109,16 @@ const SPONSOR_BANNERS = [
 const STORE_APPS = [
   { id: 'analytics', name: 'Analytics', cat: '業務効率',
     desc: '各サービスの利用状況・アクセスデータをリアルタイムで可視化するダッシュボード。',
-    image: 'assets/img/store/analytics.svg', status: 'available' },
+    image: 'assets/img/store/analytics.svg', status: 'planned' },
   { id: 'timecalc', name: 'TimeCalc', cat: '業務効率',
     desc: '打刻・勤怠計算・月次勤怠表の印刷まで。Square連携にも対応します。',
-    image: 'assets/img/store/timecalc.svg', status: 'available' },
+    image: 'assets/img/store/timecalc.svg', status: 'planned' },
   { id: 'invoice', name: 'Invoice', cat: '業務効率',
     desc: '請求書をOCRで自動読み取り。受発注データと突き合わせて管理します。',
-    image: 'assets/img/store/invoice.svg', status: 'preorder' },
+    image: 'assets/img/store/invoice.svg', status: 'planned' },
   { id: 'workflow', name: 'Workflow', cat: '業務効率',
     desc: '承認フロー・タスク管理・通知を一元化。チーム間の業務連携をスムーズに。',
-    image: 'assets/img/store/workflow.svg', status: 'preorder' },
+    image: 'assets/img/store/workflow.svg', status: 'planned' },
   { id: 'connect', name: 'Connect', cat: 'コミュニケーション',
     desc: '取引先・仕入先とのデータ共有・やりとりを安全に。外部コラボレーション機能。',
     image: 'assets/img/store/connect.svg', status: 'planned' },
@@ -523,7 +523,7 @@ function renderSponsors() {
   grid.innerHTML = items.map(b => `
     <article class="sponsor-card"${b.url ? ' role="link" tabindex="0"' : ''}>
       <img class="sponsor-img" src="${esc(b.image)}" alt="" loading="lazy">
-      <span class="sponsor-ad">広告</span>
+      <span class="sponsor-ad">準備中</span>
       <div class="sponsor-body">
         <div class="sponsor-company">${esc(b.company)}</div>
         <h3 class="sponsor-headline">${esc(b.headline)}</h3>
