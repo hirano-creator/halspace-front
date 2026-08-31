@@ -1478,10 +1478,17 @@ function renderCompanyTable(list) {
           <span class="toggle-slider"></span>
         </label>
       </td>
-      <td onclick="event.stopPropagation()">
+      <td onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:6px;">
         <button class="btn btn-outline btn-xs" onclick="switchSection('users');filterUsersByCompany(${c.id})">
           <i class="fa-solid fa-users"></i> ユーザー一覧
         </button>
+        ${isSuperAdmin && c.id !== currentUser.company_id ? `
+        <div class="action-menu">
+          <button class="action-menu-btn" onclick="toggleActionMenu(this)"><i class="fa-solid fa-ellipsis"></i></button>
+          <div class="action-dropdown">
+            <button class="action-dropdown-item danger" onclick="deleteCompany(${c.id})"><i class="fa-solid fa-trash"></i> 削除</button>
+          </div>
+        </div>` : ''}
       </td>
     </tr>
   `).join('');
@@ -1895,6 +1902,24 @@ async function deleteUser(id) {
     usersCache = usersCache.filter(x => x.id !== id);
     renderUserTable();
     showToast('ユーザーを削除しました', 'success');
+  } else {
+    const err = await res?.json().catch(() => ({}));
+    showToast(err.message || '削除に失敗しました', 'danger');
+  }
+}
+
+async function deleteCompany(id) {
+  closeAllActionMenus();
+  const c = companiesCache.find(x => x.id === id);
+  if (!c) return;
+  if (!confirm(`「${c.name}」を削除しますか？\n所属ユーザー・プロジェクト・ファイルなど、この会社に紐づくデータが全て完全に削除されます。この操作は元に戻せません。`)) return;
+
+  const res = await apiFetch(`/admin/companies/${id}`, { method: 'DELETE' });
+  if (res?.ok) {
+    companiesCache = companiesCache.filter(x => x.id !== id);
+    renderCompanyTable(companiesCache);
+    buildUserCompanyFilter(companiesCache);
+    showToast('会社を削除しました', 'success');
   } else {
     const err = await res?.json().catch(() => ({}));
     showToast(err.message || '削除に失敗しました', 'danger');
