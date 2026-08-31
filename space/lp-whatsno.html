@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What'sNo とは | Space.app</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{
+  --brand:#7c3aed; --brand-d:#5b21b6; --brand-l:#f5f3ff;
+  --ink:#1f2430; --muted:#6b7280; --line:#e8eaf0; --bg:#fff; --soft:#f7f8fb;
+  --ok:#00b894; --radius:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans JP',sans-serif;color:var(--ink);background:var(--bg);
+  font-size:15px;line-height:1.85;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+ul{list-style:none}
+img,svg{display:block;max-width:100%}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+/* ── ヘッダー ── */
+.hd{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.9);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.hd-in{max-width:1080px;margin:0 auto;padding:0 24px;height:58px;display:flex;align-items:center;gap:16px}
+.hd-back{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:7px}
+.hd-back:hover{color:var(--brand)}
+.hd-logo{font-family:'Poppins',sans-serif;font-weight:800;font-size:17px;letter-spacing:-.02em;
+  margin-left:4px;padding-left:16px;border-left:1px solid var(--line)}
+.hd-logo b{color:var(--brand)}
+.hd-sp{flex:1}
+.hd-cta{background:var(--brand);color:#fff;font-size:13px;font-weight:700;
+  padding:9px 18px;border-radius:999px;transition:.2s}
+.hd-cta:hover{background:var(--brand-d)}
+
+/* ── ヒーロー ── */
+.hero{padding:76px 0 70px;background:
+  radial-gradient(900px 420px at 82% 8%, #ede9fe 0%, transparent 62%), var(--bg)}
+.hero-in{display:grid;grid-template-columns:1fr 440px;gap:56px;align-items:center}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;
+  color:var(--brand);background:var(--brand-l);padding:6px 14px;border-radius:999px;margin-bottom:22px}
+h1{font-size:43px;font-weight:900;line-height:1.38;letter-spacing:-.02em}
+h1 .u{background:linear-gradient(transparent 66%, #ddd6fe 66%)}
+.lead{font-size:16px;color:var(--muted);margin-top:22px;max-width:30em}
+.btns{display:flex;gap:12px;margin-top:34px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:9px;font-size:14.5px;font-weight:700;
+  padding:15px 28px;border-radius:12px;transition:.2s;border:1px solid transparent}
+.btn-main{background:var(--brand);color:#fff;box-shadow:0 8px 22px rgba(124,58,237,.28)}
+.btn-main:hover{background:var(--brand-d);transform:translateY(-2px)}
+.btn-sub{border-color:var(--line);color:var(--ink);background:#fff}
+.btn-sub:hover{border-color:var(--brand);color:var(--brand)}
+.hero-note{font-size:12.5px;color:var(--muted);margin-top:16px;display:flex;align-items:center;gap:8px}
+.hero-note i{color:var(--ok)}
+
+/* ── UIモック ── */
+.shot{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;
+  box-shadow:0 24px 60px rgba(31,36,48,.13)}
+.shot-bar{height:34px;background:var(--soft);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;padding:0 12px;gap:6px}
+.dot{width:9px;height:9px;border-radius:50%;background:#dfe2ea}
+.shot-search{margin-left:10px;flex:1;height:20px;background:#fff;border:1px solid var(--line);
+  border-radius:999px;font-size:9.5px;color:#9aa0ad;display:flex;align-items:center;padding:0 9px;gap:5px}
+.shot-body{padding:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:#fbfbfd}
+.f{border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
+.f-th{aspect-ratio:4/3;background:#fff;display:flex;align-items:center;justify-content:center;
+  border-bottom:1px solid var(--line)}
+.f-th.pdf{background:#fef2f2}.f-th.mov{background:#111827}.f-th.cad{background:#f0fdf4}
+.f-nm{font-size:9px;padding:6px 8px;color:#4b5563;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.play{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.9);
+  display:flex;align-items:center;justify-content:center;color:#111;font-size:9px}
+
+/* ── セクション共通 ── */
+section{padding:84px 0}
+.sec-head{text-align:center;margin-bottom:52px}
+.sec-eyebrow{font-family:'Poppins',sans-serif;font-size:12px;font-weight:700;letter-spacing:.16em;
+  color:var(--brand);text-transform:uppercase}
+h2{font-size:31px;font-weight:900;line-height:1.5;margin-top:12px;letter-spacing:-.01em}
+.sec-lead{color:var(--muted);font-size:14.5px;margin-top:14px}
+
+/* ── 3つの価値 ── */
+.v3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.v{border:1px solid var(--line);border-radius:var(--radius);padding:32px 26px;transition:.24s;background:#fff}
+.v:hover{border-color:#c4b5fd;box-shadow:0 14px 34px rgba(124,58,237,.1);transform:translateY(-3px)}
+.v-ic{width:48px;height:48px;border-radius:13px;background:var(--brand-l);color:var(--brand);
+  display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:18px}
+.v h3{font-size:18px;font-weight:800;margin-bottom:10px}
+.v p{font-size:13.5px;color:var(--muted);line-height:1.9}
+
+/* ── 使い道（コンセプトの核） ── */
+.use-sec{background:var(--soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  scroll-margin-top:70px}
+.uses{display:grid;gap:20px}
+.use{background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  display:grid;grid-template-columns:1fr 340px;align-items:stretch}
+.use:nth-child(even){grid-template-columns:340px 1fr}
+.use:nth-child(even) .use-vis{order:-1;border-right:1px solid var(--line);border-left:none}
+.use-bd{padding:34px 34px 36px}
+.use-no{display:inline-flex;align-items:center;gap:9px;font-size:11.5px;font-weight:800;
+  color:var(--brand);background:var(--brand-l);padding:5px 13px;border-radius:999px;margin-bottom:14px}
+.use h3{font-size:21px;font-weight:800;line-height:1.6;margin-bottom:12px}
+.use p{font-size:13.5px;color:var(--muted)}
+.use ul{margin-top:16px;display:grid;gap:8px}
+.use li{font-size:13px;display:flex;gap:9px;align-items:flex-start;color:#374151}
+.use li i{color:var(--ok);font-size:12px;margin-top:6px}
+.use-vis{border-left:1px solid var(--line);background:linear-gradient(140deg,#f7f5ff,#eef2ff);
+  display:flex;align-items:center;justify-content:center;padding:26px}
+
+/* 使い道ビジュアル：比較 */
+.cmp{display:flex;gap:10px;width:100%}
+.cmp div{flex:1;background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px;
+  box-shadow:0 6px 16px rgba(31,36,48,.07)}
+.cmp .lb{font-size:8.5px;color:var(--muted);margin-bottom:5px;display:flex;justify-content:space-between}
+.cmp .lb b{color:var(--brand)}
+/* 使い道ビジュアル：手順 */
+.steps{display:flex;gap:9px}
+.stp{width:78px;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;
+  box-shadow:0 6px 16px rgba(31,36,48,.08)}
+.stp .ph{height:52px;background:#eef1f6;display:flex;align-items:center;justify-content:center;color:#b6bdc9;font-size:13px}
+.stp .tx{padding:6px}
+.stp .tx span{display:block;height:4px;background:#e6e9f0;border-radius:2px;margin-bottom:4px}
+.stp .tx span:last-child{width:60%}
+.stp .no{font-size:9px;font-weight:800;color:var(--brand);padding:5px 6px 0}
+/* 使い道ビジュアル：タグ */
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip{background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 14px;
+  font-size:11.5px;font-weight:700;color:#4b5563;box-shadow:0 4px 10px rgba(31,36,48,.05)}
+.chip.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+/* ── 機能 ── */
+.feat-sec{scroll-margin-top:70px}
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.ft{background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px 22px 24px;transition:.22s}
+.ft:hover{border-color:#c4b5fd}
+.ft i{color:var(--brand);font-size:15px}
+.ft h4{font-size:15px;font-weight:800;margin:12px 0 7px}
+.ft p{font-size:13px;color:var(--muted);line-height:1.85}
+
+/* ── 3ステップ ── */
+.how-sec{background:var(--soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.how{display:grid;grid-template-columns:repeat(3,1fr);gap:34px;counter-reset:s}
+.hw{counter-increment:s;position:relative;padding-top:8px;display:flex;flex-direction:column}
+.hw::before{content:counter(s,decimal-leading-zero);font-family:'Poppins',sans-serif;
+  font-size:40px;font-weight:800;color:#ddd6fe;line-height:1;display:block;margin-bottom:10px}
+.hw h4{font-size:17px;font-weight:800;margin-bottom:8px}
+.hw p{font-size:13.5px;color:var(--muted);margin-bottom:16px}
+/* 本文の行数が列ごとに違っても、補足のボックスは下端で揃える */
+.hw .sub{margin-top:auto;background:#fff;border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;display:grid;gap:7px}
+.hw .sub div{font-size:12px;color:#4b5563;display:flex;gap:9px;align-items:flex-start;line-height:1.75}
+.hw .sub i{color:var(--brand);font-size:11px;margin-top:6px}
+
+/* ── CTA ── */
+.cta{background:linear-gradient(135deg,var(--brand-d),var(--brand) 60%,#a78bfa);color:#fff;text-align:center;padding:78px 0}
+.cta h2{color:#fff}
+.cta p{color:rgba(255,255,255,.85);font-size:14.5px;margin-top:14px}
+.cta .btn-main{background:#fff;color:var(--brand-d);box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.cta .btn-main:hover{background:#f5f3ff}
+.cta .btn-sub{border-color:rgba(255,255,255,.5);color:#fff;background:transparent}
+.cta .btn-sub:hover{background:rgba(255,255,255,.14);color:#fff}
+.cta .btns{justify-content:center}
+.cta-tel{margin-top:32px;display:flex;align-items:center;justify-content:center;gap:11px;
+  flex-wrap:wrap;font-size:14.5px;color:rgba(255,255,255,.9)}
+.cta-tel i{font-size:12px;color:rgba(255,255,255,.65)}
+.cta-tel .tel{font-family:'Poppins',sans-serif;font-weight:800;font-size:23px;color:#fff;letter-spacing:.02em}
+
+.site-footer{padding:40px 0 34px;border-top:1px solid var(--line);background:#fff;scroll-margin-top:70px}
+.footer-in{display:flex;justify-content:space-between;align-items:flex-start;gap:28px;flex-wrap:wrap}
+.footer-brand{display:flex;gap:14px;align-items:flex-start}
+.footer-logo{display:flex;align-items:center;gap:9px;flex:none;padding-top:1px}
+.footer-logo svg{width:25px;height:25px;color:#37453a;flex:none}
+.footer-word{font-family:'Poppins',sans-serif;font-weight:700;font-size:16px;color:#2b352d;letter-spacing:-.01em;white-space:nowrap}
+.footer-addr{font-size:12.5px;color:var(--muted);line-height:1.9}
+.footer-meta{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px;text-align:right}
+
+@media(max-width:900px){
+  .hero{padding:52px 0 44px}
+  .hero-in{grid-template-columns:1fr;gap:38px}
+  h1{font-size:30px}
+  h2{font-size:24px}
+  section{padding:58px 0}
+  .v3,.feats,.how{grid-template-columns:1fr}
+  .use,.use:nth-child(even){grid-template-columns:1fr}
+  .use-vis{border-left:none;border-top:1px solid var(--line);order:-1;height:180px;padding:20px}
+  .use:nth-child(even) .use-vis{border-right:none;border-top:1px solid var(--line)}
+  .hd-logo{margin-left:0}
+  .footer-in{flex-direction:column;gap:20px}
+  .footer-meta{text-align:left}
+}
+</style>
+</head>
+<body>
+
+<header class="hd">
+  <div class="hd-in">
+    <a class="hd-back" href="apps.html"><i class="fa-solid fa-arrow-left"></i>Space.app</a>
+    <span class="hd-logo">What'<b>sNo</b></span>
+    <span class="hd-sp"></span>
+    <a class="hd-cta" href="#contact">HaLSpace</a>
+  </div>
+</header>
+
+<!-- ヒーロー -->
+<div class="hero">
+  <div class="wrap hero-in">
+    <div>
+      <span class="eyebrow"><i class="fa-solid fa-database"></i>製造業向けクラウドストレージ</span>
+      <h1>ためた図面を、<br><span class="u">使えるようにする。</span></h1>
+      <p class="lead">図面・仕様書・写真・動画・CADデータを1か所へ。
+        What'sNo は、しまい込んで終わりにせず、ためたデータをそのまま次の仕事に使うためのアプリです。</p>
+      <div class="btns">
+        <a class="btn btn-sub" href="#use"><i class="fa-solid fa-list-check"></i>できることを見る</a>
+        <a class="btn btn-main" href="#contact"><i class="fa-solid fa-comments"></i>担当者へ連絡</a>
+      </div>
+      <p class="hero-note"><i class="fa-solid fa-circle-check"></i>
+        まずは今週の1案件から。いつものファイルを置くだけで始められます</p>
+    </div>
+
+    <div class="shot">
+      <div class="shot-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="shot-search"><i class="fa-solid fa-magnifying-glass"></i>ブラケット 板金</span>
+      </div>
+      <div class="shot-body">
+        <div class="f"><div class="f-th">
+          <svg viewBox="0 0 120 90" width="100%">
+            <rect x="8" y="8" width="104" height="74" fill="none" stroke="#dfe3ec"/>
+            <rect x="26" y="26" width="44" height="34" fill="none" stroke="#5b6172" stroke-width="1.3"/>
+            <circle cx="88" cy="43" r="13" fill="none" stroke="#5b6172" stroke-width="1.3"/>
+            <circle cx="88" cy="43" r="5" fill="none" stroke="#5b6172"/>
+            <path d="M26 18h44M26 15v6M70 15v6" stroke="#a3aab9" stroke-width=".8"/>
+            <path d="M18 26v34M15 26h6M15 60h6" stroke="#a3aab9" stroke-width=".8"/>
+          </svg></div><div class="f-nm">ブラケットA_rev3.dxf</div></div>
+        <div class="f"><div class="f-th pdf"><i class="fa-solid fa-file-pdf" style="font-size:26px;color:#ef4444"></i></div><div class="f-nm">仕様書_2026-08.pdf</div></div>
+        <div class="f"><div class="f-th mov"><span class="play"><i class="fa-solid fa-play"></i></span></div><div class="f-nm">加工手順_溶接.mp4</div></div>
+        <div class="f"><div class="f-th cad"><i class="fa-solid fa-cube" style="font-size:24px;color:#16a34a"></i></div><div class="f-nm">治具ベース.step</div></div>
+        <div class="f"><div class="f-th">
+          <svg viewBox="0 0 120 90" width="100%">
+            <rect x="8" y="8" width="104" height="74" fill="none" stroke="#dfe3ec"/>
+            <path d="M24 62L44 28l20 34z" fill="none" stroke="#5b6172" stroke-width="1.3"/>
+            <rect x="68" y="34" width="30" height="28" fill="none" stroke="#5b6172" stroke-width="1.3"/>
+            <path d="M24 70h74" stroke="#a3aab9" stroke-width=".8"/>
+          </svg></div><div class="f-nm">架台_組図.pdf</div></div>
+        <div class="f"><div class="f-th" style="background:#eef2ff"><i class="fa-solid fa-images" style="font-size:24px;color:#6366f1"></i></div><div class="f-nm">現場写真_0812</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3つの価値 -->
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-eyebrow">Why What'sNo</div>
+      <h2>ためるだけの場所で、終わらせない。</h2>
+      <p class="sec-lead">NAS・USB・メール添付に散らばった図面は、しまった時点で使われなくなります。</p>
+    </div>
+    <div class="v3">
+      <div class="v">
+        <div class="v-ic"><i class="fa-solid fa-image"></i></div>
+        <h3>開かずに、見つかる</h3>
+        <p>DXF も PDF も動画も、中身がそのままサムネイルに。ファイル名を思い出せなくても、見た目で目当ての1枚にたどり着けます。</p>
+      </div>
+      <div class="v">
+        <div class="v-ic"><i class="fa-solid fa-recycle"></i></div>
+        <h3>過去の仕事が、次に効く</h3>
+        <p>似た案件の図面、去年の治具、現場で撮った写真。ためたものを取り出して比べれば、一から作り直す必要がなくなります。</p>
+      </div>
+      <div class="v">
+        <div class="v-ic"><i class="fa-solid fa-share-nodes"></i></div>
+        <h3>社内にも社外にも、すぐ渡せる</h3>
+        <p>社内共有はファイルごとに選べます。共有したものは全員が同じ最新を見られ、手元に置いたままにもできます。社外へはリンクを1本、メールでも LINE でも。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ためたデータの使い道 -->
+<section class="use-sec" id="use">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-eyebrow">Use your data</div>
+      <h2>ためたデータは、こう使えます。</h2>
+      <p class="sec-lead">置いたファイルを、そのまま毎日の仕事に取り込むための機能を用意しています。</p>
+    </div>
+
+    <div class="uses">
+      <!-- 1 図面 -->
+      <article class="use">
+        <div class="use-bd">
+          <span class="use-no"><i class="fa-solid fa-compass-drafting"></i>ためた図面を使う</span>
+          <h3>去年の図面を出して、<br>並べて確かめる。</h3>
+          <p>改訂前と後、似た案件の図面、加工前と加工後の写真。選んだものを1画面に並べて比較できます。印刷して見比べる手間がなくなります。</p>
+          <ul>
+            <li><i class="fa-solid fa-check"></i>CADソフトのない事務所のパソコンでも中身を開ける</li>
+            <li><i class="fa-solid fa-check"></i>図面に直接、赤入れとコメントを書き込める</li>
+            <li><i class="fa-solid fa-check"></i>PDF は、複数をまとめて1つに結合／ページごとに分割もできる</li>
+          </ul>
+        </div>
+        <div class="use-vis">
+          <div class="cmp">
+            <div><div class="lb"><span>rev2</span></div>
+              <svg viewBox="0 0 130 100" width="100%">
+                <rect x="10" y="10" width="110" height="80" fill="none" stroke="#e2e6ee"/>
+                <rect x="30" y="30" width="50" height="40" fill="none" stroke="#5b6172" stroke-width="1.4"/>
+                <circle cx="96" cy="50" r="12" fill="none" stroke="#5b6172" stroke-width="1.4"/>
+              </svg></div>
+            <div style="border-color:#c4b5fd"><div class="lb"><span>rev3</span><b>最新</b></div>
+              <svg viewBox="0 0 130 100" width="100%">
+                <rect x="10" y="10" width="110" height="80" fill="none" stroke="#e2e6ee"/>
+                <rect x="30" y="30" width="50" height="40" fill="none" stroke="#5b6172" stroke-width="1.4"/>
+                <circle cx="96" cy="50" r="12" fill="none" stroke="#5b6172" stroke-width="1.4"/>
+                <circle cx="42" cy="42" r="5" fill="none" stroke="#7c3aed" stroke-width="1.6"/>
+                <circle cx="68" cy="58" r="5" fill="none" stroke="#7c3aed" stroke-width="1.6"/>
+              </svg></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 2 写真 -->
+      <article class="use">
+        <div class="use-bd">
+          <span class="use-no"><i class="fa-solid fa-book-open"></i>ためた写真を使う</span>
+          <h3>現場で撮った写真が、<br>そのまま手順書になる。</h3>
+          <p>スマホで撮った写真を順に並べて、一言そえるだけ。ベテランのやり方が、新人に渡せる形になります。撮りためた写真を捨てずに済みます。</p>
+          <ul>
+            <li><i class="fa-solid fa-check"></i>撮影 → 並べ替え → 公開まで、その場で完結</li>
+            <li><i class="fa-solid fa-check"></i>紙のように汚れず、いつ見ても最新版だけが表示される</li>
+            <li><i class="fa-solid fa-check"></i>機械の横にQRを貼れば、スマホですぐ開ける</li>
+          </ul>
+        </div>
+        <div class="use-vis">
+          <div class="steps">
+            <div class="stp"><div class="no">01</div><div class="ph"><i class="fa-solid fa-camera"></i></div><div class="tx"><span></span><span></span></div></div>
+            <div class="stp"><div class="no">02</div><div class="ph"><i class="fa-solid fa-screwdriver-wrench"></i></div><div class="tx"><span></span><span></span></div></div>
+            <div class="stp"><div class="no">03</div><div class="ph"><i class="fa-solid fa-circle-check"></i></div><div class="tx"><span></span><span></span></div></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 3 連絡先 -->
+      <article class="use">
+        <div class="use-bd">
+          <span class="use-no"><i class="fa-solid fa-address-book"></i>ためた名刺・連絡先を使う</span>
+          <h3>「あの加工、どこに頼む？」<br>に即答できる。</h3>
+          <p>引き出しにたまった名刺は、スマホで撮るだけで登録できます。そのまま業種・地域・得意分野のタグで整理すれば、担当者の頭の中にあった取引先が、会社で共有できる名簿になります。</p>
+          <ul>
+            <li><i class="fa-solid fa-check"></i>名刺管理 &mdash; 撮影するだけで会社名・担当者・連絡先が入る</li>
+            <li><i class="fa-solid fa-check"></i>タグの掛け合わせで「板金 × 名古屋」を一発検索</li>
+            <li><i class="fa-solid fa-check"></i>担当者が変わっても、つながりが引き継がれる</li>
+          </ul>
+        </div>
+        <div class="use-vis">
+          <div class="chips">
+            <span class="chip on"><i class="fa-solid fa-tag"></i> 板金</span>
+            <span class="chip">切削</span><span class="chip on">名古屋</span>
+            <span class="chip">溶接</span><span class="chip">熱処理</span>
+            <span class="chip on">急ぎ対応可</span><span class="chip">表面処理</span>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- 機能 -->
+<section class="feat-sec" id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-eyebrow">Features</div>
+      <h2>できること</h2>
+      <p class="sec-lead">覚えることを増やさないために、機能は「ためる・見つける・使う」に絞っています。</p>
+    </div>
+    <div class="feats">
+      <div class="ft"><i class="fa-solid fa-compass-drafting"></i><h4>図面プレビュー</h4>
+        <p>DXF・PDF をブラウザで開いて拡大。CADソフトのない事務所でも中身を確認できます。</p></div>
+      <div class="ft"><i class="fa-solid fa-table-cells-large"></i><h4>並べる（比較・結合・分割）</h4>
+        <p>選んだ図面や写真を1画面に並べて比較。PDFなら、複数を1つに結合したり、ページごとに分割したりもできます。</p></div>
+      <div class="ft"><i class="fa-solid fa-book-open"></i><h4>マニュアル</h4>
+        <p>撮った写真を並べて一言そえるだけで手順書に。QRを貼れば現場のスマホから開けます。</p></div>
+      <div class="ft"><i class="fa-solid fa-address-book"></i><h4>名刺管理・連絡先タグ</h4>
+        <p>名刺はスマホで撮るだけで登録。取引先を業種・地域・得意分野のタグで整理できます。</p></div>
+      <div class="ft"><i class="fa-solid fa-users"></i><h4>社内共有と、社外への共有リンク</h4>
+        <p>社内へ出すかどうかはファイルごとに選択。共有すれば全員が最新を見られます。社外へはパスワード・期限つきのリンクを、メールでも LINE でも。</p></div>
+      <div class="ft"><i class="fa-solid fa-pen"></i><h4>注釈</h4>
+        <p>図面に直接、赤入れ・コメント。電話で「上から3つ目の穴が…」と説明せずに済みます。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 使い方 -->
+<section class="how-sec">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-eyebrow">How to start</div>
+      <h2>今日から、使えます。</h2>
+      <p class="sec-lead">初期設定もデータ移行も、操作の研修もありません。試すのは、この3つだけです。</p>
+    </div>
+    <div class="how">
+      <div class="hw">
+        <h4>開く</h4>
+        <p>Space.app のアプリ一覧から What'sNo を選ぶだけ。パソコンにもスマホにも、入れるものはありません。</p>
+        <div class="sub">
+          <div><i class="fa-solid fa-plug"></i>いま使っている NAS やフォルダは、そのままで大丈夫です</div>
+        </div>
+      </div>
+      <div class="hw">
+        <h4>今週の案件を置く</h4>
+        <p>ファイルをまとめて選んで、ドラッグ＆ドロップ。サムネイルは自動で作られるので、整理もフォルダ分けもいりません。</p>
+        <div class="sub">
+          <div><i class="fa-solid fa-file-arrow-up"></i>1ファイル100MBまで。図面も写真も、そのまま置けます</div>
+        </div>
+      </div>
+      <div class="hw">
+        <h4>1件だけ、渡してみる</h4>
+        <p>社内の誰か、または取引先に送ってみてください。ここまで試せば、広げるかどうかを判断できます。</p>
+        <div class="sub">
+          <div><i class="fa-solid fa-link"></i>社内共有はファイルごとに選択。社外へはリンク1本を、メールでも LINE でも</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta" id="cta">
+  <div class="wrap">
+    <h2>まずは、ひとことご相談ください。</h2>
+    <p>図面の置き方も、料金のご相談も、この画面から数十秒で送れます。</p>
+    <div class="cta-tel">
+      担当者への連絡は<i class="fa-solid fa-arrow-right"></i><span class="tel">043-307-7301</span>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer" id="contact">
+  <div class="wrap footer-in">
+    <div class="footer-brand">
+      <div class="footer-logo">
+        <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 30 L13 8 L20 22 L28 6 L35 20"/>
+          <circle cx="13" cy="8" r="1.6" fill="currentColor" stroke="none"/>
+          <circle cx="20" cy="22" r="1.6" fill="currentColor" stroke="none"/>
+          <circle cx="28" cy="6" r="1.6" fill="currentColor" stroke="none"/>
+          <circle cx="35" cy="20" r="1.6" fill="currentColor" stroke="none"/>
+        </svg>
+        <span class="footer-word">HaLSpace.</span>
+      </div>
+      <div class="footer-addr">
+        <div>千葉営業所</div>
+        <div>〒260-0028　千葉県千葉市中央区新町3-7 高山ビル3階</div>
+        <div>Tel：043-307-7301　Fax：043-307-7302</div>
+      </div>
+    </div>
+    <div class="footer-meta">
+      <span>&copy; 2026 HaLSpace Inc.</span>
+      <span>Space.app / What'sNo</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

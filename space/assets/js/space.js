@@ -72,8 +72,10 @@ const FEATURED = {
   image: 'assets/img/featured/whatsno.svg',
   openLabel: "What'sNo を開く",
   openUrl: '../whatsno/app/dashboard.html',
-  subLabel: '新機能を見る',
-  subUrl: null,
+  /* 未契約者が「詳しく見る」を押したときの遷移先。未設定ならストアへスクロールする従来動作にフォールバックする。 */
+  detailUrl: 'lp-whatsno.html',
+  subLabel: 'できることを見る',
+  subUrl: 'lp-whatsno.html#use',
 };
 
 /* 提携企業からのお知らせ（協賛バナー）。
@@ -476,6 +478,7 @@ function renderHero(user) {
       location.href = FEATURED.openUrl;
       return;
     }
+    if (FEATURED.detailUrl) { location.href = FEATURED.detailUrl; return; }
     document.querySelector('.store-section')?.scrollIntoView({ behavior: 'smooth' });
   });
   actions.appendChild(main);
