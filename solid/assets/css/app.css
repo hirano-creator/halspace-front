@@ -2258,6 +2258,9 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
 .cr-text { font-size: 13px; line-height: 1.8; margin-top: 2px; white-space: pre-wrap; word-break: break-word; }
 .cr-text .mention { color: var(--blue); background: rgba(9,132,227,.09); border-radius: 4px; padding: 0 3px; font-weight: 700; }
 .cr-img { max-width: 320px; max-height: 260px; border-radius: 9px; margin-top: 7px; border: 1px solid var(--border); cursor: pointer; display: block; }
+/* 1メッセージに画像が複数枚ついたときのグリッド表示 */
+.cr-img-grid { display: grid; grid-template-columns: repeat(2, 150px); gap: 6px; margin-top: 7px; }
+.cr-img-grid .cr-img { max-width: 150px; max-height: 150px; width: 150px; height: 150px; object-fit: cover; margin-top: 0; }
 .cr-quote {
   display: flex; gap: 8px; align-items: center; border-left: 3px solid var(--blue); background: rgba(9,132,227,.05);
   border-radius: 0 7px 7px 0; padding: 4px 10px; margin: 3px 0 4px; font-size: 11.5px; color: var(--muted); max-width: 460px;
