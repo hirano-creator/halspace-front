@@ -290,8 +290,12 @@ function renderFiles() {
   updateAdminReviewBarState();
 
   // モデラーのアップロードボタン: in_progress / revision_requested / review_pending
-  const canUploadModel = isModeler(user)
-    && ['in_progress', 'revision_requested', 'review_pending'].includes(project.status);
+  // HaLSpace側（社内管理者・運営）は、モデラーが検査依頼したフォルダに補足データを
+  // 追加できるよう、検査中〜納品完了後まで幅広く許可する（アップロードすると即座に
+  // 納品済み扱いになる。バックエンド側 initialReviewAttrsFor と揃えること）
+  const canUploadModel =
+    (isModeler(user) && ['in_progress', 'revision_requested', 'review_pending'].includes(project.status)) ||
+    (isInternalAdmin(user) && ['in_progress', 'revision_requested', 'review_pending', 'approved', 'delivered'].includes(project.status));
   document.getElementById('uploadModelBtn').style.display = canUploadModel ? '' : 'none';
 
   // 発注者用: フォルダごと保存 / zip一括ダウンロード
@@ -404,7 +408,8 @@ function renderFiles() {
   }
 }
 
-/* 3Dデータをアップロードし、file-type別に検査依頼前(pending)のまま画面へ反映する */
+/* 3Dデータをアップロードする。モデラーは検査依頼前(pending)のまま画面へ反映するが、
+   HaLSpace側（社内管理者・運営）が追加した場合はバックエンドが即座に納品済みとして登録する */
 async function uploadModelItemsAndRefresh(items) {
   const panel = createUploadProgressPanel('3Dデータをアップロード中');
   let uploaded, errors;
@@ -419,7 +424,10 @@ async function uploadModelItemsAndRefresh(items) {
   if (uploaded.length) {
     project.files = [...(project.files ?? []), ...uploaded];
     renderFiles();
-    showToast(`${uploaded.length}件のファイルをアップロードしました`, 'success');
+    const msg = isInternalAdmin(user)
+      ? `${uploaded.length}件のファイルを納品済みとして追加しました`
+      : `${uploaded.length}件のファイルをアップロードしました`;
+    showToast(msg, 'success');
   }
   if (errors.length) {
     showToast(`アップロードに失敗しました: ${errors.join(', ')}`, 'danger');
