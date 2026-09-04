@@ -216,6 +216,16 @@ function renderFiles() {
   const drawingFiles  = allFiles.filter(f => DRAWING_TYPES.includes(f.file_type));
   const modelFiles    = allFiles.filter(f => MODEL_TYPES.includes(f.file_type));
 
+  // モデラーのアップロードボタン: in_progress / revision_requested / review_pending
+  // HaLSpace側（社内管理者・運営）は、モデラーが検査依頼したフォルダに補足データを
+  // 追加できるよう、検査中〜納品完了後まで幅広く許可する。既存フォルダに追加した場合は
+  // そのフォルダの既存ファイルと同じreview_statusで登録される（バックエンド側
+  // initialReviewAttrsFor と揃えること）
+  const canUploadModel =
+    (isModeler(user) && ['in_progress', 'revision_requested', 'review_pending'].includes(project.status)) ||
+    (isInternalAdmin(user) && ['in_progress', 'revision_requested', 'review_pending', 'approved', 'delivered'].includes(project.status));
+  document.getElementById('uploadModelBtn').style.display = canUploadModel ? '' : 'none';
+
   // 3Dモデルエリアの表示制御
   const modelArea = document.getElementById('modelFileArea');
   const lockedMsg = document.getElementById('modelFileLockedMsg');
@@ -259,6 +269,7 @@ function renderFiles() {
       showAdminBtns: opts.showAdminBtns,
       showModelerBtns: opts.showModelerBtns,
       selectable,
+      canUploadToFolder: canUploadModel,
       emptyMsg: modelStatusFilter
         ? `${REVIEW_STATUS_META[modelStatusFilter]?.label ?? ''}のファイルはありません`
         : 'ファイルがありません',
@@ -288,15 +299,6 @@ function renderFiles() {
 
   // 管理者検査バーのボタン状態を更新
   updateAdminReviewBarState();
-
-  // モデラーのアップロードボタン: in_progress / revision_requested / review_pending
-  // HaLSpace側（社内管理者・運営）は、モデラーが検査依頼したフォルダに補足データを
-  // 追加できるよう、検査中〜納品完了後まで幅広く許可する（アップロードすると即座に
-  // 納品済み扱いになる。バックエンド側 initialReviewAttrsFor と揃えること）
-  const canUploadModel =
-    (isModeler(user) && ['in_progress', 'revision_requested', 'review_pending'].includes(project.status)) ||
-    (isInternalAdmin(user) && ['in_progress', 'revision_requested', 'review_pending', 'approved', 'delivered'].includes(project.status));
-  document.getElementById('uploadModelBtn').style.display = canUploadModel ? '' : 'none';
 
   // 発注者用: フォルダごと保存 / zip一括ダウンロード
   const saveFolderBtn = document.getElementById('saveFolderBtn');
@@ -424,8 +426,11 @@ async function uploadModelItemsAndRefresh(items) {
   if (uploaded.length) {
     project.files = [...(project.files ?? []), ...uploaded];
     renderFiles();
-    const msg = isInternalAdmin(user)
-      ? `${uploaded.length}件のファイルを納品済みとして追加しました`
+    // HaLSpace側は既存フォルダに追加すると、そのフォルダの状態に揃えて登録される
+    // （バックエンドの initialReviewAttrsFor）ため、実際に付いたステータスで案内する
+    const statusLabel = REVIEW_STATUS_META[uploaded[0]?.review_status]?.label;
+    const msg = isInternalAdmin(user) && statusLabel
+      ? `${uploaded.length}件のファイルを「${statusLabel}」として追加しました`
       : `${uploaded.length}件のファイルをアップロードしました`;
     showToast(msg, 'success');
   }
@@ -688,7 +693,7 @@ function canSetStatus(status, opts) {
 function renderFileSection(area, files, opts = {}) {
   const {
     canDelete = false, showAdminBtns = false, showModelerBtns = false,
-    selectable = false, emptyMsg = 'ファイルがありません',
+    selectable = false, emptyMsg = 'ファイルがありません', canUploadToFolder = false,
   } = opts;
 
   if (!files.length) {
@@ -854,6 +859,11 @@ function renderFileSection(area, files, opts = {}) {
                 title="このフォルダをzipダウンロード">
           <i class="fa-solid fa-file-zipper"></i>
         </button>
+        ${canUploadToFolder ? `
+        <button class="btn btn-ghost btn-sm folder-add-btn" data-folder-idx="${idx}"
+                title="このフォルダにファイルを追加">
+          <i class="fa-solid fa-plus"></i>
+        </button>` : ''}
       </div>
       <div class="file-tree-group-body" style="display:${isOpen ? '' : 'none'};">
         ${renderFolderBody(topDir, groupFiles)}
@@ -897,6 +907,28 @@ function renderFileSection(area, files, opts = {}) {
       e.stopPropagation();
       const [, groupFiles] = folderEntries[Number(btn.dataset.folderIdx)];
       downloadFilesAsZip(groupFiles);
+    });
+  });
+
+  // フォルダへの追加アップロード（HaLSpace側が既存フォルダに補足データを足す用）。
+  // 選択したファイルは topDir/ファイル名 の relative_path で登録し、既存ファイルと
+  // 同じフォルダに属させる（review_statusはバックエンドがフォルダ内の既存ファイルに揃える）
+  area.querySelectorAll('.folder-add-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const [topDir] = folderEntries[Number(btn.dataset.folderIdx)];
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.multiple = true;
+      input.style.display = 'none';
+      input.addEventListener('change', async () => {
+        const items = Array.from(input.files).map(f => ({ file: f, relativePath: `${topDir}/${f.name}` }));
+        input.remove();
+        if (!items.length) return;
+        await uploadModelItemsAndRefresh(items);
+      });
+      document.body.appendChild(input);
+      input.click();
     });
   });
 
