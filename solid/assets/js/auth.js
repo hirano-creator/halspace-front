@@ -98,7 +98,6 @@ function solidToast(msg, ok = true) {
 function isAdmin(user)   { return ['admin','super_admin'].includes(user?.role); }
 function isSuperAdmin(user) { return user?.role === 'super_admin'; }
 function isModeler(user) { return user?.solid_type === 'id_modeler'; }
-function isClient(user)  { return user?.solid_type === 'jp_client'; }
 /* HaLSpace運営会社（発注者とモデラーの中間役）に所属しているか */
 function isOperator(user) { return !!user?.is_operator; }
 /* admin相当の全権限（全プロジェクト閲覧、発注者/モデラー両チャンネル閲覧等）を持つか。
@@ -109,6 +108,11 @@ function hasAdminLevelAccess(user) { return isAdmin(user) || isOperator(user); }
    「社内 → 発注者」の操作は hasAdminLevelAccess ではなくこちらで判定する。
    バックエンドの User::isInternalAdmin() と揃えること。 */
 function isInternalAdmin(user) { return isSuperAdmin(user) || isOperator(user); }
+/* 発注者側（クライアント）か。社内側・モデラー側のどちらでもなければ発注者として扱う
+   （solid_typeが未設定の既存ユーザーでも安全側に倒す）。バックエンドの
+   User::isClientSide()と揃えること。誤ってfalse判定になると、3Dモデル・制作データの
+   検査依頼前ファイルが発注者に見えてしまう（プロジェクト詳細の可視性フィルタ参照）。 */
+function isClient(user)  { return !isInternalAdmin(user) && !isModeler(user); }
 
 /* チャット画面を使えるユーザーか。
    発注者（お客様）には出さない。社内側（HaLSpace運営会社・サイト管理者）と
