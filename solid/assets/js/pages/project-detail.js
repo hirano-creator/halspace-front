@@ -231,11 +231,16 @@ function renderFiles() {
   const lockedMsg = document.getElementById('modelFileLockedMsg');
   const opts      = currentReviewOpts();
 
-  // 発注者には「納品済み」ファイル＋（承認後は）検査OKファイルを表示
+  // 発注者には「納品済み」ファイル＋（承認後は）検査OKファイルを表示。
+  // 社内管理者にはモデラーが検査依頼していない(pending)ファイルは見せない
+  // （ガイド行の「検査依頼が届くとここに表示されます」と矛盾しないように揃える）。
+  // モデラー自身は検査依頼のためpendingも含め全件見える。
   const visibleModelFiles = isClient(user)
     ? modelFiles.filter(f =>
         f.review_status === 'delivered' ||
         (['approved','delivered'].includes(project.status) && f.review_status === 'ok'))
+    : isInternalAdmin(user)
+    ? modelFiles.filter(f => (f.review_status || 'pending') !== 'pending')
     : modelFiles;
   const clientLocked = isClient(user)
     && !['approved','delivered'].includes(project.status)
@@ -262,7 +267,7 @@ function renderFiles() {
     document.getElementById('modelFileGuide').style.display = 'none';
   } else {
     lockedMsg.style.display = 'none';
-    renderModelGuide(visibleModelFiles, opts);
+    renderModelGuide(visibleModelFiles, opts, modelFiles);
     renderModelSummary(visibleModelFiles, shownModelFiles, selectable);
     renderFileSection(modelArea, shownModelFiles, {
       canDelete: isInternalAdmin(user) || isModeler(user),
@@ -1416,19 +1421,23 @@ function renderModelSummary(visible, shown, selectable) {
   });
 }
 
-/* 「次に何をすべきか」を1行だけ案内する */
-function renderModelGuide(visible, opts) {
+/* 「次に何をすべきか」を1行だけ案内する。
+   allModelFilesは社内管理者向けの「モデラーが作業中です」判定専用
+   （visibleからはpendingを除外済みのため、非表示ぶんの件数をここで見る）。 */
+function renderModelGuide(visible, opts, allModelFiles) {
   const el = document.getElementById('modelFileGuide');
   if (!el) return;
   const c = {};
   visible.forEach(f => { const s = f.review_status || 'pending'; c[s] = (c[s] || 0) + 1; });
+  const modelerWorking = opts.showAdminBtns
+    && (allModelFiles ?? []).some(f => (f.review_status || 'pending') === 'pending');
 
   let text = '', cls = '';
   if (opts.showAdminBtns) {
     if (c.submitted)      { text = `検査依頼中のファイルが${c.submitted}件あります。ファイルを選んで「検査OK」または「修正依頼」を実行してください。`; cls = 'guide-action'; }
     else if (c.ok)        { text = `検査OKが${c.ok}件あります。「納品」すると発注者に公開されます。`; cls = 'guide-action'; }
     else if (c.revision)  { text = `修正依頼中が${c.revision}件あります。モデラーの再提出をお待ちください。`; cls = 'guide-wait'; }
-    else if (c.pending)   { text = 'モデラーが作業中です。検査依頼が届くとここに表示されます。'; cls = 'guide-wait'; }
+    else if (modelerWorking) { text = 'モデラーが作業中です。検査依頼が届くとここに表示されます。'; cls = 'guide-wait'; }
     else if (c.delivered) { text = 'すべて納品済みです。'; }
   } else if (opts.showModelerBtns) {
     if (c.revision)       { text = `修正依頼が${c.revision}件あります。修正データをアップロードし、あらためて検査を依頼してください。`; cls = 'guide-action'; }
