@@ -1282,6 +1282,15 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 }
 .chat-bubble img:first-child { margin-top: 0; }
 
+/* 1メッセージに画像が複数枚ついたときのグリッド表示 */
+.chat-img-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 110px);
+  gap: 6px;
+  margin-top: 6px;
+}
+.chat-img-grid img { margin-top: 0; }
+
 /* アバター（小） */
 .chat-avatar {
   width: 30px; height: 30px;
