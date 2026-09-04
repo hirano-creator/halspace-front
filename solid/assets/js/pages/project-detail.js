@@ -1581,16 +1581,20 @@ function renderChat() {
       divider = `<div class="chat-date-divider">${msgDate}</div>`;
     }
 
-    const blobUrl = c._blobUrl ?? null;
-    const imgApiUrl = c.image_path ?? c.image ?? null;
-    // Blob URL があればそのまま表示、なければ認証付き遅延ロード
-    const imgHtml = blobUrl
-      ? `<img src="${blobUrl}" alt="添付画像" data-lightbox
-              style="max-width:200px;border-radius:8px;cursor:pointer;">`
-      : imgApiUrl
-        ? `<img data-auth-img="${imgApiUrl}" alt="添付画像"
-                style="max-width:200px;border-radius:8px;cursor:pointer;opacity:0.4;">`
-        : '';
+    // 複数画像対応（旧データは image_path 1枚のみ）。Blob URL があればそのまま表示、なければ認証付き遅延ロード
+    const imgUrls = c.images ?? (c.image_path ? [c.image_path] : (c.image ? [c.image] : []));
+    const blobUrls = c._blobUrls ?? (c._blobUrl ? [c._blobUrl] : []);
+    const imgTag = (url, blobUrl, grid) => {
+      const style = grid
+        ? 'width:110px;height:110px;object-fit:cover;border-radius:8px;cursor:pointer;'
+        : 'max-width:200px;border-radius:8px;cursor:pointer;';
+      return blobUrl
+        ? `<img src="${blobUrl}" alt="添付画像" data-lightbox style="${style}">`
+        : `<img data-auth-img="${url}" alt="添付画像" style="${style}opacity:0.4;">`;
+    };
+    const imgHtml = imgUrls.length <= 1
+      ? (imgUrls[0] ? imgTag(imgUrls[0], blobUrls[0]) : '')
+      : `<div class="chat-img-grid">${imgUrls.map((u, i) => imgTag(u, blobUrls[i], true)).join('')}</div>`;
     const textHtml = c.body ? `<div>${escapeHtml(c.body)}</div>` : '';
     const role = c.user_role ?? c.role ?? '';
     const solidType = c.user_solid_type ?? c.solid_type ?? '';
@@ -1739,7 +1743,8 @@ async function saveEditComment() {
   if (!target) { cancelEditComment(); return; }
 
   const body = (editingDraft ?? '').trim();
-  const hasImage = !!(target.image_path || target.image || target._blobUrl);
+  const hasImage = !!(target.image_path || target.image || target._blobUrl
+    || target.images?.length || target._blobUrls?.length);
   if (!body && !hasImage) { showToast('本文を入力してください', 'error'); return; }
   if (body === (target.body ?? '')) { cancelEditComment(); return; }
 
@@ -1747,8 +1752,10 @@ async function saveEditComment() {
     const data = await api.patch(`/comments/${commentId}`, { body });
     // 添付画像のBlob URLはローカルにしかないので引き継ぐ
     const blobUrl = target._blobUrl;
+    const blobUrls = target._blobUrls;
     Object.assign(target, data?.comment ?? { body, edited_at: '' });
     if (blobUrl) target._blobUrl = blobUrl;
+    if (blobUrls) target._blobUrls = blobUrls;
     editingCommentId = null;
     editingDraft = '';
     renderChat();
@@ -1813,18 +1820,19 @@ document.getElementById('chatImageInput').addEventListener('change', e => {
   e.target.value = '';
 });
 
-async function submitComment(body, imageFile, channel) {
+async function submitComment(body, imageFiles, channel) {
   const ch = channel || currentChannel;
+  const files = imageFiles ?? [];
   const fd = new FormData();
   fd.append('body', body);
   fd.append('channel', ch);
-  if (imageFile) fd.append('image', imageFile);
+  files.forEach(f => fd.append('images[]', f));
 
   try {
     const data = await apiFetchForm(`/projects/${projId}/comments`, fd);
     // 投稿直後は Blob URL を使って即表示（再描画後も認証エンドポイントに差し替え）
-    if (imageFile && data.comment.image_path) {
-      data.comment._blobUrl = URL.createObjectURL(imageFile);
+    if (files.length && data.comment.images?.length) {
+      data.comment._blobUrls = files.map(f => URL.createObjectURL(f));
     }
     comments.push(data.comment);
     renderChat();
@@ -1842,15 +1850,10 @@ document.getElementById('commentSubmit').addEventListener('click', async () => {
   if (!body && !pendingImages.length) return;
 
   try {
-    if (pendingImages.length) {
-      for (const img of pendingImages) {
-        await submitComment(body, img.file);
-      }
-      pendingImages = [];
-      renderImagePreview();
-    } else {
-      await submitComment(body, null);
-    }
+    // 画像は何枚あっても1回の送信で1メッセージにまとめる
+    await submitComment(body, pendingImages.map(img => img.file));
+    pendingImages = [];
+    renderImagePreview();
     // 成功時のみクリア（失敗時は入力を残してそのまま再送できるように）
     input.value = '';
   } catch {}
