@@ -29,7 +29,7 @@ let activeRoom = null;      // 開いているルームの詳細
 let activeChannel = null;   // 物件チャットのチャンネル
 let messages = [];
 let replyTo = null;         // 引用返信の対象
-let pendingImage = null;    // 添付予定の画像
+let pendingImages = [];     // 添付予定の画像（複数可）
 let searchWord = '';
 let listWidth = Number(localStorage.getItem('solid_chat_list_w')) || 388;
 
@@ -261,6 +261,15 @@ function renderConv(channels) {
   $('msgInput').placeholder = `メッセージを入力… （${r.name}）`;
 }
 
+/* 複数画像対応（旧データは image_path 1枚のみ） */
+function imagesHtml(m) {
+  const urls = m.images ?? (m.image_path ? [m.image_path] : []);
+  if (!urls.length) return '';
+  if (urls.length === 1) return `<img class="cr-img" data-src="${urls[0]}" alt="添付画像">`;
+  return `<div class="cr-img-grid">${urls.map(u =>
+    `<img class="cr-img" data-src="${u}" alt="添付画像">`).join('')}</div>`;
+}
+
 function messageHtml(m, prevDate) {
   const blocks = [];
   const date = dateOnly(m.created_at);
@@ -286,7 +295,7 @@ function messageHtml(m, prevDate) {
       ${m.quote ? `<div class="cr-quote"><i class="fa-solid fa-reply" style="font-size:9px"></i>
         <b>${esc(m.quote.user_name)}</b><span>${esc(m.quote.body)}</span></div>` : ''}
       ${m.body ? `<div class="cr-text">${body}</div>` : ''}
-      ${m.image_path ? `<img class="cr-img" data-src="${m.image_path}" alt="添付画像">` : ''}
+      ${imagesHtml(m)}
     </div>
   </div>`);
 
@@ -346,20 +355,35 @@ function clearReply() {
 }
 
 function clearImage() {
-  pendingImage = null;
+  pendingImages = [];
   $('imgPreview').style.display = 'none';
   $('imgPreview').innerHTML = '';
   $('imgInput').value = '';
 }
 
+function renderImagePreview() {
+  const area = $('imgPreview');
+  if (!pendingImages.length) { area.style.display = 'none'; area.innerHTML = ''; return; }
+  area.style.display = 'flex';
+  area.innerHTML = pendingImages.map((file, i) => `
+    <div><img src="${URL.createObjectURL(file)}" alt="添付予定"><button data-rm="${i}"><i class="fa-solid fa-xmark"></i></button></div>
+  `).join('');
+  area.querySelectorAll('[data-rm]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pendingImages.splice(Number(btn.dataset.rm), 1);
+      renderImagePreview();
+    });
+  });
+}
+
 async function send() {
   const input = $('msgInput');
   const body = input.value.trim();
-  if (!body && !pendingImage) return;
+  if (!body && !pendingImages.length) return;
 
   const fd = new FormData();
   if (body) fd.append('body', body);
-  if (pendingImage) fd.append('image', pendingImage);
+  pendingImages.forEach(f => fd.append('images[]', f));
   if (replyTo) fd.append('parent_id', replyTo.id);
   if (activeChannel) fd.append('channel', activeChannel);
 
@@ -591,13 +615,11 @@ input.addEventListener('keydown', e => {
 $('btnSend').addEventListener('click', send);
 
 $('imgInput').addEventListener('change', e => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  pendingImage = file;
-  const url = URL.createObjectURL(file);
-  $('imgPreview').innerHTML = `<div><img src="${url}" alt="添付予定"><button id="imgClear"><i class="fa-solid fa-xmark"></i></button></div>`;
-  $('imgPreview').style.display = 'flex';
-  $('imgClear').addEventListener('click', clearImage);
+  Array.from(e.target.files ?? []).forEach(f => {
+    if (f.type.startsWith('image/')) pendingImages.push(f);
+  });
+  renderImagePreview();
+  e.target.value = '';
 });
 
 $('roomSearch').addEventListener('input', e => {
