@@ -231,17 +231,8 @@ function renderFiles() {
   const lockedMsg = document.getElementById('modelFileLockedMsg');
   const opts      = currentReviewOpts();
 
-  // 発注者には「納品済み」ファイル＋（承認後は）検査OKファイルを表示。
-  // 社内管理者にはモデラーが検査依頼していない(pending)ファイルは見せない
-  // （ガイド行の「検査依頼が届くとここに表示されます」と矛盾しないように揃える）。
-  // モデラー自身は検査依頼のためpendingも含め全件見える。
-  const visibleModelFiles = isClient(user)
-    ? modelFiles.filter(f =>
-        f.review_status === 'delivered' ||
-        (['approved','delivered'].includes(project.status) && f.review_status === 'ok'))
-    : isInternalAdmin(user)
-    ? modelFiles.filter(f => (f.review_status || 'pending') !== 'pending')
-    : modelFiles;
+  // 可視ルールは visibleModelFilesForBulk() と共通（一括DLの対象が画面と必ず一致するように）
+  const visibleModelFiles = filterVisibleModelFiles(modelFiles);
   const clientLocked = isClient(user)
     && !['approved','delivered'].includes(project.status)
     && visibleModelFiles.length === 0;
@@ -256,8 +247,9 @@ function renderFiles() {
     : visibleModelFiles;
 
   // 選択しても何もできない状態ではチェックボックスを出さない
-  // （管理者の検査／モデラーの検査依頼／発注者の一括ダウンロードのいずれかがあるとき）
-  const selectable = opts.showAdminBtns || opts.showModelerBtns || isClient(user);
+  // （管理者の検査／モデラーの検査依頼／一括ダウンロードのいずれかがあるとき。
+  //   一括ダウンロードは全ロール共通なので、実質「見えるファイルがあれば」選択できる）
+  const selectable = opts.showAdminBtns || opts.showModelerBtns || visibleModelFiles.length > 0;
   if (!selectable) selectedFileIds.clear();
 
   if (clientLocked) {
@@ -305,10 +297,12 @@ function renderFiles() {
   // 管理者検査バーのボタン状態を更新
   updateAdminReviewBarState();
 
-  // 発注者用: フォルダごと保存 / zip一括ダウンロード
+  // 全ロール共通: フォルダごと保存 / zip一括ダウンロード
+  // 発注者だけでなくHaLSpace（社内管理者）とPT.HILANO LCZ INDONESIA（モデラー）も、
+  // 自分の画面に出ているファイルをまとめて取得できる（対象は visibleModelFilesForBulk()）。
   const saveFolderBtn = document.getElementById('saveFolderBtn');
   const zipAllBtn      = document.getElementById('zipAllBtn');
-  const canBulkDownload = isClient(user) && visibleModelFiles.length > 0;
+  const canBulkDownload = visibleModelFiles.length > 0;
   saveFolderBtn.style.display = (canBulkDownload && 'showDirectoryPicker' in window) ? '' : 'none';
   zipAllBtn.style.display = canBulkDownload ? '' : 'none';
 
@@ -499,14 +493,26 @@ async function attachWnFilesAndRefresh(wnFiles) {
   }
 }
 
-/* 発注者に見えている3Dモデルファイル一覧（一括DL・全体保存の対象） */
+/* ログイン中のロールに見えている3Dモデルファイルだけに絞る。
+   発注者には「納品済み」ファイル＋（承認後は）検査OKファイル。
+   社内管理者にはモデラーが検査依頼していない(pending)ファイルは見せない
+   （ガイド行の「検査依頼が届くとここに表示されます」と矛盾しないように揃える）。
+   モデラー自身は検査依頼のためpendingも含め全件見える。 */
+function filterVisibleModelFiles(modelFiles) {
+  if (isClient(user)) {
+    return modelFiles.filter(f =>
+      f.review_status === 'delivered' ||
+      (['approved','delivered'].includes(project.status) && f.review_status === 'ok'));
+  }
+  if (isInternalAdmin(user)) {
+    return modelFiles.filter(f => (f.review_status || 'pending') !== 'pending');
+  }
+  return modelFiles;
+}
+
+/* 画面に出ている3Dモデルファイル一覧（一括DL・全体保存の対象） */
 function visibleModelFilesForBulk() {
-  const modelFiles = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
-  return isClient(user)
-    ? modelFiles.filter(f =>
-        f.review_status === 'delivered' ||
-        (['approved','delivered'].includes(project.status) && f.review_status === 'ok'))
-    : modelFiles;
+  return filterVisibleModelFiles((project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type)));
 }
 
 /* 指定ファイル群をローカルへ直接保存（Chrome/Edge, File System Access API）。
@@ -1145,17 +1151,16 @@ function renderBulkBar() {
             </button>`;
   }).join('');
 
-  // 発注者は選択したファイルのダウンロード
-  if (isClient(user)) {
-    html = `
-      ${'showDirectoryPicker' in window ? `
-      <button type="button" class="btn btn-sm btn-outline bulk-save-btn">
-        <i class="fa-solid fa-folder-tree"></i> フォルダに保存
-      </button>` : ''}
-      <button type="button" class="btn btn-sm btn-primary bulk-zip-btn">
-        <i class="fa-solid fa-file-zipper"></i> zipでダウンロード
-      </button>`;
-  }
+  // 選択したファイルのダウンロードは全ロール共通。検査アクションがある場合は
+  // その後ろに並べる（検査ボタンを押し間違えないよう順番は変えない）
+  html += `
+    ${'showDirectoryPicker' in window ? `
+    <button type="button" class="btn btn-sm btn-outline bulk-save-btn">
+      <i class="fa-solid fa-folder-tree"></i> フォルダに保存
+    </button>` : ''}
+    <button type="button" class="btn btn-sm ${keys.length ? 'btn-outline' : 'btn-primary'} bulk-zip-btn">
+      <i class="fa-solid fa-file-zipper"></i> zipでダウンロード
+    </button>`;
 
   const actionsEl = document.getElementById('fileBulkActions');
   actionsEl.innerHTML = html || `<span style="font-size:13px;opacity:.75;">この状態では一括操作できません</span>`;
