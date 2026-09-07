@@ -1156,6 +1156,7 @@ function renderBulkBar() {
   document.getElementById('fileBulkCount').textContent = `${files.length}件を選択中`;
 
   const opts = currentReviewOpts();
+  const canDelete = isInternalAdmin(user) || isModeler(user);
   // モデラー管理者は admin と modeler の両方に当たるため、両方のボタンを出す。
   // 自分で検査依頼してから検査する流れなので、依頼系を先に並べる
   const keys = [
@@ -1192,6 +1193,14 @@ function renderBulkBar() {
       <i class="fa-solid fa-file-zipper"></i> zipでダウンロード
     </button>`;
 
+  // 削除は取り消せない操作のため、他の一括操作とは離して右端に置く
+  if (canDelete) {
+    html += `
+    <button type="button" class="btn btn-sm btn-danger bulk-delete-btn" ${bulkBusy ? 'disabled' : ''}>
+      <i class="fa-solid fa-trash"></i> 削除
+    </button>`;
+  }
+
   const actionsEl = document.getElementById('fileBulkActions');
   actionsEl.innerHTML = html || `<span style="font-size:13px;opacity:.75;">この状態では一括操作できません</span>`;
 
@@ -1206,6 +1215,8 @@ function renderBulkBar() {
     saveFilesToLocalFolder(selectedFilesList()));
   actionsEl.querySelector('.bulk-zip-btn')?.addEventListener('click', () =>
     downloadFilesAsZip(selectedFilesList()));
+  actionsEl.querySelector('.bulk-delete-btn')?.addEventListener('click', () =>
+    bulkDeleteFiles(selectedFilesList()));
 }
 
 document.getElementById('fileBulkClear')?.addEventListener('click', () => clearSelection());
@@ -1290,6 +1301,43 @@ async function undoReviewStatuses(prev) {
   }
   if (failed) showToast(`${failed}件を元に戻せませんでした`, 'danger');
   else        showToast('元に戻しました', 'success');
+}
+
+/* 選択ファイルの一括削除。行の「⋯」メニューの単体削除と同じAPIを逐次呼ぶ。
+   元に戻せない操作なので必ず確認モーダルを挟む */
+async function bulkDeleteFiles(files) {
+  if (bulkBusy || !files.length) return;
+  const ok = await openConfirmModal({
+    title: 'ファイルの削除', icon: 'fa-trash', danger: true,
+    body: `選択中の${files.length}件を削除します。`,
+    files: files.map(f => f.file_name),
+    warn: '削除したファイルは元に戻せません。',
+    okLabel: `${files.length}件を削除する`,
+  });
+  if (!ok) return;
+
+  bulkBusy = true;
+  renderBulkBar();
+  let failed = 0;
+  let done = 0;
+  for (const f of files) {
+    setBulkProgress(done, files.length);
+    try {
+      await api.delete(`/files/${f.id}`);
+      project.files = project.files.filter(x => x.id !== f.id);
+      selectedFileIds.delete(f.id);
+    } catch (err) {
+      failed++;
+    }
+    done++;
+  }
+  setBulkProgress(done, files.length);
+  bulkBusy = false;
+
+  renderFiles();
+
+  if (failed) showToast(`${failed}件の削除に失敗しました`, 'danger');
+  else        showToast(`${files.length}件を削除しました`, 'success');
 }
 
 /* ══════════════════════════════════════════
