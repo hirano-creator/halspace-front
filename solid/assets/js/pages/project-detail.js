@@ -277,7 +277,17 @@ function renderFiles() {
   // 図面・参考資料エリア（全員表示）
   renderFileSection(document.getElementById('drawingFileArea'), drawingFiles, {
     canDelete: isInternalAdmin(user) || isModeler(user),
+    saveProgressId: 'drawingFolderSaveProgress',
   });
+
+  // 図面・参考資料の一括ダウンロード（全ロール共通）。発注者からもらった図面・資料を
+  // 制作側がまとめて手元に落とせるようにする。図面は元から全ロールに無条件表示なので
+  // 3Dモデル側のような可視ルールの絞り込みはない
+  const saveDrawingBtn = document.getElementById('saveDrawingFolderBtn');
+  const zipDrawingBtn  = document.getElementById('zipDrawingAllBtn');
+  const canBulkDrawing = drawingFiles.length > 0;
+  saveDrawingBtn.style.display = (canBulkDrawing && 'showDirectoryPicker' in window) ? '' : 'none';
+  zipDrawingBtn.style.display = canBulkDrawing ? '' : 'none';
 
   // 修正依頼ファイルエリア: file_type=revision OR (model_3d && review_status=revision)
   const allRevisionFiles = allFiles.filter(f =>
@@ -407,6 +417,19 @@ function renderFiles() {
     zipAllBtnEl.dataset.bound = '1';
     zipAllBtnEl.addEventListener('click', () => downloadFilesAsZip(visibleModelFilesForBulk()));
   }
+
+  const saveDrawingBtnEl = document.getElementById('saveDrawingFolderBtn');
+  if (saveDrawingBtnEl && !saveDrawingBtnEl.dataset.bound) {
+    saveDrawingBtnEl.dataset.bound = '1';
+    saveDrawingBtnEl.addEventListener('click', () =>
+      saveFilesToLocalFolder(drawingFilesForBulk(), 'drawingFolderSaveProgress'));
+  }
+
+  const zipDrawingBtnEl = document.getElementById('zipDrawingAllBtn');
+  if (zipDrawingBtnEl && !zipDrawingBtnEl.dataset.bound) {
+    zipDrawingBtnEl.dataset.bound = '1';
+    zipDrawingBtnEl.addEventListener('click', () => downloadFilesAsZip(drawingFilesForBulk()));
+  }
 }
 
 /* 3Dデータをアップロードする。モデラーは検査依頼前(pending)のまま画面へ反映するが、
@@ -510,6 +533,12 @@ function filterVisibleModelFiles(modelFiles) {
   return modelFiles;
 }
 
+/* 図面・参考資料の一覧（一括DL・全体保存の対象）。
+   このエリアは全ロールに無条件表示なのでロールによる絞り込みはない */
+function drawingFilesForBulk() {
+  return (project.files ?? []).filter(f => DRAWING_TYPES.includes(f.file_type));
+}
+
 /* 画面に出ている3Dモデルファイル一覧（一括DL・全体保存の対象） */
 function visibleModelFilesForBulk() {
   return filterVisibleModelFiles((project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type)));
@@ -518,7 +547,7 @@ function visibleModelFilesForBulk() {
 /* 指定ファイル群をローカルへ直接保存（Chrome/Edge, File System Access API）。
    「選んだ保存先/relative_path...」にそのまま書き込む。プロジェクトコードの階層は挟まない
    （選んだフォルダがそのまま保存先になるので、余計な入れ子ができないようにするため）。*/
-async function saveFilesToLocalFolder(files) {
+async function saveFilesToLocalFolder(files, progressElId = 'modelFolderSaveProgress') {
   if (!files.length) return;
 
   let rootHandle;
@@ -536,7 +565,7 @@ async function saveFilesToLocalFolder(files) {
     return;
   }
 
-  const progressEl = document.getElementById('modelFolderSaveProgress');
+  const progressEl = document.getElementById(progressElId);
   const token = sessionStorage.getItem('space_token');
   if (progressEl) progressEl.style.display = '';
 
@@ -705,6 +734,7 @@ function renderFileSection(area, files, opts = {}) {
   const {
     canDelete = false, showAdminBtns = false, showModelerBtns = false,
     selectable = false, emptyMsg = 'ファイルがありません', canUploadToFolder = false,
+    saveProgressId = 'modelFolderSaveProgress',
   } = opts;
 
   if (!files.length) {
@@ -910,7 +940,7 @@ function renderFileSection(area, files, opts = {}) {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const [, groupFiles] = folderEntries[Number(btn.dataset.folderIdx)];
-      saveFilesToLocalFolder(groupFiles);
+      saveFilesToLocalFolder(groupFiles, saveProgressId);
     });
   });
   area.querySelectorAll('.folder-zip-btn').forEach(btn => {
