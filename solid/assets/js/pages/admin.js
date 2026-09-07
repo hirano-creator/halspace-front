@@ -672,6 +672,43 @@ document.getElementById('notifySaveBtn')?.addEventListener('click', async (e) =>
   }
 });
 
+/* 送信設定の確認。SMTPの接続失敗はサーバーログを見ないと分からないため、
+   例外のメッセージをそのまま画面に出して原因を切り分けられるようにする */
+document.getElementById('notifyTestBtn')?.addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const email = document.getElementById('notifyTestEmail').value.trim();
+  const out = document.getElementById('notifyTestResult');
+
+  if (!email) { showToast('送信先メールアドレスを入力してください', 'danger'); return; }
+
+  btn.disabled = true;
+  out.innerHTML = '<span style="font-size:13px;color:var(--muted);"><i class="fa-solid fa-spinner fa-spin"></i> 送信中...</span>';
+
+  try {
+    const r = await api.post('/admin/solid/notify-test', { email });
+    if (r.ok) {
+      out.innerHTML = `
+        <div style="background:rgba(0,184,148,.1);border-left:4px solid var(--accent);padding:12px 14px;border-radius:4px;font-size:13px;">
+          <strong style="color:var(--accent);">送信に成功しました。</strong><br>
+          <span style="color:var(--muted);font-size:12px;">${esc(email)} の受信箱をご確認ください（迷惑メールフォルダもご確認ください）。</span><br>
+          <span style="color:var(--muted);font-size:11px;">接続先: ${esc(r.config)}</span>
+        </div>`;
+    } else {
+      out.innerHTML = `
+        <div style="background:rgba(225,112,85,.1);border-left:4px solid var(--danger);padding:12px 14px;border-radius:4px;font-size:13px;">
+          <strong style="color:var(--danger);">送信に失敗しました。</strong><br>
+          <span style="word-break:break-all;font-size:12px;">${esc(r.error)}</span><br>
+          <span style="color:var(--muted);font-size:11px;">接続先: ${esc(r.config)}</span>
+        </div>`;
+    }
+  } catch (err) {
+    out.innerHTML = `<div style="color:var(--danger);font-size:13px;">エラー: ${esc(err.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    loadNotifyLogs();
+  }
+});
+
 async function loadNotifyLogs() {
   const wrap = document.getElementById('notifyLogList');
   if (!wrap) return;
