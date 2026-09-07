@@ -310,6 +310,25 @@
           </div>
         </div>
 
+        <div class="card" style="margin-bottom:24px;">
+          <div class="card-header">
+            <h3 style="font-size:16px;font-weight:700;">テスト送信</h3>
+          </div>
+          <div style="padding:20px;">
+            <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">
+              <i class="fa-solid fa-circle-info"></i>
+              発注や納品をしなくても、メールが正しく届くか確認できます。設定を変更したときはここで動作確認してください。
+            </p>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="email" class="form-input" id="notifyTestEmail" placeholder="送信先メールアドレス" style="flex:1;min-width:220px;">
+              <button class="btn btn-outline btn-sm" id="notifyTestBtn" style="flex-shrink:0;">
+                <i class="fa-solid fa-paper-plane"></i> テスト送信
+              </button>
+            </div>
+            <div id="notifyTestResult" style="margin-top:14px;"></div>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-header">
             <h3 style="font-size:16px;font-weight:700;">送信履歴</h3>
