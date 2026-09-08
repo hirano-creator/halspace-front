@@ -1,0 +1,32 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+/build
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+
+# env files（本番シークレットは wrangler secret put で設定する。ここには置かない）
+.env*
+.dev.vars
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Cloudflare (OpenNext / wrangler)
+/.open-next/
+/.wrangler/
+# wrangler types が生成するバインディング型定義（再生成可能）
+worker-configuration.d.ts
+
+# Prisma prisma-client generator の生成物（prisma generate で再生成）
+/src/generated/
+
+# シード用に生成する一時SQL（パスワードハッシュを含むため）
+/migrations/seed.sql

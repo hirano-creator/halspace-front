@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>案F バリエーション比較 — affect CRM モック</title>
+<style>
+:root{
+  --ink:#10262f; --ink2:#33505b; --gray:#64818c; --gray2:#93aab3;
+  --line:#e1ebee; --line2:#eff5f7; --bg:#f7fbfc; --card:#fff;
+  --navy:#08536f;
+  --amber:#bd8a35;
+  --radius:6px;
+}
+/* ===== 軸1: アクセントの濃さ ===== */
+body[data-accent="deep"]{ --accent:#08536f; --accent-soft:#e4eef2;
+  --gradient:linear-gradient(115deg,#063d53 0%,#0a6f95 55%,#0f9fbb 100%); }
+body[data-accent="mid"]{ --accent:#0b86ab; --accent-soft:#e8f7fa;
+  --gradient:linear-gradient(115deg,#0a6f95 0%,#0f9fbb 55%,#2cc4cf 100%); }
+body[data-accent="bright"]{ --accent:#17b6c9; --accent-soft:#e6f9fb;
+  --gradient:linear-gradient(115deg,#0f9fbb 0%,#2cc4cf 55%,#5ad9de 100%); }
+/* ===== 軸2: グラデーションの範囲 ===== */
+body{ --grad:var(--gradient); }
+body[data-grad="flat"]{ --grad:var(--accent); }   /* グラデーションを使わず単色に */
+
+*{box-sizing:border-box}
+body{margin:0;background:#e8eef0;color:var(--ink);
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,system-ui,sans-serif;
+  font-feature-settings:"palt";-webkit-font-smoothing:antialiased}
+
+.mockhead{background:#10262f;color:#fff;padding:22px 28px}
+.mockhead a{color:#93c8da;text-decoration:none;font-size:13px}
+.mockhead h1{margin:6px 0 4px;font-size:21px;letter-spacing:.05em;font-weight:600}
+.mockhead p{margin:0;font-size:13px;color:#a8bcc4;line-height:1.7;max-width:860px}
+
+/* ===== 操作パネル ===== */
+.ctrl{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid #d5e2e6;
+  padding:13px 24px;box-shadow:0 2px 10px rgba(10,60,80,.06)}
+.ctrl .in{max-width:1280px;margin:0 auto;display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+.cg{display:flex;flex-direction:column;gap:6px}
+.cl{font-size:10.5px;color:#64818c;letter-spacing:.06em;font-weight:600}
+.cb{display:flex;gap:5px}
+.cb button{border:1px solid #dbe5e9;background:#fff;border-radius:6px;padding:7px 12px;font-size:12.5px;
+  color:#33505b;cursor:pointer;font-family:inherit;min-height:34px}
+.cb button:hover{border-color:#a9c6d0}
+.cb button.on{background:#10262f;border-color:#10262f;color:#fff;font-weight:600}
+.now{margin-left:auto;font-size:11.5px;color:#64818c;align-self:center;text-align:right;line-height:1.7}
+.now b{color:#10262f;font-size:12.5px}
+
+.stage{max-width:1280px;margin:0 auto;padding:28px 24px 8px}
+.stage h2{font-size:13px;color:#4d707c;letter-spacing:.08em;margin:0 0 12px;font-weight:600}
+.frame{background:var(--bg);border:1px solid #d5e2e6;border-radius:10px;overflow:hidden;
+  box-shadow:0 10px 32px rgba(10,60,80,.11)}
+.framephone{width:390px;max-width:100%;margin:0 auto;background:var(--bg);
+  border:10px solid #10262f;border-radius:34px;overflow:hidden;box-shadow:0 14px 40px rgba(10,60,80,.24)}
+
+/* ===== ロゴ（近似再現。実装時は本物のデータに差し替え） ===== */
+.logo{display:flex;align-items:baseline;gap:1px}
+.logo .wm{font-family:"Arial Black","Arial Bold",Arial,Helvetica,sans-serif;font-size:20px;font-weight:900;
+  letter-spacing:-.045em;line-height:1;color:#fff}
+.logo .mark{width:14.5px;height:14.5px;flex:none}
+.logo .mark path{stroke:#fff}
+.logo .mark circle{fill:#fff}
+body[data-grad="flat"] .logo .wm{color:#1a1a1a}
+body[data-grad="flat"] .logo .mark path{stroke:url(#logograd)}
+body[data-grad="flat"] .logo .mark circle{fill:url(#logograd)}
+
+/* ===== 管理画面（案Dの骨格） ===== */
+.app{display:flex;min-height:660px}
+.side{width:206px;flex:none;background:#fff;border-right:1px solid var(--line);padding-bottom:16px}
+.brand{background:var(--grad);padding:19px 20px 20px;position:relative;overflow:hidden}
+.brand small{display:block;font-size:9.5px;letter-spacing:.3em;color:rgba(255,255,255,.72);margin-top:7px;position:relative;z-index:1}
+.brand .logo{position:relative;z-index:1}
+.brand .wave{position:absolute;left:0;bottom:-1px;width:100%;height:14px;opacity:.32}
+.nav{padding:10px 0}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 20px;font-size:13px;color:var(--gray);
+  text-decoration:none;border-left:2px solid transparent}
+.nav a.on{color:var(--navy);font-weight:600;border-left-color:var(--accent)}
+.nav a.on svg{color:var(--accent)}
+.nav svg{width:15px;height:15px;flex:none;color:#a8bfc7}
+.navgap{height:1px;margin:12px 20px;background:var(--line2)}
+
+/* 軸2: flat のときサイドバー上部も白にしてロゴをカラーで見せる */
+body[data-grad="flat"] .brand{background:#fff;border-bottom:1px solid var(--line2)}
+body[data-grad="flat"] .brand small{color:var(--gray2)}
+body[data-grad="flat"] .brand .wave{display:none}
+/* 軸2: wide のときサイドバー全体を色で塗る */
+body[data-grad="wide"] .side{background:var(--grad);border-right:0}
+body[data-grad="wide"] .brand{background:transparent}
+body[data-grad="wide"] .brand .wave{display:none}
+body[data-grad="wide"] .nav a{color:rgba(255,255,255,.8)}
+body[data-grad="wide"] .nav a.on{color:#fff;font-weight:700;border-left-color:#fff;background:rgba(255,255,255,.13)}
+body[data-grad="wide"] .nav svg{color:rgba(255,255,255,.58)}
+body[data-grad="wide"] .nav a.on svg{color:#fff}
+body[data-grad="wide"] .navgap{background:rgba(255,255,255,.2)}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
+.top{background:var(--bg);padding:24px 30px 0;display:flex;align-items:flex-start;justify-content:space-between}
+.top h3{margin:0;font-size:24px;font-weight:600;letter-spacing:.01em;color:var(--ink)}
+.top .date{font-size:12.5px;color:var(--gray);margin-top:5px}
+.who{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--gray)}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--grad);color:#fff;
+  display:grid;place-items:center;font-size:11.5px;font-weight:600}
+.body{padding:22px 30px 26px;overflow:auto}
+
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);background:#fff}
+.kpi{padding:18px 18px 17px;border-right:1px solid var(--line2)}
+.kpi:last-child{border-right:0}
+.kpi .lb{font-size:11px;color:var(--gray);letter-spacing:.04em}
+.kpi .vl{font-size:32px;font-weight:600;margin-top:7px;line-height:1;letter-spacing:-.02em;color:var(--ink)}
+.kpi .vl span{font-size:13px;font-weight:500;color:var(--gray);margin-left:3px;letter-spacing:0}
+.kpi .sub{font-size:11px;color:var(--gray2);margin-top:8px}
+.kpi.hl .vl{color:var(--accent)}
+.kpi.hl .lb{color:var(--accent);font-weight:600}
+
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:26px;background:#fff;
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.card{padding:18px 22px 8px}
+.card+.card{border-left:1px solid var(--line2)}
+.card>h4{margin:0 0 6px;font-size:12px;font-weight:600;letter-spacing:.06em;color:var(--gray);
+  display:flex;align-items:center;justify-content:space-between}
+.card>h4 a{font-size:11px;color:var(--accent);text-decoration:none;font-weight:500;letter-spacing:0}
+.row{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line2);font-size:13px}
+.row:last-child{border-bottom:0}
+.time{font-variant-numeric:tabular-nums;font-weight:600;font-size:13px;width:42px;flex:none;color:var(--navy)}
+.grow{flex:1;min-width:0}
+.nm{font-weight:600}
+.sm{font-size:11.5px;color:var(--gray);margin-top:3px}
+.amt{font-variant-numeric:tabular-nums;font-weight:600;font-size:14px;color:var(--ink)}
+.st{font-size:11px;color:var(--gray);display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.st::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--gray2)}
+.st.ok::before{background:var(--accent)}
+.st.wait::before{background:#fff;border:1.5px solid var(--accent)}
+.st.no::before{background:#bdccd2}
+.tag{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:3px;background:var(--accent-soft);
+  color:var(--accent);margin-left:5px}
+.btn{border:1px solid var(--line);background:#fff;border-radius:var(--radius);padding:6px 12px;
+  font-size:12px;color:var(--ink);cursor:pointer;font-family:inherit}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+
+/* ===== スマホ ===== */
+.ph{background:var(--bg);min-height:780px;position:relative;padding-bottom:150px}
+.phtop{background:var(--grad);color:#fff;padding:15px 18px 20px;display:flex;align-items:center;gap:12px;
+  position:relative;overflow:hidden}
+.phtop b{font-size:16px;font-weight:600;position:relative;z-index:1}
+.phtop .x{font-size:19px;opacity:.85;position:relative;z-index:1}
+.phtop .wave{position:absolute;left:0;bottom:-1px;width:100%;height:16px;opacity:.3}
+body[data-grad="flat"] .phtop{background:#fff;color:var(--ink);padding-bottom:15px;border-bottom:2px solid var(--accent)}
+body[data-grad="flat"] .phtop .x{color:var(--gray);opacity:1}
+body[data-grad="flat"] .phtop .wave{display:none}
+.phbody{padding:6px 18px 0;background:#fff;margin-top:-6px}
+body[data-grad="flat"] .phbody{margin-top:0}
+.fld{padding:16px 0;border-bottom:1px solid var(--line)}
+.fld>label{display:block;font-size:11.5px;font-weight:600;color:var(--gray);margin-bottom:11px;letter-spacing:.05em}
+.fld>label em{font-style:normal;color:var(--accent);font-size:10.5px;margin-left:6px}
+.pick{width:100%;min-height:46px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;
+  display:flex;align-items:center;justify-content:space-between;padding:0 13px;font-size:15px;color:var(--gray)}
+.picked{border-color:var(--accent);color:var(--ink)}
+.picked b{font-size:15.5px}
+.picked small{font-size:12px;color:var(--gray)}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:var(--radius);padding:9px 14px;
+  font-size:14px;color:var(--ink2);min-height:41px;display:inline-flex;align-items:center}
+.chip.onb{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+/* ===== 軸3: 選択中チップの色 ===== */
+body[data-chip="navy"] .chip.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
+body[data-chip="accent"] .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+body[data-chip="navy"] .big.no{border-color:var(--navy);border-width:2px;color:var(--navy)}
+body[data-chip="accent"] .big.no{border-color:var(--accent);border-width:2px;color:var(--accent);background:var(--accent-soft)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.big{min-height:60px;border-radius:var(--radius);border:1px solid var(--line);background:#fff;
+  display:grid;place-items:center;font-size:15.5px;font-weight:600;color:var(--gray)}
+.memo{width:100%;border:1px solid var(--line);border-radius:var(--radius);padding:12px;font-size:15px;
+  min-height:74px;font-family:inherit;color:var(--gray);background:#fff}
+.savebar{position:absolute;left:0;right:0;bottom:58px;background:#fff;border-top:1px solid var(--line);
+  padding:10px 18px;display:flex;gap:10px}
+.savebar .cancel{flex:none;width:92px;border:1px solid var(--line);background:#fff;border-radius:var(--radius);
+  font-size:15px;color:var(--gray);min-height:50px}
+.savebar .save{flex:1;background:var(--grad);color:#fff;border:0;border-radius:var(--radius);
+  font-size:16px;font-weight:600;min-height:50px}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:58px;background:#fff;border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(5,1fr);align-items:center}
+.tab{display:grid;justify-items:center;gap:4px;font-size:10px;color:var(--gray2)}
+.tab svg{width:18px;height:18px}
+.tab.add .fab{width:46px;height:46px;border-radius:50%;background:var(--grad);color:#fff;
+  display:grid;place-items:center;font-size:24px;font-weight:300;margin-top:-21px;line-height:1;
+  box-shadow:0 5px 14px rgba(15,120,150,.35)}
+.tab.add span{color:var(--accent);font-weight:600}
+
+.note{max-width:1280px;margin:0 auto;padding:14px 24px 40px;font-size:12.5px;color:#4d707c;line-height:1.9}
+.note b{color:#0b5e7a}
+.note .warn{background:#fff6e9;border-left:3px solid #d9a441;padding:12px 14px;border-radius:4px;margin-top:14px}
+.note .warn b{color:#8a6420}
+@media(max-width:1080px){.kpis{grid-template-columns:repeat(3,1fr)}.cols{grid-template-columns:1fr}
+  .card+.card{border-left:0;border-top:1px solid var(--line2)}.side{display:none}
+  .now{margin-left:0;text-align:left}}
+</style>
+</head>
+<body data-accent="mid" data-grad="minimal" data-chip="navy">
+
+<svg width="0" height="0" style="position:absolute">
+  <defs><linearGradient id="logograd" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#e8402a"/><stop offset=".55" stop-color="#ee5b26"/><stop offset="1" stop-color="#f7941e"/>
+  </linearGradient></defs>
+</svg>
+
+<div class="mockhead">
+  <a href="index.html">← モック一覧へ戻る</a>
+  <h1>案F バリエーション比較</h1>
+  <p>案F で挙げた 3 つの調整点を、その場で切り替えて見比べられるようにしました。下のボタンを押すと画面がすぐ切り替わります。組み合わせは 3 × 3 × 2 = 18 通りです。決まったら「この組み合わせ」と伝えていただければ、それで確定します。</p>
+</div>
+
+<div class="ctrl">
+  <div class="in">
+    <div class="cg">
+      <span class="cl">① グラデーションの範囲</span>
+      <div class="cb">
+        <button data-k="grad" data-v="flat">なし（単色）</button>
+        <button data-k="grad" data-v="minimal" class="on">現在（ヘッダーとボタン）</button>
+        <button data-k="grad" data-v="wide">広い（サイドバー全体）</button>
+      </div>
+    </div>
+    <div class="cg">
+      <span class="cl">② アクセントの濃さ</span>
+      <div class="cb">
+        <button data-k="accent" data-v="deep">深い #08536f</button>
+        <button data-k="accent" data-v="mid" class="on">中間 #0b86ab</button>
+        <button data-k="accent" data-v="bright">明るい #17b6c9</button>
+      </div>
+    </div>
+    <div class="cg">
+      <span class="cl">③ 選択中チップの色</span>
+      <div class="cb">
+        <button data-k="chip" data-v="navy" class="on">濃紺</button>
+        <button data-k="chip" data-v="accent">アクセント色</button>
+      </div>
+    </div>
+    <div class="now">現在の組み合わせ<br><b id="nowlabel">現在 × 中間 × 濃紺</b></div>
+  </div>
+</div>
+
+<div class="stage">
+  <h2>ダッシュボード（PC）</h2>
+  <div class="frame">
+    <div class="app">
+      <aside class="side">
+        <div class="brand">
+          <div class="logo">
+            <span class="wm">affect</span>
+            <svg class="mark" viewBox="2.5 10 31.5 31.5" fill="none">
+              <circle cx="9" cy="35" r="6.5"/>
+              <path d="M9 22A13 13 0 0 1 22 35" stroke-width="6"/>
+              <path d="M9 13A22 22 0 0 1 31 35" stroke-width="6"/>
+            </svg>
+          </div>
+          <small>SURF CRM</small>
+          <svg class="wave" viewBox="0 0 200 18" preserveAspectRatio="none"><path d="M0 11c25-10 42 9 67 3s42-13 66-6 42 11 67 4v7H0z" fill="#fff"/></svg>
+        </div>
+        <nav class="nav">
+          <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>ダッシュボード</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>顧客管理</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>来店管理</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 15c3-3 6 3 9 0s6-3 9 0"/><path d="M3 9c3-3 6 3 9 0s6-3 9 0"/></svg>スクール</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>予約カレンダー</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h18l-1.5 12a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z"/><path d="M8 7a4 4 0 0 1 8 0"/></svg>商品・購入</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>フォロー管理</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>データ分析</a>
+          <div class="navgap"></div>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-6 7-6s7 2.7 7 6M17 11h5M19.5 8.5v5"/></svg>スタッフ管理</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>設定</a>
+        </nav>
+      </aside>
+
+      <div class="main">
+        <div class="top">
+          <div><h3>ダッシュボード</h3><div class="date">2026年8月31日（日）</div></div>
+          <div class="who"><span>平野 健太</span><div class="avatar">健</div></div>
+        </div>
+        <div class="body">
+          <div class="kpis">
+            <div class="kpi hl"><div class="lb">今日の来店</div><div class="vl">8<span>名</span></div><div class="sub">新規 2 ／ リピート 6</div></div>
+            <div class="kpi"><div class="lb">今日の予約</div><div class="vl">3<span>件</span></div><div class="sub">スクール 2 件</div></div>
+            <div class="kpi"><div class="lb">今月の来店</div><div class="vl">142<span>名</span></div><div class="sub">前月比 +12%</div></div>
+            <div class="kpi"><div class="lb">新規顧客</div><div class="vl">28<span>名</span></div><div class="sub">今月</div></div>
+            <div class="kpi"><div class="lb">購入率</div><div class="vl">46<span>%</span></div><div class="sub">65 / 142 名</div></div>
+            <div class="kpi"><div class="lb">今月の売上</div><div class="vl">684<span>千円</span></div><div class="sub">客単価 ¥10,523</div></div>
+          </div>
+
+          <div class="cols">
+            <div class="card">
+              <h4>今日の予約 <a href="#">カレンダーを見る</a></h4>
+              <div class="row"><div class="time">9:00</div><div class="grow"><div class="nm">初心者スクール</div><div class="sm">田中 美咲 様 ほか 2 名／担当 平野</div></div><span class="st ok">確定</span></div>
+              <div class="row"><div class="time">13:00</div><div class="grow"><div class="nm">個人レッスン</div><div class="sm">佐藤 拓也 様／担当 森</div></div><span class="st ok">確定</span></div>
+              <div class="row"><div class="time">15:30</div><div class="grow"><div class="nm">初級スクール</div><div class="sm">中村 あかり 様 ほか 1 名／Web予約</div></div><span class="st wait">仮予約</span></div>
+            </div>
+            <div class="card">
+              <h4>今日フォローする顧客 <a href="#">すべて見る</a></h4>
+              <div class="row"><div class="grow"><div class="nm">山田 太郎<span class="tag">ウェット検討</span></div><div class="sm">未購入理由：価格／8/24 来店時に見積提示</div></div><button class="btn p">対応</button></div>
+              <div class="row"><div class="grow"><div class="nm">鈴木 一郎<span class="tag">ボード検討</span></div><div class="sm">未購入理由：サイズがない／入荷連絡</div></div><button class="btn p">対応</button></div>
+              <div class="row"><div class="grow"><div class="nm">高橋 さくら<span class="tag">初心者</span></div><div class="sm">スクール参加後のフォロー</div></div><button class="btn">対応</button></div>
+            </div>
+          </div>
+
+          <div class="cols">
+            <div class="card">
+              <h4>最近の来店 <a href="#">来店一覧へ</a></h4>
+              <div class="row"><div class="time">14:20</div><div class="grow"><div class="nm">小林 健二</div><div class="sm">目的：商品下見／経路：Instagram</div></div><span class="st no">未購入</span></div>
+              <div class="row"><div class="time">13:05</div><div class="grow"><div class="nm">伊藤 あゆみ</div><div class="sm">目的：ウェット試着／経路：紹介</div></div><span class="st ok">購入</span></div>
+              <div class="row"><div class="time">11:40</div><div class="grow"><div class="nm">渡辺 大輔</div><div class="sm">目的：修理相談／経路：既存客</div></div><span class="st no">未購入</span></div>
+            </div>
+            <div class="card">
+              <h4>最近の購入 <a href="#">購入履歴へ</a></h4>
+              <div class="row"><div class="grow"><div class="nm">伊藤 あゆみ</div><div class="sm">セミドライ ウェットスーツ ／ M</div></div><div class="amt">¥68,000</div></div>
+              <div class="row"><div class="grow"><div class="nm">松本 涼</div><div class="sm">ショートボード 5'10" ／ リーシュ</div></div><div class="amt">¥142,000</div></div>
+              <div class="row"><div class="grow"><div class="nm">加藤 直樹</div><div class="sm">ワックス ×3 ／ デッキパッド</div></div><div class="amt">¥8,400</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <h2>クイック来店登録（スマホ）</h2>
+  <div class="framephone">
+    <div class="ph">
+      <div class="phtop">
+        <span class="x">×</span><b>クイック来店登録</b>
+        <svg class="wave" viewBox="0 0 400 18" preserveAspectRatio="none"><path d="M0 10c50-10 84 9 134 3s84-13 133-6 84 11 133 4v8H0z" fill="#fff"/></svg>
+      </div>
+      <div class="phbody">
+        <div class="fld">
+          <label>顧客 <em>必須</em></label>
+          <div class="pick picked"><b>山田 太郎</b><small>来店 4 回目</small></div>
+        </div>
+        <div class="fld"><label>来店目的</label>
+          <div class="chips"><span class="chip on">商品下見</span><span class="chip">購入</span><span class="chip">試着</span><span class="chip">修理相談</span><span class="chip">スクール</span><span class="chip">その他</span></div></div>
+        <div class="fld"><label>来店経路</label>
+          <div class="chips"><span class="chip">初めて</span><span class="chip on">Instagram</span><span class="chip">紹介</span><span class="chip">通りがかり</span><span class="chip">既存客</span></div></div>
+        <div class="fld"><label>興味のある商品</label>
+          <div class="chips"><span class="chip onb">ウェット</span><span class="chip">ボード</span><span class="chip onb">リーシュ</span><span class="chip">フィン</span><span class="chip">アパレル</span><span class="chip">小物</span></div></div>
+        <div class="fld"><label>購入 / 未購入 <em>必須</em></label>
+          <div class="two"><div class="big">購入した</div><div class="big no">未購入</div></div></div>
+        <div class="fld"><label>未購入の理由</label>
+          <div class="chips"><span class="chip">検討中</span><span class="chip on">価格</span><span class="chip">他店比較</span><span class="chip">在庫なし</span><span class="chip">サイズ</span><span class="chip">時期</span><span class="chip">情報収集</span><span class="chip">相談のみ</span></div></div>
+        <div class="fld" style="border-bottom:0"><label>メモ</label>
+          <div class="memo">来月のボーナスで検討したいとのこと。3mm セミドライを希望。サイズは M で試着済み。</div></div>
+      </div>
+      <div class="savebar"><button class="cancel">キャンセル</button><button class="save">保存する</button></div>
+      <div class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>ホーム</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>顧客</span></div>
+        <div class="tab add"><div class="fab">＋</div><span>来店</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>予約</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>メニュー</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <b>各軸で変わること</b><br>
+  ・<b>① グラデーションの範囲</b>：「なし」はサイドバーも白のまま、色は単色のみ。「現在」はブランド部分と主要ボタンだけ。「広い」はサイドバー全体を塗るので、案A のような色面のある管理画面に近づく<br>
+  ・<b>② アクセントの濃さ</b>：時刻・リンク・数字・ドット・ボタンが一斉に変わる。深いほど落ち着き、明るいほど軽やかになる<br>
+  ・<b>③ 選択中チップの色</b>：スマホの「商品下見」「Instagram」「価格」など、選ばれた項目の色。濃紺は選択が締まって見え、アクセント色はアプリ全体の色と揃う<br><br>
+
+  <b>見るときのおすすめ</b><br>
+  ・スマホ画面まで一度スクロールしてから切り替えると、操作パネルが上に残るので違いが分かりやすい<br>
+  ・「広い × 明るい」は最も華やか、「なし × 深い」は最も落ち着く。この 2 つを見比べると振れ幅が掴めます
+
+  <div class="warn">
+    <b>ロゴとの相性について</b><br>
+    サイドバーに affect のロゴ（近似再現）を実際に置いています。ロゴのマークが<b>オレンジ〜レッド</b>なので、青系の背景に載せると<b>補色に近い組み合わせ</b>になり、色が強く主張し合います。<br>
+    そのため、①で「広い」を選んだ場合と「現在」を選んだ場合はロゴを<b>白抜き</b>で表示し、色のぶつかりを避けています。「なし（単色）」を選ぶとサイドバーが白になるため、<b>ロゴ本来のオレンジのまま</b>表示されます。<br>
+    ロゴの色をそのまま活かしたい場合は <b>①「なし」</b>、または配色自体をロゴに合わせた
+    <a href="g-brand-orange.html" style="color:#8a6420;font-weight:600">案G Brand Orange</a> が候補になります。
+  </div>
+</div>
+
+<script>
+const label = {
+  grad:{flat:"なし",minimal:"現在",wide:"広い"},
+  accent:{deep:"深い",mid:"中間",bright:"明るい"},
+  chip:{navy:"濃紺",accent:"アクセント色"}
+};
+function update(){
+  const b=document.body.dataset;
+  document.getElementById("nowlabel").textContent =
+    label.grad[b.grad]+" × "+label.accent[b.accent]+" × "+label.chip[b.chip];
+}
+document.querySelectorAll(".cb button").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.body.dataset[btn.dataset.k]=btn.dataset.v;
+    btn.parentElement.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===btn));
+    update();
+  });
+});
+update();
+</script>
+
+</body>
+</html>

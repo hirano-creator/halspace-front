@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>案B Ocean — affect CRM モック</title>
+<style>
+:root{
+  --deep:#08536f; --sea:#0b86ab; --aqua:#17b6c9; --soft:#e8f7fa; --soft2:#f2fbfc;
+  --grad:linear-gradient(115deg,#0a6f95 0%,#0f9fbb 55%,#2cc4cf 100%);
+  --bg:#f4fafb; --card:#fff; --line:#dcecef;
+  --text:#173039; --muted:#6d8792; --ok:#12876a; --warn:#d1813d; --danger:#c94f45;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e7eff1;color:var(--text);
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,system-ui,sans-serif;
+  font-feature-settings:"palt";-webkit-font-smoothing:antialiased}
+
+.mockhead{background:var(--grad);color:#fff;padding:22px 28px;position:relative;overflow:hidden}
+.mockhead a{color:#cdeff5;text-decoration:none;font-size:13px;position:relative;z-index:1}
+.mockhead h1{margin:6px 0 4px;font-size:21px;letter-spacing:.04em;position:relative;z-index:1}
+.mockhead p{margin:0;font-size:13px;color:#dcf3f7;line-height:1.7;position:relative;z-index:1;max-width:820px}
+.mockhead svg{position:absolute;left:0;right:0;bottom:-2px;width:100%;height:34px;opacity:.28}
+.stage{max-width:1280px;margin:0 auto;padding:32px 24px 8px}
+.stage h2{font-size:13px;color:#4d707c;letter-spacing:.08em;margin:0 0 12px;font-weight:600}
+.frame{background:var(--bg);border:1px solid #cfe3e7;border-radius:16px;overflow:hidden;
+  box-shadow:0 12px 40px rgba(10,80,105,.13)}
+.framephone{width:390px;max-width:100%;margin:0 auto;background:var(--bg);
+  border:10px solid #16414f;border-radius:34px;overflow:hidden;box-shadow:0 14px 44px rgba(10,80,105,.26)}
+
+.app{display:flex;min-height:660px}
+.side{width:212px;flex:none;background:#fff;border-right:1px solid var(--line);padding-bottom:16px}
+.brand{background:var(--grad);color:#fff;padding:17px 18px 20px;position:relative;overflow:hidden}
+.brand b{font-size:18px;letter-spacing:.16em;font-weight:600;position:relative;z-index:1}
+.brand small{display:block;font-size:10px;letter-spacing:.24em;color:#c6ecf3;margin-top:3px;position:relative;z-index:1}
+.brand svg{position:absolute;left:0;bottom:-1px;width:100%;height:16px;opacity:.35}
+.nav{padding:12px 10px}
+.nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;font-size:13.5px;color:#4a6975;
+  text-decoration:none;border-radius:10px;margin-bottom:2px}
+.nav a.on{background:var(--soft);color:var(--sea);font-weight:600}
+.nav a.on svg{color:var(--aqua)}
+.nav svg{width:16px;height:16px;flex:none;color:#93aeb8}
+.navgap{height:1px;margin:10px 12px;background:var(--line)}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{background:#fff;border-bottom:1px solid var(--line);padding:13px 24px;
+  display:flex;align-items:center;justify-content:space-between}
+.top h3{margin:0;font-size:17px;font-weight:600;color:var(--deep)}
+.top .date{font-size:12.5px;color:var(--muted)}
+.who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.avatar{width:31px;height:31px;border-radius:50%;background:var(--grad);color:#fff;
+  display:grid;place-items:center;font-size:12px;font-weight:700}
+.body{padding:22px 24px;overflow:auto}
+
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 15px;
+  box-shadow:0 2px 10px rgba(11,110,140,.05)}
+.kpi .lb{font-size:11.5px;color:var(--muted)}
+.kpi .vl{font-size:27px;font-weight:700;color:var(--deep);margin-top:5px;line-height:1.1}
+.kpi .vl span{font-size:13px;font-weight:600;color:var(--muted);margin-left:2px}
+.kpi .sub{font-size:11px;color:var(--muted);margin-top:5px}
+.kpi.hl{background:var(--grad);border:0;box-shadow:0 6px 18px rgba(15,150,180,.3)}
+.kpi.hl .lb,.kpi.hl .sub{color:#d5f2f7}
+.kpi.hl .vl,.kpi.hl .vl span{color:#fff}
+
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  box-shadow:0 2px 10px rgba(11,110,140,.05)}
+.card>h4{margin:0;padding:13px 16px;font-size:13.5px;font-weight:600;color:var(--deep);
+  border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(180deg,#fbfeff,#fff)}
+.card>h4 a{font-size:11.5px;color:var(--sea);text-decoration:none;font-weight:500}
+.row{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid #eef6f8;font-size:13px}
+.row:last-child{border-bottom:0}
+.time{font-variant-numeric:tabular-nums;font-weight:700;color:var(--sea);font-size:13.5px;width:44px;flex:none}
+.grow{flex:1;min-width:0}
+.nm{font-weight:600}
+.sm{font-size:11.5px;color:var(--muted);margin-top:2px}
+.amt{font-variant-numeric:tabular-nums;font-weight:700;color:var(--deep)}
+.tag{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:11px;border:1px solid var(--line);
+  color:var(--muted);background:#fafdfe;margin-right:4px}
+.tag.b{background:var(--soft);border-color:#bfe6ee;color:var(--sea)}
+.tag.g{background:#e4f5ef;border-color:#c2e6da;color:var(--ok)}
+.tag.w{background:#fcf0e6;border-color:#f0dcc6;color:var(--warn)}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font-size:12px;
+  color:var(--text);cursor:pointer;font-family:inherit}
+.btn.p{background:var(--grad);border:0;color:#fff;font-weight:600}
+
+.ph{background:var(--bg);min-height:780px;position:relative;padding-bottom:150px}
+.phtop{background:var(--grad);color:#fff;padding:14px 16px 20px;display:flex;align-items:center;gap:11px;
+  position:relative;overflow:hidden}
+.phtop b{font-size:16px;font-weight:600;position:relative;z-index:1}
+.phtop .x{font-size:19px;opacity:.8;position:relative;z-index:1}
+.phtop svg{position:absolute;left:0;bottom:-1px;width:100%;height:18px;opacity:.3}
+.phbody{padding:14px 14px 0;margin-top:-6px}
+.fld{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px;
+  margin-bottom:11px;box-shadow:0 2px 10px rgba(11,110,140,.05)}
+.fld>label{display:block;font-size:12.5px;font-weight:600;color:var(--deep);margin-bottom:9px}
+.fld>label em{font-style:normal;color:var(--danger);font-size:11px;margin-left:5px}
+.pick{width:100%;min-height:48px;border:1px solid var(--line);border-radius:11px;background:#fbfdfe;
+  display:flex;align-items:center;gap:10px;padding:0 13px;font-size:15px;color:var(--muted)}
+.picked{border-color:var(--aqua);background:var(--soft);color:var(--text)}
+.picked b{font-size:15px}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:21px;padding:9px 14px;font-size:14px;
+  color:var(--text);min-height:40px;display:inline-flex;align-items:center}
+.chip.on{background:var(--grad);border:0;color:#fff;font-weight:600}
+.chip.onb{background:var(--soft);border-color:var(--aqua);color:var(--sea);font-weight:600}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big{min-height:64px;border-radius:12px;border:2px solid var(--line);background:#fff;
+  display:grid;place-items:center;font-size:16px;font-weight:700;color:var(--muted)}
+.big.buy{border-color:var(--ok);background:#e4f5ef;color:var(--ok)}
+.big.no{border-color:var(--warn);background:#fcf0e6;color:var(--warn)}
+.memo{width:100%;border:1px solid var(--line);border-radius:11px;padding:11px;font-size:15px;
+  min-height:76px;font-family:inherit;color:var(--muted);background:#fbfdfe}
+.savebar{position:absolute;left:0;right:0;bottom:58px;background:rgba(255,255,255,.96);
+  border-top:1px solid var(--line);padding:10px 14px;display:flex;gap:10px}
+.savebar .cancel{flex:none;width:96px;border:1px solid var(--line);background:#fff;border-radius:11px;
+  font-size:15px;color:var(--muted);min-height:50px}
+.savebar .save{flex:1;background:var(--grad);color:#fff;border:0;border-radius:11px;font-size:16.5px;
+  font-weight:700;min-height:50px;box-shadow:0 5px 14px rgba(15,150,180,.35)}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:58px;background:#fff;border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(5,1fr);align-items:center}
+.tab{display:grid;justify-items:center;gap:3px;font-size:10px;color:var(--muted)}
+.tab svg{width:19px;height:19px}
+.tab.on{color:var(--sea)}
+.tab.add .fab{width:52px;height:52px;border-radius:50%;background:var(--grad);color:#fff;
+  display:grid;place-items:center;font-size:26px;font-weight:300;margin-top:-25px;
+  box-shadow:0 6px 16px rgba(15,150,180,.45);line-height:1}
+.tab.add span{color:var(--sea);font-weight:600}
+.note{max-width:1280px;margin:0 auto;padding:14px 24px 40px;font-size:12.5px;color:#4d707c;line-height:1.9}
+@media(max-width:1080px){.kpis{grid-template-columns:repeat(3,1fr)}.cols{grid-template-columns:1fr}.side{display:none}}
+</style>
+</head>
+<body>
+
+<div class="mockhead">
+  <a href="index.html">← 5案の一覧へ戻る</a>
+  <h1>案B　Ocean</h1>
+  <p>海のブルーグラデーションを主役にした案。サーフショップの世界観をそのまま持ち込み、業務システムでありながら「affect の道具」だと一目で分かる。ホームページの予約画面と地続きのトーンにできる。</p>
+  <svg viewBox="0 0 1200 40" preserveAspectRatio="none"><path d="M0 22c150-22 250 22 400 8s250-30 400-14 250 26 400 12v14H0z" fill="#fff"/></svg>
+</div>
+
+<div class="stage">
+  <h2>ダッシュボード（PC）</h2>
+  <div class="frame">
+    <div class="app">
+      <aside class="side">
+        <div class="brand">
+          <b>affect</b><small>SURF CRM</small>
+          <svg viewBox="0 0 200 20" preserveAspectRatio="none"><path d="M0 12c25-11 42 10 67 4s42-14 66-7 42 12 67 5v8H0z" fill="#fff"/></svg>
+        </div>
+        <nav class="nav">
+          <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>ダッシュボード</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>顧客管理</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>来店管理</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 15c3-3 6 3 9 0s6-3 9 0"/><path d="M3 9c3-3 6 3 9 0s6-3 9 0"/></svg>スクール</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>予約カレンダー</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18l-1.5 12a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z"/><path d="M8 7a4 4 0 0 1 8 0"/></svg>商品・購入</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>フォロー管理</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>データ分析</a>
+          <div class="navgap"></div>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-6 7-6s7 2.7 7 6M17 11h5M19.5 8.5v5"/></svg>スタッフ管理</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>設定</a>
+        </nav>
+      </aside>
+
+      <div class="main">
+        <div class="top">
+          <div><h3>ダッシュボード</h3><div class="date">2026年8月31日（日）　晴れ／南西の風</div></div>
+          <div class="who"><span>平野 健太</span><div class="avatar">健</div></div>
+        </div>
+
+        <div class="body">
+          <div class="kpis">
+            <div class="kpi hl"><div class="lb">今日の来店</div><div class="vl">8<span>名</span></div><div class="sub">新規 2 / リピート 6</div></div>
+            <div class="kpi"><div class="lb">今日の予約</div><div class="vl">3<span>件</span></div><div class="sub">スクール 2 件</div></div>
+            <div class="kpi"><div class="lb">今月の来店</div><div class="vl">142<span>名</span></div><div class="sub">前月比 +12%</div></div>
+            <div class="kpi"><div class="lb">新規顧客</div><div class="vl">28<span>名</span></div><div class="sub">今月</div></div>
+            <div class="kpi"><div class="lb">購入率</div><div class="vl">46<span>%</span></div><div class="sub">65 / 142 名</div></div>
+            <div class="kpi"><div class="lb">今月の売上</div><div class="vl">684<span>千円</span></div><div class="sub">客単価 ¥10,523</div></div>
+          </div>
+
+          <div class="cols">
+            <div class="card">
+              <h4>今日の予約 <a href="#">カレンダーを見る →</a></h4>
+              <div class="row"><div class="time">9:00</div><div class="grow"><div class="nm">初心者スクール</div><div class="sm">田中 美咲 様 ほか 2 名／担当 平野</div></div><span class="tag g">確定</span></div>
+              <div class="row"><div class="time">13:00</div><div class="grow"><div class="nm">個人レッスン</div><div class="sm">佐藤 拓也 様／担当 森</div></div><span class="tag g">確定</span></div>
+              <div class="row"><div class="time">15:30</div><div class="grow"><div class="nm">初級スクール</div><div class="sm">中村 あかり 様 ほか 1 名／Web予約</div></div><span class="tag w">仮予約</span></div>
+            </div>
+            <div class="card">
+              <h4>今日フォローする顧客 <a href="#">すべて見る →</a></h4>
+              <div class="row"><div class="grow"><div class="nm">山田 太郎 <span class="tag b">ウェット検討</span></div><div class="sm">未購入理由：価格／8/24 来店時に見積提示</div></div><button class="btn p">対応</button></div>
+              <div class="row"><div class="grow"><div class="nm">鈴木 一郎 <span class="tag b">ボード検討</span></div><div class="sm">未購入理由：サイズがない／入荷連絡</div></div><button class="btn p">対応</button></div>
+              <div class="row"><div class="grow"><div class="nm">高橋 さくら <span class="tag">初心者</span></div><div class="sm">スクール参加後のフォロー</div></div><button class="btn">対応</button></div>
+            </div>
+          </div>
+
+          <div class="cols">
+            <div class="card">
+              <h4>最近の来店 <a href="#">来店一覧へ →</a></h4>
+              <div class="row"><div class="time">14:20</div><div class="grow"><div class="nm">小林 健二</div><div class="sm">目的：商品下見／経路：Instagram</div></div><span class="tag w">未購入</span></div>
+              <div class="row"><div class="time">13:05</div><div class="grow"><div class="nm">伊藤 あゆみ</div><div class="sm">目的：ウェット試着／経路：紹介</div></div><span class="tag g">購入</span></div>
+              <div class="row"><div class="time">11:40</div><div class="grow"><div class="nm">渡辺 大輔</div><div class="sm">目的：修理相談／経路：既存客</div></div><span class="tag w">未購入</span></div>
+            </div>
+            <div class="card">
+              <h4>最近の購入 <a href="#">購入履歴へ →</a></h4>
+              <div class="row"><div class="grow"><div class="nm">伊藤 あゆみ</div><div class="sm">セミドライ ウェットスーツ ／ M</div></div><div class="amt">¥68,000</div></div>
+              <div class="row"><div class="grow"><div class="nm">松本 涼</div><div class="sm">ショートボード 5'10" ／ リーシュ</div></div><div class="amt">¥142,000</div></div>
+              <div class="row"><div class="grow"><div class="nm">加藤 直樹</div><div class="sm">ワックス ×3 ／ デッキパッド</div></div><div class="amt">¥8,400</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <h2>クイック来店登録（スマホ）</h2>
+  <div class="framephone">
+    <div class="ph">
+      <div class="phtop">
+        <span class="x">×</span><b>クイック来店登録</b>
+        <svg viewBox="0 0 400 20" preserveAspectRatio="none"><path d="M0 11c50-11 84 10 134 4s84-14 133-7 84 12 133 5v9H0z" fill="#f4fafb"/></svg>
+      </div>
+      <div class="phbody">
+        <div class="fld">
+          <label>顧客 <em>必須</em></label>
+          <div class="pick picked"><b>山田 太郎</b><span style="font-size:12px;color:#6d8792">来店 4 回目</span></div>
+        </div>
+        <div class="fld">
+          <label>来店目的</label>
+          <div class="chips"><span class="chip on">商品下見</span><span class="chip">購入</span><span class="chip">試着</span><span class="chip">修理相談</span><span class="chip">スクール</span><span class="chip">その他</span></div>
+        </div>
+        <div class="fld">
+          <label>来店経路</label>
+          <div class="chips"><span class="chip">初めて</span><span class="chip on">Instagram</span><span class="chip">紹介</span><span class="chip">通りがかり</span><span class="chip">既存客</span></div>
+        </div>
+        <div class="fld">
+          <label>興味のある商品</label>
+          <div class="chips"><span class="chip onb">ウェット</span><span class="chip">ボード</span><span class="chip onb">リーシュ</span><span class="chip">フィン</span><span class="chip">アパレル</span><span class="chip">小物</span></div>
+        </div>
+        <div class="fld">
+          <label>購入 / 未購入 <em>必須</em></label>
+          <div class="two"><div class="big">購入した</div><div class="big no">未購入</div></div>
+        </div>
+        <div class="fld">
+          <label>未購入の理由</label>
+          <div class="chips"><span class="chip">検討中</span><span class="chip on">価格</span><span class="chip">他店比較</span><span class="chip">在庫なし</span><span class="chip">サイズ</span><span class="chip">時期</span><span class="chip">情報収集</span><span class="chip">相談のみ</span></div>
+        </div>
+        <div class="fld">
+          <label>メモ</label>
+          <div class="memo">来月のボーナスで検討したいとのこと。3mm セミドライを希望。サイズは M で試着済み。</div>
+        </div>
+      </div>
+      <div class="savebar"><button class="cancel">キャンセル</button><button class="save">保存する</button></div>
+      <div class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>ホーム</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>顧客</span></div>
+        <div class="tab add"><div class="fab">＋</div><span>来店</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>予約</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>メニュー</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <b>この案の特徴</b><br>
+  ・ブランドヘッダーと主要ボタンにグラデーションを使い、サーフショップらしい爽やかさを出している<br>
+  ・サイドバーを白にしてグラデーションを上部に集約したので、色の面積が広がりすぎず業務画面として成立する<br>
+  ・波形のあしらいをヘッダー下端に入れ、affect のホームページと同じ空気を管理画面にも通している<br>
+  ・公開の Web 予約ページと同じトーンで作れるため、店舗とお客様の両方から見た印象が揃う
+</div>
+
+</body>
+</html>

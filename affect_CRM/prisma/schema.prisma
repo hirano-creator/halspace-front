@@ -1,0 +1,572 @@
+// affect CRM データベーススキーマ（Cloudflare D1 / SQLite）
+//
+// 設計の要点（詳細は docs/企画書.md）
+//   - 顧客と来店履歴は必ず分ける。すべて 1 対多。
+//   - D1(SQLite) には enum がないため、状態は String + src/lib/constants.ts の定数で担保する。
+//   - 金額はすべて Int（円）。小数型は使わない。
+//   - 選択肢（来店目的・経路・未購入理由など）は MasterOption に集約し、設定画面から増やせるようにする。
+//     分析の集計キーは code。label（表示名）を変えても過去データの集計が壊れないようにするため。
+
+generator client {
+  // Cloudflare D1（Workers）向けの新 generator。runtime="cloudflare" により
+  // WASM を ESM import する形で生成され、OpenNext/wrangler がバンドルに含められる
+  // （旧 prisma-client-js + adapter では query_compiler_bg.wasm がバンドル漏れする）。
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  runtime  = "cloudflare"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// スタッフ（＝ログインユーザー）
+// ============================================================
+
+/// users と staff は分けない。店舗規模では「ログインしない担当者」が存在せず、
+/// 分けると担当者参照が二重管理になるため。
+model Staff {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  nameKana     String?
+  /// "ADMIN" | "STAFF"
+  role         String   @default("STAFF")
+  /// 退職者は false にする（履歴を守るため削除しない）
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdCustomers Customer[]           @relation("CustomerCreatedBy")
+  visits           Visit[]
+  purchases        Purchase[]
+  notes            CustomerNote[]
+  followUps        FollowUp[]
+  sessions         SchoolSession[]
+  reservations     Reservation[]
+  attendances      SchoolAttendance[]
+  courseAssigns    SchoolCourseStaff[]
+  auditLogs        AuditLog[]
+}
+
+// ============================================================
+// 顧客
+// ============================================================
+
+model Customer {
+  id       String  @id @default(cuid())
+  /// 表示用の顧客番号（例: A-0001）
+  code     String  @unique
+  name     String
+  nameKana String?
+  nickname String?
+  /// "MALE" | "FEMALE" | "OTHER" | "UNKNOWN"
+  gender   String?
+  birthday DateTime?
+
+  phone String?
+  /// 数字のみに正規化した電話番号。重複検知に使う（unique にはしない：
+  /// 家族で番号を共有する例が実在し、制約で弾くと登録できなくなるため）
+  phoneDigits String?
+  email       String?
+  /// 小文字化したメール。重複検知用
+  emailLower  String?
+
+  /// 地域別分析に使うため都道府県は独立して持つ
+  prefecture  String?
+  city        String?
+  addressLine String?
+
+  lineId    String?
+  instagram String?
+
+  /// 顧客ランク（MasterOption type="CUSTOMER_RANK" の code）
+  rank String?
+  note String?
+
+  firstVisitAt DateTime?
+
+  // --- 集計キャッシュ（4-4）------------------------------------
+  // 正は履歴テーブル。ここは顧客一覧の検索・並べ替えのための補助であり、
+  // 来店・購入・スクール参加の登録／更新／削除と同じ処理内で再計算する。
+  visitCount     Int       @default(0)
+  lastVisitAt    DateTime?
+  purchaseTotal  Int       @default(0)
+  purchaseCount  Int       @default(0)
+  lastPurchaseAt DateTime?
+  schoolCount    Int       @default(0)
+
+  /// 論理削除（管理者のみ）。履歴を残すため物理削除しない
+  deletedAt   DateTime?
+  createdById String?
+  createdBy   Staff?    @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  surfProfile CustomerSurfProfile?
+  tags        CustomerTag[]
+  visits      Visit[]
+  purchases   Purchase[]
+  reservations Reservation[]
+  attendances SchoolAttendance[]
+  followUps   FollowUp[]
+  notes       CustomerNote[]
+
+  @@index([phoneDigits])
+  @@index([emailLower])
+  @@index([nameKana])
+  @@index([lastVisitAt])
+  @@index([deletedAt])
+}
+
+/// サーフィン情報（1対1）。顧客一覧の取得を軽くするため本体から分離する
+model CustomerSurfProfile {
+  id         String   @id @default(cuid())
+  customerId String   @unique
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  /// サーフィン歴（年）
+  experienceYears Int?
+  /// MasterOption type="SURF_LEVEL"
+  level           String?
+  /// MasterOption type="BOARD_TYPE"
+  boardType       String?
+  boardSize       String?
+  /// MasterOption type="WETSUIT_SIZE"
+  wetsuitSize     String?
+  /// よく行くポイント（MasterOption type="SURF_POINT" の code をカンマ区切り）
+  favoritePoints  String?
+  /// MasterOption type="SURF_FREQUENCY"
+  frequency       String?
+  /// 興味のある商品カテゴリ（ProductCategory.id をカンマ区切り）
+  interestedCategories String?
+
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// タグ
+// ============================================================
+
+model Tag {
+  id        String        @id @default(cuid())
+  name      String        @unique
+  color     String?
+  sortOrder Int           @default(0)
+  /// 削除ではなく無効化する（過去データの表示を壊さないため）
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  customers CustomerTag[]
+}
+
+model CustomerTag {
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tagId      String
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@id([customerId, tagId])
+  @@index([tagId])
+}
+
+// ============================================================
+// 来店（システムの中核）
+// ============================================================
+
+model Visit {
+  id String @id @default(cuid())
+
+  /// 任意。お名前が分からないお客様の来店も記録するため（企画書 4-7）
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  // --- 匿名来店のときだけ使う項目 ---
+  /// グループの代表となる年代・性別。1人客はこれだけで完結する。
+  /// 2人以上で内訳が違う場合は guests（VisitGuest）に人数分の内訳を持つ。
+  /// guests がある場合、分析はそちらを優先し、これは表示の簡略化にのみ使う。
+  /// "10S" | "20S" | "30S" | "40S" | "50S" | "60S" | "UNKNOWN"
+  guestAgeGroup String?
+  /// "MALE" | "FEMALE" | "UNKNOWN"
+  guestGender   String?
+  /// 識別のための短いメモ（容姿の詳細は書かない運用）
+  guestMemo     String?
+
+  visitedAt DateTime
+  partySize Int      @default(1)
+
+  /// MasterOption type="VISIT_PURPOSE"
+  purposeCode  String?
+  /// MasterOption type="VISIT_CHANNEL"
+  channelCode  String?
+  /// MasterOption type="REFERRER"（何を見て来たか）
+  referrerCode String?
+  /// 来店エリア（都道府県）。Customer.prefecture（顧客の恒久住所）とは別に、来店ごとに記録する
+  prefectureCode String?
+
+  /// 必須。買わなかった記録こそが資産になるため、未購入も必ず残す
+  purchased Boolean
+
+  /// MasterOption type="NO_PURCHASE_REASON"
+  noPurchaseReasonCode String?
+  noPurchaseComment    String?
+
+  conversation String?
+  nextProposal String?
+  followUpDate DateTime?
+
+  /// 新規／リピーターの分析用に、来店時点の事実として保存する
+  isFirstVisit Boolean @default(false)
+
+  staffId String?
+  staff   Staff?  @relation(fields: [staffId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  interests VisitInterest[]
+  purchases Purchase[]
+  followUps FollowUp[]
+  notes     CustomerNote[]
+  guests    VisitGuest[]
+
+  @@index([customerId])
+  @@index([visitedAt])
+  @@index([purchased])
+}
+
+/// 匿名来店（customerId なし）で、グループ内の年代・性別が一様でないときだけ使う内訳。
+/// partySize 人分すべてを埋める必要はない（分かる人数分だけ登録すればよい）。
+/// 空なら Visit.guestAgeGroup / guestGender を代表値として扱う。
+model VisitGuest {
+  id      String @id @default(cuid())
+  visitId String
+  visit   Visit  @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  /// "10S" | "20S" | "30S" | "40S" | "50S" | "60S" | "UNKNOWN"
+  ageGroup String?
+  /// "MALE" | "FEMALE" | "UNKNOWN"
+  gender   String?
+
+  @@index([visitId])
+}
+
+/// 興味を持った商品。カテゴリ単位の記録を基本とし、商品が特定できるときだけ productId を埋める
+model VisitInterest {
+  id      String @id @default(cuid())
+  visitId String
+  visit   Visit  @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  categoryId String?
+  category   ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  productId  String?
+  product    Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  memo       String?
+
+  @@index([visitId])
+  @@index([categoryId])
+}
+
+// ============================================================
+// 商品・購入
+// ============================================================
+
+model ProductCategory {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  products  Product[]
+  interests VisitInterest[]
+  items     PurchaseItem[]
+}
+
+model Product {
+  id         String           @id @default(cuid())
+  code       String?
+  name       String
+  categoryId String?
+  category   ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  brand      String?
+  /// 定価（円）
+  price      Int?
+  isActive   Boolean          @default(true)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  items     PurchaseItem[]
+  interests VisitInterest[]
+
+  @@index([categoryId])
+}
+
+model Purchase {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// どの来店での購入か（来店→購入の分析に使う）
+  visitId    String?
+  visit      Visit?   @relation(fields: [visitId], references: [id], onDelete: SetNull)
+
+  purchasedAt DateTime
+  /// 合計金額（円）。明細の小計合計と一致させる
+  totalAmount Int
+  staffId     String?
+  staff       Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items PurchaseItem[]
+
+  @@index([customerId])
+  @@index([purchasedAt])
+}
+
+model PurchaseItem {
+  id         String   @id @default(cuid())
+  purchaseId String
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  /// 購入時点の商品名スナップショット。マスタ名を変えても過去の履歴表示が変わらないようにする
+  productName String
+  categoryId  String?
+  category    ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  unitPrice Int
+  quantity  Int @default(1)
+  size      String?
+  subtotal  Int
+
+  @@index([purchaseId])
+  @@index([productId])
+  @@index([categoryId])
+}
+
+// ============================================================
+// スクール・予約（Phase 2 で画面を作る）
+// ============================================================
+
+model SchoolCourse {
+  id              String  @id @default(cuid())
+  name            String
+  description     String?
+  durationMinutes Int     @default(90)
+  /// 料金（円）
+  price           Int     @default(0)
+  capacity        Int     @default(5)
+  /// MasterOption type="SURF_LEVEL"
+  level           String?
+  /// ホームページの予約ページに出すか
+  isPublished     Boolean @default(false)
+  sortOrder       Int     @default(0)
+  isActive        Boolean @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  staffs      SchoolCourseStaff[]
+  sessions    SchoolSession[]
+  attendances SchoolAttendance[]
+}
+
+model SchoolCourseStaff {
+  courseId String
+  course   SchoolCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  staffId  String
+  staff    Staff        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, staffId])
+  @@index([staffId])
+}
+
+/// 開催枠。CRM で作った枠がそのままホームページの予約枠になる
+model SchoolSession {
+  id       String       @id @default(cuid())
+  courseId String
+  course   SchoolCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  /// 開催日（その日の 00:00 JST 相当）
+  date      DateTime
+  /// "09:00" 形式
+  startTime String
+  endTime   String
+  /// コースの定員をこの枠だけ上書きする
+  capacity  Int
+  staffId   String?
+  staff     Staff?  @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  /// "OPEN" | "CLOSED" | "CANCELLED"
+  status    String  @default("OPEN")
+  /// ホームページに公開するか
+  isPublished Boolean @default(true)
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reservations Reservation[]
+  attendances  SchoolAttendance[]
+
+  @@index([date])
+  @@index([courseId])
+}
+
+model Reservation {
+  id        String        @id @default(cuid())
+  sessionId String
+  session   SchoolSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  headcount Int    @default(1)
+  /// "TENTATIVE"(仮予約) | "CONFIRMED"(予約確定) | "ATTENDED"(参加済) | "CANCELLED" | "NO_SHOW"
+  status    String @default("TENTATIVE")
+  /// "WEB" | "STAFF" | "PHONE"
+  source    String @default("STAFF")
+  staffId   String?
+  staff     Staff?  @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  note      String?
+  cancelledAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attendance SchoolAttendance?
+
+  @@index([sessionId])
+  @@index([customerId])
+  @@index([status])
+}
+
+/// スクール参加の結果と評価
+model SchoolAttendance {
+  id            String       @id @default(cuid())
+  reservationId String?      @unique
+  reservation   Reservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  sessionId     String?
+  session       SchoolSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  customerId    String
+  customer      Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  courseId      String?
+  course        SchoolCourse? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  attendedAt DateTime
+  staffId    String?
+  staff      Staff?  @relation(fields: [staffId], references: [id], onDelete: SetNull)
+
+  /// MasterOption type="SURF_LEVEL"
+  surfLevel String?
+  /// 評価は 1〜5
+  evalPaddle        Int?
+  evalTakeoff       Int?
+  evalWaveSelection Int?
+  evalRiding        Int?
+  evalTotal         Int?
+  comment            String?
+  nextRecommendation String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([attendedAt])
+}
+
+// ============================================================
+// フォロー・メモ
+// ============================================================
+
+model FollowUp {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  visitId    String?
+  visit      Visit?   @relation(fields: [visitId], references: [id], onDelete: SetNull)
+
+  content    String
+  dueDate    DateTime
+  assigneeId String?
+  assignee   Staff?   @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  /// "PENDING" | "IN_PROGRESS" | "DONE" | "UNNECESSARY"
+  status     String   @default("PENDING")
+  memo       String?
+  completedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([dueDate])
+  @@index([customerId])
+  @@index([status])
+}
+
+/// 会話メモ
+model CustomerNote {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  visitId    String?
+  visit      Visit?   @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  body       String
+  staffId    String?
+  staff      Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+}
+
+// ============================================================
+// 選択肢マスタ・設定・監査
+// ============================================================
+
+/// 来店目的・来店経路・何を見て来たか・未購入理由・顧客ランク・サーフィン関連の選択肢を一元管理する。
+/// code は分析の集計キーなので一度決めたら変更しない。label は自由に変更してよい。
+model MasterOption {
+  id        String  @id @default(cuid())
+  /// "VISIT_PURPOSE" | "VISIT_CHANNEL" | "REFERRER" | "NO_PURCHASE_REASON"
+  /// | "CUSTOMER_RANK" | "SURF_LEVEL" | "BOARD_TYPE" | "WETSUIT_SIZE" | "SURF_POINT" | "SURF_FREQUENCY"
+  type      String
+  code      String
+  label     String
+  sortOrder Int     @default(0)
+  /// 削除ではなく無効化する（過去データの集計を壊さないため）
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, code])
+  @@index([type])
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/// 公開 API（ホームページからの予約）の連打・大量作成を防ぐための記録。
+/// Workers はリクエストごとに別 isolate になり得るのでメモリ上のカウントは効かない。
+model RateLimit {
+  id        String   @id @default(cuid())
+  /// "reserve:<IP>" のような識別子
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  staffId    String?
+  staff      Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  /// "customer.delete" のような操作名
+  action     String
+  targetType String?
+  targetId   String?
+  /// 補足（個人情報は入れない）
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}

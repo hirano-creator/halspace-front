@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+/* affect CRM デザイントークン（案F 確定版）
+   グラデーションなし・アクセント #0b86ab・選択中は濃紺
+   モック: docs/mockups/f-mono-ocean.html */
+:root {
+  --ink: #10262f;
+  --ink-2: #33505b;
+  --gray: #64818c;
+  --gray-2: #93aab3;
+  --line: #e1ebee;
+  --line-2: #eff5f7;
+  --bg: #f7fbfc;
+  --card: #ffffff;
+  --accent: #0b86ab;
+  --accent-soft: #e8f7fa;
+  --navy: #08536f;
+  --amber: #bd8a35;
+  --danger: #c0392b;
+  --ok: #17794f;
+}
+
+/* CSS 変数を Tailwind のユーティリティに昇格させる（v4 の書き方。
+   tailwind.config.ts は作らない） */
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-gray-soft: var(--gray);
+  --color-gray-faint: var(--gray-2);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-navy: var(--navy);
+  --color-amber: var(--amber);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
+  /* 日本語の字間を詰めて業務画面の情報密度を上げる */
+  font-feature-settings: "palt";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 数字は等幅にして、金額・件数の桁を揃える */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Chrome のオートフィルが入力欄を水色に塗るのを打ち消す */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--card) inset;
+  -webkit-text-fill-color: var(--ink);
+}
+
+/* iOS Safari は 16px 未満の入力にフォーカスすると勝手にズームする。
+   入力欄のフォントサイズは 16px 以上を保つこと（PC では sm:text-sm で戻す）。 */

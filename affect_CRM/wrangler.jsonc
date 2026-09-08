@@ -1,0 +1,23 @@
+{
+  // OpenNext がビルドした Worker を Cloudflare にデプロイするための設定。
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "affect-crm",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-07-01",
+  // Node.js 互換フラグ。bcryptjs（node:crypto）に必要。
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // Cloudflare D1。binding 名 "DB" は src/lib/db.ts の env.DB に対応。
+  // database_id は `wrangler d1 create affect-crm` で払い出された本番 DB のもの（APAC リージョン）。
+  // ローカル開発（miniflare）は database_name だけを見るため、同じ設定のまま両方で動く。
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "affect-crm",
+      "database_id": "d72a2080-410d-4caf-8d35-04ab73bfbbcc"
+    }
+  ]
+}

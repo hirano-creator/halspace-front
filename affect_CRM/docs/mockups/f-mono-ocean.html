@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>案F 確定版（なし × 中間 × 濃紺）— affect CRM モック</title>
+<style>
+:root{
+  /* 案F 確定版：グラデーションなし（単色）／アクセント中間 #0b86ab ／選択中チップ濃紺 */
+  --ink:#10262f; --ink2:#33505b; --gray:#64818c; --gray2:#93aab3;
+  --line:#e1ebee; --line2:#eff5f7; --bg:#f7fbfc; --card:#fff;
+  --accent:#0b86ab; --accent-soft:#e8f7fa; --navy:#08536f;
+  --radius:6px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e8eef0;color:var(--ink);
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,system-ui,sans-serif;
+  font-feature-settings:"palt";-webkit-font-smoothing:antialiased}
+
+.mockhead{background:#10262f;color:#fff;padding:22px 28px}
+.mockhead a{color:#8fc4d6;text-decoration:none;font-size:13px}
+.mockhead h1{margin:6px 0 4px;font-size:21px;letter-spacing:.05em;font-weight:600}
+.mockhead p{margin:0;font-size:13px;color:#a8bcc4;line-height:1.7;max-width:860px}
+.spec{display:inline-flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.spec span{font-size:11.5px;background:rgba(255,255,255,.12);padding:4px 10px;border-radius:12px;color:#cfe4ea}
+.stage{max-width:1280px;margin:0 auto;padding:32px 24px 8px}
+.stage h2{font-size:13px;color:#4d707c;letter-spacing:.08em;margin:0 0 12px;font-weight:600}
+.stage h2 em{font-style:normal;color:var(--accent);font-weight:600}
+.frame{background:var(--bg);border:1px solid #d5e2e6;border-radius:10px;overflow:hidden;
+  box-shadow:0 10px 32px rgba(10,60,80,.11)}
+.phones{display:flex;gap:34px;flex-wrap:wrap;justify-content:center}
+.phwrap{width:390px;max-width:100%}
+.phcap{font-size:12px;color:#4d707c;text-align:center;margin-bottom:10px;line-height:1.6}
+.phcap b{color:var(--ink);font-size:13px;display:block;margin-bottom:2px}
+.framephone{background:var(--bg);border:10px solid #10262f;border-radius:34px;overflow:hidden;
+  box-shadow:0 14px 40px rgba(10,60,80,.24)}
+
+/* ロゴ（近似再現。実装時は本物のデータに差し替え） */
+.logo{display:flex;align-items:baseline;gap:1px}
+.logo .wm{font-family:"Arial Black","Arial Bold",Arial,Helvetica,sans-serif;font-size:21px;font-weight:900;
+  letter-spacing:-.045em;line-height:1;color:#1a1a1a}
+.logo .mark{width:15px;height:15px;flex:none}
+
+.app{display:flex;min-height:660px}
+.side{width:206px;flex:none;background:#fff;border-right:1px solid var(--line);padding-bottom:16px}
+.brand{padding:20px 20px 18px;border-bottom:1px solid var(--line2)}
+.brand small{display:block;font-size:9.5px;letter-spacing:.3em;color:var(--gray2);margin-top:7px}
+.nav{padding:8px 0}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 20px;font-size:13px;color:var(--gray);
+  text-decoration:none;border-left:2px solid transparent}
+.nav a.on{color:var(--navy);font-weight:600;border-left-color:var(--accent)}
+.nav a.on svg{color:var(--accent)}
+.nav svg{width:15px;height:15px;flex:none;color:#a8bfc7}
+.navgap{height:1px;margin:12px 20px;background:var(--line2)}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
+.top{background:var(--bg);padding:24px 30px 0;display:flex;align-items:flex-start;justify-content:space-between}
+.top h3{margin:0;font-size:24px;font-weight:600;letter-spacing:.01em}
+.top .date{font-size:12.5px;color:var(--gray);margin-top:5px}
+.who{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--gray)}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;
+  display:grid;place-items:center;font-size:11.5px;font-weight:600}
+.body{padding:22px 30px 26px;overflow:auto}
+
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);background:#fff}
+.kpi{padding:18px 18px 17px;border-right:1px solid var(--line2)}
+.kpi:last-child{border-right:0}
+.kpi .lb{font-size:11px;color:var(--gray);letter-spacing:.04em}
+.kpi .vl{font-size:32px;font-weight:600;margin-top:7px;line-height:1;letter-spacing:-.02em}
+.kpi .vl span{font-size:13px;font-weight:500;color:var(--gray);margin-left:3px;letter-spacing:0}
+.kpi .sub{font-size:11px;color:var(--gray2);margin-top:8px}
+.kpi.hl .vl{color:var(--accent)}
+.kpi.hl .lb{color:var(--accent);font-weight:600}
+
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:26px;background:#fff;
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.card{padding:18px 22px 8px}
+.card+.card{border-left:1px solid var(--line2)}
+.card>h4{margin:0 0 6px;font-size:12px;font-weight:600;letter-spacing:.06em;color:var(--gray);
+  display:flex;align-items:center;justify-content:space-between}
+.card>h4 a{font-size:11px;color:var(--accent);text-decoration:none;font-weight:500;letter-spacing:0}
+.row{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--line2);font-size:13px}
+.row:last-child{border-bottom:0}
+.time{font-variant-numeric:tabular-nums;font-weight:600;font-size:13px;width:42px;flex:none;color:var(--navy)}
+.grow{flex:1;min-width:0}
+.nm{font-weight:600}
+.nm.anon{color:var(--gray);font-weight:500}
+.nm.anon::before{content:"";display:inline-block;width:14px;height:14px;border-radius:50%;
+  border:1.5px dashed #a8bfc7;margin-right:6px;vertical-align:-2px}
+.sm{font-size:11.5px;color:var(--gray);margin-top:3px}
+.amt{font-variant-numeric:tabular-nums;font-weight:600;font-size:14px}
+.st{font-size:11px;color:var(--gray);display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.st::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--gray2)}
+.st.ok::before{background:var(--accent)}
+.st.wait::before{background:#fff;border:1.5px solid var(--accent)}
+.st.no::before{background:#bdccd2}
+.tag{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:3px;background:var(--accent-soft);
+  color:var(--accent);margin-left:5px}
+.btn{border:1px solid var(--line);background:#fff;border-radius:var(--radius);padding:6px 12px;
+  font-size:12px;color:var(--ink);cursor:pointer;font-family:inherit}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+
+/* ===== スマホ ===== */
+.ph{background:var(--bg);min-height:800px;position:relative;padding-bottom:150px}
+.phtop{background:#fff;padding:15px 18px;display:flex;align-items:center;gap:12px;
+  border-bottom:2px solid var(--accent)}
+.phtop b{font-size:16px;font-weight:600}
+.phtop .x{font-size:19px;color:var(--gray)}
+.phbody{padding:6px 18px 0;background:#fff}
+.fld{padding:16px 0;border-bottom:1px solid var(--line)}
+.fld>label{display:block;font-size:11.5px;font-weight:600;color:var(--gray);margin-bottom:11px;letter-spacing:.05em}
+.fld>label em{font-style:normal;color:var(--accent);font-size:10.5px;margin-left:6px}
+.pick{width:100%;min-height:46px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;
+  display:flex;align-items:center;justify-content:space-between;padding:0 13px;font-size:15px;color:var(--gray)}
+.picked{border-color:var(--accent);color:var(--ink)}
+.picked b{font-size:15.5px}
+.picked small{font-size:12px;color:var(--gray)}
+/* 匿名（名前不明）で記録している状態 */
+.pick.anon{border-color:var(--gray2);border-style:dashed;background:#fbfdfe;color:var(--ink2)}
+.pick.anon b{font-size:15px;font-weight:600;color:var(--ink2)}
+.subrow{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+.ghost{border:1px solid var(--line);background:#fff;border-radius:var(--radius);padding:7px 11px;
+  font-size:12.5px;color:var(--gray);min-height:34px;display:inline-flex;align-items:center}
+.ghost.on{border-color:var(--navy);color:var(--navy);font-weight:600;background:#f2f8fa}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:var(--radius);padding:9px 14px;
+  font-size:14px;color:var(--ink2);min-height:41px;display:inline-flex;align-items:center}
+.chip.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
+.chip.onb{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.chip.sm{padding:8px 12px;font-size:13.5px;min-height:38px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.big{min-height:60px;border-radius:var(--radius);border:1px solid var(--line);background:#fff;
+  display:grid;place-items:center;font-size:15.5px;font-weight:600;color:var(--gray)}
+.big.no{border-color:var(--navy);border-width:2px;color:var(--navy)}
+.memo{width:100%;border:1px solid var(--line);border-radius:var(--radius);padding:12px;font-size:15px;
+  min-height:74px;font-family:inherit;color:var(--gray);background:#fff}
+.hint{font-size:11.5px;color:var(--gray);margin-top:9px;line-height:1.7;
+  background:var(--accent-soft);border-radius:5px;padding:9px 11px}
+.savebar{position:absolute;left:0;right:0;bottom:58px;background:#fff;border-top:1px solid var(--line);
+  padding:10px 18px;display:flex;gap:10px}
+.savebar .cancel{flex:none;width:92px;border:1px solid var(--line);background:#fff;border-radius:var(--radius);
+  font-size:15px;color:var(--gray);min-height:50px}
+.savebar .save{flex:1;background:var(--accent);color:#fff;border:0;border-radius:var(--radius);
+  font-size:16px;font-weight:600;min-height:50px}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:58px;background:#fff;border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(5,1fr);align-items:center}
+.tab{display:grid;justify-items:center;gap:4px;font-size:10px;color:var(--gray2)}
+.tab svg{width:18px;height:18px}
+.tab.add .fab{width:46px;height:46px;border-radius:50%;background:var(--accent);color:#fff;
+  display:grid;place-items:center;font-size:24px;font-weight:300;margin-top:-21px;line-height:1;
+  box-shadow:0 5px 14px rgba(11,134,171,.35)}
+.tab.add span{color:var(--accent);font-weight:600}
+
+.note{max-width:1280px;margin:0 auto;padding:18px 24px 46px;font-size:12.5px;color:#4d707c;line-height:1.9}
+.note b{color:#0b5e7a}
+.note h3{font-size:14px;color:var(--ink);margin:22px 0 8px}
+.note table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #d5e2e6;
+  border-radius:8px;overflow:hidden;margin-top:10px;font-size:12.5px}
+.note th,.note td{padding:9px 12px;border-bottom:1px solid #eff5f7;text-align:left;vertical-align:top}
+.note th{background:#f4fafb;font-weight:600;font-size:11.5px;color:#4d707c;white-space:nowrap}
+.note tr:last-child td{border-bottom:0}
+@media(max-width:1080px){.kpis{grid-template-columns:repeat(3,1fr)}.cols{grid-template-columns:1fr}
+  .card+.card{border-left:0;border-top:1px solid var(--line2)}.side{display:none}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <linearGradient id="logograd" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#e8402a"/><stop offset=".55" stop-color="#ee5b26"/><stop offset="1" stop-color="#f7941e"/>
+  </linearGradient>
+</defs></svg>
+
+<div class="mockhead">
+  <a href="index.html">← モック一覧へ戻る</a>
+  <h1>案F 確定版</h1>
+  <p>案D のレイアウトに案B の配色、そこから調整点を確定したものです。サイドバーが白のままなので、ロゴはオレンジそのままで表示できます。</p>
+  <div class="spec">
+    <span>① グラデーション：なし（単色）</span>
+    <span>② アクセント：中間 #0b86ab</span>
+    <span>③ 選択中チップ：濃紺 #08536f</span>
+  </div>
+</div>
+
+<div class="stage">
+  <h2>ダッシュボード（PC）</h2>
+  <div class="frame">
+    <div class="app">
+      <aside class="side">
+        <div class="brand">
+          <div class="logo">
+            <span class="wm">affect</span>
+            <svg class="mark" viewBox="2.5 10 31.5 31.5" fill="none">
+              <circle cx="9" cy="35" r="6.5" fill="url(#logograd)"/>
+              <path d="M9 22A13 13 0 0 1 22 35" stroke="url(#logograd)" stroke-width="6"/>
+              <path d="M9 13A22 22 0 0 1 31 35" stroke="url(#logograd)" stroke-width="6"/>
+            </svg>
+          </div>
+          <small>SURF CRM</small>
+        </div>
+        <nav class="nav">
+          <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>ダッシュボード</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>顧客管理</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>来店管理</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 15c3-3 6 3 9 0s6-3 9 0"/><path d="M3 9c3-3 6 3 9 0s6-3 9 0"/></svg>スクール</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>予約カレンダー</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h18l-1.5 12a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2z"/><path d="M8 7a4 4 0 0 1 8 0"/></svg>商品・購入</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>フォロー管理</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>データ分析</a>
+          <div class="navgap"></div>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-6 7-6s7 2.7 7 6M17 11h5M19.5 8.5v5"/></svg>スタッフ管理</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>設定</a>
+        </nav>
+      </aside>
+
+      <div class="main">
+        <div class="top">
+          <div><h3>ダッシュボード</h3><div class="date">2026年8月31日（日）</div></div>
+          <div class="who"><span>平野 健太</span><div class="avatar">健</div></div>
+        </div>
+        <div class="body">
+          <div class="kpis">
+            <div class="kpi hl"><div class="lb">今日の来店</div><div class="vl">8<span>組</span></div><div class="sub">お名前あり 5 ／ 不明 3</div></div>
+            <div class="kpi"><div class="lb">今日の予約</div><div class="vl">3<span>件</span></div><div class="sub">スクール 2 件</div></div>
+            <div class="kpi"><div class="lb">今月の来店</div><div class="vl">142<span>組</span></div><div class="sub">前月比 +12%</div></div>
+            <div class="kpi"><div class="lb">新規顧客</div><div class="vl">28<span>名</span></div><div class="sub">今月</div></div>
+            <div class="kpi"><div class="lb">購入率</div><div class="vl">46<span>%</span></div><div class="sub">65 / 142 組</div></div>
+            <div class="kpi"><div class="lb">今月の売上</div><div class="vl">684<span>千円</span></div><div class="sub">客単価 ¥10,523</div></div>
+          </div>
+
+          <div class="cols">
+            <div class="card">
+              <h4>今日の予約 <a href="#">カレンダーを見る</a></h4>
+              <div class="row"><div class="time">9:00</div><div class="grow"><div class="nm">初心者スクール</div><div class="sm">田中 美咲 様 ほか 2 名／担当 平野</div></div><span class="st ok">確定</span></div>
+              <div class="row"><div class="time">13:00</div><div class="grow"><div class="nm">個人レッスン</div><div class="sm">佐藤 拓也 様／担当 森</div></div><span class="st ok">確定</span></div>
+              <div class="row"><div class="time">15:30</div><div class="grow"><div class="nm">初級スクール</div><div class="sm">中村 あかり 様 ほか 1 名／Web予約</div></div><span class="st wait">仮予約</span></div>
+            </div>
+            <div class="card">
+              <h4>今日フォローする顧客 <a href="#">すべて見る</a></h4>
+              <div class="row"><div class="grow"><div class="nm">山田 太郎<span class="tag">ウェット検討</span></div><div class="sm">未購入理由：価格／8/24 来店時に見積提示</div></div><button class="btn p">対応</button></div>
+              <div class="row"><div class="grow"><div class="nm">鈴木 一郎<span class="tag">ボード検討</span></div><div class="sm">未購入理由：サイズがない／入荷連絡</div></div><button class="btn p">対応</button></div>
+              <div class="row"><div class="grow"><div class="nm">高橋 さくら<span class="tag">初心者</span></div><div class="sm">スクール参加後のフォロー</div></div><button class="btn">対応</button></div>
+            </div>
+          </div>
+
+          <div class="cols">
+            <div class="card">
+              <h4>最近の来店 <a href="#">来店一覧へ</a></h4>
+              <div class="row"><div class="time">14:20</div><div class="grow"><div class="nm">小林 健二</div><div class="sm">目的：商品下見／経路：Instagram</div></div><span class="st no">未購入</span></div>
+              <div class="row"><div class="time">13:52</div><div class="grow"><div class="nm anon">お名前不明（20代・男性）</div><div class="sm">目的：見るだけ／経路：通りがかり／ボードを見ていた</div></div><span class="st no">未購入</span></div>
+              <div class="row"><div class="time">13:05</div><div class="grow"><div class="nm">伊藤 あゆみ</div><div class="sm">目的：ウェット試着／経路：紹介</div></div><span class="st ok">購入</span></div>
+              <div class="row"><div class="time">11:40</div><div class="grow"><div class="nm anon">お名前不明（30代・女性 2名）</div><div class="sm">目的：スクール相談／経路：Instagram</div></div><span class="st no">未購入</span></div>
+            </div>
+            <div class="card">
+              <h4>最近の購入 <a href="#">購入履歴へ</a></h4>
+              <div class="row"><div class="grow"><div class="nm">伊藤 あゆみ</div><div class="sm">セミドライ ウェットスーツ ／ M</div></div><div class="amt">¥68,000</div></div>
+              <div class="row"><div class="grow"><div class="nm">松本 涼</div><div class="sm">ショートボード 5'10" ／ リーシュ</div></div><div class="amt">¥142,000</div></div>
+              <div class="row"><div class="grow"><div class="nm">加藤 直樹</div><div class="sm">ワックス ×3 ／ デッキパッド</div></div><div class="amt">¥8,400</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <h2>クイック来店登録（スマホ）　<em>— 左：お名前を伺えた場合／右：お名前が分からない場合</em></h2>
+  <div class="phones">
+
+    <!-- ① 通常（顧客を特定できた） -->
+    <div class="phwrap">
+      <div class="phcap"><b>① お名前を伺えた場合</b>顧客を選ぶと来店回数や前回の会話が出る</div>
+      <div class="framephone">
+        <div class="ph">
+          <div class="phtop"><span class="x">×</span><b>クイック来店登録</b></div>
+          <div class="phbody">
+            <div class="fld">
+              <label>顧客 <em>必須</em></label>
+              <div class="pick picked"><b>山田 太郎</b><small>来店 4 回目</small></div>
+              <div class="subrow"><span class="ghost">別の顧客</span><span class="ghost">新規登録</span><span class="ghost">名前不明で記録</span></div>
+            </div>
+            <div class="fld"><label>来店目的</label>
+              <div class="chips"><span class="chip on">商品下見</span><span class="chip">購入</span><span class="chip">試着</span><span class="chip">修理相談</span><span class="chip">スクール</span><span class="chip">見るだけ</span></div></div>
+            <div class="fld"><label>来店経路</label>
+              <div class="chips"><span class="chip">初めて</span><span class="chip on">Instagram</span><span class="chip">紹介</span><span class="chip">通りがかり</span><span class="chip">既存客</span></div></div>
+            <div class="fld"><label>興味のある商品</label>
+              <div class="chips"><span class="chip onb">ウェット</span><span class="chip">ボード</span><span class="chip onb">リーシュ</span><span class="chip">フィン</span><span class="chip">アパレル</span><span class="chip">小物</span></div></div>
+            <div class="fld"><label>購入 / 未購入 <em>必須</em></label>
+              <div class="two"><div class="big">購入した</div><div class="big no">未購入</div></div></div>
+            <div class="fld"><label>未購入の理由</label>
+              <div class="chips"><span class="chip">検討中</span><span class="chip on">価格</span><span class="chip">他店比較</span><span class="chip">在庫なし</span><span class="chip">サイズ</span><span class="chip">時期</span><span class="chip">情報収集</span><span class="chip">相談のみ</span></div></div>
+            <div class="fld" style="border-bottom:0"><label>メモ</label>
+              <div class="memo">来月のボーナスで検討したいとのこと。3mm セミドライを希望。サイズは M で試着済み。</div></div>
+          </div>
+          <div class="savebar"><button class="cancel">キャンセル</button><button class="save">保存する</button></div>
+          <div class="tabbar">
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>ホーム</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>顧客</span></div>
+            <div class="tab add"><div class="fab">＋</div><span>来店</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>予約</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>メニュー</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ② 匿名（名前が分からない） -->
+    <div class="phwrap">
+      <div class="phcap"><b>② お名前が分からない場合</b>「名前不明で記録」を押すと年代・性別だけ聞く形に変わる</div>
+      <div class="framephone">
+        <div class="ph">
+          <div class="phtop"><span class="x">×</span><b>クイック来店登録</b></div>
+          <div class="phbody">
+            <div class="fld">
+              <label>顧客</label>
+              <div class="pick anon"><b>お名前不明のまま記録</b><small>あとで紐付け可</small></div>
+              <div class="subrow"><span class="ghost">顧客を検索</span><span class="ghost">新規登録</span><span class="ghost on">名前不明で記録</span></div>
+            </div>
+
+            <div class="fld">
+              <label>人数</label>
+              <div class="chips"><span class="chip on">1人</span><span class="chip">2人</span><span class="chip">3人</span><span class="chip">4人以上</span></div>
+            </div>
+
+            <div class="fld">
+              <label>だいたいの年代</label>
+              <div class="chips"><span class="chip sm">10代</span><span class="chip sm on">20代</span><span class="chip sm">30代</span><span class="chip sm">40代</span><span class="chip sm">50代</span><span class="chip sm">60代〜</span><span class="chip sm">不明</span></div>
+            </div>
+
+            <div class="fld">
+              <label>性別</label>
+              <div class="chips"><span class="chip on">男性</span><span class="chip">女性</span><span class="chip">不明</span></div>
+            </div>
+
+            <div class="fld"><label>来店目的</label>
+              <div class="chips"><span class="chip">商品下見</span><span class="chip">購入</span><span class="chip">試着</span><span class="chip">修理相談</span><span class="chip">スクール</span><span class="chip on">見るだけ</span></div></div>
+
+            <div class="fld"><label>来店経路</label>
+              <div class="chips"><span class="chip">初めて</span><span class="chip">Instagram</span><span class="chip">紹介</span><span class="chip on">通りがかり</span><span class="chip">既存客</span></div></div>
+
+            <div class="fld"><label>見ていた商品</label>
+              <div class="chips"><span class="chip">ウェット</span><span class="chip onb">ボード</span><span class="chip">リーシュ</span><span class="chip">フィン</span><span class="chip">アパレル</span><span class="chip">小物</span></div></div>
+
+            <div class="fld"><label>購入 / 未購入 <em>必須</em></label>
+              <div class="two"><div class="big">購入した</div><div class="big no">未購入</div></div></div>
+
+            <div class="fld"><label>未購入の理由</label>
+              <div class="chips"><span class="chip">検討中</span><span class="chip">価格</span><span class="chip">他店比較</span><span class="chip">在庫なし</span><span class="chip on">情報収集</span><span class="chip">相談のみ</span></div></div>
+
+            <div class="fld" style="border-bottom:0"><label>メモ</label>
+              <div class="memo">ロングボードを 10 分ほど見ていた。声をかけたら「まだ始めたばかり」とのこと。</div>
+              <div class="hint">この記録は<b>来店数・年代別・経路別の分析に反映されます</b>。あとで同じ方だと分かったら、顧客に紐付けられます。</div>
+            </div>
+          </div>
+          <div class="savebar"><button class="cancel">キャンセル</button><button class="save">保存する</button></div>
+          <div class="tabbar">
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>ホーム</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>顧客</span></div>
+            <div class="tab add"><div class="fab">＋</div><span>来店</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>予約</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>メニュー</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="note">
+  <h3>お名前が分からないお客様の記録について</h3>
+
+  お名前を伺えないまま帰られるお客様は必ず出ます。<b>その方たちを記録から落とすと、来店数も購入率も実態とずれてしまう</b>ため、「顧客なしの来店」を正式に記録できる形にします。
+
+  <table>
+    <tr><th>記録できること</th><th>記録しないこと</th></tr>
+    <tr>
+      <td>
+        ・だいたいの年代（選択式・不明も可）<br>
+        ・性別（不明も可）<br>
+        ・人数<br>
+        ・来店目的／来店経路／見ていた商品<br>
+        ・購入・未購入と、その理由<br>
+        ・会話メモ
+      </td>
+      <td>
+        ・氏名、連絡先（そもそも分からない）<br>
+        ・容姿の詳細な記述<br>
+        　（「赤いキャップ」程度の識別メモに留め、<br>
+        　個人を特定する記述は書かない運用にします）
+      </td>
+    </tr>
+  </table>
+
+  <h3>3 つの効果</h3>
+  ・<b>入力が止まらない</b>：名前を聞けなかったことが記録をやめる理由にならない。年代と性別の 2 タップで済む<br>
+  ・<b>分析が実態に合う</b>：来店数・購入率・年代別・経路別の集計に、匿名のお客様も含められる<br>
+  ・<b>接客の状況が見える</b>：「お名前を伺えた率」が出る。これは声かけができているかの指標になり、低ければ接客の改善点になる<br><br>
+
+  <h3>あとから顧客に紐付けられる</h3>
+  次の来店で名前が分かった、その場で購入して名前を伺えた、という場合は、来店記録に顧客を後から紐付けられます。紐付けると、その来店は自動的にその方の履歴（来店回数・カルテ）に加わります。<b>最初から完璧に記録しようとせず、分かった時点で育てていける</b>構造にします。<br><br>
+
+  <h3>設計上の決めごと</h3>
+  ・来店記録の「顧客」は<b>任意</b>にする（購入・予約・スクールは顧客必須のまま）<br>
+  ・購入があった場合は、原則お名前を伺う（購入履歴は顧客に紐づける必要があるため）。どうしても伺えない場合は匿名のまま売上だけ記録できる<br>
+  ・ダッシュボードの「今日の来店」は<b>組</b>で数え、内訳に「お名前あり／不明」を出す<br>
+  ・顧客一覧には匿名の来店は出ない（顧客ではないため）。来店一覧と分析には出る
+</div>
+
+</body>
+</html>

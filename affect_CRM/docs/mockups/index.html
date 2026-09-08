@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>affect CRM — UI モック</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eceff3;color:#1c2733;
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,system-ui,sans-serif;
+  font-feature-settings:"palt";-webkit-font-smoothing:antialiased}
+.head{background:#12263f;color:#fff;padding:34px 28px 30px}
+.head .in{max-width:1120px;margin:0 auto}
+.head h1{margin:0 0 8px;font-size:25px;letter-spacing:.05em}
+.head p{margin:0;font-size:14px;color:#b8c7d8;line-height:1.8;max-width:760px}
+.wrap{max-width:1120px;margin:0 auto;padding:30px 24px 50px}
+.lead{font-size:13.5px;color:#4a5866;line-height:1.9;margin:0 0 22px}
+.lead b{color:#12263f}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:18px}
+.card{background:#fff;border:1px solid #dde3ea;border-radius:14px;overflow:hidden;text-decoration:none;
+  color:inherit;display:block;transition:transform .12s ease,box-shadow .12s ease}
+.card:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(20,35,55,.14)}
+.card.pickup{border:2px solid #0b86ab;box-shadow:0 8px 24px rgba(11,134,171,.18);position:relative}
+.card.pickup::after{content:"採用";position:absolute;top:12px;right:12px;background:#0b86ab;
+  color:#fff;font-size:11px;font-weight:600;padding:4px 12px;border-radius:12px}
+.card.logo{position:relative}
+.card.logo::after{content:"比較用";position:absolute;top:12px;right:12px;background:#f1f4f7;
+  color:#5d6b7a;font-size:11px;font-weight:600;padding:4px 10px;border-radius:12px}
+.swatch{height:96px;display:flex}
+.swatch i{flex:1;display:block}
+.cbody{padding:16px 18px 18px}
+.tagline{font-size:11px;letter-spacing:.14em;color:#8b98a6;font-weight:600}
+.cname{font-size:19px;font-weight:700;margin:5px 0 8px}
+.cdesc{font-size:13px;color:#5d6b7a;line-height:1.8;margin:0 0 12px;min-height:70px}
+.meta{display:flex;gap:7px;flex-wrap:wrap}
+.pill{font-size:11px;padding:3px 9px;border-radius:11px;background:#f1f4f7;color:#5d6b7a}
+.go{margin-top:13px;font-size:13px;font-weight:600;color:#2f6fb5}
+
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #dde3ea;border-radius:12px;
+  overflow:hidden;margin-top:34px;font-size:13px}
+caption{text-align:left;font-size:14px;font-weight:700;color:#12263f;padding:0 0 10px}
+th,td{padding:11px 14px;border-bottom:1px solid #eef2f6;text-align:left;vertical-align:top}
+th{background:#f7f9fb;font-weight:600;font-size:12px;color:#4a5866;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td b{color:#12263f}
+.next{margin-top:30px;background:#fff;border:1px solid #dde3ea;border-radius:12px;padding:18px 20px;
+  font-size:13px;color:#4a5866;line-height:1.9}
+.next h3{margin:0 0 8px;font-size:14px;color:#12263f}
+@media(max-width:640px){.cdesc{min-height:0}}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div class="in">
+    <h1>affect CRM　UI モック</h1>
+    <p>実装に入る前にデザインの方向性を決めるための比較用モックです。各案とも「ダッシュボード（PC）」と「クイック来店登録（スマホ）」の 2 画面を用意しました。最も使う画面と、最も入力しやすさが問われる画面です。</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <p class="lead">
+    すべて<b>白ベース</b>で、ダークテーマは作っていません。ダミーデータは全案で共通なので、<b>違いは配色・余白・タップ領域の取り方だけ</b>です。気になる案をクリックすると原寸のモックが開きます。<br>
+    <b>案F 確定版</b>（先頭）で決定しました — 案D のレイアウト × 案B の配色、グラデーションなし・アクセント #0b86ab・選択中チップ濃紺。以降は検討経過として残しています。
+  </p>
+
+  <div class="grid">
+
+    <a class="card pickup" href="f-mono-ocean.html">
+      <div class="swatch">
+        <i style="background:#0b86ab"></i><i style="background:#08536f"></i><i style="background:#e8f7fa"></i><i style="background:#f7fbfc"></i><i style="background:#fff"></i>
+      </div>
+      <div class="cbody">
+        <div class="tagline" style="color:#0b86ab">PLAN F 確定版 ／ なし × 中間 × 濃紺</div>
+        <div class="cname">案F 確定版</div>
+        <p class="cdesc">案D の骨格に案B の配色。グラデーションを使わず単色にしたのでサイドバーが白のままで、ロゴをオレンジのまま置ける。<b>お名前が分からないお客様の記録画面も含む。</b></p>
+        <div class="meta"><span class="pill">静か</span><span class="pill">ロゴが映える</span><span class="pill">崩れにくい</span></div>
+        <div class="go">モックを見る →</div>
+      </div>
+    </a>
+
+    <a class="card logo" href="g-brand-orange.html">
+      <div class="swatch">
+        <i style="background:#1a1a1a"></i><i style="background:#e8402a"></i><i style="background:#ee5b26"></i><i style="background:#f7941e"></i><i style="background:#fdefe8"></i>
+      </div>
+      <div class="cbody">
+        <div class="tagline" style="color:#ee5b26">PLAN G ／ D の構造 × ロゴの配色</div>
+        <div class="cname">Brand Orange</div>
+        <p class="cdesc">affect のロゴ（黒＋オレンジのグラデーション）をそのまま UI 配色に。無彩色の画面にブランドカラーだけが差し込まれるので、ロゴとの相性が最も素直に出る。</p>
+        <div class="meta"><span class="pill">ロゴと一致</span><span class="pill">静か</span><span class="pill">アクセント1色</span></div>
+        <div class="go">モックを見る →</div>
+      </div>
+    </a>
+
+    <a class="card" href="f2-ocean-variants.html" style="border-color:#0b86ab">
+      <div class="swatch">
+        <i style="background:#08536f"></i><i style="background:#0b86ab"></i><i style="background:#17b6c9"></i><i style="background:#fff;border:1px dashed #cfdde1"></i><i style="background:linear-gradient(115deg,#0a6f95,#2cc4cf)"></i>
+      </div>
+      <div class="cbody">
+        <div class="tagline" style="color:#0b86ab">PLAN F ／ 切り替えて比較</div>
+        <div class="cname">案F バリエーション比較</div>
+        <p class="cdesc">案F の調整点（グラデーションの範囲・アクセントの濃さ・選択中チップの色）を、画面上のボタンでその場で切り替えて見比べられるページ。18 通りの組み合わせを試せます。</p>
+        <div class="meta"><span class="pill">操作できる</span><span class="pill">18 通り</span><span class="pill">ロゴ相性も確認</span></div>
+        <div class="go">切り替えて比べる →</div>
+      </div>
+    </a>
+
+    <a class="card" href="a-clean-navy.html">
+      <div class="swatch">
+        <i style="background:#12263f"></i><i style="background:#2f6fb5"></i><i style="background:#eaf2fb"></i><i style="background:#f5f7fa"></i><i style="background:#fff"></i>
+      </div>
+      <div class="cbody">
+        <div class="tagline">PLAN A</div>
+        <div class="cname">Clean Navy</div>
+        <p class="cdesc">白基調にディープネイビーのサイドバー。端正で読みやすい業務システムの定番。情報が多くても散らからず、長時間見ても疲れにくい。</p>
+        <div class="meta"><span class="pill">堅実</span><span class="pill">情報量 多め</span><span class="pill">外さない</span></div>
+        <div class="go">モックを見る →</div>
+      </div>
+    </a>
+
+    <a class="card" href="b-ocean.html">
+      <div class="swatch">
+        <i style="background:#08536f"></i><i style="background:#0b86ab"></i><i style="background:#17b6c9"></i><i style="background:#e8f7fa"></i><i style="background:#fff"></i>
+      </div>
+      <div class="cbody">
+        <div class="tagline">PLAN B</div>
+        <div class="cname">Ocean</div>
+        <p class="cdesc">海のブルーグラデーションが主役。サーフショップの世界観をそのまま持ち込み、ホームページの予約画面と地続きのトーンにできる。</p>
+        <div class="meta"><span class="pill">ブランド感</span><span class="pill">爽やか</span><span class="pill">HP と統一</span></div>
+        <div class="go">モックを見る →</div>
+      </div>
+    </a>
+
+    <a class="card" href="c-sand.html">
+      <div class="swatch">
+        <i style="background:#4e4032"></i><i style="background:#dd6f52"></i><i style="background:#f5efe4"></i><i style="background:#fbeae4"></i><i style="background:#fffdf8"></i>
+      </div>
+      <div class="cbody">
+        <div class="tagline">PLAN C</div>
+        <div class="cname">Sand</div>
+        <p class="cdesc">砂浜のベージュとコーラル。管理画面にありがちな冷たさがなく、数字を見る場所というより、お客様のことを書き留める手帳のような空気。</p>
+        <div class="meta"><span class="pill">やわらかい</span><span class="pill">親しみやすい</span><span class="pill">目にやさしい</span></div>
+        <div class="go">モックを見る →</div>
+      </div>
+    </a>
+
+    <a class="card" href="d-minimal-mono.html">
+      <div class="swatch">
+        <i style="background:#111418"></i><i style="background:#6b7278"></i><i style="background:#1b6b5a"></i><i style="background:#f1f2f4"></i><i style="background:#fff"></i>
+      </div>
+      <div class="cbody">
+        <div class="tagline">PLAN D</div>
+        <div class="cname">Minimal Mono</div>
+        <p class="cdesc">白とグレー階調、アクセントは 1 色だけ。カードを箱で囲まず余白で区切るので画面が静かで、氏名と数字そのものが一番強く見える。</p>
+        <div class="meta"><span class="pill">静か</span><span class="pill">数字が主役</span><span class="pill">崩れにくい</span></div>
+        <div class="go">モックを見る →</div>
+      </div>
+    </a>
+
+    <a class="card" href="e-big-touch.html">
+      <div class="swatch">
+        <i style="background:#0f5fa8"></i><i style="background:#1877c9"></i><i style="background:#e8f2fb"></i><i style="background:#f4f7fa"></i><i style="background:#fff"></i>
+      </div>
+      <div class="cbody">
+        <div class="tagline">PLAN E</div>
+        <div class="cname">Big Touch</div>
+        <p class="cdesc">装飾を削り、文字とタップ領域をとにかく大きく。情報量は減るが、接客の合間の入力が途中で止まりにくい。実用性に全振りした案。</p>
+        <div class="meta"><span class="pill">押しやすい</span><span class="pill">片手操作</span><span class="pill">入力速度</span></div>
+        <div class="go">モックを見る →</div>
+      </div>
+    </a>
+
+  </div>
+
+  <table>
+    <caption>5 案の比較</caption>
+    <tr><th>案</th><th>印象</th><th>情報量</th><th>スマホ入力</th><th>向いている場面</th></tr>
+    <tr style="background:#fdf3ee"><td><b>G Brand Orange</b><br><span style="font-size:11px;color:#ee5b26">D の構造 × ロゴの配色</span></td><td>静か＋ブランド</td><td>多い</td><td>チップ選択</td><td><b>ロゴと画面の色を揃えたい場合</b></td></tr>
+    <tr style="background:#f0f9fc"><td><b>F Mono Ocean</b><br><span style="font-size:11px;color:#0b86ab">D の構造 × B の配色</span></td><td>静か＋爽やか</td><td>多い</td><td>チップ選択</td><td>数字の読みやすさとブランド感を両立したい場合</td></tr>
+    <tr><td><b>A Clean Navy</b></td><td>端正・信頼感</td><td>多い</td><td>チップ選択</td><td>PC でじっくり数字を見る時間が長い場合</td></tr>
+    <tr><td><b>B Ocean</b></td><td>爽やか・ブランド</td><td>多い</td><td>チップ選択</td><td>お客様に画面を見せる機会がある場合／HP と揃えたい場合</td></tr>
+    <tr><td><b>C Sand</b></td><td>やわらかい</td><td>普通</td><td>チップ選択</td><td>スタッフが構えず日常的に触ることを重視する場合</td></tr>
+    <tr><td><b>D Minimal Mono</b></td><td>静か・実務的</td><td>多い</td><td>チップ選択</td><td>顧客数が増えた後の一覧・分析を重視する場合</td></tr>
+    <tr><td><b>E Big Touch</b></td><td>力強い・明快</td><td>少ない</td><td><b>大ボタン</b></td><td>スマホでの入力が業務の中心になる場合</td></tr>
+  </table>
+
+  <div class="next">
+    <h3>この後の進め方</h3>
+    ・気に入った案（または組み合わせ）を選んでいただければ、それを基準に配色とコンポーネントを確定します。<br>
+    ・affect のロゴや既存ホームページの色があれば、それに合わせて調整できます。<br>
+    ・方向性が決まり次第、Phase 1（認証・顧客管理・顧客カルテ・来店登録・購入／未購入管理）の実装に着手します。
+  </div>
+</div>
+
+</body>
+</html>
