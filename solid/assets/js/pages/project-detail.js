@@ -1953,7 +1953,11 @@ document.getElementById('adminPublishBtn')?.addEventListener('click', async () =
   const modelFiles = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
 
   if (document.getElementById('adminPublishBtn').dataset.mode === 'revision') {
-    await updateStatus('revision_requested');
+    // 修正依頼発生時にバックエンドが自動でrevision_requestedへ進めるため、
+    // 通常ここに来た時点で遷移済み。念のため未遷移なら明示的に更新する
+    if (project.status !== 'revision_requested') {
+      await updateStatus('revision_requested');
+    }
     showToast('修正依頼のファイルをモデラーへ差し戻しました', 'warning');
     return;
   }
