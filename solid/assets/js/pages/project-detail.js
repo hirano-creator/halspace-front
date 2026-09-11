@@ -203,6 +203,9 @@ const TYPE_LABEL = {
 const DRAWING_TYPES  = ['drawing_dxf', 'drawing_pdf', 'reference'];
 const MODEL_TYPES    = ['model_3d', 'delivery'];
 const REVISION_TYPES = ['revision'];
+/* 3Dモデル・制作データを追加できる案件ステータス（モデリング中〜納品完了後まで）。
+   納品後の手直しにも対応するため delivered を含む。approved は廃止した発注者確認の既存案件 */
+const MODEL_UPLOAD_STATUSES = ['in_progress', 'revision_requested', 'review_pending', 'approved', 'delivered'];
 
 function renderFiles() {
   // ⋯メニューを開いている最中に自動更新で作り直すと操作が中断されるため、
@@ -216,14 +219,15 @@ function renderFiles() {
   const drawingFiles  = allFiles.filter(f => DRAWING_TYPES.includes(f.file_type));
   const modelFiles    = allFiles.filter(f => MODEL_TYPES.includes(f.file_type));
 
-  // モデラーのアップロードボタン: in_progress / revision_requested / review_pending
-  // HaLSpace側（社内管理者・運営）は、モデラーが検査依頼したフォルダに補足データを
-  // 追加できるよう、検査中〜納品完了後まで幅広く許可する。既存フォルダに追加した場合は
-  // そのフォルダの既存ファイルと同じreview_statusで登録される（バックエンド側
-  // initialReviewAttrsFor と揃えること）
-  const canUploadModel =
-    (isModeler(user) && ['in_progress', 'revision_requested', 'review_pending'].includes(project.status)) ||
-    (isInternalAdmin(user) && ['in_progress', 'revision_requested', 'review_pending', 'approved', 'delivered'].includes(project.status));
+  // アップロードボタン: モデラー・HaLSpace側（社内管理者・運営）ともモデリング中〜納品完了後まで。
+  // 納品後に手直しが発生したとき、モデラーが同じフォルダへ修正データを追加できるようにする
+  // （以前はモデラーだけ納品完了で閉じていたため、HaLSpace側でしか追加できなかった）。
+  // モデラーの追加分は従来どおり pending で登録され、検査依頼→管理者検査→納品を経る
+  // （currentReviewOpts も納品完了後まで開けてあるので、この検査フローは納品完了のまま回る）。
+  // HaLSpace側が既存フォルダに追加した場合は、そのフォルダの既存ファイルと同じ
+  // review_statusで登録される（バックエンド側 initialReviewAttrsFor と揃えること）
+  const canUploadModel = (isModeler(user) || isInternalAdmin(user))
+    && MODEL_UPLOAD_STATUSES.includes(project.status);
   document.getElementById('uploadModelBtn').style.display = canUploadModel ? '' : 'none';
 
   // 3Dモデルエリアの表示制御
@@ -648,13 +652,17 @@ let bulkBusy = false;
 /* 現在のユーザー・プロジェクト状況で出せる検査操作の種別。
    一覧・⋯メニュー・一括バーがすべてこの判定を共有する */
 function currentReviewOpts() {
+  // 対象ステータスはアップロード可能範囲（MODEL_UPLOAD_STATUSES）と同じ。
+  // 納品完了後にモデラーが手直しデータを追加したとき、そのファイルの検査依頼と
+  // 管理者の検査・納品が同じ画面で完結するように、納品完了後も開けておく。
+  // 案件ステータスは納品完了のまま動かない（バックエンド updateReviewStatus の
+  // 遷移条件に delivered が含まれないため）。納品済みファイル自体は確定状態なので
+  // ボタンは出るが fileReviewActions で理由付きの無効になる
   return {
-    // 管理者はプロジェクト進行中ならいつでもファイル単位の検査・納品が可能
-    showAdminBtns: isInternalAdmin(user)
-      && ['in_progress','review_pending','revision_requested','approved'].includes(project.status),
+    // 管理者はファイル単位の検査・納品が可能
+    showAdminBtns: isInternalAdmin(user) && MODEL_UPLOAD_STATUSES.includes(project.status),
     // モデラーはファイル単位で検査依頼が可能
-    showModelerBtns: isModeler(user)
-      && ['in_progress','review_pending','revision_requested'].includes(project.status),
+    showModelerBtns: isModeler(user) && MODEL_UPLOAD_STATUSES.includes(project.status),
   };
 }
 
@@ -1526,7 +1534,9 @@ function renderModelGuide(visible, opts, allModelFiles) {
     if (c.revision)       { text = `修正依頼が${c.revision}件あります。修正データをアップロードし、あらためて検査を依頼してください。`; cls = 'guide-action'; }
     else if (c.pending)   { text = `未提出のファイルが${c.pending}件あります。ファイルを選んで「検査依頼」してください。`; cls = 'guide-action'; }
     else if (c.submitted) { text = `${c.submitted}件を検査依頼中です。管理者の検査をお待ちください。`; cls = 'guide-wait'; }
-    else if (c.ok || c.delivered) { text = '検査が完了しています。'; }
+    else if (c.ok)        { text = '検査が完了しています。'; }
+    // 納品完了後もこの行が出るようになったので、手直し時の入口をここで案内する
+    else if (c.delivered) { text = 'すべて納品済みです。手直しが発生した場合は「アップロード」から追加し、検査を依頼してください。'; }
   } else if (isClient(user) && visible.length) {
     text = '納品されたデータです。個別またはまとめてダウンロードできます。';
   }
