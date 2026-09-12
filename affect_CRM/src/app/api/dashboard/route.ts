@@ -1,10 +1,50 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth/api-guard";
-import { formatJstLong, formatJstTime, jstDayRange, jstMonthRange } from "@/lib/utils/time";
+import {
+  formatJstLong,
+  formatJstShort,
+  formatJstTime,
+  jstDayRange,
+  jstMonthRange,
+  toJst,
+} from "@/lib/utils/time";
 import { guestLabel } from "@/lib/display";
 import { ACTIVE_RESERVATION_STATUSES } from "@/lib/constants";
-import type { DashboardResponse } from "@/app/(app)/types";
+import type { DashboardDailyPoint, DashboardResponse } from "@/app/(app)/types";
+
+/** 指定した JST の年月（month は 0 始まり）の日数 */
+function daysInJstMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+}
+
+/**
+ * 来店レコードを JST の日にちごとに件数集計する。
+ * maxDay を指定すると、当月の「今日まで」のように途中までしか集計しない。
+ */
+function aggregateDailyVisits(
+  rows: { visitedAt: Date }[],
+  year: number,
+  month: number,
+  maxDay: number,
+): DashboardDailyPoint[] {
+  const counts = new Array(maxDay + 1).fill(0);
+  for (const row of rows) {
+    const jst = toJst(row.visitedAt);
+    if (jst.getUTCFullYear() !== year || jst.getUTCMonth() !== month) continue;
+    const day = jst.getUTCDate();
+    if (day >= 1 && day <= maxDay) counts[day] += 1;
+  }
+  const points: DashboardDailyPoint[] = [];
+  for (let day = 1; day <= maxDay; day++) {
+    points.push({
+      day,
+      weekday: new Date(Date.UTC(year, month, day)).getUTCDay(),
+      count: counts[day],
+    });
+  }
+  return points;
+}
 
 export async function GET(request: Request) {
   const auth = await requireApiUser(request);
@@ -13,12 +53,15 @@ export async function GET(request: Request) {
   const now = new Date();
   const today = jstDayRange(now);
   const month = jstMonthRange(now);
+  // 今月の初日の 1ms 前 = 前月末日なので、そこから前月の範囲が求まる
+  const prevMonth = jstMonthRange(new Date(month.start.getTime() - 1));
 
   // D1 はクエリを 1 本ずつ処理するため、Promise.all で並べてもクエリ数だけ時間がかかる。
   // 「今日／今月」「来店数／購入数」は同じ月の来店から出せるので、1 回の取得にまとめて
   // JS 側で数える（3 列だけなので件数が増えても転送は軽い）。
   const [
     monthVisitRows,
+    prevMonthVisitRows,
     monthNewCustomers,
     monthSalesAgg,
     monthSchoolAttendees,
@@ -31,6 +74,10 @@ export async function GET(request: Request) {
     prisma.visit.findMany({
       where: { visitedAt: { gte: month.start, lt: month.end } },
       select: { visitedAt: true, customerId: true, purchased: true },
+    }),
+    prisma.visit.findMany({
+      where: { visitedAt: { gte: prevMonth.start, lt: prevMonth.end } },
+      select: { visitedAt: true },
     }),
     prisma.customer.count({
       where: { createdAt: { gte: month.start, lt: month.end }, deletedAt: null },
@@ -65,7 +112,7 @@ export async function GET(request: Request) {
       orderBy: { visitedAt: "desc" },
       take: 6,
       include: {
-        customer: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true, visitCount: true } },
         guests: { select: { ageGroup: true, gender: true } },
       },
     }),
@@ -73,7 +120,7 @@ export async function GET(request: Request) {
       orderBy: { purchasedAt: "desc" },
       take: 5,
       include: {
-        customer: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true, visitCount: true } },
         items: { select: { productName: true, size: true } },
       },
     }),
@@ -97,8 +144,31 @@ export async function GET(request: Request) {
   const todayVisits = todayRows.length;
   const todayNamedVisits = todayRows.filter((v) => v.customerId).length;
 
+  const curJst = toJst(month.start);
+  const curYear = curJst.getUTCFullYear();
+  const curMonthIndex = curJst.getUTCMonth();
+  const prevJst = toJst(prevMonth.start);
+  const prevYear = prevJst.getUTCFullYear();
+  const prevMonthIndex = prevJst.getUTCMonth();
+  const todayDay = toJst(now).getUTCDate();
+
+  const visitTrend: DashboardResponse["visitTrend"] = {
+    currentMonthNumber: curMonthIndex + 1,
+    previousMonthNumber: prevMonthIndex + 1,
+    currentMonthTotalDays: daysInJstMonth(curYear, curMonthIndex),
+    todayDay,
+    current: aggregateDailyVisits(monthVisitRows, curYear, curMonthIndex, todayDay),
+    previous: aggregateDailyVisits(
+      prevMonthVisitRows,
+      prevYear,
+      prevMonthIndex,
+      daysInJstMonth(prevYear, prevMonthIndex),
+    ),
+  };
+
   const body: DashboardResponse = {
     date: formatJstLong(now),
+    visitTrend,
     stats: {
       todayVisits,
       todayNamedVisits,
@@ -134,17 +204,21 @@ export async function GET(request: Request) {
     })),
     recentVisits: recentVisitRows.map((v) => ({
       id: v.id,
+      date: formatJstShort(v.visitedAt),
       time: formatJstTime(v.visitedAt),
       displayName: v.customer?.name ?? guestLabel(v),
       customerId: v.customerId,
+      visitCount: v.customer?.visitCount ?? null,
       purposeLabel: labelOf("VISIT_PURPOSE", v.purposeCode),
       channelLabel: labelOf("VISIT_CHANNEL", v.channelCode),
       purchased: v.purchased,
     })),
     recentPurchases: recentPurchaseRows.map((p) => ({
       id: p.id,
+      date: formatJstShort(p.purchasedAt),
       customerId: p.customer.id,
       customerName: p.customer.name,
+      visitCount: p.customer.visitCount,
       items: p.items
         .map((i) => (i.size ? `${i.productName}／${i.size}` : i.productName))
         .join(" ／ "),

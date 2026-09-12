@@ -14,6 +14,7 @@ import {
   inlineLinkClass,
 } from "@/components/ui";
 import type { DashboardResponse } from "./types";
+import { VisitTrendChart } from "./visit-trend-chart";
 
 export default function DashboardPage() {
   const { status } = useAuth();
@@ -132,6 +133,10 @@ export default function DashboardPage() {
         </Panel>
       </div>
 
+      <div className="mt-6">
+        <VisitTrendChart trend={data.visitTrend} />
+      </div>
+
       <div className="mt-6 grid grid-cols-1 border-y border-line bg-card lg:grid-cols-2">
         <Panel title="最近の来店" href="/visits" hrefLabel="来店一覧へ">
           {data.recentVisits.length === 0 ? (
@@ -139,8 +144,9 @@ export default function DashboardPage() {
           ) : (
             data.recentVisits.map((v) => (
               <Row key={v.id}>
-                <span className="tabular w-[42px] flex-none text-[13px] font-semibold text-ink-2">
-                  {v.time}
+                <span className="tabular w-[52px] flex-none leading-tight text-ink-2">
+                  <span className="block text-[10.5px] font-normal text-gray-soft">{v.date}</span>
+                  <span className="text-[13px] font-semibold">{v.time}</span>
                 </span>
                 <span className="min-w-0 flex-1">
                   {v.customerId ? (
@@ -157,7 +163,11 @@ export default function DashboardPage() {
                     </span>
                   )}
                   <span className="mt-0.5 block text-[11.5px] text-gray-soft">
-                    {[v.purposeLabel && `目的：${v.purposeLabel}`, v.channelLabel && `経路：${v.channelLabel}`]
+                    {[
+                      v.purposeLabel && `目的：${v.purposeLabel}`,
+                      v.channelLabel && `経路：${v.channelLabel}`,
+                      v.visitCount !== null && `来店${v.visitCount}回目`,
+                    ]
                       .filter(Boolean)
                       .join("／")}
                   </span>
@@ -176,10 +186,19 @@ export default function DashboardPage() {
           ) : (
             data.recentPurchases.map((p) => (
               <Row key={p.id}>
+                <span className="tabular w-[52px] flex-none text-[10.5px] text-gray-soft">
+                  {p.date}
+                </span>
                 <span className="min-w-0 flex-1">
-                  <Link href={`/customers/${p.customerId}`} className="font-semibold hover:underline">
-                    {p.customerName}
-                  </Link>
+                  <span className="flex flex-wrap items-baseline gap-x-1.5">
+                    <Link
+                      href={`/customers/${p.customerId}`}
+                      className="font-semibold hover:underline"
+                    >
+                      {p.customerName}
+                    </Link>
+                    <span className="text-[11px] text-gray-soft">来店{p.visitCount}回目</span>
+                  </span>
                   <span className="mt-0.5 block truncate text-[11.5px] text-gray-soft">{p.items}</span>
                 </span>
                 <span className="tabular flex-none text-sm font-semibold">

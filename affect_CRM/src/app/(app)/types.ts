@@ -39,10 +39,14 @@ export interface DashboardFollowUp {
 
 export interface DashboardVisit {
   id: string;
+  /** "9/12(土)" */
+  date: string;
   time: string;
   /** 顧客名。匿名なら「お名前不明（20代・男性）」 */
   displayName: string;
   customerId: string | null;
+  /** 既存顧客の来店回数（累計）。匿名来店なら null */
+  visitCount: number | null;
   purposeLabel: string | null;
   channelLabel: string | null;
   purchased: boolean;
@@ -50,15 +54,44 @@ export interface DashboardVisit {
 
 export interface DashboardPurchase {
   id: string;
+  /** "9/12(土)" */
+  date: string;
   customerId: string;
   customerName: string;
+  /** 顧客の来店回数（累計） */
+  visitCount: number;
   items: string;
   totalAmount: number;
+}
+
+export interface DashboardDailyPoint {
+  /** 1〜31 */
+  day: number;
+  /** 0=日 〜 6=土 */
+  weekday: number;
+  /** 来店組数 */
+  count: number;
+}
+
+export interface DashboardVisitTrend {
+  /** 1〜12 */
+  currentMonthNumber: number;
+  /** 1〜12 */
+  previousMonthNumber: number;
+  /** 当月の日数（前月と日数が違っても表示の横軸は当月基準で揃える） */
+  currentMonthTotalDays: number;
+  /** 今日の日にち（1〜31） */
+  todayDay: number;
+  /** 1日〜今日まで。未来日は含まない */
+  current: DashboardDailyPoint[];
+  /** 1日〜前月の末日まで */
+  previous: DashboardDailyPoint[];
 }
 
 export interface DashboardResponse {
   date: string;
   stats: DashboardStats;
+  visitTrend: DashboardVisitTrend;
   todayReservations: DashboardReservation[];
   todayFollowUps: DashboardFollowUp[];
   recentVisits: DashboardVisit[];

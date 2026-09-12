@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>日別来店者数グラフ モック</title>
+<style>
+  :root {
+    --ink: #10262f;
+    --ink-2: #33505b;
+    --gray-soft: #64818c;
+    --gray-faint: #93aab3;
+    --line: #e1ebee;
+    --line-2: #eff5f7;
+    --bg: #f7fbfc;
+    --card: #ffffff;
+    --accent: #0b86ab;
+    --accent-soft: #e8f7fa;
+    --navy: #08536f;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
+    font-feature-settings: "palt";
+    -webkit-font-smoothing: antialiased;
+  }
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  .page { max-width: 1040px; margin: 0 auto; padding: 24px 0 80px; }
+  .note {
+    margin: 0 20px 16px;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--accent-soft);
+    color: var(--navy);
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+
+  /* ダッシュボード既存パネルの見た目を再現（border-y + bg-card） */
+  .panel {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: var(--card);
+    padding: 16px 20px 18px;
+  }
+  @media (min-width: 640px) {
+    .panel { padding-left: 32px; padding-right: 32px; }
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .panel-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--gray-soft);
+  }
+  .panel-sub {
+    margin-top: 3px;
+    font-size: 11px;
+    color: #93aab3;
+  }
+  .legend {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 11px;
+    color: var(--ink-2);
+    padding-top: 1px;
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .legend-swatch.prev { background: var(--gray-faint); }
+  .legend-swatch.curr { background: var(--accent); }
+
+  /* 選択日の詳細。フローティングツールチップだと横スクロール領域からはみ出て
+     クリップされたりスマホで指に隠れたりするため、パネル内固定表示にする */
+  .detail-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    min-height: 40px;
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--line-2);
+    font-size: 12.5px;
+  }
+  .detail-bar .d-placeholder { color: var(--gray-faint); }
+  .detail-bar .d-date { font-weight: 600; color: var(--ink); flex: none; }
+  .detail-bar .d-item { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); }
+  .detail-bar .d-dot { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+  .detail-bar .d-dot.prev { background: var(--gray-faint); }
+  .detail-bar .d-dot.curr { background: var(--accent); }
+  .detail-bar .d-value { font-weight: 700; color: var(--ink); }
+  .detail-bar .d-diff { font-size: 11.5px; }
+  .detail-bar .d-diff.up { color: var(--accent); }
+  .detail-bar .d-diff.down { color: var(--gray-soft); }
+
+  /* 横スクロールはグラフのみ許容。Y軸ラベルは sticky で固定して読みやすくする */
+  .chart-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin: 0 -4px;
+    padding: 0 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chart-inner {
+    position: relative;
+    display: flex;
+  }
+  /* 実データの描画は下 200px。上 24px は最大値ラベルがはみ出さないための余白
+     （ラベルはグリッド線に中央揃えするため、最大値の位置では上半分が枠外に出る） */
+  .y-axis {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--card);
+    width: 30px;
+    flex: none;
+    height: 224px;
+  }
+  .y-axis .tick {
+    position: absolute;
+    left: 0;
+    right: 4px;
+    text-align: right;
+    font-size: 10px;
+    color: var(--gray-faint);
+    transform: translateY(-50%);
+  }
+
+  .plot-wrap { position: relative; flex: none; }
+  .gridlines { position: absolute; inset: 0; pointer-events: none; }
+  .gridline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px solid var(--line-2);
+  }
+  .baseline { border-top: 1px solid var(--line); }
+
+  .plot {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    height: 224px; /* 下 200px がバー描画範囲、上 24px はラベル用の余白（.y-axis と揃える） */
+  }
+  .day-col {
+    flex: none;
+    width: 30px;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+    position: relative;
+  }
+  .day-col.weekend::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--line-2);
+    opacity: 0.6;
+    z-index: 0;
+  }
+  .bar {
+    width: 12px;
+    border-radius: 3px 3px 0 0;
+    position: relative;
+    z-index: 1;
+    transition: opacity 0.15s;
+  }
+  .bar.prev { background: var(--gray-faint); }
+  .bar.curr { background: var(--accent); }
+  .bar.future {
+    background: transparent;
+    border: 1.5px dashed var(--line);
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+  }
+  .day-col:hover .bar.prev { opacity: 0.75; }
+  .day-col:hover .bar.curr { opacity: 0.85; }
+  .day-col.is-today .bar.curr { background: var(--navy); }
+
+  .x-axis {
+    display: flex;
+    margin-top: 6px;
+  }
+  .x-label {
+    flex: none;
+    width: 30px;
+    text-align: center;
+    font-size: 9.5px;
+    line-height: 1.5;
+    color: var(--gray-faint);
+  }
+  .x-label .dom { display: block; color: var(--gray-soft); font-weight: 600; }
+  .x-label.is-today .dom { color: var(--accent); }
+  .x-label.is-sat .dow { color: #4a7ab5; }
+  .x-label.is-sun .dow { color: #c0392b; }
+
+  /* 選択中の日の枠だけ強調する（詳細は上の detail-bar に出す） */
+  .day-col.is-selected .bar.prev { opacity: 0.75; }
+  .day-col.is-selected .bar.curr { opacity: 0.85; }
+
+  .hint {
+    margin-top: 10px;
+    font-size: 10.5px;
+    color: var(--gray-faint);
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="note">
+    モック：ダッシュボードの「最近の来店／最近の購入」パネルの上に挿入する想定です。データはダミーです。
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">日別来店者数</div>
+        <div class="panel-sub">前月（8月）と当月（9月）を日ごとに比較</div>
+      </div>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-swatch prev"></span>前月</span>
+        <span class="legend-item"><span class="legend-swatch curr"></span>当月</span>
+      </div>
+    </div>
+
+    <div class="detail-bar" id="detailBar">
+      <span class="d-placeholder">日付にタップ／マウスオーバーすると来店者数を表示します</span>
+    </div>
+
+    <div class="chart-scroll">
+      <div class="chart-inner">
+        <div class="y-axis" id="yAxis"></div>
+        <div class="plot-wrap">
+          <div class="gridlines" id="gridlines"></div>
+          <div class="plot" id="plot"></div>
+          <div class="x-axis" id="xAxis"></div>
+        </div>
+      </div>
+    </div>
+    <p class="hint">横にスクロールできます。</p>
+  </div>
+</div>
+
+<script>
+  // ---- モックデータ生成 ----
+  // 今日 = 2026-09-12(土) というダッシュボードのスクリーンショットに合わせる
+  const TODAY = new Date(2026, 8, 12); // month は 0 始まり
+  const DOW = ["日", "月", "火", "水", "木", "金", "土"];
+
+  function daysInMonth(year, month) {
+    return new Date(year, month + 1, 0).getDate();
+  }
+
+  // 週末は来店が増える傾向を再現した簡易乱数（シード固定で毎回同じ形にする）
+  function seededRandom(seed) {
+    let s = seed;
+    return function () {
+      s = (s * 9301 + 49297) % 233280;
+      return s / 233280;
+    };
+  }
+
+  function buildMonthData(year, month, rand, opts) {
+    const n = daysInMonth(year, month);
+    const arr = [];
+    for (let d = 1; d <= n; d++) {
+      const date = new Date(year, month, d);
+      const dow = date.getDay();
+      const isWeekend = dow === 0 || dow === 6;
+      let base = opts.base + (isWeekend ? opts.weekendBonus : 0);
+      const noise = Math.floor(rand() * opts.noise);
+      let value = Math.max(0, base + noise - Math.floor(opts.noise / 2));
+      arr.push({ date, value });
+    }
+    return arr;
+  }
+
+  const randPrev = seededRandom(42);
+  const randCurr = seededRandom(7);
+
+  // 前月（8月）: フルで実績あり。夏のピークを想定して少し多め
+  const prevMonth = buildMonthData(2026, 7, randPrev, { base: 4, weekendBonus: 3, noise: 4 });
+  // 当月（9月）: 今日までは実績、以降は未来（データなし）
+  const currMonthFull = buildMonthData(2026, 8, randCurr, { base: 3, weekendBonus: 2, noise: 3 });
+  // ダッシュボードの実績（今日5組・今月合計16組）に寄せて先頭を微調整
+  const fixedHead = [1, 2, 1, 1, 2, 3, 1, 1, 0, 1, 0, 5]; // 9/1〜9/12 合計16
+  currMonthFull.forEach((d, i) => {
+    if (i < fixedHead.length) d.value = fixedHead[i];
+  });
+
+  const todayIndex = TODAY.getDate() - 1;
+  // 日付(1日, 2日…)ベースで前月と当月を揃える。月によって日数が違う場合、
+  // 当月の日数に合わせて表示する（当月にない日を前月だけ描画すると対応がずれるため）。
+  const maxDays = currMonthFull.length;
+  const maxValue = Math.max(
+    ...prevMonth.slice(0, maxDays).map((d) => d.value),
+    ...currMonthFull.map((d) => d.value),
+  );
+
+  // Y軸をきれいな数値に丸める
+  function niceMax(v) {
+    const steps = [2, 4, 5, 8, 10, 12, 15, 20, 25, 30];
+    for (const s of steps) if (v <= s) return s;
+    return Math.ceil(v / 10) * 10;
+  }
+  const yMax = niceMax(maxValue);
+  const yStepCount = 4;
+  const yStep = yMax / yStepCount;
+
+  const plotHeight = 200;
+  const dayColWidth = 30;
+
+  // ---- Y軸 ----
+  const yAxisEl = document.getElementById("yAxis");
+  for (let i = 0; i <= yStepCount; i++) {
+    const val = Math.round(yStep * i);
+    const bottomPx = (val / yMax) * plotHeight;
+    const tick = document.createElement("div");
+    tick.className = "tick";
+    tick.style.bottom = bottomPx + "px";
+    tick.textContent = val;
+    yAxisEl.appendChild(tick);
+  }
+
+  // ---- グリッドライン ----
+  const gridEl = document.getElementById("gridlines");
+  gridEl.style.width = maxDays * dayColWidth + "px";
+  for (let i = 0; i <= yStepCount; i++) {
+    const bottomPx = (yStep * i / yMax) * plotHeight;
+    const line = document.createElement("div");
+    line.className = "gridline" + (i === 0 ? " baseline" : "");
+    line.style.bottom = bottomPx + "px";
+    gridEl.appendChild(line);
+  }
+
+  // ---- バー & x軸ラベル ----
+  const plotEl = document.getElementById("plot");
+  const xAxisEl = document.getElementById("xAxis");
+  plotEl.style.width = maxDays * dayColWidth + "px";
+  xAxisEl.style.width = maxDays * dayColWidth + "px";
+
+  const detailBarEl = document.getElementById("detailBar");
+
+  function renderDetail(dateForLabel, prevVal, currVal, isFuture) {
+    const md = (dateForLabel.getMonth() + 1) + "/" + dateForLabel.getDate();
+    const dow = DOW[dateForLabel.getDay()];
+    let html =
+      '<span class="d-date">' + md + "（" + dow + "）</span>" +
+      '<span class="d-item"><span class="d-dot prev"></span>前月 <span class="d-value">' + prevVal + "</span> 組</span>";
+    if (isFuture) {
+      html += '<span class="d-item"><span class="d-dot curr"></span>当月 まだ来店なし（未来日）</span>';
+    } else {
+      html += '<span class="d-item"><span class="d-dot curr"></span>当月 <span class="d-value">' + currVal + "</span> 組</span>";
+      const diff = currVal - prevVal;
+      if (diff !== 0) {
+        html +=
+          '<span class="d-diff ' + (diff > 0 ? "up" : "down") + '">' +
+          (diff > 0 ? "前月より +" + diff : "前月より " + diff) +
+          "</span>";
+      }
+    }
+    detailBarEl.innerHTML = html;
+  }
+
+  function clearDetail() {
+    detailBarEl.innerHTML = '<span class="d-placeholder">日付にタップ／マウスオーバーすると来店者数を表示します</span>';
+  }
+
+  for (let i = 0; i < maxDays; i++) {
+    const prevD = prevMonth[i];
+    const currD = currMonthFull[i];
+    const isFuture = i > todayIndex;
+    const isToday = i === todayIndex;
+
+    // x軸ラベルは当月の日付・曜日を使う（前月日数が違っても当月基準で揃える）
+    const labelDate = currD ? currD.date : prevD.date;
+
+    const col = document.createElement("div");
+    col.className = "day-col" + (labelDate.getDay() === 0 || labelDate.getDay() === 6 ? " weekend" : "") + (isToday ? " is-today" : "");
+
+    const prevBar = document.createElement("div");
+    prevBar.className = "bar prev";
+    prevBar.style.height = prevD ? (prevD.value / yMax) * plotHeight + "px" : "0px";
+    col.appendChild(prevBar);
+
+    const currBar = document.createElement("div");
+    if (isFuture) {
+      currBar.className = "bar future";
+      currBar.style.height = "10px";
+    } else {
+      currBar.className = "bar curr";
+      currBar.style.height = (currD.value / yMax) * plotHeight + "px";
+    }
+    col.appendChild(currBar);
+
+    const prevVal = prevD ? prevD.value : 0;
+    const currVal = currD ? currD.value : 0;
+
+    col.addEventListener("mouseenter", () => {
+      document.querySelectorAll(".day-col.is-selected").forEach((el) => el.classList.remove("is-selected"));
+      col.classList.add("is-selected");
+      renderDetail(labelDate, prevVal, currVal, isFuture);
+    });
+    col.addEventListener("mouseleave", () => {
+      col.classList.remove("is-selected");
+      clearDetail();
+    });
+    col.addEventListener("touchstart", () => {
+      document.querySelectorAll(".day-col.is-selected").forEach((el) => el !== col && el.classList.remove("is-selected"));
+      const wasSelected = col.classList.contains("is-selected");
+      col.classList.toggle("is-selected");
+      if (wasSelected) clearDetail();
+      else renderDetail(labelDate, prevVal, currVal, isFuture);
+    }, { passive: true });
+
+    plotEl.appendChild(col);
+
+    const xLabel = document.createElement("div");
+    xLabel.className = "x-label" + (isToday ? " is-today" : "") +
+      (labelDate.getDay() === 6 ? " is-sat" : "") + (labelDate.getDay() === 0 ? " is-sun" : "");
+    xLabel.innerHTML =
+      '<span class="dom">' + (labelDate.getMonth() + 1) + "/" + labelDate.getDate() + "</span>" +
+      '<span class="dow">' + DOW[labelDate.getDay()] + "</span>";
+    xAxisEl.appendChild(xLabel);
+  }
+
+  // 初期表示は「今日」付近が見えるようスクロール
+  requestAnimationFrame(() => {
+    const scrollEl = document.querySelector(".chart-scroll");
+    const targetLeft = Math.max(0, (todayIndex - 6) * dayColWidth);
+    scrollEl.scrollLeft = targetLeft;
+  });
+</script>
+
+</body>
+</html>
