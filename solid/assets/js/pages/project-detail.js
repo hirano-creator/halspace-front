@@ -692,6 +692,9 @@ function currentReviewOpts() {
 /* アクション種別 → 遷移先の review_status */
 const ACTION_TARGET_STATUS = {
   ok: 'ok', revision: 'revision', deliver: 'delivered',
+  // rework は「手直し」ボタン（納品済みファイルを個別に修正対象へ戻す）。
+  // 遷移先は revision と同じ review_status を使う（モデラー側の再提出フローをそのまま流用するため）
+  rework: 'revision',
   reopen: 'submitted', request: 'submitted', cancel: 'pending',
 };
 
@@ -700,6 +703,7 @@ const ACTION_TOAST = {
   ok:       { type: 'success', msg: t => `${t}を検査OKにしました` },
   revision: { type: 'warning', msg: t => `${t}を修正依頼にしました` },
   deliver:  { type: 'success', msg: t => `${t}を納品しました。発注者に公開されます。` },
+  rework:   { type: 'warning', msg: t => `${t}を手直し対象にしました。発注者には表示されなくなります。` },
   reopen:   { type: 'warning', msg: t => `${t}の検査結果を取り消し、検査待ちに戻しました` },
   request:  { type: 'success', msg: t => `${t}の検査を依頼しました` },
   cancel:   { type: 'warning', msg: t => `${t}の検査依頼を取り消しました` },
@@ -710,6 +714,9 @@ const BULK_ACTIONS = {
   ok:       { icon: 'fa-check',       label: '検査OK',   cls: 'btn-success' },
   revision: { icon: 'fa-rotate-left', label: '修正依頼', cls: 'btn-outline' },
   deliver:  { icon: 'fa-truck',       label: '納品',     cls: 'btn-primary' },
+  // 納品完了後に発注者要望・不具合が見つかったファイルを個別に指定するボタン。
+  // 「納品」の隣に置く（案件全体を手直し中にする「手直しを開始する」バーとは別入口）
+  rework:   { icon: 'fa-wrench',      label: '手直し',   cls: 'btn-rework' },
   request:  { icon: 'fa-paper-plane', label: '検査依頼', cls: 'btn-success' },
   cancel:   { icon: 'fa-xmark',       label: '依頼取消', cls: 'btn-outline' },
 };
@@ -732,10 +739,16 @@ function fileReviewActions(f, { showAdminBtns = false, showModelerBtns = false }
       ['submitted','ok'].includes(st),
       st === 'pending'    ? 'モデラーがまだ検査依頼していません'
       : st === 'revision' ? 'すでに修正依頼中です'
+      : st === 'delivered' ? '納品済みのため変更できません（手直しは「手直し」から）'
       :                     '納品済みのため変更できません');
     add('deliver', 'fa-truck', '発注者へ納品する',
       st === 'ok',
       st === 'delivered' ? 'すでに納品済みです' : '検査OKにすると納品できます');
+    // 納品後の発注者要望・不具合対応。納品済みファイルだけに出す（fileReviewActions と
+    // バックエンドFileController::updateReviewStatusの許可条件を揃えること）
+    add('rework', 'fa-wrench', '手直しにする',
+      st === 'delivered',
+      '納品済みのファイルのみ手直しにできます');
     add('reopen', 'fa-arrow-rotate-left', '検査結果を取り消す',
       ['ok','revision'].includes(st),
       st === 'delivered' ? '納品済みのため取り消せません' : '取り消せる検査結果がありません');
@@ -1192,7 +1205,7 @@ function renderBulkBar() {
   // 自分で検査依頼してから検査する流れなので、依頼系を先に並べる
   const keys = [
     ...(opts.showModelerBtns ? ['request', 'cancel'] : []),
-    ...(opts.showAdminBtns   ? ['ok', 'revision', 'deliver'] : []),
+    ...(opts.showAdminBtns   ? ['ok', 'revision', 'deliver', 'rework'] : []),
   ];
   const notes = [];
 
@@ -1287,6 +1300,18 @@ async function runReviewAction(key, files) {
       files: targets.map(f => f.file_name),
       warn: '納品したファイルは元に戻せません。',
       okLabel: `${targets.length}件を納品する`,
+    });
+    if (!ok) return;
+  }
+
+  // 手直しは発注者への公開を取り下げる操作のため、納品と同様に確認する
+  if (key === 'rework') {
+    const ok = await openConfirmModal({
+      title: 'ファイルを手直し対象にする', icon: 'fa-wrench',
+      body: `選択した${targets.length}件を手直し対象にします。発注者には表示されなくなり、モデラーが修正データを再アップロード・検査を依頼できるようになります。`,
+      files: targets.map(f => f.file_name),
+      warn: project.status === 'rework' ? '' : '案件のステータスも「手直し中」に切り替わります。',
+      okLabel: `${targets.length}件を手直しにする`,
     });
     if (!ok) return;
   }
