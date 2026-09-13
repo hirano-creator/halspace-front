@@ -712,7 +712,11 @@ GET    /api/admin/audit-logs/export → CSV出力</pre>
     <div class="subsection-title">ステータスフロー</div>
     <pre>draft → submitted → in_progress → review_pending
                                           ↓              ↓
-                                   revision_requested  approved → delivered</pre>
+                                   revision_requested  approved → delivered ⇄ rework（手直し中）</pre>
+    <p style="font-size:13px;color:var(--muted,#666);">
+      rework: 納品後の要望対応・不具合修正。delivered → rework は制作側（社内管理者・モデラー）の手動操作
+      （納品済み案件への検査依頼でも自動で切り替わる）。手直しデータを全件納品すると delivered へ自動で戻る。
+    </p>
     <div class="subsection-title">3Dプレビュー対応形式</div>
     <div class="tbl-wrap">
       <table>

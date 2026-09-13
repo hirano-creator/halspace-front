@@ -32,6 +32,7 @@ const STATUS_LABEL = {
   draft:'下書き', submitted:'提出済み', in_progress:'モデリング中',
   review_pending:'検査待ち', revision_requested:'修正依頼中',
   approved:'納品待ち', delivered:'納品完了', cancelled:'キャンセル',
+  rework:'手直し中',
 };
 
 /* ── データ取得 ── */
@@ -61,34 +62,54 @@ function renderAll() {
 /* ── タイムライン描画 ── */
 function renderTimeline() {
   const tl = document.getElementById('timeline');
-  // 廃止した発注者確認(approved)の既存案件は「管理者検査を終えた納品待ち」として同じ位置に出す
-  const rank = statusRank(project.status === 'approved' ? 'review_pending' : project.status);
+  const isRework = project.status === 'rework';
+  // 廃止した発注者確認(approved)の既存案件は「管理者検査を終えた納品待ち」として同じ位置に出す。
+  // 手直し中(rework)は納品完了の位置に置き、最後のステップだけ「手直し中」として点灯させる
+  const rank = statusRank(project.status === 'approved' ? 'review_pending'
+                        : isRework ? 'delivered' : project.status);
   // 1件でも検査依頼中のファイルがあれば「管理者検査」ステップを点灯させる
+  // （手直し中の再検査依頼も同じ表示で管理者に知らせる）
   const hasSubmittedFile = (project.files ?? []).some(f =>
     MODEL_TYPES.includes(f.file_type) && f.review_status === 'submitted');
   tl.innerHTML = STEPS.map((s, i) => {
     const stepRank = statusRank(s.key);
-    const isDone   = rank > stepRank;
-    const partialReview = s.key === 'review_pending' && rank < stepRank && hasSubmittedFile;
+    const partialReview = s.key === 'review_pending' && hasSubmittedFile && (rank < stepRank || isRework);
+    const isDone   = rank > stepRank && !partialReview;
     const isActive = rank === stepRank
       || (project.status === 'revision_requested' && s.key === 'review_pending')
       || partialReview;
+    const reworkStep = isRework && s.key === 'delivered';
+    const icon = isDone ? 'fa-check'
+      : partialReview ? 'fa-paper-plane'
+      : reworkStep ? 'fa-wrench'
+      : isActive ? 'fa-spinner' : String(i+1);
+    const sub = partialReview
+      ? '<br><span style="font-size:10px;font-weight:600;color:var(--accent-strong,#E55A2B);">検査依頼あり</span>'
+      : reworkStep
+      ? '<br><span style="font-size:10px;font-weight:600;color:var(--s-rework);">手直し中</span>'
+      : '';
     return `
       <div class="timeline-step ${isDone?'done':''} ${isActive?'active':''}">
         <div class="timeline-dot">
-          <i class="fa-solid ${isDone?'fa-check':partialReview?'fa-paper-plane':isActive?'fa-spinner':String(i+1)}"></i>
+          <i class="fa-solid ${icon}"></i>
         </div>
-        <span class="timeline-label">${s.label}${partialReview
-          ? '<br><span style="font-size:10px;font-weight:600;color:var(--accent-strong,#E55A2B);">検査依頼あり</span>'
-          : ''}</span>
+        <span class="timeline-label">${s.label}${sub}</span>
       </div>
       ${i < STEPS.length-1 ? `<div style="flex:1;height:2px;background:${isDone?'var(--accent)':'var(--border)'};align-self:flex-start;margin-top:15px;"></div>` : ''}`;
   }).join('');
 
-  // 管理者検査バー: review_pending × 管理者（approved の既存案件も納品確定できるよう表示する）
+  // 管理者検査バー: review_pending × 管理者（approved の既存案件も納品確定できるよう表示する）。
+  // 手直し中も出し、手直しを終えて納品完了へ戻す操作に使う
   const adminReviewBar = document.getElementById('adminReviewBar');
   adminReviewBar.style.display =
-    (['review_pending','approved'].includes(project.status) && isInternalAdmin(user)) ? '' : 'none';
+    (['review_pending','approved','rework'].includes(project.status) && isInternalAdmin(user)) ? '' : 'none';
+
+  // 手直し開始バー: 納品完了 × 制作側（社内管理者・モデラー）。
+  // 発注者からの要望・社内で見つけた不具合の再作業をここから始める（バックエンドの
+  // allowedTransitions で delivered → rework を許可しているロールと揃える）
+  const reworkBar = document.getElementById('reworkBar');
+  reworkBar.style.display =
+    (project.status === 'delivered' && (isInternalAdmin(user) || isModeler(user))) ? '' : 'none';
 
   // モデラー用アクションバー
   // 検査依頼はファイル単位（一覧の「検査依頼」）に一本化したため、ここには開始／再開のみ置く
@@ -105,10 +126,11 @@ function renderTimeline() {
     modelerActionBar.style.display = 'none';
   }
 
-  /* キャンセルボタン: 発注者・管理者のみ、完了・キャンセル済み以外で表示 */
+  /* キャンセルボタン: 発注者・管理者のみ、完了・キャンセル済み以外で表示
+     （手直し中は納品済みの案件なのでキャンセルの対象外） */
   const cancelBtn = document.getElementById('cancelBtn');
   const canCancel = (isClient(user) || hasAdminLevelAccess(user))
-    && !['delivered', 'cancelled'].includes(project.status);
+    && !['delivered', 'cancelled', 'rework'].includes(project.status);
   cancelBtn.style.display = canCancel ? '' : 'none';
 }
 
@@ -203,6 +225,10 @@ const TYPE_LABEL = {
 const DRAWING_TYPES  = ['drawing_dxf', 'drawing_pdf', 'reference'];
 const MODEL_TYPES    = ['model_3d', 'delivery'];
 const REVISION_TYPES = ['revision'];
+/* 3Dモデル・制作データを追加できる案件ステータス（モデリング中〜納品完了後まで）。
+   納品後の手直し（rework、および「手直しを開始する」を押す前の delivered）にも対応する。
+   approved は廃止した発注者確認の既存案件 */
+const MODEL_UPLOAD_STATUSES = ['in_progress', 'revision_requested', 'review_pending', 'approved', 'delivered', 'rework'];
 
 function renderFiles() {
   // ⋯メニューを開いている最中に自動更新で作り直すと操作が中断されるため、
@@ -216,14 +242,15 @@ function renderFiles() {
   const drawingFiles  = allFiles.filter(f => DRAWING_TYPES.includes(f.file_type));
   const modelFiles    = allFiles.filter(f => MODEL_TYPES.includes(f.file_type));
 
-  // モデラーのアップロードボタン: in_progress / revision_requested / review_pending
-  // HaLSpace側（社内管理者・運営）は、モデラーが検査依頼したフォルダに補足データを
-  // 追加できるよう、検査中〜納品完了後まで幅広く許可する。既存フォルダに追加した場合は
-  // そのフォルダの既存ファイルと同じreview_statusで登録される（バックエンド側
-  // initialReviewAttrsFor と揃えること）
-  const canUploadModel =
-    (isModeler(user) && ['in_progress', 'revision_requested', 'review_pending'].includes(project.status)) ||
-    (isInternalAdmin(user) && ['in_progress', 'revision_requested', 'review_pending', 'approved', 'delivered'].includes(project.status));
+  // アップロードボタン: モデラー・HaLSpace側（社内管理者・運営）ともモデリング中〜納品完了後まで。
+  // 納品後に手直しが発生したとき、モデラーが同じフォルダへ修正データを追加できるようにする
+  // （以前はモデラーだけ納品完了で閉じていたため、HaLSpace側でしか追加できなかった）。
+  // モデラーの追加分は従来どおり pending で登録され、検査依頼→管理者検査→納品を経る
+  // （currentReviewOpts も納品完了後まで開けてあるので、この検査フローは納品完了のまま回る）。
+  // HaLSpace側が既存フォルダに追加した場合は、そのフォルダの既存ファイルと同じ
+  // review_statusで登録される（バックエンド側 initialReviewAttrsFor と揃えること）
+  const canUploadModel = (isModeler(user) || isInternalAdmin(user))
+    && MODEL_UPLOAD_STATUSES.includes(project.status);
   document.getElementById('uploadModelBtn').style.display = canUploadModel ? '' : 'none';
 
   // 3Dモデルエリアの表示制御
@@ -231,17 +258,8 @@ function renderFiles() {
   const lockedMsg = document.getElementById('modelFileLockedMsg');
   const opts      = currentReviewOpts();
 
-  // 発注者には「納品済み」ファイル＋（承認後は）検査OKファイルを表示。
-  // 社内管理者にはモデラーが検査依頼していない(pending)ファイルは見せない
-  // （ガイド行の「検査依頼が届くとここに表示されます」と矛盾しないように揃える）。
-  // モデラー自身は検査依頼のためpendingも含め全件見える。
-  const visibleModelFiles = isClient(user)
-    ? modelFiles.filter(f =>
-        f.review_status === 'delivered' ||
-        (['approved','delivered'].includes(project.status) && f.review_status === 'ok'))
-    : isInternalAdmin(user)
-    ? modelFiles.filter(f => (f.review_status || 'pending') !== 'pending')
-    : modelFiles;
+  // 可視ルールは visibleModelFilesForBulk() と共通（一括DLの対象が画面と必ず一致するように）
+  const visibleModelFiles = filterVisibleModelFiles(modelFiles);
   const clientLocked = isClient(user)
     && !['approved','delivered'].includes(project.status)
     && visibleModelFiles.length === 0;
@@ -256,8 +274,9 @@ function renderFiles() {
     : visibleModelFiles;
 
   // 選択しても何もできない状態ではチェックボックスを出さない
-  // （管理者の検査／モデラーの検査依頼／発注者の一括ダウンロードのいずれかがあるとき）
-  const selectable = opts.showAdminBtns || opts.showModelerBtns || isClient(user);
+  // （管理者の検査／モデラーの検査依頼／一括ダウンロードのいずれかがあるとき。
+  //   一括ダウンロードは全ロール共通なので、実質「見えるファイルがあれば」選択できる）
+  const selectable = opts.showAdminBtns || opts.showModelerBtns || visibleModelFiles.length > 0;
   if (!selectable) selectedFileIds.clear();
 
   if (clientLocked) {
@@ -285,7 +304,17 @@ function renderFiles() {
   // 図面・参考資料エリア（全員表示）
   renderFileSection(document.getElementById('drawingFileArea'), drawingFiles, {
     canDelete: isInternalAdmin(user) || isModeler(user),
+    saveProgressId: 'drawingFolderSaveProgress',
   });
+
+  // 図面・参考資料の一括ダウンロード（全ロール共通）。発注者からもらった図面・資料を
+  // 制作側がまとめて手元に落とせるようにする。図面は元から全ロールに無条件表示なので
+  // 3Dモデル側のような可視ルールの絞り込みはない
+  const saveDrawingBtn = document.getElementById('saveDrawingFolderBtn');
+  const zipDrawingBtn  = document.getElementById('zipDrawingAllBtn');
+  const canBulkDrawing = drawingFiles.length > 0;
+  saveDrawingBtn.style.display = (canBulkDrawing && 'showDirectoryPicker' in window) ? '' : 'none';
+  zipDrawingBtn.style.display = canBulkDrawing ? '' : 'none';
 
   // 修正依頼ファイルエリア: file_type=revision OR (model_3d && review_status=revision)
   const allRevisionFiles = allFiles.filter(f =>
@@ -305,10 +334,12 @@ function renderFiles() {
   // 管理者検査バーのボタン状態を更新
   updateAdminReviewBarState();
 
-  // 発注者用: フォルダごと保存 / zip一括ダウンロード
+  // 全ロール共通: フォルダごと保存 / zip一括ダウンロード
+  // 発注者だけでなくHaLSpace（社内管理者）とPT.HILANO LCZ INDONESIA（モデラー）も、
+  // 自分の画面に出ているファイルをまとめて取得できる（対象は visibleModelFilesForBulk()）。
   const saveFolderBtn = document.getElementById('saveFolderBtn');
   const zipAllBtn      = document.getElementById('zipAllBtn');
-  const canBulkDownload = isClient(user) && visibleModelFiles.length > 0;
+  const canBulkDownload = visibleModelFiles.length > 0;
   saveFolderBtn.style.display = (canBulkDownload && 'showDirectoryPicker' in window) ? '' : 'none';
   zipAllBtn.style.display = canBulkDownload ? '' : 'none';
 
@@ -413,6 +444,19 @@ function renderFiles() {
     zipAllBtnEl.dataset.bound = '1';
     zipAllBtnEl.addEventListener('click', () => downloadFilesAsZip(visibleModelFilesForBulk()));
   }
+
+  const saveDrawingBtnEl = document.getElementById('saveDrawingFolderBtn');
+  if (saveDrawingBtnEl && !saveDrawingBtnEl.dataset.bound) {
+    saveDrawingBtnEl.dataset.bound = '1';
+    saveDrawingBtnEl.addEventListener('click', () =>
+      saveFilesToLocalFolder(drawingFilesForBulk(), 'drawingFolderSaveProgress'));
+  }
+
+  const zipDrawingBtnEl = document.getElementById('zipDrawingAllBtn');
+  if (zipDrawingBtnEl && !zipDrawingBtnEl.dataset.bound) {
+    zipDrawingBtnEl.dataset.bound = '1';
+    zipDrawingBtnEl.addEventListener('click', () => downloadFilesAsZip(drawingFilesForBulk()));
+  }
 }
 
 /* 3Dデータをアップロードする。モデラーは検査依頼前(pending)のまま画面へ反映するが、
@@ -499,20 +543,38 @@ async function attachWnFilesAndRefresh(wnFiles) {
   }
 }
 
-/* 発注者に見えている3Dモデルファイル一覧（一括DL・全体保存の対象） */
+/* ログイン中のロールに見えている3Dモデルファイルだけに絞る。
+   発注者には「納品済み」ファイル＋（承認後は）検査OKファイル。
+   社内管理者にはモデラーが検査依頼していない(pending)ファイルは見せない
+   （ガイド行の「検査依頼が届くとここに表示されます」と矛盾しないように揃える）。
+   モデラー自身は検査依頼のためpendingも含め全件見える。 */
+function filterVisibleModelFiles(modelFiles) {
+  if (isClient(user)) {
+    return modelFiles.filter(f =>
+      f.review_status === 'delivered' ||
+      (['approved','delivered'].includes(project.status) && f.review_status === 'ok'));
+  }
+  if (isInternalAdmin(user)) {
+    return modelFiles.filter(f => (f.review_status || 'pending') !== 'pending');
+  }
+  return modelFiles;
+}
+
+/* 図面・参考資料の一覧（一括DL・全体保存の対象）。
+   このエリアは全ロールに無条件表示なのでロールによる絞り込みはない */
+function drawingFilesForBulk() {
+  return (project.files ?? []).filter(f => DRAWING_TYPES.includes(f.file_type));
+}
+
+/* 画面に出ている3Dモデルファイル一覧（一括DL・全体保存の対象） */
 function visibleModelFilesForBulk() {
-  const modelFiles = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
-  return isClient(user)
-    ? modelFiles.filter(f =>
-        f.review_status === 'delivered' ||
-        (['approved','delivered'].includes(project.status) && f.review_status === 'ok'))
-    : modelFiles;
+  return filterVisibleModelFiles((project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type)));
 }
 
 /* 指定ファイル群をローカルへ直接保存（Chrome/Edge, File System Access API）。
    「選んだ保存先/relative_path...」にそのまま書き込む。プロジェクトコードの階層は挟まない
    （選んだフォルダがそのまま保存先になるので、余計な入れ子ができないようにするため）。*/
-async function saveFilesToLocalFolder(files) {
+async function saveFilesToLocalFolder(files, progressElId = 'modelFolderSaveProgress') {
   if (!files.length) return;
 
   let rootHandle;
@@ -530,7 +592,7 @@ async function saveFilesToLocalFolder(files) {
     return;
   }
 
-  const progressEl = document.getElementById('modelFolderSaveProgress');
+  const progressEl = document.getElementById(progressElId);
   const token = sessionStorage.getItem('space_token');
   if (progressEl) progressEl.style.display = '';
 
@@ -613,13 +675,17 @@ let bulkBusy = false;
 /* 現在のユーザー・プロジェクト状況で出せる検査操作の種別。
    一覧・⋯メニュー・一括バーがすべてこの判定を共有する */
 function currentReviewOpts() {
+  // 対象ステータスはアップロード可能範囲（MODEL_UPLOAD_STATUSES）と同じ。
+  // 納品完了後にモデラーが手直しデータを追加したとき、そのファイルの検査依頼と
+  // 管理者の検査・納品が同じ画面で完結するように、納品完了後も開けておく。
+  // 納品済み案件に検査依頼が出るとバックエンドが案件を「手直し中」へ切り替え、
+  // 手直しデータを全件納品すると「納品完了」へ戻る。納品済みファイル自体は確定状態なので
+  // ボタンは出るが fileReviewActions で理由付きの無効になる
   return {
-    // 管理者はプロジェクト進行中ならいつでもファイル単位の検査・納品が可能
-    showAdminBtns: isInternalAdmin(user)
-      && ['in_progress','review_pending','revision_requested','approved'].includes(project.status),
+    // 管理者はファイル単位の検査・納品が可能
+    showAdminBtns: isInternalAdmin(user) && MODEL_UPLOAD_STATUSES.includes(project.status),
     // モデラーはファイル単位で検査依頼が可能
-    showModelerBtns: isModeler(user)
-      && ['in_progress','review_pending','revision_requested'].includes(project.status),
+    showModelerBtns: isModeler(user) && MODEL_UPLOAD_STATUSES.includes(project.status),
   };
 }
 
@@ -699,6 +765,7 @@ function renderFileSection(area, files, opts = {}) {
   const {
     canDelete = false, showAdminBtns = false, showModelerBtns = false,
     selectable = false, emptyMsg = 'ファイルがありません', canUploadToFolder = false,
+    saveProgressId = 'modelFolderSaveProgress',
   } = opts;
 
   if (!files.length) {
@@ -904,7 +971,7 @@ function renderFileSection(area, files, opts = {}) {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const [, groupFiles] = folderEntries[Number(btn.dataset.folderIdx)];
-      saveFilesToLocalFolder(groupFiles);
+      saveFilesToLocalFolder(groupFiles, saveProgressId);
     });
   });
   area.querySelectorAll('.folder-zip-btn').forEach(btn => {
@@ -1120,6 +1187,7 @@ function renderBulkBar() {
   document.getElementById('fileBulkCount').textContent = `${files.length}件を選択中`;
 
   const opts = currentReviewOpts();
+  const canDelete = isInternalAdmin(user) || isModeler(user);
   // モデラー管理者は admin と modeler の両方に当たるため、両方のボタンを出す。
   // 自分で検査依頼してから検査する流れなので、依頼系を先に並べる
   const keys = [
@@ -1145,16 +1213,23 @@ function renderBulkBar() {
             </button>`;
   }).join('');
 
-  // 発注者は選択したファイルのダウンロード
-  if (isClient(user)) {
-    html = `
-      ${'showDirectoryPicker' in window ? `
-      <button type="button" class="btn btn-sm btn-outline bulk-save-btn">
-        <i class="fa-solid fa-folder-tree"></i> フォルダに保存
-      </button>` : ''}
-      <button type="button" class="btn btn-sm btn-primary bulk-zip-btn">
-        <i class="fa-solid fa-file-zipper"></i> zipでダウンロード
-      </button>`;
+  // 選択したファイルのダウンロードは全ロール共通。検査アクションがある場合は
+  // その後ろに並べる（検査ボタンを押し間違えないよう順番は変えない）
+  html += `
+    ${'showDirectoryPicker' in window ? `
+    <button type="button" class="btn btn-sm btn-outline bulk-save-btn">
+      <i class="fa-solid fa-folder-tree"></i> フォルダに保存
+    </button>` : ''}
+    <button type="button" class="btn btn-sm ${keys.length ? 'btn-outline' : 'btn-primary'} bulk-zip-btn">
+      <i class="fa-solid fa-file-zipper"></i> zipでダウンロード
+    </button>`;
+
+  // 削除は取り消せない操作のため、他の一括操作とは離して右端に置く
+  if (canDelete) {
+    html += `
+    <button type="button" class="btn btn-sm btn-danger bulk-delete-btn" ${bulkBusy ? 'disabled' : ''}>
+      <i class="fa-solid fa-trash"></i> 削除
+    </button>`;
   }
 
   const actionsEl = document.getElementById('fileBulkActions');
@@ -1171,6 +1246,8 @@ function renderBulkBar() {
     saveFilesToLocalFolder(selectedFilesList()));
   actionsEl.querySelector('.bulk-zip-btn')?.addEventListener('click', () =>
     downloadFilesAsZip(selectedFilesList()));
+  actionsEl.querySelector('.bulk-delete-btn')?.addEventListener('click', () =>
+    bulkDeleteFiles(selectedFilesList()));
 }
 
 document.getElementById('fileBulkClear')?.addEventListener('click', () => clearSelection());
@@ -1255,6 +1332,43 @@ async function undoReviewStatuses(prev) {
   }
   if (failed) showToast(`${failed}件を元に戻せませんでした`, 'danger');
   else        showToast('元に戻しました', 'success');
+}
+
+/* 選択ファイルの一括削除。行の「⋯」メニューの単体削除と同じAPIを逐次呼ぶ。
+   元に戻せない操作なので必ず確認モーダルを挟む */
+async function bulkDeleteFiles(files) {
+  if (bulkBusy || !files.length) return;
+  const ok = await openConfirmModal({
+    title: 'ファイルの削除', icon: 'fa-trash', danger: true,
+    body: `選択中の${files.length}件を削除します。`,
+    files: files.map(f => f.file_name),
+    warn: '削除したファイルは元に戻せません。',
+    okLabel: `${files.length}件を削除する`,
+  });
+  if (!ok) return;
+
+  bulkBusy = true;
+  renderBulkBar();
+  let failed = 0;
+  let done = 0;
+  for (const f of files) {
+    setBulkProgress(done, files.length);
+    try {
+      await api.delete(`/files/${f.id}`);
+      project.files = project.files.filter(x => x.id !== f.id);
+      selectedFileIds.delete(f.id);
+    } catch (err) {
+      failed++;
+    }
+    done++;
+  }
+  setBulkProgress(done, files.length);
+  bulkBusy = false;
+
+  renderFiles();
+
+  if (failed) showToast(`${failed}件の削除に失敗しました`, 'danger');
+  else        showToast(`${files.length}件を削除しました`, 'success');
 }
 
 /* ══════════════════════════════════════════
@@ -1438,12 +1552,16 @@ function renderModelGuide(visible, opts, allModelFiles) {
     else if (c.ok)        { text = `検査OKが${c.ok}件あります。「納品」すると発注者に公開されます。`; cls = 'guide-action'; }
     else if (c.revision)  { text = `修正依頼中が${c.revision}件あります。モデラーの再提出をお待ちください。`; cls = 'guide-wait'; }
     else if (modelerWorking) { text = 'モデラーが作業中です。検査依頼が届くとここに表示されます。'; cls = 'guide-wait'; }
+    else if (project.status === 'rework') { text = '手直し中です。モデラーの修正データの検査依頼が届くとここに表示されます。'; cls = 'guide-wait'; }
     else if (c.delivered) { text = 'すべて納品済みです。'; }
   } else if (opts.showModelerBtns) {
     if (c.revision)       { text = `修正依頼が${c.revision}件あります。修正データをアップロードし、あらためて検査を依頼してください。`; cls = 'guide-action'; }
     else if (c.pending)   { text = `未提出のファイルが${c.pending}件あります。ファイルを選んで「検査依頼」してください。`; cls = 'guide-action'; }
     else if (c.submitted) { text = `${c.submitted}件を検査依頼中です。管理者の検査をお待ちください。`; cls = 'guide-wait'; }
-    else if (c.ok || c.delivered) { text = '検査が完了しています。'; }
+    else if (c.ok)        { text = '検査が完了しています。'; }
+    // 納品完了後もこの行が出るようになったので、手直し時の入口をここで案内する
+    else if (project.status === 'rework') { text = '手直し中です。修正データを「アップロード」から追加し、検査を依頼してください。'; cls = 'guide-action'; }
+    else if (c.delivered) { text = 'すべて納品済みです。手直しが発生した場合は「手直しを開始する」を押してから、修正データをアップロードして検査を依頼してください。'; }
   } else if (isClient(user) && visible.length) {
     text = '納品されたデータです。個別またはまとめてダウンロードできます。';
   }
@@ -1581,16 +1699,20 @@ function renderChat() {
       divider = `<div class="chat-date-divider">${msgDate}</div>`;
     }
 
-    const blobUrl = c._blobUrl ?? null;
-    const imgApiUrl = c.image_path ?? c.image ?? null;
-    // Blob URL があればそのまま表示、なければ認証付き遅延ロード
-    const imgHtml = blobUrl
-      ? `<img src="${blobUrl}" alt="添付画像" data-lightbox
-              style="max-width:200px;border-radius:8px;cursor:pointer;">`
-      : imgApiUrl
-        ? `<img data-auth-img="${imgApiUrl}" alt="添付画像"
-                style="max-width:200px;border-radius:8px;cursor:pointer;opacity:0.4;">`
-        : '';
+    // 複数画像対応（旧データは image_path 1枚のみ）。Blob URL があればそのまま表示、なければ認証付き遅延ロード
+    const imgUrls = c.images ?? (c.image_path ? [c.image_path] : (c.image ? [c.image] : []));
+    const blobUrls = c._blobUrls ?? (c._blobUrl ? [c._blobUrl] : []);
+    const imgTag = (url, blobUrl, grid) => {
+      const style = grid
+        ? 'width:110px;height:110px;object-fit:cover;border-radius:8px;cursor:pointer;'
+        : 'max-width:200px;border-radius:8px;cursor:pointer;';
+      return blobUrl
+        ? `<img src="${blobUrl}" alt="添付画像" data-lightbox style="${style}">`
+        : `<img data-auth-img="${url}" alt="添付画像" style="${style}opacity:0.4;">`;
+    };
+    const imgHtml = imgUrls.length <= 1
+      ? (imgUrls[0] ? imgTag(imgUrls[0], blobUrls[0]) : '')
+      : `<div class="chat-img-grid">${imgUrls.map((u, i) => imgTag(u, blobUrls[i], true)).join('')}</div>`;
     const textHtml = c.body ? `<div>${escapeHtml(c.body)}</div>` : '';
     const role = c.user_role ?? c.role ?? '';
     const solidType = c.user_solid_type ?? c.solid_type ?? '';
@@ -1739,7 +1861,8 @@ async function saveEditComment() {
   if (!target) { cancelEditComment(); return; }
 
   const body = (editingDraft ?? '').trim();
-  const hasImage = !!(target.image_path || target.image || target._blobUrl);
+  const hasImage = !!(target.image_path || target.image || target._blobUrl
+    || target.images?.length || target._blobUrls?.length);
   if (!body && !hasImage) { showToast('本文を入力してください', 'error'); return; }
   if (body === (target.body ?? '')) { cancelEditComment(); return; }
 
@@ -1747,8 +1870,10 @@ async function saveEditComment() {
     const data = await api.patch(`/comments/${commentId}`, { body });
     // 添付画像のBlob URLはローカルにしかないので引き継ぐ
     const blobUrl = target._blobUrl;
+    const blobUrls = target._blobUrls;
     Object.assign(target, data?.comment ?? { body, edited_at: '' });
     if (blobUrl) target._blobUrl = blobUrl;
+    if (blobUrls) target._blobUrls = blobUrls;
     editingCommentId = null;
     editingDraft = '';
     renderChat();
@@ -1813,18 +1938,19 @@ document.getElementById('chatImageInput').addEventListener('change', e => {
   e.target.value = '';
 });
 
-async function submitComment(body, imageFile, channel) {
+async function submitComment(body, imageFiles, channel) {
   const ch = channel || currentChannel;
+  const files = imageFiles ?? [];
   const fd = new FormData();
   fd.append('body', body);
   fd.append('channel', ch);
-  if (imageFile) fd.append('image', imageFile);
+  files.forEach(f => fd.append('images[]', f));
 
   try {
     const data = await apiFetchForm(`/projects/${projId}/comments`, fd);
     // 投稿直後は Blob URL を使って即表示（再描画後も認証エンドポイントに差し替え）
-    if (imageFile && data.comment.image_path) {
-      data.comment._blobUrl = URL.createObjectURL(imageFile);
+    if (files.length && data.comment.images?.length) {
+      data.comment._blobUrls = files.map(f => URL.createObjectURL(f));
     }
     comments.push(data.comment);
     renderChat();
@@ -1842,15 +1968,10 @@ document.getElementById('commentSubmit').addEventListener('click', async () => {
   if (!body && !pendingImages.length) return;
 
   try {
-    if (pendingImages.length) {
-      for (const img of pendingImages) {
-        await submitComment(body, img.file);
-      }
-      pendingImages = [];
-      renderImagePreview();
-    } else {
-      await submitComment(body, null);
-    }
+    // 画像は何枚あっても1回の送信で1メッセージにまとめる
+    await submitComment(body, pendingImages.map(img => img.file));
+    pendingImages = [];
+    renderImagePreview();
     // 成功時のみクリア（失敗時は入力を残してそのまま再送できるように）
     input.value = '';
   } catch {}
@@ -1921,14 +2042,20 @@ function updateAdminReviewBarState() {
   const modelFiles  = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
   const hasRevision = modelFiles.some(f => f.review_status === 'revision');
   const hasOk       = modelFiles.some(f => ['ok', 'delivered'].includes(f.review_status));
+  const isRework    = project.status === 'rework';
 
-  btn.dataset.mode = hasRevision ? 'revision' : 'deliver';
-  btn.innerHTML = hasRevision
+  // 手直し中は修正依頼があっても「修正依頼中」へは戻さない（案件は手直し中のまま、
+  // ファイル単位の修正依頼で回す）。ボタンは納品完了へ戻す用途だけにする
+  const mode = hasRevision && !isRework ? 'revision' : 'deliver';
+  btn.dataset.mode = mode;
+  btn.innerHTML = mode === 'revision'
     ? '<i class="fa-solid fa-rotate-left"></i> 修正依頼をモデラーへ差し戻す'
-    : '<i class="fa-solid fa-flag-checkered"></i> 納品完了にする';
-  btn.className = `btn btn-sm ${hasRevision ? 'btn-outline' : 'btn-success'}`;
+    : isRework
+      ? '<i class="fa-solid fa-flag-checkered"></i> 手直しを終えて納品完了に戻す'
+      : '<i class="fa-solid fa-flag-checkered"></i> 納品完了にする';
+  btn.className = `btn btn-sm ${mode === 'revision' ? 'btn-outline' : 'btn-success'}`;
 
-  const enabled = hasRevision || hasOk;
+  const enabled = mode === 'revision' || hasOk || isRework;
   btn.disabled = !enabled;
   btn.style.opacity = enabled ? '1' : '0.5';
 
@@ -1940,7 +2067,11 @@ function updateAdminReviewBarState() {
 
   const note = document.getElementById('adminReviewBarNote');
   if (note) {
-    note.textContent = hasRevision
+    note.textContent = isRework
+      ? (hasRevision
+          ? '修正依頼中のファイルがあります。モデラーの再提出を待ってから納品してください。'
+          : '修正データを検査・納品してください。手直しデータを全件納品すると自動で納品完了に戻ります。')
+      : mode === 'revision'
       ? '修正依頼のファイルがあります。差し戻すとモデラーの作業に戻ります。'
       : allDelivered
         ? '3Dデータはすべて納品済みです。「納品完了にする」を押すと案件が完了します。'
@@ -1963,20 +2094,41 @@ document.getElementById('adminPublishBtn')?.addEventListener('click', async () =
   }
 
   // 未納品のまま完了にすると発注者に届かないファイルが残るため、件数を出して確認する
+  const isRework = project.status === 'rework';
   const undelivered = modelFiles.filter(f => f.review_status !== 'delivered');
   const ok = await openConfirmModal({
-    title: '案件を納品完了にする', icon: 'fa-flag-checkered',
-    body: 'この案件を納品完了にします。以降このプロジェクトのステータスは変更できません。',
+    title: isRework ? '手直しを終えて納品完了に戻す' : '案件を納品完了にする',
+    icon: 'fa-flag-checkered',
+    body: isRework
+      ? 'この案件の手直しを終了し、納品完了に戻します。'
+      : 'この案件を納品完了にします。納品後に手直しが発生した場合は「手直しを開始する」で再開できます。',
     files: undelivered.map(f => f.file_name),
     warn: undelivered.length
       ? `未納品のファイルが${undelivered.length}件あります。納品しないと発注者には表示されません。`
       : '',
-    okLabel: '納品完了にする',
+    okLabel: isRework ? '納品完了に戻す' : '納品完了にする',
   });
   if (!ok) return;
 
   await updateStatus('delivered');
-  showToast('案件を納品完了にしました', 'success');
+  showToast(isRework ? '手直しを終え、案件を納品完了に戻しました' : '案件を納品完了にしました', 'success');
+});
+
+/* ── 手直し開始モーダル（納品完了 × 制作側） ── */
+const reworkModal = document.getElementById('reworkModal');
+document.getElementById('reworkBtn')?.addEventListener('click', () => reworkModal.classList.remove('hidden'));
+['reworkModalClose', 'reworkModalClose2'].forEach(id =>
+  document.getElementById(id)?.addEventListener('click', () => reworkModal.classList.add('hidden')));
+document.getElementById('reworkSubmit')?.addEventListener('click', async () => {
+  const note = document.getElementById('reworkNote').value.trim();
+  reworkModal.classList.add('hidden');
+  // 理由は制作チーム（社内・モデラー）のチャンネルに残す。発注者には見せない
+  if (note) {
+    try { await submitComment(`【手直し】${note}`, null, 'modeler'); } catch { return; }
+  }
+  await updateStatus('rework', note || '手直し開始');
+  document.getElementById('reworkNote').value = '';
+  showToast('手直しを開始しました。修正データをアップロードし、検査を依頼してください', 'warning');
 });
 
 /* ── モデラーアクション ── */
@@ -2115,7 +2267,7 @@ function renderDeadlinePanel() {
   const replyColor  = replyStatus === 'ok'          ? 'var(--accent)'
                     : replyStatus === 'negotiating' ? 'var(--danger)'
                     : 'var(--muted)';
-  const editable = !['delivered','cancelled'].includes(project.status);
+  const editable = !['delivered','cancelled','rework'].includes(project.status);
 
   /* ヘッダー1行を組み立てる部品 */
   const chip = (label, value, color) =>

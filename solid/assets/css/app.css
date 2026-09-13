@@ -41,6 +41,8 @@
   --s-delivered-bg: rgba(0,184,148,.15);
   --s-cancelled:    #636e72;            /* キャンセル : グレー   */
   --s-cancelled-bg: rgba(99,110,114,.13);
+  --s-rework:       #B7791F;            /* 手直し中   : アンバー（納品後に動いている案件） */
+  --s-rework-bg:    rgba(234,179,8,.18);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -412,6 +414,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .badge-approved  { background: var(--s-approved-bg);  color: var(--s-approved); }
 .badge-delivered { background: var(--s-delivered-bg); color: var(--s-delivered); }
 .badge-cancelled { background: var(--s-cancelled-bg); color: var(--s-cancelled); }
+.badge-rework    { background: var(--s-rework-bg);    color: var(--s-rework); }
 
 /* 優先度バッジ */
 .priority-urgent { color: var(--danger); font-weight: 700; }
@@ -1281,6 +1284,15 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   cursor: pointer;
 }
 .chat-bubble img:first-child { margin-top: 0; }
+
+/* 1メッセージに画像が複数枚ついたときのグリッド表示 */
+.chat-img-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 110px);
+  gap: 6px;
+  margin-top: 6px;
+}
+.chat-img-grid img { margin-top: 0; }
 
 /* アバター（小） */
 .chat-avatar {
@@ -2249,6 +2261,9 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
 .cr-text { font-size: 13px; line-height: 1.8; margin-top: 2px; white-space: pre-wrap; word-break: break-word; }
 .cr-text .mention { color: var(--blue); background: rgba(9,132,227,.09); border-radius: 4px; padding: 0 3px; font-weight: 700; }
 .cr-img { max-width: 320px; max-height: 260px; border-radius: 9px; margin-top: 7px; border: 1px solid var(--border); cursor: pointer; display: block; }
+/* 1メッセージに画像が複数枚ついたときのグリッド表示 */
+.cr-img-grid { display: grid; grid-template-columns: repeat(2, 150px); gap: 6px; margin-top: 7px; }
+.cr-img-grid .cr-img { max-width: 150px; max-height: 150px; width: 150px; height: 150px; object-fit: cover; margin-top: 0; }
 .cr-quote {
   display: flex; gap: 8px; align-items: center; border-left: 3px solid var(--blue); background: rgba(9,132,227,.05);
   border-radius: 0 7px 7px 0; padding: 4px 10px; margin: 3px 0 4px; font-size: 11.5px; color: var(--muted); max-width: 460px;
