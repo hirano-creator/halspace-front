@@ -153,6 +153,16 @@
                 <span id="adminReviewBarNote" style="color:var(--muted);font-size:13px;align-self:center;"></span>
               </div>
             </div>
+            <!-- 手直し開始バー（納品完了 × 制作側＝社内管理者・モデラー）。
+                 納品後の発注者要望・社内で見つけた不具合の手直しをここから始める -->
+            <div id="reworkBar" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
+              <div class="flex gap-12 flex-wrap" style="align-items:center;">
+                <button class="btn btn-outline btn-sm" id="reworkBtn" type="button">
+                  <i class="fa-solid fa-wrench"></i> 手直しを開始する
+                </button>
+                <span style="color:var(--muted);font-size:13px;align-self:center;">納品後の要望対応・不具合修正で再作業するときに使います。</span>
+              </div>
+            </div>
             <!-- モデラー用アクションバー -->
             <div id="modelerActionBar" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
               <div class="flex gap-12 flex-wrap" style="align-items:center;">
@@ -350,6 +360,34 @@
       <button class="btn" id="cancelSubmit"
         style="background:#e74c3c;color:#fff;border-color:#e74c3c;">
         <i class="fa-solid fa-ban"></i> キャンセルする
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 手直し開始モーダル -->
+<div class="modal-overlay hidden" id="reworkModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" style="color:var(--s-rework);">
+        <i class="fa-solid fa-wrench" style="margin-right:6px;"></i>手直しを開始する
+      </span>
+      <button class="modal-close" id="reworkModalClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.7;">
+      この案件を「手直し中」にします。修正データをアップロードして検査を依頼し、
+      すべて納品すると自動で「納品完了」に戻ります。<br>
+      理由は制作チームのチャットに残ります（発注者には表示されません）。
+    </p>
+    <div class="form-group">
+      <label class="form-label">手直しの理由（任意）</label>
+      <textarea id="reworkNote" class="form-textarea" rows="3"
+                placeholder="例: 発注者から穴位置の変更要望 / 板厚の設定ミスを発見"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="reworkModalClose2">閉じる</button>
+      <button class="btn btn-primary" id="reworkSubmit">
+        <i class="fa-solid fa-wrench"></i> 手直しを開始する
       </button>
     </div>
   </div>

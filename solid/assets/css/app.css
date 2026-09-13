@@ -41,6 +41,8 @@
   --s-delivered-bg: rgba(0,184,148,.15);
   --s-cancelled:    #636e72;            /* キャンセル : グレー   */
   --s-cancelled-bg: rgba(99,110,114,.13);
+  --s-rework:       #B7791F;            /* 手直し中   : アンバー（納品後に動いている案件） */
+  --s-rework-bg:    rgba(234,179,8,.18);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -412,6 +414,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .badge-approved  { background: var(--s-approved-bg);  color: var(--s-approved); }
 .badge-delivered { background: var(--s-delivered-bg); color: var(--s-delivered); }
 .badge-cancelled { background: var(--s-cancelled-bg); color: var(--s-cancelled); }
+.badge-rework    { background: var(--s-rework-bg);    color: var(--s-rework); }
 
 /* 優先度バッジ */
 .priority-urgent { color: var(--danger); font-weight: 700; }

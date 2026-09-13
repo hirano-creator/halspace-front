@@ -124,9 +124,10 @@ if (user) {
       ps.filter(p => p.status === 'in_progress').length;
     document.getElementById('countReview').textContent =
       ps.filter(p => p.status === 'review_pending').length;
+    // 手直し中(rework)は納品済みで元の納期を過ぎているのが普通なので、納期アラートには含めない
     document.getElementById('countAlert').textContent =
       ps.filter(p => p.deadline_requested && new Date(p.deadline_requested) <= in3d
-                     && !['delivered', 'cancelled'].includes(p.status)).length;
+                     && !['delivered', 'cancelled', 'rework'].includes(p.status)).length;
     document.getElementById('countDelivered').textContent =
       ps.filter(p => p.status === 'delivered' &&
                      p.created_at?.startsWith(new Date().toISOString().slice(0, 7))).length;
@@ -136,6 +137,7 @@ if (user) {
     draft:'下書き', submitted:'提出済み', in_progress:'モデリング中',
     review_pending:'検査待ち', revision_requested:'修正依頼中',
     approved:'納品待ち', delivered:'納品完了', cancelled:'キャンセル',
+    rework:'手直し中',
   };
   const PRIORITY_LABEL = { urgent:'緊急', high:'高', normal:'通常', low:'低' };
 
@@ -158,7 +160,7 @@ if (user) {
       ps = ps.filter(p => p.status === 'review_pending');
     } else if (activeCardFilter === 'alert') {
       ps = ps.filter(p => p.deadline_requested && new Date(p.deadline_requested) <= in3d
-                          && !['delivered','cancelled'].includes(p.status));
+                          && !['delivered','cancelled','rework'].includes(p.status));
     } else if (activeCardFilter === 'delivered') {
       ps = ps.filter(p => p.status === 'delivered' && (p.created_at||'').startsWith(thisMonth));
     } else {
@@ -182,7 +184,7 @@ if (user) {
 
     ps.forEach(p => {
       const isAlert = p.deadline_requested && new Date(p.deadline_requested) <= in3d
-                      && !['delivered', 'cancelled'].includes(p.status);
+                      && !['delivered', 'cancelled', 'rework'].includes(p.status);
 
       /* 回答納期セル（APIフィールド: deadline_reply_status / deadline_replied） */
       const replyStatus = p.deadline_reply_status ?? p.deadline_reply?.status;

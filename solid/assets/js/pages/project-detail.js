@@ -32,6 +32,7 @@ const STATUS_LABEL = {
   draft:'下書き', submitted:'提出済み', in_progress:'モデリング中',
   review_pending:'検査待ち', revision_requested:'修正依頼中',
   approved:'納品待ち', delivered:'納品完了', cancelled:'キャンセル',
+  rework:'手直し中',
 };
 
 /* ── データ取得 ── */
@@ -61,34 +62,54 @@ function renderAll() {
 /* ── タイムライン描画 ── */
 function renderTimeline() {
   const tl = document.getElementById('timeline');
-  // 廃止した発注者確認(approved)の既存案件は「管理者検査を終えた納品待ち」として同じ位置に出す
-  const rank = statusRank(project.status === 'approved' ? 'review_pending' : project.status);
+  const isRework = project.status === 'rework';
+  // 廃止した発注者確認(approved)の既存案件は「管理者検査を終えた納品待ち」として同じ位置に出す。
+  // 手直し中(rework)は納品完了の位置に置き、最後のステップだけ「手直し中」として点灯させる
+  const rank = statusRank(project.status === 'approved' ? 'review_pending'
+                        : isRework ? 'delivered' : project.status);
   // 1件でも検査依頼中のファイルがあれば「管理者検査」ステップを点灯させる
+  // （手直し中の再検査依頼も同じ表示で管理者に知らせる）
   const hasSubmittedFile = (project.files ?? []).some(f =>
     MODEL_TYPES.includes(f.file_type) && f.review_status === 'submitted');
   tl.innerHTML = STEPS.map((s, i) => {
     const stepRank = statusRank(s.key);
-    const isDone   = rank > stepRank;
-    const partialReview = s.key === 'review_pending' && rank < stepRank && hasSubmittedFile;
+    const partialReview = s.key === 'review_pending' && hasSubmittedFile && (rank < stepRank || isRework);
+    const isDone   = rank > stepRank && !partialReview;
     const isActive = rank === stepRank
       || (project.status === 'revision_requested' && s.key === 'review_pending')
       || partialReview;
+    const reworkStep = isRework && s.key === 'delivered';
+    const icon = isDone ? 'fa-check'
+      : partialReview ? 'fa-paper-plane'
+      : reworkStep ? 'fa-wrench'
+      : isActive ? 'fa-spinner' : String(i+1);
+    const sub = partialReview
+      ? '<br><span style="font-size:10px;font-weight:600;color:var(--accent-strong,#E55A2B);">検査依頼あり</span>'
+      : reworkStep
+      ? '<br><span style="font-size:10px;font-weight:600;color:var(--s-rework);">手直し中</span>'
+      : '';
     return `
       <div class="timeline-step ${isDone?'done':''} ${isActive?'active':''}">
         <div class="timeline-dot">
-          <i class="fa-solid ${isDone?'fa-check':partialReview?'fa-paper-plane':isActive?'fa-spinner':String(i+1)}"></i>
+          <i class="fa-solid ${icon}"></i>
         </div>
-        <span class="timeline-label">${s.label}${partialReview
-          ? '<br><span style="font-size:10px;font-weight:600;color:var(--accent-strong,#E55A2B);">検査依頼あり</span>'
-          : ''}</span>
+        <span class="timeline-label">${s.label}${sub}</span>
       </div>
       ${i < STEPS.length-1 ? `<div style="flex:1;height:2px;background:${isDone?'var(--accent)':'var(--border)'};align-self:flex-start;margin-top:15px;"></div>` : ''}`;
   }).join('');
 
-  // 管理者検査バー: review_pending × 管理者（approved の既存案件も納品確定できるよう表示する）
+  // 管理者検査バー: review_pending × 管理者（approved の既存案件も納品確定できるよう表示する）。
+  // 手直し中も出し、手直しを終えて納品完了へ戻す操作に使う
   const adminReviewBar = document.getElementById('adminReviewBar');
   adminReviewBar.style.display =
-    (['review_pending','approved'].includes(project.status) && isInternalAdmin(user)) ? '' : 'none';
+    (['review_pending','approved','rework'].includes(project.status) && isInternalAdmin(user)) ? '' : 'none';
+
+  // 手直し開始バー: 納品完了 × 制作側（社内管理者・モデラー）。
+  // 発注者からの要望・社内で見つけた不具合の再作業をここから始める（バックエンドの
+  // allowedTransitions で delivered → rework を許可しているロールと揃える）
+  const reworkBar = document.getElementById('reworkBar');
+  reworkBar.style.display =
+    (project.status === 'delivered' && (isInternalAdmin(user) || isModeler(user))) ? '' : 'none';
 
   // モデラー用アクションバー
   // 検査依頼はファイル単位（一覧の「検査依頼」）に一本化したため、ここには開始／再開のみ置く
@@ -105,10 +126,11 @@ function renderTimeline() {
     modelerActionBar.style.display = 'none';
   }
 
-  /* キャンセルボタン: 発注者・管理者のみ、完了・キャンセル済み以外で表示 */
+  /* キャンセルボタン: 発注者・管理者のみ、完了・キャンセル済み以外で表示
+     （手直し中は納品済みの案件なのでキャンセルの対象外） */
   const cancelBtn = document.getElementById('cancelBtn');
   const canCancel = (isClient(user) || hasAdminLevelAccess(user))
-    && !['delivered', 'cancelled'].includes(project.status);
+    && !['delivered', 'cancelled', 'rework'].includes(project.status);
   cancelBtn.style.display = canCancel ? '' : 'none';
 }
 
@@ -204,8 +226,9 @@ const DRAWING_TYPES  = ['drawing_dxf', 'drawing_pdf', 'reference'];
 const MODEL_TYPES    = ['model_3d', 'delivery'];
 const REVISION_TYPES = ['revision'];
 /* 3Dモデル・制作データを追加できる案件ステータス（モデリング中〜納品完了後まで）。
-   納品後の手直しにも対応するため delivered を含む。approved は廃止した発注者確認の既存案件 */
-const MODEL_UPLOAD_STATUSES = ['in_progress', 'revision_requested', 'review_pending', 'approved', 'delivered'];
+   納品後の手直し（rework、および「手直しを開始する」を押す前の delivered）にも対応する。
+   approved は廃止した発注者確認の既存案件 */
+const MODEL_UPLOAD_STATUSES = ['in_progress', 'revision_requested', 'review_pending', 'approved', 'delivered', 'rework'];
 
 function renderFiles() {
   // ⋯メニューを開いている最中に自動更新で作り直すと操作が中断されるため、
@@ -655,8 +678,8 @@ function currentReviewOpts() {
   // 対象ステータスはアップロード可能範囲（MODEL_UPLOAD_STATUSES）と同じ。
   // 納品完了後にモデラーが手直しデータを追加したとき、そのファイルの検査依頼と
   // 管理者の検査・納品が同じ画面で完結するように、納品完了後も開けておく。
-  // 案件ステータスは納品完了のまま動かない（バックエンド updateReviewStatus の
-  // 遷移条件に delivered が含まれないため）。納品済みファイル自体は確定状態なので
+  // 納品済み案件に検査依頼が出るとバックエンドが案件を「手直し中」へ切り替え、
+  // 手直しデータを全件納品すると「納品完了」へ戻る。納品済みファイル自体は確定状態なので
   // ボタンは出るが fileReviewActions で理由付きの無効になる
   return {
     // 管理者はファイル単位の検査・納品が可能
@@ -1529,6 +1552,7 @@ function renderModelGuide(visible, opts, allModelFiles) {
     else if (c.ok)        { text = `検査OKが${c.ok}件あります。「納品」すると発注者に公開されます。`; cls = 'guide-action'; }
     else if (c.revision)  { text = `修正依頼中が${c.revision}件あります。モデラーの再提出をお待ちください。`; cls = 'guide-wait'; }
     else if (modelerWorking) { text = 'モデラーが作業中です。検査依頼が届くとここに表示されます。'; cls = 'guide-wait'; }
+    else if (project.status === 'rework') { text = '手直し中です。モデラーの修正データの検査依頼が届くとここに表示されます。'; cls = 'guide-wait'; }
     else if (c.delivered) { text = 'すべて納品済みです。'; }
   } else if (opts.showModelerBtns) {
     if (c.revision)       { text = `修正依頼が${c.revision}件あります。修正データをアップロードし、あらためて検査を依頼してください。`; cls = 'guide-action'; }
@@ -1536,7 +1560,8 @@ function renderModelGuide(visible, opts, allModelFiles) {
     else if (c.submitted) { text = `${c.submitted}件を検査依頼中です。管理者の検査をお待ちください。`; cls = 'guide-wait'; }
     else if (c.ok)        { text = '検査が完了しています。'; }
     // 納品完了後もこの行が出るようになったので、手直し時の入口をここで案内する
-    else if (c.delivered) { text = 'すべて納品済みです。手直しが発生した場合は「アップロード」から追加し、検査を依頼してください。'; }
+    else if (project.status === 'rework') { text = '手直し中です。修正データを「アップロード」から追加し、検査を依頼してください。'; cls = 'guide-action'; }
+    else if (c.delivered) { text = 'すべて納品済みです。手直しが発生した場合は「手直しを開始する」を押してから、修正データをアップロードして検査を依頼してください。'; }
   } else if (isClient(user) && visible.length) {
     text = '納品されたデータです。個別またはまとめてダウンロードできます。';
   }
@@ -2017,14 +2042,20 @@ function updateAdminReviewBarState() {
   const modelFiles  = (project.files ?? []).filter(f => MODEL_TYPES.includes(f.file_type));
   const hasRevision = modelFiles.some(f => f.review_status === 'revision');
   const hasOk       = modelFiles.some(f => ['ok', 'delivered'].includes(f.review_status));
+  const isRework    = project.status === 'rework';
 
-  btn.dataset.mode = hasRevision ? 'revision' : 'deliver';
-  btn.innerHTML = hasRevision
+  // 手直し中は修正依頼があっても「修正依頼中」へは戻さない（案件は手直し中のまま、
+  // ファイル単位の修正依頼で回す）。ボタンは納品完了へ戻す用途だけにする
+  const mode = hasRevision && !isRework ? 'revision' : 'deliver';
+  btn.dataset.mode = mode;
+  btn.innerHTML = mode === 'revision'
     ? '<i class="fa-solid fa-rotate-left"></i> 修正依頼をモデラーへ差し戻す'
-    : '<i class="fa-solid fa-flag-checkered"></i> 納品完了にする';
-  btn.className = `btn btn-sm ${hasRevision ? 'btn-outline' : 'btn-success'}`;
+    : isRework
+      ? '<i class="fa-solid fa-flag-checkered"></i> 手直しを終えて納品完了に戻す'
+      : '<i class="fa-solid fa-flag-checkered"></i> 納品完了にする';
+  btn.className = `btn btn-sm ${mode === 'revision' ? 'btn-outline' : 'btn-success'}`;
 
-  const enabled = hasRevision || hasOk;
+  const enabled = mode === 'revision' || hasOk || isRework;
   btn.disabled = !enabled;
   btn.style.opacity = enabled ? '1' : '0.5';
 
@@ -2036,7 +2067,11 @@ function updateAdminReviewBarState() {
 
   const note = document.getElementById('adminReviewBarNote');
   if (note) {
-    note.textContent = hasRevision
+    note.textContent = isRework
+      ? (hasRevision
+          ? '修正依頼中のファイルがあります。モデラーの再提出を待ってから納品してください。'
+          : '修正データを検査・納品してください。手直しデータを全件納品すると自動で納品完了に戻ります。')
+      : mode === 'revision'
       ? '修正依頼のファイルがあります。差し戻すとモデラーの作業に戻ります。'
       : allDelivered
         ? '3Dデータはすべて納品済みです。「納品完了にする」を押すと案件が完了します。'
@@ -2059,20 +2094,41 @@ document.getElementById('adminPublishBtn')?.addEventListener('click', async () =
   }
 
   // 未納品のまま完了にすると発注者に届かないファイルが残るため、件数を出して確認する
+  const isRework = project.status === 'rework';
   const undelivered = modelFiles.filter(f => f.review_status !== 'delivered');
   const ok = await openConfirmModal({
-    title: '案件を納品完了にする', icon: 'fa-flag-checkered',
-    body: 'この案件を納品完了にします。以降このプロジェクトのステータスは変更できません。',
+    title: isRework ? '手直しを終えて納品完了に戻す' : '案件を納品完了にする',
+    icon: 'fa-flag-checkered',
+    body: isRework
+      ? 'この案件の手直しを終了し、納品完了に戻します。'
+      : 'この案件を納品完了にします。納品後に手直しが発生した場合は「手直しを開始する」で再開できます。',
     files: undelivered.map(f => f.file_name),
     warn: undelivered.length
       ? `未納品のファイルが${undelivered.length}件あります。納品しないと発注者には表示されません。`
       : '',
-    okLabel: '納品完了にする',
+    okLabel: isRework ? '納品完了に戻す' : '納品完了にする',
   });
   if (!ok) return;
 
   await updateStatus('delivered');
-  showToast('案件を納品完了にしました', 'success');
+  showToast(isRework ? '手直しを終え、案件を納品完了に戻しました' : '案件を納品完了にしました', 'success');
+});
+
+/* ── 手直し開始モーダル（納品完了 × 制作側） ── */
+const reworkModal = document.getElementById('reworkModal');
+document.getElementById('reworkBtn')?.addEventListener('click', () => reworkModal.classList.remove('hidden'));
+['reworkModalClose', 'reworkModalClose2'].forEach(id =>
+  document.getElementById(id)?.addEventListener('click', () => reworkModal.classList.add('hidden')));
+document.getElementById('reworkSubmit')?.addEventListener('click', async () => {
+  const note = document.getElementById('reworkNote').value.trim();
+  reworkModal.classList.add('hidden');
+  // 理由は制作チーム（社内・モデラー）のチャンネルに残す。発注者には見せない
+  if (note) {
+    try { await submitComment(`【手直し】${note}`, null, 'modeler'); } catch { return; }
+  }
+  await updateStatus('rework', note || '手直し開始');
+  document.getElementById('reworkNote').value = '';
+  showToast('手直しを開始しました。修正データをアップロードし、検査を依頼してください', 'warning');
 });
 
 /* ── モデラーアクション ── */
@@ -2211,7 +2267,7 @@ function renderDeadlinePanel() {
   const replyColor  = replyStatus === 'ok'          ? 'var(--accent)'
                     : replyStatus === 'negotiating' ? 'var(--danger)'
                     : 'var(--muted)';
-  const editable = !['delivered','cancelled'].includes(project.status);
+  const editable = !['delivered','cancelled','rework'].includes(project.status);
 
   /* ヘッダー1行を組み立てる部品 */
   const chip = (label, value, color) =>

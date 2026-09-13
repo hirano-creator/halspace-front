@@ -43,10 +43,11 @@ const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').re
 const STATUS_LABEL = {
   draft: '下書き', submitted: '提出済み', in_progress: 'モデリング中', review_pending: '検査待ち',
   revision_requested: '修正依頼中', approved: '納品待ち', delivered: '納品完了', cancelled: 'キャンセル',
+  rework: '手直し中',
 };
 const STATUS_CLASS = {
   submitted: 'code', in_progress: 'code', review_pending: 'code', revision_requested: 'code',
-  approved: 'code', delivered: 'lock', cancelled: 'lock', draft: 'lock',
+  approved: 'code', rework: 'code', delivered: 'lock', cancelled: 'lock', draft: 'lock',
 };
 
 /* 名前から色を決める（同じ人はいつも同じ色になる） */

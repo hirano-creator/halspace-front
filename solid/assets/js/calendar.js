@@ -81,6 +81,7 @@ const DOW = ['日','月','火','水','木','金','土'];
 const STATUS_LABEL = {
   submitted:'提出済み', in_progress:'モデリング中', review_pending:'検査待ち',
   revision_requested:'修正依頼中', approved:'納品待ち', delivered:'納品完了',
+  rework:'手直し中',
 };
 
 let curYear  = new Date().getFullYear();
@@ -143,12 +144,15 @@ function renderCalendar() {
 
 /* 1案件につきカレンダーに出すバーは1本だけ。
    納品日 > 回答納期 > 希望納期 の優先順で表示日を決める。
-   回答納期が決まった時点で希望納期のバーは出さない（重複表示の防止）。 */
+   回答納期が決まった時点で希望納期のバーは出さない（重複表示の防止）。
+   手直し中(rework)は納品日の位置に「手直し中」として出す（納品日が過去の月なら
+   未完了案件と同じく当月1日にまとめる）。 */
 function _displaySlot(p) {
   const delivered = p.delivered_at       ? p.delivered_at.slice(0, 10)       : null;
   const replied   = p.deadline_replied   ? p.deadline_replied.slice(0, 10)   : null;
   const requested = p.deadline_requested ? p.deadline_requested.slice(0, 10) : null;
 
+  if (delivered && p.status === 'rework') return { date: delivered, type: 'rework' };
   if (delivered) return { date: delivered, type: 'delivered' };
   if (replied)   return { date: replied,   type: 'replied'   };
   if (requested) return { date: requested, type: 'requested' };
@@ -183,8 +187,9 @@ function makeCell(date, otherMonth) {
     if (!slot.date && ds === curMonthFirst) { items.push({ p, type: 'no_date' }); return; }
 
     // 3. 表示日が当月より前の未納品案件（期限超過）→ 当月1日に表示
+    //    手直し中は期限超過ではなく「手直し中」のまま当月1日へ
     if (slot.date && slot.date < curMonthFirst && slot.type !== 'delivered' && ds === curMonthFirst) {
-      items.push({ p, type: 'overdue' });
+      items.push({ p, type: slot.type === 'rework' ? 'rework' : 'overdue' });
     }
   });
 
@@ -209,6 +214,10 @@ function makeCell(date, otherMonth) {
       bar.className = `cal-bar cal-bar-${p.status}`;
       bar.innerHTML = `<div class="cal-bar-title"><i class="fa-solid fa-triangle-exclamation" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}</div>${co}`;
       reason = `期限超過（納期: ${p.deadline_replied || p.deadline_requested}）`;
+    } else if (type === 'rework') {
+      bar.className = 'cal-bar cal-bar-rework';
+      bar.innerHTML = `<div class="cal-bar-title"><i class="fa-solid fa-wrench" style="font-size:10px;margin-right:3px;"></i>${_short(p.title)}</div>${co}`;
+      reason = `手直し中（納品: ${p.delivered_at}）`;
     } else {
       bar.className = `cal-bar cal-bar-${p.status}`;
       bar.innerHTML = `<div class="cal-bar-title">${_short(p.title)}</div>${co}`;
@@ -285,11 +294,13 @@ function showDayPopup(items, dateStr, anchorEl) {
     else if (type === 'replied')   icon = '<i class="fa-solid fa-flag" style="margin-right:5px;"></i>';
     else if (type === 'requested') icon = '<i class="fa-solid fa-clock" style="margin-right:5px;"></i>';
     else if (type === 'overdue')   icon = '<i class="fa-solid fa-triangle-exclamation" style="margin-right:5px;"></i>';
+    else if (type === 'rework')    icon = '<i class="fa-solid fa-wrench" style="margin-right:5px;"></i>';
 
     const dateInfo = type === 'delivered' ? `納品完了: ${p.delivered_at}`
       : type === 'replied'   ? `回答納期: ${p.deadline_replied}`
       : type === 'requested' ? `希望納期: ${p.deadline_requested}（回答待ち）`
       : type === 'overdue'   ? `期限超過（納期: ${p.deadline_replied || p.deadline_requested}）`
+      : type === 'rework'    ? `手直し中（納品: ${p.delivered_at}）`
       : '納期未設定';
 
     const coName = _companyName(p);

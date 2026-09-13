@@ -9,6 +9,7 @@ const STATUS_LABEL = {
   in_progress:        'モデリング中',
   review_pending:     '検査待ち',
   revision_requested: '修正依頼中',
+  rework:             '手直し中',
   cancelled:          'キャンセル',
 };
 
@@ -27,12 +28,13 @@ let pendingFiles   = [];
 async function loadProjects() {
   try {
     const data = await api.get('/projects');
+    // 手直し中(rework)は納品後の再作業なので一覧に出す（次アクションは詳細画面のファイル単位で行う）
     projects = (data?.projects ?? []).filter(p =>
-      ['submitted', 'in_progress', 'review_pending', 'revision_requested', 'cancelled'].includes(p.status)
+      ['submitted', 'in_progress', 'review_pending', 'revision_requested', 'rework', 'cancelled'].includes(p.status)
     );
   } catch {
     projects = MOCK.projects.filter(p =>
-      ['submitted', 'in_progress', 'review_pending', 'revision_requested', 'cancelled'].includes(p.status)
+      ['submitted', 'in_progress', 'review_pending', 'revision_requested', 'rework', 'cancelled'].includes(p.status)
     );
   }
   renderTable();
