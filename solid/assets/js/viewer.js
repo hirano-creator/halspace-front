@@ -1457,5 +1457,5 @@ const Viewer = (() => {
   }
 
   return { open, close, _parseDXF: parseDXF, _drawDXF, _createDxfEngine, _occtToGeometry,
-           _hasPdf3D, _render3dPdfNotice };
+           _hasPdf3D, _render3dPdfNotice, _renderDwgNotice };
 })();
