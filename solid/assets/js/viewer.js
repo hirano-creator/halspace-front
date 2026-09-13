@@ -903,7 +903,12 @@ const Viewer = (() => {
 
     if (ext === 'pdf') {
       _openPdf(file, content, loading);
-    } else if (ext === 'dxf' || ext === 'dwg') {
+    } else if (ext === 'dwg') {
+      /* DWGはAutoCAD独自のバイナリ形式でDXFのようなテキスト解析ができないため、
+         DXFパーサーには渡さずダウンロード案内を表示する */
+      loading.remove();
+      _renderDwgNotice(content, file);
+    } else if (ext === 'dxf') {
       _openDxf(file, content, loading, dxfTb);
     } else if (is3d) {
       _open3D(file, content, loading, threejsTb, ext);
@@ -1166,6 +1171,56 @@ const Viewer = (() => {
       iframe.src = blobUrl + '#toolbar=1&navpanes=0';
       iframe.dataset.blobUrl = blobUrl;
       container.appendChild(iframe);
+    });
+  }
+
+  /* DWGファイルの案内を描画する。DWGはAutoCADの非公開バイナリ形式で、
+     ブラウザで解析できるオープンなパーサーが存在しないため、
+     ダウンロードしてAutoCADなどのCADソフトで開くよう案内する。 */
+  function _renderDwgNotice(container, file) {
+    const btn = 'display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border-radius:8px;'
+      + 'font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;border:1px solid transparent;';
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;'
+      + 'justify-content:center;gap:14px;padding:32px;text-align:center;color:#6c7086;font-size:14px;';
+    wrap.innerHTML = `
+      <i class="fa-solid fa-file-lines" style="font-size:56px;color:#74b9ff;"></i>
+      <strong style="font-size:16px;color:#cdd6f4;">DWG図面</strong>
+      <span style="max-width:540px;line-height:1.9;">
+        DWGはAutoCAD独自のファイル形式のため、ブラウザ上ではプレビューできません。<br>
+        ダウンロードして <b style="color:#cdd6f4;">AutoCAD</b> など対応するCADソフトで開いてください。
+      </span>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px;">
+        <button type="button" data-act="dl" style="${btn}background:#ff6b35;color:#fff;">
+          <i class="fa-solid fa-download"></i> ダウンロード
+        </button>
+      </div>`;
+    container.appendChild(wrap);
+
+    const dlBtn = wrap.querySelector('[data-act="dl"]');
+    dlBtn.addEventListener('click', async () => {
+      const url = file.id ? `${API_BASE}/files/${file.id}/view` : file.preview_url;
+      if (!url) return;
+      dlBtn.disabled = true;
+      const origHtml = dlBtn.innerHTML;
+      dlBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 準備中...';
+      try {
+        const realUrl = await _resolveFileUrl(url);
+        const res = await fetch(realUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const buf = await res.arrayBuffer();
+        const blobUrl = URL.createObjectURL(new Blob([buf]));
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = file.file_name || 'drawing.dwg';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      } catch (err) {
+        alert('ダウンロードに失敗しました: ' + err.message);
+      } finally {
+        dlBtn.disabled = false;
+        dlBtn.innerHTML = origHtml;
+      }
     });
   }
 
