@@ -1731,6 +1731,31 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 }
 .deadline-arrow { font-size: 11px; color: var(--muted); }
 
+/* 希望納期チップ（クリックでミニカレンダーを開いて変更）。
+   透明なdate inputをチップ全面に重ね、クリック領域＝入力欄そのものにしている */
+.deadline-chip-editable {
+  position: relative;
+  cursor: pointer;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  border-radius: 5px;
+  transition: background .15s;
+}
+.deadline-chip-editable:hover { background: rgba(9,132,227,.08); }
+.deadline-chip-edit-icon { font-size: 9px; color: var(--muted); }
+.deadline-chip-editable:hover .deadline-chip-edit-icon { color: var(--blue); }
+.deadline-chip-date-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
 .deadline-toggle {
   display: inline-flex;
   align-items: center;
