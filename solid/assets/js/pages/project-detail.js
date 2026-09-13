@@ -12,6 +12,7 @@ let comments = [];
 let allModelers = [];
 /* チャットのインライン編集中の状態（再描画をまたいで入力を保持する） */
 let editingCommentId = null;
+let replyTo = null;   // 引用返信の対象コメント（LINEのリプライ）
 let editingDraft = '';
 let focusEditor = false;
 
@@ -1629,6 +1630,7 @@ function initChatTabs() {
     btn.addEventListener('click', () => {
       if (!canAccessChannel(btn.dataset.ch)) return;
       currentChannel = btn.dataset.ch;
+      clearReply();
       tabs.querySelectorAll('.chat-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       renderChat();
@@ -1739,6 +1741,15 @@ function renderChat() {
       ? (imgUrls[0] ? imgTag(imgUrls[0], blobUrls[0]) : '')
       : `<div class="chat-img-grid">${imgUrls.map((u, i) => imgTag(u, blobUrls[i], true)).join('')}</div>`;
     const textHtml = c.body ? `<div>${escapeHtml(c.body)}</div>` : '';
+    // 引用返信の引用元。タップで元のコメントまでスクロールする（chat-reply.js）
+    const quoteHtml = c.quote
+      ? `<div class="chat-quote" data-quote="${c.quote.id ?? ''}" role="button" title="元のメッセージへ移動">
+          ${c.quote.image
+            ? `<img class="chat-quote-img" data-auth-img="${c.quote.image}" alt="">`
+            : '<i class="fa-solid fa-reply"></i>'}
+          <div class="chat-quote-t"><b>${escapeHtml(c.quote.user_name ?? '')}</b><span>${escapeHtml(c.quote.body ?? '')}</span></div>
+        </div>`
+      : '';
     const role = c.user_role ?? c.role ?? '';
     const solidType = c.user_solid_type ?? c.solid_type ?? '';
     const canDel = Number(c.user_id) === Number(user.id) || isInternalAdmin(user);
@@ -1751,6 +1762,9 @@ function renderChat() {
       ? `<button class="chat-edit-btn" data-edit-id="${c.id}" title="編集"><i class="fa-solid fa-pen"></i></button>`
       : '';
     const editedMark = c.edited_at ? '<span class="chat-edited">編集済み</span>' : '';
+    const replyBtn = !isEditing
+      ? `<button class="chat-reply-btn" data-reply-id="${c.id}" title="返信"><i class="fa-solid fa-reply"></i></button>`
+      : '';
 
     const bubbleHtml = isEditing
       ? `<div class="chat-bubble chat-bubble-editing">
@@ -1761,10 +1775,10 @@ function renderChat() {
             <button class="chat-edit-save" data-edit-save>保存</button>
           </div>
          </div>`
-      : `<div class="chat-bubble">${textHtml}${imgHtml}</div>`;
+      : `<div class="chat-bubble">${quoteHtml}${textHtml}${imgHtml}</div>`;
 
     return `${divider}
-    <div class="chat-msg${isMine?' mine':''}">
+    <div class="chat-msg${isMine?' mine':''}" data-id="${c.id}">
       ${!isMine ? `<div class="chat-avatar ${avatarCls(role, solidType)}">${userName.charAt(0)}</div>` : ''}
       <div class="chat-bubble-wrap">
         <div class="chat-meta">
@@ -1772,6 +1786,7 @@ function renderChat() {
           <span>${roleLabel(role, solidType)}</span>
           <span>${(c.created_at||'').split(' ')[1] || c.created_at || ''}</span>
           ${editedMark}
+          ${replyBtn}
           ${editBtn}
           ${delBtn}
         </div>
@@ -1793,6 +1808,21 @@ function renderChat() {
 
   box.querySelectorAll('.chat-edit-btn').forEach(btn => {
     btn.addEventListener('click', () => startEditComment(Number(btn.dataset.editId)));
+  });
+
+  box.querySelectorAll('.chat-reply-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.closest('.chat-msg')?.classList.remove('acts-open');
+      startReply(Number(btn.dataset.replyId));
+    });
+  });
+
+  box.querySelectorAll('[data-quote]').forEach(q => {
+    q.addEventListener('click', () => {
+      if (!jumpToChatMessage(box, q.dataset.quote)) {
+        showToast('元のメッセージが見つかりません（削除された可能性があります）', 'danger');
+      }
+    });
   });
 
   const editor = box.querySelector('[data-edit-input]');
@@ -1832,10 +1862,12 @@ function loadAuthImages(container) {
     if (location.protocol === 'https:' && url.startsWith('http://')) {
       url = 'https://' + url.slice('http://'.length);
     }
+    const isQuote = img.classList.contains('chat-quote-img');
     const cached = authImgCache.get(url);
     if (cached) {
       img.src = cached;
       img.style.opacity = '1';
+      if (isQuote) return;
       img.dataset.lightbox = '';
       img.addEventListener('click', () => openLightbox(cached));
       return;
@@ -1851,6 +1883,7 @@ function loadAuthImages(container) {
       authImgCache.set(url, blobUrl);
       img.src = blobUrl;
       img.style.opacity = '1';
+      if (isQuote) return;
       img.dataset.lightbox = '';
       img.addEventListener('click', () => openLightbox(blobUrl));
     } catch {
@@ -1863,6 +1896,35 @@ function autoGrowEditor(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 200) + 'px';
 }
+
+/* ===== 引用返信（LINEのリプライ） ===== */
+
+function startReply(commentId) {
+  const target = comments.find(c => Number(c.id) === Number(commentId));
+  if (!target) return;
+  replyTo = target;
+  const name = Number(target.user_id) === Number(user.id) ? 'あなた' : (target.user_name ?? target.user ?? '');
+  document.getElementById('chatReplyName').textContent = `${name} に返信`;
+  document.getElementById('chatReplyBody').textContent = (target.body || '［画像］').replace(/\n/g, ' ').slice(0, 60);
+
+  /* サムネは一覧で読み込み済みの画像をそのまま使う（未ロードなら出さない） */
+  const loaded = document.querySelector(`#chatMessages [data-id="${commentId}"] .chat-bubble img[src]:not(.chat-quote-img)`);
+  const img = document.getElementById('chatReplyImg');
+  if (loaded) img.src = loaded.src; else img.removeAttribute('src');
+  img.style.display = loaded ? '' : 'none';
+
+  document.getElementById('chatReplyBar').style.display = 'flex';
+  document.getElementById('commentInput').focus();
+}
+
+function clearReply() {
+  replyTo = null;
+  const bar = document.getElementById('chatReplyBar');
+  if (bar) bar.style.display = 'none';
+  document.getElementById('chatReplyImg')?.removeAttribute('src');
+}
+
+document.getElementById('chatReplyCancel').addEventListener('click', clearReply);
 
 function startEditComment(commentId) {
   const target = comments.find(c => Number(c.id) === Number(commentId));
@@ -1970,6 +2032,7 @@ async function submitComment(body, imageFiles, channel) {
   fd.append('body', body);
   fd.append('channel', ch);
   files.forEach(f => fd.append('images[]', f));
+  if (replyTo && replyTo.channel === ch) fd.append('parent_id', replyTo.id);
 
   try {
     const data = await apiFetchForm(`/projects/${projId}/comments`, fd);
@@ -1978,6 +2041,7 @@ async function submitComment(body, imageFiles, channel) {
       data.comment._blobUrls = files.map(f => URL.createObjectURL(f));
     }
     comments.push(data.comment);
+    clearReply();
     renderChat();
   } catch (err) {
     // サーバーに保存されていないのにローカル表示すると「送れたように見えるのに相手に届かない」
@@ -2007,6 +2071,14 @@ document.getElementById('commentInput').addEventListener('keydown', e => {
     e.preventDefault();
     document.getElementById('commentSubmit').click();
   }
+  if (e.key === 'Escape' && replyTo) clearReply();
+});
+
+/* スマホ: 右スワイプで返信、長押しで操作ボタン（chat-reply.js） */
+initChatGestures(document.getElementById('chatMessages'), {
+  item: '.chat-msg',
+  onReply: el => startReply(Number(el.dataset.id)),
+  onLongPress: el => el.classList.toggle('acts-open'),
 });
 
 function openLightbox(src) {

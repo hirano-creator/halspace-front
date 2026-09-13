@@ -114,9 +114,12 @@
           <div class="cr-input">
             <div class="cr-reply-bar" id="replyBar" style="display:none;">
               <i class="fa-solid fa-reply"></i>
-              <b id="replyName"></b>
-              <span id="replyBody"></span>
-              <button class="cr-ib" id="replyCancel" style="width:22px;height:22px;"><i class="fa-solid fa-xmark"></i></button>
+              <img class="cr-reply-img" id="replyImg" alt="" style="display:none;">
+              <div class="cr-reply-t">
+                <b id="replyName"></b>
+                <span id="replyBody"></span>
+              </div>
+              <button class="cr-ib" id="replyCancel" title="返信をやめる（Esc）" style="width:22px;height:22px;"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="cr-preview" id="imgPreview" style="display:none;"></div>
             <div class="cr-input-box">
@@ -203,6 +206,7 @@
 
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/api.js"></script>
+<script src="../assets/js/chat-reply.js"></script>
 <script src="../assets/js/pages/chat.js"></script>
 </body>
 </html>
