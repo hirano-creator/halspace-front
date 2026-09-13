@@ -253,6 +253,16 @@
           <div class="chat-messages" id="chatMessages"></div>
           <!-- 入力エリア -->
           <div class="chat-input-area">
+            <!-- 返信先（LINEのリプライと同じく入力欄の上に出す） -->
+            <div class="chat-reply-bar" id="chatReplyBar" style="display:none;">
+              <i class="fa-solid fa-reply"></i>
+              <img class="chat-reply-img" id="chatReplyImg" alt="" style="display:none;">
+              <div class="chat-reply-t">
+                <b id="chatReplyName"></b>
+                <span id="chatReplyBody"></span>
+              </div>
+              <button type="button" class="chat-reply-cancel" id="chatReplyCancel" title="返信をやめる（Esc）"><i class="fa-solid fa-xmark"></i></button>
+            </div>
             <!-- 画像プレビュー -->
             <div id="imagePreviewArea" style="display:none;padding:8px 0 4px;"></div>
             <div class="chat-input-row">
@@ -442,6 +452,7 @@
 <script src="../assets/js/uploader.js"></script>
 <script src="../assets/js/wn-picker.js"></script>
 <script src="../assets/js/viewer.js"></script>
+<script src="../assets/js/chat-reply.js"></script>
 <script src="../assets/js/pages/project-detail.js"></script>
 </body>
 </html>

@@ -271,6 +271,14 @@ function imagesHtml(m) {
     `<img class="cr-img" data-src="${u}" alt="添付画像">`).join('')}</div>`;
 }
 
+/* 引用ブロック。タップで元のメッセージへ飛ぶ（LINEのリプライ表示と同じ） */
+function quoteHtml(q) {
+  return `<div class="cr-quote" data-quote="${q.id ?? ''}" role="button" title="元のメッセージへ移動">
+    ${q.image ? `<img class="cr-quote-img" data-src="${q.image}" alt="">` : '<i class="fa-solid fa-reply"></i>'}
+    <div class="cr-quote-t"><b>${esc(q.user_name)}</b><span>${esc(q.body)}</span></div>
+  </div>`;
+}
+
 function messageHtml(m, prevDate) {
   const blocks = [];
   const date = dateOnly(m.created_at);
@@ -283,7 +291,8 @@ function messageHtml(m, prevDate) {
     ${avatar(m.user_name)}
     <div class="cr-msg-b">
       <div class="cr-msg-acts">
-        <button data-act="reply" title="引用して返信"><i class="fa-solid fa-reply"></i></button>
+        <button data-act="reply" title="返信"><i class="fa-solid fa-reply"></i></button>
+        ${m.body ? `<button data-act="copy" title="本文をコピー"><i class="fa-regular fa-copy"></i></button>` : ''}
         ${mine ? `<button data-act="edit" title="編集"><i class="fa-solid fa-pen"></i></button>` : ''}
         ${mine || isInternalAdmin(user) ? `<button data-act="del" class="del" title="削除"><i class="fa-solid fa-trash-can"></i></button>` : ''}
       </div>
@@ -293,8 +302,7 @@ function messageHtml(m, prevDate) {
         <span class="cr-time">${timeOnly(m.created_at)}</span>
         ${m.edited_at ? '<span class="cr-edited">（編集済み）</span>' : ''}
       </div>
-      ${m.quote ? `<div class="cr-quote"><i class="fa-solid fa-reply" style="font-size:9px"></i>
-        <b>${esc(m.quote.user_name)}</b><span>${esc(m.quote.body)}</span></div>` : ''}
+      ${m.quote ? quoteHtml(m.quote) : ''}
       ${m.body ? `<div class="cr-text">${body}</div>` : ''}
       ${imagesHtml(m)}
     </div>
@@ -321,9 +329,17 @@ function renderMessages() {
 
   box.querySelectorAll('[data-act]').forEach(btn => btn.addEventListener('click', () => {
     const id = Number(btn.closest('[data-id]').dataset.id);
+    btn.closest('.cr-msg')?.classList.remove('acts-open');
     if (btn.dataset.act === 'reply') startReply(id);
+    if (btn.dataset.act === 'copy') copyMessage(id);
     if (btn.dataset.act === 'edit') startEdit(id);
     if (btn.dataset.act === 'del') removeMessage(id);
+  }));
+
+  box.querySelectorAll('[data-quote]').forEach(q => q.addEventListener('click', () => {
+    if (!jumpToChatMessage(box, q.dataset.quote)) {
+      solidToast('元のメッセージが見つかりません（削除された可能性があります）', false);
+    }
   }));
 
   box.scrollTop = box.scrollHeight;
@@ -335,6 +351,7 @@ async function loadAuthImage(img) {
     const res = await fetch(img.dataset.src, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return;
     img.src = URL.createObjectURL(await res.blob());
+    if (img.classList.contains('cr-quote-img')) return;
     img.addEventListener('click', () => window.open(img.src, '_blank'));
   } catch { /* 画像が出ないだけなので黙って諦める */ }
 }
@@ -345,14 +362,34 @@ function startReply(id) {
   const m = messages.find(x => Number(x.id) === id);
   if (!m) return;
   replyTo = m;
-  $('replyName').textContent = m.user_name;
+  $('replyName').textContent = `${m.user_name} に返信`;
   $('replyBody').textContent = (m.body || '［画像］').replace(/\n/g, ' ').slice(0, 60);
+
+  /* サムネは一覧で読み込み済みのblobを使い回す（未ロードなら出さない） */
+  const loaded = $('msgList').querySelector(`[data-id="${id}"] img.cr-img[src]`);
+  const img = $('replyImg');
+  if (loaded) img.src = loaded.src; else img.removeAttribute('src');
+  img.style.display = loaded ? '' : 'none';
+
   $('replyBar').style.display = 'flex';
   $('msgInput').focus();
 }
 function clearReply() {
   replyTo = null;
   $('replyBar').style.display = 'none';
+  $('replyImg').removeAttribute('src');
+}
+$('replyCancel').addEventListener('click', clearReply);
+
+async function copyMessage(id) {
+  const m = messages.find(x => Number(x.id) === id);
+  if (!m?.body) return;
+  try {
+    await navigator.clipboard.writeText(m.body);
+    solidToast('コピーしました');
+  } catch {
+    solidToast('コピーできませんでした', false);
+  }
 }
 
 function clearImage() {
@@ -612,6 +649,14 @@ input.addEventListener('keydown', e => {
     e.preventDefault();
     send();
   }
+  if (e.key === 'Escape' && replyTo) clearReply();
+});
+
+/* スマホ: 右スワイプで返信、長押しで操作ボタン（chat-reply.js） */
+initChatGestures($('msgList'), {
+  item: '.cr-msg',
+  onReply: el => startReply(Number(el.dataset.id)),
+  onLongPress: el => el.classList.toggle('acts-open'),
 });
 $('btnSend').addEventListener('click', send);
 

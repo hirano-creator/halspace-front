@@ -1146,6 +1146,7 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 .chat-messages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;   /* スワイプ返信で吹き出しが右へ動いても横スクロールさせない */
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
@@ -1155,8 +1156,22 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 }
 
 /* メッセージバブル */
-.chat-msg { display: flex; gap: 10px; align-items: flex-end; }
+.chat-msg { display: flex; gap: 10px; align-items: flex-end; position: relative; touch-action: pan-y; }
 .chat-msg.mine { flex-direction: row-reverse; }
+/* スワイプ返信（chat-reply.js）: 右へ引くと左端から返信アイコンが出る */
+.chat-msg::before {
+  content: '\f3e5'; font-family: 'Font Awesome 6 Free'; font-weight: 900; font-size: 13px;
+  position: absolute; left: -34px; top: 50%; width: 26px; height: 26px; margin-top: -13px; border-radius: 50%;
+  display: grid; place-items: center; background: #e2e8f0; color: var(--muted); opacity: 0; transition: opacity .12s, transform .12s;
+}
+.chat-msg.swiping::before { opacity: .6; }
+.chat-msg.swipe-ready::before { opacity: 1; background: var(--blue); color: #fff; transform: scale(1.1); }
+/* 引用をタップして元メッセージへ飛んだときのハイライト */
+.chat-msg.flash .chat-bubble { animation: chatFlash 1.6s ease-out; }
+@keyframes chatFlash {
+  0%, 35% { box-shadow: 0 0 0 4px rgba(9,132,227,.45); }
+  100% { box-shadow: 0 0 0 4px transparent; }
+}
 
 .chat-bubble-wrap { display: flex; flex-direction: column; max-width: 78%; }
 .chat-msg.mine .chat-bubble-wrap { align-items: flex-end; }
@@ -1210,6 +1225,70 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 .chat-bubble-wrap:hover .chat-edit-btn { display: flex; }
 
 .chat-edited { font-size: 10px; font-style: italic; color: var(--muted); }
+
+.chat-reply-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px; height: 20px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--trans), background var(--trans);
+  margin-left: 2px;
+}
+.chat-reply-btn:hover { color: var(--blue); background: rgba(9,132,227,.12); }
+.chat-bubble-wrap:hover .chat-reply-btn { display: flex; }
+/* 長押し（スマホ）で開いた操作ボタン */
+.chat-msg.acts-open .chat-reply-btn,
+.chat-msg.acts-open .chat-edit-btn,
+.chat-msg.acts-open .chat-del-btn { display: flex; }
+
+/* 引用返信の引用元（吹き出しの中、本文の上） */
+.chat-quote {
+  display: flex; gap: 8px; align-items: center;
+  border-left: 3px solid var(--blue); background: rgba(9,132,227,.07);
+  border-radius: 0 8px 8px 0; padding: 4px 10px; margin-bottom: 7px;
+  font-size: 11.5px; line-height: 1.5; color: var(--muted); cursor: pointer;
+  transition: background var(--trans);
+}
+.chat-quote:hover { background: rgba(9,132,227,.13); }
+.chat-quote > i { font-size: 9px; flex-shrink: 0; color: var(--blue); }
+.chat-quote-img { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; flex-shrink: 0; margin: 0 !important; cursor: pointer; }
+.chat-quote-t { display: flex; flex-direction: column; min-width: 0; }
+.chat-quote b { color: var(--blue); font-weight: 700; }
+.chat-quote span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 自分の吹き出し（青地）の中では白系にする */
+.chat-msg.mine .chat-quote { border-left-color: rgba(255,255,255,.75); background: rgba(255,255,255,.18); color: rgba(255,255,255,.85); }
+.chat-msg.mine .chat-quote:hover { background: rgba(255,255,255,.28); }
+.chat-msg.mine .chat-quote b, .chat-msg.mine .chat-quote > i { color: #fff; }
+
+/* 入力欄の上に出す返信先 */
+.chat-reply-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(9,132,227,.06); border-left: 3px solid var(--blue);
+  border-radius: 0 8px 8px 0; padding: 6px 10px; margin-bottom: 8px;
+  font-size: 11.5px; line-height: 1.5; color: var(--muted);
+}
+.chat-reply-bar > i { flex-shrink: 0; color: var(--blue); }
+.chat-reply-img { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; flex-shrink: 0; border: 1px solid var(--border); }
+.chat-reply-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.chat-reply-bar b { color: var(--blue); }
+.chat-reply-bar span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-reply-cancel {
+  width: 24px; height: 24px; border-radius: 6px; border: none; background: none; cursor: pointer;
+  color: var(--muted); display: grid; place-items: center; flex-shrink: 0;
+}
+.chat-reply-cancel:hover { background: rgba(0,0,0,.06); color: var(--dark); }
+
+@media (hover: none) {
+  .chat-msg { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  .chat-msg textarea { -webkit-user-select: text; user-select: text; }
+  .chat-reply-btn, .chat-edit-btn, .chat-del-btn { width: 26px; height: 26px; font-size: 13px; }
+}
 
 /* 編集中バブル（自分の投稿は青地なので、入力欄まわりだけ白地に戻す。
    .chat-msg.mine .chat-bubble が後方に定義されているため mine 側も明示する） */
@@ -2272,11 +2351,25 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
 .cr-pinbar .ed:hover { color: var(--blue); }
 
 /* メッセージ */
-.cr-msgs { flex: 1; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 15px; background: #fdfdfe; }
+.cr-msgs { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px 18px; display: flex; flex-direction: column; gap: 15px; background: #fdfdfe; }
 .cr-msgs::-webkit-scrollbar { width: 8px; }
 .cr-msgs::-webkit-scrollbar-thumb { background: #dfe4ea; border-radius: 9px; }
 .cr-day { align-self: center; font-size: 10.5px; color: var(--muted); background: #eef1f4; padding: 3px 12px; border-radius: 999px; }
-.cr-msg { display: flex; gap: 10px; position: relative; }
+.cr-msg { display: flex; gap: 10px; position: relative; touch-action: pan-y; border-radius: 10px; }
+/* スワイプ返信: 右へ引くと左側から返信アイコンが顔を出す（chat-reply.js が transform を当てる） */
+.cr-msg::before {
+  content: '\f3e5'; font-family: 'Font Awesome 6 Free'; font-weight: 900; font-size: 13px;
+  position: absolute; left: -34px; top: 50%; width: 26px; height: 26px; margin-top: -13px; border-radius: 50%;
+  display: grid; place-items: center; background: #e9eef5; color: var(--muted); opacity: 0; transition: opacity .12s, transform .12s;
+}
+.cr-msg.swiping::before { opacity: .6; }
+.cr-msg.swipe-ready::before { opacity: 1; background: var(--blue); color: #fff; transform: scale(1.1); }
+/* 引用をタップして元メッセージへ飛んだときのハイライト */
+.cr-msg.flash { animation: crFlash 1.6s ease-out; }
+@keyframes crFlash {
+  0%, 35% { background: rgba(9,132,227,.13); box-shadow: 0 0 0 6px rgba(9,132,227,.13); }
+  100% { background: transparent; box-shadow: 0 0 0 6px transparent; }
+}
 .cr-msg-b { min-width: 0; flex: 1; }
 .cr-msg-h { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
 .cr-name { font-weight: 700; font-size: 12.5px; }
@@ -2295,8 +2388,13 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
 .cr-quote {
   display: flex; gap: 8px; align-items: center; border-left: 3px solid var(--blue); background: rgba(9,132,227,.05);
   border-radius: 0 7px 7px 0; padding: 4px 10px; margin: 3px 0 4px; font-size: 11.5px; color: var(--muted); max-width: 460px;
+  cursor: pointer; transition: background var(--trans);
 }
-.cr-quote b { color: var(--blue); font-weight: 700; flex-shrink: 0; }
+.cr-quote:hover { background: rgba(9,132,227,.11); }
+.cr-quote > i { font-size: 9px; flex-shrink: 0; }
+.cr-quote-img { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; flex-shrink: 0; border: 1px solid var(--border); background: #eef1f4; }
+.cr-quote-t { display: flex; flex-direction: column; min-width: 0; line-height: 1.5; }
+.cr-quote b { color: var(--blue); font-weight: 700; }
 .cr-quote span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cr-sys {
   align-self: center; display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted);
@@ -2308,7 +2406,7 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
   position: absolute; top: -10px; right: 0; display: none; gap: 2px; background: var(--white);
   border: 1px solid var(--border); border-radius: 9px; box-shadow: var(--shadow-sm); padding: 2px; z-index: 2;
 }
-.cr-msg:hover .cr-msg-acts { display: flex; }
+.cr-msg:hover .cr-msg-acts, .cr-msg.acts-open .cr-msg-acts { display: flex; }
 .cr-msg-acts button { width: 25px; height: 25px; border-radius: 7px; display: grid; place-items: center; color: var(--muted); font-size: 11.5px; }
 .cr-msg-acts button:hover { background: var(--surface); color: var(--blue); }
 .cr-msg-acts button.del:hover { color: var(--danger); }
@@ -2319,8 +2417,11 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
   display: flex; align-items: center; gap: 8px; background: rgba(9,132,227,.06); border-left: 3px solid var(--blue);
   border-radius: 0 7px 7px 0; padding: 5px 10px; margin-bottom: 7px; font-size: 11.5px; color: var(--muted);
 }
-.cr-reply-bar b { color: var(--blue); flex-shrink: 0; }
-.cr-reply-bar span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cr-reply-bar > i { flex-shrink: 0; color: var(--blue); }
+.cr-reply-img { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; flex-shrink: 0; border: 1px solid var(--border); }
+.cr-reply-t { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.5; }
+.cr-reply-bar b { color: var(--blue); }
+.cr-reply-bar span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cr-input-box { border: 1.5px solid var(--border); border-radius: 12px; padding: 9px 12px; display: flex; flex-direction: column; gap: 8px; background: var(--white); }
 .cr-input-box:focus-within { border-color: var(--blue); }
 .cr-textarea {
@@ -2368,6 +2469,12 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
 }
 
 /* ── 狭い画面：一覧と会話を切り替えて全幅で使う ── */
+@media (hover: none) {
+  .cr-msg { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  .cr-msg-acts { top: -16px; }
+  .cr-msg-acts button { width: 32px; height: 32px; font-size: 13px; }
+}
+
 @media (max-width: 900px) {
   .cr-list { width: 100% !important; border-right: none; }
   .cr-split { display: none; }

@@ -114,16 +114,19 @@
           <div class="cr-input">
             <div class="cr-reply-bar" id="replyBar" style="display:none;">
               <i class="fa-solid fa-reply"></i>
-              <b id="replyName"></b>
-              <span id="replyBody"></span>
-              <button class="cr-ib" id="replyCancel" style="width:22px;height:22px;"><i class="fa-solid fa-xmark"></i></button>
+              <img class="cr-reply-img" id="replyImg" alt="" style="display:none;">
+              <div class="cr-reply-t">
+                <b id="replyName"></b>
+                <span id="replyBody"></span>
+              </div>
+              <button class="cr-ib" id="replyCancel" title="返信をやめる（Esc）" style="width:22px;height:22px;"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="cr-preview" id="imgPreview" style="display:none;"></div>
             <div class="cr-input-box">
               <textarea class="cr-textarea" id="msgInput" rows="1" placeholder="メッセージを入力…"></textarea>
               <div class="cr-input-tools">
                 <label class="cr-ib" for="imgInput" title="画像を添付"><i class="fa-solid fa-image"></i></label>
-                <input type="file" id="imgInput" accept="image/*" style="display:none">
+                <input type="file" id="imgInput" accept="image/*" multiple style="display:none">
                 <span class="sp"></span>
                 <button class="cr-send" id="btnSend"><i class="fa-solid fa-paper-plane"></i></button>
               </div>
@@ -203,6 +206,7 @@
 
 <script src="../assets/js/auth.js"></script>
 <script src="../assets/js/api.js"></script>
+<script src="../assets/js/chat-reply.js"></script>
 <script src="../assets/js/pages/chat.js"></script>
 </body>
 </html>
