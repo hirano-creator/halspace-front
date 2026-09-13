@@ -224,7 +224,12 @@ async function _openFile(file) {
 
   if (ext === 'pdf') {
     await _openPdf(file, content, loading);
-  } else if (ext === 'dxf' || ext === 'dwg') {
+  } else if (ext === 'dwg') {
+    /* DWGはAutoCAD独自のバイナリ形式でDXFのようなテキスト解析ができないため、
+       DXFパーサーには渡さずダウンロード案内を表示する */
+    loading.remove();
+    Viewer._renderDwgNotice(content, file);
+  } else if (ext === 'dxf') {
     await _openDxf(file, content, loading, dxfTb);
   } else if (is3d) {
     await _open3D(file, content, loading, threejsTb, ext);
