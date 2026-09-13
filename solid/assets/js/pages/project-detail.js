@@ -2297,6 +2297,16 @@ function renderDeadlinePanel() {
   /* ヘッダー1行を組み立てる部品 */
   const chip = (label, value, color) =>
     `<span class="deadline-chip"><em>${label}</em><b${color ? ` style="color:${color};"` : ''}>${value}</b></span>`;
+  /* 希望納期チップ。発注時の入力ミスに後から気づいても直せるよう、クリックすると
+     ネイティブの日付ピッカー（ミニカレンダー）が開いて即保存できるようにする。
+     透明なdate inputをチップ全面に重ね、クリック領域＝入力欄そのものにする方式 */
+  const editableDeadlineChip = (label, value) => editable ? `
+    <span class="deadline-chip deadline-chip-editable" title="クリックして希望納期を変更">
+      <em>${label}</em><b>${value}</b>
+      <i class="fa-solid fa-pen deadline-chip-edit-icon"></i>
+      <input type="date" id="deadlineRequestedInput" class="deadline-chip-date-input"
+             value="${project.deadline_requested || project.deadline_at || ''}">
+    </span>` : chip(label, value);
   const arrow  = '<i class="fa-solid fa-arrow-right-long deadline-arrow"></i>';
   /* チップ類は1つの塊にまとめ、開閉ボタンはその外に置く。幅が足りないときは
      チップ側だけが折り返し、ボタンは行の右端に残る。ボタンだけが次の行へ落ちると
@@ -2314,17 +2324,45 @@ function renderDeadlinePanel() {
       if (!open) setTimeout(() => document.getElementById('replyDateInput')?.focus({ preventScroll:true }), 0);
     });
   };
+  /* 希望納期チップ（editableDeadlineChip）のdate inputにイベントを結ぶ。
+     クリック＝showPicker()でミニカレンダーを開き、選んだ瞬間に保存する
+     （変更ボタンを別途用意すると「変更した気になって押し忘れる」事故が起きるため）。 */
+  const bindDeadlineRequestedEdit = () => {
+    const input = document.getElementById('deadlineRequestedInput');
+    if (!input) return;
+    input.addEventListener('click', () => {
+      if (typeof input.showPicker === 'function') {
+        try { input.showPicker(); } catch {}
+      }
+    });
+    input.addEventListener('change', async () => {
+      const newDate = input.value;
+      const current = project.deadline_requested || project.deadline_at || '';
+      if (!newDate || newDate === current) return;
+      try {
+        const data = await api.patch(`/projects/${projId}/deadline-requested`, { deadline_requested: newDate });
+        project = data.project; comments = project.comments ?? [];
+      } catch {
+        showToast('希望納期の変更に失敗しました', 'danger');
+        input.value = current;
+        return;
+      }
+      renderDeadlinePanel(); renderInfo();
+      showToast('希望納期を変更しました', 'success');
+    });
+  };
 
   /* ── 発注者ビュー ── */
   /* 発注者への回答納期を出すのは社内側（HaLSpace運営会社・スーパー管理者）だけ。
      発注者会社の管理者(role=admin)は回答を受け取る側なので発注者ビューを見せる
      （チャンネル判定と同じ理由で hasAdminLevelAccess では判定しない）。 */
   if (!isModeler(user) && !isInternalAdmin(user)) {
-    head.innerHTML = chips(chip('希望納期', deadlineVal)
+    head.innerHTML = chips(editableDeadlineChip('希望納期', deadlineVal)
       + arrow
       + chip('回答納期', replyDate || '—', replyColor)
       + badge(rs));
     acts.innerHTML = '';   // 発注者は開閉ボタンを持たない
+    bindDeadlineRequestedEdit();
 
     let html = '';
     if (replyDate && replyNote) {
