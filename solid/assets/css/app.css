@@ -261,6 +261,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .btn-danger  { background: var(--danger); color: var(--white); }
 .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
 .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+/* 納品済みファイルを手直し対象にするボタン。ステータスバッジと同じアンバーで揃える */
+.btn-rework  { background: var(--s-rework); color: var(--white); }
+.btn-rework:hover { filter: brightness(0.92); }
 .btn-ghost   { background: transparent; color: var(--muted); }
 .btn-ghost:hover { color: var(--primary); background: rgba(255,107,53,.06); }
 .btn-sm { padding: 6px 14px; font-size: 13px; }
