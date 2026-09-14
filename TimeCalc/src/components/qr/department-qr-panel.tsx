@@ -23,12 +23,13 @@ type DepartmentForQr = {
 /**
  * リクエストヘッダーからベースURL（プロトコル+ホスト）を組み立てる。
  * 本番は Cloudflare Pages（timecalc-app.pages.dev）が Railway へ中継しており、
- * Host は Railway 側のホストになるため、中継が付ける X-Forwarded-Host を優先する
+ * Host は Railway 側のホストになるため、中継が付ける X-Original-Host を優先する
  * （QR に埋め込む URL・キオスク URL を利用者がアクセスしているホストで作るため）。
+ * X-Forwarded-Host は Railway のエッジが自分のホストで上書きするため使えない。
  */
 export async function getBaseUrl(): Promise<string> {
   const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const host = h.get("x-original-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   return `${proto}://${host}`;
 }

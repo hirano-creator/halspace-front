@@ -3,8 +3,9 @@
 // pages.dev のホスト名は Cloudflare 上のものにしか向けられないため、
 // 全リクエストをこの Function で受けて Railway のオリジンへそのまま転送する。
 // - メソッド・ヘッダ・ボディは透過（ボディはバッファせずストリームのまま）
-// - Host は転送先のものにし、元のホストは X-Forwarded-Host で渡す
-//   （アプリ側の getBaseUrl() がこれを見て QR の URL を pages.dev で組み立てる）
+// - Host は転送先のものにし、元のホストは X-Original-Host で渡す
+//   （アプリ側の getBaseUrl() がこれを見て QR の URL を pages.dev で組み立てる。
+//   X-Forwarded-Host は Railway のエッジが自分のホストで上書きするので使えない）
 // - 応答の Location が転送先ホストなら pages.dev に書き戻す
 // - /_next/static/*（ハッシュ付き・immutable）だけエッジでキャッシュする
 //
@@ -17,7 +18,7 @@ export async function onRequest({ request }) {
   const target = new URL(incoming.pathname + incoming.search, ORIGIN);
 
   const headers = new Headers(request.headers);
-  headers.set("X-Forwarded-Host", incoming.host);
+  headers.set("X-Original-Host", incoming.host);
   headers.set("X-Forwarded-Proto", "https");
   // Host は fetch が転送先に合わせて付け直すので消しておく
   headers.delete("host");
