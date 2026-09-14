@@ -1,53 +1,28 @@
-// PrismaClient の解決
+// PrismaClient の解決（PostgreSQL、driver adapter 経由）
 //
-// Cloudflare D1（Workers/OpenNext）では、DB はリクエストごとに渡される
-// バインディング（env.DB）経由でしか触れないため、従来の
-// `new PrismaClient()` を1度だけ生成するシングルトンは使えない。
+// プロセス内で1つの PrismaClient を使い回す通常のシングルトン。
+// `next dev` の HMR でモジュールが再評価されても接続プールが増殖しないよう
+// globalThis に退避する（本番では1回しか評価されないので実質ただの定数）。
 //
-// そこで getCloudflareContext() から env.DB を取り出して PrismaClient を作る。
-// 呼び出し側（約49ファイルの route/サービス層）を書き換えずに済むよう、
-// 既存の `prisma` エクスポート名を Proxy で温存する。
-//   - Proxy なので実際に prisma.xxx がアクセスされた瞬間だけ context を解決する
-//     → モジュール読み込み・ビルド時評価では context を触らず安全。
-//   - リクエストごとに1つの PrismaClient を env をキーにキャッシュ（WeakMap）。
-//     同一リクエスト内では env は同一参照なので使い回され、$transaction も
-//     同一クライアント上で完結する。
+// 生成時点では DB に接続しない（最初のクエリで接続する）ので、DATABASE_URL が無い
+// 環境（ユニットテスト等）でも import 自体は安全。未設定のまま実クエリを投げると
+// pg 側の接続エラーになる。
+//
+// 呼び出し側（route / サービス層）は従来どおり `prisma` を import するだけでよい。
 
 import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaD1 } from "@prisma/adapter-d1";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-// リクエストごとに一意なコンテキストオブジェクトを鍵にした PrismaClient キャッシュ。
-// 鍵はリクエスト終了で参照が消えるため WeakMap なら自動で解放される。
-//
-// 重要: env をキーにしてはいけない。env は同一 isolate 内でリクエスト間に
-// 共有されるため、PrismaClient がリクエストを跨いで使い回され、
-// 「A promise was resolved from a different request context」警告とともに
-// 継続がキャンセルされ、応答がハングする（Workers 側が打ち切って500になる）。
-//
-// キーには getCloudflareContext() の戻り値そのもの（OpenNext が
-// AsyncLocalStorage に積む { env, ctx, cf } のストア）を使う。このオブジェクトは
-// リクエストごとに必ず新規生成されるため、ExecutionContext の実装差に関係なく
-// リクエストスコープに閉じられる。
-const clientCache = new WeakMap<object, PrismaClient>();
+const globalForPrisma = globalThis as unknown as { __timecalcPrisma?: PrismaClient };
 
-function resolvePrisma(): PrismaClient {
-  const context = getCloudflareContext();
-  const key = context as unknown as object;
-  let client = clientCache.get(key);
-  if (!client) {
-    // env.DB は wrangler.jsonc の d1_databases[].binding = "DB" に対応
-    const adapter = new PrismaD1((context.env as unknown as { DB: D1Database }).DB);
-    client = new PrismaClient({ adapter });
-    clientCache.set(key, client);
-  }
-  return client;
+function createPrisma(): PrismaClient {
+  return new PrismaClient({
+    adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+  });
 }
 
-export const prisma = new Proxy({} as PrismaClient, {
-  get(_target, prop, receiver) {
-    const client = resolvePrisma();
-    const value = Reflect.get(client, prop, receiver);
-    return typeof value === "function" ? (value as (...args: unknown[]) => unknown).bind(client) : value;
-  },
-});
+export const prisma: PrismaClient = globalForPrisma.__timecalcPrisma ?? createPrisma();
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.__timecalcPrisma = prisma;
+}

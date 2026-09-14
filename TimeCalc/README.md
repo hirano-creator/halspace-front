@@ -7,18 +7,29 @@ Square タイムカードのエクスポート CSV を取り込み、自社ル�
 ## 技術構成
 
 - **フロント/バック**: Next.js (App Router) + React + TypeScript + Tailwind CSS
-- **DB**: SQLite（開発）→ PostgreSQL（本番想定）
-- **ORM**: Prisma
-- **認証**: JWT（jose）+ httpOnly Cookie、パスワードは bcrypt でハッシュ化
+- **DB**: PostgreSQL（開発・本番とも。ローカルは `prisma dev` のローカル Prisma Postgres）
+- **ORM**: Prisma（driver adapter `@prisma/adapter-pg`、engineType="client"）
+- **認証**: JWT（jose）を sessionStorage の Bearer トークンで送る。パスワードは bcrypt でハッシュ化
+- **本番**: Railway（Docker、`Dockerfile` / `docker/entrypoint.sh`）
 
 ## セットアップ
 
 ```bash
 npm install
-npx prisma migrate dev   # DB作成（prisma/dev.db）
+npm run db:dev           # ローカル Prisma Postgres を起動（表示される TCP 接続文字列を .env の DATABASE_URL に）
+npx prisma migrate dev   # テーブル作成
 npm run db:seed          # 初期データ投入
 npm run dev              # http://localhost:3000
 ```
+
+`.env` の例（`npm run db:dev` の出力に合わせる）:
+
+```
+DATABASE_URL="postgres://postgres:postgres@localhost:51214/template1?sslmode=disable"
+SESSION_SECRET="ローカル用の適当な文字列"
+```
+
+2回目以降は `npx prisma dev start timecalc`（または `npm run db:dev`）で同じ DB が再開する。
 
 ### 初期ログイン（シードデータ）
 
@@ -70,42 +81,34 @@ npm run dev              # http://localhost:3000
 - 氏名は「姓」「名」の2列に分割
 - 末尾の「合計」行は取込時に自動スキップされる
 
-## Netlify へのデプロイ
+## 本番（Railway）
 
-Netlify はサーバーレスのため SQLite は使えない。本番 DB は PostgreSQL
-（[Neon](https://neon.tech) 無料枠 / Railway など）を用意する。
-ローカルは SQLite のまま、Netlify ビルド時に
-`scripts/gen-postgres-schema.mjs` が PostgreSQL 用スキーマを自動生成して使う
-（`netlify.toml` の `npm run netlify:build`）。
+Railway プロジェクト `poetic-intuition` の **サービス `timecalc`** ＋ **Postgres `timecalc-db`**。
+GitHub リポジトリ `halspace-front` の **Root Directory `TimeCalc`** から Dockerfile でビルドされ、
+対象ブランチへ push すると自動でデプロイされる（Watch Paths `TimeCalc/**`）。
 
-### 手順
+- 起動時に `docker/entrypoint.sh` が `prisma migrate deploy` を流してから Next.js を起動する。
+  スキーマ変更はマイグレーションをコミットして push するだけでよい。
+- 環境変数: `DATABASE_URL`（`${{timecalc-db.DATABASE_URL}}` を参照）、`SESSION_SECRET`（長いランダム値）
+- 反映確認: `railway status` が `Online`、`railway logs -d` に `[web] prisma migrate deploy` と起動ログが出ること
+- 旧URL `https://timecalc.space-app.workers.dev` は新URLへ 301 リダイレクトする Worker だけを残している
 
-1. **PostgreSQL を用意** — Neon などで DB を作成し、接続文字列を控える
-2. **Netlify にサイト作成** — リポジトリを接続し、
-   **Base directory を `TimeCalc`** に設定（モノレポのため必須。
-   Build command / Publish directory は netlify.toml とプラグインが自動設定）
-3. **環境変数を設定**（Site settings → Environment variables）
-   - `DATABASE_URL` = PostgreSQL 接続文字列
-   - `SESSION_SECRET` = 十分に長いランダム値（例: `openssl rand -base64 48`）
-4. **デプロイ** — push すると自動ビルド。ビルド中に `prisma db push` で
-   テーブルが自動作成される
-5. **初期データ投入（初回のみ）** — ローカルから本番 DB に向けてシードを実行:
+### Cloudflare D1 からのデータ移行（移行時の1回限り）
 
-   ```powershell
-   $env:DATABASE_URL = "<PostgreSQLの接続文字列>"
-   npm run db:seed:prod
-   npx prisma generate   # ローカル用(SQLite)クライアントに戻す
-   ```
-
-CLI 派なら `npx netlify-cli` でも可（`login` → `init` → `env:set` → `deploy --build --prod`）。
+```bash
+npx wrangler@4 d1 export timecalc --remote --output=d1.sql
+node --env-file=.env --import tsx scripts/migrate-d1-to-postgres.mjs d1.sql          # 件数確認
+node --env-file=.env --import tsx scripts/migrate-d1-to-postgres.mjs d1.sql --write  # 投入
+```
 
 ## 開発コマンド
 
 ```bash
 npm run dev         # 開発サーバー
-npm run build       # 本番ビルド
+npm run build       # 本番ビルド（.next/standalone を出力）
 npm start           # 本番サーバー
 npm test            # 単体テスト（vitest）
+npm run db:dev      # ローカル Prisma Postgres の起動
 npm run db:migrate  # マイグレーション
 npm run db:seed     # シード
 ```

@@ -1,5 +1,6 @@
 // 初期データ投入スクリプト
-// 実行: npx prisma db seed
+// 実行: npx prisma db seed（package.json の prisma.seed 経由で tsx が走る。
+// 生成済みクライアントが TypeScript のため、素の node ではなく tsx で実行する）
 //
 // 投入内容:
 // - 部署（製造部・総務部）
@@ -8,11 +9,17 @@
 //
 // 環境変数 SEED_MINIMAL=1 を付けると本番向けに
 // 部署と管理者アカウントのみ投入する（ダミー社員・サンプル勤怠なし）
+//
+// 接続先は DATABASE_URL（PostgreSQL）。アプリ本体（src/lib/db.ts）と同じく
+// 生成済みクライアント（src/generated/prisma）＋ @prisma/adapter-pg で繋ぐ。
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 
 async function main() {
   // グループ会社（設定画面の会社選択タブに表示される）

@@ -1,0 +1,4 @@
+# Docker 内で実行するシェルスクリプトは Windows でチェックアウトしても LF のままにする
+# （CRLF になると `#!/bin/sh\r` で起動に失敗する）
+*.sh text eol=lf
+Dockerfile text eol=lf

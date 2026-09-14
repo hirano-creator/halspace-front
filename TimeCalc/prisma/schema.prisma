@@ -1,22 +1,22 @@
 // TimeCalc データベーススキーマ
 //
-// 本番環境へ移行する際は provider を "postgresql" に変更し、
-// DATABASE_URL を PostgreSQL の接続文字列に差し替えて
-// `npx prisma migrate deploy` を実行する。
+// 本番は Railway の PostgreSQL。ローカル開発も PostgreSQL（`npx prisma dev` のローカル
+// Prisma Postgres、または Railway の dev 用DB）で、SQLite/D1 はもう使わない。
+// マイグレーションは起動時に `prisma migrate deploy` で適用する（docker/entrypoint.sh）。
 
 generator client {
-  // Cloudflare D1（Workers）向けの新 generator。runtime="cloudflare" により
-  // WASM を ESM import する形で生成され、OpenNext/wrangler がバンドルに含められる
-  // （旧 prisma-client-js + adapter では query_compiler_bg.wasm がバンドル漏れする）。
   // 生成物は src/generated/prisma に出力し、アプリからはそこを import する。
-  // Netlify + Neon 経路は prisma/schema.postgres.prisma 側で別管理。
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
-  runtime  = "cloudflare"
+  // DB アクセスは driver adapter（@prisma/adapter-pg）経由（src/lib/db.ts）。
+  // engineType="client" は Rust エンジン不要の構成（D1 時代と同じクエリ実装）。
+  // ネイティブバイナリ・OpenSSL への依存がなくなり、Docker イメージが薄く保てる。
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  runtime    = "nodejs"
+  engineType = "client"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

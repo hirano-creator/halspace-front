@@ -12,6 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Prisma の生成物（大きいので lint 対象にするとヒープ不足で落ちる）
+    "src/generated/**",
+    // 旧構成（Cloudflare Workers / Netlify）のビルド成果物が残っていても拾わない
+    ".open-next/**",
+    ".netlify/**",
+    ".wrangler/**",
+    "test-results/**",
   ]),
 ]);
 

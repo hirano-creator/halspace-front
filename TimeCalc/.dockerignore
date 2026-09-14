@@ -1,0 +1,18 @@
+# ビルドコンテキストに含めないもの（イメージの肥大化・秘密情報の混入を防ぐ）
+node_modules
+.next
+.git
+.env
+.env.*
+.wrangler
+.open-next
+.netlify
+test-results
+playwright-report
+e2e
+samples
+docs
+scripts/server.log
+*.md
+.claude
+prisma/dev.db
