@@ -192,9 +192,9 @@ export default function AttendancePage() {
               <th className={thClass}>氏名</th>
               <th className={thClass}>部署</th>
               <th className={`${thClass} text-right`}>勤務日数</th>
+              <th className={`${thClass} text-right`}>控除時間</th>
               <th className={`${thClass} text-right`}>勤務時間</th>
-              <th className={`${thClass} text-right`}>早出残業</th>
-              <th className={`${thClass} text-right`}>残業時間</th>
+              <th className={`${thClass} text-right`}>法定外残業</th>
               {hasWeekly && <th className={`${thClass} text-right`}>36H超44H以内</th>}
               {hasWeekly && <th className={`${thClass} text-right`}>44H超</th>}
               <th className={`${thClass} text-right`}>遅刻</th>
@@ -223,22 +223,24 @@ export default function AttendancePage() {
                   </td>
                   <td className={`${tdClass} text-muted`}>{s.departmentName ?? "-"}</td>
                   <td className={`${tdClass} whitespace-nowrap text-right`}>{s.summary.workDays}日</td>
+                  {/* 控除時間＝実外出＋遅刻＋早退（項目ごとに切り上げた合計）の月度累計 */}
+                  <td
+                    className={`${tdClass} whitespace-nowrap text-right ${
+                      s.deductionMinutes > 0 ? "font-medium text-orange-600" : "text-muted"
+                    }`}
+                  >
+                    {formatMinutes(s.deductionMinutes)}
+                  </td>
                   <td className={`${tdClass} whitespace-nowrap text-right`}>
                     {formatMinutes(s.summary.normalMinutes + (s.summary.earlyMinutes - s.summary.earlyOvertimeMinutes))}
                   </td>
+                  {/* 法定外残業＝日ごとの「実働 − 法定勤務時間」の超過分だけの累計 */}
                   <td
                     className={`${tdClass} whitespace-nowrap text-right ${
-                      s.summary.earlyOvertimeMinutes > 0 ? "font-medium text-amber-600" : "text-muted"
+                      s.summary.legalOvertimeMinutes > 0 ? "font-medium text-amber-600" : "text-muted"
                     }`}
                   >
-                    {formatMinutes(s.summary.earlyOvertimeMinutes)}
-                  </td>
-                  <td
-                    className={`${tdClass} whitespace-nowrap text-right ${
-                      s.summary.overtimeMinutes > 0 ? "font-medium text-amber-600" : "text-muted"
-                    }`}
-                  >
-                    {formatMinutes(s.summary.overtimeMinutes)}
+                    {formatMinutes(s.summary.legalOvertimeMinutes)}
                   </td>
                   {/* 週単位管理の会社のみ値を持つ。日次判定の会社は「-」で区別する */}
                   {hasWeekly && (

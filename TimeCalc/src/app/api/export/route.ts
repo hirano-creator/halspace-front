@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
         "部署",
         ...(showMoney ? ["時給"] : []),
         "勤務日数",
+        "控除時間",
         "勤務時間",
         "法定外残業",
         "早出残業",
@@ -84,6 +85,8 @@ export async function GET(request: NextRequest) {
         s.departmentName ?? "",
         ...(showMoney ? [s.hourlyWage] : []),
         s.summary.workDays,
+        // 控除時間＝実外出＋遅刻＋早退（項目ごとに切り上げ）の月度累計
+        minutesToHHMM(s.deductionMinutes),
         // 週単位管理では早出・残業を区分しないため、総労働時間をそのまま勤務時間にする
         minutesToHHMM(
           s.weeklyTotals

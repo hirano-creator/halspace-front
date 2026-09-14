@@ -7,6 +7,8 @@ import { attendanceScope } from "@/lib/auth/guard";
 import { periodRange } from "@/lib/utils/time";
 import type { SessionUser } from "@/lib/auth/session";
 import { calcDaily, calcDailyPay, calcWeekly, calcWeeklyPay, summarize, summarizeWeeks } from "./calculator";
+import { dailyDeductionMinutes, resolveOuting } from "./deduction";
+import type { ClockEventType, RawClockEvent } from "./clock";
 import type {
   DailyCalcResult,
   DailyPay,
@@ -46,12 +48,18 @@ export interface AttendanceWithCalc {
   clockIn: string | null;
   clockOut: string | null;
   breakMinutes: number;
+  /** 書き込み経路（"MANUAL" | "CSV" | "CLOCK"）。控除時間の外出の取り方が変わる */
+  source: string;
+  outingStart: string | null;
+  outingEnd: string | null;
   note: string | null;
   lateReason: string | null;
   earlyLeaveReason: string | null;
   hourlyWage: number;
   calc: DailyCalcResult;
   pay: DailyPay;
+  /** 控除時間（分）＝実外出＋遅刻＋早退。社員詳細・マイページと同じ算出 */
+  deductionMinutes: number;
 }
 
 /** 社員ごとの月次集計 */
@@ -62,6 +70,11 @@ export interface EmployeeMonthlySummary {
   departmentName: string | null;
   hourlyWage: number;
   summary: MonthlySummary;
+  /**
+   * 控除時間の月度合計（分）。日ごとの控除時間（実外出＋遅刻＋早退を項目ごとに
+   * 切り上げた合計）の累計で、MonthlySummary からは導けないため別に持つ。
+   */
+  deductionMinutes: number;
   /** 月次金額（日額の合計）。週次管理の社員は割増分が weeklyPremiumPay 側に入る */
   pay: DailyPay;
   /** 所属会社が週単位管理かどうか */
@@ -136,6 +149,26 @@ export async function getMonthlyAttendance(
     orderBy: [{ date: "asc" }, { user: { employeeCode: "asc" } }],
   });
 
+  // 控除時間の算出には外出区間が要る。打刻由来（source="CLOCK"）の日は Attendance に
+  // 外出時刻が残らないため、打刻ログ（ClockEvent）から復元する。
+  // 打刻由来の行が1件もない月はDB往復を省く。
+  const clockUserIds = [
+    ...new Set(records.filter((r) => r.source === "CLOCK").map((r) => r.userId)),
+  ];
+  const eventsByUserDate = new Map<string, RawClockEvent[]>();
+  if (clockUserIds.length > 0) {
+    const events = await prisma.clockEvent.findMany({
+      where: { userId: { in: clockUserIds }, date: { gte: fetchStart, lte: fetchEnd } },
+      orderBy: { timestamp: "asc" },
+    });
+    for (const e of events) {
+      const key = `${e.userId} ${e.date}`;
+      const list = eventsByUserDate.get(key) ?? [];
+      list.push({ type: e.type as ClockEventType, time: e.time });
+      eventsByUserDate.set(key, list);
+    }
+  }
+
   const rows: AttendanceWithCalc[] = [];
   for (const r of records) {
     const companyId = r.user.department?.companyId ?? null;
@@ -159,12 +192,21 @@ export async function getMonthlyAttendance(
       clockIn: r.clockIn,
       clockOut: r.clockOut,
       breakMinutes: r.breakMinutes,
+      source: r.source,
+      outingStart: r.outingStart,
+      outingEnd: r.outingEnd,
       note: r.note,
       lateReason: r.lateReason,
       earlyLeaveReason: r.earlyLeaveReason,
       hourlyWage: r.user.hourlyWage,
       calc,
       pay: calcDailyPay(calc, r.user.hourlyWage, rowRules),
+      deductionMinutes: dailyDeductionMinutes(
+        r,
+        resolveOuting(r, eventsByUserDate.get(`${r.userId} ${r.date}`) ?? []),
+        calc.error === null,
+        rowRules,
+      ),
     });
   }
 
@@ -185,10 +227,13 @@ export async function getMonthlySummaries(
   const allRules = knownRules ?? (await getAllWorkRules());
   const { rows } = await getMonthlyAttendance(viewer, yearMonth, filter, allRules);
 
-  const byUser = new Map<
-    string,
-    { meta: AttendanceWithCalc; days: { date: string; calc: DailyCalcResult }[]; pay: DailyPay }
-  >();
+  type UserEntry = {
+    meta: AttendanceWithCalc;
+    days: { date: string; calc: DailyCalcResult }[];
+    pay: DailyPay;
+    deductionMinutes: number;
+  };
+  const byUser = new Map<string, UserEntry>();
   for (const row of rows) {
     const entry =
       byUser.get(row.userId) ??
@@ -196,12 +241,10 @@ export async function getMonthlySummaries(
         meta: row,
         days: [],
         pay: { normalPay: 0, earlyPay: 0, overtimePay: 0, totalPay: 0, basePay: 0, premiumPay: 0 },
-      } as {
-        meta: AttendanceWithCalc;
-        days: { date: string; calc: DailyCalcResult }[];
-        pay: DailyPay;
-      });
+        deductionMinutes: 0,
+      } as UserEntry);
     entry.days.push({ date: row.date, calc: row.calc });
+    entry.deductionMinutes += row.deductionMinutes;
     entry.pay.normalPay += row.pay.normalPay;
     entry.pay.earlyPay += row.pay.earlyPay;
     entry.pay.overtimePay += row.pay.overtimePay;
@@ -212,7 +255,7 @@ export async function getMonthlySummaries(
   }
 
   return [...byUser.values()]
-    .map(({ meta, days, pay }) => {
+    .map(({ meta, days, pay, deductionMinutes }) => {
       const userRules = workRulesFor(allRules, meta.companyId);
       const weeks = userRules.weekly.enabled
         ? calcWeekly(days, periodRange(yearMonth, userRules.closingDay), userRules)
@@ -230,6 +273,7 @@ export async function getMonthlySummaries(
         departmentName: meta.departmentName,
         hourlyWage: meta.hourlyWage,
         summary: summarize(days.map((d) => d.calc), userRules),
+        deductionMinutes,
         pay: {
           ...pay,
           premiumPay: pay.premiumPay + weeklyPremiumPay,

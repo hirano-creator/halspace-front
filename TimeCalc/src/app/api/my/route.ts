@@ -7,20 +7,14 @@ import { requireApiUser } from "@/lib/auth/api-guard";
 import { resolveFeatures } from "@/lib/auth/features";
 import {
   calcDaily,
-  calcDeductionMinutes,
   calcLegalOvertime,
   calcWeekly,
   summarize,
   summarizeWeeks,
 } from "@/lib/attendance/calculator";
 import type { DailyCalcResult } from "@/lib/attendance/types";
-import {
-  deriveDailyFromEvents,
-  outingsFromEvents,
-  outingIntervalsFromEvents,
-  totalOutingMinutes,
-  type ClockEventType,
-} from "@/lib/attendance/clock";
+import { deriveDailyFromEvents, outingsFromEvents, type ClockEventType } from "@/lib/attendance/clock";
+import { dailyDeductionMinutes, resolveOuting } from "@/lib/attendance/deduction";
 import { getAllWorkRules, workRulesFor } from "@/lib/settings";
 import {
   currentPeriod,
@@ -143,30 +137,10 @@ export async function GET(request: Request) {
     // 「控除時間」欄は実外出・遅刻・早退それぞれ休憩時間帯との重複を除いて丸め単位で
     // 切り上げたものの合計（calcDeductionMinutes）。CSV取込は外出区間の時刻が不明なため
     // 休憩重複は判定できず、breakMinutesをそのまま実外出として扱う。
-    let actualOutingMinutes = 0;
-    let outingIntervals: { start: string; end: string }[] = [];
-    if (record) {
-      if (record.source === "CSV") {
-        actualOutingMinutes = record.breakMinutes;
-      } else if (record.source === "CLOCK") {
-        outingIntervals = outingIntervalsFromEvents(eventsByDate.get(date) ?? []);
-        actualOutingMinutes = totalOutingMinutes(outingIntervals);
-      } else if (record.outingStart && record.outingEnd) {
-        outingIntervals = [{ start: record.outingStart, end: record.outingEnd }];
-        actualOutingMinutes = totalOutingMinutes(outingIntervals);
-      }
-    }
-    const deductionMinutes = record
-      ? calcDeductionMinutes(
-          {
-            outingIntervals,
-            outingMinutesFallback: record.source === "CSV" ? record.breakMinutes : 0,
-            rawClockIn: ok ? record.clockIn : null,
-            rawClockOut: ok ? record.clockOut : null,
-          },
-          rules,
-        )
-      : 0;
+    const outing = record ? resolveOuting(record, eventsByDate.get(date) ?? []) : null;
+    const actualOutingMinutes = outing?.actualMinutes ?? 0;
+    const deductionMinutes =
+      record && outing ? dailyDeductionMinutes(record, outing, Boolean(ok), rules) : 0;
     if (record) monthTotal.deductionMinutes += deductionMinutes;
 
     rows.push({
