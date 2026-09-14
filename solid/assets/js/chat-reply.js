@@ -17,13 +17,17 @@ const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 const escChatText = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** 絵文字ごとに集計済みのリアクション一覧（{emoji,count,mine,users}[]）をチップ行のHTMLにする。
- *  チップをタップすると users（反応した人の名前）を吹き出しで表示する。0件なら何も出さない */
+ *  チップをタップすると users（反応した人の名前）を吹き出しで表示する。自分の反応（mine）には
+ *  その吹き出しの中に削除ボタンも出す。0件なら何も出さない */
 function reactionsHtml(reactions) {
   if (!reactions || !reactions.length) return '';
   return `<div class="msg-reactions">${reactions.map(r => `
     <span class="msg-reaction-wrap">
       <button type="button" class="msg-reaction${r.mine ? ' mine' : ''}" data-react-emoji="${r.emoji}">${r.emoji}<span>${r.count}</span></button>
-      <div class="msg-react-names hidden">${escChatText((r.users || []).join('、'))}</div>
+      <div class="msg-react-names hidden">
+        <span class="names-text">${escChatText((r.users || []).join('、'))}</span>
+        ${r.mine ? `<button type="button" class="msg-react-remove" data-remove-emoji="${r.emoji}">自分の反応を削除</button>` : ''}
+      </div>
     </span>`
   ).join('')}</div>`;
 }
@@ -47,6 +51,14 @@ function initChatReactions(container, onPick) {
       const id = pick.closest('[data-id]')?.dataset.id;
       pick.closest('.msg-react-picker')?.classList.add('hidden');
       if (id) onPick(id, pick.dataset.pickEmoji);
+      return;
+    }
+    const remove = e.target.closest('[data-remove-emoji]');
+    if (remove) {
+      const id = remove.closest('[data-id]')?.dataset.id;
+      remove.closest('.msg-react-names')?.classList.add('hidden');
+      /* 既に自分が選んでいる絵文字を再送信すると解除になる（toggleReactionの仕様） */
+      if (id) onPick(id, remove.dataset.removeEmoji);
       return;
     }
     const chip = e.target.closest('[data-react-emoji]');
