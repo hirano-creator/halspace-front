@@ -2450,6 +2450,7 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
 .chat-msg.mine .chat-bubble-wrap .msg-react-picker { left: auto; right: 0; }
 
 .msg-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.msg-reaction-wrap { position: relative; display: inline-flex; }
 .msg-reaction {
   display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; line-height: 1.2;
   padding: 3px 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border);
@@ -2458,6 +2459,19 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
 .msg-reaction:hover { background: #eef1f4; }
 .msg-reaction.mine { background: rgba(9,132,227,.12); border-color: rgba(9,132,227,.45); color: var(--blue); font-weight: 700; }
 .msg-reaction span { font-size: 10.5px; }
+
+/* チップをタップすると出る「誰が反応したか」の吹き出し */
+.msg-react-names {
+  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+  margin-bottom: 7px; white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis;
+  background: var(--dark); color: #fff; font-size: 11px; line-height: 1.4;
+  padding: 5px 10px; border-radius: 7px; box-shadow: var(--shadow-sm); z-index: 4;
+}
+.msg-react-names.hidden { display: none; }
+.msg-react-names::after {
+  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: var(--dark);
+}
 
 /* 狭い画面ではタップしやすいよう大きめに */
 @media (hover: none) {
