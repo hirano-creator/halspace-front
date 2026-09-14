@@ -1,9 +1,65 @@
 'use strict';
-/* チャットの返信まわりで chat.html と project-detail.html が共用する小さなヘルパー。
+/* チャットの返信・リアクションまわりで chat.html と project-detail.html が共用する小さなヘルパー。
    LINE と同じ操作感を狙っている:
      - スマホ: メッセージを右へスワイプすると返信、長押しで操作ボタンを出す
      - PC   : ホバーで出る操作ボタン（各ページのCSS側）
-     - 引用ブロックをタップすると元のメッセージまでスクロールして光らせる */
+     - 引用ブロックをタップすると元のメッセージまでスクロールして光らせる
+     - リアクションボタンで絵文字ピッカーを開閉、絵文字チップ/ピッカーのタップで送受信（各ページ側でAPIを叩く） */
+
+/** リアクションで選べる絵文字。バックエンド（CommentController/SolidChatController の
+ *  ALLOWED_REACTIONS）と同じ6種で揃えておくこと */
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+/** 絵文字ごとに集計済みのリアクション一覧（{emoji,count,mine}[]）をチップ行のHTMLにする。
+ *  0件なら何も出さない */
+function reactionsHtml(reactions) {
+  if (!reactions || !reactions.length) return '';
+  return `<div class="msg-reactions">${reactions.map(r =>
+    `<button type="button" class="msg-reaction${r.mine ? ' mine' : ''}" data-react-emoji="${r.emoji}" title="${r.mine ? 'タップで解除' : 'タップで自分も反応'}">${r.emoji}<span>${r.count}</span></button>`
+  ).join('')}</div>`;
+}
+
+/** 絵文字選択ポップオーバー（既定では非表示）。react ボタンの隣に置く想定 */
+function reactionPickerHtml() {
+  return `<div class="msg-react-picker hidden">${REACTION_EMOJIS.map(e =>
+    `<button type="button" data-pick-emoji="${e}">${e}</button>`).join('')}</div>`;
+}
+
+/**
+ * リアクションのクリックをコンテナに仕込む（イベント委譲。メッセージは再描画されるため1回だけ呼べばよい）。
+ * @param {HTMLElement} container メッセージ一覧
+ * @param {(id:string, emoji:string)=>void} onToggle 絵文字を選んだ/チップを押したときの処理
+ *   （id は closest('[data-id]') から拾う。呼び出し側でAPIを叩いてから再描画する）
+ */
+function initChatReactions(container, onToggle) {
+  container.addEventListener('click', e => {
+    const pick = e.target.closest('[data-pick-emoji]');
+    if (pick) {
+      const id = pick.closest('[data-id]')?.dataset.id;
+      pick.closest('.msg-react-picker')?.classList.add('hidden');
+      if (id) onToggle(id, pick.dataset.pickEmoji);
+      return;
+    }
+    const chip = e.target.closest('[data-react-emoji]');
+    if (chip) {
+      const id = chip.closest('[data-id]')?.dataset.id;
+      if (id) onToggle(id, chip.dataset.reactEmoji);
+      return;
+    }
+    const opener = e.target.closest('[data-react-open]');
+    if (opener) {
+      const picker = opener.closest('[data-id]')?.querySelector('.msg-react-picker');
+      const wasHidden = picker?.classList.contains('hidden');
+      container.querySelectorAll('.msg-react-picker').forEach(p => p.classList.add('hidden'));
+      if (picker && wasHidden) picker.classList.remove('hidden');
+      return;
+    }
+    /* ピッカーの外をクリックしたら閉じる */
+    if (!e.target.closest('.msg-react-picker')) {
+      container.querySelectorAll('.msg-react-picker').forEach(p => p.classList.add('hidden'));
+    }
+  });
+}
 
 /**
  * スワイプ返信と長押しメニューをコンテナに仕込む（メッセージは再描画されるのでイベント委譲）。
