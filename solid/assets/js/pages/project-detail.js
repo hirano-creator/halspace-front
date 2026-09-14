@@ -1765,6 +1765,9 @@ function renderChat() {
     const replyBtn = !isEditing
       ? `<button class="chat-reply-btn" data-reply-id="${c.id}" title="返信"><i class="fa-solid fa-reply"></i></button>`
       : '';
+    const reactBtn = !isEditing
+      ? `<button class="chat-react-btn" data-react-open title="リアクション"><i class="fa-regular fa-face-smile"></i></button>`
+      : '';
 
     const bubbleHtml = isEditing
       ? `<div class="chat-bubble chat-bubble-editing">
@@ -1787,10 +1790,13 @@ function renderChat() {
           <span>${(c.created_at||'').split(' ')[1] || c.created_at || ''}</span>
           ${editedMark}
           ${replyBtn}
+          ${reactBtn}
           ${editBtn}
           ${delBtn}
         </div>
+        ${!isEditing ? reactionPickerHtml() : ''}
         ${bubbleHtml}
+        ${!isEditing ? reactionsHtml(c.reactions) : ''}
       </div>
       ${isMine ? `<div class="chat-avatar ${avatarCls(role, solidType)}">${userName.charAt(0)}</div>` : ''}
     </div>`;
@@ -1970,6 +1976,19 @@ async function saveEditComment() {
   }
 }
 
+/* リアクション絵文字（LINE風）。同じ絵文字を選び直すと解除、別の絵文字なら差し替え */
+async function toggleReaction(commentId, emoji) {
+  const target = comments.find(c => Number(c.id) === Number(commentId));
+  if (!target) return;
+  try {
+    const data = await api.post(`/comments/${commentId}/reactions`, { emoji });
+    target.reactions = data?.reactions ?? [];
+    renderChat();
+  } catch (e) {
+    showToast(e.message || 'リアクションの送信に失敗しました', 'error');
+  }
+}
+
 async function deleteComment(commentId) {
   if (!confirm('このメッセージを削除しますか？')) return;
   try {
@@ -2080,6 +2099,8 @@ initChatGestures(document.getElementById('chatMessages'), {
   onReply: el => startReply(Number(el.dataset.id)),
   onLongPress: el => el.classList.toggle('acts-open'),
 });
+/* リアクション絵文字（chat-reply.js） */
+initChatReactions(document.getElementById('chatMessages'), toggleReaction);
 
 function openLightbox(src) {
   document.getElementById('imgLightboxImg').src = src;

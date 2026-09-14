@@ -292,10 +292,12 @@ function messageHtml(m, prevDate) {
     <div class="cr-msg-b">
       <div class="cr-msg-acts">
         <button data-act="reply" title="返信"><i class="fa-solid fa-reply"></i></button>
+        <button data-react-open title="リアクション"><i class="fa-regular fa-face-smile"></i></button>
         ${m.body ? `<button data-act="copy" title="本文をコピー"><i class="fa-regular fa-copy"></i></button>` : ''}
         ${mine ? `<button data-act="edit" title="編集"><i class="fa-solid fa-pen"></i></button>` : ''}
         ${mine || isInternalAdmin(user) ? `<button data-act="del" class="del" title="削除"><i class="fa-solid fa-trash-can"></i></button>` : ''}
       </div>
+      ${reactionPickerHtml()}
       <div class="cr-msg-h">
         <span class="cr-name">${esc(m.user_name)}</span>
         ${roleTag(m)}
@@ -305,6 +307,7 @@ function messageHtml(m, prevDate) {
       ${m.quote ? quoteHtml(m.quote) : ''}
       ${m.body ? `<div class="cr-text">${body}</div>` : ''}
       ${imagesHtml(m)}
+      ${reactionsHtml(m.reactions)}
     </div>
   </div>`);
 
@@ -380,6 +383,19 @@ function clearReply() {
   $('replyImg').removeAttribute('src');
 }
 $('replyCancel').addEventListener('click', clearReply);
+
+/* リアクションの切り替え。物件チャット（comments）とスペース/グループ/DM（chat messages）で
+   エンドポイントが分かれるのは編集・削除と同じ（activeRoom.kind で分岐） */
+async function toggleReaction(id, emoji) {
+  const path = activeRoom.kind === 'project' ? `/comments/${id}/reactions` : `/chat/messages/${id}/reactions`;
+  try {
+    const data = await api.post(path, { emoji });
+    const m = messages.find(x => Number(x.id) === Number(id));
+    if (m) { m.reactions = data?.reactions ?? []; renderMessages(); }
+  } catch (e) {
+    solidToast(e.message || 'リアクションの送信に失敗しました', false);
+  }
+}
 
 async function copyMessage(id) {
   const m = messages.find(x => Number(x.id) === id);
@@ -658,6 +674,8 @@ initChatGestures($('msgList'), {
   onReply: el => startReply(Number(el.dataset.id)),
   onLongPress: el => el.classList.toggle('acts-open'),
 });
+/* リアクション絵文字（chat-reply.js） */
+initChatReactions($('msgList'), toggleReaction);
 $('btnSend').addEventListener('click', send);
 
 $('imgInput').addEventListener('change', e => {
