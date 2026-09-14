@@ -228,6 +228,9 @@ export default function AnalyticsPage() {
                 </Section>
                 <Section title="来店経路">
                   <BarList rows={toRows(data.visit.byChannel)} unit=" 組" />
+                  <p className="mt-1.5 text-[11px] text-gray-soft">
+                    経路を複数選んだ来店は、それぞれの経路に数えます
+                  </p>
                 </Section>
                 <Section title="何を見て来たか">
                   <BarList rows={toRows(data.visit.byReferrer)} unit=" 組" />

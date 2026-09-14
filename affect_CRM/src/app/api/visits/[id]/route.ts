@@ -4,6 +4,7 @@ import { requireApiPermission, requireApiUser } from "@/lib/auth/api-guard";
 import { recalcCustomerStats } from "@/lib/customer-stats";
 import { guestLabel } from "@/lib/display";
 import { formatJstDate, nowForDateTimeInput } from "@/lib/utils/time";
+import { joinChannelCodes, splitChannelCodes } from "@/lib/visit-channel";
 import { parseVisitForm } from "../_shared";
 import type { VisitDetailResponse } from "@/app/(app)/visits/types";
 
@@ -42,7 +43,7 @@ export async function GET(request: Request, { params }: Ctx) {
     visitedAt: nowForDateTimeInput(visit.visitedAt),
     partySize: visit.partySize,
     purposeCode: visit.purposeCode,
-    channelCode: visit.channelCode,
+    channelCodes: splitChannelCodes(visit.channelCode),
     referrerCode: visit.referrerCode,
     prefectureCode: visit.prefectureCode,
     purchased: visit.purchased,
@@ -92,7 +93,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
       visitedAt: input.visitedAt,
       partySize: input.partySize,
       purposeCode: input.purposeCode,
-      channelCode: input.channelCode,
+      channelCode: joinChannelCodes(input.channelCodes),
       referrerCode: input.referrerCode,
       prefectureCode: input.prefectureCode,
       purchased: input.purchased,

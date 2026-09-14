@@ -59,7 +59,7 @@ export default function QuickVisitPage() {
 
   // 来店内容
   const [purpose, setPurpose] = useState<string | null>(null);
-  const [channel, setChannel] = useState<string | null>(null);
+  const [channels, setChannels] = useState<string[]>([]);
   const [prefecture, setPrefecture] = useState<string | null>(null);
   const [interests, setInterests] = useState<string[]>([]);
   const [purchased, setPurchased] = useState<boolean | null>(null);
@@ -137,7 +137,7 @@ export default function QuickVisitPage() {
         }
       }
       if (purpose) form.set("purposeCode", purpose);
-      if (channel) form.set("channelCode", channel);
+      for (const c of channels) form.append("channelCodes", c);
       if (prefecture) form.set("prefectureCode", prefecture);
       for (const id of interests) form.append("interestCategoryIds", id);
       form.set("purchased", purchased ? "yes" : "no");
@@ -349,11 +349,14 @@ export default function QuickVisitPage() {
         </section>
 
         <section className="border-b border-line py-4">
-          <label className={labelClass}>来店経路</label>
-          <ChipGroup
+          <label className={labelClass}>
+            来店経路
+            <span className="ml-1.5 text-[10.5px] font-normal text-gray-soft">複数選択可</span>
+          </label>
+          <ChipMultiGroup
             options={masters?.options.VISIT_CHANNEL ?? []}
-            value={channel}
-            onChange={setChannel}
+            values={channels}
+            onChange={setChannels}
           />
         </section>
 

@@ -45,7 +45,8 @@ export interface VisitDetailResponse {
   visitedAt: string;
   partySize: number;
   purposeCode: string | null;
-  channelCode: string | null;
+  /** 来店経路（複数選択） */
+  channelCodes: string[];
   referrerCode: string | null;
   prefectureCode: string | null;
   purchased: boolean;

@@ -4,6 +4,7 @@ import { requireApiUser } from "@/lib/auth/api-guard";
 import { recalcCustomerStats } from "@/lib/customer-stats";
 import { guestLabel } from "@/lib/display";
 import { formatJstDate, formatJstTime } from "@/lib/utils/time";
+import { channelLabel, joinChannelCodes } from "@/lib/visit-channel";
 import { parseVisitForm } from "./_shared";
 import type { VisitListResponse } from "@/app/(app)/visits/types";
 
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
       isAnonymous: !v.customerId,
       partySize: v.partySize,
       purposeLabel: labelOf("VISIT_PURPOSE", v.purposeCode),
-      channelLabel: labelOf("VISIT_CHANNEL", v.channelCode),
+      channelLabel: channelLabel(v.channelCode, (c) => labelOf("VISIT_CHANNEL", c)),
       purchased: v.purchased,
       noPurchaseReasonLabel: labelOf("NO_PURCHASE_REASON", v.noPurchaseReasonCode),
       interestNames: v.interests
@@ -105,7 +106,7 @@ export async function POST(request: Request) {
       visitedAt: input.visitedAt,
       partySize: input.partySize,
       purposeCode: input.purposeCode,
-      channelCode: input.channelCode,
+      channelCode: joinChannelCodes(input.channelCodes),
       referrerCode: input.referrerCode,
       prefectureCode: input.prefectureCode,
       purchased: input.purchased,

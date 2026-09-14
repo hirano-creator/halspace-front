@@ -65,12 +65,13 @@ const masters = {
     ["OTHER", "その他"],
   ],
   VISIT_CHANNEL: [
-    ["FIRST", "初めて"],
     ["INSTAGRAM", "Instagram"],
     ["REFERRAL", "紹介"],
     ["WALKIN", "通りがかり"],
     ["EXISTING", "既存客"],
     ["WEBSITE", "ホームページ"],
+    ["GOOGLE", "Google"],
+    ["YAHOO", "Yahoo!"],
     ["OTHER", "その他"],
   ],
   REFERRER: [

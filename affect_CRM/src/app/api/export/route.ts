@@ -16,6 +16,7 @@ import {
   type ReservationStatus,
 } from "@/lib/constants";
 import { calcAge, formatJstDate, formatJstDateTime } from "@/lib/utils/time";
+import { channelLabel } from "@/lib/visit-channel";
 
 /** 個人情報（氏名・連絡先）を含む出力は管理者のみ */
 const PERSONAL_TYPES = new Set(["customers", "visits", "purchases", "reservations", "follow-ups"]);
@@ -140,7 +141,7 @@ export async function GET(request: Request) {
               v.customer?.prefecture ?? "",
               v.partySize,
               labelOf("VISIT_PURPOSE", v.purposeCode),
-              labelOf("VISIT_CHANNEL", v.channelCode),
+              channelLabel(v.channelCode, (c) => labelOf("VISIT_CHANNEL", c)) ?? "",
               labelOf("REFERRER", v.referrerCode),
               v.interests.map((i) => i.category?.name).filter(Boolean).join("・"),
               v.purchased ? "購入" : "未購入",

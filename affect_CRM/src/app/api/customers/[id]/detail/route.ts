@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth/api-guard";
 import { calcAge } from "@/lib/utils/time";
+import { channelLabel } from "@/lib/visit-channel";
 import type { CustomerDetailResponse } from "@/app/(app)/customers/types";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -114,7 +115,7 @@ export async function GET(request: Request, { params }: Ctx) {
       id: v.id,
       visitedAt: v.visitedAt.toISOString(),
       purposeLabel: labelOf("VISIT_PURPOSE", v.purposeCode),
-      channelLabel: labelOf("VISIT_CHANNEL", v.channelCode),
+      channelLabel: channelLabel(v.channelCode, (c) => labelOf("VISIT_CHANNEL", c)),
       purchased: v.purchased,
       noPurchaseReasonLabel: labelOf("NO_PURCHASE_REASON", v.noPurchaseReasonCode),
       noPurchaseComment: v.noPurchaseComment,

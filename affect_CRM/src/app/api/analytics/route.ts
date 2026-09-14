@@ -5,6 +5,7 @@ import { resolvePeriod } from "@/lib/analytics-period";
 import { guestLabel } from "@/lib/display";
 import { AGE_GROUP_LABELS, GENDER_LABELS, type AgeGroup, type Gender } from "@/lib/constants";
 import { ageToGroup, calcAge, formatJstDate } from "@/lib/utils/time";
+import { splitChannelCodes } from "@/lib/visit-channel";
 import type {
   AmountBucket,
   AnalyticsResponse,
@@ -117,7 +118,7 @@ export async function GET(request: Request) {
       ageGroup: v.customerId ? (v.customer?.birthday ? ageToGroup(age) : null) : v.guestAgeGroup,
       prefecture: v.customer?.prefecture ?? null,
       purposeCode: v.purposeCode,
-      channelCode: v.channelCode,
+      channelCodes: splitChannelCodes(v.channelCode),
       referrerCode: v.referrerCode,
       purchased: v.purchased,
       noPurchaseReasonCode: v.noPurchaseReasonCode,
@@ -130,6 +131,15 @@ export async function GET(request: Request) {
 
   const total = visitRows.length;
   const named = visitRows.filter((v) => v.isNamed).length;
+
+  // 来店経路は複数選べるので、経路別の集計は「来店 × 選んだ経路」を 1 件として数える。
+  // （2 経路選んだ来店は両方の経路に 1 件ずつ入る。未選択は「未設定」1 件）
+  const byChannelRows = visitRows.flatMap((v) =>
+    (v.channelCodes.length ? v.channelCodes : [null]).map((channelCode) => ({
+      channelCode,
+      purchased: v.purchased,
+    })),
+  );
 
   const genderLabel = (code: string) => GENDER_LABELS[code as Gender] ?? code;
   const ageLabel = (code: string) => AGE_GROUP_LABELS[code as AgeGroup] ?? code;
@@ -272,7 +282,7 @@ export async function GET(request: Request) {
       byAgeGroup: tally(guestCounts.map((g) => g.ageGroup), ageLabel),
       byPrefecture: tally(visitRows.map((v) => v.prefecture)),
       byPurpose: tally(visitRows.map((v) => v.purposeCode), labelOf("VISIT_PURPOSE")),
-      byChannel: tally(visitRows.map((v) => v.channelCode), labelOf("VISIT_CHANNEL")),
+      byChannel: tally(byChannelRows.map((v) => v.channelCode), labelOf("VISIT_CHANNEL")),
       byReferrer: tally(visitRows.map((v) => v.referrerCode), labelOf("REFERRER")),
     },
     purchase: {
@@ -293,7 +303,7 @@ export async function GET(request: Request) {
         genderLabel,
       ),
       rateByChannel: rateBy(
-        visitRows.map((v) => ({ key: v.channelCode, hit: v.purchased })),
+        byChannelRows.map((v) => ({ key: v.channelCode, hit: v.purchased })),
         labelOf("VISIT_CHANNEL"),
       ),
     },
@@ -306,7 +316,7 @@ export async function GET(request: Request) {
       ),
       byInterest: tally(noPurchaseRows.flatMap((v) => (v.interestNames.length ? v.interestNames : [null]))),
       rateByChannel: rateBy(
-        visitRows.map((v) => ({ key: v.channelCode, hit: !v.purchased })),
+        byChannelRows.map((v) => ({ key: v.channelCode, hit: !v.purchased })),
         labelOf("VISIT_CHANNEL"),
       ),
       rateByAgeGroup: rateBy(

@@ -25,7 +25,7 @@ import {
   labelClass,
 } from "@/components/ui";
 import type { MastersResponse } from "../../customers/types";
-import type { GuestBreakdownRow, VisitDetailResponse } from "../types";
+import type { CustomerSuggestion, GuestBreakdownRow, VisitDetailResponse } from "../types";
 
 const AGE_OPTIONS = AGE_GROUPS.map((code) => ({ code, label: AGE_GROUP_LABELS[code] }));
 const GENDER_OPTIONS = [
@@ -52,7 +52,7 @@ export default function VisitDetailPage() {
   const [gender, setGender] = useState<string | null>(null);
   const [guestBreakdown, setGuestBreakdown] = useState<GuestBreakdownRow[]>([]);
   const [purpose, setPurpose] = useState<string | null>(null);
-  const [channel, setChannel] = useState<string | null>(null);
+  const [channels, setChannels] = useState<string[]>([]);
   const [referrer, setReferrer] = useState<string | null>(null);
   const [prefecture, setPrefecture] = useState<string | null>(null);
   const [interests, setInterests] = useState<string[]>([]);
@@ -62,6 +62,12 @@ export default function VisitDetailPage() {
   const [conversation, setConversation] = useState("");
   const [nextProposal, setNextProposal] = useState("");
   const [followUpDate, setFollowUpDate] = useState("");
+
+  // お名前不明の来店を、あとから既存顧客に紐付けるための検索
+  const [linkedCustomer, setLinkedCustomer] = useState<CustomerSuggestion | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<CustomerSuggestion[]>([]);
 
   const load = useCallback(() => {
     if (status !== "authenticated") return;
@@ -74,7 +80,7 @@ export default function VisitDetailPage() {
         setGender(v.guestGender);
         setGuestBreakdown(v.guestBreakdown);
         setPurpose(v.purposeCode);
-        setChannel(v.channelCode);
+        setChannels(v.channelCodes);
         setReferrer(v.referrerCode);
         setPrefecture(v.prefectureCode);
         setInterests(v.interestCategoryIds);
@@ -84,6 +90,8 @@ export default function VisitDetailPage() {
         setConversation(v.conversation ?? "");
         setNextProposal(v.nextProposal ?? "");
         setFollowUpDate(v.followUpDate ?? "");
+        setLinkedCustomer(null);
+        setSearchOpen(false);
       })
       .catch((e: Error) => setError(e.message));
   }, [status, id]);
@@ -95,6 +103,25 @@ export default function VisitDetailPage() {
     apiFetchJson<MastersResponse>("/api/masters").then(setMasters).catch(() => {});
   }, [status]);
 
+  // 顧客検索（検索欄が空でも最近来た人を出す）
+  useEffect(() => {
+    if (!searchOpen) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      apiFetchJson<{ customers: CustomerSuggestion[] }>(
+        `/api/customers/search?q=${encodeURIComponent(query)}`,
+      )
+        .then((res) => {
+          if (!cancelled) setSuggestions(res.customers);
+        })
+        .catch(() => {});
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query, searchOpen]);
+
   async function save() {
     setError(null);
     setSaved(false);
@@ -102,11 +129,13 @@ export default function VisitDetailPage() {
 
     setPending(true);
     try {
+      const customerId = visit?.customerId ?? linkedCustomer?.id ?? null;
+
       const form = new FormData();
-      if (visit?.customerId) form.set("customerId", visit.customerId);
+      if (customerId) form.set("customerId", customerId);
       form.set("visitedAt", visitedAt);
       form.set("partySize", partySize);
-      if (!visit?.customerId) {
+      if (!customerId) {
         if (ageGroup) form.set("guestAgeGroup", ageGroup);
         if (gender) form.set("guestGender", gender);
         for (const g of guestBreakdown) {
@@ -115,7 +144,7 @@ export default function VisitDetailPage() {
         }
       }
       if (purpose) form.set("purposeCode", purpose);
-      if (channel) form.set("channelCode", channel);
+      for (const c of channels) form.append("channelCodes", c);
       if (referrer) form.set("referrerCode", referrer);
       if (prefecture) form.set("prefectureCode", prefecture);
       for (const c of interests) form.append("interestCategoryIds", c);
@@ -220,8 +249,92 @@ export default function VisitDetailPage() {
           />
         </section>
 
-        {/* お名前が分からない来店のときだけ、推定の年代・性別を持つ */}
+        {/* お名前が分からない来店を、あとから既存顧客に紐付けられるようにする */}
         {!visit.customerId && (
+          <section className="border-b border-line py-4">
+            <label className={labelClass}>顧客</label>
+
+            {linkedCustomer ? (
+              <div className="flex min-h-11 items-center justify-between rounded-md border border-accent px-3">
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold">{linkedCustomer.name}</span>
+                  <span className="block text-[11px] text-gray-soft">
+                    {linkedCustomer.code}
+                    {linkedCustomer.visitCount > 0
+                      ? `／来店 ${linkedCustomer.visitCount + 1} 回目`
+                      : "／初回来店"}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLinkedCustomer(null)}
+                  className="flex-none text-xs text-gray-soft underline"
+                >
+                  解除
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="text-[12.5px] text-gray-soft">
+                  お名前が分かったら、既存の顧客に紐付けられます。
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen((v) => !v)}
+                  className={`${buttonSecondaryClass} mt-2.5`}
+                >
+                  既存顧客を選ぶ
+                </button>
+              </>
+            )}
+
+            {!linkedCustomer && searchOpen && (
+              <div className="mt-3 rounded-md border border-line">
+                <input
+                  autoFocus
+                  className="min-h-11 w-full border-b border-line px-3 text-base outline-none sm:text-sm"
+                  placeholder="名前・電話番号で検索"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                <ul className="max-h-64 overflow-y-auto">
+                  {suggestions.length === 0 && (
+                    <li className="px-3 py-4 text-center text-sm text-gray-soft">
+                      該当する顧客がいません
+                    </li>
+                  )}
+                  {suggestions.map((c) => (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLinkedCustomer(c);
+                          setSearchOpen(false);
+                        }}
+                        className="flex w-full items-center justify-between gap-3 border-b border-line-2 px-3 py-3 text-left last:border-b-0 hover:bg-bg"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold">{c.name}</span>
+                          <span className="block text-[11px] text-gray-soft">
+                            {c.code}
+                            {c.phone && `／${c.phone}`}
+                            {c.lastVisitLabel && `／最終来店 ${c.lastVisitLabel}`}
+                          </span>
+                        </span>
+                        <span className="tabular flex-none text-[11px] text-gray-soft">
+                          {c.visitCount} 回
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* お名前が分からない来店のときだけ、推定の年代・性別を持つ */}
+        {!visit.customerId && !linkedCustomer && (
           <>
             <section className="border-b border-line py-4">
               <label className={labelClass}>
@@ -254,11 +367,14 @@ export default function VisitDetailPage() {
         </section>
 
         <section className="border-b border-line py-4">
-          <label className={labelClass}>来店経路</label>
-          <ChipGroup
+          <label className={labelClass}>
+            来店経路
+            <span className="ml-1.5 text-[10.5px] font-normal text-gray-soft">複数選択可</span>
+          </label>
+          <ChipMultiGroup
             options={masters?.options.VISIT_CHANNEL ?? []}
-            value={channel}
-            onChange={setChannel}
+            values={channels}
+            onChange={setChannels}
           />
         </section>
 

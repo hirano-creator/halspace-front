@@ -22,7 +22,8 @@ export interface VisitInput {
   visitedAt: Date;
   partySize: number;
   purposeCode: string | null;
-  channelCode: string | null;
+  /** 来店経路。複数選択なので配列で受け、保存時にカンマ区切りへ寄せる */
+  channelCodes: string[];
   referrerCode: string | null;
   prefectureCode: string | null;
   purchased: boolean;
@@ -89,7 +90,7 @@ export function parseVisitForm(form: FormData): VisitInput | string {
     visitedAt,
     partySize,
     purposeCode: trimOrNull(form.get("purposeCode")),
-    channelCode: trimOrNull(form.get("channelCode")),
+    channelCodes: form.getAll("channelCodes").map(String).filter(Boolean),
     referrerCode: trimOrNull(form.get("referrerCode")),
     prefectureCode: trimOrNull(form.get("prefectureCode")),
     purchased,

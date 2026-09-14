@@ -200,7 +200,7 @@ model Visit {
 
   /// MasterOption type="VISIT_PURPOSE"
   purposeCode  String?
-  /// MasterOption type="VISIT_CHANNEL"
+  /// MasterOption type="VISIT_CHANNEL" の code をカンマ区切り（複数選択可。読み書きは lib/visit-channel.ts 経由）
   channelCode  String?
   /// MasterOption type="REFERRER"（何を見て来たか）
   referrerCode String?

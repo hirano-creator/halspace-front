@@ -10,6 +10,7 @@ import {
   toJst,
 } from "@/lib/utils/time";
 import { guestLabel } from "@/lib/display";
+import { channelLabel } from "@/lib/visit-channel";
 import { ACTIVE_RESERVATION_STATUSES } from "@/lib/constants";
 import type { DashboardDailyPoint, DashboardResponse } from "@/app/(app)/types";
 
@@ -210,7 +211,7 @@ export async function GET(request: Request) {
       customerId: v.customerId,
       visitCount: v.customer?.visitCount ?? null,
       purposeLabel: labelOf("VISIT_PURPOSE", v.purposeCode),
-      channelLabel: labelOf("VISIT_CHANNEL", v.channelCode),
+      channelLabel: channelLabel(v.channelCode, (c) => labelOf("VISIT_CHANNEL", c)),
       purchased: v.purchased,
     })),
     recentPurchases: recentPurchaseRows.map((p) => ({
