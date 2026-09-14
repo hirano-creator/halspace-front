@@ -4,18 +4,27 @@
      - スマホ: メッセージを右へスワイプすると返信、長押しで操作ボタンを出す
      - PC   : ホバーで出る操作ボタン（各ページのCSS側）
      - 引用ブロックをタップすると元のメッセージまでスクロールして光らせる
-     - リアクションボタンで絵文字ピッカーを開閉、絵文字チップ/ピッカーのタップで送受信（各ページ側でAPIを叩く） */
+     - リアクションボタン(😊)で絵文字ピッカーを開閉、ピッカーの絵文字タップで自分の反応を
+       追加・差し替え・解除する。チップ（絵文字＋人数）のタップは自分の反応の切り替えではなく、
+       誰が反応したかの名前ポップオーバーを開閉する（各ページ側でAPIを叩くのはピッカー選択時のみ） */
 
 /** リアクションで選べる絵文字。バックエンド（CommentController/SolidChatController の
  *  ALLOWED_REACTIONS）と同じ6種で揃えておくこと */
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
-/** 絵文字ごとに集計済みのリアクション一覧（{emoji,count,mine}[]）をチップ行のHTMLにする。
- *  0件なら何も出さない */
+/* chat.html は esc()、project-detail.html は escapeHtml() と名前が異なるため、
+   このファイル単体で完結する専用のエスケープを持つ */
+const escChatText = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** 絵文字ごとに集計済みのリアクション一覧（{emoji,count,mine,users}[]）をチップ行のHTMLにする。
+ *  チップをタップすると users（反応した人の名前）を吹き出しで表示する。0件なら何も出さない */
 function reactionsHtml(reactions) {
   if (!reactions || !reactions.length) return '';
-  return `<div class="msg-reactions">${reactions.map(r =>
-    `<button type="button" class="msg-reaction${r.mine ? ' mine' : ''}" data-react-emoji="${r.emoji}" title="${r.mine ? 'タップで解除' : 'タップで自分も反応'}">${r.emoji}<span>${r.count}</span></button>`
+  return `<div class="msg-reactions">${reactions.map(r => `
+    <span class="msg-reaction-wrap">
+      <button type="button" class="msg-reaction${r.mine ? ' mine' : ''}" data-react-emoji="${r.emoji}">${r.emoji}<span>${r.count}</span></button>
+      <div class="msg-react-names hidden">${escChatText((r.users || []).join('、'))}</div>
+    </span>`
   ).join('')}</div>`;
 }
 
@@ -28,22 +37,24 @@ function reactionPickerHtml() {
 /**
  * リアクションのクリックをコンテナに仕込む（イベント委譲。メッセージは再描画されるため1回だけ呼べばよい）。
  * @param {HTMLElement} container メッセージ一覧
- * @param {(id:string, emoji:string)=>void} onToggle 絵文字を選んだ/チップを押したときの処理
+ * @param {(id:string, emoji:string)=>void} onPick ピッカーで絵文字を選んだときの処理
  *   （id は closest('[data-id]') から拾う。呼び出し側でAPIを叩いてから再描画する）
  */
-function initChatReactions(container, onToggle) {
+function initChatReactions(container, onPick) {
   container.addEventListener('click', e => {
     const pick = e.target.closest('[data-pick-emoji]');
     if (pick) {
       const id = pick.closest('[data-id]')?.dataset.id;
       pick.closest('.msg-react-picker')?.classList.add('hidden');
-      if (id) onToggle(id, pick.dataset.pickEmoji);
+      if (id) onPick(id, pick.dataset.pickEmoji);
       return;
     }
     const chip = e.target.closest('[data-react-emoji]');
     if (chip) {
-      const id = chip.closest('[data-id]')?.dataset.id;
-      if (id) onToggle(id, chip.dataset.reactEmoji);
+      const names = chip.parentElement.querySelector('.msg-react-names');
+      const wasHidden = names?.classList.contains('hidden');
+      container.querySelectorAll('.msg-react-names').forEach(n => n.classList.add('hidden'));
+      if (names && wasHidden) names.classList.remove('hidden');
       return;
     }
     const opener = e.target.closest('[data-react-open]');
@@ -54,9 +65,9 @@ function initChatReactions(container, onToggle) {
       if (picker && wasHidden) picker.classList.remove('hidden');
       return;
     }
-    /* ピッカーの外をクリックしたら閉じる */
-    if (!e.target.closest('.msg-react-picker')) {
-      container.querySelectorAll('.msg-react-picker').forEach(p => p.classList.add('hidden'));
+    /* ピッカー・名前ポップオーバーの外をクリックしたら閉じる */
+    if (!e.target.closest('.msg-react-picker') && !e.target.closest('.msg-react-names')) {
+      container.querySelectorAll('.msg-react-picker, .msg-react-names').forEach(p => p.classList.add('hidden'));
     }
   });
 }
