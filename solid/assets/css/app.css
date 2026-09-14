@@ -1173,7 +1173,7 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   100% { box-shadow: 0 0 0 4px transparent; }
 }
 
-.chat-bubble-wrap { display: flex; flex-direction: column; max-width: 78%; }
+.chat-bubble-wrap { display: flex; flex-direction: column; max-width: 78%; position: relative; }
 .chat-msg.mine .chat-bubble-wrap { align-items: flex-end; }
 
 .chat-meta {
@@ -1242,8 +1242,27 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 }
 .chat-reply-btn:hover { color: var(--blue); background: rgba(9,132,227,.12); }
 .chat-bubble-wrap:hover .chat-reply-btn { display: flex; }
+
+.chat-react-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px; height: 20px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--trans), background var(--trans);
+  margin-left: 2px;
+}
+.chat-react-btn:hover { color: var(--blue); background: rgba(9,132,227,.12); }
+.chat-bubble-wrap:hover .chat-react-btn { display: flex; }
+
 /* 長押し（スマホ）で開いた操作ボタン */
 .chat-msg.acts-open .chat-reply-btn,
+.chat-msg.acts-open .chat-react-btn,
 .chat-msg.acts-open .chat-edit-btn,
 .chat-msg.acts-open .chat-del-btn { display: flex; }
 
@@ -2410,6 +2429,40 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
 .cr-msg-acts button { width: 25px; height: 25px; border-radius: 7px; display: grid; place-items: center; color: var(--muted); font-size: 11.5px; }
 .cr-msg-acts button:hover { background: var(--surface); color: var(--blue); }
 .cr-msg-acts button.del:hover { color: var(--danger); }
+
+/* リアクション絵文字（LINE風）。chat.html(.cr-msg)とproject-detail.html(.chat-msg)の
+   両方で使う共通クラス（chat-reply.js の reactionsHtml/reactionPickerHtml が出す） */
+.msg-react-picker {
+  position: absolute; top: 22px; right: 0; z-index: 3;
+  display: flex; gap: 2px; background: var(--white); border: 1px solid var(--border);
+  border-radius: 999px; box-shadow: var(--shadow-md); padding: 4px 6px;
+}
+.msg-react-picker.hidden { display: none; }
+.msg-react-picker button {
+  width: 27px; height: 27px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 16px; line-height: 1; transition: transform .12s, background var(--trans);
+}
+.msg-react-picker button:hover { background: var(--surface); transform: scale(1.2); }
+
+/* project-detail.html（.chat-msg）ではメタ行の下、吹き出しの脇にピッカーを出す。
+   自分の発言（mine）は吹き出しが右寄せなので左右を反転する */
+.chat-bubble-wrap .msg-react-picker { top: 24px; left: 0; right: auto; }
+.chat-msg.mine .chat-bubble-wrap .msg-react-picker { left: auto; right: 0; }
+
+.msg-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.msg-reaction {
+  display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; line-height: 1.2;
+  padding: 3px 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); transition: background var(--trans), border-color var(--trans), color var(--trans);
+}
+.msg-reaction:hover { background: #eef1f4; }
+.msg-reaction.mine { background: rgba(9,132,227,.12); border-color: rgba(9,132,227,.45); color: var(--blue); font-weight: 700; }
+.msg-reaction span { font-size: 10.5px; }
+
+/* 狭い画面ではタップしやすいよう大きめに */
+@media (hover: none) {
+  .msg-react-picker button { width: 32px; height: 32px; font-size: 18px; }
+}
 
 /* 入力欄 */
 .cr-input { padding: 11px 16px 13px; border-top: 1px solid var(--border); background: var(--white); flex-shrink: 0; }
