@@ -1,0 +1,14 @@
+{
+  // 旧URL → Railway への転送専用 Worker（worker.js 参照）。
+  // name を本体と同じ "timecalc" にして上書きデプロイすることで、
+  // https://timecalc.space-app.workers.dev の URL をそのまま引き継ぐ。
+  // D1 データベース自体は消さない（当面の退避データとして残す）。
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "timecalc",
+  "main": "worker.js",
+  "compatibility_date": "2026-07-01",
+  "vars": {
+    // 転送先ホスト。Railway でドメインを発行したらここを差し替えてデプロイする
+    "REDIRECT_HOST": "timecalc-production.up.railway.app"
+  }
+}
