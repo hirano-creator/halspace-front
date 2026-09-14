@@ -1,0 +1,8 @@
+{
+  // Cloudflare Pages プロジェクト timecalc-app（本番 URL https://timecalc-app.pages.dev）。
+  // 静的ファイルは置かず、functions/[[path]].js が全リクエストを Railway へ中継する。
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "timecalc-app",
+  "compatibility_date": "2026-07-01",
+  "pages_build_output_dir": "public"
+}

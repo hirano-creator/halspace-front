@@ -9,6 +9,6 @@
   "compatibility_date": "2026-07-01",
   "vars": {
     // 転送先ホスト。Railway でドメインを発行したらここを差し替えてデプロイする
-    "REDIRECT_HOST": "timecalc-production.up.railway.app"
+    "REDIRECT_HOST": "timecalc-app.pages.dev"
   }
 }
