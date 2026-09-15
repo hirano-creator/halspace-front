@@ -661,6 +661,18 @@ function fileTopDirOf(f) {
   return f.relative_path ? f.relative_path.split('/')[0] : null;
 }
 
+/* トップレベルフォルダ数（フォルダに属さない単発ファイルは1件として数える）。
+   renderFileSection() のフォルダ分けと同じ数え方に揃える */
+function countTopLevelFolders(files) {
+  const tops = new Set();
+  let rootCount = 0;
+  files.forEach(f => {
+    const top = fileTopDirOf(f);
+    if (top) tops.add(top); else rootCount++;
+  });
+  return tops.size + rootCount;
+}
+
 /* ── 一覧の表示状態（3秒ポーリングによる再描画をまたいで保持する） ── */
 /* フォルダ行の開閉状態（area.id::トップフォルダ名 をキー。初期値は折りたたみ） */
 const expandedFolderKeys = new Set();
@@ -1537,7 +1549,7 @@ function renderModelSummary(visible, shown, selectable) {
 
   el.innerHTML = `
     ${selectAll}
-    <span class="file-status-summary-total">全${visible.length}件</span>
+    <span class="file-status-summary-total">全${countTopLevelFolders(visible)}件</span>
     <span class="file-status-summary-spacer"></span>
     ${chips}
     ${modelStatusFilter ? `
