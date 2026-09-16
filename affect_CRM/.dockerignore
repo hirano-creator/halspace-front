@@ -1,0 +1,14 @@
+# ビルドコンテキストに含めないもの（イメージの肥大化・秘密情報の混入を防ぐ）
+node_modules
+.next
+.git
+.env
+.env.*
+.wrangler
+.open-next
+cloudflare-proxy
+cloudflare-redirect
+docs
+d1.sql
+*.md
+.claude

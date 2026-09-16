@@ -10,38 +10,32 @@
 
 ## 技術構成
 
-Next.js 16 / TypeScript / Tailwind CSS 4 / Prisma 6 / Cloudflare D1 (SQLite) / OpenNext → Cloudflare Workers
+- **フロント/バック**: Next.js 16 (App Router) + React + TypeScript + Tailwind CSS 4
+- **DB**: PostgreSQL（開発・本番とも。ローカルは `prisma dev` のローカル Prisma Postgres）
+- **ORM**: Prisma 6（driver adapter `@prisma/adapter-pg`、engineType="client"）
+- **認証**: JWT（jose）を sessionStorage の Bearer トークンで送る。パスワードは bcrypt でハッシュ化
+- **本番**: Railway（Docker、`Dockerfile` / `docker/entrypoint.sh`）。入口は Cloudflare Pages の中継（`cloudflare-proxy/`）
 
-運用コストは Cloudflare の無料枠で 0 円に収める。有料 SaaS は構成に入れない。
+TimeCalc と同じ構成。運用コストは Railway の実費のみで、それ以外の有料 SaaS は構成に入れない。
 
 ## 開発の始め方
 
 ```bash
 npm install
-npx prisma generate                 # src/generated/prisma を作る（.gitignore 済み）
-npx wrangler types                  # worker-configuration.d.ts を作る（.gitignore 済み）
-
-# ローカル D1 にスキーマと初期データを流す
-npx wrangler d1 execute affect-crm --local --file migrations/0001_init.sql
-node scripts/seed.mjs
-npx wrangler d1 execute affect-crm --local --file migrations/seed.sql
-
-npm run dev                         # http://localhost:3000
+npm run db:dev            # ローカル Prisma Postgres を起動（表示される TCP 接続文字列を .env の DATABASE_URL に）
+npx prisma migrate dev    # テーブル作成
+npm run db:seed           # 初期データ投入
+npm run dev               # http://localhost:3000
 ```
 
-`.env`（.gitignore 済み）に次の 2 つが必要。**本番の値は書かない。**
+`.env`（.gitignore 済み）の例。**本番の値は書かない。**
 
 ```
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="postgres://postgres:postgres@localhost:51218/template1?sslmode=disable"
 SESSION_SECRET="ローカル開発用のダミー値"
 ```
 
-### 開発時の注意
-
-- **`next dev` と `wrangler dev` を同時に動かさない。** 同じローカル D1 を掴むため、片方を落とすと
-  もう片方が `Attempted to use poisoned stub` で 500 になる。切り替えたら `next dev` を再起動する
-- D1 は**クエリを 1 本ずつ処理する**（`Promise.all` で並べても速くならない）。
-  画面が遅いときは、まずクエリの本数を減らせないか考える
+2 回目以降は `npx prisma dev start affect-crm`（または `npm run db:dev`）で同じ DB が再開する。
 
 ### 初期アカウント
 
@@ -51,6 +45,7 @@ SESSION_SECRET="ローカル開発用のダミー値"
 | スタッフ | staff@affect.local | affect2026 |
 
 トークンは sessionStorage に持つので、**タブごとに別アカウントでログインできる**。管理者とスタッフを並べて権限差を確認できる。
+`SEED_MINIMAL=1 npm run db:seed` で管理者だけを投入する（本番の初期化用）。
 
 ## できること
 
@@ -90,7 +85,7 @@ SESSION_SECRET="ローカル開発用のダミー値"
   - BOM 付き UTF-8・CRLF なので Excel でそのまま開ける
   - 氏名・連絡先を含む出力は**管理者のみ**。出力したことは監査ログに残る
 
-グラフは外部ライブラリを使わず自前で描いている（バンドルを軽く保ち、運用コスト 0 円の方針を守るため）。
+グラフは外部ライブラリを使わず自前で描いている。
 
 ### 匿名来店グループの内訳（年代・性別）
 
@@ -104,12 +99,16 @@ SESSION_SECRET="ローカル開発用のダミー値"
   内訳があればそれを使い、なければ匿名グループは代表値を人数分、名前がわかる来店は本人 1 人分だけを数える
   （同伴者の属性は実際には分からないため水増ししない）。購入率など「その来店が買ったか」を問う指標は来店単位のまま変更していない
 
-### Phase 5（デプロイ以外は完了）
+### 来店経路の複数選択
+
+来店経路は複数選べる（「Instagram を見て、紹介でも聞いていた」など）。`Visit.channelCode` にカンマ区切りで持ち、
+読み書きは `src/lib/visit-channel.ts` に集約している。分析では経路を複数選んだ来店を各経路に 1 件ずつ数える。
+
+### Phase 5（完了）
 
 - ログイン API に総当たり対策（IP は 15 分 20 回、メールは 10 回。失敗時のみ数え、成功でリセット）
 - エラー画面（`error.tsx`）と 404 画面。業務中に真っ白な画面を出さない
 - スマホ最適化: 全画面で**横スクロール 0 件**を確認。絞り込みボタンのタップ領域を 44px に統一
-- 本番ビルド（`npm run cf:build`）が通ることと、`wrangler dev` で Worker 実体が動くことを確認
 
 **セキュリティの状態**
 
@@ -120,7 +119,7 @@ SESSION_SECRET="ローカル開発用のダミー値"
 | CSRF | Cookie を使わないため構造的に発生しない |
 | XSS | React の自動エスケープのみ。`dangerouslySetInnerHTML` は未使用 |
 | SQL インジェクション | Prisma のパラメータバインドのみ。文字列連結でクエリを組まない |
-| 総当たり | ログイン・公開予約に D1 ベースのレート制限 |
+| 総当たり | ログイン・公開予約に DB ベースのレート制限（IP は Cloudflare が付ける `CF-Connecting-IP`） |
 | 個人情報 | ログに出力しない（`console.*` は 0 件）。CSV 出力は管理者のみで監査ログに残す |
 
 ### 公開ページ
@@ -134,69 +133,64 @@ Web 予約は**仮予約**として登録され、店舗がカレンダーで確
 
 ## DB マイグレーション
 
-`prisma migrate deploy` は D1 に使えない。
-
 ```bash
-npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > migrations/000N_xxx.sql
-npx wrangler d1 execute affect-crm --local  --file migrations/000N_xxx.sql
-npx wrangler d1 execute affect-crm --remote --file migrations/000N_xxx.sql
+npx prisma migrate dev --name <変更内容>   # prisma/migrations/ に SQL が生成される
 ```
 
-各 SQL の冒頭に実行コマンドをコメントで残すこと。
+生成されたマイグレーションをコミットして push すれば、Railway 起動時に `docker/entrypoint.sh` が
+`prisma migrate deploy` を流す。手で SQL を本番に当てない。
 
-## 本番環境
+## 本番（Railway）
+
+Railway プロジェクト `poetic-intuition` の **サービス `affect-crm`** ＋ **Postgres `affect-crm-db`**。
+GitHub リポジトリ `halspace-front` の **Root Directory `affect_CRM`** から Dockerfile でビルドされ、
+対象ブランチへ push すると自動でデプロイされる（Watch Paths `affect_CRM/**`）。
 
 | | |
 |---|---|
-| 管理画面 | https://affect-crm.space-app.workers.dev |
-| 公開予約ページ | https://affect-crm.space-app.workers.dev/reserve （認証不要） |
-| D1 | `affect-crm` / `d72a2080-410d-4caf-8d35-04ab73bfbbcc`（APAC） |
+| 管理画面 | https://affect-crm-app.pages.dev |
+| 公開予約ページ | https://affect-crm-app.pages.dev/reserve （認証不要） |
+| Railway 直接 | https://affect-crm-production.up.railway.app（通常は使わない） |
+| 旧 URL | https://affect-crm.space-app.workers.dev → 新 URL へ 301（`cloudflare-redirect/`） |
+
+- 起動時に `docker/entrypoint.sh` が `prisma migrate deploy` を流してから Next.js を起動する。
+  スキーマ変更はマイグレーションをコミットして push するだけでよい
+- 環境変数: `DATABASE_URL`（`${{affect-crm-db.DATABASE_URL}}` を参照）、`SESSION_SECRET`（長いランダム値）
+- 反映確認: `railway status` が `Online`、`railway logs -d` に `[web] prisma migrate deploy` と起動ログが出ること。
+  画面は HTTP 200 ではなく**固有の文字列**で判定する
+- 初回だけ `SEED_MINIMAL=1` でシードを流し（管理者のみ）、旧 D1 のデータを下記で移す
 
 **未対応**: 初期パスワードが `affect2026` のまま。URL を知られると誰でもログインできるので、
 運用を始める前にスタッフ管理から変更すること。
 
-### 更新のしかた
+### Cloudflare 側（中継と旧 URL の転送）
+
+`affect-crm-app.pages.dev` は静的ファイルを持たず、`cloudflare-proxy/functions/[[path]].js` が
+全リクエストを Railway へ透過中継する。転送先（`ORIGIN`）を変えたときだけ再デプロイする。
 
 ```bash
-npm run cf:deploy    # ★これを叩かないと本番は変わらない
+cd cloudflare-proxy    && npx wrangler@4 pages deploy public --project-name affect-crm-app
+cd cloudflare-redirect && npx wrangler@4 deploy    # 旧 URL の転送先を変えるとき
 ```
 
-**CI/CD はない。`git push` では本番は一切変わらない。**
-DB のスキーマ変更はデプロイに含まれないので、順序は「D1 に SQL 適用 → `cf:deploy`」。
+### Cloudflare D1 からのデータ移行（移行時の 1 回限り）
 
 ```bash
-npx wrangler d1 execute affect-crm --remote --file migrations/000N_xxx.sql
-npm run cf:deploy
+npx wrangler@4 d1 export affect-crm --remote --output=d1.sql
+node --env-file=.env.production --import tsx scripts/migrate-d1-to-postgres.mjs d1.sql          # 件数確認
+node --env-file=.env.production --import tsx scripts/migrate-d1-to-postgres.mjs d1.sql --write  # 投入（upsert・再実行可）
 ```
 
-反映確認は HTTP 200 ではなく、**画面上の固有の文字列**で判定する。
+`.env.production` には本番の `DATABASE_URL` だけを書き、作業後に消す。D1 には一切書き込まない。
 
-### Worker サイズの余裕がない
-
-無料プランの上限は **gzip 後 3 MiB**、現在 **2.88 MiB**。残り 4% しかない。
-超えると `Your Worker exceeded the size limit of 3 MiB` でデプロイが失敗する。
-
-`npm run cf:build` が `scripts/cf-build.mjs` 経由なのはこのため。
-OpenNext は node_modules 内の全 `.wasm` を列挙してバンドルに含めるので、
-prisma CLI が同梱する他 DB 向けエンジン（D1 では未使用）を退避してからビルドしている。
-
-超えたときに削れる候補:
-
-1. `bcryptjs` を Web Crypto の PBKDF2 に置き換える（数百 KB。ただし既存ハッシュの移行が必要）
-2. 使っていない依存を `dependencies` から外す
-
-### 別環境に新しく立てる場合
+## 開発コマンド
 
 ```bash
-npx wrangler login
-npx wrangler d1 create affect-crm          # 出力の database_id を wrangler.jsonc へ
-npx wrangler d1 execute affect-crm --remote --file migrations/0001_init.sql
-npx wrangler d1 execute affect-crm --remote --file migrations/0002_rate_limit.sql
-node scripts/seed.mjs
-npx wrangler d1 execute affect-crm --remote --file migrations/seed.sql
-npx wrangler secret put SESSION_SECRET     # 十分に長いランダム値
-npm run cf:deploy
+npm run dev         # 開発サーバー
+npm run build       # 本番ビルド（.next/standalone を出力）
+npm start           # 本番サーバー
+npm run lint        # ESLint
+npm run db:dev      # ローカル Prisma Postgres の起動
+npm run db:migrate  # マイグレーション
+npm run db:seed     # シード
 ```
-
-> `migrations/0003_fix_datetime_type.sql` は既存データの型を直すためのもの。
-> 新しく作る DB には不要（修正後のシードを流すため）。

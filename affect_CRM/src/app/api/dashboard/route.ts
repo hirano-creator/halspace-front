@@ -57,7 +57,7 @@ export async function GET(request: Request) {
   // 今月の初日の 1ms 前 = 前月末日なので、そこから前月の範囲が求まる
   const prevMonth = jstMonthRange(new Date(month.start.getTime() - 1));
 
-  // D1 はクエリを 1 本ずつ処理するため、Promise.all で並べてもクエリ数だけ時間がかかる。
+  // クエリの本数を増やさない。
   // 「今日／今月」「来店数／購入数」は同じ月の来店から出せるので、1 回の取得にまとめて
   // JS 側で数える（3 列だけなので件数が増えても転送は軽い）。
   const [

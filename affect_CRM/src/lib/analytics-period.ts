@@ -1,7 +1,7 @@
 // 分析の期間指定
 //
 // 「今日／今週／今月／先月／今年／任意期間」を JST 基準の [start, end) に変換する。
-// 日付境界の計算は必ず utils/time.ts を通す（Workers は UTC で動くため）。
+// 日付境界の計算は必ず utils/time.ts を通す（本番は UTC で動くため）。
 
 import {
   formatJstDate,

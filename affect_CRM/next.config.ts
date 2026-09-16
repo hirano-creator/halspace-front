@@ -1,10 +1,9 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  // Railway（Docker）で動かすため、実行に必要なファイルだけを .next/standalone に集める
+  // （Dockerfile の最終ステージはこのディレクトリと static / public だけをコピーする）。
+  output: "standalone",
+};
 
 export default nextConfig;
-
-// ローカル開発（next dev）でも getCloudflareContext() を使えるようにする。
-// これがないと開発サーバーから D1 バインディングに一切アクセスできない。
-import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
-initOpenNextCloudflareForDev();

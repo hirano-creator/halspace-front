@@ -1,13 +1,21 @@
 // レート制限
 //
-// Workers はリクエストごとに別 isolate になり得るため、メモリ上のカウントは効かない。
-// D1 の RateLimit テーブルに試行を記録して数える。
+// 再起動や複数インスタンスでメモリ上のカウントは消えるため、
+// RateLimit テーブルに試行を記録して数える。
 
 import { prisma } from "@/lib/db";
 
-/** リクエスト元 IP。Cloudflare が付けるヘッダーを使う（ローカルでは unknown） */
+/**
+ * リクエスト元 IP。入口の Cloudflare Pages（cloudflare-proxy）が付ける CF-Connecting-IP は
+ * 中継でそのまま Railway まで届く。Railway の URL を直接叩かれた場合は X-Forwarded-For を見る
+ * （ローカルでは unknown）。
+ */
 export function clientIp(request: Request): string {
-  return request.headers.get("CF-Connecting-IP") ?? "unknown";
+  return (
+    request.headers.get("CF-Connecting-IP") ??
+    request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() ??
+    "unknown"
+  );
 }
 
 /**
@@ -25,7 +33,7 @@ export async function checkRateLimit(
   if (count >= limit) return false;
 
   await prisma.rateLimit.create({ data: { key } });
-  // 古い記録は溜め込まない（D1 の書き込み枠を無駄にしない）
+  // 古い記録は溜め込まない
   await prisma.rateLimit.deleteMany({ where: { createdAt: { lt: since } } });
   return true;
 }

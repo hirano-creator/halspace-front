@@ -1,0 +1,9 @@
+{
+  // Cloudflare Pages プロジェクト affect-crm-app（本番 URL https://affect-crm-app.pages.dev）。
+  // 静的ファイルは置かず、functions/[[path]].js が全リクエストを Railway へ中継する。
+  // TimeCalc の cloudflare-proxy と同じ構成。
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "affect-crm-app",
+  "compatibility_date": "2026-07-01",
+  "pages_build_output_dir": "public"
+}

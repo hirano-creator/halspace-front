@@ -1,0 +1,14 @@
+{
+  // 旧URL → 新URL への転送専用 Worker（worker.js 参照）。
+  // name を本体と同じ "affect-crm" にして上書きデプロイすることで、
+  // https://affect-crm.space-app.workers.dev の URL をそのまま引き継ぐ。
+  // D1 データベース affect-crm 自体は消さない（当面の退避データとして残す）。
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "affect-crm",
+  "main": "worker.js",
+  "compatibility_date": "2026-07-01",
+  "vars": {
+    // 転送先ホスト（Cloudflare Pages 中継の URL）
+    "REDIRECT_HOST": "affect-crm-app.pages.dev"
+  }
+}

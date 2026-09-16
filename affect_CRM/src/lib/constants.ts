@@ -1,6 +1,6 @@
 // 状態を表す値の定義
 //
-// D1(SQLite) には enum がないため、DB 上は String で持ち、値の正しさは
+// DB の enum は使わず String で持ち、値の正しさは
 // ここの as const タプル（→ union 型）と入力時の検証で担保する。
 
 export const GENDERS = ["MALE", "FEMALE", "OTHER", "UNKNOWN"] as const;

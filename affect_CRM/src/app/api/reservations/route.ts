@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   });
   if (!customer) return NextResponse.json({ error: "顧客が見つかりません" }, { status: 400 });
 
-  // 確定の直前に残席を数え直す（D1 では厳密なロックが取れないため）
+  // 確定の直前に残席を数え直す（ロックは取らず、数え直しで防ぐ方針）
   const seats = await countSeats(sessionId);
   if (!seats) return NextResponse.json({ error: "予約枠が見つかりません" }, { status: 400 });
   if (headcount > seats.remaining) {

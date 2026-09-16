@@ -1,23 +1,25 @@
-// affect CRM データベーススキーマ（Cloudflare D1 / SQLite）
+// affect CRM データベーススキーマ（PostgreSQL / Railway）
 //
 // 設計の要点（詳細は docs/企画書.md）
 //   - 顧客と来店履歴は必ず分ける。すべて 1 対多。
-//   - D1(SQLite) には enum がないため、状態は String + src/lib/constants.ts の定数で担保する。
+//   - enum は使わない。状態は String + src/lib/constants.ts の定数で担保する
+//     （D1/SQLite 時代の名残だが、選択肢を設定画面から増やせる設計と相性がよいので維持）。
 //   - 金額はすべて Int（円）。小数型は使わない。
 //   - 選択肢（来店目的・経路・未購入理由など）は MasterOption に集約し、設定画面から増やせるようにする。
 //     分析の集計キーは code。label（表示名）を変えても過去データの集計が壊れないようにするため。
 
 generator client {
-  // Cloudflare D1（Workers）向けの新 generator。runtime="cloudflare" により
-  // WASM を ESM import する形で生成され、OpenNext/wrangler がバンドルに含められる
-  // （旧 prisma-client-js + adapter では query_compiler_bg.wasm がバンドル漏れする）。
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
-  runtime  = "cloudflare"
+  // TimeCalc と同じ構成。engineType="client" で Rust クエリエンジン（wasm/ネイティブ）を
+  // 使わず、driver adapter（@prisma/adapter-pg）経由で PostgreSQL に繋ぐ。
+  // 生成物は src/generated/prisma に出力し、アプリからはそこを import する。
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  runtime    = "nodejs"
+  engineType = "client"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -546,7 +548,7 @@ model Setting {
 }
 
 /// 公開 API（ホームページからの予約）の連打・大量作成を防ぐための記録。
-/// Workers はリクエストごとに別 isolate になり得るのでメモリ上のカウントは効かない。
+/// 再起動や複数インスタンスでメモリ上のカウントは消えるので DB に持つ。
 model RateLimit {
   id        String   @id @default(cuid())
   /// "reserve:<IP>" のような識別子

@@ -17,7 +17,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // 本番の詳細は wrangler tail で追う。ここでは digest（識別子）だけ残す
+    // 本番の詳細は railway logs で追う。ここでは digest（識別子）だけ残す
     if (error.digest) {
       console.error(`[affect-crm] error digest: ${error.digest}`);
     }
