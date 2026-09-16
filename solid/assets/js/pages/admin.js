@@ -265,13 +265,15 @@ async function openEditUserModal(userId) {
   // 通知設定を取得
   try {
     const data = await api.get(`/admin/users/${userId}/notification-settings`);
-    const s = data?.setting || { modeling_completed_enabled: true, expiring_file_enabled: true, extra_emails: [] };
+    const s = data?.setting || { modeling_completed_enabled: true, expiring_file_enabled: true, client_message_enabled: true, extra_emails: [] };
     document.getElementById('editToggleModeling').checked = s.modeling_completed_enabled;
     document.getElementById('editToggleExpiring').checked = s.expiring_file_enabled;
+    document.getElementById('editToggleClientMessage').checked = s.client_message_enabled;
     editExtraEmails = s.extra_emails || [];
   } catch {
     document.getElementById('editToggleModeling').checked = true;
     document.getElementById('editToggleExpiring').checked = true;
+    document.getElementById('editToggleClientMessage').checked = true;
     editExtraEmails = [];
   }
   renderEditExtraEmails();
@@ -351,6 +353,7 @@ document.getElementById('editUserModalSubmit').addEventListener('click', async (
     await api.patch(`/admin/users/${editingUserId}/notification-settings`, {
       modeling_completed_enabled: document.getElementById('editToggleModeling').checked,
       expiring_file_enabled:      document.getElementById('editToggleExpiring').checked,
+      client_message_enabled:     document.getElementById('editToggleClientMessage').checked,
       extra_emails:               validEmails,
     });
 
