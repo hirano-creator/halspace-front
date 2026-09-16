@@ -563,8 +563,9 @@ function populateInviteCompany(companies) {
    言語は会社名から推測せず、宛先ごとに明示して持つ。
    ============================================================ */
 const NOTIFY_CHANNELS = [
-  { key:'order_halspace', label:'受注通知先（株式会社HaLSpace）',        defaultLocale:'ja' },
-  { key:'order_hilano',   label:'受注通知先（PT.HILANO LCZ INDONESIA）', defaultLocale:'en' },
+  { key:'order_halspace',  label:'受注通知先（株式会社HaLSpace）',        defaultLocale:'ja' },
+  { key:'order_hilano',    label:'受注通知先（PT.HILANO LCZ INDONESIA）', defaultLocale:'en' },
+  { key:'client_message',  label:'お客様連絡の通知先（株式会社HaLSpace）', defaultLocale:'ja' },
 ];
 const LOCALE_LABEL = { ja:'日本語', en:'English' };
 
