@@ -225,7 +225,6 @@ async function deleteUser(id) {
 
 /* ユーザー行クリック → 編集モーダル */
 let editingUserId = null;
-let editExtraEmails = [];
 
 document.getElementById('userBody').addEventListener('click', e => {
   /* 有効トグルと削除ボタンは行クリック（編集モーダル）と競合させない */
@@ -262,21 +261,23 @@ async function openEditUserModal(userId) {
 
   document.getElementById('editUserModal').classList.remove('hidden');
 
-  // 通知設定を取得
-  try {
-    const data = await api.get(`/admin/users/${userId}/notification-settings`);
-    const s = data?.setting || { modeling_completed_enabled: true, expiring_file_enabled: true, client_message_enabled: true, extra_emails: [] };
-    document.getElementById('editToggleModeling').checked = s.modeling_completed_enabled;
-    document.getElementById('editToggleExpiring').checked = s.expiring_file_enabled;
-    document.getElementById('editToggleClientMessage').checked = s.client_message_enabled;
-    editExtraEmails = s.extra_emails || [];
-  } catch {
-    document.getElementById('editToggleModeling').checked = true;
-    document.getElementById('editToggleExpiring').checked = true;
-    document.getElementById('editToggleClientMessage').checked = true;
-    editExtraEmails = [];
+  /* チャット通知設定（お客様連絡の新着メッセージ通知）は発注者側だけの設定。
+     HaLSpace（社内）・PT.HILANO（モデラー専属）側は固定宛先・発注担当者宛の
+     仕組みに変わっており個人トグルを持たないため、この画面自体を出さない */
+  const isInternalOrModeler = u.role === 'super_admin' || !!u.company?.is_operator
+    || !!u.company?.is_modeler_only || u.solid_type === 'id_modeler';
+  const notifySection = document.getElementById('clientMessageNotifySection');
+  notifySection.hidden = isInternalOrModeler;
+
+  // 通知設定を取得（発注者側のみ）
+  if (!isInternalOrModeler) {
+    try {
+      const data = await api.get(`/admin/users/${userId}/notification-settings`);
+      document.getElementById('editToggleClientMessage').checked = data?.setting?.client_message_enabled ?? true;
+    } catch {
+      document.getElementById('editToggleClientMessage').checked = true;
+    }
   }
-  renderEditExtraEmails();
 
   /* 仮パスワードは本人が変更済みだと404が返るので、その場合は欄ごと出さない */
   try {
@@ -294,37 +295,10 @@ document.getElementById('editTempPwCopy').addEventListener('click', () => {
     .catch(() => showToast('コピーできませんでした', 'danger'));
 });
 
-function renderEditExtraEmails() {
-  const list = document.getElementById('editExtraEmailList');
-  list.innerHTML = editExtraEmails.map((email, i) => `
-    <div style="display:flex;gap:8px;align-items:center;">
-      <input type="email" class="form-input" value="${esc(email)}" style="flex:1;"
-             oninput="editExtraEmails[${i}]=this.value">
-      <button class="btn btn-outline btn-sm" onclick="removeEditExtraEmail(${i})"
-              style="color:var(--danger);border-color:var(--danger);flex-shrink:0;">
-        <i class="fa-solid fa-trash"></i>
-      </button>
-    </div>
-  `).join('');
-}
-
-function removeEditExtraEmail(i) {
-  editExtraEmails.splice(i, 1);
-  renderEditExtraEmails();
-}
-
-document.getElementById('editAddExtraEmailBtn').addEventListener('click', () => {
-  editExtraEmails.push('');
-  renderEditExtraEmails();
-  const inputs = document.querySelectorAll('#editExtraEmailList input[type=email]');
-  if (inputs.length) inputs[inputs.length - 1].focus();
-});
-
 ['editUserModalClose', 'editUserModalCancel'].forEach(id =>
   document.getElementById(id).addEventListener('click', () => {
     document.getElementById('editUserModal').classList.add('hidden');
     editingUserId = null;
-    editExtraEmails = [];
   }));
 
 document.getElementById('editUserModalSubmit').addEventListener('click', async () => {
@@ -333,7 +307,6 @@ document.getElementById('editUserModalSubmit').addEventListener('click', async (
   const role = document.getElementById('editUserRole').value;
   const solidType = document.getElementById('editUserSolidType').value || null;
   const isActive = document.getElementById('editUserActive').checked;
-  const validEmails = editExtraEmails.filter(e => e.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim()));
 
   if (!name) { showToast('名前は必須です', 'danger'); return; }
 
@@ -349,13 +322,12 @@ document.getElementById('editUserModalSubmit').addEventListener('click', async (
     const idx = allUsers.findIndex(u => u.id === editingUserId);
     if (idx !== -1 && res?.user) allUsers[idx] = res.user;
 
-    // 通知設定保存
-    await api.patch(`/admin/users/${editingUserId}/notification-settings`, {
-      modeling_completed_enabled: document.getElementById('editToggleModeling').checked,
-      expiring_file_enabled:      document.getElementById('editToggleExpiring').checked,
-      client_message_enabled:     document.getElementById('editToggleClientMessage').checked,
-      extra_emails:               validEmails,
-    });
+    // 通知設定保存（発注者側のみ。HaLSpace・PT.HILANO側はこの画面自体を出していない）
+    if (!document.getElementById('clientMessageNotifySection').hidden) {
+      await api.patch(`/admin/users/${editingUserId}/notification-settings`, {
+        client_message_enabled: document.getElementById('editToggleClientMessage').checked,
+      });
+    }
 
     /* 自分自身を編集した場合はサイドバー表示も即時更新する（再ログイン不要） */
     if (editingUserId === user.id && res?.user) {
@@ -368,7 +340,6 @@ document.getElementById('editUserModalSubmit').addEventListener('click', async (
 
     document.getElementById('editUserModal').classList.add('hidden');
     editingUserId = null;
-    editExtraEmails = [];
     renderUsers();
     showToast('ユーザー設定を保存しました', 'success');
   } catch (err) {
