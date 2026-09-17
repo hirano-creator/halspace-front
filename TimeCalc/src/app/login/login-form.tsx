@@ -96,7 +96,9 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           id="identifier"
           name="identifier"
           type="text"
-          autoComplete="username"
+          /* iOS 18 のホーム画面アプリではパスワード自動入力の起動と競合してキーボードが出ないため、
+             standalone 表示のときだけ自動入力の対象から外す（Safari では従来どおり使える） */
+          autoComplete={diag.standalone ? "off" : "username"}
           required
           value={identifierValue}
           onChange={(e) => setIdentifierValue(e.target.value)}
@@ -115,7 +117,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
             id="password"
             name="password"
             type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
+            autoComplete={diag.standalone ? "off" : "current-password"}
             required
             value={passwordValue}
             onChange={(e) => setPasswordValue(e.target.value)}
@@ -196,7 +198,12 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
         </button>
       </div>
 
-      <StandaloneDiagnostics standalone={diag.standalone} ua={diag.ua} events={diag.events} />
+      <StandaloneDiagnostics
+        standalone={diag.standalone}
+        ua={diag.ua}
+        events={diag.events}
+        note="v2 autocomplete=off"
+      />
     </form>
   );
 }

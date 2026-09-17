@@ -44,11 +44,11 @@ export function useStandaloneDiagnostics() {
   return { standalone, ua, events, handlers };
 }
 
-export function StandaloneDiagnostics({ standalone, ua, events }: Diagnostics) {
+export function StandaloneDiagnostics({ standalone, ua, events, note }: Diagnostics & { note?: string }) {
   if (!standalone) return null;
   return (
     <div className="mt-4 rounded-md bg-gray-100 p-2 font-mono text-[10px] leading-snug break-all text-gray-600">
-      <p className="font-semibold">診断（ホーム画面アプリ）</p>
+      <p className="font-semibold">診断（ホーム画面アプリ）{note ? ` ${note}` : ""}</p>
       <p>{ua}</p>
       {events.length === 0 ? (
         <p>入力欄をタップすると記録が出ます</p>
