@@ -71,7 +71,6 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           name="identifier"
           type="text"
           autoComplete="username"
-          autoFocus
           required
           value={identifierValue}
           onChange={(e) => setIdentifierValue(e.target.value)}
