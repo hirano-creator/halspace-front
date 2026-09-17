@@ -67,16 +67,16 @@ export function formatJstDateTime(date: Date): string {
 }
 
 /** "8/31(日)" のような表示用の短い日付 */
-const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+export const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 export function formatJstShort(date: Date): string {
   const jst = toJst(date);
-  return `${jst.getUTCMonth() + 1}/${jst.getUTCDate()}(${WEEKDAYS[jst.getUTCDay()]})`;
+  return `${jst.getUTCMonth() + 1}/${jst.getUTCDate()}(${WEEKDAY_LABELS[jst.getUTCDay()]})`;
 }
 
 /** "2026年8月31日（日）" */
 export function formatJstLong(date: Date): string {
   const jst = toJst(date);
-  return `${jst.getUTCFullYear()}年${jst.getUTCMonth() + 1}月${jst.getUTCDate()}日（${WEEKDAYS[jst.getUTCDay()]}）`;
+  return `${jst.getUTCFullYear()}年${jst.getUTCMonth() + 1}月${jst.getUTCDate()}日（${WEEKDAY_LABELS[jst.getUTCDay()]}）`;
 }
 
 /** "2026-08-31" や "2026-08-31T05:00" を JST として解釈し UTC の Date にする */

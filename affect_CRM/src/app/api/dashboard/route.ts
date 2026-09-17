@@ -19,6 +19,11 @@ function daysInJstMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
 }
 
+/** 指定した JST の年月日（month は 0 始まり）の曜日（0=日 〜 6=土） */
+function jstWeekday(year: number, month: number, day: number): number {
+  return new Date(Date.UTC(year, month, day)).getUTCDay();
+}
+
 /**
  * 来店レコードを JST の日にちごとに件数集計する。
  * maxDay を指定すると、当月の「今日まで」のように途中までしか集計しない。
@@ -40,7 +45,7 @@ function aggregateDailyVisits(
   for (let day = 1; day <= maxDay; day++) {
     points.push({
       day,
-      weekday: new Date(Date.UTC(year, month, day)).getUTCDay(),
+      weekday: jstWeekday(year, month, day),
       count: counts[day],
     });
   }
@@ -152,12 +157,16 @@ export async function GET(request: Request) {
   const prevYear = prevJst.getUTCFullYear();
   const prevMonthIndex = prevJst.getUTCMonth();
   const todayDay = toJst(now).getUTCDate();
+  const currentMonthTotalDays = daysInJstMonth(curYear, curMonthIndex);
 
   const visitTrend: DashboardResponse["visitTrend"] = {
     currentMonthNumber: curMonthIndex + 1,
     previousMonthNumber: prevMonthIndex + 1,
-    currentMonthTotalDays: daysInJstMonth(curYear, curMonthIndex),
+    currentMonthTotalDays,
     todayDay,
+    currentWeekdays: Array.from({ length: currentMonthTotalDays }, (_, i) =>
+      jstWeekday(curYear, curMonthIndex, i + 1),
+    ),
     current: aggregateDailyVisits(monthVisitRows, curYear, curMonthIndex, todayDay),
     previous: aggregateDailyVisits(
       prevMonthVisitRows,

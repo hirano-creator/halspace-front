@@ -151,3 +151,10 @@ export function toEnum<T extends string>(
     ? (value as T)
     : null;
 }
+
+/** 定休日の曜日（0=日 〜 6=土）。affect は木曜定休 */
+export const REGULAR_HOLIDAY_WEEKDAYS: readonly number[] = [4];
+
+export function isRegularHoliday(weekday: number): boolean {
+  return REGULAR_HOLIDAY_WEEKDAYS.includes(weekday);
+}

@@ -82,6 +82,12 @@ export interface DashboardVisitTrend {
   currentMonthTotalDays: number;
   /** 今日の日にち（1〜31） */
   todayDay: number;
+  /**
+   * 当月 1 日〜末日の曜日（0=日 〜 6=土）。index は「日にち - 1」。
+   * current は今日までしか無いので、未来日の曜日はこれを見る
+   * （前月の同じ日にちから曜日を取るとズレる）
+   */
+  currentWeekdays: number[];
   /** 1日〜今日まで。未来日は含まない */
   current: DashboardDailyPoint[];
   /** 1日〜前月の末日まで */
