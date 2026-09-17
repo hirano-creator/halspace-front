@@ -55,8 +55,9 @@ export function StandaloneDiagnostics({
   note,
 }: Diagnostics & { arrival: string; note?: string }) {
   if (!standalone) return null;
+  // 画面下部に固定し、記録が増えてもフォームの位置が動かないようにする（タップ判定への影響を排除）
   return (
-    <div className="mt-4 rounded-md bg-gray-100 p-2 font-mono text-[10px] leading-snug break-all text-gray-600">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 max-h-[38vh] overflow-hidden bg-gray-100/95 p-2 font-mono text-[10px] leading-snug break-all text-gray-600">
       <p className="font-semibold">診断（ホーム画面アプリ）{note ? ` ${note}` : ""}</p>
       <p>{ua}</p>
       <p>{arrival}</p>

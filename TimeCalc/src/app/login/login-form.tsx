@@ -5,7 +5,7 @@
 // タブごとに独立したセッションにするため、Server Action(Cookie依存)ではなく
 // /api/auth/login をfetchで叩き、トークンをAuthProvider経由でsessionStorageに保存する。
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type TouchEvent } from "react";
 import { useRouter } from "next/navigation";
 import { navigateAcrossLogin, useAuth } from "@/lib/auth/client";
 import type { SessionUser } from "@/lib/auth/session";
@@ -30,6 +30,19 @@ const fieldLabelClass = "mb-1.5 block text-[0.8125rem] font-semibold text-foregr
 
 function describe(e: unknown): string {
   return e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+}
+
+/**
+ * ホーム画面アプリ向けの回避策: タップ直後（ユーザー操作の文脈内）にフォーカスを取り直して
+ * キーボードの入力セッションを開かせる。フォーカスだけ当たってキーボードが出ない場合の保険
+ */
+function refocusOnTouchEnd(inner: (e: TouchEvent<HTMLInputElement>) => void) {
+  return (e: TouchEvent<HTMLInputElement>) => {
+    inner(e);
+    const el = e.currentTarget;
+    el.blur();
+    el.focus({ preventScroll: true });
+  };
 }
 
 export function LoginForm({ redirectTo }: { redirectTo?: string }) {
@@ -105,6 +118,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           className={fieldClass}
           placeholder="H0001"
           {...diag.handlers}
+          onTouchEnd={diag.standalone ? refocusOnTouchEnd(diag.handlers.onTouchEnd) : diag.handlers.onTouchEnd}
         />
       </div>
 
@@ -116,14 +130,18 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           <input
             id="password"
             name="password"
-            type={showPassword ? "text" : "password"}
+            /* iOS はフォーム内に type=password があるだけで「ログインフォーム」と見なして
+               パスワード自動入力の準備に入り、ホーム画面アプリではそこで止まってキーボードが出ない。
+               standalone のときは通常の入力欄にして CSS で伏せ字にする */
+            type={showPassword || diag.standalone ? "text" : "password"}
             autoComplete={diag.standalone ? "off" : "current-password"}
             required
             value={passwordValue}
             onChange={(e) => setPasswordValue(e.target.value)}
             /* 目のアイコンに文字が重ならないよう右側だけ余白を広げる */
-            className={`${fieldClass} pr-11`}
+            className={`${fieldClass} pr-11 ${diag.standalone && !showPassword ? "[-webkit-text-security:disc]" : ""}`}
             {...diag.handlers}
+            onTouchEnd={diag.standalone ? refocusOnTouchEnd(diag.handlers.onTouchEnd) : diag.handlers.onTouchEnd}
           />
           <button
             type="button"
@@ -203,7 +221,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
         ua={diag.ua}
         arrival={diag.arrival}
         events={diag.events}
-        note="v3 start_url=/login"
+        note="v4 no-password-type refocus"
       />
     </form>
   );
