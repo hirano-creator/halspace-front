@@ -72,3 +72,9 @@ export interface CustomerSuggestion {
   visitCount: number;
   lastVisitLabel: string | null;
 }
+
+/** 一括削除の結果。skipped は購入記録が紐づいていて消せなかった件数 */
+export interface VisitBulkDeleteResponse {
+  deleted: number;
+  skipped: number;
+}
