@@ -34,7 +34,7 @@ function LoginPageContent() {
   }, [status, router, redirectTo]);
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-5 py-12">
+    <main className="relative flex min-h-screen items-center justify-center bg-background px-5 py-12">
       {/* 背景の淡いブランドカラー。文字を読みづらくしない程度にごく薄く敷く */}
       <div
         aria-hidden

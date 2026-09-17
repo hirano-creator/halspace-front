@@ -9,6 +9,7 @@ import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/client";
 import type { SessionUser } from "@/lib/auth/session";
+import { StandaloneDiagnostics, useStandaloneDiagnostics } from "./standalone-diagnostics";
 
 interface LoginState {
   error: string | null;
@@ -39,6 +40,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   // ログイン失敗時に入力が消えないよう制御コンポーネントにしている
   const [identifierValue, setIdentifierValue] = useState("");
   const [passwordValue, setPasswordValue] = useState("");
+  const diag = useStandaloneDiagnostics();
 
   async function loginAction(_prev: LoginState, formData: FormData): Promise<LoginState> {
     const identifier = String(formData.get("identifier") ?? "").trim();
@@ -100,6 +102,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           onChange={(e) => setIdentifierValue(e.target.value)}
           className={fieldClass}
           placeholder="H0001"
+          {...diag.handlers}
         />
       </div>
 
@@ -118,6 +121,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
             onChange={(e) => setPasswordValue(e.target.value)}
             /* 目のアイコンに文字が重ならないよう右側だけ余白を広げる */
             className={`${fieldClass} pr-11`}
+            {...diag.handlers}
           />
           <button
             type="button"
@@ -191,6 +195,8 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           {pending ? "ログイン中..." : "ログイン"}
         </button>
       </div>
+
+      <StandaloneDiagnostics standalone={diag.standalone} ua={diag.ua} events={diag.events} />
     </form>
   );
 }
