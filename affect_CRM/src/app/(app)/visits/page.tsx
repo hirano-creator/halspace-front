@@ -2,8 +2,8 @@
 
 // 来店管理（一覧）
 //
-// 管理者には各行の左にチェックボックスを出し、まとめて削除できるようにする。
-// 削除は集計が動くため管理者のみ（API 側でも requireApiPermission で止める）。
+// 各行の左にチェックボックスを出し、まとめて削除できるようにする。
+// 削除できるかは権限 visit.delete で判定する（API 側でも requireApiPermission で止める）。
 // 購入記録が紐づく来店は消せないので、消せなかった件数を結果に出す。
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
@@ -49,7 +49,7 @@ function VisitsList() {
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [deleting, setDeleting] = useState(false);
 
-  const canDelete = user ? can(user.role, "data.delete") : false;
+  const canDelete = user ? can(user.role, "visit.delete") : false;
 
   // 絞り込みを素早く切り替えたとき、古い応答で新しい表示を上書きしないための連番
   const requestSeq = useRef(0);
@@ -101,7 +101,8 @@ function VisitsList() {
   }
 
   async function removeSelected() {
-    const ids = [...selected];
+    // 応答待ちの間に絞り込みが変わっていても、いま見えている行だけを消す
+    const ids = visibleIds.filter((id) => selected.has(id));
     if (ids.length === 0) return;
     if (
       !confirm(

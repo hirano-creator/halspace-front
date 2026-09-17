@@ -5,7 +5,7 @@
 // クイック登録では聞かなかった項目（来店日時・人数・何を見て来たか・次回提案・
 // フォロー予定日）を、あとからここで補える。
 // 誤入力を直せないと記録そのものが続かないので、編集はスタッフにも開放する。
-// 削除だけは集計が動くため管理者のみ。
+// 削除は権限 visit.delete で判定する（誰が持つかは src/lib/auth/roles.ts の表を見る）。
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -189,7 +189,7 @@ export default function VisitDetailPage() {
     return <Empty>{error ? `読み込めませんでした（${error}）` : "読み込んでいます…"}</Empty>;
   }
 
-  const canDelete = user ? can(user.role, "data.delete") : false;
+  const canDelete = user ? can(user.role, "visit.delete") : false;
 
   return (
     <div className="pb-32">

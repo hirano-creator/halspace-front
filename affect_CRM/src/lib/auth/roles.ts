@@ -15,7 +15,9 @@ export const ROLE_LABELS: Record<Role, string> = {
 export type Permission =
   /** 顧客の削除（論理削除） */
   | "customer.delete"
-  /** 来店・購入など履歴データの削除 */
+  /** 来店記録の削除 */
+  | "visit.delete"
+  /** 購入・スクール参加・フォロー・予約枠など、売上や予定に関わる履歴の削除 */
   | "data.delete"
   /** 商品・コース・タグ・選択肢マスタの編集 */
   | "master.edit"
@@ -28,6 +30,7 @@ export type Permission =
 
 const ADMIN_PERMISSIONS: Permission[] = [
   "customer.delete",
+  "visit.delete",
   "data.delete",
   "master.edit",
   "staff.manage",
@@ -38,9 +41,11 @@ const ADMIN_PERMISSIONS: Permission[] = [
 /** ロールごとの権限表。ここを見れば誰が何をできるか分かる */
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ADMIN: ADMIN_PERMISSIONS,
-  // スタッフは日常業務（顧客・来店・購入・予約・フォローの閲覧／登録／編集）のみ。
-  // それらは権限チェック不要なのでここは空でよい。
-  STAFF: [],
+  // スタッフは日常業務（顧客・来店・購入・予約・フォローの閲覧／登録／編集）が中心。
+  // それらは権限チェック不要なのでここには書かない。
+  // 店舗では日々スタッフのアカウントで操作するため、顧客・来店の削除（誤登録の整理）は
+  // スタッフにも開放している（2026-09-17）。売上に関わる購入などの削除は管理者のみのまま。
+  STAFF: ["customer.delete", "visit.delete"],
 };
 
 export function can(role: Role, permission: Permission): boolean {

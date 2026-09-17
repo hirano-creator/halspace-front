@@ -8,7 +8,7 @@ import type { VisitBulkDeleteResponse } from "@/app/(app)/visits/types";
 const MAX_IDS = 100;
 
 /**
- * 来店記録の一括削除（管理者のみ）
+ * 来店記録の一括削除
  *
  * 一覧でチェックを付けた分をまとめて消す。ルールは単体削除（[id]/route.ts の DELETE）と同じ:
  *   - 購入記録が紐づく来店は消さない（売上だけが宙に浮くため）。消せなかった件数を返す
@@ -17,7 +17,7 @@ const MAX_IDS = 100;
  *   - 監査ログは 1 件ずつ残す（個人情報は入れない）
  */
 export async function POST(request: Request) {
-  const auth = await requireApiPermission(request, "data.delete");
+  const auth = await requireApiPermission(request, "visit.delete");
   if (!auth.ok) return auth.response;
 
   const body = (await request.json().catch(() => null)) as { ids?: unknown } | null;

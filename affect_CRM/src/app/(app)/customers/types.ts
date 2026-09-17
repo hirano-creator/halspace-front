@@ -135,3 +135,8 @@ export interface CustomerDetailResponse {
   schools: { id: string; attendedAt: string; courseName: string | null; evalTotal: number | null }[];
   reservations: { id: string; date: string; startTime: string; courseName: string; status: string }[];
 }
+
+/** 一括削除（論理削除）の結果 */
+export interface CustomerBulkDeleteResponse {
+  deleted: number;
+}

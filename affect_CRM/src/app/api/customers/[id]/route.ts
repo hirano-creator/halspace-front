@@ -61,7 +61,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
   return NextResponse.json({ ok: true });
 }
 
-/** 顧客の削除は論理削除。管理者のみ */
+/** 顧客の削除は論理削除（権限 customer.delete） */
 export async function DELETE(request: Request, { params }: Ctx) {
   const auth = await requireApiPermission(request, "customer.delete");
   if (!auth.ok) return auth.response;

@@ -125,9 +125,9 @@ export async function PATCH(request: Request, { params }: Ctx) {
   return NextResponse.json({ ok: true });
 }
 
-/** 来店記録の削除は管理者のみ */
+/** 来店記録の削除（スタッフも可。集計は削除後に数え直す） */
 export async function DELETE(request: Request, { params }: Ctx) {
-  const auth = await requireApiPermission(request, "data.delete");
+  const auth = await requireApiPermission(request, "visit.delete");
   if (!auth.ok) return auth.response;
   const { id } = await params;
 
