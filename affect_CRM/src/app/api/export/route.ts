@@ -175,8 +175,8 @@ export async function GET(request: Request) {
           ...rows.flatMap((p) =>
             p.items.map((i) => [
               formatJstDate(p.purchasedAt),
-              p.customer.code,
-              p.customer.name,
+              p.customer?.code ?? "",
+              p.customer?.name ?? "お名前不明",
               i.productName,
               i.category?.name ?? "",
               i.size,

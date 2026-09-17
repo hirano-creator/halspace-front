@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth/api-guard";
+import { guestLabel } from "@/lib/display";
 import { formatJstDate, jstMonthRange } from "@/lib/utils/time";
 import type { PurchaseListResponse } from "@/app/(app)/products/types";
 
@@ -20,6 +21,16 @@ export async function GET(request: Request) {
       take: 100,
       include: {
         customer: { select: { id: true, name: true } },
+        // お名前不明の購入は、来店側の年代・性別で「お名前不明（20代・男性）」と出す
+        visit: {
+          select: {
+            id: true,
+            guestAgeGroup: true,
+            guestGender: true,
+            partySize: true,
+            guests: { select: { ageGroup: true, gender: true } },
+          },
+        },
         staff: { select: { name: true } },
         items: { select: { productName: true, size: true, quantity: true, subtotal: true } },
       },
@@ -31,8 +42,9 @@ export async function GET(request: Request) {
     purchases: rows.map((p) => ({
       id: p.id,
       purchasedAt: formatJstDate(p.purchasedAt),
-      customerId: p.customer.id,
-      customerName: p.customer.name,
+      customerId: p.customer?.id ?? null,
+      customerName: p.customer?.name ?? (p.visit ? guestLabel(p.visit) : "お名前不明"),
+      visitId: p.visit?.id ?? null,
       totalAmount: p.totalAmount,
       staffName: p.staff?.name ?? null,
       items: p.items.map((i) => ({

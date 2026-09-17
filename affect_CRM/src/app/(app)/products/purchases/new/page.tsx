@@ -3,6 +3,9 @@
 // 購入登録
 //
 // クイック来店登録で「購入した」を選んだあと、そのまま流れてくる画面。
+// 来店記録の「購入内容を登録する」からも来る。
+// お名前不明の来店（customerId なし）でも登録できる。購入は来店に紐づけて残し、
+// あとで来店を顧客に紐付けたときに一緒に顧客へ付け替わる。
 // 明細は 1 行から入力でき、合計はその場で計算して見せる。
 
 import { Suspense, useEffect, useState } from "react";
@@ -17,8 +20,8 @@ import {
   inputClass,
   labelClass,
 } from "@/components/ui";
-import type { MastersResponse } from "../../../customers/types";
-import type { CustomerSuggestion } from "../../../visits/types";
+import type { CustomerDetailResponse, MastersResponse } from "../../../customers/types";
+import type { VisitDetailResponse } from "../../../visits/types";
 
 interface ItemRow {
   productName: string;
@@ -35,26 +38,38 @@ function PurchaseForm() {
   const params = useSearchParams();
   const { status } = useAuth();
 
-  const customerId = params.get("customerId") ?? "";
+  const paramCustomerId = params.get("customerId") ?? "";
   const visitId = params.get("visitId") ?? "";
 
   const [masters, setMasters] = useState<MastersResponse | null>(null);
-  const [customer, setCustomer] = useState<CustomerSuggestion | null>(null);
+  // 見出しに出す相手。来店があれば来店側の顧客を正とする（URL の customerId と食い違わないように）
+  const [who, setWho] = useState<{ customerId: string | null; label: string } | null>(null);
   const [purchasedAt, setPurchasedAt] = useState(nowForDateTimeInput().slice(0, 10));
   const [rows, setRows] = useState<ItemRow[]>([{ ...EMPTY_ROW }]);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  const customerId = who?.customerId ?? paramCustomerId;
+
   useEffect(() => {
     if (status !== "authenticated") return;
     apiFetchJson<MastersResponse>("/api/masters").then(setMasters).catch(() => {});
-    if (customerId) {
-      apiFetchJson<{ customers: CustomerSuggestion[] }>("/api/customers/search?q=")
-        .then((res) => setCustomer(res.customers.find((c) => c.id === customerId) ?? null))
+
+    if (visitId) {
+      // 来店日を購入日の既定値にする（過去の来店を後から登録するときに日付を直さなくて済む）
+      apiFetchJson<VisitDetailResponse>(`/api/visits/${visitId}`)
+        .then((v) => {
+          setWho({ customerId: v.customerId, label: v.displayName });
+          setPurchasedAt(v.visitedAt.slice(0, 10));
+        })
+        .catch(() => {});
+    } else if (paramCustomerId) {
+      apiFetchJson<CustomerDetailResponse>(`/api/customers/${paramCustomerId}/detail`)
+        .then((res) => setWho({ customerId: res.header.id, label: res.header.name }))
         .catch(() => {});
     }
-  }, [status, customerId]);
+  }, [status, visitId, paramCustomerId]);
 
   const total = rows.reduce((sum, r) => {
     const price = Number(r.unitPrice) || 0;
@@ -65,9 +80,16 @@ function PurchaseForm() {
   const setRow = (index: number, key: keyof ItemRow, value: string) =>
     setRows((rs) => rs.map((r, i) => (i === index ? { ...r, [key]: value } : r)));
 
+  // 保存後・「あとで」の戻り先。顧客がいれば顧客カルテ、お名前不明なら来店記録
+  const backHref = customerId
+    ? `/customers/${customerId}`
+    : visitId
+      ? `/visits/${visitId}`
+      : "/visits";
+
   async function onSave() {
     setError(null);
-    if (!customerId) return setError("顧客が指定されていません");
+    if (!customerId && !visitId) return setError("顧客か来店記録が指定されていません");
     if (!rows.some((r) => r.productName.trim())) {
       return setError("購入した商品を 1 つ以上入力してください");
     }
@@ -75,7 +97,7 @@ function PurchaseForm() {
     setPending(true);
     try {
       const form = new FormData();
-      form.set("customerId", customerId);
+      if (customerId) form.set("customerId", customerId);
       if (visitId) form.set("visitId", visitId);
       form.set("purchasedAt", purchasedAt);
       form.set("note", note);
@@ -94,7 +116,7 @@ function PurchaseForm() {
         setError(data?.error ?? "保存できませんでした");
         return;
       }
-      router.push(`/customers/${customerId}`);
+      router.push(backHref);
     } catch {
       setError("通信に失敗しました。もう一度お試しください");
     } finally {
@@ -107,8 +129,15 @@ function PurchaseForm() {
       <div className="border-b border-line bg-card px-5 py-4 sm:px-8">
         <h1 className="text-lg font-semibold sm:text-xl">購入登録</h1>
         <p className="mt-1 text-xs text-gray-soft">
-          {customer ? `${customer.name} 様` : "顧客"}の購入内容を登録します
+          {who
+            ? `${who.customerId ? `${who.label} 様` : who.label}の購入内容を登録します`
+            : "顧客の購入内容を登録します"}
         </p>
+        {who && !who.customerId && (
+          <p className="mt-2 rounded bg-accent-soft px-3 py-2 text-[11.5px] leading-relaxed text-gray-soft">
+            お名前不明のまま売上として記録します。あとで来店記録を顧客に紐付けると、購入履歴も顧客に付け替わります。
+          </p>
+        )}
       </div>
 
       <div className="mx-auto max-w-[640px] bg-card px-5 sm:px-6">
@@ -208,7 +237,7 @@ function PurchaseForm() {
         <div className="mx-auto flex max-w-[640px] items-center gap-2.5">
           <button
             type="button"
-            onClick={() => router.push(customerId ? `/customers/${customerId}` : "/visits")}
+            onClick={() => router.push(backHref)}
             className={`${buttonSecondaryClass} w-[92px] flex-none`}
           >
             あとで

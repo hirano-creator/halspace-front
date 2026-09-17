@@ -42,7 +42,7 @@ export default function PurchasesPage() {
       <div className="px-5 pt-6 sm:px-8">
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">購入履歴</h1>
         <p className="mt-1.5 text-xs text-gray-soft sm:text-[13px]">
-          購入の登録は、来店登録で「購入した」を選ぶと続けて行えます
+          購入の登録は、来店登録で「購入した」を選ぶと続けて行えます（来店記録からも登録できます）
         </p>
       </div>
 
@@ -99,12 +99,25 @@ export default function PurchasesPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <span className="tabular text-[12.5px] text-gray-soft">{p.purchasedAt}</span>
-                  <Link
-                    href={`/customers/${p.customerId}`}
-                    className="ml-2.5 text-[15px] font-semibold hover:underline"
-                  >
-                    {p.customerName}
-                  </Link>
+                  {p.customerId ? (
+                    <Link
+                      href={`/customers/${p.customerId}`}
+                      className="ml-2.5 text-[15px] font-semibold hover:underline"
+                    >
+                      {p.customerName}
+                    </Link>
+                  ) : p.visitId ? (
+                    <Link
+                      href={`/visits/${p.visitId}`}
+                      className="ml-2.5 text-[15px] font-semibold text-ink-2 hover:underline"
+                    >
+                      {p.customerName}
+                    </Link>
+                  ) : (
+                    <span className="ml-2.5 text-[15px] font-semibold text-ink-2">
+                      {p.customerName}
+                    </span>
+                  )}
                   <p className="mt-1 text-[12.5px] text-gray-soft">
                     {p.items
                       .map(

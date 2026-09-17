@@ -191,6 +191,11 @@ export default function VisitDetailPage() {
 
   const canDelete = user ? can(user.role, "visit.delete") : false;
 
+  // 購入登録へは来店 ID で渡す（お名前不明の来店でも登録できる。顧客は来店側から引く）
+  const purchaseHref = `/products/purchases/new?visitId=${visit.id}${
+    visit.customerId ? `&customerId=${visit.customerId}` : ""
+  }`;
+
   return (
     <div className="pb-32">
       <div className="border-b border-line bg-card px-5 pt-6 pb-4 sm:px-8">
@@ -216,7 +221,7 @@ export default function VisitDetailPage() {
           )}
         </div>
 
-        {visit.purchases.length > 0 && (
+        {visit.purchases.length > 0 ? (
           <p className="mt-3 rounded-md bg-accent-soft px-3.5 py-2.5 text-[12.5px] text-gray-soft">
             この来店の購入：
             {visit.purchases.map((p) => formatYen(p.totalAmount)).join("、")}
@@ -225,6 +230,16 @@ export default function VisitDetailPage() {
               購入履歴を見る
             </Link>
           </p>
+        ) : (
+          visit.purchased && (
+            // 「購入した」なのに購入内容が無い来店（購入登録を「あとで」にした等）は、ここから登録できるようにする
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md bg-accent-soft px-3.5 py-2.5 text-[12.5px] text-gray-soft">
+              <span>購入内容がまだ登録されていません</span>
+              <Link href={purchaseHref} className={`${buttonPrimaryClass} min-h-9 px-3.5 text-[13px]`}>
+                購入内容を登録する
+              </Link>
+            </div>
+          )
         )}
       </div>
 
@@ -444,6 +459,11 @@ export default function VisitDetailPage() {
           {purchased === false && visit.purchases.length > 0 && (
             <p className="mt-2 text-[12px] text-danger">
               この来店には購入記録が残っています。「未購入」にする場合は、先に購入記録を削除してください。
+            </p>
+          )}
+          {purchased === true && !visit.purchased && (
+            <p className="mt-2 text-[12px] text-gray-soft">
+              保存すると、購入内容（商品・金額）をこの画面から登録できます。
             </p>
           )}
         </section>

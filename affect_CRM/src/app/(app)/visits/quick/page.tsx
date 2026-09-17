@@ -155,9 +155,12 @@ export default function QuickVisitPage() {
         return;
       }
 
-      // 購入があった場合は、そのまま購入内容の登録へ進めるようにする
-      if (purchased && data.visit.customerId) {
-        router.push(`/products/purchases/new?visitId=${data.visit.id}&customerId=${data.visit.customerId}`);
+      // 購入があった場合は、そのまま購入内容の登録へ進めるようにする。
+      // お名前不明の来店でも進める（購入は来店に紐づけて残し、顧客が分かったら付け替える）
+      if (purchased) {
+        const q = new URLSearchParams({ visitId: data.visit.id });
+        if (data.visit.customerId) q.set("customerId", data.visit.customerId);
+        router.push(`/products/purchases/new?${q.toString()}`);
       } else {
         router.push("/visits?saved=1");
       }

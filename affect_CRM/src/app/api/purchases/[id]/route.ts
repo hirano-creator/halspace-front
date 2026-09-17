@@ -37,7 +37,9 @@ export async function DELETE(request: Request, { params }: Ctx) {
     }
   }
 
-  await recalcCustomerStats(purchase.customerId);
+  if (purchase.customerId) {
+    await recalcCustomerStats(purchase.customerId);
+  }
 
   await prisma.auditLog.create({
     data: { staffId: auth.user.id, action: "purchase.delete", targetType: "Purchase", targetId: id },

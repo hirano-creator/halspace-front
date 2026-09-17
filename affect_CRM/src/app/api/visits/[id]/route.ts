@@ -114,6 +114,15 @@ export async function PATCH(request: Request, { params }: Ctx) {
     },
   });
 
+  // お名前不明のまま登録した購入は、来店を顧客に紐付けたときに一緒に顧客へ付け替える
+  // （購入履歴・累計購入金額が顧客カルテに出るようにする）
+  if (input.customerId && input.customerId !== existing.customerId) {
+    await prisma.purchase.updateMany({
+      where: { visitId: id, customerId: null },
+      data: { customerId: input.customerId },
+    });
+  }
+
   // 顧客の紐付けが変わった場合は、元の顧客と新しい顧客の両方を数え直す
   const targets = new Set(
     [existing.customerId, input.customerId].filter((v): v is string => Boolean(v)),

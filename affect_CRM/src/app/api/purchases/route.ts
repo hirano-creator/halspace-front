@@ -19,17 +19,35 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response;
 
   const form = await request.formData();
-  const customerId = trimOrNull(form.get("customerId"));
-  if (!customerId) {
+  const visitId = trimOrNull(form.get("visitId"));
+  let customerId = trimOrNull(form.get("customerId"));
+
+  // 顧客か来店のどちらかに必ず紐づける。
+  // お名前不明の来店（customerId なし）でも、来店に紐づけて売上として残す
+  if (!customerId && !visitId) {
     return NextResponse.json({ error: "顧客を選んでください" }, { status: 400 });
   }
 
-  const customer = await prisma.customer.findFirst({
-    where: { id: customerId, deletedAt: null },
-    select: { id: true },
-  });
-  if (!customer) {
-    return NextResponse.json({ error: "顧客が見つかりません" }, { status: 400 });
+  if (visitId) {
+    const visit = await prisma.visit.findUnique({
+      where: { id: visitId },
+      select: { id: true, customerId: true },
+    });
+    if (!visit) {
+      return NextResponse.json({ error: "来店記録が見つかりません" }, { status: 400 });
+    }
+    // 来店の顧客と食い違わないよう、来店側の顧客を正とする
+    customerId = visit.customerId ?? customerId;
+  }
+
+  if (customerId) {
+    const customer = await prisma.customer.findFirst({
+      where: { id: customerId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!customer) {
+      return NextResponse.json({ error: "顧客が見つかりません" }, { status: 400 });
+    }
   }
 
   const purchasedAtRaw = trimOrNull(form.get("purchasedAt"));
@@ -78,7 +96,7 @@ export async function POST(request: Request) {
   const purchase = await prisma.purchase.create({
     data: {
       customerId,
-      visitId: trimOrNull(form.get("visitId")),
+      visitId,
       purchasedAt,
       totalAmount,
       staffId: auth.user.id,
@@ -88,7 +106,14 @@ export async function POST(request: Request) {
     select: { id: true },
   });
 
-  await recalcCustomerStats(customerId);
+  // 来店記録から後追いで登録した場合、来店側が「未購入」のままだと矛盾するので揃える
+  if (visitId) {
+    await prisma.visit.update({ where: { id: visitId }, data: { purchased: true } });
+  }
 
-  return NextResponse.json({ purchase });
+  if (customerId) {
+    await recalcCustomerStats(customerId);
+  }
+
+  return NextResponse.json({ purchase: { ...purchase, customerId, visitId } });
 }

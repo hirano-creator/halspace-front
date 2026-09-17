@@ -127,6 +127,15 @@ export async function GET(request: Request) {
       take: 5,
       include: {
         customer: { select: { id: true, name: true, visitCount: true } },
+        visit: {
+          select: {
+            id: true,
+            guestAgeGroup: true,
+            guestGender: true,
+            partySize: true,
+            guests: { select: { ageGroup: true, gender: true } },
+          },
+        },
         items: { select: { productName: true, size: true } },
       },
     }),
@@ -226,9 +235,10 @@ export async function GET(request: Request) {
     recentPurchases: recentPurchaseRows.map((p) => ({
       id: p.id,
       date: formatJstShort(p.purchasedAt),
-      customerId: p.customer.id,
-      customerName: p.customer.name,
-      visitCount: p.customer.visitCount,
+      customerId: p.customer?.id ?? null,
+      customerName: p.customer?.name ?? (p.visit ? guestLabel(p.visit) : "お名前不明"),
+      visitId: p.visit?.id ?? null,
+      visitCount: p.customer?.visitCount ?? null,
       items: p.items
         .map((i) => (i.size ? `${i.productName}／${i.size}` : i.productName))
         .join(" ／ "),

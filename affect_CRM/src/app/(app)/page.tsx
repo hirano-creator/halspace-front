@@ -191,13 +191,26 @@ export default function DashboardPage() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-baseline gap-x-1.5">
-                    <Link
-                      href={`/customers/${p.customerId}`}
-                      className="font-semibold hover:underline"
-                    >
-                      {p.customerName}
-                    </Link>
-                    <span className="text-[11px] text-gray-soft">来店{p.visitCount}回目</span>
+                    {p.customerId ? (
+                      <Link
+                        href={`/customers/${p.customerId}`}
+                        className="font-semibold hover:underline"
+                      >
+                        {p.customerName}
+                      </Link>
+                    ) : p.visitId ? (
+                      <Link
+                        href={`/visits/${p.visitId}`}
+                        className="font-semibold text-ink-2 hover:underline"
+                      >
+                        {p.customerName}
+                      </Link>
+                    ) : (
+                      <span className="font-semibold text-ink-2">{p.customerName}</span>
+                    )}
+                    {p.visitCount !== null && (
+                      <span className="text-[11px] text-gray-soft">来店{p.visitCount}回目</span>
+                    )}
                   </span>
                   <span className="mt-0.5 block truncate text-[11.5px] text-gray-soft">{p.items}</span>
                 </span>

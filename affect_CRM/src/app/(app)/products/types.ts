@@ -15,8 +15,11 @@ export interface ProductListResponse {
 export interface PurchaseRow {
   id: string;
   purchasedAt: string;
-  customerId: string;
+  /** お名前不明の購入は null（来店にだけ紐づく） */
+  customerId: string | null;
+  /** 顧客名。匿名なら「お名前不明（20代・男性）」 */
   customerName: string;
+  visitId: string | null;
   totalAmount: number;
   staffName: string | null;
   items: { productName: string; size: string | null; quantity: number; subtotal: number }[];

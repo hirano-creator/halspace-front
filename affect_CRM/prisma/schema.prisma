@@ -307,8 +307,10 @@ model Product {
 
 model Purchase {
   id         String   @id @default(cuid())
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// 任意。お名前が分からないお客様の購入（レジで買っていかれた等）も売上として残すため。
+  /// 匿名購入は visitId で来店に紐づき、来店を顧客に紐付けたときに一緒に付け替える
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
   /// どの来店での購入か（来店→購入の分析に使う）
   visitId    String?
   visit      Visit?   @relation(fields: [visitId], references: [id], onDelete: SetNull)

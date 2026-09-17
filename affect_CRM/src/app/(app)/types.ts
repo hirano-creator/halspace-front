@@ -56,10 +56,13 @@ export interface DashboardPurchase {
   id: string;
   /** "9/12(土)" */
   date: string;
-  customerId: string;
+  /** お名前不明の購入は null（来店にだけ紐づく） */
+  customerId: string | null;
+  /** 顧客名。匿名なら「お名前不明（20代・男性）」 */
   customerName: string;
-  /** 顧客の来店回数（累計） */
-  visitCount: number;
+  visitId: string | null;
+  /** 顧客の来店回数（累計）。匿名なら null */
+  visitCount: number | null;
   items: string;
   totalAmount: number;
 }
