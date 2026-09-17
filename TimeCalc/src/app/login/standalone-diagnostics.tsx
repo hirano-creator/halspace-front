@@ -4,6 +4,7 @@
 // タッチ/フォーカスがどこまで届いているかを画面に出す。原因が判明したら丸ごと削除する。
 
 import { useState, useSyncExternalStore, type SyntheticEvent } from "react";
+import { isStandaloneDisplay } from "@/lib/auth/client";
 
 interface Diagnostics {
   standalone: boolean;
@@ -13,15 +14,17 @@ interface Diagnostics {
 
 const subscribeNever = () => () => {};
 
-function isStandalone(): boolean {
-  const nav = navigator as Navigator & { standalone?: boolean };
-  return nav.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+/** この画面に「通常のページ読み込み」で来たか「アプリ内遷移」で来たかを示す */
+function describeArrival(): string {
+  const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+  return `arrived: load=${nav?.name ?? "?"} now=${location.pathname}${location.search}`;
 }
 
 export function useStandaloneDiagnostics() {
   // サーバー描画時は false / "" にしてハイドレーション差分を出さない
-  const standalone = useSyncExternalStore(subscribeNever, isStandalone, () => false);
+  const standalone = useSyncExternalStore(subscribeNever, isStandaloneDisplay, () => false);
   const ua = useSyncExternalStore(subscribeNever, () => navigator.userAgent, () => "");
+  const arrival = useSyncExternalStore(subscribeNever, describeArrival, () => "");
   const [events, setEvents] = useState<string[]>([]);
 
   const record = (name: string) => (e: SyntheticEvent) => {
@@ -41,15 +44,22 @@ export function useStandaloneDiagnostics() {
     onBlur: record("blur"),
   };
 
-  return { standalone, ua, events, handlers };
+  return { standalone, ua, arrival, events, handlers };
 }
 
-export function StandaloneDiagnostics({ standalone, ua, events, note }: Diagnostics & { note?: string }) {
+export function StandaloneDiagnostics({
+  standalone,
+  ua,
+  arrival,
+  events,
+  note,
+}: Diagnostics & { arrival: string; note?: string }) {
   if (!standalone) return null;
   return (
     <div className="mt-4 rounded-md bg-gray-100 p-2 font-mono text-[10px] leading-snug break-all text-gray-600">
       <p className="font-semibold">診断（ホーム画面アプリ）{note ? ` ${note}` : ""}</p>
       <p>{ua}</p>
+      <p>{arrival}</p>
       {events.length === 0 ? (
         <p>入力欄をタップすると記録が出ます</p>
       ) : (

@@ -7,7 +7,7 @@
 
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth/client";
+import { navigateAcrossLogin, useAuth } from "@/lib/auth/client";
 import type { SessionUser } from "@/lib/auth/session";
 import { StandaloneDiagnostics, useStandaloneDiagnostics } from "./standalone-diagnostics";
 
@@ -80,7 +80,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
       return { error: `ログイン情報を保存できませんでした（${describe(e)}）` };
     }
 
-    router.push(redirectTo ?? "/");
+    navigateAcrossLogin(router, redirectTo ?? "/");
     return { error: null, loggedIn: true };
   }
 
@@ -201,8 +201,9 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
       <StandaloneDiagnostics
         standalone={diag.standalone}
         ua={diag.ua}
+        arrival={diag.arrival}
         events={diag.events}
-        note="v2 autocomplete=off"
+        note="v3 start_url=/login"
       />
     </form>
   );

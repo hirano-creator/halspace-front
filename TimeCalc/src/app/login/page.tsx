@@ -5,7 +5,7 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/lib/auth/client";
+import { navigateAcrossLogin, useAuth } from "@/lib/auth/client";
 import { LoginForm } from "./login-form";
 
 /** オープンリダイレクト対策: "/"始まりの相対パスのみ許可する */
@@ -30,7 +30,7 @@ function LoginPageContent() {
   const redirectTo = safeRedirect(searchParams.get("redirect"));
 
   useEffect(() => {
-    if (status === "authenticated") router.replace(redirectTo);
+    if (status === "authenticated") navigateAcrossLogin(router, redirectTo);
   }, [status, router, redirectTo]);
 
   return (

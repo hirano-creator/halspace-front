@@ -8,7 +8,9 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "TimeCalc | 勤怠時間計算システム",
     short_name: "TimeCalc",
     description: "勤怠時間計算システム",
-    start_url: "/",
+    // iOS 18 のホーム画面アプリは、起動直後にアプリ内遷移した画面でキーボードが出なくなるため、
+    // "/" → /login の遷移を挟まず最初からログイン画面を開く（ログイン済みなら /login 側が振り分ける）
+    start_url: "/login",
     display: "standalone",
     background_color: "#f6f8fa",
     theme_color: "#635bff",
