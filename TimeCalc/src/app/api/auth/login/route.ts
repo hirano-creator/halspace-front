@@ -18,7 +18,14 @@ export async function POST(request: Request) {
   const identifier = typeof body?.identifier === "string" ? body.identifier.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";
 
+  // 実機でしか再現しない不具合の切り分け用に試行を記録する（パスワードは出さない）
+  const log = (result: string) =>
+    console.log(
+      `[auth/login] ${result} identifier=${JSON.stringify(identifier)} ua=${request.headers.get("user-agent") ?? ""}`,
+    );
+
   if (!identifier || !password) {
+    log("bad_request");
     return NextResponse.json(
       { error: "社員番号（またはメールアドレス）とパスワードを入力してください" },
       { status: 400 },
@@ -31,11 +38,13 @@ export async function POST(request: Request) {
 
   // ユーザー不存在とパスワード不一致でメッセージを変えない（列挙攻撃対策）
   if (!user || !user.isActive || !(await verifyPassword(password, user.passwordHash))) {
+    log("invalid");
     return NextResponse.json(
       { error: "社員番号またはパスワードが正しくありません" },
       { status: 401 },
     );
   }
+  log("ok");
 
   const features = resolveFeatures(user.featureOverrides);
   const sessionUser: SessionUser = {

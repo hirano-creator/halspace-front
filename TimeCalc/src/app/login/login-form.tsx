@@ -12,6 +12,8 @@ import type { SessionUser } from "@/lib/auth/session";
 
 interface LoginState {
   error: string | null;
+  /** 認証は通ったが画面遷移待ちの状態（遷移が起きない環境をこの表示の残留で見分ける） */
+  loggedIn?: boolean;
 }
 
 const initialState: LoginState = { error: null };
@@ -24,6 +26,10 @@ const fieldClass =
   "h-11 w-full rounded-lg border border-border bg-surface px-3.5 text-base text-foreground outline-none transition placeholder:text-muted/60 focus:border-primary focus:ring-4 focus:ring-primary/15";
 
 const fieldLabelClass = "mb-1.5 block text-[0.8125rem] font-semibold text-foreground";
+
+function describe(e: unknown): string {
+  return e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+}
 
 export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const router = useRouter();
@@ -42,20 +48,38 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
       return { error: "社員番号（またはメールアドレス）とパスワードを入力してください" };
     }
 
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier, password }),
-    });
-    const data = (await res.json()) as { error?: string; token: string; user: SessionUser };
-
-    if (!res.ok) {
-      return { error: data.error ?? "ログインに失敗しました" };
+    // 失敗の段階を画面に出す。ここで例外を投げると画面全体がエラー表示に切り替わり、
+    // 何が起きたか分からなくなる（ホーム画面アプリでは開発ツールも使えない）
+    let res: Response;
+    try {
+      res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, password }),
+      });
+    } catch (e) {
+      return { error: `サーバーに接続できませんでした（${describe(e)}）` };
     }
 
-    login(data.token, data.user);
+    let data: { error?: string; token: string; user: SessionUser };
+    try {
+      data = await res.json();
+    } catch (e) {
+      return { error: `サーバーの応答を読み取れませんでした（HTTP ${res.status} / ${describe(e)}）` };
+    }
+
+    if (!res.ok) {
+      return { error: data.error ?? `ログインに失敗しました（HTTP ${res.status}）` };
+    }
+
+    try {
+      login(data.token, data.user);
+    } catch (e) {
+      return { error: `ログイン情報を保存できませんでした（${describe(e)}）` };
+    }
+
     router.push(redirectTo ?? "/");
-    return { error: null };
+    return { error: null, loggedIn: true };
   }
 
   const [state, formAction, pending] = useActionState(loginAction, initialState);
@@ -125,6 +149,15 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
             <path d="M12 8v4.5M12 16h.01" />
           </svg>
           {state.error}
+        </p>
+      )}
+
+      {state.loggedIn && !state.error && (
+        <p
+          role="status"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[0.8125rem] leading-relaxed text-emerald-700"
+        >
+          ログインしました。画面を切り替えています...
         </p>
       )}
 
