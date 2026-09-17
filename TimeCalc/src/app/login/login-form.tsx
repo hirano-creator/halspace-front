@@ -5,15 +5,14 @@
 // タブごとに独立したセッションにするため、Server Action(Cookie依存)ではなく
 // /api/auth/login をfetchで叩き、トークンをAuthProvider経由でsessionStorageに保存する。
 
-import { useActionState, useState, type TouchEvent } from "react";
+import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
-import { navigateAcrossLogin, useAuth } from "@/lib/auth/client";
+import { useAuth } from "@/lib/auth/client";
 import type { SessionUser } from "@/lib/auth/session";
-import { StandaloneDiagnostics, useStandaloneDiagnostics } from "./standalone-diagnostics";
 
 interface LoginState {
   error: string | null;
-  /** 認証は通ったが画面遷移待ちの状態（遷移が起きない環境をこの表示の残留で見分ける） */
+  /** 認証は通って画面遷移を待っている状態 */
   loggedIn?: boolean;
 }
 
@@ -32,19 +31,6 @@ function describe(e: unknown): string {
   return e instanceof Error ? `${e.name}: ${e.message}` : String(e);
 }
 
-/**
- * ホーム画面アプリ向けの回避策: タップ直後（ユーザー操作の文脈内）にフォーカスを取り直して
- * キーボードの入力セッションを開かせる。フォーカスだけ当たってキーボードが出ない場合の保険
- */
-function refocusOnTouchEnd(inner: (e: TouchEvent<HTMLInputElement>) => void) {
-  return (e: TouchEvent<HTMLInputElement>) => {
-    inner(e);
-    const el = e.currentTarget;
-    el.blur();
-    el.focus({ preventScroll: true });
-  };
-}
-
 export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const router = useRouter();
   const { login } = useAuth();
@@ -53,7 +39,6 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   // ログイン失敗時に入力が消えないよう制御コンポーネントにしている
   const [identifierValue, setIdentifierValue] = useState("");
   const [passwordValue, setPasswordValue] = useState("");
-  const diag = useStandaloneDiagnostics();
 
   async function loginAction(_prev: LoginState, formData: FormData): Promise<LoginState> {
     const identifier = String(formData.get("identifier") ?? "").trim();
@@ -64,7 +49,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
     }
 
     // 失敗の段階を画面に出す。ここで例外を投げると画面全体がエラー表示に切り替わり、
-    // 何が起きたか分からなくなる（ホーム画面アプリでは開発ツールも使えない）
+    // 何が起きたか分からなくなる（スマホでは開発ツールも使えない）
     let res: Response;
     try {
       res = await fetch("/api/auth/login", {
@@ -93,7 +78,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
       return { error: `ログイン情報を保存できませんでした（${describe(e)}）` };
     }
 
-    navigateAcrossLogin(router, redirectTo ?? "/");
+    router.push(redirectTo ?? "/");
     return { error: null, loggedIn: true };
   }
 
@@ -109,16 +94,13 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           id="identifier"
           name="identifier"
           type="text"
-          /* iOS 18 のホーム画面アプリではパスワード自動入力の起動と競合してキーボードが出ないため、
-             standalone 表示のときだけ自動入力の対象から外す（Safari では従来どおり使える） */
-          autoComplete={diag.standalone ? "off" : "username"}
+          autoComplete="username"
+          autoFocus
           required
           value={identifierValue}
           onChange={(e) => setIdentifierValue(e.target.value)}
           className={fieldClass}
           placeholder="H0001"
-          {...diag.handlers}
-          onTouchEnd={diag.standalone ? refocusOnTouchEnd(diag.handlers.onTouchEnd) : diag.handlers.onTouchEnd}
         />
       </div>
 
@@ -130,18 +112,13 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           <input
             id="password"
             name="password"
-            /* iOS はフォーム内に type=password があるだけで「ログインフォーム」と見なして
-               パスワード自動入力の準備に入り、ホーム画面アプリではそこで止まってキーボードが出ない。
-               standalone のときは通常の入力欄にして CSS で伏せ字にする */
-            type={showPassword || diag.standalone ? "text" : "password"}
-            autoComplete={diag.standalone ? "off" : "current-password"}
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
             required
             value={passwordValue}
             onChange={(e) => setPasswordValue(e.target.value)}
             /* 目のアイコンに文字が重ならないよう右側だけ余白を広げる */
-            className={`${fieldClass} pr-11 ${diag.standalone && !showPassword ? "[-webkit-text-security:disc]" : ""}`}
-            {...diag.handlers}
-            onTouchEnd={diag.standalone ? refocusOnTouchEnd(diag.handlers.onTouchEnd) : diag.handlers.onTouchEnd}
+            className={`${fieldClass} pr-11`}
           />
           <button
             type="button"
@@ -215,14 +192,6 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           {pending ? "ログイン中..." : "ログイン"}
         </button>
       </div>
-
-      <StandaloneDiagnostics
-        standalone={diag.standalone}
-        ua={diag.ua}
-        arrival={diag.arrival}
-        events={diag.events}
-        note="v4 no-password-type refocus"
-      />
     </form>
   );
 }

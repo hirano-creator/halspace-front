@@ -7,7 +7,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { navigateAcrossLogin, useRequireAuth } from "@/lib/auth/client";
+import { useRequireAuth } from "@/lib/auth/client";
 import { apiFetchJson } from "@/lib/auth/api-fetch";
 import { can } from "@/lib/auth/roles";
 import { attendanceScope } from "@/lib/auth/guard";
@@ -65,7 +65,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   function handleLogout() {
     logout();
-    navigateAcrossLogin(router, "/login");
+    router.replace("/login");
   }
 
   const userFooter = (

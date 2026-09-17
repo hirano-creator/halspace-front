@@ -19,26 +19,6 @@ import type { SessionUser } from "./session";
 
 export const TOKEN_STORAGE_KEY = "timecalc_token";
 
-/** ホーム画面に追加したアプリ（standalone表示）で開いているか */
-export function isStandaloneDisplay(): boolean {
-  if (typeof window === "undefined") return false;
-  const nav = navigator as Navigator & { standalone?: boolean };
-  return nav.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
-}
-
-/**
- * ログイン前後の画面切り替え。
- * iOS 18 のホーム画面アプリは、起動直後にアプリ内遷移（history API）で移った画面で
- * キーボードが出なくなる不具合があるため、standalone 表示のときだけ通常のページ読み込みで移る。
- */
-export function navigateAcrossLogin(
-  router: { replace: (href: string) => void },
-  href: string,
-): void {
-  if (isStandaloneDisplay()) window.location.replace(href);
-  else router.replace(href);
-}
-
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
 interface AuthContextValue {
@@ -121,7 +101,7 @@ export function useRequireAuth(): AuthContextValue {
   useEffect(() => {
     if (ctx.status === "unauthenticated") {
       const redirect = encodeURIComponent(window.location.pathname + window.location.search);
-      navigateAcrossLogin(router, `/login?redirect=${redirect}`);
+      router.replace(`/login?redirect=${redirect}`);
     }
   }, [ctx.status, router]);
 
