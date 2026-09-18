@@ -4,18 +4,32 @@
 //
 // このシステムで最も価値があるのは「なぜ買わなかったか」なので、
 // 未購入分析を独立したタブにして、そこから「検討中」の顧客へ直接飛べるようにしている。
+//
+// グラフは内容で使い分ける（部品の一覧と目安は components/charts.tsx の冒頭）。
+//   構成比 → 円グラフ / 時間帯・曜日・年代 → 縦棒 / 長い名前のランキング → 横棒 /
+//   曜日 × 時間帯 → ヒートマップ / 単独の数字 → 数値タイル
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetchJson, downloadFile } from "@/lib/auth/api-fetch";
 import { useAuth } from "@/lib/auth/client";
 import { can } from "@/lib/auth/roles";
+import { isRegularHoliday } from "@/lib/constants";
 import { formatYen } from "@/lib/display";
 import { PERIOD_KEYS, PERIOD_LABELS, type PeriodKey } from "@/lib/analytics-period";
-import { formatJstDate } from "@/lib/utils/time";
-import { BarList, RateList, RatioDonut } from "@/components/charts";
+import { WEEKDAY_LABELS, formatJstDate } from "@/lib/utils/time";
+import {
+  BarList,
+  ColumnChart,
+  HeatmapGrid,
+  MiniStats,
+  PieChart,
+  RateList,
+  RatioDonut,
+  type ColumnRow,
+} from "@/components/charts";
 import { Empty, StatCard, buttonSecondaryClass, filterClass, inputClass } from "@/components/ui";
-import type { AnalyticsResponse } from "./types";
+import type { AnalyticsResponse, HourBucket, RateBucket } from "./types";
 
 const TABS = [
   { key: "visit", label: "来店" },
@@ -33,6 +47,10 @@ const EXPORTS = [
   { type: "reservations", label: "予約", personal: true },
   { type: "follow-ups", label: "フォロー履歴", personal: true },
 ];
+
+// 時間帯別の表示範囲の目安（営業時間）。この外の時刻に来店があれば、その分だけ広げる
+const DEFAULT_HOUR_FROM = 9;
+const DEFAULT_HOUR_TO = 20;
 
 export default function AnalyticsPage() {
   const { user, status } = useAuth();
@@ -192,225 +210,10 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="bg-card px-5 pb-6 sm:px-8">
-            {tab === "visit" && (
-              <div className="grid gap-x-10 gap-y-2 lg:grid-cols-2">
-                <Section title="来店の内訳">
-                  <div className="py-2">
-                    <RatioDonut
-                      value={data.visit.namedRate}
-                      label="お名前を伺えた率"
-                      sub={`${data.visit.named} 組 / ${data.visit.total} 組。声をかけられているかの目安になります`}
-                    />
-                  </div>
-                  <BarList
-                    rows={[
-                      { label: "新規", value: data.visit.newCustomers },
-                      { label: "リピーター", value: data.visit.repeaters },
-                      { label: "お名前不明", value: data.visit.anonymous },
-                    ]}
-                    unit=" 組"
-                  />
-                </Section>
-                <Section title="男女比">
-                  <BarList rows={toRows(data.visit.byGender)} unit=" 人" />
-                  <p className="pt-1 text-[11px] text-gray-soft">
-                    グループの内訳を入力した場合は人数分、していない場合は代表値を人数分として数えています
-                  </p>
-                </Section>
-                <Section title="年代別">
-                  <BarList rows={toRows(data.visit.byAgeGroup)} unit=" 人" />
-                </Section>
-                <Section title="地域別">
-                  <BarList rows={toRows(data.visit.byPrefecture)} unit=" 組" limit={10} />
-                </Section>
-                <Section title="来店目的">
-                  <BarList rows={toRows(data.visit.byPurpose)} unit=" 組" />
-                </Section>
-                <Section title="来店経路">
-                  <BarList rows={toRows(data.visit.byChannel)} unit=" 組" />
-                  <p className="mt-1.5 text-[11px] text-gray-soft">
-                    経路を複数選んだ来店は、それぞれの経路に数えます
-                  </p>
-                </Section>
-                <Section title="何を見て来たか">
-                  <BarList rows={toRows(data.visit.byReferrer)} unit=" 組" />
-                </Section>
-              </div>
-            )}
-
-            {tab === "purchase" && (
-              <div className="grid gap-x-10 gap-y-2 lg:grid-cols-2">
-                <Section title="購入・未購入">
-                  <div className="py-2">
-                    <RatioDonut
-                      value={data.purchase.purchaseRate}
-                      label="購入率"
-                      sub={`購入 ${data.purchase.purchasedVisits} 組 / 未購入 ${data.purchase.unpurchasedVisits} 組`}
-                    />
-                  </div>
-                </Section>
-                <Section title="売上">
-                  <BarList
-                    rows={[
-                      { label: "売上", value: data.purchase.sales },
-                      { label: "客単価", value: data.purchase.averageSpend },
-                    ]}
-                    unit=" 円"
-                  />
-                </Section>
-                <Section title="カテゴリー別の売上">
-                  <BarList
-                    rows={data.purchase.byCategory.map((b) => ({
-                      label: b.label,
-                      value: b.amount,
-                      note: `${b.count} 点`,
-                    }))}
-                    unit=" 円"
-                  />
-                </Section>
-                <Section title="商品別の売上">
-                  <BarList
-                    rows={data.purchase.byProduct.map((b) => ({
-                      label: b.label,
-                      value: b.amount,
-                      note: `${b.count} 点`,
-                    }))}
-                    unit=" 円"
-                    limit={10}
-                  />
-                </Section>
-                <Section title="年代別の購入率">
-                  <RateList rows={data.purchase.rateByAgeGroup} />
-                </Section>
-                <Section title="性別の購入率">
-                  <RateList rows={data.purchase.rateByGender} />
-                </Section>
-                <Section title="来店経路別の購入率">
-                  <RateList rows={data.purchase.rateByChannel} />
-                </Section>
-              </div>
-            )}
-
-            {tab === "noPurchase" && (
-              <>
-                <div className="grid gap-x-10 gap-y-2 lg:grid-cols-2">
-                  <Section title="未購入の割合">
-                    <div className="py-2">
-                      <RatioDonut
-                        value={data.noPurchase.rate}
-                        label="未購入率"
-                        sub={`${data.noPurchase.count} 組 / ${data.visit.total} 組`}
-                      />
-                    </div>
-                  </Section>
-                  <Section title="未購入の理由">
-                    <BarList rows={toRows(data.noPurchase.byReason)} unit=" 組" />
-                  </Section>
-                  <Section title="未購入だった方が見ていた商品">
-                    <BarList rows={toRows(data.noPurchase.byInterest)} unit=" 組" />
-                  </Section>
-                  <Section title="来店経路別の未購入率">
-                    <RateList rows={data.noPurchase.rateByChannel} />
-                  </Section>
-                  <Section title="年代別の未購入率">
-                    <RateList rows={data.noPurchase.rateByAgeGroup} />
-                  </Section>
-                </div>
-
-                {/* このシステムで最も使う一覧 */}
-                <div className="mt-4 rounded-lg border border-accent">
-                  <div className="flex items-center justify-between border-b border-line-2 bg-accent-soft px-4 py-3">
-                    <h2 className="text-[13px] font-semibold text-accent">
-                      「検討中」で帰られた方（{data.noPurchase.considering.length} 名）
-                    </h2>
-                    <span className="text-[11.5px] text-gray-soft">次の提案先</span>
-                  </div>
-                  {data.noPurchase.considering.length === 0 ? (
-                    <p className="px-4 py-6 text-center text-[13px] text-gray-faint">
-                      この期間に「検討中」で帰られた方はいません
-                    </p>
-                  ) : (
-                    <ul className="divide-y divide-line-2">
-                      {data.noPurchase.considering.map((c) => (
-                        <li key={c.visitId} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
-                          <div className="min-w-0">
-                            {c.customerId ? (
-                              <Link
-                                href={`/customers/${c.customerId}`}
-                                className="text-[14px] font-semibold hover:underline"
-                              >
-                                {c.name}
-                              </Link>
-                            ) : (
-                              <span className="text-[14px] text-gray-soft">{c.name}</span>
-                            )}
-                            <span className="tabular ml-2 text-[11.5px] text-gray-soft">{c.visitedAt}</span>
-                            <p className="mt-0.5 text-[12px] text-gray-soft">
-                              {c.interestNames.length > 0 ? `興味：${c.interestNames.join("・")}` : ""}
-                              {c.comment && `／${c.comment}`}
-                            </p>
-                          </div>
-                          {c.phone && (
-                            <a
-                              href={`tel:${c.phone.replace(/\D/g, "")}`}
-                              className="tabular inline-flex flex-none items-center py-2 -my-2 text-[12.5px] text-accent hover:underline"
-                            >
-                              {c.phone}
-                            </a>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </>
-            )}
-
-            {tab === "school" && (
-              <div className="grid gap-x-10 gap-y-2 lg:grid-cols-2">
-                <Section title="開催と参加">
-                  <BarList
-                    rows={[
-                      { label: "開催数", value: data.school.sessions },
-                      { label: "参加人数", value: data.school.attendees },
-                      { label: "新規参加", value: data.school.newAttendees },
-                      { label: "リピーター", value: data.school.repeatAttendees },
-                    ]}
-                  />
-                  <p className="pt-1 text-[12px] text-gray-soft">
-                    1 回あたり平均 {data.school.averagePerSession} 名
-                  </p>
-                </Section>
-                <Section title="定員充足率">
-                  <div className="py-2">
-                    <RatioDonut
-                      value={data.school.fillRate}
-                      label="定員充足率"
-                      sub={`参加 ${data.school.attendees} 名 / 定員 ${data.school.capacity} 名`}
-                    />
-                  </div>
-                </Section>
-                <Section title="キャンセル">
-                  <BarList
-                    rows={[
-                      { label: "キャンセル", value: data.school.cancelled },
-                      { label: "無断キャンセル", value: data.school.noShow },
-                    ]}
-                    unit=" 件"
-                  />
-                  <p className="pt-1 text-[12px] text-gray-soft">
-                    キャンセル率 {data.school.cancelRate}%
-                  </p>
-                </Section>
-                <Section title="コース別の参加者">
-                  <BarList rows={toRows(data.school.byCourse)} unit=" 名" />
-                </Section>
-                <Section title="スタッフ別の担当数">
-                  <BarList rows={toRows(data.school.byStaff)} unit=" 名" />
-                </Section>
-              </div>
-            )}
-
+            {tab === "visit" && <VisitTab data={data} />}
+            {tab === "purchase" && <PurchaseTab data={data} />}
+            {tab === "noPurchase" && <NoPurchaseTab data={data} />}
+            {tab === "school" && <SchoolTab data={data} />}
             {tab === "funnel" && (
               <div className="max-w-[560px] py-4">
                 <p className="mb-4 text-[12.5px] leading-relaxed text-gray-soft">
@@ -435,15 +238,356 @@ export default function AnalyticsPage() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// 来店
+
+function VisitTab({ data }: { data: AnalyticsResponse }) {
+  const hours = hourWindow(data.visit.byHour);
+  const hourRows: ColumnRow[] = hours.map((h) => ({
+    label: `${h}`,
+    value: data.visit.byHour[h]?.count ?? 0,
+  }));
+
+  const weekdayRows: ColumnRow[] = data.visit.byWeekday.map((w) => ({
+    label: WEEKDAY_LABELS[w.weekday],
+    value: w.count,
+    // 棒は合計なので、曜日の出現回数が違う期間でも比べられるよう 1 日平均を添える
+    note:
+      isRegularHoliday(w.weekday) && w.count === 0
+        ? "定休"
+        : w.days > 0
+          ? `${(w.count / w.days).toFixed(1)}/日`
+          : undefined,
+    muted: isRegularHoliday(w.weekday),
+    labelClass: weekdayLabelClass(w.weekday),
+  }));
+
+  return (
+    <div className="grid gap-x-10 gap-y-2 lg:grid-cols-2">
+      <Section title="来店の内訳">
+        <div className="py-2">
+          <RatioDonut
+            value={data.visit.namedRate}
+            label="お名前を伺えた率"
+            sub={`${data.visit.named} 組 / ${data.visit.total} 組。声をかけられているかの目安になります`}
+          />
+        </div>
+        <PieChart
+          segments={[
+            { label: "新規", value: data.visit.newCustomers },
+            { label: "リピーター", value: data.visit.repeaters },
+            { label: "お名前不明", value: data.visit.anonymous },
+          ]}
+          unit=" 組"
+        />
+      </Section>
+      <Section
+        title="男女比"
+        sub="グループの内訳を入力した場合は人数分、していない場合は代表値を人数分として数えています"
+      >
+        <PieChart segments={toRows(data.visit.byGender)} unit=" 人" />
+      </Section>
+
+      <Section title="時間帯別の来店" sub="来店時刻（時）ごとの組数。混む時間が分かります">
+        <ColumnChart rows={hourRows} />
+      </Section>
+      <Section title="曜日別の来店" sub="棒は合計、下の数字は 1 日平均の組数。赤は日曜と定休日">
+        <ColumnChart rows={weekdayRows} />
+      </Section>
+      <Section title="曜日 × 時間帯" sub="色が濃いほど来店が多い時間帯（組）。横は時刻（時）">
+        <HeatmapGrid
+          rows={data.visit.byWeekday.map((w) => ({
+            label: WEEKDAY_LABELS[w.weekday],
+            labelClass: weekdayLabelClass(w.weekday),
+          }))}
+          cols={hours.map((h) => `${h}`)}
+          values={data.visit.byWeekdayHour.map((row) => hours.map((h) => row[h] ?? 0))}
+          unit=" 組"
+        />
+      </Section>
+      <Section title="年代別">
+        <ColumnChart
+          rows={data.visit.byAgeGroup.map((b) => ({
+            label: b.label,
+            value: b.count,
+            muted: isNeutralLabel(b.label),
+          }))}
+          unit="人"
+        />
+      </Section>
+
+      <Section title="来店目的">
+        <PieChart segments={toRows(data.visit.byPurpose)} unit=" 組" />
+      </Section>
+      <Section title="来店経路" sub="経路を複数選んだ来店は、それぞれの経路に数えます">
+        <PieChart segments={toRows(data.visit.byChannel)} unit=" 組" />
+      </Section>
+      <Section title="地域別">
+        <BarList rows={toRows(data.visit.byPrefecture)} unit=" 組" limit={10} />
+      </Section>
+      <Section title="何を見て来たか">
+        <BarList rows={toRows(data.visit.byReferrer)} unit=" 組" />
+      </Section>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 購入
+
+function PurchaseTab({ data }: { data: AnalyticsResponse }) {
+  const weekdaySales: ColumnRow[] = data.purchase.byWeekday.map((w) => ({
+    label: WEEKDAY_LABELS[w.weekday],
+    value: w.amount,
+    note: w.count > 0 ? `${w.count} 件` : undefined,
+    muted: isRegularHoliday(w.weekday),
+    labelClass: weekdayLabelClass(w.weekday),
+  }));
+
+  return (
+    <div className="grid gap-x-10 gap-y-2 lg:grid-cols-2">
+      <Section title="購入・未購入">
+        <div className="py-2">
+          <RatioDonut
+            value={data.purchase.purchaseRate}
+            label="購入率"
+            sub={`購入 ${data.purchase.purchasedVisits} 組 / 未購入 ${data.purchase.unpurchasedVisits} 組`}
+          />
+        </div>
+      </Section>
+      <Section title="売上">
+        <MiniStats
+          items={[
+            { label: "売上", value: formatYen(data.purchase.sales) },
+            { label: "購入件数", value: data.purchase.purchaseCount, unit: "件" },
+            {
+              label: "客単価",
+              value: data.purchase.averageSpend > 0 ? formatYen(data.purchase.averageSpend) : "—",
+            },
+          ]}
+        />
+      </Section>
+      <Section title="カテゴリー別の売上">
+        <PieChart
+          segments={data.purchase.byCategory.map((b) => ({ label: b.label, value: b.amount }))}
+          format={formatYen}
+          centerText={formatYenCompact(data.purchase.sales)}
+        />
+      </Section>
+      <Section title="商品別の売上">
+        <BarList
+          rows={data.purchase.byProduct.map((b) => ({
+            label: b.label,
+            value: b.amount,
+            note: `${b.count} 点`,
+          }))}
+          unit=" 円"
+          limit={10}
+        />
+      </Section>
+      <Section title="曜日別の売上" sub="棒は売上（円）、下の数字は購入件数。赤は日曜と定休日">
+        <ColumnChart rows={weekdaySales} format={formatManCompact} />
+      </Section>
+      <Section title="年代別の購入率" sub="棒は購入率、下の数字は 購入 / 来店">
+        <ColumnChart rows={rateRows(data.purchase.rateByAgeGroup)} unit="%" />
+      </Section>
+      <Section title="性別の購入率">
+        <RateList rows={data.purchase.rateByGender} />
+      </Section>
+      <Section title="来店経路別の購入率">
+        <RateList rows={data.purchase.rateByChannel} />
+      </Section>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 未購入
+
+function NoPurchaseTab({ data }: { data: AnalyticsResponse }) {
+  return (
+    <>
+      <div className="grid gap-x-10 gap-y-2 lg:grid-cols-2">
+        <Section title="未購入の割合">
+          <div className="py-2">
+            <RatioDonut
+              value={data.noPurchase.rate}
+              label="未購入率"
+              sub={`${data.noPurchase.count} 組 / ${data.visit.total} 組`}
+            />
+          </div>
+        </Section>
+        <Section title="未購入の理由">
+          <PieChart segments={toRows(data.noPurchase.byReason)} unit=" 組" />
+        </Section>
+        <Section title="未購入だった方が見ていた商品">
+          <BarList rows={toRows(data.noPurchase.byInterest)} unit=" 組" />
+        </Section>
+        <Section title="年代別の未購入率" sub="棒は未購入率、下の数字は 未購入 / 来店">
+          <ColumnChart rows={rateRows(data.noPurchase.rateByAgeGroup)} unit="%" />
+        </Section>
+        <Section title="来店経路別の未購入率">
+          <RateList rows={data.noPurchase.rateByChannel} />
+        </Section>
+      </div>
+
+      {/* このシステムで最も使う一覧 */}
+      <div className="mt-4 rounded-lg border border-accent">
+        <div className="flex items-center justify-between border-b border-line-2 bg-accent-soft px-4 py-3">
+          <h2 className="text-[13px] font-semibold text-accent">
+            「検討中」で帰られた方（{data.noPurchase.considering.length} 名）
+          </h2>
+          <span className="text-[11.5px] text-gray-soft">次の提案先</span>
+        </div>
+        {data.noPurchase.considering.length === 0 ? (
+          <p className="px-4 py-6 text-center text-[13px] text-gray-faint">
+            この期間に「検討中」で帰られた方はいません
+          </p>
+        ) : (
+          <ul className="divide-y divide-line-2">
+            {data.noPurchase.considering.map((c) => (
+              <li key={c.visitId} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  {c.customerId ? (
+                    <Link
+                      href={`/customers/${c.customerId}`}
+                      className="text-[14px] font-semibold hover:underline"
+                    >
+                      {c.name}
+                    </Link>
+                  ) : (
+                    <span className="text-[14px] text-gray-soft">{c.name}</span>
+                  )}
+                  <span className="tabular ml-2 text-[11.5px] text-gray-soft">{c.visitedAt}</span>
+                  <p className="mt-0.5 text-[12px] text-gray-soft">
+                    {c.interestNames.length > 0 ? `興味：${c.interestNames.join("・")}` : ""}
+                    {c.comment && `／${c.comment}`}
+                  </p>
+                </div>
+                {c.phone && (
+                  <a
+                    href={`tel:${c.phone.replace(/\D/g, "")}`}
+                    className="tabular inline-flex flex-none items-center py-2 -my-2 text-[12.5px] text-accent hover:underline"
+                  >
+                    {c.phone}
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// スクール
+
+function SchoolTab({ data }: { data: AnalyticsResponse }) {
+  return (
+    <div className="grid gap-x-10 gap-y-2 lg:grid-cols-2">
+      <Section title="開催と参加">
+        <MiniStats
+          items={[
+            { label: "開催数", value: data.school.sessions, unit: "回" },
+            { label: "参加人数", value: data.school.attendees, unit: "名" },
+            { label: "1 回あたり", value: data.school.averagePerSession, unit: "名" },
+            { label: "キャンセル率", value: data.school.cancelRate, unit: "%" },
+          ]}
+        />
+      </Section>
+      <Section title="定員充足率">
+        <div className="py-2">
+          <RatioDonut
+            value={data.school.fillRate}
+            label="定員充足率"
+            sub={`参加 ${data.school.attendees} 名 / 定員 ${data.school.capacity} 名`}
+          />
+        </div>
+      </Section>
+      <Section title="新規とリピーター" sub="期間より前に参加したことがある方をリピーターとしています">
+        <PieChart
+          segments={[
+            { label: "新規参加", value: data.school.newAttendees },
+            { label: "リピーター", value: data.school.repeatAttendees },
+          ]}
+          unit=" 名"
+        />
+      </Section>
+      <Section title="キャンセル">
+        <MiniStats
+          items={[
+            { label: "キャンセル", value: data.school.cancelled, unit: "件" },
+            { label: "無断キャンセル", value: data.school.noShow, unit: "件" },
+          ]}
+        />
+      </Section>
+      <Section title="コース別の参加者">
+        <PieChart segments={toRows(data.school.byCourse)} unit=" 名" />
+      </Section>
+      <Section title="スタッフ別の担当数">
+        <BarList rows={toRows(data.school.byStaff)} unit=" 名" />
+      </Section>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 共通
+
 function toRows(buckets: { label: string; count: number }[]) {
   return buckets.map((b) => ({ label: b.label, value: b.count }));
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/** 率の一覧を縦棒用に。分母が無い行（来店 0）は出さない */
+function rateRows(rows: RateBucket[]): ColumnRow[] {
+  return rows
+    .filter((r) => r.total > 0)
+    .map((r) => ({
+      label: r.label,
+      value: r.rate,
+      note: `${r.hit}/${r.total}`,
+      muted: isNeutralLabel(r.label),
+    }));
+}
+
+/** 「未設定」「不明」は比較の対象ではないので棒を灰色にする */
+function isNeutralLabel(label: string): boolean {
+  return label === "未設定" || label === "不明";
+}
+
+/** 日曜と定休日は曜日ラベルを赤にする（ダッシュボードの来店グラフと同じ約束） */
+function weekdayLabelClass(weekday: number): string | undefined {
+  return weekday === 0 || isRegularHoliday(weekday) ? "text-danger" : undefined;
+}
+
+/** 時間帯別の表示範囲。営業時間の目安を基本に、その外に来店があれば広げる */
+function hourWindow(byHour: HourBucket[]): number[] {
+  const withData = byHour.filter((h) => h.count > 0).map((h) => h.hour);
+  const from = Math.min(DEFAULT_HOUR_FROM, ...withData);
+  const to = Math.max(DEFAULT_HOUR_TO, ...withData);
+  return Array.from({ length: to - from + 1 }, (_, i) => from + i);
+}
+
+/** 円グラフの中央など幅の限られた場所向け。"6.4万円" / "8,500円" */
+function formatYenCompact(amount: number): string {
+  return amount >= 10000 ? `${formatManCompact(amount)}円` : `${amount.toLocaleString("ja-JP")}円`;
+}
+
+/** 縦棒の値ラベル向け。1 万円以上は "12.3万"、未満はそのまま */
+function formatManCompact(amount: number): string {
+  if (amount < 10000) return amount.toLocaleString("ja-JP");
+  const man = amount / 10000;
+  return `${man >= 100 ? Math.round(man) : Math.round(man * 10) / 10}万`;
+}
+
+function Section({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
     <section className="border-b border-line-2 py-4 last:border-b-0">
-      <h2 className="mb-1 text-[12px] font-semibold tracking-wider text-gray-soft">{title}</h2>
-      {children}
+      <h2 className="text-[12px] font-semibold tracking-wider text-gray-soft">{title}</h2>
+      {sub && <p className="mt-0.5 mb-1 text-[11px] text-gray-faint">{sub}</p>}
+      <div className={sub ? "" : "mt-1"}>{children}</div>
     </section>
   );
 }

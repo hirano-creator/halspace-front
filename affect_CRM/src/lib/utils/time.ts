@@ -79,6 +79,16 @@ export function formatJstLong(date: Date): string {
   return `${jst.getUTCFullYear()}年${jst.getUTCMonth() + 1}月${jst.getUTCDate()}日（${WEEKDAY_LABELS[jst.getUTCDay()]}）`;
 }
 
+/** JST の曜日（0=日 〜 6=土）。分析の曜日別集計は必ずこれを通す */
+export function jstWeekday(date: Date): number {
+  return toJst(date).getUTCDay();
+}
+
+/** JST の時（0〜23）。分析の時間帯別集計は必ずこれを通す */
+export function jstHour(date: Date): number {
+  return toJst(date).getUTCHours();
+}
+
 /** "2026-08-31" や "2026-08-31T05:00" を JST として解釈し UTC の Date にする */
 export function parseJstDateTime(value: string): Date | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(value.trim());

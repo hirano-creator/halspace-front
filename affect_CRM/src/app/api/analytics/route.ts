@@ -3,15 +3,33 @@ import { prisma } from "@/lib/db";
 import { requireApiUser } from "@/lib/auth/api-guard";
 import { resolvePeriod } from "@/lib/analytics-period";
 import { guestLabel } from "@/lib/display";
-import { AGE_GROUP_LABELS, GENDER_LABELS, type AgeGroup, type Gender } from "@/lib/constants";
-import { ageToGroup, calcAge, formatJstDate } from "@/lib/utils/time";
+import {
+  AGE_GROUPS,
+  AGE_GROUP_LABELS,
+  GENDER_LABELS,
+  type AgeGroup,
+  type Gender,
+} from "@/lib/constants";
+import {
+  ageToGroup,
+  calcAge,
+  endOfJstDay,
+  formatJstDate,
+  jstHour,
+  jstWeekday,
+} from "@/lib/utils/time";
 import { splitChannelCodes } from "@/lib/visit-channel";
 import type {
   AmountBucket,
   AnalyticsResponse,
   Bucket,
+  HourBucket,
   RateBucket,
+  WeekdayAmountBucket,
+  WeekdayBucket,
 } from "@/app/(app)/analytics/types";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** 件数を数えて多い順に並べる */
 function tally(values: (string | null)[], labelOf?: (v: string) => string): Bucket[] {
@@ -23,6 +41,51 @@ function tally(values: (string | null)[], labelOf?: (v: string) => string): Buck
   return [...map.entries()]
     .map(([label, count]) => ({ label: labelOf && label !== "未設定" ? labelOf(label) : label, count }))
     .sort((a, b) => b.count - a.count);
+}
+
+/**
+ * 年代別は件数順ではなく若い順に並べる（縦棒グラフで年代の並びを読めるようにする）。
+ * 不明・未設定はラベルの一覧に無いので末尾に回る。
+ */
+const AGE_ORDER = AGE_GROUPS.map((g) => AGE_GROUP_LABELS[g]);
+function sortByAgeOrder<T extends { label: string }>(rows: T[]): T[] {
+  const indexOf = (label: string) => {
+    const i = AGE_ORDER.indexOf(label);
+    return i === -1 ? AGE_ORDER.length : i;
+  };
+  return [...rows].sort((a, b) => indexOf(a.label) - indexOf(b.label));
+}
+
+/** 時間帯別（24 要素）と曜日別（7 要素）、曜日×時間帯の格子。日時は必ず JST に直してから数える */
+function tallyByTime(dates: Date[]): {
+  byHour: HourBucket[];
+  byWeekday: number[];
+  byWeekdayHour: number[][];
+} {
+  const byHour = Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0 }));
+  const byWeekday = Array.from({ length: 7 }, () => 0);
+  const byWeekdayHour = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
+  for (const d of dates) {
+    const h = jstHour(d);
+    const w = jstWeekday(d);
+    byHour[h].count += 1;
+    byWeekday[w] += 1;
+    byWeekdayHour[w][h] += 1;
+  }
+  return { byHour, byWeekday, byWeekdayHour };
+}
+
+/**
+ * 期間内に各曜日が何日あるか（「今月」「今年」のように未来を含む期間は今日まで）。
+ * 曜日別の 1 日平均を出す分母にする。期間の開始は常に JST の 0:00 なので 1 日ずつ進めてよい。
+ */
+function countWeekdaysInPeriod(start: Date, end: Date, now: Date): number[] {
+  const days = Array.from({ length: 7 }, () => 0);
+  const last = Math.min(end.getTime(), endOfJstDay(now).getTime());
+  for (let t = start.getTime(); t < last; t += DAY_MS) {
+    days[jstWeekday(new Date(t))] += 1;
+  }
+  return days;
 }
 
 /** 分母と該当数から率を出す */
@@ -132,6 +195,15 @@ export async function GET(request: Request) {
   const total = visitRows.length;
   const named = visitRows.filter((v) => v.isNamed).length;
 
+  // いつ来店が多いか（時間帯・曜日）。スタッフの配置を決める材料になる
+  const visitTime = tallyByTime(visitRows.map((v) => v.visitedAt));
+  const weekdayDays = countWeekdaysInPeriod(period.start, period.end, new Date());
+  const byWeekday: WeekdayBucket[] = visitTime.byWeekday.map((count, weekday) => ({
+    weekday,
+    count,
+    days: weekdayDays[weekday],
+  }));
+
   // 来店経路は複数選べるので、経路別の集計は「来店 × 選んだ経路」を 1 件として数える。
   // （2 経路選んだ来店は両方の経路に 1 件ずつ入る。未選択は「未設定」1 件）
   const byChannelRows = visitRows.flatMap((v) =>
@@ -189,6 +261,18 @@ export async function GET(request: Request) {
     [...m.entries()]
       .map(([label, v]) => ({ label, amount: v.amount, count: v.count }))
       .sort((a, b) => b.amount - a.amount);
+
+  // 曜日別の売上（購入日時ベース）
+  const salesByWeekday: WeekdayAmountBucket[] = Array.from({ length: 7 }, (_, weekday) => ({
+    weekday,
+    amount: 0,
+    count: 0,
+  }));
+  for (const p of purchases) {
+    const w = jstWeekday(p.purchasedAt);
+    salesByWeekday[w].amount += p.totalAmount;
+    salesByWeekday[w].count += 1;
+  }
 
   // --- 未購入 -----------------------------------------------------
   const noPurchaseRows = visitRows.filter((v) => !v.purchased);
@@ -279,11 +363,14 @@ export async function GET(request: Request) {
       newCustomers: visitRows.filter((v) => v.isFirstVisit).length,
       repeaters: visitRows.filter((v) => v.isNamed && !v.isFirstVisit).length,
       byGender: tally(guestCounts.map((g) => g.gender), genderLabel),
-      byAgeGroup: tally(guestCounts.map((g) => g.ageGroup), ageLabel),
+      byAgeGroup: sortByAgeOrder(tally(guestCounts.map((g) => g.ageGroup), ageLabel)),
       byPrefecture: tally(visitRows.map((v) => v.prefecture)),
       byPurpose: tally(visitRows.map((v) => v.purposeCode), labelOf("VISIT_PURPOSE")),
       byChannel: tally(byChannelRows.map((v) => v.channelCode), labelOf("VISIT_CHANNEL")),
       byReferrer: tally(visitRows.map((v) => v.referrerCode), labelOf("REFERRER")),
+      byHour: visitTime.byHour,
+      byWeekday,
+      byWeekdayHour: visitTime.byWeekdayHour,
     },
     purchase: {
       purchasedVisits,
@@ -294,9 +381,11 @@ export async function GET(request: Request) {
       averageSpend: purchases.length === 0 ? 0 : Math.round(sales / purchases.length),
       byCategory: toAmountBuckets(categoryMap),
       byProduct: toAmountBuckets(productMap).slice(0, 20),
-      rateByAgeGroup: rateBy(
-        visitRows.map((v) => ({ key: v.ageGroup, hit: v.purchased })),
-        ageLabel,
+      rateByAgeGroup: sortByAgeOrder(
+        rateBy(
+          visitRows.map((v) => ({ key: v.ageGroup, hit: v.purchased })),
+          ageLabel,
+        ),
       ),
       rateByGender: rateBy(
         visitRows.map((v) => ({ key: v.gender, hit: v.purchased })),
@@ -306,6 +395,7 @@ export async function GET(request: Request) {
         byChannelRows.map((v) => ({ key: v.channelCode, hit: v.purchased })),
         labelOf("VISIT_CHANNEL"),
       ),
+      byWeekday: salesByWeekday,
     },
     noPurchase: {
       count: noPurchaseRows.length,
@@ -319,9 +409,11 @@ export async function GET(request: Request) {
         byChannelRows.map((v) => ({ key: v.channelCode, hit: !v.purchased })),
         labelOf("VISIT_CHANNEL"),
       ),
-      rateByAgeGroup: rateBy(
-        visitRows.map((v) => ({ key: v.ageGroup, hit: !v.purchased })),
-        ageLabel,
+      rateByAgeGroup: sortByAgeOrder(
+        rateBy(
+          visitRows.map((v) => ({ key: v.ageGroup, hit: !v.purchased })),
+          ageLabel,
+        ),
       ),
       considering,
     },
