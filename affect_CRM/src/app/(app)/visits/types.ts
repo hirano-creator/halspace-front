@@ -15,6 +15,8 @@ export interface VisitListItem {
   noPurchaseReasonLabel: string | null;
   interestNames: string[];
   staffName: string | null;
+  /** この来店に紐づく購入記録の数。削除の確認で「購入記録も消える」と伝えるために使う */
+  purchaseCount: number;
 }
 
 /** グループ内の年代・性別が一様でないときだけ使う、1人ずつの内訳 */
@@ -73,8 +75,8 @@ export interface CustomerSuggestion {
   lastVisitLabel: string | null;
 }
 
-/** 一括削除の結果。skipped は購入記録が紐づいていて消せなかった件数 */
+/** 一括削除の結果。purchases は来店と一緒に消した購入記録の数 */
 export interface VisitBulkDeleteResponse {
   deleted: number;
-  skipped: number;
+  purchases: number;
 }

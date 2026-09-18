@@ -38,6 +38,7 @@ export async function GET(request: Request) {
         staff: { select: { name: true } },
         interests: { include: { category: { select: { name: true } } } },
         guests: { select: { ageGroup: true, gender: true } },
+        _count: { select: { purchases: true } },
       },
     }),
     prisma.masterOption.findMany({ select: { type: true, code: true, label: true } }),
@@ -66,6 +67,7 @@ export async function GET(request: Request) {
         .map((i) => i.category?.name)
         .filter((n): n is string => Boolean(n)),
       staffName: v.staff?.name ?? null,
+      purchaseCount: v._count.purchases,
     })),
   };
 

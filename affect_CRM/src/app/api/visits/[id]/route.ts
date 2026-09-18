@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireApiPermission, requireApiUser } from "@/lib/auth/api-guard";
 import { recalcCustomerStats } from "@/lib/customer-stats";
+import { deleteVisits } from "@/lib/visit-delete";
 import { guestLabel } from "@/lib/display";
 import { formatJstDate, nowForDateTimeInput } from "@/lib/utils/time";
 import { joinChannelCodes, splitChannelCodes } from "@/lib/visit-channel";
@@ -134,42 +135,19 @@ export async function PATCH(request: Request, { params }: Ctx) {
   return NextResponse.json({ ok: true });
 }
 
-/** 来店記録の削除（スタッフも可。集計は削除後に数え直す） */
+/**
+ * 来店記録の削除（権限 visit.delete）。
+ * 紐づく購入記録・フォロー予定・会話メモも一緒に消え、顧客の集計も数え直される（deleteVisits）。
+ */
 export async function DELETE(request: Request, { params }: Ctx) {
   const auth = await requireApiPermission(request, "visit.delete");
   if (!auth.ok) return auth.response;
   const { id } = await params;
 
-  const visit = await prisma.visit.findUnique({
-    where: { id },
-    select: { id: true, customerId: true, purchases: { select: { id: true } } },
-  });
-  if (!visit) {
+  const result = await deleteVisits([id], auth.user.id);
+  if (result.visits === 0) {
     return NextResponse.json({ error: "来店記録が見つかりません" }, { status: 404 });
   }
 
-  // 購入が紐づいたまま消すと売上だけが宙に浮くので、先に購入を消してもらう
-  if (visit.purchases.length > 0) {
-    return NextResponse.json(
-      {
-        error: `この来店には購入記録が ${visit.purchases.length} 件あります。先に購入記録を削除してください`,
-      },
-      { status: 400 },
-    );
-  }
-
-  // この来店から作られた会話メモも消す（来店を消したのにメモだけ残ると重複して見える）
-  await prisma.customerNote.deleteMany({ where: { visitId: id } });
-  await prisma.visit.delete({ where: { id } });
-
-  if (visit.customerId) {
-    await recalcCustomerStats(visit.customerId);
-  }
-
-  // 個人情報は記録しない。誰が何を消したかだけ残す
-  await prisma.auditLog.create({
-    data: { staffId: auth.user.id, action: "visit.delete", targetType: "Visit", targetId: id },
-  });
-
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, purchases: result.purchases });
 }

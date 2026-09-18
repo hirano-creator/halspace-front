@@ -1,20 +1,16 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { requireApiPermission } from "@/lib/auth/api-guard";
-import { recalcCustomerStats } from "@/lib/customer-stats";
+import { deleteVisits } from "@/lib/visit-delete";
 import type { VisitBulkDeleteResponse } from "@/app/(app)/visits/types";
 
 /** 一度に消せる上限。一覧 1 ページ分（30 件）で足りるが、余裕を持たせておく */
 const MAX_IDS = 100;
 
 /**
- * 来店記録の一括削除
+ * 来店記録の一括削除（権限 visit.delete）
  *
- * 一覧でチェックを付けた分をまとめて消す。ルールは単体削除（[id]/route.ts の DELETE）と同じ:
- *   - 購入記録が紐づく来店は消さない（売上だけが宙に浮くため）。消せなかった件数を返す
- *   - この来店から作られた会話メモも一緒に消す
- *   - 影響した顧客の来店回数・最終来店日を数え直す
- *   - 監査ログは 1 件ずつ残す（個人情報は入れない）
+ * 一覧でチェックを付けた分をまとめて消す。単体削除と同じく、紐づく購入記録・フォロー予定・
+ * 会話メモも一緒に消え、顧客の集計も数え直される（deleteVisits）。
  */
 export async function POST(request: Request) {
   const auth = await requireApiPermission(request, "visit.delete");
@@ -35,37 +31,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const visits = await prisma.visit.findMany({
-    where: { id: { in: ids } },
-    select: { id: true, customerId: true, _count: { select: { purchases: true } } },
-  });
-
-  const deletable = visits.filter((v) => v._count.purchases === 0);
-  const deleteIds = deletable.map((v) => v.id);
-  const skipped = visits.length - deletable.length;
-
-  if (deleteIds.length > 0) {
-    await prisma.$transaction([
-      prisma.customerNote.deleteMany({ where: { visitId: { in: deleteIds } } }),
-      prisma.visit.deleteMany({ where: { id: { in: deleteIds } } }),
-      prisma.auditLog.createMany({
-        data: deleteIds.map((id) => ({
-          staffId: auth.user.id,
-          action: "visit.delete",
-          targetType: "Visit",
-          targetId: id,
-        })),
-      }),
-    ]);
-
-    const customerIds = new Set(
-      deletable.map((v) => v.customerId).filter((v): v is string => Boolean(v)),
-    );
-    for (const customerId of customerIds) {
-      await recalcCustomerStats(customerId);
-    }
-  }
-
-  const res: VisitBulkDeleteResponse = { deleted: deleteIds.length, skipped };
+  const result = await deleteVisits(ids, auth.user.id);
+  const res: VisitBulkDeleteResponse = { deleted: result.visits, purchases: result.purchases };
   return NextResponse.json(res);
 }

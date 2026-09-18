@@ -141,6 +141,7 @@ Railway 起動時に `docker/entrypoint.sh` が `prisma migrate deploy` を流�
 
 - 購入／未購入は**必須**。買わなかった記録こそが資産になる
 - 顧客は論理削除（`deletedAt`）。顧客・来店の削除はスタッフも可（`customer.delete` / `visit.delete`）。購入・スクール参加・フォロー・予約枠の削除（`data.delete`）は管理者のみ。誰が何をできるかは `src/lib/auth/roles.ts` の表が正
+- 来店を削除すると、紐づく購入記録（明細ごと）・フォロー予定・会話メモも一緒に消える（`src/lib/visit-delete.ts`。単体・一括とも必ずこれを通す）
 - マスタ類（タグ・選択肢・商品・コース）は削除せず `isActive = false` で無効化する。過去データの表示が壊れるため
 - 金額はすべて `Int`（円）
 - 来店目的・来店経路・未購入理由は自由記述にせず、`MasterOption` のコード値で持つ（分析が成立しなくなるため）。来店経路は複数選択で、`Visit.channelCode` にカンマ区切り（読み書きは `src/lib/visit-channel.ts` 経由）

@@ -4,7 +4,7 @@
 //
 // 各行の左にチェックボックスを出し、まとめて削除できるようにする。
 // 削除できるかは権限 visit.delete で判定する（API 側でも requireApiPermission で止める）。
-// 購入記録が紐づく来店は消せないので、消せなかった件数を結果に出す。
+// 来店を消すと紐づく購入記録・フォロー予定・会話メモも一緒に消えるので、確認で必ずそう伝える。
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -104,13 +104,19 @@ function VisitsList() {
     // 応答待ちの間に絞り込みが変わっていても、いま見えている行だけを消す
     const ids = visibleIds.filter((id) => selected.has(id));
     if (ids.length === 0) return;
-    if (
-      !confirm(
-        `選択した ${ids.length} 件の来店記録を削除します。よろしいですか？\n（顧客の来店回数・最終来店日も計算し直されます）`,
-      )
-    ) {
-      return;
+
+    // 購入記録が紐づく来店が含まれていれば、購入記録も消えることを先に伝える
+    const targets = (data?.visits ?? []).filter((v) => ids.includes(v.id));
+    const withPurchase = targets.filter((v) => v.purchaseCount > 0);
+    const purchaseTotal = withPurchase.reduce((sum, v) => sum + v.purchaseCount, 0);
+    const lines = [`選択した ${ids.length} 件の来店記録を削除します。よろしいですか？`];
+    if (purchaseTotal > 0) {
+      lines.push(
+        `※ うち ${withPurchase.length} 件には購入記録があり、購入記録 ${purchaseTotal} 件も一緒に削除されます`,
+      );
     }
+    lines.push("（紐づくフォロー予定・会話メモも消え、顧客の来店回数・累計購入額は計算し直されます）");
+    if (!confirm(lines.join("\n"))) return;
 
     setError(null);
     setNotice(null);
@@ -121,13 +127,10 @@ function VisitsList() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
       });
-      const parts = [`${res.deleted} 件の来店記録を削除しました`];
-      if (res.skipped > 0) {
-        parts.push(
-          `${res.skipped} 件は購入記録があるため削除できませんでした（先に購入記録を削除してください）`,
-        );
-      }
-      setNotice(parts.join("。"));
+      setNotice(
+        `${res.deleted} 件の来店記録を削除しました` +
+          (res.purchases > 0 ? `（紐づく購入記録 ${res.purchases} 件も削除）` : ""),
+      );
       setSelected(new Set());
       await load();
     } catch (e) {

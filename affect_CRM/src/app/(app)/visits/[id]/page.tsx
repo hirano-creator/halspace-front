@@ -169,13 +169,13 @@ export default function VisitDetailPage() {
   }
 
   async function remove() {
-    if (
-      !confirm(
-        "この来店記録を削除します。よろしいですか？\n（顧客の来店回数・最終来店日も計算し直されます）",
-      )
-    ) {
-      return;
+    const purchaseCount = visit?.purchases.length ?? 0;
+    const lines = ["この来店記録を削除します。よろしいですか？"];
+    if (purchaseCount > 0) {
+      lines.push(`※ 紐づく購入記録 ${purchaseCount} 件も一緒に削除されます`);
     }
+    lines.push("（紐づくフォロー予定・会話メモも消え、顧客の来店回数・累計購入額は計算し直されます）");
+    if (!confirm(lines.join("\n"))) return;
     const res = await apiFetch(`/api/visits/${id}`, { method: "DELETE" });
     if (res.ok) {
       router.push("/visits");
