@@ -113,6 +113,8 @@ GitHub リポジトリ `halspace-front` の **Root Directory `TimeCalc`** から
   `LOGIN_DEBUG_LOG=1` を付けるとログイン試行を識別子・UA付きで全件ログに出す（実機の不具合切り分け用。普段は付けない）
 - 反映確認: `railway status` が `Online`、`railway logs -d` に `[web] prisma migrate deploy` と起動ログが出ること
 - 旧URL `https://timecalc.space-app.workers.dev` は新URLへ 301 リダイレクトする Worker だけを残している
+  （2026-09-19 に切替完了。旧 D1 のデータは新側へ移行済みで、D1 自体は退避用にしばらく残す。
+  再デプロイは `cloudflare-redirect/` で `npx wrangler@4 deploy`）
 
 ### バックアップと復元
 
@@ -153,7 +155,7 @@ pg_restore --clean --if-exists --no-owner --no-privileges -d "$DATABASE_URL" bac
 `pg_restore` は PostgreSQL 15 以上のクライアントが必要（Windows は EDB のインストーラーから「Command Line Tools」だけ入れれば足りる）。
 `--clean --if-exists` で既存テーブルを落としてから作り直すので、`_prisma_migrations` も含めて丸ごとバックアップ時点に戻る。
 
-### Cloudflare D1 からのデータ移行（移行時の1回限り）
+### Cloudflare D1 からのデータ移行（移行時の1回限り・2026-09-19 完了）
 
 ```bash
 npx wrangler@4 d1 export timecalc --remote --output=d1.sql
