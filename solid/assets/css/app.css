@@ -1367,6 +1367,10 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   border-bottom-left-radius: 4px;
   box-shadow: 0 1px 4px rgba(0,0,0,.05);
   min-width: 0;
+  /* 自分の吹き出し（.mine は align-items:flex-end で伸縮しない）は中身の最小幅で決まるため、
+     長い引用（.chat-quote-t の max-width:220px + 余白）が bubble-wrap の 78% を超えると
+     左へはみ出して隣のアバターを隠す。wrap の幅を上限にして中身側（引用の省略記号・本文の折返し）に収めさせる */
+  max-width: 100%;
 }
 .chat-msg.mine .chat-bubble {
   background: var(--blue);
