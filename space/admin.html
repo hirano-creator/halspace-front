@@ -2041,7 +2041,7 @@ document.getElementById('userModalSave').addEventListener('click', async () => {
 
   if (id) {
     // 編集
-    const payload = { name, role, company_id, apps_enabled };
+    const payload = { name, email, role, company_id, apps_enabled };
     // SOLID種別欄を出しているときだけ送る。送らなければAPI側で既存値が保持される
     // （SOLIDの管理画面で設定した種別を、Spaceからの編集で消さないため）
     if (document.getElementById('userModalSolidTypeGroup').style.display !== 'none') {
@@ -2059,7 +2059,7 @@ document.getElementById('userModalSave').addEventListener('click', async () => {
         const data = await res.json().catch(() => null);
         const updated = data?.user;
         if (updated) {
-          patchAuthUser({ name: updated.name, role: updated.role, solid_type: updated.solid_type });
+          patchAuthUser({ name: updated.name, email: updated.email, role: updated.role, solid_type: updated.solid_type });
           currentUser.name = updated.name;
           currentUser.role = updated.role;
           document.getElementById('sidebarAvatar').textContent  = updated.name.charAt(0);

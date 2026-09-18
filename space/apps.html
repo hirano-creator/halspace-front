@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="assets/css/space.css?v=20260823b">
+  <link rel="stylesheet" href="assets/css/space.css?v=20260919a">
 </head>
 <body class="apps-page">
 
@@ -28,6 +28,11 @@
         <i class="fa-solid fa-shield-halved"></i>
         管理者設定
       </a>
+      <!-- 全ロール共通。管理画面（super_admin専用のシステム設定）に頼らず自分のパスワードを変えられるようにする -->
+      <button class="btn-logout" id="pwChangeBtn" title="パスワード変更">
+        <i class="fa-solid fa-key"></i>
+        パスワード変更
+      </button>
       <button class="btn-logout" id="logoutBtn">
         <i class="fa-solid fa-right-from-bracket"></i>
         ログアウト
@@ -100,6 +105,46 @@
     </section>
   </main>
 
-  <script src="assets/js/space.js?v=20260831a"></script>
+  <!-- パスワード変更モーダル -->
+  <div class="pw-modal-overlay hidden" id="pwModal" role="dialog" aria-modal="true" aria-labelledby="pwModalTitle">
+    <form class="pw-modal" id="pwForm" autocomplete="off" novalidate>
+      <div class="pw-modal-header">
+        <span class="pw-modal-title" id="pwModalTitle"><i class="fa-solid fa-key"></i> パスワード変更</span>
+        <button type="button" class="pw-modal-close" id="pwModalClose" aria-label="閉じる"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="pw-modal-body">
+        <p class="pw-modal-desc">現在のパスワードを確認のうえ、新しいパスワード（8文字以上）を設定します。</p>
+        <div class="pw-field">
+          <label class="pw-label" for="pwCurrent">現在のパスワード</label>
+          <div class="pw-input-wrap">
+            <input type="password" class="pw-input" id="pwCurrent" autocomplete="current-password" placeholder="現在のパスワード">
+            <button type="button" class="pw-input-eye" data-target="pwCurrent" tabindex="-1" aria-label="パスワードを表示"><i class="fa-regular fa-eye"></i></button>
+          </div>
+        </div>
+        <div class="pw-field">
+          <label class="pw-label" for="pwNew">新しいパスワード</label>
+          <div class="pw-input-wrap">
+            <input type="password" class="pw-input" id="pwNew" autocomplete="new-password" placeholder="8文字以上">
+            <button type="button" class="pw-input-eye" data-target="pwNew" tabindex="-1" aria-label="パスワードを表示"><i class="fa-regular fa-eye"></i></button>
+          </div>
+        </div>
+        <div class="pw-field">
+          <label class="pw-label" for="pwConfirm">新しいパスワード（確認）</label>
+          <div class="pw-input-wrap">
+            <input type="password" class="pw-input" id="pwConfirm" autocomplete="new-password" placeholder="もう一度入力">
+            <button type="button" class="pw-input-eye" data-target="pwConfirm" tabindex="-1" aria-label="パスワードを表示"><i class="fa-regular fa-eye"></i></button>
+          </div>
+        </div>
+        <div class="pw-error" id="pwError" role="alert"></div>
+        <div class="pw-success" id="pwSuccess" role="status"></div>
+      </div>
+      <div class="pw-modal-footer">
+        <button type="button" class="pw-btn pw-btn-sub" id="pwModalCancel">キャンセル</button>
+        <button type="submit" class="pw-btn pw-btn-main" id="pwSaveBtn"><i class="fa-solid fa-check"></i> パスワードを変更</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="assets/js/space.js?v=20260919a"></script>
 </body>
 </html>
