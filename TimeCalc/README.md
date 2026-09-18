@@ -102,8 +102,10 @@ GitHub リポジトリ `halspace-front` の **Root Directory `TimeCalc`** から
 
 - 起動時に `docker/entrypoint.sh` が `prisma migrate deploy` を流してから Next.js を起動する。
   スキーマ変更はマイグレーションをコミットして push するだけでよい。
-- `railway.json` で `/api/health`（DB疎通込み）をヘルスチェックにしている。デプロイ直後の `migrate deploy` 中は
-  新コンテナへ切り替わらないので、起動中の 502 は出ない。旧 `/api/warm` は同じ内容を返す別名
+- ヘルスチェックは `/api/health`（DB疎通込み、失敗時503）。**サービス設定（Settings → Deploy → Healthcheck Path）に直接入れてある**
+  （`railway.json` の config-as-code は Railway 側で非推奨になり、healthcheckPath が反映されなかったため。
+  2026-09-18 に API で設定済み）。デプロイ直後の `migrate deploy` 中は新コンテナへ切り替わらないので、起動中の 502 は出ない。
+  旧 `/api/warm` は同じ内容を返す別名
 - 環境変数: `DATABASE_URL`（`${{timecalc-db.DATABASE_URL}}` を参照）、`SESSION_SECRET`（長いランダム値）、
   `DB_POOL_MAX`（任意、既定20。レプリカを増やすときに下げる）、
   `TZ=Asia/Tokyo`（打刻の日時は固定+9時間で計算しているので無くても正しいが、取込履歴の表示時刻だけコンテナのTZに依存する）。
