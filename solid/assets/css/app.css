@@ -1173,7 +1173,7 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   100% { box-shadow: 0 0 0 4px transparent; }
 }
 
-.chat-bubble-wrap { display: flex; flex-direction: column; max-width: 78%; position: relative; }
+.chat-bubble-wrap { display: flex; flex-direction: column; max-width: 78%; min-width: 0; position: relative; }
 .chat-msg.mine .chat-bubble-wrap { align-items: flex-end; }
 
 .chat-meta {
@@ -1277,9 +1277,9 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 .chat-quote:hover { background: rgba(9,132,227,.13); }
 .chat-quote > i { font-size: 9px; flex-shrink: 0; color: var(--blue); }
 .chat-quote-img { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; flex-shrink: 0; margin: 0 !important; cursor: pointer; }
-.chat-quote-t { display: flex; flex-direction: column; min-width: 0; }
+.chat-quote-t { display: flex; flex-direction: column; flex: 1; min-width: 0; max-width: 220px; }
 .chat-quote b { color: var(--blue); font-weight: 700; }
-.chat-quote span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-quote span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 /* 自分の吹き出し（青地）の中では白系にする */
 .chat-msg.mine .chat-quote { border-left-color: rgba(255,255,255,.75); background: rgba(255,255,255,.18); color: rgba(255,255,255,.85); }
 .chat-msg.mine .chat-quote:hover { background: rgba(255,255,255,.28); }
@@ -1296,7 +1296,7 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 .chat-reply-img { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; flex-shrink: 0; border: 1px solid var(--border); }
 .chat-reply-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .chat-reply-bar b { color: var(--blue); }
-.chat-reply-bar span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-reply-bar span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .chat-reply-cancel {
   width: 24px; height: 24px; border-radius: 6px; border: none; background: none; cursor: pointer;
   color: var(--muted); display: grid; place-items: center; flex-shrink: 0;
@@ -1366,6 +1366,11 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   border: 1px solid var(--border);
   border-bottom-left-radius: 4px;
   box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  min-width: 0;
+  /* 自分の吹き出し（.mine は align-items:flex-end で伸縮しない）は中身の最小幅で決まるため、
+     長い引用（.chat-quote-t の max-width:220px + 余白）が bubble-wrap の 78% を超えると
+     左へはみ出して隣のアバターを隠す。wrap の幅を上限にして中身側（引用の省略記号・本文の折返し）に収めさせる */
+  max-width: 100%;
 }
 .chat-msg.mine .chat-bubble {
   background: var(--blue);
