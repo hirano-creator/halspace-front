@@ -140,6 +140,8 @@ export async function POST(request: Request) {
           hourlyWage,
           departmentId,
           passwordHash: await hashPassword(password),
+          // 配布した初期パスワードなので、本人の初回ログイン時に変更させる
+          mustChangePassword: true,
         },
       });
       existingCodes.add(employeeCode);

@@ -8,6 +8,7 @@
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/client";
+import { PASSWORD_CHANGE_PATH } from "@/lib/auth/password-policy";
 import type { SessionUser } from "@/lib/auth/session";
 
 interface LoginState {
@@ -78,7 +79,8 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
       return { error: `ログイン情報を保存できませんでした（${describe(e)}）` };
     }
 
-    router.push(redirectTo ?? "/");
+    // 初期パスワードのままの人は、行き先に関係なくまず変更画面へ（他の画面はAPIが通らない）
+    router.push(data.user.mustChangePassword ? PASSWORD_CHANGE_PATH : (redirectTo ?? "/"));
     return { error: null, loggedIn: true };
   }
 

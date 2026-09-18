@@ -83,6 +83,9 @@ model User {
   department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   isActive        Boolean     @default(true)
   gpsCheckEnabled Boolean     @default(true) // false の場合、このユーザーは打刻時のGPS判定をスキップする
+  // true の間は本人によるパスワード変更以外の操作を受け付けない（管理者が設定した初期パスワードのまま使い続けさせないため）。
+  // 新規登録・一括登録・管理者によるパスワード再設定で true になり、本人が変更すると false に戻る
+  mustChangePassword Boolean  @default(false)
   // スタッフ単位の機能設定の上書き値（JSON文字列）。
   // 未設定キーはデフォルト値が適用される（src/lib/auth/features.ts）
   featureOverrides String?

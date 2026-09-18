@@ -215,6 +215,11 @@ export function EmployeeForm({
               {showPassword ? "隠す" : "表示"}
             </button>
           </div>
+          <p className="mt-1 text-xs text-muted">
+            {isEdit
+              ? "再設定すると、本人は次回ログイン時にパスワードの変更を求められます"
+              : "本人が初回ログイン時に必ず変更します（変更するまで他の画面は使えません）"}
+          </p>
         </div>
       </div>
 

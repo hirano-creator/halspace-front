@@ -6,9 +6,11 @@
 // 未ログイン検知・リダイレクトをここで一元的に行う（各ページ個別の requireUser() は不要）。
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useRequireAuth } from "@/lib/auth/client";
 import { apiFetchJson } from "@/lib/auth/api-fetch";
+import { PASSWORD_CHANGE_PATH } from "@/lib/auth/password-policy";
 import { can } from "@/lib/auth/roles";
 import { attendanceScope } from "@/lib/auth/guard";
 import { SidebarNav, type NavItem } from "@/components/sidebar";
@@ -18,10 +20,20 @@ import type { NavResponse } from "./types";
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, status, logout } = useRequireAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [nav, setNav] = useState<NavResponse | null>(null);
 
+  // 初期パスワードのままの人は、変更が済むまで他の画面を開かせない
+  // （API側でも弾かれるが、画面ごとにエラーを見せるより先に誘導したほうが分かりやすい）
+  const passwordChangeRequired = user?.mustChangePassword === true;
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (passwordChangeRequired && pathname !== PASSWORD_CHANGE_PATH) {
+      router.replace(PASSWORD_CHANGE_PATH);
+    }
+  }, [passwordChangeRequired, pathname, router]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || passwordChangeRequired) return;
     let cancelled = false;
     apiFetchJson<NavResponse>("/api/nav")
       .then((res) => {
@@ -33,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [status]);
+  }, [status, passwordChangeRequired]);
 
   if (status === "unauthenticated") return null;
   if (status === "loading" || !user) {
@@ -43,22 +55,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   const roleLabels = nav?.roleLabels;
   const pendingCorrections = nav?.pendingCorrections ?? 0;
 
-  const items: NavItem[] = [
-    { href: "/my", label: "マイページ", icon: "🏠" },
-    { href: "/clock", label: "打刻", icon: "⏱" },
-  ];
+  const items: NavItem[] = passwordChangeRequired
+    ? [{ href: PASSWORD_CHANGE_PATH, label: "パスワード変更", icon: "🔑" }]
+    : [
+        { href: "/my", label: "マイページ", icon: "🏠" },
+        { href: "/clock", label: "打刻", icon: "⏱" },
+      ];
   // 自分以外の勤怠を見られる範囲（店長=自部署 / 会社権限=自社 / 管理者=全社）があれば表示する
-  if (attendanceScope(user) !== "self") {
+  if (!passwordChangeRequired && attendanceScope(user) !== "self") {
     items.push({ href: "/attendance", label: "勤怠一覧", icon: "🗓" });
     items.push({ href: "/corrections", label: "修正申請", icon: "📝", badge: pendingCorrections });
   }
-  if (can(user.role, "importCsv")) {
+  if (!passwordChangeRequired && can(user.role, "importCsv")) {
     items.push({ href: "/import", label: "CSV取込", icon: "📥" });
   }
-  if (can(user.role, "manageEmployees")) {
+  if (!passwordChangeRequired && can(user.role, "manageEmployees")) {
     items.push({ href: "/employees", label: "社員管理", icon: "👥" });
   }
-  if (can(user.role, "manageSettings")) {
+  if (!passwordChangeRequired && can(user.role, "manageSettings")) {
     items.push({ href: "/settings/qr", label: "QRコード", icon: "📱" });
     items.push({ href: "/settings", label: "設定", icon: "⚙" });
   }
@@ -76,6 +90,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           {user.employeeCode} ・ {roleLabels?.[user.role] ?? user.role}
         </p>
       </div>
+      {!passwordChangeRequired && (
+        <Link
+          href={PASSWORD_CHANGE_PATH}
+          className="block w-full rounded-lg px-3 py-2 text-left text-sm text-muted transition hover:bg-gray-100 hover:text-foreground"
+        >
+          パスワード変更
+        </Link>
+      )}
       <button
         type="button"
         onClick={handleLogout}

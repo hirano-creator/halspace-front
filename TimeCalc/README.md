@@ -9,7 +9,9 @@ Square タイムカードのエクスポート CSV を取り込み、自社ル�
 - **フロント/バック**: Next.js (App Router) + React + TypeScript + Tailwind CSS
 - **DB**: PostgreSQL（開発・本番とも。ローカルは `prisma dev` のローカル Prisma Postgres）
 - **ORM**: Prisma（driver adapter `@prisma/adapter-pg`、engineType="client"）
-- **認証**: JWT（jose）を sessionStorage の Bearer トークンで送る。パスワードは bcrypt でハッシュ化
+- **認証**: JWT（jose）を sessionStorage の Bearer トークンで送る。パスワードは bcrypt でハッシュ化。
+  トークンは「誰か」の証明にだけ使い、権限・所属・在籍はリクエストごとにDBで引き直す（`src/lib/auth/api-guard.ts`）ので、
+  退職処理（在籍オフ）や権限変更は即時に効く。ログインは識別子ごと5回/15分・IPごと30回/15分の失敗でロック（`src/lib/auth/login-throttle.ts`）
 - **本番**: Railway（Docker、`Dockerfile` / `docker/entrypoint.sh`）
 
 ## セットアップ
@@ -41,6 +43,13 @@ SESSION_SECRET="ローカル用の適当な文字列"
 | 0004 | password123 | アルバイト |
 
 ※本番運用前に必ずパスワードを変更すること。
+
+### パスワードの運用
+
+- 管理者が社員を登録（個別・一括・パスワード再設定）すると、その社員は **初回ログイン時にパスワード変更を求められる**
+  （`User.mustChangePassword`）。変更が済むまで他の画面・APIは使えない（`/password` と `/api/my/password` のみ通す）。
+- 本人はいつでもサイドバー下の「パスワード変更」から変更できる。
+- 管理者は社員管理の編集画面からパスワードを再設定できる（再設定後は上記のとおり本人に変更を求める）。
 
 ## 主な機能（Phase 1）
 
@@ -89,9 +98,50 @@ GitHub リポジトリ `halspace-front` の **Root Directory `TimeCalc`** から
 
 - 起動時に `docker/entrypoint.sh` が `prisma migrate deploy` を流してから Next.js を起動する。
   スキーマ変更はマイグレーションをコミットして push するだけでよい。
-- 環境変数: `DATABASE_URL`（`${{timecalc-db.DATABASE_URL}}` を参照）、`SESSION_SECRET`（長いランダム値）
+- 環境変数: `DATABASE_URL`（`${{timecalc-db.DATABASE_URL}}` を参照）、`SESSION_SECRET`（長いランダム値）、
+  `TZ=Asia/Tokyo`（打刻の日時は固定+9時間で計算しているので無くても正しいが、取込履歴の表示時刻だけコンテナのTZに依存する）。
+  `LOGIN_DEBUG_LOG=1` を付けるとログイン試行を識別子・UA付きで全件ログに出す（実機の不具合切り分け用。普段は付けない）
 - 反映確認: `railway status` が `Online`、`railway logs -d` に `[web] prisma migrate deploy` と起動ログが出ること
 - 旧URL `https://timecalc.space-app.workers.dev` は新URLへ 301 リダイレクトする Worker だけを残している
+
+### バックアップと復元
+
+給与計算の元データなので、Railway 側のバックアップとは別に **自前で日次の pg_dump を R2 に置く**（`scripts/backup-db.sh`）。
+
+**バックアップ用サービス（Railway、初回だけ手で作る）**
+
+1. `poetic-intuition` プロジェクトに同じリポジトリ・同じ Root Directory（`TimeCalc`）・同じブランチでサービスを追加（名前は `timecalc-backup`）。
+   Dockerfile は共通で、`CRON_COMMAND` があると `docker/entrypoint.sh` が Web サーバーを起動せずにそのコマンドを回す。
+2. 変数を設定する:
+
+   | 変数 | 値 |
+   |---|---|
+   | `CRON_COMMAND` | `app-backup-db` |
+   | `CRON_DAILY_UTC` | `18:00`（= JST 3:00。カンマ区切りで複数可） |
+   | `DATABASE_URL` | `${{timecalc-db.DATABASE_URL}}` |
+   | `R2_ACCOUNT_ID` / `R2_BUCKET` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | R2 のバケットと、そのバケットの読み書き権限を持つ API トークン |
+   | `BACKUP_KEEP_DAYS` | 任意。既定 30（それより古い日付分を毎日1本消す） |
+
+3. 公開ドメインは不要（Networking は何も設定しない）。ログに `[cron] next run at ...` が出れば待機中。
+4. **初回は必ず1回手動で流して R2 にファイルが置かれるのを確認する**:
+   `railway ssh --service timecalc-backup app-backup-db`（コンテナ内で実行。`railway run` はローカルで動くので不可）。
+   ssh が使えなければ一時的に `CRON_DAILY_UTC` を外して再デプロイ→ログで `[backup] done` を確認→戻す。
+   `CRON_ENABLED=false` で一時停止できる（ループは止まらず実行だけスキップ）。
+
+保存先は `s3://<R2_BUCKET>/timecalc/<YYYY-MM-DD>.dump`（pg_dump のカスタム形式、圧縮済み）。同じ日に複数回走ると上書き。
+
+**復元（別のDBに戻して確認してから本番に当てる）**
+
+```bash
+# 1. R2 からダウンロード（Cloudflare ダッシュボード、または wrangler r2 object get <bucket>/timecalc/2026-09-18.dump --file=backup.dump）
+# 2. まずローカルの Prisma Postgres（npm run db:dev）に戻して中身を確認する
+pg_restore --clean --if-exists --no-owner --no-privileges -d "$DATABASE_URL" backup.dump
+# 3. 本番に戻すときは Railway の timecalc-db に TCP プロキシを一時的に開け、その接続文字列で同じコマンドを流す
+#    （復元中は timecalc サービスを止めておく。終わったら TCP プロキシは閉じる）
+```
+
+`pg_restore` は PostgreSQL 15 以上のクライアントが必要（Windows は EDB のインストーラーから「Command Line Tools」だけ入れれば足りる）。
+`--clean --if-exists` で既存テーブルを落としてから作り直すので、`_prisma_migrations` も含めて丸ごとバックアップ時点に戻る。
 
 ### Cloudflare D1 からのデータ移行（移行時の1回限り）
 

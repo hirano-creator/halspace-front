@@ -116,6 +116,8 @@ export async function POST(request: Request) {
       gpsCheckEnabled: input.gpsCheckEnabled,
       featureOverrides: input.featureOverrides,
       passwordHash: await hashPassword(input.password),
+      // 管理者が決めた初期パスワードなので、本人の初回ログイン時に変更させる
+      mustChangePassword: true,
     },
   });
 

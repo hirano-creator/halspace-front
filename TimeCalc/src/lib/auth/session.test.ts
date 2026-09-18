@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { createSessionToken, verifySessionToken, type SessionUser } from "./session";
+import { createSessionToken, verifySessionToken, buildSessionUser, type SessionUser } from "./session";
 
 beforeAll(() => {
   process.env.SESSION_SECRET = "test-secret-for-session-token";
@@ -15,6 +15,7 @@ const sampleUser: SessionUser = {
   gpsCheckEnabled: true,
   companyAttendance: false,
   homeScreen: "my",
+  mustChangePassword: false,
 };
 
 describe("createSessionToken / verifySessionToken", () => {
@@ -36,5 +37,41 @@ describe("createSessionToken / verifySessionToken", () => {
     const result = await verifySessionToken(token);
     process.env.SESSION_SECRET = original;
     expect(result).toBeNull();
+  });
+});
+
+describe("buildSessionUser", () => {
+  const row = {
+    id: "user-2",
+    employeeCode: "0002",
+    name: "佐藤花子",
+    role: "MANAGER",
+    departmentId: "dept-2",
+    gpsCheckEnabled: false,
+    featureOverrides: JSON.stringify({ companyAttendance: true, homeScreen: "scan" }),
+    mustChangePassword: true,
+  };
+
+  it("DBの行から role・機能設定・会社IDを解決する", () => {
+    expect(buildSessionUser(row, "company-2")).toEqual({
+      id: "user-2",
+      employeeCode: "0002",
+      name: "佐藤花子",
+      role: "MANAGER",
+      departmentId: "dept-2",
+      companyId: "company-2",
+      gpsCheckEnabled: false,
+      companyAttendance: true,
+      homeScreen: "scan",
+      mustChangePassword: true,
+    });
+  });
+
+  it("不正な role はEMPLOYEEに、featureOverridesが無ければ既定値になる", () => {
+    const user = buildSessionUser({ ...row, role: "BOGUS", featureOverrides: null }, null);
+    expect(user.role).toBe("EMPLOYEE");
+    expect(user.companyAttendance).toBe(false);
+    expect(user.homeScreen).toBe("clock");
+    expect(user.companyId).toBeNull();
   });
 });

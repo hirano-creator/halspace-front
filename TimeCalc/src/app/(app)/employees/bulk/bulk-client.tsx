@@ -135,6 +135,7 @@ export function BulkClient() {
           <li>1行目はヘッダー（{COLUMNS.join(" / ")}）。「社員番号」「氏名」以外は空欄可</li>
           <li>権限は空欄で一般社員。部署は設定画面で登録済みの部署名を書いてください</li>
           <li>初期パスワードが空欄の場合は自動生成し、登録後にこの画面で一度だけ表示します</li>
+          <li>初期パスワードは本人が初回ログイン時に必ず変更します（変更するまで他の画面は使えません）</li>
           <li>既に登録済みの社員番号はスキップされます（上書きしません）</li>
           <li>文字コードはUTF-8・Shift_JIS（Excelで保存したCSV）のどちらでも読み込めます</li>
         </ul>
@@ -200,7 +201,7 @@ export function BulkClient() {
           </div>
           {createdWithPassword.length > 0 && (
             <p className="border-b border-border bg-amber-50 px-4 py-2 text-xs text-amber-800 sm:px-6">
-              自動生成した初期パスワードは再表示できません。この画面でCSV保存するか控えてください。
+              自動生成した初期パスワードは再表示できません。この画面でCSV保存するか控えてください。本人が初回ログイン時に変更します。
             </p>
           )}
           <div className="overflow-x-auto">

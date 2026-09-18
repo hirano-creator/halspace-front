@@ -38,8 +38,19 @@ ENV HOSTNAME=0.0.0.0
 # 起動時の `prisma migrate deploy` に使う CLI。アプリ本体は engineType="client" で
 # エンジン不要だが、マイグレーションを流す schema engine だけはネイティブバイナリで
 # OpenSSL を要求するため、openssl を入れておく。
+#
+# postgresql-client-17（pg_dump / pg_restore）と curl は scripts/backup-db.sh（日次バックアップ）用。
+# Debian 標準の postgresql-client は 15 で、pg_dump は自分より新しいサーバーを拒否するため
+# PostgreSQL 公式リポジトリ（PGDG）から 17 を入れる（17 なら 15/16/17 のどのサーバーも dump できる）。
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && apt-get install -y --no-install-recommends openssl ca-certificates curl gnupg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+       | gpg --dearmor -o /usr/share/keyrings/postgresql.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
+       > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client-17 \
+    && apt-get purge -y --auto-remove gnupg \
     && rm -rf /var/lib/apt/lists/* \
     && npm install -g prisma@6.19.3
 
@@ -51,7 +62,8 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 
 COPY docker/entrypoint.sh /usr/local/bin/app-entrypoint
-RUN chmod +x /usr/local/bin/app-entrypoint
+COPY scripts/backup-db.sh /usr/local/bin/app-backup-db
+RUN chmod +x /usr/local/bin/app-entrypoint /usr/local/bin/app-backup-db
 
 EXPOSE 3000
 ENTRYPOINT ["app-entrypoint"]

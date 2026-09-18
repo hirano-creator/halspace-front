@@ -3,11 +3,15 @@
 // jose による署名付きJWTを発行・検証する。トークンはクライアント側で
 // sessionStorage に保持され、タブごとに独立したセッションになる
 // （Route Handler は Authorization: Bearer ヘッダーで受け取る）。
+//
+// トークンに入っている role 等は「ログイン時点の値」でしかない。APIの認可判定は
+// api-guard.ts がリクエストごとにDBの最新値で組み直した SessionUser を使う
+// （退職・降格・異動を即時に効かせるため）。トークン側の値は表示の初期値程度に扱う。
 
 import { SignJWT, jwtVerify } from "jose";
 import type { Role } from "./roles";
 import { toRole } from "./roles";
-import { toHomeScreen, type HomeScreen } from "./features";
+import { resolveFeatures, toHomeScreen, type HomeScreen } from "./features";
 
 const SESSION_DURATION_SEC = 60 * 60 * 12; // 12時間
 
@@ -26,6 +30,41 @@ export interface SessionUser {
   companyAttendance: boolean;
   /** アプリを開いた直後に表示する画面 */
   homeScreen: HomeScreen;
+  /** true の間はパスワード変更以外のAPIを受け付けない（初期パスワードのまま使わせないため） */
+  mustChangePassword: boolean;
+}
+
+/** buildSessionUser が必要とする User の列（Prisma の User 行をそのまま渡せる） */
+export interface SessionUserSource {
+  id: string;
+  employeeCode: string;
+  name: string;
+  role: string;
+  departmentId: string | null;
+  gpsCheckEnabled: boolean;
+  featureOverrides: string | null;
+  mustChangePassword: boolean;
+}
+
+/**
+ * DBのユーザー行から SessionUser を組み立てる。
+ * ログイン時のトークン発行と、APIガードでのリクエストごとの再検証の両方がこれを使う
+ * （組み立て方が2か所に分かれると、片方だけ新しい項目を忘れて権限がズレる）。
+ */
+export function buildSessionUser(user: SessionUserSource, companyId: string | null): SessionUser {
+  const features = resolveFeatures(user.featureOverrides);
+  return {
+    id: user.id,
+    employeeCode: user.employeeCode,
+    name: user.name,
+    role: toRole(user.role),
+    departmentId: user.departmentId,
+    companyId,
+    gpsCheckEnabled: user.gpsCheckEnabled,
+    companyAttendance: features.companyAttendance,
+    homeScreen: features.homeScreen,
+    mustChangePassword: user.mustChangePassword,
+  };
 }
 
 function getSecret(): Uint8Array {
@@ -47,6 +86,7 @@ export async function createSessionToken(user: SessionUser): Promise<string> {
     gpsCheckEnabled: user.gpsCheckEnabled,
     companyAttendance: user.companyAttendance,
     homeScreen: user.homeScreen,
+    mustChangePassword: user.mustChangePassword,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(user.id)
@@ -70,6 +110,7 @@ export async function verifySessionToken(token: string): Promise<SessionUser | n
       gpsCheckEnabled: payload.gpsCheckEnabled !== false,
       companyAttendance: payload.companyAttendance === true,
       homeScreen: toHomeScreen(payload.homeScreen),
+      mustChangePassword: payload.mustChangePassword === true,
     };
   } catch {
     return null;

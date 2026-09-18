@@ -2,6 +2,8 @@
 //
 // 401を受け取った場合はトークンが無効・期限切れとみなし、sessionStorageを
 // クリアして /login へ強制的に戻す。
+// 403 に code=PASSWORD_CHANGE_REQUIRED が付いていれば「初期パスワードのまま」なので
+// /password（本人のパスワード変更画面）へ誘導する（サーバー側は変更が済むまで他のAPIを通さない）。
 //
 // Cloudflare Workers 上では、負荷が重なった一瞬だけリクエストが応答を返せず
 // ランタイム側で打ち切られ 500 になることがある（「リクエストに失敗しました (500)」）。
@@ -9,11 +11,25 @@
 // 画面にエラーを出さずに回復させる。
 
 import { TOKEN_STORAGE_KEY } from "./client";
+import { PASSWORD_CHANGE_REQUIRED_CODE, PASSWORD_CHANGE_PATH } from "./password-policy";
 
 function redirectToLogin() {
   sessionStorage.removeItem(TOKEN_STORAGE_KEY);
   const redirect = encodeURIComponent(window.location.pathname + window.location.search);
   window.location.href = `/login?redirect=${redirect}`;
+}
+
+/** 403 の本文にパスワード変更要求のコードが入っていれば /password へ移動する（既にその画面なら何もしない） */
+async function redirectIfPasswordChangeRequired(res: Response): Promise<void> {
+  if (res.status !== 403) return;
+  const body = (await res
+    .clone()
+    .json()
+    .catch(() => null)) as { code?: unknown } | null;
+  if (body?.code !== PASSWORD_CHANGE_REQUIRED_CODE) return;
+  if (window.location.pathname !== PASSWORD_CHANGE_PATH) {
+    window.location.href = PASSWORD_CHANGE_PATH;
+  }
 }
 
 /** 一時的な失敗とみなして再試行するステータス（サーバー側の瞬断・過負荷） */
@@ -45,6 +61,7 @@ export async function apiFetch(url: string, init: RequestInit = {}): Promise<Res
         redirectToLogin();
         return res;
       }
+      await redirectIfPasswordChangeRequired(res);
       // 一時的なサーバーエラーは、まだ試行が残っていれば黙って再試行する
       if (RETRYABLE_STATUS.has(res.status) && attempt < retries) continue;
       return res;

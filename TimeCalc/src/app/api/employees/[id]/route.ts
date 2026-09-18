@@ -72,7 +72,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       isActive: input.isActive,
       gpsCheckEnabled: input.gpsCheckEnabled,
       featureOverrides: input.featureOverrides,
-      ...(input.password ? { passwordHash: await hashPassword(input.password) } : {}),
+      // 管理者がパスワードを再設定した場合は、本人に次回ログイン時の変更を求める
+      ...(input.password
+        ? { passwordHash: await hashPassword(input.password), mustChangePassword: true }
+        : {}),
     },
   });
 
