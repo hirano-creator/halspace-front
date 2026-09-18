@@ -1,5 +1,8 @@
 // 出勤・退勤QRのスキャン即打刻API（POST、「スキャン即打刻」設定のスタッフ専用）
 // 旧 clock/actions.ts の autoPunchAction をそのまま移植
+//
+// 状態の確認から打刻の登録・導出までは punch と同じくユーザー単位の advisory lock 付き
+// トランザクションで行う（QR画面を続けて2回開いた場合などの同時送信で重複しないように）。
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
@@ -8,7 +11,7 @@ import { resolveFeatures } from "@/lib/auth/features";
 import { todayString, nowTimeString } from "@/lib/utils/time";
 import { CLOCK_EVENT_LABELS, type ClockEventType } from "@/lib/attendance/clock";
 import { deriveAndSaveAttendance, getClockStatus } from "@/lib/attendance/clock-service";
-import { resolveClockDepartment, checkGps, calcLateMinutes } from "../_shared";
+import { resolveClockDepartment, checkGps, calcLateMinutes, lockUserForPunch } from "../_shared";
 import type { AutoPunchState } from "@/app/(app)/clock/types";
 
 const emptyAutoState: Omit<AutoPunchState, "error" | "success"> = {
@@ -52,53 +55,11 @@ export async function POST(request: Request) {
   const force = formData.get("force") === "on";
   const confirmed = formData.get("confirm") === "on";
 
-  const ctx = await resolveClockDepartment(
-    features.clockMode,
-    requestedDepartmentId,
-    requestedDepartmentId,
-    token,
-  );
+  const ctx = await resolveClockDepartment(features.clockMode, requestedDepartmentId, me.departmentId, token);
   if (!ctx.ok) {
     return NextResponse.json<AutoPunchState>({ error: ctx.error, success: false, ...emptyAutoState });
   }
   const { department } = ctx;
-
-  // 打刻忘れで日付が変わった場合も当日は「勤務外」から始まるため（getClockStatus 参照）、
-  // 前日の未退勤を引きずって初回スキャンが退勤になることはない
-  const status = await getClockStatus(viewer.id);
-  const last = status.lastEvent;
-
-  if (last && !force && Date.now() - last.timestamp.getTime() < AUTO_PUNCH_GUARD_MS) {
-    return NextResponse.json<AutoPunchState>({
-      error: null,
-      success: false,
-      punchedLabel: CLOCK_EVENT_LABELS[last.type],
-      punchedTime: last.time,
-      lateMinutes: 0,
-      eventId: last.id,
-      alreadyPunched: true,
-      confirmOut: false,
-    });
-  }
-
-  const phase = status.phase;
-  let type: ClockEventType;
-  if (phase === "beforeWork" || phase === "offWork") {
-    type = "IN";
-  } else if (phase === "working") {
-    type = "OUT";
-  } else {
-    // 外出中: 退勤の意図か戻り忘れかを機械的に判断できないため、確認を挟む
-    if (!confirmed) {
-      return NextResponse.json<AutoPunchState>({
-        error: null,
-        success: false,
-        ...emptyAutoState,
-        confirmOut: true,
-      });
-    }
-    type = "OUT";
-  }
 
   const latRaw = formData.get("lat");
   const lngRaw = formData.get("lng");
@@ -113,23 +74,71 @@ export async function POST(request: Request) {
   const time = nowTimeString();
   const date = todayString();
 
-  let eventId: string | null = null;
+  // トランザクション内で「打刻しない」と判断した場合の応答（そのまま返す）
+  type Outcome = { response: AutoPunchState } | { eventId: string; type: ClockEventType };
+
+  let eventId: string;
+  let type: ClockEventType;
   try {
-    const created = await prisma.clockEvent.create({
-      data: {
-        userId: viewer.id,
-        type,
-        reason: null,
-        date,
-        time,
-        latitude: lat,
-        longitude: lng,
-        distanceMeters: gps.distance,
-        departmentId: requestedDepartmentId,
+    const outcome = await prisma.$transaction<Outcome>(
+      async (tx) => {
+        await lockUserForPunch(tx, viewer.id);
+
+        // 打刻忘れで日付が変わった場合も当日は「勤務外」から始まるため（getClockStatus 参照）、
+        // 前日の未退勤を引きずって初回スキャンが退勤になることはない
+        const status = await getClockStatus(viewer.id, date, tx);
+        const last = status.lastEvent;
+
+        if (last && !force && Date.now() - last.timestamp.getTime() < AUTO_PUNCH_GUARD_MS) {
+          return {
+            response: {
+              error: null,
+              success: false,
+              punchedLabel: CLOCK_EVENT_LABELS[last.type],
+              punchedTime: last.time,
+              lateMinutes: 0,
+              eventId: last.id,
+              alreadyPunched: true,
+              confirmOut: false,
+            },
+          };
+        }
+
+        const phase = status.phase;
+        let nextType: ClockEventType;
+        if (phase === "beforeWork" || phase === "offWork") {
+          nextType = "IN";
+        } else if (phase === "working") {
+          nextType = "OUT";
+        } else {
+          // 外出中: 退勤の意図か戻り忘れかを機械的に判断できないため、確認を挟む
+          if (!confirmed) {
+            return { response: { error: null, success: false, ...emptyAutoState, confirmOut: true } };
+          }
+          nextType = "OUT";
+        }
+
+        const created = await tx.clockEvent.create({
+          data: {
+            userId: viewer.id,
+            type: nextType,
+            reason: null,
+            date,
+            time,
+            latitude: lat,
+            longitude: lng,
+            distanceMeters: gps.distance,
+            departmentId: department?.id ?? null,
+          },
+        });
+        await deriveAndSaveAttendance(viewer.id, date, tx);
+        return { eventId: created.id, type: nextType };
       },
-    });
-    eventId = created.id;
-    await deriveAndSaveAttendance(viewer.id, date);
+      { maxWait: 5_000, timeout: 15_000 },
+    );
+    if ("response" in outcome) return NextResponse.json<AutoPunchState>(outcome.response);
+    eventId = outcome.eventId;
+    type = outcome.type;
   } catch (e) {
     console.error("自動打刻エラー:", e);
     return NextResponse.json<AutoPunchState>({

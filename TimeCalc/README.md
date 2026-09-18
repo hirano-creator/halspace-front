@@ -70,6 +70,10 @@ SESSION_SECRET="ローカル用の適当な文字列"
   （`calculator.ts` が計算の中核。`npm test` で単体テスト実行）。
 - 権限は `src/lib/auth/roles.ts` に集約。画面・Server Action・API の
   すべてで `can()` / `requirePermission()` によるチェックを通す。
+- 打刻APIは「状態確認→登録→勤怠の導出」をユーザー単位の advisory lock 付きトランザクションで行う
+  （二重タップ・複数端末の同時送信で出勤が2件入らない）。QRで指定できる店舗は本人の所属部署と
+  **同じ会社の部署だけ**（GPS判定や日替わりQRが無効な別部署のIDを送って素通りさせない）。
+  同じ会社の中で店舗ごとに GPS/日替わりQR の有無が違う場合、その差は塞げないので設定は会社内で揃えること。
 
 ## 勤務ルール（初期値・設定画面から変更可能）
 
@@ -98,7 +102,10 @@ GitHub リポジトリ `halspace-front` の **Root Directory `TimeCalc`** から
 
 - 起動時に `docker/entrypoint.sh` が `prisma migrate deploy` を流してから Next.js を起動する。
   スキーマ変更はマイグレーションをコミットして push するだけでよい。
+- `railway.json` で `/api/health`（DB疎通込み）をヘルスチェックにしている。デプロイ直後の `migrate deploy` 中は
+  新コンテナへ切り替わらないので、起動中の 502 は出ない。旧 `/api/warm` は同じ内容を返す別名
 - 環境変数: `DATABASE_URL`（`${{timecalc-db.DATABASE_URL}}` を参照）、`SESSION_SECRET`（長いランダム値）、
+  `DB_POOL_MAX`（任意、既定20。レプリカを増やすときに下げる）、
   `TZ=Asia/Tokyo`（打刻の日時は固定+9時間で計算しているので無くても正しいが、取込履歴の表示時刻だけコンテナのTZに依存する）。
   `LOGIN_DEBUG_LOG=1` を付けるとログイン試行を識別子・UA付きで全件ログに出す（実機の不具合切り分け用。普段は付けない）
 - 反映確認: `railway status` が `Online`、`railway logs -d` に `[web] prisma migrate deploy` と起動ログが出ること

@@ -1,5 +1,6 @@
 // 打刻データの取得・導出を束ねるサービス層
 
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getAllWorkRules, workRulesFor } from "@/lib/settings";
 import { todayString } from "@/lib/utils/time";
@@ -17,6 +18,13 @@ import {
 } from "./clock";
 
 export type { TimelineEntry };
+
+/**
+ * 打刻の読み書きに使うクライアント。通常は共有の prisma、打刻API は
+ * 「状態確認→登録→導出」を1つのトランザクション（＋ユーザー単位の advisory lock）で
+ * 行うため、そのトランザクションの tx を渡す。PrismaClient もこの型を満たす。
+ */
+export type ClockDb = Prisma.TransactionClient;
 
 export interface ClockStatus {
   /** 直近の打刻種別（当日の打刻がなければ null） */
@@ -49,8 +57,9 @@ export interface ClockStatus {
 export async function getClockStatus(
   userId: string,
   today: string = todayString(),
+  db: ClockDb = prisma,
 ): Promise<ClockStatus> {
-  const last = await prisma.clockEvent.findFirst({
+  const last = await db.clockEvent.findFirst({
     where: { userId },
     orderBy: { timestamp: "desc" },
   });
@@ -60,7 +69,7 @@ export async function getClockStatus(
   let lastEventType = isToday ? ((last!.type as ClockEventType) ?? null) : null;
 
   if (isToday && lastEventType !== "OUT") {
-    const attendance = await prisma.attendance.findUnique({
+    const attendance = await db.attendance.findUnique({
       where: { userId_date: { userId, date: last!.date } },
     });
     if (attendance?.clockOut) lastEventType = "OUT";
@@ -176,11 +185,14 @@ export interface DerivedAttendance {
 export async function computeDerivedAttendance(
   userId: string,
   date: string,
+  db: ClockDb = prisma,
 ): Promise<DerivedAttendance | null> {
+  // トランザクション内で呼ばれたときは勤務ルールの読み取りも同じ tx で行う
+  // （別接続で読むと、プールが埋まった際に tx 同士が互いの接続待ちで詰まる）
   const [events, user, allRules] = await Promise.all([
-    prisma.clockEvent.findMany({ where: { userId, date }, orderBy: { timestamp: "asc" } }),
-    prisma.user.findUnique({ where: { id: userId }, include: { department: true } }),
-    getAllWorkRules(),
+    db.clockEvent.findMany({ where: { userId, date }, orderBy: { timestamp: "asc" } }),
+    db.user.findUnique({ where: { id: userId }, include: { department: true } }),
+    getAllWorkRules(db),
   ]);
 
   const mappedEvents = events.map((e) => ({ type: e.type as ClockEventType, time: e.time }));
@@ -226,11 +238,15 @@ export async function computeDerivedAttendance(
  * 最後の退勤の理由 → earlyLeaveReason として転記する
  * （入力がなければ既存値を保持し、後からの記入を上書きしない）。
  */
-export async function deriveAndSaveAttendance(userId: string, date: string): Promise<void> {
-  const result = await computeDerivedAttendance(userId, date);
+export async function deriveAndSaveAttendance(
+  userId: string,
+  date: string,
+  db: ClockDb = prisma,
+): Promise<void> {
+  const result = await computeDerivedAttendance(userId, date, db);
   if (!result) return;
 
-  await prisma.attendance.upsert({
+  await db.attendance.upsert({
     where: { userId_date: { userId, date } },
     update: {
       clockIn: result.clockIn,

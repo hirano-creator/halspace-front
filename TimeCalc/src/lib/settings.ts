@@ -6,6 +6,7 @@
 // 解決順: デフォルト値 ← 共通設定 ← 会社別設定（未保存のキーは下位にフォールバック）
 // CSV列マッピングは全社共通のまま（Setting テーブルのみ）。
 
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import {
   DEFAULT_CSV_MAPPING,
@@ -145,10 +146,12 @@ export interface CompanyWorkRules {
 }
 
 /** 全社分の勤務ルールを2クエリでまとめて取得する（勤怠計算のように横断で使う場面用） */
-export async function getAllWorkRules(): Promise<CompanyWorkRules> {
+export async function getAllWorkRules(db: Prisma.TransactionClient = prisma): Promise<CompanyWorkRules> {
+  // db にトランザクションの tx を渡せる。トランザクション中に共有 prisma（別の接続）で読むと、
+  // 接続プールが塞がったときに「tx が接続を握ったまま、別接続の空きを待つ」形で詰まるため
   const [globalRow, companyRows] = await Promise.all([
-    prisma.setting.findUnique({ where: { key: KEY_WORK_RULES } }),
-    prisma.companySetting.findMany({ where: { key: KEY_WORK_RULES } }),
+    db.setting.findUnique({ where: { key: KEY_WORK_RULES } }),
+    db.companySetting.findMany({ where: { key: KEY_WORK_RULES } }),
   ]);
   const fallback = mergeJsonLayers(DEFAULT_WORK_RULES, globalRow?.value);
   const byCompany = new Map(

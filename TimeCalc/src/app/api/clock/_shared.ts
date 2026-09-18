@@ -1,7 +1,7 @@
 // /api/clock/* の各Route Handlerが共有するロジック
 // （route.ts以外はNext.jsのルーティング対象にならないため、ここに集約する）
 
-import type { Department } from "@/generated/prisma/client";
+import type { Department, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import type { ClockMode } from "@/lib/auth/features";
 import { distanceMeters } from "@/lib/geo";
@@ -11,12 +11,18 @@ import { getWorkRules } from "@/lib/settings";
 
 /**
  * 打刻先の部署を解決し、QR経由必須の設定・日替わりQRトークンを検証する。
- * departmentId は「表示に使う部署（requestedDepartmentIdが無ければ所属部署）」を渡す。
+ * requestedDepartmentId は QR の URL（?dept=）で指定された店舗、homeDepartmentId は本人の所属部署。
+ * 打刻先は「QRで指定された店舗、無ければ所属部署」。
+ *
+ * QRで指定された店舗は本人の所属部署と同じ会社のものに限る。制限しないと、GPS判定や
+ * 日替わりQRが無効な別部署のIDをフォームに入れて送るだけで、自分の店舗の判定を素通りできてしまう
+ * （部署IDは QR画面に表示されるURLから誰でも読める）。複数店舗の掛け持ちは同じ会社内を想定。
+ * 所属部署が無いスタッフ（本社スタッフ等）は会社で縛れないため、存在する部署ならどこでも打刻できる。
  */
 export async function resolveClockDepartment(
   clockMode: ClockMode,
   requestedDepartmentId: string | null,
-  departmentId: string | null,
+  homeDepartmentId: string | null,
   token: string | null,
 ): Promise<{ ok: true; department: Department | null } | { ok: false; error: string }> {
   // QR経由必須の設定のスタッフは、店舗QRのURL（?dept=）以外を拒否する
@@ -24,9 +30,23 @@ export async function resolveClockDepartment(
     return { ok: false, error: "このアカウントは店舗のQRコードからのみ打刻できます" };
   }
 
-  const department = departmentId
-    ? await prisma.department.findUnique({ where: { id: departmentId } })
-    : null;
+  let department: Department | null = null;
+  if (requestedDepartmentId) {
+    department = await prisma.department.findUnique({ where: { id: requestedDepartmentId } });
+    if (!department) {
+      return { ok: false, error: "QRコードの店舗が見つかりません。店舗に表示されている最新のQRコードを読み取ってください" };
+    }
+    if (homeDepartmentId && homeDepartmentId !== department.id) {
+      const home = await prisma.department.findUnique({ where: { id: homeDepartmentId } });
+      const sameCompany =
+        home?.companyId != null && department.companyId != null && home.companyId === department.companyId;
+      if (!sameCompany) {
+        return { ok: false, error: "所属している会社以外の店舗QRコードでは打刻できません" };
+      }
+    }
+  } else if (homeDepartmentId) {
+    department = await prisma.department.findUnique({ where: { id: homeDepartmentId } });
+  }
 
   // 自由打刻の設定で、かつQR経由（requestedDepartmentId）でアクセスしていない場合は、
   // 所属部署の日替わりQR設定があっても個人設定（自由打刻）を優先し、トークン検証を行わない
@@ -51,6 +71,16 @@ export async function resolveClockDepartment(
   }
 
   return { ok: true, department };
+}
+
+/**
+ * 同じユーザーの打刻処理をトランザクション内で直列化する（PostgreSQL の advisory lock）。
+ * 同じキーで待っている別のトランザクションは、先行側がコミット/ロールバックするまで進めない。
+ * ロックはトランザクション終了で自動的に外れる。行ロックと違い対象行が無くても（初回の打刻でも）効く。
+ */
+export async function lockUserForPunch(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+  // pg_advisory_xact_lock は void を返し $queryRaw では読み取れない（P2010）ので $executeRaw で実行する
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
 }
 
 /** GPS必須（スタッフのgpsCheckEnabled かつ 部署に座標設定あり）の場合に現在地を検証する */

@@ -34,10 +34,24 @@ async function redirectIfPasswordChangeRequired(res: Response): Promise<void> {
 
 /** 一時的な失敗とみなして再試行するステータス（サーバー側の瞬断・過負荷） */
 const RETRYABLE_STATUS = new Set([500, 502, 503, 504]);
-/** リトライ間隔（ms）。長さぶんだけ再試行する */
+/** リトライ間隔の基準（ms）。長さぶんだけ再試行する */
 const RETRY_DELAYS = [700, 2000];
+/**
+ * リトライ間隔のばらつき（±40%）。全員が同じ間隔で再送すると、サーバーが詰まった瞬間に
+ * 100人分の再送が同時に重なって回復を遅らせるため、端末ごとにずらす
+ */
+const RETRY_JITTER = 0.4;
+/**
+ * 応答が返らないリクエストを諦めるまでの時間。無期限に待つと、DB が詰まったときに
+ * 画面が固まったまま何も起きない（重い集計でも数秒で返る想定なので 20 秒で十分）
+ */
+const REQUEST_TIMEOUT_MS = 20_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function jittered(ms: number): number {
+  return Math.round(ms * (1 + (Math.random() * 2 - 1) * RETRY_JITTER));
+}
 
 /** 副作用のない取得系のみリトライする（POST等を再送すると二重登録になるため） */
 function isRetryableRequest(init: RequestInit): boolean {
@@ -54,9 +68,13 @@ export async function apiFetch(url: string, init: RequestInit = {}): Promise<Res
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
-    if (attempt > 0) await sleep(RETRY_DELAYS[attempt - 1]);
+    if (attempt > 0) await sleep(jittered(RETRY_DELAYS[attempt - 1]));
     try {
-      const res = await fetch(url, { ...init, headers });
+      // 呼び出し側が signal を渡していなければ、こちらでタイムアウトを付ける（試行ごとに新しく作る）
+      const signal =
+        init.signal ??
+        (typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(REQUEST_TIMEOUT_MS) : undefined);
+      const res = await fetch(url, { ...init, headers, signal });
       if (res.status === 401) {
         redirectToLogin();
         return res;

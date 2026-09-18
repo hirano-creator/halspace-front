@@ -1,5 +1,9 @@
 // 出勤・退勤・外出・戻りの打刻API（POST）
 // 旧 clock/actions.ts の punchAction をそのまま移植
+//
+// 「現在の状態を確認 → 打刻を登録 → 1日分の勤怠を導出」は、ユーザー単位の advisory lock を
+// 取った1つのトランザクションで行う。二重タップや2台の端末から同時に送られても、
+// 後の方は更新後の状態で検証されるので「出勤が2件」のような重複が入らない。
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
@@ -9,7 +13,7 @@ import { todayString, nowTimeString } from "@/lib/utils/time";
 import { toQrKind } from "@/lib/qr";
 import { toClockEventType, CLOCK_EVENT_LABELS } from "@/lib/attendance/clock";
 import { getClockStatus, validatePunch, deriveAndSaveAttendance } from "@/lib/attendance/clock-service";
-import { resolveClockDepartment, checkGps, calcLateMinutes } from "../_shared";
+import { resolveClockDepartment, checkGps, calcLateMinutes, lockUserForPunch } from "../_shared";
 import type { PunchState } from "@/app/(app)/clock/types";
 
 const emptyState: Omit<PunchState, "error" | "success"> = {
@@ -62,21 +66,16 @@ export async function POST(request: Request) {
     });
   }
 
-  const status = await getClockStatus(viewer.id);
-  const punchError = validatePunch(status, type);
-  if (punchError) {
-    return NextResponse.json<PunchState>({ error: punchError, success: false, ...emptyState });
-  }
-
   const requestedDepartmentId = String(formData.get("departmentId") ?? "").trim() || null;
-  const departmentId = requestedDepartmentId ?? me.departmentId;
   const token = String(formData.get("token") ?? "").trim() || null;
 
-  const ctx = await resolveClockDepartment(features.clockMode, requestedDepartmentId, departmentId, token);
+  const ctx = await resolveClockDepartment(features.clockMode, requestedDepartmentId, me.departmentId, token);
   if (!ctx.ok) {
     return NextResponse.json<PunchState>({ error: ctx.error, success: false, ...emptyState });
   }
   const { department } = ctx;
+  // 打刻に記録する部署（QR経由なら店舗、それ以外は所属部署）
+  const departmentId = department?.id ?? null;
 
   const latRaw = formData.get("lat");
   const lngRaw = formData.get("lng");
@@ -92,23 +91,40 @@ export async function POST(request: Request) {
   const date = todayString();
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 200) || null;
 
-  let eventId: string | null = null;
+  // トランザクション内で打刻を拒否した場合はその理由、登録できた場合は打刻IDを返す
+  type Outcome = { punchError: string } | { eventId: string };
+
+  let eventId: string;
   try {
-    const created = await prisma.clockEvent.create({
-      data: {
-        userId: viewer.id,
-        type,
-        reason,
-        date,
-        time,
-        latitude: lat,
-        longitude: lng,
-        distanceMeters: gps.distance,
-        departmentId,
+    const outcome = await prisma.$transaction<Outcome>(
+      async (tx) => {
+        await lockUserForPunch(tx, viewer.id);
+        const status = await getClockStatus(viewer.id, date, tx);
+        const punchError = validatePunch(status, type);
+        if (punchError) return { punchError };
+
+        const created = await tx.clockEvent.create({
+          data: {
+            userId: viewer.id,
+            type,
+            reason,
+            date,
+            time,
+            latitude: lat,
+            longitude: lng,
+            distanceMeters: gps.distance,
+            departmentId,
+          },
+        });
+        await deriveAndSaveAttendance(viewer.id, date, tx);
+        return { eventId: created.id };
       },
-    });
-    eventId = created.id;
-    await deriveAndSaveAttendance(viewer.id, date);
+      { maxWait: 5_000, timeout: 15_000 },
+    );
+    if ("punchError" in outcome) {
+      return NextResponse.json<PunchState>({ error: outcome.punchError, success: false, ...emptyState });
+    }
+    eventId = outcome.eventId;
   } catch (e) {
     console.error("打刻エラー:", e);
     return NextResponse.json<PunchState>({ error: "打刻に失敗しました", success: false, ...emptyState });

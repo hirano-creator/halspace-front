@@ -33,7 +33,7 @@ export function DeleteEmployeeButton({
       onSubmit={(e) => {
         if (
           !confirm(
-            `社員「${employeeName}」を削除しますか？\nこの社員の勤怠データもすべて削除されます。この操作は取り消せません。`,
+            `社員「${employeeName}」を削除しますか？\n削除できるのは勤怠・打刻の記録がない社員だけです（退職者は編集画面で「在籍」をオフにしてください）。この操作は取り消せません。`,
           )
         ) {
           e.preventDefault();

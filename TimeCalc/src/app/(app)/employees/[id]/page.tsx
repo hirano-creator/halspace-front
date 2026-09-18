@@ -44,6 +44,9 @@ export default function EmployeeDetailPage() {
   useEffect(() => {
     hasDataRef.current = data !== null;
   }, [data]);
+  // 取得中かどうか。サーバーが遅いときに定期再取得が前回の応答を待たずに重なり、
+  // 開きっぱなしのタブが未応答リクエストを積み上げていくのを防ぐ
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
     if (authStatus !== "authenticated") return;
@@ -51,6 +54,7 @@ export default function EmployeeDetailPage() {
     if (month) qs.set("month", month);
 
     let cancelled = false;
+    inFlightRef.current = true;
     apiFetchJson<EmployeeDetailResponse>(`/api/employees/${params.id}/detail?${qs.toString()}`)
       .then((res) => {
         if (cancelled) return;
@@ -66,9 +70,13 @@ export default function EmployeeDetailPage() {
           return;
         }
         setError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) inFlightRef.current = false;
       });
     return () => {
       cancelled = true;
+      inFlightRef.current = false;
     };
   }, [authStatus, params.id, month, refreshKey]);
 
@@ -77,7 +85,7 @@ export default function EmployeeDetailPage() {
   useEffect(() => {
     if (authStatus !== "authenticated") return;
     const interval = setInterval(() => {
-      if (document.visibilityState === "visible") refetch();
+      if (document.visibilityState === "visible" && !inFlightRef.current) refetch();
     }, 30000);
     const onVisible = () => {
       if (document.visibilityState === "visible") refetch();

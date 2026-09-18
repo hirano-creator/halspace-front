@@ -19,11 +19,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const reviewNote = String(formData.get("reviewNote") ?? "").trim().slice(0, 500) || null;
 
   try {
-    const before = await prisma.attendance.findUnique({
-      where: { userId_date: { userId: correctionRequest.userId, date: correctionRequest.date } },
-    });
-    await prisma.$transaction([
-      prisma.attendance.upsert({
+    // 「PENDING のものだけを APPROVED にする」更新を同じトランザクションの先頭で行い、
+    // 0件なら他の承認者が先に処理済みなので勤怠には触らずに終える
+    // （findReviewable の status 確認はトランザクション外なので、同時クリックの二重反映はここで防ぐ）
+    const applied = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.correctionRequest.updateMany({
+        where: { id: correctionRequest.id, status: "PENDING" },
+        data: { status: "APPROVED", reviewedById: viewer.id, reviewNote, reviewedAt: new Date() },
+      });
+      if (claimed.count === 0) return false;
+
+      const before = await tx.attendance.findUnique({
+        where: { userId_date: { userId: correctionRequest.userId, date: correctionRequest.date } },
+      });
+      await tx.attendance.upsert({
         where: { userId_date: { userId: correctionRequest.userId, date: correctionRequest.date } },
         update: {
           clockIn: correctionRequest.clockIn,
@@ -43,8 +52,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           outingEnd: correctionRequest.outingEnd,
           source: "MANUAL",
         },
-      }),
-      prisma.attendanceLog.create({
+      });
+      await tx.attendanceLog.create({
         data: {
           userId: correctionRequest.userId,
           date: correctionRequest.date,
@@ -64,12 +73,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           }),
           note: `申請理由: ${correctionRequest.reason}`,
         },
-      }),
-      prisma.correctionRequest.update({
-        where: { id: correctionRequest.id },
-        data: { status: "APPROVED", reviewedById: viewer.id, reviewNote, reviewedAt: new Date() },
-      }),
-    ]);
+      });
+      return true;
+    });
+    if (!applied) {
+      return NextResponse.json<ReviewState>({ error: "この申請は処理済みです", success: false });
+    }
   } catch (e) {
     console.error("申請承認エラー:", e);
     return NextResponse.json<ReviewState>({ error: "申請の承認に失敗しました", success: false });

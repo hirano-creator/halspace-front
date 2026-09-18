@@ -48,6 +48,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const target = await prisma.user.findUnique({ where: { id } });
   if (!target) return NextResponse.json<EmployeeFormState>({ error: "対象の社員が見つかりません" });
 
+  // 自分自身の在籍オフと、最後の管理者の降格・在籍オフは拒否する（誰も社員管理・設定を触れなくなる）
+  if (target.id === auth.user.id && !input.isActive) {
+    return NextResponse.json<EmployeeFormState>({ error: "自分自身を在籍オフにはできません" });
+  }
+  const losesAdmin =
+    toRole(target.role) === "ADMIN" && (toRole(input.role) !== "ADMIN" || !input.isActive);
+  if (losesAdmin && (await countOtherActiveAdmins(id)) === 0) {
+    return NextResponse.json<EmployeeFormState>({
+      error: "最後の管理者の権限・在籍は変更できません（先に別の管理者を登録してください）",
+    });
+  }
+
   const dup = await prisma.user.findFirst({
     where: {
       id: { not: id },
@@ -82,10 +94,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return NextResponse.json<EmployeeFormState>({ error: null, success: true });
 }
 
+/** 指定した社員以外に、在籍中の管理者が何人いるか */
+function countOtherActiveAdmins(excludeId: string): Promise<number> {
+  return prisma.user.count({ where: { role: "ADMIN", isActive: true, id: { not: excludeId } } });
+}
+
 /**
  * 社員を削除する。
- * 削除すると、その社員の勤怠データもすべて削除される（データベースの外部キー制約による連動削除）。
- * 安全のため、自分自身の削除・最後の管理者の削除は拒否する。
+ * 削除すると、その社員の勤怠データもすべて削除される（データベースの外部キー制約による連動削除）ため、
+ * 勤怠・打刻の記録が1件でもある社員は削除させず「在籍オフ」を案内する
+ * （退職者の給与計算の根拠が消えるのを防ぐ。登録直後の入力ミスなど記録のない社員だけ削除できる）。
+ * 安全のため、自分自身の削除・最後の管理者の削除も拒否する。
  */
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireApiPermission(request, "manageEmployees");
@@ -100,11 +119,19 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return NextResponse.json<EmployeeDeleteState>({ error: "自分自身は削除できません" });
   }
 
-  if (toRole(target.role) === "ADMIN") {
-    const adminCount = await prisma.user.count({ where: { role: "ADMIN" } });
-    if (adminCount <= 1) {
-      return NextResponse.json<EmployeeDeleteState>({ error: "最後の管理者は削除できません" });
-    }
+  if (toRole(target.role) === "ADMIN" && (await countOtherActiveAdmins(id)) === 0) {
+    return NextResponse.json<EmployeeDeleteState>({ error: "最後の管理者は削除できません" });
+  }
+
+  const [attendanceCount, clockEventCount] = await Promise.all([
+    prisma.attendance.count({ where: { userId: id } }),
+    prisma.clockEvent.count({ where: { userId: id } }),
+  ]);
+  if (attendanceCount > 0 || clockEventCount > 0) {
+    return NextResponse.json<EmployeeDeleteState>({
+      error:
+        "勤怠・打刻の記録がある社員は削除できません。退職者は編集画面で「在籍」をオフにしてください（記録は保持されます）",
+    });
   }
 
   try {

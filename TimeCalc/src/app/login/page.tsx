@@ -6,14 +6,8 @@
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/client";
+import { safeRedirect } from "@/lib/auth/safe-redirect";
 import { LoginForm } from "./login-form";
-
-/** オープンリダイレクト対策: "/"始まりの相対パスのみ許可する */
-function safeRedirect(target: string | null): string {
-  if (target && target.startsWith("/") && !target.startsWith("//")) return target;
-  // "/" にすることで、以後の振り分け（起動時の画面設定）をルートページの1箇所に集約する
-  return "/";
-}
 
 export default function LoginPage() {
   return (
@@ -27,7 +21,10 @@ function LoginPageContent() {
   const { status } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = safeRedirect(searchParams.get("redirect"));
+  // useSearchParams を使うこの部分はサーバーでは描画されない（Suspense でクライアントへ委ねる）が、
+  // 念のため window が無い環境でも落ちないようにしておく
+  const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+  const redirectTo = safeRedirect(searchParams.get("redirect"), origin);
 
   useEffect(() => {
     if (status === "authenticated") router.replace(redirectTo);

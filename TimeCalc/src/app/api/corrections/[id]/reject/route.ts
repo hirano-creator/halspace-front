@@ -22,12 +22,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   try {
-    await prisma.$transaction([
-      prisma.correctionRequest.update({
-        where: { id: correctionRequest.id },
+    // 承認と同じく、PENDING のものだけを REJECTED にできた場合に限り履歴を残す（同時クリックの二重処理防止）
+    const applied = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.correctionRequest.updateMany({
+        where: { id: correctionRequest.id, status: "PENDING" },
         data: { status: "REJECTED", reviewedById: viewer.id, reviewNote, reviewedAt: new Date() },
-      }),
-      prisma.attendanceLog.create({
+      });
+      if (claimed.count === 0) return false;
+      await tx.attendanceLog.create({
         data: {
           userId: correctionRequest.userId,
           date: correctionRequest.date,
@@ -37,8 +39,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           after: null,
           note: `却下理由: ${reviewNote}（申請理由: ${correctionRequest.reason}）`,
         },
-      }),
-    ]);
+      });
+      return true;
+    });
+    if (!applied) {
+      return NextResponse.json<ReviewState>({ error: "この申請は処理済みです", success: false });
+    }
   } catch (e) {
     console.error("申請却下エラー:", e);
     return NextResponse.json<ReviewState>({ error: "申請の却下に失敗しました", success: false });

@@ -177,36 +177,52 @@ export async function POST(request: Request) {
     validRows.push({ userId, date, clockIn: minutesToTime(inMin), clockOut: minutesToTime(outMin), breakMinutes });
   }
 
+  // 1行ずつ往復すると100人×1か月（約2,200行）で数十秒かかり、中継の Cloudflare（100秒）に
+  // 掛かることがあるため、まとまった行数ごとに1トランザクションで書く（往復は 1/UPSERT_BATCH に減る）。
+  // 途中で失敗しても、それまでのバッチは確定済みなので再実行は安全（同一社員・同一日付は上書き）。
+  const UPSERT_BATCH = 200;
   let importedCount = 0;
+  let importError: string | null = null;
   try {
-    for (const row of validRows) {
-      await prisma.attendance.upsert({
-        where: { userId_date: { userId: row.userId, date: row.date } },
-        update: { clockIn: row.clockIn, clockOut: row.clockOut, breakMinutes: row.breakMinutes },
-        create: row,
-      });
-      importedCount++;
+    for (let i = 0; i < validRows.length; i += UPSERT_BATCH) {
+      const chunk = validRows.slice(i, i + UPSERT_BATCH);
+      await prisma.$transaction(
+        chunk.map((row) =>
+          prisma.attendance.upsert({
+            where: { userId_date: { userId: row.userId, date: row.date } },
+            // 取込経路を CSV として記録する（控除時間の算出で「外出の時刻は無く休憩分だけある」扱いになる）
+            update: { clockIn: row.clockIn, clockOut: row.clockOut, breakMinutes: row.breakMinutes, source: "CSV" },
+            create: { ...row, source: "CSV" },
+          }),
+        ),
+      );
+      importedCount += chunk.length;
     }
   } catch (e) {
     console.error("CSV取込エラー:", e);
+    importError = `取込中にエラーが発生しました（${importedCount}件まで取込済み）`;
+  }
+
+  // 途中で失敗した場合も「何件まで入ったか」を履歴に残す（残さないと再取込の判断ができない）
+  const historyErrors = importError ? [importError, ...errors] : errors;
+  await prisma.importHistory.create({
+    data: {
+      fileName: payload.fileName,
+      rowCount: importedCount,
+      errorCount: historyErrors.length,
+      errors: historyErrors.length ? JSON.stringify(historyErrors) : null,
+      importedById: user.id,
+    },
+  });
+  if (importError) {
     return NextResponse.json<ImportResult>({
       ok: false,
-      message: `取込中にエラーが発生しました（${importedCount}件まで取込済み）`,
+      message: importError,
       importedCount,
       createdEmployees,
       errors,
     });
   }
-
-  await prisma.importHistory.create({
-    data: {
-      fileName: payload.fileName,
-      rowCount: importedCount,
-      errorCount: errors.length,
-      errors: errors.length ? JSON.stringify(errors) : null,
-      importedById: user.id,
-    },
-  });
   await saveCsvMapping(payload.mapping);
 
   const parts = [`${importedCount}件を取り込みました`];
