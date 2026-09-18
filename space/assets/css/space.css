@@ -229,6 +229,95 @@ input { font-family: inherit; }
 }
 .btn-logout:hover { background: rgba(0,0,0,.08); color: #374151; }
 
+/* パスワード変更モーダル（apps.html。全ロール共通） */
+.pw-modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(11,27,58,.45);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.pw-modal-overlay.hidden { display: none; }
+.pw-modal {
+  width: 100%; max-width: 420px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: pw-modal-in .18s ease;
+}
+@keyframes pw-modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to   { opacity: 1; transform: none; }
+}
+.pw-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.pw-modal-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 700; color: #1c1c1e;
+}
+.pw-modal-title i { color: #635bff; }
+.pw-modal-close {
+  width: 32px; height: 32px; border-radius: 8px;
+  color: #8e8e93; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.pw-modal-close:hover { background: rgba(0,0,0,.06); color: #374151; }
+.pw-modal-body { padding: 18px 20px 6px; display: flex; flex-direction: column; gap: 14px; }
+.pw-modal-desc { font-size: 12.5px; color: var(--muted); line-height: 1.7; }
+.pw-field { display: flex; flex-direction: column; gap: 6px; }
+.pw-label { font-size: 12px; font-weight: 700; color: #374151; }
+.pw-input-wrap { position: relative; }
+.pw-input {
+  width: 100%;
+  padding: 10px 40px 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1c1c1e;
+  background: #fafafa;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.pw-input:focus {
+  outline: none; background: #fff;
+  border-color: #635bff;
+  box-shadow: 0 0 0 3px rgba(99,91,255,.15);
+}
+.pw-input-eye {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 30px; height: 30px; border-radius: 6px;
+  color: #a1a1aa; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.pw-input-eye:hover { color: #374151; background: rgba(0,0,0,.05); }
+.pw-error, .pw-success {
+  display: none;
+  font-size: 12.5px; font-weight: 600;
+  padding: 9px 12px; border-radius: 8px; line-height: 1.6;
+}
+.pw-error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.pw-success { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+.pw-error.show, .pw-success.show { display: block; }
+.pw-modal-footer {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 14px 20px 18px;
+}
+.pw-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 16px; border-radius: 8px;
+  font-size: 13px; font-weight: 700;
+  transition: all .18s ease;
+}
+.pw-btn-main { background: #635bff; color: #fff; }
+.pw-btn-main:hover { background: #4f46e5; }
+.pw-btn-main:disabled { opacity: .6; cursor: default; }
+.pw-btn-sub { background: rgba(0,0,0,.04); color: #6b7280; border: 1px solid rgba(0,0,0,.08); }
+.pw-btn-sub:hover { background: rgba(0,0,0,.08); color: #374151; }
+
 /* 今月のおすすめ（ヒーロー） — 画面幅いっぱいに敷く */
 .hero {
   background: linear-gradient(120deg, #0b1b3a 0%, #123a72 55%, #0984E3 100%);
@@ -682,6 +771,11 @@ input { font-family: inherit; }
     gap: 0;
   }
   .btn-admin i, .btn-logout i { font-size: 14px; }
+
+  /* モーダルの入力欄はiOSの自動ズームを避けるため16px */
+  .pw-input { font-size: 16px; }
+  .pw-modal-footer { flex-direction: column-reverse; }
+  .pw-btn { justify-content: center; }
 
   /* ボディ */
   .apps-body { padding: 24px 16px 56px; }

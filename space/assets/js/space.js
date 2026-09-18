@@ -419,6 +419,8 @@ if (appsGrid) {
     location.href = 'login.html';
   });
 
+  initPasswordChangeModal();
+
   /* ── 横スクロール矢印 ── */
   const arrowLeft  = document.getElementById('arrowLeft');
   const arrowRight = document.getElementById('arrowRight');
@@ -443,6 +445,85 @@ if (appsGrid) {
   renderHero(user);
   renderSponsors();
   renderStore();
+}
+
+/* ── パスワード変更モーダル ──
+   管理画面のパスワード変更はsuper_admin専用の「システム設定」にしかなく、
+   一般会員・管理者が自分のパスワードを変える場所がなかった。
+   POST /auth/change-password は認証済みなら誰でも使えるので、全員が通るこの画面に置く。 */
+function initPasswordChangeModal() {
+  const modal   = document.getElementById('pwModal');
+  const form    = document.getElementById('pwForm');
+  const openBtn = document.getElementById('pwChangeBtn');
+  if (!modal || !form || !openBtn) return;
+
+  const fields  = ['pwCurrent', 'pwNew', 'pwConfirm'].map(id => document.getElementById(id));
+  const errEl   = document.getElementById('pwError');
+  const okEl    = document.getElementById('pwSuccess');
+  const saveBtn = document.getElementById('pwSaveBtn');
+
+  const showError = msg => { okEl.classList.remove('show'); errEl.textContent = msg; errEl.classList.add('show'); };
+  const clearMsgs = () => { errEl.classList.remove('show'); okEl.classList.remove('show'); };
+
+  function open() {
+    fields.forEach(f => { f.value = ''; f.type = 'password'; });
+    modal.querySelectorAll('.pw-input-eye i').forEach(i => { i.className = 'fa-regular fa-eye'; });
+    clearMsgs();
+    saveBtn.disabled = false;
+    modal.classList.remove('hidden');
+    fields[0].focus();
+  }
+  function close() { modal.classList.add('hidden'); }
+
+  openBtn.addEventListener('click', open);
+  document.getElementById('pwModalClose').addEventListener('click', close);
+  document.getElementById('pwModalCancel').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) close(); });
+
+  modal.querySelectorAll('.pw-input-eye').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(btn.dataset.target);
+      const show  = input.type === 'password';
+      input.type  = show ? 'text' : 'password';
+      btn.querySelector('i').className = show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+    });
+  });
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const [cur, nw, conf] = fields.map(f => f.value);
+    clearMsgs();
+    if (!cur || !nw) { showError('現在のパスワードと新しいパスワードを入力してください'); return; }
+    if (nw.length < 8) { showError('新しいパスワードは8文字以上で入力してください'); return; }
+    if (nw !== conf)   { showError('新しいパスワードが一致しません'); return; }
+    if (nw === cur)    { showError('現在のパスワードと同じです。別のパスワードを入力してください'); return; }
+
+    saveBtn.disabled = true;
+    try {
+      const res = await fetch(`${SPACE_API}/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionStorage.getItem('space_token')}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ current_password: cur, new_password: nw }),
+      });
+      if (res.status === 401) { clearAuth(); location.href = 'login.html'; return; }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { showError(data.message || 'パスワードの変更に失敗しました'); return; }
+
+      fields.forEach(f => { f.value = ''; });
+      okEl.textContent = 'パスワードを変更しました。次回から新しいパスワードでログインしてください。';
+      okEl.classList.add('show');
+      setTimeout(close, 1800);
+    } catch {
+      showError('通信に失敗しました。時間をおいて再度お試しください');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
 }
 
 /* ── 今月のおすすめ（ヒーロー） ── */
