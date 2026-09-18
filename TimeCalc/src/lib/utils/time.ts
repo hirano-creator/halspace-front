@@ -55,6 +55,8 @@ export function normalizeDate(input: string): string | null {
     return null;
   }
   if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  // 2/31 のような暦に無い日は弾く（Date は翌月に繰り上げて黙って受け付けてしまう）
+  if (d > new Date(Date.UTC(y, mo, 0)).getUTCDate()) return null;
   return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 

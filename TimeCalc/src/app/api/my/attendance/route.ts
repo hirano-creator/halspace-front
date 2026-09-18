@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     console.error("本人修正エラー:", e);
-    return NextResponse.json<MyActionState>({ error: "勤怠の修正に失敗しました", success: false });
+    return NextResponse.json<MyActionState>({ error: "勤怠の修正に失敗しました", success: false }, { status: 500 });
   }
 
   return NextResponse.json<MyActionState>({ error: null, success: true });

@@ -108,6 +108,7 @@ GitHub リポジトリ `halspace-front` の **Root Directory `TimeCalc`** から
   旧 `/api/warm` は同じ内容を返す別名
 - 環境変数: `DATABASE_URL`（`${{timecalc-db.DATABASE_URL}}` を参照）、`SESSION_SECRET`（長いランダム値）、
   `DB_POOL_MAX`（任意、既定20。レプリカを増やすときに下げる）、
+  `PUBLIC_BASE_URL`（QR・キオスクURLのベース。本番は `https://timecalc-app.pages.dev`。無ければ中継の X-Original-Host から組み立てる）、
   `TZ=Asia/Tokyo`（打刻の日時は固定+9時間で計算しているので無くても正しいが、取込履歴の表示時刻だけコンテナのTZに依存する）。
   `LOGIN_DEBUG_LOG=1` を付けるとログイン試行を識別子・UA付きで全件ログに出す（実機の不具合切り分け用。普段は付けない）
 - 反映確認: `railway status` が `Online`、`railway logs -d` に `[web] prisma migrate deploy` と起動ログが出ること

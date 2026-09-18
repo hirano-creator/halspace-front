@@ -9,7 +9,7 @@ import { toRole } from "@/lib/auth/roles";
 import { getCompanyIdForDepartment, getDisplaySettings, getRoleLabels } from "@/lib/settings";
 import type { Prisma } from "@/generated/prisma/client";
 import type { EmployeeFormState, EmployeesPageResponse } from "@/app/(app)/employees/types";
-import { parseEmployeeForm } from "./_shared";
+import { parseEmployeeForm, isUniqueViolation } from "./_shared";
 
 const PAGE_SIZE = 50;
 
@@ -104,22 +104,33 @@ export async function POST(request: Request) {
     });
   }
 
-  await prisma.user.create({
-    data: {
-      employeeCode: input.employeeCode,
-      name: input.name,
-      email: input.email,
-      role: toRole(input.role),
-      hourlyWage: input.hourlyWage,
-      departmentId: input.departmentId,
-      isActive: input.isActive,
-      gpsCheckEnabled: input.gpsCheckEnabled,
-      featureOverrides: input.featureOverrides,
-      passwordHash: await hashPassword(input.password),
-      // 管理者が決めた初期パスワードなので、本人の初回ログイン時に変更させる
-      mustChangePassword: true,
-    },
-  });
+  try {
+    await prisma.user.create({
+      data: {
+        employeeCode: input.employeeCode,
+        name: input.name,
+        email: input.email,
+        role: toRole(input.role),
+        hourlyWage: input.hourlyWage,
+        departmentId: input.departmentId,
+        isActive: input.isActive,
+        gpsCheckEnabled: input.gpsCheckEnabled,
+        featureOverrides: input.featureOverrides,
+        passwordHash: await hashPassword(input.password),
+        // 管理者が決めた初期パスワードなので、本人の初回ログイン時に変更させる
+        mustChangePassword: true,
+      },
+    });
+  } catch (e) {
+    // 上の重複チェックと同時に別の管理者が同じ社員番号を登録した場合は一意制約で弾かれる
+    if (isUniqueViolation(e)) {
+      return NextResponse.json<EmployeeFormState>({
+        error: "同じ社員番号またはメールアドレスが既に登録されています",
+      });
+    }
+    console.error("社員登録エラー:", e);
+    return NextResponse.json<EmployeeFormState>({ error: "社員の登録に失敗しました" }, { status: 500 });
+  }
 
   return NextResponse.json<EmployeeFormState>({ error: null, success: true });
 }

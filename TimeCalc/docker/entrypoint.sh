@@ -35,6 +35,16 @@ if [ -n "$CRON_COMMAND" ]; then
 fi
 
 # ── Webモード ──
+# 必須の環境変数が無ければ起動前に止める。SESSION_SECRET の読み取りは初回のログインまで遅延するため、
+# 無いまま起動すると「ヘルスチェックは通るのにログインだけ全部 500」という分かりにくい壊れ方をする。
+for v in DATABASE_URL SESSION_SECRET; do
+  eval "val=\${$v:-}"
+  if [ -z "$val" ]; then
+    echo "[web] environment variable $v is not set" >&2
+    exit 1
+  fi
+done
+
 # 未適用のマイグレーションを流してから Next.js（standalone）を起動する。
 # 失敗したら起動しない（古いスキーマのまま動いて壊れたデータを作るより止まる方が安全）。
 echo "[web] prisma migrate deploy"

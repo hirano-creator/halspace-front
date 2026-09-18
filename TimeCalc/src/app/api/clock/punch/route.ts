@@ -127,7 +127,7 @@ export async function POST(request: Request) {
     eventId = outcome.eventId;
   } catch (e) {
     console.error("打刻エラー:", e);
-    return NextResponse.json<PunchState>({ error: "打刻に失敗しました", success: false, ...emptyState });
+    return NextResponse.json<PunchState>({ error: "打刻に失敗しました", success: false, ...emptyState }, { status: 500 });
   }
 
   const lateMinutes = type === "IN" ? await calcLateMinutes(viewer.id, date, time, department) : 0;

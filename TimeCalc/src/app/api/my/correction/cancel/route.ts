@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     await prisma.correctionRequest.delete({ where: { id } });
   } catch (e) {
     console.error("申請取り下げエラー:", e);
-    return NextResponse.json<MyActionState>({ error: "申請の取り下げに失敗しました", success: false });
+    return NextResponse.json<MyActionState>({ error: "申請の取り下げに失敗しました", success: false }, { status: 500 });
   }
 
   return NextResponse.json<MyActionState>({ error: null, success: true });

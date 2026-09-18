@@ -88,7 +88,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     ]);
   } catch (e) {
     console.error("勤怠保存エラー:", e);
-    return NextResponse.json<AttendanceEditState>({ error: "勤怠の保存に失敗しました", success: false });
+    return NextResponse.json<AttendanceEditState>({ error: "勤怠の保存に失敗しました", success: false }, { status: 500 });
   }
 
   return NextResponse.json<AttendanceEditState>({ error: null, success: true });

@@ -6,7 +6,8 @@ test.describe("勤怠一覧のCSVエクスポート", () => {
     await page.getByLabel(/社員番号/).fill("0001");
     await page.getByLabel("パスワード", { exact: true }).fill("admin123");
     await page.getByRole("button", { name: "ログイン" }).click();
-    await expect(page).toHaveURL(/\/my$/);
+    // ログイン直後は打刻画面（homeScreen の既定値 clock）へ着地する
+    await expect(page).toHaveURL(/\/clock$/);
 
     await page.goto("/attendance");
     await expect(page.getByText("勤怠一覧")).toBeVisible();

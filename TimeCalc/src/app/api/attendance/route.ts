@@ -23,11 +23,22 @@ export async function GET(request: Request) {
   const companyId = url.searchParams.get("company") || undefined;
 
   const viewerCompanyId = await getCompanyIdForDepartment(user.departmentId);
+  // 会社/部署の絞り込みフィルタは、複数人を横断して見られる範囲のときだけ出す。
+  // 一覧もその範囲に限る（全社の会社・部署名を、閲覧範囲が自部署や自分だけの人に返さない）
+  const scope = attendanceScope(user);
+  const showFilters = scope === "all" || scope === "company";
+  const orgWhere = scope === "all" ? {} : { id: viewerCompanyId ?? "" };
   const [allRules, display, companies, departments] = await Promise.all([
     getAllWorkRules(),
     getDisplaySettings(viewerCompanyId),
-    prisma.company.findMany({ orderBy: { name: "asc" } }),
-    prisma.department.findMany({ orderBy: { name: "asc" }, include: { company: true } }),
+    showFilters ? prisma.company.findMany({ where: orgWhere, orderBy: { name: "asc" } }) : [],
+    showFilters
+      ? prisma.department.findMany({
+          where: scope === "all" ? {} : { companyId: viewerCompanyId ?? "" },
+          orderBy: { name: "asc" },
+          include: { company: true },
+        })
+      : [],
   ]);
 
   const rules = workRulesFor(allRules, companyId ?? null);
@@ -45,8 +56,7 @@ export async function GET(request: Request) {
     closingDay: rules.closingDay,
     hasCompanyRules: allRules.byCompany.size > 0,
     canExport: can(user.role, "exportCsv"),
-    // 会社/部署の絞り込みフィルタは、複数人を横断して見られる範囲のときだけ出す
-    showFilters: attendanceScope(user) === "all" || attendanceScope(user) === "company",
+    showFilters,
     showMoney: display.showMoney,
     companies: companies.map((c) => ({ id: c.id, name: c.name })),
     departments: departments.map((d) => ({

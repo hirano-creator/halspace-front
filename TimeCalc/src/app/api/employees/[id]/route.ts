@@ -9,7 +9,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { toRole } from "@/lib/auth/roles";
 import { resolveFeatures } from "@/lib/auth/features";
 import type { EmployeeDeleteState, EmployeeDetailValues, EmployeeFormState } from "@/app/(app)/employees/types";
-import { parseEmployeeForm } from "../_shared";
+import { parseEmployeeForm, isUniqueViolation } from "../_shared";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireApiPermission(request, "manageEmployees");
@@ -72,24 +72,34 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
   }
 
-  await prisma.user.update({
-    where: { id },
-    data: {
-      employeeCode: input.employeeCode,
-      name: input.name,
-      email: input.email,
-      role: toRole(input.role),
-      hourlyWage: input.hourlyWage,
-      departmentId: input.departmentId,
-      isActive: input.isActive,
-      gpsCheckEnabled: input.gpsCheckEnabled,
-      featureOverrides: input.featureOverrides,
-      // 管理者がパスワードを再設定した場合は、本人に次回ログイン時の変更を求める
-      ...(input.password
-        ? { passwordHash: await hashPassword(input.password), mustChangePassword: true }
-        : {}),
-    },
-  });
+  try {
+    await prisma.user.update({
+      where: { id },
+      data: {
+        employeeCode: input.employeeCode,
+        name: input.name,
+        email: input.email,
+        role: toRole(input.role),
+        hourlyWage: input.hourlyWage,
+        departmentId: input.departmentId,
+        isActive: input.isActive,
+        gpsCheckEnabled: input.gpsCheckEnabled,
+        featureOverrides: input.featureOverrides,
+        // 管理者がパスワードを再設定した場合は、本人に次回ログイン時の変更を求める
+        ...(input.password
+          ? { passwordHash: await hashPassword(input.password), mustChangePassword: true }
+          : {}),
+      },
+    });
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      return NextResponse.json<EmployeeFormState>({
+        error: "同じ社員番号またはメールアドレスが既に登録されています",
+      });
+    }
+    console.error("社員更新エラー:", e);
+    return NextResponse.json<EmployeeFormState>({ error: "社員の更新に失敗しました" }, { status: 500 });
+  }
 
   return NextResponse.json<EmployeeFormState>({ error: null, success: true });
 }
@@ -138,7 +148,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     await prisma.user.delete({ where: { id } });
   } catch (e) {
     console.error("社員削除エラー:", e);
-    return NextResponse.json<EmployeeDeleteState>({ error: "社員の削除に失敗しました" });
+    return NextResponse.json<EmployeeDeleteState>({ error: "社員の削除に失敗しました" }, { status: 500 });
   }
 
   return NextResponse.json<EmployeeDeleteState>({ error: null });

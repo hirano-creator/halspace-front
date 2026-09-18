@@ -47,7 +47,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
   } catch (e) {
     console.error("申請却下エラー:", e);
-    return NextResponse.json<ReviewState>({ error: "申請の却下に失敗しました", success: false });
+    return NextResponse.json<ReviewState>({ error: "申請の却下に失敗しました", success: false }, { status: 500 });
   }
 
   return NextResponse.json<ReviewState>({ error: null, success: true });

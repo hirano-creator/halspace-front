@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ dep
     await prisma.department.update({ where: { id: departmentId }, data: { kioskKey: generateKioskKey() } });
   } catch (e) {
     console.error("キオスクURL発行エラー:", e);
-    return NextResponse.json<QrKeyActionState>({ error: "キオスクURLの発行に失敗しました", success: false });
+    return NextResponse.json<QrKeyActionState>({ error: "キオスクURLの発行に失敗しました", success: false }, { status: 500 });
   }
 
   return NextResponse.json<QrKeyActionState>({ error: null, success: true });
@@ -36,7 +36,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ d
     return NextResponse.json<QrKeyActionState>({
       error: "キオスクURLの無効化に失敗しました",
       success: false,
-    });
+    }, { status: 500 });
   }
 
   return NextResponse.json<QrKeyActionState>({ error: null, success: true });

@@ -63,3 +63,9 @@ export function parseEmployeeForm(formData: FormData): EmployeeInput | string {
     password,
   };
 }
+
+/** Prisma の一意制約違反（P2002）か。事前の重複チェックをすり抜けた同時登録の判定に使う */
+export function isUniqueViolation(e: unknown): boolean {
+  return typeof e === "object" && e !== null && (e as { code?: unknown }).code === "P2002";
+}
+

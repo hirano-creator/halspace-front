@@ -16,7 +16,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     await prisma.importHistory.delete({ where: { id } });
   } catch (e) {
     console.error("取込履歴削除エラー:", e);
-    return NextResponse.json<DeleteHistoryState>({ error: "履歴の削除に失敗しました" });
+    return NextResponse.json<DeleteHistoryState>({ error: "履歴の削除に失敗しました" }, { status: 500 });
   }
 
   return NextResponse.json<DeleteHistoryState>({ error: null });

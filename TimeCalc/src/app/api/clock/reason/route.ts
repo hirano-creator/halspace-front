@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     await deriveAndSaveAttendance(viewer.id, event.date);
   } catch (e) {
     console.error("理由保存エラー:", e);
-    return NextResponse.json<ReasonState>({ error: "理由の保存に失敗しました", success: false });
+    return NextResponse.json<ReasonState>({ error: "理由の保存に失敗しました", success: false }, { status: 500 });
   }
 
   return NextResponse.json<ReasonState>({ error: null, success: true });

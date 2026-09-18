@@ -23,7 +23,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
   } catch (e) {
     console.error("部署QR種類設定エラー:", e);
-    return NextResponse.json<SettingsFormState>({ error: "QR種類の保存に失敗しました", success: false });
+    return NextResponse.json<SettingsFormState>({ error: "QR種類の保存に失敗しました", success: false }, { status: 500 });
   }
 
   return NextResponse.json<SettingsFormState>({ error: null, success: true });

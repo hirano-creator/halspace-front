@@ -15,7 +15,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     await prisma.department.delete({ where: { id } });
   } catch (e) {
     console.error("部署削除エラー:", e);
-    return NextResponse.json<SettingsFormState>({ error: "部署の削除に失敗しました", success: false });
+    return NextResponse.json<SettingsFormState>({ error: "部署の削除に失敗しました", success: false }, { status: 500 });
   }
   return NextResponse.json<SettingsFormState>({ error: null, success: true });
 }

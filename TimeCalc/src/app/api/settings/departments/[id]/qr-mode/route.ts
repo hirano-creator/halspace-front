@@ -18,7 +18,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     await prisma.department.update({ where: { id }, data: { dailyQrEnabled } });
   } catch (e) {
     console.error("部署QR設定エラー:", e);
-    return NextResponse.json<SettingsFormState>({ error: "QR設定の保存に失敗しました", success: false });
+    return NextResponse.json<SettingsFormState>({ error: "QR設定の保存に失敗しました", success: false }, { status: 500 });
   }
 
   return NextResponse.json<SettingsFormState>({ error: null, success: true });

@@ -37,6 +37,13 @@ describe("normalizeDate", () => {
     expect(normalizeDate("26/05/2026")).toBeNull();
     expect(normalizeDate("2026/13/01")).toBeNull();
   });
+  it("暦に無い日は null（うるう年は考慮）", () => {
+    expect(normalizeDate("2026-02-31")).toBeNull();
+    expect(normalizeDate("2026-04-31")).toBeNull();
+    expect(normalizeDate("2026-02-29")).toBeNull();
+    expect(normalizeDate("2028-02-29")).toBe("2028-02-29");
+    expect(normalizeDate("2026-12-31")).toBe("2026-12-31");
+  });
 });
 
 describe("periodRange（締め日25日）", () => {

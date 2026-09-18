@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json<SettingsFormState>({
       error: "共通設定への切り戻しに失敗しました",
       success: false,
-    });
+    }, { status: 500 });
   }
 
   return NextResponse.json<SettingsFormState>({ error: null, success: true });

@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     console.error("理由記入エラー:", e);
-    return NextResponse.json<MyActionState>({ error: "理由の保存に失敗しました", success: false });
+    return NextResponse.json<MyActionState>({ error: "理由の保存に失敗しました", success: false }, { status: 500 });
   }
 
   return NextResponse.json<MyActionState>({ error: null, success: true });

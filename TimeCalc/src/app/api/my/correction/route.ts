@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     await prisma.correctionRequest.create({ data: { userId: viewer.id, ...parsed, reason } });
   } catch (e) {
     console.error("修正申請エラー:", e);
-    return NextResponse.json<MyActionState>({ error: "修正申請の送信に失敗しました", success: false });
+    return NextResponse.json<MyActionState>({ error: "修正申請の送信に失敗しました", success: false }, { status: 500 });
   }
 
   return NextResponse.json<MyActionState>({ error: null, success: true });
