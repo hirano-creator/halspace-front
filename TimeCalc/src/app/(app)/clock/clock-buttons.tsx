@@ -141,96 +141,100 @@ export function ClockButtons({
   const busy = pending || locating;
 
   return (
-    <form ref={formRef} action={formAction} className="space-y-4">
-      <input ref={typeRef} type="hidden" name="type" />
-      <input ref={latRef} type="hidden" name="lat" />
-      <input ref={lngRef} type="hidden" name="lng" />
-      {departmentId && <input type="hidden" name="departmentId" value={departmentId} />}
-      {token && <input type="hidden" name="token" value={token} />}
-      {kind && <input type="hidden" name="kind" value={kind} />}
+    // 遅刻理由フォーム(LateReasonForm)は独自の<form>を持つため打刻フォームの外に置く。
+    // <form>の入れ子はHTML不正で、内側のsubmitがReactのアクションに渡らずボタンが無反応になる。
+    <div className="space-y-4">
+      <form ref={formRef} action={formAction} className="space-y-4">
+        <input ref={typeRef} type="hidden" name="type" />
+        <input ref={latRef} type="hidden" name="lat" />
+        <input ref={lngRef} type="hidden" name="lng" />
+        {departmentId && <input type="hidden" name="departmentId" value={departmentId} />}
+        {token && <input type="hidden" name="token" value={token} />}
+        {kind && <input type="hidden" name="kind" value={kind} />}
 
-      <div className="grid grid-cols-2 gap-3">
-        {mode !== "outing" && (
+        <div className="grid grid-cols-2 gap-3">
+          {mode !== "outing" && (
+            <button
+              type="button"
+              onClick={() => punch("IN")}
+              disabled={!canClockIn || busy}
+              className={`${punchButtonBase} border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700`}
+            >
+              出勤
+            </button>
+          )}
+          {mode !== "outing" && (
+            <button
+              type="button"
+              onClick={() => punch("OUT")}
+              disabled={!canClockOut || busy}
+              className={`${punchButtonBase} border-primary bg-primary text-white hover:bg-primary-hover`}
+            >
+              退勤
+            </button>
+          )}
+          {mode !== "attend" && (canOutStart || canOutEnd) && (
+            <button
+              type="button"
+              onClick={() => punch("OUT_START")}
+              disabled={!canOutStart || busy}
+              className={`${punchButtonBase} border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100`}
+            >
+              外出
+              <span className="text-[11px] font-normal">勤務時間から除外</span>
+            </button>
+          )}
+          {mode !== "attend" && (canOutStart || canOutEnd) && (
+            <button
+              type="button"
+              onClick={() => punch("OUT_END")}
+              disabled={!canOutEnd || busy}
+              className={`${punchButtonBase} border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100`}
+            >
+              戻り
+              <span className="text-[11px] font-normal">外出から復帰</span>
+            </button>
+          )}
+        </div>
+
+        {busy && <p className="text-center text-sm text-muted">処理中...</p>}
+
+        <div>
           <button
             type="button"
-            onClick={() => punch("IN")}
-            disabled={!canClockIn || busy}
-            className={`${punchButtonBase} border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700`}
+            onClick={() => setShowReason((v) => !v)}
+            className="text-xs text-muted underline-offset-2 hover:underline"
           >
-            出勤
+            {showReason ? "理由の記入を閉じる" : "理由を記入して打刻する（遅刻・外出理由など）"}
           </button>
-        )}
-        {mode !== "outing" && (
-          <button
-            type="button"
-            onClick={() => punch("OUT")}
-            disabled={!canClockOut || busy}
-            className={`${punchButtonBase} border-primary bg-primary text-white hover:bg-primary-hover`}
-          >
-            退勤
-          </button>
-        )}
-        {mode !== "attend" && (canOutStart || canOutEnd) && (
-          <button
-            type="button"
-            onClick={() => punch("OUT_START")}
-            disabled={!canOutStart || busy}
-            className={`${punchButtonBase} border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100`}
-          >
-            外出
-            <span className="text-[11px] font-normal">勤務時間から除外</span>
-          </button>
-        )}
-        {mode !== "attend" && (canOutStart || canOutEnd) && (
-          <button
-            type="button"
-            onClick={() => punch("OUT_END")}
-            disabled={!canOutEnd || busy}
-            className={`${punchButtonBase} border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100`}
-          >
-            戻り
-            <span className="text-[11px] font-normal">外出から復帰</span>
-          </button>
-        )}
-      </div>
+          {showReason && (
+            <input
+              type="text"
+              name="reason"
+              placeholder="例: 通院のため外出"
+              maxLength={200}
+              className={`${inputClass} mt-2`}
+            />
+          )}
+        </div>
 
-      {busy && <p className="text-center text-sm text-muted">処理中...</p>}
-
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowReason((v) => !v)}
-          className="text-xs text-muted underline-offset-2 hover:underline"
-        >
-          {showReason ? "理由の記入を閉じる" : "理由を記入して打刻する（遅刻・外出理由など）"}
-        </button>
-        {showReason && (
-          <input
-            type="text"
-            name="reason"
-            placeholder="例: 通院のため外出"
-            maxLength={200}
-            className={`${inputClass} mt-2`}
-          />
+        {geoError && <p className="text-xs text-amber-600">{geoError}</p>}
+        {state.error && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>
         )}
-      </div>
-
-      {geoError && <p className="text-xs text-amber-600">{geoError}</p>}
-      {state.error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>
-      )}
-      {state.success && state.punchedLabel && (
-        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-center text-emerald-700">
-          <span className="font-semibold">{state.punchedLabel}</span>
-          <span className="mx-1 font-mono text-lg font-semibold tabular-nums">
-            {state.punchedTime}
-          </span>
-          を記録しました
-        </p>
-      )}
+        {state.success && state.punchedLabel && (
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-center text-emerald-700">
+            <span className="font-semibold">{state.punchedLabel}</span>
+            <span className="mx-1 font-mono text-lg font-semibold tabular-nums">
+              {state.punchedTime}
+            </span>
+            を記録しました
+          </p>
+        )}
+      </form>
       {state.success && state.lateMinutes > 0 && state.eventId && (
         <LateReasonForm eventId={state.eventId} onSaved={onPunched} />
       )}
-    </form>
+    </div>
   );
 }
