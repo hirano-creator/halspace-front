@@ -7,6 +7,32 @@ function getSpaceUser() {
   return raw ? JSON.parse(raw) : null;
 }
 
+/* このファイル専用の最小限のAPI呼び出し。
+   SOLID用のapi.js（JSONをparseしてエラーはthrow）とWhat'sNo用のwn-api.js（生Responseを返す、
+   throwしない）は返り値の形が違うため共有できない。auth.jsは両方から読み込まれる共通ファイルなので、
+   どちらの流儀にも依存しない自前実装をここに持つ。 */
+function spaceApiBase() {
+  const h = location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.test')) return 'http://127.0.0.1:8000/api';
+  return 'https://halspace-api-production.up.railway.app/api';
+}
+async function spaceApiPost(path, body) {
+  const token = sessionStorage.getItem('space_token');
+  const res = await fetch(spaceApiBase() + path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) { spaceLogout(); return null; }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+  return data;
+}
+
 /* What'sNo拡張オプション（メール送信/比較・並べる/マニュアル/連絡先/Knowl/注釈）は
    6機能セットで一括契約の会社限定機能。ログイン時のuser情報に含まれるフラグで判定する。
    ここでの判定はUIの出し分けにしか使わない — 実際のアクセス制御は必ずAPI側(403)で行う。 */
@@ -49,6 +75,7 @@ function requireSpaceAuth() {
     location.href = loginUrl();
     return null;
   }
+  initPasswordChangeModal();
   return user;
 }
 function spaceLogout() {
@@ -205,6 +232,123 @@ function roleLabel(role, solidType) {
   if (solidType === 'jp_client') return '発注担当';
   if (solidType === 'id_modeler') return 'モデラー一般会員';
   return '一般会員';
+}
+
+/* パスワード変更モーダル。
+   このファイルはSOLID/What'sNo等の全ページから共有読み込みされる（requireSpaceAuth()経由で
+   認証済みページ全部から呼ばれる）ため、ここに置けばサイドバーのあるページ全部に一括で出せる。
+   これまで自分でパスワードを変えられる場所はSpaceのアプリ選択画面（apps.html）にしか無く、
+   SOLID独自ログイン（solid/login.html、Space.appを経由しないURL）で直接ログインした利用者は
+   apps.htmlを一度も経由しないため、初期パスワードのまま変更する手段が無かった。
+   サイドバーが無いページ（viewer.html等）や#sidebarUserを描画しないページでは
+   何もしない（下のガードで安全に無視される）。 */
+function initPasswordChangeModal() {
+  if (document.getElementById('pwChangeModal')) return; // 二重挿入防止（再認証チェック等で複数回呼ばれても安全に）
+  const anchor = document.getElementById('sidebarUser');
+  if (!anchor) return;
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn-sidebar-logout';
+  btn.id = 'btnChangePassword';
+  btn.innerHTML = '<i class="fa-solid fa-key"></i> パスワード変更';
+  anchor.insertAdjacentElement('afterend', btn);
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay hidden';
+  modal.id = 'pwChangeModal';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-header">
+        <span class="modal-title"><i class="fa-solid fa-key"></i> パスワード変更</span>
+        <button type="button" class="modal-close" id="pwChangeModalClose"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin:-8px 0 16px;">現在のパスワードを確認のうえ、新しいパスワード（8文字以上）を設定します。</p>
+      <div class="form-group">
+        <label class="form-label">現在のパスワード</label>
+        <div class="pw-field">
+          <input type="password" class="form-input" id="pwChangeCurrent" autocomplete="current-password" placeholder="現在のパスワード">
+          <button type="button" class="pw-eye-btn" data-target="pwChangeCurrent" tabindex="-1" aria-label="パスワードを表示"><i class="fa-regular fa-eye"></i></button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">新しいパスワード</label>
+        <div class="pw-field">
+          <input type="password" class="form-input" id="pwChangeNew" autocomplete="new-password" placeholder="8文字以上">
+          <button type="button" class="pw-eye-btn" data-target="pwChangeNew" tabindex="-1" aria-label="パスワードを表示"><i class="fa-regular fa-eye"></i></button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">新しいパスワード（確認）</label>
+        <div class="pw-field">
+          <input type="password" class="form-input" id="pwChangeConfirm" autocomplete="new-password" placeholder="もう一度入力">
+          <button type="button" class="pw-eye-btn" data-target="pwChangeConfirm" tabindex="-1" aria-label="パスワードを表示"><i class="fa-regular fa-eye"></i></button>
+        </div>
+      </div>
+      <div class="pw-msg pw-msg-error" id="pwChangeError"></div>
+      <div class="pw-msg pw-msg-success" id="pwChangeSuccess"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" id="pwChangeCancel">キャンセル</button>
+        <button type="button" class="btn btn-primary" id="pwChangeSubmit"><i class="fa-solid fa-check"></i> パスワードを変更</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const fields  = ['pwChangeCurrent', 'pwChangeNew', 'pwChangeConfirm'].map(id => document.getElementById(id));
+  const errEl   = document.getElementById('pwChangeError');
+  const okEl    = document.getElementById('pwChangeSuccess');
+  const saveBtn = document.getElementById('pwChangeSubmit');
+
+  const showError = msg => { okEl.classList.remove('show'); errEl.textContent = msg; errEl.classList.add('show'); };
+  const clearMsgs = () => { errEl.classList.remove('show'); okEl.classList.remove('show'); };
+
+  function open() {
+    fields.forEach(f => { f.value = ''; f.type = 'password'; });
+    modal.querySelectorAll('.pw-eye-btn i').forEach(i => { i.className = 'fa-regular fa-eye'; });
+    clearMsgs();
+    saveBtn.disabled = false;
+    modal.classList.remove('hidden');
+    fields[0].focus();
+  }
+  function close() { modal.classList.add('hidden'); }
+
+  btn.addEventListener('click', open);
+  document.getElementById('pwChangeModalClose').addEventListener('click', close);
+  document.getElementById('pwChangeCancel').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) close(); });
+
+  modal.querySelectorAll('.pw-eye-btn').forEach(eyeBtn => {
+    eyeBtn.addEventListener('click', () => {
+      const input = document.getElementById(eyeBtn.dataset.target);
+      const show  = input.type === 'password';
+      input.type  = show ? 'text' : 'password';
+      eyeBtn.querySelector('i').className = show ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+    });
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    const [cur, nw, conf] = fields.map(f => f.value);
+    clearMsgs();
+    if (!cur || !nw) { showError('現在のパスワードと新しいパスワードを入力してください'); return; }
+    if (nw.length < 8) { showError('新しいパスワードは8文字以上で入力してください'); return; }
+    if (nw !== conf)   { showError('新しいパスワードが一致しません'); return; }
+    if (nw === cur)    { showError('現在のパスワードと同じです。別のパスワードを入力してください'); return; }
+
+    saveBtn.disabled = true;
+    try {
+      const res = await spaceApiPost('/auth/change-password', { current_password: cur, new_password: nw });
+      if (res === null) return; // 401は既にログイン画面へ遷移させている
+      fields.forEach(f => { f.value = ''; });
+      okEl.textContent = 'パスワードを変更しました。次回から新しいパスワードでログインしてください。';
+      okEl.classList.add('show');
+      setTimeout(close, 1800);
+    } catch (err) {
+      showError(err.message || 'パスワードの変更に失敗しました');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
 }
 
 /* DOMロード後にモバイルメニューを自動初期化 */

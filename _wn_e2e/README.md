@@ -23,7 +23,9 @@ node large-upload-e2e.js   # 大容量アップロード（R2直送マルチパ�
 node manual-thumb-e2e.js   # マニュアルのサムネイル（PDF等をクライアント生成→サーバー保存、生成不可は崩れない）
 node align-e2e.js          # 並べる機能（justified layout・ライトボックス・PDF/DXFのサムネ生成）
 node responsive-e2e.js     # レスポンシブ（幅を13段振って、文字の潰れ・ボタンの切れ・横スクロールを実測。SHOT=1でshots/resp-*.png）
+node mobile-input-zoom-e2e.js # スマホ入力欄の自動ズーム対策（全ページの文字入力欄がタッチ端末で16px以上・PCは元サイズ・横スクロール無し）
 node space-pw-email-e2e.js  # Space: 全ロール共通のパスワード変更モーダル（apps.html）と管理画面ユーザー編集でメールがPATCHに載ること
+node password-change-sidebar-e2e.js  # SOLID/What'sNo共通: auth.jsがサイドバーに挿入するパスワード変更（standaloneログイン等apps.htmlを経由しない利用者向け）
 ```
 
 ## 重要な教訓（レスポンシブ 2026-08-27）
