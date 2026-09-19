@@ -30,8 +30,12 @@ const server = http.createServer((req, res) => {
 const USER = { id: 7, name: '山田 太郎', email: 'yamada@example.com', role: 'general', solid_type: null, country: 'JP',
                company_id: 1, company: { name: 'テスト社', apps_enabled: ['solid','whatsno'], is_modeler_only: false, is_operator: false },
                apps_enabled: null, effective_apps: ['solid','whatsno'], is_active: true, last_login_at: null, created_at: '2026-01-01' };
+// セッションのcurrentUser（id:1）自身の行。「自分自身はパスワードリセット対象外」の検証用
+const SELF_USER = { ...USER, id: 1, name: 'テスト太郎', email: 't@example.com' };
+// admin視点では触れないsuper_admin行。「adminはsuper_adminをリセット不可」の検証用
+const SUPER_USER = { ...USER, id: 8, name: '運営 花子', email: 'hanako@example.com', role: 'super_admin' };
 
-const captured = { changePw: [], patch: [] };
+const captured = { changePw: [], patch: [], resetPw: [] };
 
 async function newCtx(browser, role, opts = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, ...opts });
@@ -59,7 +63,14 @@ async function newCtx(browser, role, opts = {}) {
       return j({ user: { ...USER, ...body } });
     }
     if (/\/admin\/users\/\d+\/temp-password$/.test(p)) return j({ message: 'none' }, 404);
-    if (p.endsWith('/admin/users'))     return j({ data: [USER] });
+    if (/\/admin\/users\/(\d+)\/reset-password$/.test(p) && req.method() === 'POST') {
+      const targetId = Number(p.match(/\/admin\/users\/(\d+)\/reset-password$/)[1]);
+      captured.resetPw.push(targetId);
+      if (targetId === 1)  return j({ message: '自分自身のパスワードは画面右上の「パスワード変更」から変更してください。' }, 422);
+      if (targetId === 8 && role !== 'super_admin') return j({ message: 'サイト管理者(super_admin)のパスワードはサイト運営者のみリセットできます。' }, 403);
+      return j({ temp_password: 'newTempPw9x' });
+    }
+    if (p.endsWith('/admin/users'))     return j({ data: [USER, SELF_USER, SUPER_USER] });
     if (p.endsWith('/admin/companies')) return j({ companies: [{ id: 1, name: 'テスト社', apps_enabled: ['solid','whatsno'], user_count: 1, is_active: true, price: 0 }] });
     if (p.endsWith('/admin/stats'))     return j({ companies: 1, users: 1, active_users: 1 });
     if (p.endsWith('/admin/audit-logs')) return j({ data: [], meta: { current_page: 1, last_page: 1, total: 0 } });
@@ -183,6 +194,59 @@ async function newCtx(browser, role, opts = {}) {
     check('PATCH に email が載る', last && last.email === 'new-address@example.com', JSON.stringify(last));
     check('name/role/company_id も従来どおり送る', last && last.name === '山田 太郎' && last.role === 'general' && String(last.company_id) === '1');
     check('JSエラーなし（管理画面）', errors.length === 0, errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* ---------- 4) 管理画面: パスワードを忘れたユーザーの仮パスワード再発行 ---------- */
+  {
+    const ctx  = await newCtx(browser, 'super_admin');
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    page.on('dialog', d => d.accept()); // confirm()を自動承認
+    await page.goto(`${BASE}/space/admin.html`, { waitUntil: 'load' });
+    await page.click('[data-section="users"]');
+    await page.waitForSelector('tr[data-user-id="7"]');
+
+    // 他人（一般会員）: ボタンが出て、実行すると新しい仮パスワードが表示される
+    await page.click('tr[data-user-id="7"]');
+    await page.waitForSelector('#userModal:not(.hidden)');
+    check('他人にはリセットボタンが出る', await page.locator('#userModalResetPwGroup').isVisible());
+    await page.click('#userModalResetPwBtn');
+    await page.waitForFunction(() => document.getElementById('userModalPwArea').style.display !== 'none');
+    check('新しい仮パスワードが表示される', (await page.locator('#userModalPw').inputValue()) === 'newTempPw9x');
+    check('reset-password APIが対象IDで呼ばれる', captured.resetPw.includes(7));
+    await page.evaluate(() => closeModal('userModal'));
+
+    // 自分自身: リセットボタンを出さない（自己サービスへ誘導するため）
+    await page.click('tr[data-user-id="1"]');
+    await page.waitForSelector('#userModal:not(.hidden)');
+    check('自分自身にはリセットボタンを出さない', !(await page.locator('#userModalResetPwGroup').isVisible()));
+    await page.evaluate(() => closeModal('userModal'));
+
+    // super_adminから見たsuper_admin: ボタンが出て実行できる
+    await page.click('tr[data-user-id="8"]');
+    await page.waitForSelector('#userModal:not(.hidden)');
+    check('super_adminから見たsuper_adminにはリセットボタンが出る', await page.locator('#userModalResetPwGroup').isVisible());
+    await page.evaluate(() => closeModal('userModal'));
+
+    check('JSエラーなし（パスワードリセット・super_admin）', errors.length === 0, errors.join(' | '));
+    await ctx.close();
+  }
+
+  /* ---------- 5) 管理画面（admin視点）: super_adminのリセットボタンは出さない ---------- */
+  {
+    const ctx  = await newCtx(browser, 'admin');
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.goto(`${BASE}/space/admin.html`, { waitUntil: 'load' });
+    await page.click('[data-section="users"]');
+    await page.waitForSelector('tr[data-user-id="8"]');
+    await page.click('tr[data-user-id="8"]');
+    await page.waitForSelector('#userModal:not(.hidden)');
+    check('adminから見たsuper_adminにはリセットボタンを出さない', !(await page.locator('#userModalResetPwGroup').isVisible()));
+    check('JSエラーなし（パスワードリセット・admin視点）', errors.length === 0, errors.join(' | '));
     await ctx.close();
   }
 
