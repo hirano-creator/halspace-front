@@ -114,6 +114,9 @@
       </div>
       <div class="pw-modal-body">
         <p class="pw-modal-desc">現在のパスワードを確認のうえ、新しいパスワード（8文字以上）を設定します。</p>
+        <!-- <form>にusername欄が無いと、ブラウザがページ内の無関係なテキスト欄を
+             「ユーザー名欄」とみなして紐付け、保存後に自動入力してしまうことがあるため明示しておく -->
+        <input type="email" id="pwUsername" name="username" autocomplete="username" class="pw-visually-hidden" tabindex="-1" aria-hidden="true">
         <div class="pw-field">
           <label class="pw-label" for="pwCurrent">現在のパスワード</label>
           <div class="pw-input-wrap">

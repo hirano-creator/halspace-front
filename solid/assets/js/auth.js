@@ -264,35 +264,46 @@ function initPasswordChangeModal() {
         <button type="button" class="modal-close" id="pwChangeModalClose"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <p style="font-size:12px;color:var(--muted);margin:-8px 0 16px;">現在のパスワードを確認のうえ、新しいパスワード（8文字以上）を設定します。</p>
-      <div class="form-group">
-        <label class="form-label">現在のパスワード</label>
-        <div class="pw-field">
-          <input type="password" class="form-input" id="pwChangeCurrent" autocomplete="current-password" placeholder="現在のパスワード">
-          <button type="button" class="pw-eye-btn" data-target="pwChangeCurrent" tabindex="-1" aria-label="パスワードを表示"><i class="fa-regular fa-eye"></i></button>
+      <form id="pwChangeForm" autocomplete="off">
+        <!-- <form>で囲わず入力欄だけを置くと、ブラウザがページ内の無関係なテキスト欄
+             （例: What'sNoの検索窓）を「ユーザー名欄」とみなして紐付け、保存後に自動入力して
+             ページの検索が勝手に走る不具合があった。username欄を明示して自分自身の中で完結させる。 -->
+        <input type="email" id="pwChangeUsername" name="username" autocomplete="username" class="pw-visually-hidden" tabindex="-1" aria-hidden="true">
+        <div class="form-group">
+          <label class="form-label">現在のパスワード</label>
+          <div class="pw-field">
+            <input type="password" class="form-input" id="pwChangeCurrent" autocomplete="current-password" placeholder="現在のパスワード">
+            <button type="button" class="pw-eye-btn" data-target="pwChangeCurrent" tabindex="-1" aria-label="パスワードを表示"><i class="fa-regular fa-eye"></i></button>
+          </div>
         </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">新しいパスワード</label>
-        <div class="pw-field">
-          <input type="password" class="form-input" id="pwChangeNew" autocomplete="new-password" placeholder="8文字以上">
-          <button type="button" class="pw-eye-btn" data-target="pwChangeNew" tabindex="-1" aria-label="パスワードを表示"><i class="fa-regular fa-eye"></i></button>
+        <div class="form-group">
+          <label class="form-label">新しいパスワード</label>
+          <div class="pw-field">
+            <input type="password" class="form-input" id="pwChangeNew" autocomplete="new-password" placeholder="8文字以上">
+            <button type="button" class="pw-eye-btn" data-target="pwChangeNew" tabindex="-1" aria-label="パスワードを表示"><i class="fa-regular fa-eye"></i></button>
+          </div>
         </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">新しいパスワード（確認）</label>
-        <div class="pw-field">
-          <input type="password" class="form-input" id="pwChangeConfirm" autocomplete="new-password" placeholder="もう一度入力">
-          <button type="button" class="pw-eye-btn" data-target="pwChangeConfirm" tabindex="-1" aria-label="パスワードを表示"><i class="fa-regular fa-eye"></i></button>
+        <div class="form-group">
+          <label class="form-label">新しいパスワード（確認）</label>
+          <div class="pw-field">
+            <input type="password" class="form-input" id="pwChangeConfirm" autocomplete="new-password" placeholder="もう一度入力">
+            <button type="button" class="pw-eye-btn" data-target="pwChangeConfirm" tabindex="-1" aria-label="パスワードを表示"><i class="fa-regular fa-eye"></i></button>
+          </div>
         </div>
-      </div>
-      <div class="pw-msg pw-msg-error" id="pwChangeError"></div>
-      <div class="pw-msg pw-msg-success" id="pwChangeSuccess"></div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline" id="pwChangeCancel">キャンセル</button>
-        <button type="button" class="btn btn-primary" id="pwChangeSubmit"><i class="fa-solid fa-check"></i> パスワードを変更</button>
-      </div>
+        <div class="pw-msg pw-msg-error" id="pwChangeError"></div>
+        <div class="pw-msg pw-msg-success" id="pwChangeSuccess"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="pwChangeCancel">キャンセル</button>
+          <button type="button" class="btn btn-primary" id="pwChangeSubmit"><i class="fa-solid fa-check"></i> パスワードを変更</button>
+        </div>
+      </form>
     </div>`;
   document.body.appendChild(modal);
+  const usernameField = document.getElementById('pwChangeUsername');
+  if (usernameField) usernameField.value = getSpaceUser()?.email ?? '';
+  // 送信ボタンはtype="button"でJSから呼ぶが、<form>内でEnter押下すると既定のsubmitが走り
+  // ページ全体がリロードされてしまうため、submitイベント自体を止めておく
+  document.getElementById('pwChangeForm').addEventListener('submit', e => e.preventDefault());
 
   const fields  = ['pwChangeCurrent', 'pwChangeNew', 'pwChangeConfirm'].map(id => document.getElementById(id));
   const errEl   = document.getElementById('pwChangeError');

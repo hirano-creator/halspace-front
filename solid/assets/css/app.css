@@ -1562,6 +1562,12 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 }
 
 /* パスワード変更モーダル（auth.jsが全ページ共通で挿入する） */
+/* ブラウザの自動入力に「ユーザー名欄」として認識させつつ画面には出さない標準パターン。
+   display:none/visibility:hiddenだと自動入力の対象から外れるブラウザがあるため使わない */
+.pw-visually-hidden {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
 .pw-field { position: relative; }
 .pw-field .form-input { padding-right: 42px; }
 .pw-eye-btn {
