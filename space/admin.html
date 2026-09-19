@@ -1203,6 +1203,14 @@
           <option value="id_modeler" id="userModalSolidTypeModelerOpt">モデラー（インドネシア）</option>
         </select>
       </div>
+      <!-- 編集時のみ表示。パスワードを忘れた・連絡が取れない等、本人が「現在のパスワード」を
+           入力する自己サービス（各アプリのサイドバー「パスワード変更」）を使えないユーザーの救済用 -->
+      <div class="form-group" id="userModalResetPwGroup" style="display:none;">
+        <button type="button" class="btn btn-outline btn-sm" id="userModalResetPwBtn">
+          <i class="fa-solid fa-key"></i> 新しい仮パスワードを発行
+        </button>
+        <div class="form-hint">パスワードが分からない・変更できないユーザーに、新しい仮パスワードを発行します。</div>
+      </div>
       <div id="userModalPwArea" style="display:none;">
         <div class="form-group">
           <label class="form-label">仮パスワード</label>
@@ -1975,6 +1983,7 @@ function openAddUser() {
   document.getElementById('userModalEmail').value = '';
   document.getElementById('userModalRole').value  = 'general';
   document.getElementById('userModalPwArea').style.display = 'none';
+  document.getElementById('userModalResetPwGroup').style.display = 'none'; // 新規作成時は作成後に仮パスワードが発行されるため不要
   document.getElementById('userModalError').style.display  = 'none';
   document.getElementById('userModalSave').style.display   = '';
   // SOLID種別は会社の契約状況が確定してからのほうが判断しやすいので、作成後の編集で設定する
@@ -2016,6 +2025,12 @@ async function openEditUser(id) {
   document.getElementById('userModalSolidTypeGroup').style.display = userUsesSolid(u) ? '' : 'none';
   document.getElementById('userModalSolidType').value = u.solid_type ?? '';
   syncSolidTypeModelerOption(u.company_id);
+
+  // 自分自身、およびadminから見たsuper_adminはリセット対象外（自分自身は画面右上の自己サービスへ誘導、
+  // super_adminのパスワードはサイト運営者のみ扱える。サーバー側にも同じ制約あり）
+  const canResetPw = String(id) !== String(currentUser.id) && !(u.role === 'super_admin' && !isSuperAdmin);
+  document.getElementById('userModalResetPwGroup').style.display = canResetPw ? '' : 'none';
+
   openModal('userModal');
 
   // 仮パスワードが未変更のまま残っていれば再表示する（顧客が変更済みなら404で何も表示しない）
@@ -2026,6 +2041,27 @@ async function openEditUser(id) {
     document.getElementById('userModalPwArea').style.display = '';
   }
 }
+
+document.getElementById('userModalResetPwBtn').addEventListener('click', async () => {
+  const id = document.getElementById('userModalId').value;
+  const name = document.getElementById('userModalName').value;
+  if (!confirm(`「${name}」の新しい仮パスワードを発行しますか？\n現在のパスワードは使えなくなります。`)) return;
+
+  const btn = document.getElementById('userModalResetPwBtn');
+  btn.disabled = true;
+  const res = await apiFetch(`/admin/users/${id}/reset-password`, { method: 'POST' });
+  btn.disabled = false;
+  if (res?.ok) {
+    const data = await res.json();
+    document.getElementById('userModalPw').value = data.temp_password ?? '';
+    document.getElementById('userModalPwHint').textContent = 'ユーザーに伝えてください。';
+    document.getElementById('userModalPwArea').style.display = '';
+    showToast('新しい仮パスワードを発行しました', 'success');
+  } else {
+    const err = await res?.json().catch(() => ({}));
+    showToast(err.message || 'パスワードのリセットに失敗しました', 'danger');
+  }
+});
 
 document.getElementById('userModalSave').addEventListener('click', async () => {
   const id    = document.getElementById('userModalId').value;
