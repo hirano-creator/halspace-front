@@ -1211,6 +1211,14 @@
         </button>
         <div class="form-hint">パスワードが分からない・変更できないユーザーに、新しい仮パスワードを発行します。</div>
       </div>
+      <!-- 自分自身を編集しているときだけ表示。「現在のパスワード」を知らない他人による
+           強制リセットは自分には使えないため、正しい変更場所（システム設定）へ直接誘導する -->
+      <div class="form-group" id="userModalSelfPwHint" style="display:none;">
+        <button type="button" class="btn btn-outline btn-sm" id="userModalGoToSystemBtn">
+          <i class="fa-solid fa-key"></i> パスワードを変更する
+        </button>
+        <div class="form-hint">自分自身のパスワードは、サイドバーの「システム設定」から変更できます。</div>
+      </div>
       <div id="userModalPwArea" style="display:none;">
         <div class="form-group">
           <label class="form-label">仮パスワード</label>
@@ -1986,6 +1994,7 @@ function openAddUser() {
   document.getElementById('userModalRole').value  = 'general';
   document.getElementById('userModalPwArea').style.display = 'none';
   document.getElementById('userModalResetPwGroup').style.display = 'none'; // 新規作成時は作成後に仮パスワードが発行されるため不要
+  document.getElementById('userModalSelfPwHint').style.display   = 'none';
   document.getElementById('userModalError').style.display  = 'none';
   document.getElementById('userModalSave').style.display   = '';
   // SOLID種別は会社の契約状況が確定してからのほうが判断しやすいので、作成後の編集で設定する
@@ -2028,10 +2037,13 @@ async function openEditUser(id) {
   document.getElementById('userModalSolidType').value = u.solid_type ?? '';
   syncSolidTypeModelerOption(u.company_id);
 
-  // 自分自身、およびadminから見たsuper_adminはリセット対象外（自分自身は画面右上の自己サービスへ誘導、
+  // 自分自身、およびadminから見たsuper_adminはリセット対象外（自分自身は「現在のパスワード」を
+  // 知らない他人による強制リセットの対象にする意味が無いので、システム設定への案内に差し替える。
   // super_adminのパスワードはサイト運営者のみ扱える。サーバー側にも同じ制約あり）
-  const canResetPw = String(id) !== String(currentUser.id) && !(u.role === 'super_admin' && !isSuperAdmin);
+  const isSelf = String(id) === String(currentUser.id);
+  const canResetPw = !isSelf && !(u.role === 'super_admin' && !isSuperAdmin);
   document.getElementById('userModalResetPwGroup').style.display = canResetPw ? '' : 'none';
+  document.getElementById('userModalSelfPwHint').style.display   = isSelf ? '' : 'none';
 
   openModal('userModal');
 
@@ -2063,6 +2075,12 @@ document.getElementById('userModalResetPwBtn').addEventListener('click', async (
     const err = await res?.json().catch(() => ({}));
     showToast(err.message || 'パスワードのリセットに失敗しました', 'danger');
   }
+});
+
+document.getElementById('userModalGoToSystemBtn').addEventListener('click', () => {
+  closeModal('userModal');
+  switchSection('system');
+  document.getElementById('pwCurrent')?.focus();
 });
 
 document.getElementById('userModalSave').addEventListener('click', async () => {
