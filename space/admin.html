@@ -375,6 +375,12 @@
   .input-wrap { position: relative; }
   .input-wrap .form-input { padding-right: 38px; }
   .input-eye { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); padding: 4px; cursor: pointer; }
+  /* ブラウザの自動入力に「ユーザー名欄」として認識させつつ画面には出さない標準パターン。
+     display:none/visibility:hiddenだと自動入力の対象から外れるブラウザがあるため使わない */
+  .pw-visually-hidden {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
 
   /* ── ローディング ── */
   .loading-row td { text-align: center; padding: 32px; color: var(--muted); }
@@ -1007,32 +1013,38 @@
               <i class="fa-solid fa-key" style="color:var(--accent);"></i>
               <span class="card-title">パスワード変更</span>
             </div>
-            <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
-              <div class="form-group">
-                <label class="form-label">現在のパスワード</label>
-                <div class="input-wrap">
-                  <input type="password" class="form-input" id="pwCurrent" placeholder="現在のパスワード">
-                  <span class="input-eye" data-target="pwCurrent"><i class="fa-regular fa-eye"></i></span>
+            <div class="card-body">
+              <!-- <form>で囲わずusername欄も無いと、ブラウザがページ内の無関係なテキスト欄
+                   （このページでは「名前・メールで検索」欄）を「ユーザー名欄」とみなして紐付け、
+                   保存後に自動入力してユーザー一覧の検索が勝手に走る不具合があった -->
+              <form id="pwChangeForm" autocomplete="off" style="display:flex;flex-direction:column;gap:14px;">
+                <input type="email" id="pwUsername" name="username" autocomplete="username" class="pw-visually-hidden" tabindex="-1" aria-hidden="true">
+                <div class="form-group">
+                  <label class="form-label">現在のパスワード</label>
+                  <div class="input-wrap">
+                    <input type="password" class="form-input" id="pwCurrent" autocomplete="current-password" placeholder="現在のパスワード">
+                    <span class="input-eye" data-target="pwCurrent"><i class="fa-regular fa-eye"></i></span>
+                  </div>
                 </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">新しいパスワード</label>
-                <div class="input-wrap">
-                  <input type="password" class="form-input" id="pwNew" placeholder="8文字以上">
-                  <span class="input-eye" data-target="pwNew"><i class="fa-regular fa-eye"></i></span>
+                <div class="form-group">
+                  <label class="form-label">新しいパスワード</label>
+                  <div class="input-wrap">
+                    <input type="password" class="form-input" id="pwNew" autocomplete="new-password" placeholder="8文字以上">
+                    <span class="input-eye" data-target="pwNew"><i class="fa-regular fa-eye"></i></span>
+                  </div>
                 </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">新しいパスワード（確認）</label>
-                <div class="input-wrap">
-                  <input type="password" class="form-input" id="pwConfirm" placeholder="もう一度入力">
-                  <span class="input-eye" data-target="pwConfirm"><i class="fa-regular fa-eye"></i></span>
+                <div class="form-group">
+                  <label class="form-label">新しいパスワード（確認）</label>
+                  <div class="input-wrap">
+                    <input type="password" class="form-input" id="pwConfirm" autocomplete="new-password" placeholder="もう一度入力">
+                    <span class="input-eye" data-target="pwConfirm"><i class="fa-regular fa-eye"></i></span>
+                  </div>
                 </div>
-              </div>
-              <div class="form-error" id="pwError"></div>
-              <button class="btn btn-primary" id="pwSaveBtn" style="width:100%;">
-                <i class="fa-solid fa-check"></i> パスワードを変更
-              </button>
+                <div class="form-error" id="pwError"></div>
+                <button type="submit" class="btn btn-primary" id="pwSaveBtn" style="width:100%;">
+                  <i class="fa-solid fa-check"></i> パスワードを変更
+                </button>
+              </form>
             </div>
           </div>
 
@@ -2243,7 +2255,14 @@ document.getElementById('logExportBtn')?.addEventListener('click', async () => {
 /* ═══════════════════════════════
    システム設定
    ═══════════════════════════════ */
-document.getElementById('pwSaveBtn')?.addEventListener('click', async () => {
+// 自分のメールを隠しusername欄に入れておく（ブラウザの自動入力が無関係な検索欄を
+// 「ユーザー名欄」とみなして紐付けるのを防ぐため）
+{
+  const el = document.getElementById('pwUsername');
+  if (el) el.value = currentUser.email ?? '';
+}
+document.getElementById('pwChangeForm')?.addEventListener('submit', async e => {
+  e.preventDefault();
   const cur  = document.getElementById('pwCurrent').value;
   const nw   = document.getElementById('pwNew').value;
   const conf = document.getElementById('pwConfirm').value;

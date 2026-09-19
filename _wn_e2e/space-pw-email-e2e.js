@@ -99,6 +99,8 @@ async function newCtx(browser, role, opts = {}) {
     await page.click('#pwChangeBtn');
     check('ボタンでモーダルが開く', await page.locator('#pwModal').isVisible());
     check('開いたら現在のパスワード欄にフォーカス', await page.evaluate(() => document.activeElement && document.activeElement.id === 'pwCurrent'));
+    check('<form>内にusername欄があり自分のメールが入る（無関係な欄が紐付けられるのを防ぐ）',
+      (await page.locator('#pwForm input[name="username"]').inputValue()) === 't@example.com');
     await page.screenshot({ path: path.join(SHOTS, 'space-pw-modal.png') });
 
     // 未入力
@@ -258,9 +260,17 @@ async function newCtx(browser, role, opts = {}) {
     // admin役割でも「システム設定」（自分のパスワード変更）に到達できること
     // （以前はsuper_admin専用で、admin役割は自分のパスワードを変える手段がadmin.html内に無かった）
     check('adminにも「システム設定」ナビが見える', await page.locator('#sidebarSystem').isVisible());
+
+    // 検索欄に何も入れていないことを先に確認（ブラウザの自動入力が「名前・メールで検索」欄を
+    // 「ユーザー名欄」とみなして紐付け、パスワード変更後に自動入力してしまう不具合の再発防止）
+    check('ユーザー検索欄は最初は空', (await page.locator('#userSearch').inputValue()) === '');
+
     await page.click('#sidebarSystem');
     await page.waitForSelector('#sectionSystem.active');
     check('adminでもパスワード変更フォームが使える', await page.locator('#pwSaveBtn').isVisible());
+    check('パスワード欄は独立した<form>に入っている', await page.locator('#pwChangeForm #pwCurrent').count() === 1);
+    check('<form>内にusername欄があり自分のメールが入る（無関係な検索欄が紐付けられるのを防ぐ）',
+      (await page.locator('#pwChangeForm input[name="username"]').inputValue()) === 't@example.com');
 
     await page.fill('#pwCurrent', 'oldpass123');
     await page.fill('#pwNew', 'newpass55555');
@@ -268,6 +278,7 @@ async function newCtx(browser, role, opts = {}) {
     await page.click('#pwSaveBtn');
     await page.waitForFunction(() => document.getElementById('toastWrap').textContent.includes('変更しました'));
     check('admin自身のパスワード変更APIが呼べる', captured.changePw.some(b => b.new_password === 'newpass55555'));
+    check('パスワード変更後もユーザー検索欄は空のまま', (await page.locator('#userSearch').inputValue()) === '');
 
     check('JSエラーなし（パスワードリセット・admin視点）', errors.length === 0, errors.join(' | '));
     await ctx.close();

@@ -461,12 +461,14 @@ function initPasswordChangeModal() {
   const errEl   = document.getElementById('pwError');
   const okEl    = document.getElementById('pwSuccess');
   const saveBtn = document.getElementById('pwSaveBtn');
+  const userEl  = document.getElementById('pwUsername');
 
   const showError = msg => { okEl.classList.remove('show'); errEl.textContent = msg; errEl.classList.add('show'); };
   const clearMsgs = () => { errEl.classList.remove('show'); okEl.classList.remove('show'); };
 
   function open() {
     fields.forEach(f => { f.value = ''; f.type = 'password'; });
+    if (userEl) userEl.value = getAuth()?.email ?? '';
     modal.querySelectorAll('.pw-input-eye i').forEach(i => { i.className = 'fa-regular fa-eye'; });
     clearMsgs();
     saveBtn.disabled = false;

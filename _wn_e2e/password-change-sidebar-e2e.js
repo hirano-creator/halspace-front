@@ -155,10 +155,19 @@ async function newCtx(browser, opts = {}) {
     await page.waitForSelector('#sidebarUser .sidebar-user-name');
 
     check("What'sNoダッシュボードにも「パスワード変更」ボタンが挿入される", await page.locator('#btnChangePassword').isVisible());
+
+    // 検索欄に何も入れていないことを先に確認（ブラウザの自動入力が無関係な検索欄を
+    // 「ユーザー名欄」とみなして紐付け、パスワード変更後に自動入力してしまう不具合の再発防止）
+    check('検索欄は最初は空', (await page.locator('#searchInput').inputValue()) === '');
+
     await page.click('#btnChangePassword');
     check('モーダルが開く（wn-app.cssのスタイルも適用される）', await page.locator('#pwChangeModal').isVisible());
     const bg = await page.locator('#pwChangeModal .modal').evaluate(el => getComputedStyle(el).backgroundColor);
     check('モーダルにwn-app.css側のスタイルが当たっている（透明でない）', bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent', bg);
+    check('パスワード欄は独立した<form>に入っている（ページ全体をブラウザの自動入力対象にしないため）',
+      await page.locator('#pwChangeForm #pwChangeCurrent').count() === 1);
+    check('<form>内にusername欄があり自分のメールが入る（無関係な検索欄が紐付けられるのを防ぐ）',
+      (await page.locator('#pwChangeForm input[name="username"]').inputValue()) === 't@example.com');
     await page.screenshot({ path: path.join(SHOTS, 'whatsno-pw-modal.png') });
 
     await page.fill('#pwChangeCurrent', 'oldpass123');
@@ -167,6 +176,7 @@ async function newCtx(browser, opts = {}) {
     await page.click('#pwChangeSubmit');
     await page.waitForFunction(() => document.getElementById('pwChangeSuccess').classList.contains('show'));
     check("What'sNo側からも変更APIが呼べる", captured.changePw.some(b => b.new_password === 'newpass99999'));
+    check('パスワード変更後も検索欄は空のまま', (await page.locator('#searchInput').inputValue()) === '');
     check('JSエラーなし（whatsno dashboard）', errors.length === 0, errors.join(' | '));
     await ctx.close();
   }
