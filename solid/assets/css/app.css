@@ -1561,6 +1561,30 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   margin-top: 24px;
 }
 
+/* パスワード変更モーダル（auth.jsが全ページ共通で挿入する） */
+.pw-field { position: relative; }
+.pw-field .form-input { padding-right: 42px; }
+.pw-eye-btn {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  width: 30px; height: 30px; border-radius: 6px;
+  color: var(--muted); font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.pw-eye-btn:hover { color: var(--text); background: rgba(0,0,0,.05); }
+.pw-msg {
+  display: none;
+  font-size: 12.5px; font-weight: 600;
+  padding: 9px 12px; border-radius: 8px; line-height: 1.6;
+  margin-bottom: 16px;
+}
+.pw-msg.show { display: block; }
+.pw-msg-error   { background: #fdf1ee; color: var(--danger); border: 1px solid rgba(225,112,85,.3); }
+.pw-msg-success { background: #e8f8f2; color: #0a8a5f; border: 1px solid rgba(0,184,148,.3); }
+/* スマホ/タッチ端末での自動ズーム対策（このモーダルのみ。他フォームへの影響を避けて範囲を絞る） */
+@media (max-width: 1023px), (pointer: coarse) {
+  #pwChangeModal .form-input { font-size: 16px; }
+}
+
 /* What'sNoファイルピッカー */
 .wn-picker-grid {
   display: grid;

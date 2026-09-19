@@ -9,7 +9,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
-  <script src="../../solid/assets/js/auth.js?v=8"></script>
+  <script src="../../solid/assets/js/auth.js?v=9"></script>
   <script src="../assets/js/wn-api.js?v=28"></script>
   <style>
     :root {
@@ -537,6 +537,13 @@
       color: rgba(255,255,255,.72);
       padding: 0 4px;
       white-space: nowrap;
+    }
+
+    /* スマホ/タブレット: 入力欄タップ時の iOS 自動ズーム防止（16px未満だとページごとズームされる）。
+       #inlineTextarea はキャンバス上の文字サイズを JS で追従させているので対象外 */
+    @media (max-width: 1023px), (pointer: coarse) {
+      .tool-size-select, .signature-input, .stamp-label-edit,
+      #textToolbar select.tt-font, #textToolbar .tt-size { font-size: 16px !important; }
     }
   </style>
 </head>

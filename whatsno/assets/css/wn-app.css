@@ -1411,6 +1411,31 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   border-top: 1px solid var(--border);
 }
 
+/* パスワード変更モーダル（auth.jsが全ページ共通で挿入する。SOLID側と対で保守すること） */
+.pw-field { position: relative; }
+.pw-field .form-input { padding-right: 42px; }
+.pw-eye-btn {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  width: 30px; height: 30px; border-radius: var(--radius);
+  color: var(--muted); font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.pw-eye-btn:hover { color: var(--text); background: var(--bg); }
+.pw-msg {
+  display: none;
+  font-size: 12.5px; font-weight: 600;
+  padding: 9px 12px; border-radius: var(--radius); line-height: 1.6;
+  margin-bottom: 16px;
+}
+.pw-msg.show { display: block; }
+.pw-msg-error   { background: #fdeeee; color: var(--red);   border: 1px solid rgba(223,27,65,.25); }
+.pw-msg-success { background: #eaf7f1; color: var(--green); border: 1px solid rgba(26,156,107,.25); }
+/* スマホ/タッチ端末での自動ズーム対策は下の全入力欄向けルールで既にカバーされるが、
+   このモーダル単体でも明示しておく（SOLID側にも同名ルールがある） */
+@media (max-width: 1023px), (pointer: coarse) {
+  #pwChangeModal .form-input { font-size: 16px; }
+}
+
 /* =====================
    トースト通知
    ===================== */
@@ -2814,4 +2839,23 @@ body.select-mode .ig-post { cursor: pointer; user-select: none; }
 .merge-save-options label {
   display: flex; align-items: center; gap: 8px;
   font-size: 13px; cursor: pointer;
+}
+
+/* =====================
+   スマホ/タブレット: 入力欄フォーカス時の自動ズーム防止
+   =====================
+   iOS Safari は font-size が 16px 未満の input/textarea/select をタップすると
+   ページ全体を勝手にズームする（端末設定では止められない）。これが「入力すると
+   画面が動く・ずれる」の正体。デザインの各サイズ（12〜14px）は class 指定なので、
+   要素セレクタで書いても負ける → 1行の !important でまとめて 16px にする。
+   maximum-scale=1 でズーム自体を殺す方法はピンチズームまで奪うので使わない。
+   幅 1023px 以下（サイドバーが隠れるモバイル/タブレット配置）と、幅に関係なく
+   タッチ端末（iPad横向きなど）の両方を対象にする。
+   チェックボックス等の文字を持たない部品は対象外（見た目が変わるだけで意味がない） */
+@media (max-width: 1023px), (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="hidden"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
