@@ -246,6 +246,22 @@ async function newCtx(browser, role, opts = {}) {
     await page.click('tr[data-user-id="8"]');
     await page.waitForSelector('#userModal:not(.hidden)');
     check('adminから見たsuper_adminにはリセットボタンを出さない', !(await page.locator('#userModalResetPwGroup').isVisible()));
+    await page.evaluate(() => closeModal('userModal'));
+
+    // admin役割でも「システム設定」（自分のパスワード変更）に到達できること
+    // （以前はsuper_admin専用で、admin役割は自分のパスワードを変える手段がadmin.html内に無かった）
+    check('adminにも「システム設定」ナビが見える', await page.locator('#sidebarSystem').isVisible());
+    await page.click('#sidebarSystem');
+    await page.waitForSelector('#sectionSystem.active');
+    check('adminでもパスワード変更フォームが使える', await page.locator('#pwSaveBtn').isVisible());
+
+    await page.fill('#pwCurrent', 'oldpass123');
+    await page.fill('#pwNew', 'newpass55555');
+    await page.fill('#pwConfirm', 'newpass55555');
+    await page.click('#pwSaveBtn');
+    await page.waitForFunction(() => document.getElementById('toastWrap').textContent.includes('変更しました'));
+    check('admin自身のパスワード変更APIが呼べる', captured.changePw.some(b => b.new_password === 'newpass55555'));
+
     check('JSエラーなし（パスワードリセット・admin視点）', errors.length === 0, errors.join(' | '));
     await ctx.close();
   }
