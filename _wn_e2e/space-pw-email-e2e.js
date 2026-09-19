@@ -218,13 +218,20 @@ async function newCtx(browser, role, opts = {}) {
     check('reset-password APIが対象IDで呼ばれる', captured.resetPw.includes(7));
     await page.evaluate(() => closeModal('userModal'));
 
-    // 自分自身: リセットボタンを出さない（自己サービスへ誘導するため）
+    // 自分自身: リセットボタンの代わりに「システム設定」への案内を出す（何も出ないと
+    // 「自分のパスワードは変更できない」に見えてしまうため、単に隠すだけでは不十分）
     await page.click('tr[data-user-id="1"]');
     await page.waitForSelector('#userModal:not(.hidden)');
     check('自分自身にはリセットボタンを出さない', !(await page.locator('#userModalResetPwGroup').isVisible()));
-    await page.evaluate(() => closeModal('userModal'));
+    check('自分自身にはシステム設定への案内を出す', await page.locator('#userModalSelfPwHint').isVisible());
+    await page.click('#userModalGoToSystemBtn');
+    await page.waitForFunction(() => document.getElementById('userModal').classList.contains('hidden'));
+    check('案内ボタンでモーダルが閉じてシステム設定に移動する', await page.locator('#sectionSystem.active').isVisible());
+    check('現在のパスワード欄にフォーカスされる', await page.evaluate(() => document.activeElement && document.activeElement.id === 'pwCurrent'));
 
     // super_adminから見たsuper_admin: ボタンが出て実行できる
+    await page.click('[data-section="users"]');
+    await page.waitForSelector('tr[data-user-id="8"]');
     await page.click('tr[data-user-id="8"]');
     await page.waitForSelector('#userModal:not(.hidden)');
     check('super_adminから見たsuper_adminにはリセットボタンが出る', await page.locator('#userModalResetPwGroup').isVisible());
