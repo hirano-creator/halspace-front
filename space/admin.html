@@ -1258,9 +1258,11 @@ const isSuperAdmin = currentUser.role === 'super_admin';
 document.getElementById('sidebarAvatar').textContent  = currentUser.name.charAt(0);
 document.getElementById('sidebarUserName').textContent = currentUser.name;
 document.getElementById('sidebarUserRole').textContent = roleLabel(currentUser.role);
-if (isSuperAdmin) {
-  document.getElementById('sidebarSystem').style.display = '';
-} else {
+// システム設定（自分のパスワード変更・アプリ一覧の確認）はadmin/super_admin共通で見せる。
+// 中身に会社横断の情報は無く、自分のパスワードを変える手段がadmin.htmlに他に無いため
+// （管理者自身の行は編集モーダルの「パスワードをリセット」からも除外している。自己サービスへ誘導するため）
+document.getElementById('sidebarSystem').style.display = '';
+if (!isSuperAdmin) {
   // adminは会社管理・ダッシュボード・利用状況を非表示（自社のユーザー管理・監査ログのみ）
   document.getElementById('sidebarCompanySection').querySelector('[data-section="companies"]').style.display = 'none';
   document.querySelector('[data-section="dashboard"]').style.display = 'none';
