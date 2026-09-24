@@ -9,8 +9,13 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useRequireAuth } from "@/lib/auth/client";
 import { apiFetchJson } from "@/lib/auth/api-fetch";
-import { formatMinutes } from "@/lib/utils/time";
-import { Card, PageHeader, StatCard, buttonPrimaryClass } from "@/components/ui";
+import { Badge, Card, buttonPrimaryClass } from "@/components/ui";
+import {
+  MetaItem,
+  SheetHeader,
+  SummaryStrip,
+  monthSummaryItems,
+} from "@/components/attendance-sheet-header";
 import { MonthPicker } from "@/components/month-picker";
 import { MyAttendanceTable } from "./my-attendance-table";
 import { MyRequests } from "./my-requests";
@@ -68,88 +73,38 @@ export default function MyPage() {
 
   return (
     <>
-      <PageHeader
-        title="マイページ"
-        description={`${data.me.name} ・ ${data.me.departmentName ?? "部署未設定"} ・ ${data.year}年${data.monthNum}月度（${data.periodRangeLabel}）`}
-        action={
-          // 月度選択と打刻ボタンは高さを揃えて横並び（スマホは幅いっぱい）
-          <div className="flex w-full items-stretch gap-2 sm:w-auto">
-            <form method="get" className="flex min-w-0 flex-1 sm:w-44 sm:flex-none">
-              <MonthPicker defaultValue={data.month} />
-            </form>
-            <Link href="/clock" className={`${buttonPrimaryClass} shrink-0 px-5`}>
-              打刻する
-            </Link>
-          </div>
-        }
-      />
+      <div className="mb-6">
+        <SheetHeader
+          name={data.me.name}
+          meta={
+            <>
+              <MetaItem label="社員番号">{data.me.employeeCode}</MetaItem>
+              <MetaItem label="所属">{data.me.departmentName ?? "部署未設定"}</MetaItem>
+              <Badge tone="purple">{data.me.roleLabel}</Badge>
+            </>
+          }
+          period={`${data.year}年${data.monthNum}月度（${data.periodRangeLabel}・締め${data.closingDay}日）`}
+          actions={
+            // 月度選択と打刻ボタンは高さを揃えて横並び（スマホは幅いっぱい）
+            <div className="flex w-full items-stretch gap-2 sm:w-auto">
+              <form method="get" className="flex min-w-0 flex-1 sm:w-44 sm:flex-none">
+                <MonthPicker defaultValue={data.month} />
+              </form>
+              <Link href="/clock" className={`${buttonPrimaryClass} shrink-0 px-5`}>
+                打刻する
+              </Link>
+            </div>
+          }
+        />
+
+        {/* 合計欄の項目・並びは社員詳細画面と揃える（同じ月度で違う数字に見えないようにするため） */}
+        {data.showMonthlySummary && <SummaryStrip items={monthSummaryItems(data)} />}
+      </div>
 
       {data.openCount > 0 && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           退勤打刻のない日が{data.openCount}日あります。下の一覧から
           {data.selfEditMode === "direct" ? "修正" : "修正申請"}してください。
-        </div>
-      )}
-
-      {/* 合計欄の項目・並びは社員詳細画面と揃える（同じ月度で違う数字に見えないようにするため） */}
-      {data.showMonthlySummary && (
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
-          <StatCard label="勤務日数" value={`${data.summary.workDays}日`} />
-          {/* 週単位管理の会社は残業を週合計で区分するため、早出残業・残業の代わりに2区分を出す */}
-          {data.weeklyTotals ? (
-            <>
-              <StatCard label="勤務時間" value={formatMinutes(data.weeklyTotals.totalMinutes)} />
-              <StatCard
-                label="控除時間"
-                value={formatMinutes(data.monthTotal.deductionMinutes)}
-                tone={data.monthTotal.deductionMinutes > 0 ? "amber" : "default"}
-              />
-              <StatCard
-                label="法定外残業"
-                value={formatMinutes(data.summary.legalOvertimeMinutes)}
-                tone="amber"
-              />
-              <StatCard
-                label="36H超44H以内"
-                value={formatMinutes(data.weeklyTotals.withinLegalOvertimeMinutes)}
-                tone="amber"
-              />
-              <StatCard
-                label="44H超"
-                value={formatMinutes(data.weeklyTotals.overLegalOvertimeMinutes)}
-                tone="amber"
-              />
-            </>
-          ) : (
-            <>
-              <StatCard label="勤務時間" value={formatMinutes(data.monthTotal.workMinutes)} />
-              <StatCard
-                label="控除時間"
-                value={formatMinutes(data.monthTotal.deductionMinutes)}
-                tone={data.monthTotal.deductionMinutes > 0 ? "amber" : "default"}
-              />
-              <StatCard
-                label="法定外残業"
-                value={formatMinutes(data.summary.legalOvertimeMinutes)}
-                tone="amber"
-              />
-              <StatCard
-                label="早出残業"
-                value={formatMinutes(data.monthTotal.earlyOvertimeMinutes)}
-                tone="amber"
-              />
-              <StatCard
-                label="残業時間"
-                value={formatMinutes(data.monthTotal.overtimeMinutes)}
-                tone="amber"
-              />
-            </>
-          )}
-          <StatCard
-            label="遅刻・早退"
-            value={`${data.summary.lateCount}・${data.summary.earlyLeaveCount}回`}
-            tone={data.summary.lateCount + data.summary.earlyLeaveCount > 0 ? "amber" : "default"}
-          />
         </div>
       )}
 

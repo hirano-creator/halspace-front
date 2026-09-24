@@ -7,9 +7,14 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useRequireAuth } from "@/lib/auth/client";
 import { apiFetchJson } from "@/lib/auth/api-fetch";
 import { formatYen } from "@/lib/attendance/calculator";
-import { formatMinutes } from "@/lib/utils/time";
 import { Badge, Card, TableCard } from "@/components/ui";
 import { MonthPicker } from "@/components/month-picker";
+import {
+  MetaItem,
+  SheetHeader,
+  SummaryStrip,
+  monthSummaryItems,
+} from "@/components/attendance-sheet-header";
 import { AttendanceEditor } from "./attendance-editor";
 import { PrintButton } from "./print-button";
 import type { EmployeeDetailResponse } from "./types";
@@ -26,49 +31,6 @@ function formatLogChange(before: string | null, after: string | null): string {
     }
   };
   return `${fmt(before)} → ${fmt(after)}`;
-}
-
-type SummaryItem = {
-  label: string;
-  value: string;
-  sub?: string;
-  /** 数字の色で種類をほのめかす（amber=割増系・要注意、primary=金額の主役） */
-  tone?: "amber" | "primary";
-};
-
-/**
- * 月度サマリーの帯。カードをやめて「上に項目名・下に数字」を均等幅で並べ、項目間を縦線で区切る。
- * スマホは4列で折り返すため、各行の先頭では縦線を消す（md以上は1行に並ぶので先頭だけ消す）。
- */
-function SummaryStrip({ items, className = "" }: { items: SummaryItem[]; className?: string }) {
-  const colsClass = items.length > 7 ? "md:grid-cols-8" : "md:grid-cols-7";
-  return (
-    <div
-      className={`mt-3 grid grid-cols-4 gap-y-3 rounded-lg border border-border bg-surface py-2.5 ${colsClass} ${className}`}
-    >
-      {items.map((item, i) => {
-        const dividerClass = i === 0 ? "" : i % 4 === 0 ? "md:border-l-2" : "border-l-2";
-        const valueClass =
-          item.tone === "amber"
-            ? "text-amber-700"
-            : item.tone === "primary"
-              ? "text-primary"
-              : "text-foreground";
-        return (
-          <div
-            key={item.label}
-            className={`flex min-w-0 flex-col items-center gap-0.5 border-slate-300 px-2 text-center ${dividerClass}`}
-          >
-            <p className="text-[11px] whitespace-nowrap text-muted">{item.label}</p>
-            <p className={`text-lg leading-tight font-bold tabular-nums ${valueClass}`}>
-              {item.value}
-            </p>
-            {item.sub && <p className="text-[10px] leading-tight text-muted">{item.sub}</p>}
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 export default function EmployeeDetailPage() {
@@ -172,24 +134,14 @@ export default function EmployeeDetailPage() {
         ref={stickyHeadRef}
         className="bg-background md:sticky md:top-0 md:z-30 md:pb-6 print:static print:pb-0"
       >
-        {/* 印刷で1ページ目に表を多く入れるため、名前・属性・月度を1段にまとめて下線で区切る */}
-        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b-2 border-foreground pb-2">
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h1 className="text-xl font-semibold tracking-tight">{data.employee.name}</h1>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-700">
-              <span>
-                <span className="mr-1 text-muted">社員番号</span>
-                {data.employee.employeeCode}
-              </span>
-              <span>
-                <span className="mr-1 text-muted">所属</span>
-                {data.employee.departmentName ?? "部署未設定"}
-              </span>
+        <SheetHeader
+          name={data.employee.name}
+          meta={
+            <>
+              <MetaItem label="社員番号">{data.employee.employeeCode}</MetaItem>
+              <MetaItem label="所属">{data.employee.departmentName ?? "部署未設定"}</MetaItem>
               {showMoney && (
-                <span>
-                  <span className="mr-1 text-muted">時給</span>
-                  {formatYen(data.employee.hourlyWage)}
-                </span>
+                <MetaItem label="時給">{formatYen(data.employee.hourlyWage)}</MetaItem>
               )}
               <Badge tone={data.employee.isActive ? "green" : "red"}>
                 {data.employee.isActive ? "在籍中" : "退職済"}
@@ -198,82 +150,24 @@ export default function EmployeeDetailPage() {
               {showMoney && data.employee.hourlyWage === 0 && (
                 <Badge tone="amber">時給未設定（金額は¥0になります）</Badge>
               )}
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className="text-xs text-gray-700">
-              {data.year}年{data.monthNum}月度（{data.periodRangeLabel}・締め{data.closingDay}日）
-            </span>
-            <div className="flex flex-wrap items-center gap-2 print:hidden">
+            </>
+          }
+          period={`${data.year}年${data.monthNum}月度（${data.periodRangeLabel}・締め${data.closingDay}日）`}
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
               <PrintButton />
               <form method="get">
                 <MonthPicker defaultValue={data.month} />
               </form>
             </div>
-          </div>
-        </div>
+          }
+        />
 
         {/* 固定時の下余白は親の md:pb-6 が持つため、md以上ではこの mb を外す */}
         <SummaryStrip
           className="mb-6 md:mb-0 print:mb-2"
           items={[
-            { label: "勤務日数", value: `${data.summary.workDays}日` },
-            // 週単位管理の会社は残業を週合計で区分するため、早出残業・残業の代わりに2区分を出す
-            ...(data.weeklyTotals
-              ? [
-                  { label: "勤務時間", value: formatMinutes(data.weeklyTotals.totalMinutes) },
-                  {
-                    label: "控除時間",
-                    value: formatMinutes(data.monthTotal.deductionMinutes),
-                    tone: data.monthTotal.deductionMinutes > 0 ? ("amber" as const) : undefined,
-                  },
-                  {
-                    label: "法定外残業",
-                    value: formatMinutes(data.summary.legalOvertimeMinutes),
-                    tone: "amber" as const,
-                  },
-                  {
-                    label: "36H超44H以内",
-                    value: formatMinutes(data.weeklyTotals.withinLegalOvertimeMinutes),
-                    tone: "amber" as const,
-                  },
-                  {
-                    label: "44H超",
-                    value: formatMinutes(data.weeklyTotals.overLegalOvertimeMinutes),
-                    tone: "amber" as const,
-                  },
-                ]
-              : [
-                  { label: "勤務時間", value: formatMinutes(data.monthTotal.workMinutes) },
-                  {
-                    label: "控除時間",
-                    value: formatMinutes(data.monthTotal.deductionMinutes),
-                    tone: data.monthTotal.deductionMinutes > 0 ? ("amber" as const) : undefined,
-                  },
-                  {
-                    label: "法定外残業",
-                    value: formatMinutes(data.summary.legalOvertimeMinutes),
-                    tone: "amber" as const,
-                  },
-                  {
-                    label: "早出残業",
-                    value: formatMinutes(data.monthTotal.earlyOvertimeMinutes),
-                    tone: "amber" as const,
-                  },
-                  {
-                    label: "残業時間",
-                    value: formatMinutes(data.monthTotal.overtimeMinutes),
-                    tone: "amber" as const,
-                  },
-                ]),
-            {
-              label: "遅刻・早退",
-              value: `${data.summary.lateCount}・${data.summary.earlyLeaveCount}回`,
-              tone:
-                data.summary.lateCount + data.summary.earlyLeaveCount > 0
-                  ? ("amber" as const)
-                  : undefined,
-            },
+            ...monthSummaryItems(data),
             ...(showMoney
               ? [
                   {

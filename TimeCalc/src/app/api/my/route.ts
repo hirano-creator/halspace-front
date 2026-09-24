@@ -15,7 +15,8 @@ import {
 import type { DailyCalcResult } from "@/lib/attendance/types";
 import { deriveDailyFromEvents, outingsFromEvents, type ClockEventType } from "@/lib/attendance/clock";
 import { dailyDeductionMinutes, resolveOuting } from "@/lib/attendance/deduction";
-import { getAllWorkRules, workRulesFor } from "@/lib/settings";
+import { getAllWorkRules, getRoleLabels, workRulesFor } from "@/lib/settings";
+import { toRole } from "@/lib/auth/roles";
 import {
   currentPeriod,
   datesInRange,
@@ -45,6 +46,8 @@ export async function GET(request: Request) {
   if (!me) return NextResponse.json({ error: "ユーザーが見つかりません" }, { status: 404 });
   const features = resolveFeatures(me.featureOverrides);
   const rules = workRulesFor(allRules, me.department?.companyId);
+  // 役職名は会社ごとに呼び方を変えられるため、本人の会社の表記で返す
+  const roleLabels = await getRoleLabels(me.department?.companyId);
 
   const month = /^\d{4}-\d{2}$/.test(monthParam ?? "") ? monthParam! : currentPeriod(rules.closingDay);
   const period = periodRange(month, rules.closingDay);
@@ -209,11 +212,17 @@ export async function GET(request: Request) {
   }));
 
   const body: MyPageResponse = {
-    me: { name: me.name, departmentName: me.department?.name ?? null },
+    me: {
+      name: me.name,
+      employeeCode: me.employeeCode,
+      departmentName: me.department?.name ?? null,
+      roleLabel: roleLabels[toRole(me.role)],
+    },
     month,
     year,
     monthNum,
     periodRangeLabel: formatPeriodRange(period),
+    closingDay: rules.closingDay,
     openCount,
     showMonthlySummary: features.showMonthlySummary,
     selfEditMode: features.selfEdit,

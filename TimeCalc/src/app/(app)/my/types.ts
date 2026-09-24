@@ -11,11 +11,18 @@ export interface MyActionState {
 }
 
 export interface MyPageResponse {
-  me: { name: string; departmentName: string | null };
+  me: {
+    name: string;
+    employeeCode: string;
+    departmentName: string | null;
+    /** 会社ごとの呼び方に置き換えた役職名 */
+    roleLabel: string;
+  };
   month: string;
   year: number;
   monthNum: number;
   periodRangeLabel: string;
+  closingDay: number;
   openCount: number;
   showMonthlySummary: boolean;
   selfEditMode: SelfEditMode;
