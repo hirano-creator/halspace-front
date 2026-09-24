@@ -47,8 +47,23 @@ export interface WorkRuleSettings {
   breakStart: string;
   /** 休憩終了時刻（"HH:mm"） */
   breakEnd: string;
+  /**
+   * 出勤打刻の段階丸め表。空なら従来どおり丸め単位で切り上げる。
+   * 設定がある場合、始業より前の出勤は「until 以前なら roundTo」を上から順に判定し、
+   * どれにも当たらなければ始業時刻に丸める（＝早出なし）。始業以降（遅刻）は対象外。
+   * 例（ヒラノ・始業8:00）: 〜6:50→7:00 / 〜7:10→7:30 / それ以降→8:00
+   */
+  clockInSteps: ClockInStep[];
   /** 週単位の労働時間管理 */
   weekly: WeeklyRule;
+}
+
+/** 出勤打刻の段階丸めの1行（until 以前の打刻を roundTo に丸める） */
+export interface ClockInStep {
+  /** この時刻以前（この時刻を含む）の出勤が対象（"HH:mm"） */
+  until: string;
+  /** 丸め後の出勤時刻（"HH:mm"） */
+  roundTo: string;
 }
 
 /**
@@ -90,6 +105,7 @@ export const DEFAULT_WORK_RULES: WorkRuleSettings = {
   closingDay: 25,
   breakStart: "12:00",
   breakEnd: "13:00",
+  clockInSteps: [],
   // 既定はOFF。既存の会社は従来どおり日単位で残業を判定する
   weekly: {
     enabled: false,

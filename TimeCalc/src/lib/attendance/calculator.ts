@@ -45,9 +45,35 @@ function ceilToUnit(minutes: number, unitMinutes: number): number {
 }
 
 /**
+ * 出勤打刻（0時からの経過分）を丸める。calcDaily / roundClockTimes 共通。
+ *
+ * - 始業以降（遅刻）はそのまま
+ * - 段階丸め表（clockInSteps）があれば、上から順に「until 以前なら roundTo」。
+ *   どれにも当たらなければ始業時刻（例: 始業8:00で 〜6:50→7:00 / 〜7:10→7:30 / 7:11〜→8:00）
+ * - 表がなければ丸め単位で切り上げる（例: 30分単位 → 8:19→8:30）
+ */
+function roundClockIn(
+  clockInRaw: number,
+  workStart: number,
+  rules: Pick<WorkRuleSettings, "overtimeRoundingMinutes" | "clockInSteps">,
+): number {
+  if (clockInRaw >= workStart) return clockInRaw;
+  const steps = rules.clockInSteps ?? [];
+  if (steps.length === 0) return ceilToUnit(clockInRaw, rules.overtimeRoundingMinutes);
+  for (const step of steps) {
+    const until = timeToMinutes(step.until);
+    const roundTo = timeToMinutes(step.roundTo);
+    if (until === null || roundTo === null) continue;
+    if (clockInRaw <= until) return Math.min(Math.max(roundTo, clockInRaw), workStart);
+  }
+  return workStart;
+}
+
+/**
  * calcDaily と同じルールで出退勤を丸める。
  *
- * - 出勤: 始業より前の打刻のみ、始業側へ切り上げる（始業以降の打刻＝遅刻はそのまま）
+ * - 出勤: 始業より前の打刻のみ、始業側へ切り上げる（始業以降の打刻＝遅刻はそのまま）。
+ *   段階丸め表（clockInSteps）がある会社はその表に従う
  * - 退勤: 常に切り捨てる
  *
  * 「実際に支払われる勤務時間帯」を calcDaily の外（休憩時間帯との重複判定など）で
@@ -61,7 +87,7 @@ function ceilToUnit(minutes: number, unitMinutes: number): number {
 export function roundClockTimes(
   clockIn: string,
   clockOut: string,
-  rules: Pick<WorkRuleSettings, "workStart" | "overtimeRoundingMinutes">,
+  rules: Pick<WorkRuleSettings, "workStart" | "overtimeRoundingMinutes" | "clockInSteps">,
 ): { roundedClockIn: string; roundedClockOut: string } | null {
   const clockInRaw = timeToMinutes(clockIn);
   const clockOutRaw = timeToMinutes(clockOut);
@@ -69,7 +95,7 @@ export function roundClockTimes(
   if (clockInRaw === null || clockOutRaw === null || workStart === null) return null;
 
   const unit = rules.overtimeRoundingMinutes;
-  const roundedIn = clockInRaw < workStart ? ceilToUnit(clockInRaw, unit) : clockInRaw;
+  const roundedIn = roundClockIn(clockInRaw, workStart, rules);
   const roundedOut = floorToUnit(clockOutRaw, unit);
   return { roundedClockIn: minutesToTime(roundedIn), roundedClockOut: minutesToTime(roundedOut) };
 }
@@ -146,8 +172,9 @@ export function calcDaily(input: DailyAttendanceInput, rules: WorkRuleSettings):
   }
 
   const unit = rules.overtimeRoundingMinutes;
-  // 出勤: 始業より前の打刻のみ、始業側へ切り上げる（早出時間を丸め単位で減らす）
-  const clockIn = clockInRaw < workStart ? ceilToUnit(clockInRaw, unit) : clockInRaw;
+  // 出勤: 始業より前の打刻のみ、始業側へ切り上げる（早出時間を丸め単位で減らす）。
+  // 段階丸め表（clockInSteps）がある会社はその表に従う
+  const clockIn = roundClockIn(clockInRaw, workStart, rules);
   // 退勤: 常に切り捨てる
   const clockOut = floorToUnit(clockOutRaw, unit);
 

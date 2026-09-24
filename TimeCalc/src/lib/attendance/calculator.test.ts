@@ -863,3 +863,50 @@ describe("固定休憩の重複判定は丸め後の時刻で行う（勤務時�
     expect(fixedBreakMinutesFor(shortDayRules, rounded!.roundedClockIn, rounded!.roundedClockOut)).toBe(60);
   });
 });
+
+describe("出勤の段階丸め（clockInSteps・ヒラノ: 〜6:50→7:00 / 〜7:10→7:30 / 7:11〜→8:00）", () => {
+  const hiranoRules: WorkRuleSettings = {
+    ...DEFAULT_WORK_RULES,
+    workStart: "08:00",
+    workEnd: "17:00",
+    clockInSteps: [
+      { until: "06:50", roundTo: "07:00" },
+      { until: "07:10", roundTo: "07:30" },
+    ],
+  };
+  const inAt = (clockIn: string) =>
+    calcDaily({ date: "2026-09-01", clockIn, clockOut: "18:00", breakMinutes: 60 }, hiranoRules);
+
+  it.each([
+    ["06:00", "07:00", 60], // 早すぎても7:00（早出は最大1H）
+    ["06:49", "07:00", 60],
+    ["06:50", "07:00", 60], // 境界: 6:50ちょうどは1H早出
+    ["06:51", "07:30", 30],
+    ["07:10", "07:30", 30], // 境界: 7:10ちょうどは0.5H早出
+    ["07:11", "08:00", 0],
+    ["07:59", "08:00", 0],
+  ])("出勤%s → %s（早出%i分）", (clockIn, rounded, early) => {
+    const r = inAt(clockIn);
+    expect(r.roundedClockIn).toBe(rounded);
+    expect(r.earlyMinutes).toBe(early);
+  });
+
+  it("始業以降（遅刻）は丸めずそのまま", () => {
+    const r = inAt("08:05");
+    expect(r.roundedClockIn).toBe("08:05");
+    expect(r.lateMinutes).toBe(5);
+  });
+
+  it("roundClockTimes も同じ段階丸めになる", () => {
+    expect(roundClockTimes("06:55", "17:00", hiranoRules)?.roundedClockIn).toBe("07:30");
+    expect(roundClockTimes("07:20", "17:00", hiranoRules)?.roundedClockIn).toBe("08:00");
+  });
+
+  it("表が空なら従来どおり丸め単位で切り上げ", () => {
+    const r = calcDaily(
+      { date: "2026-09-01", clockIn: "07:20", clockOut: "18:00", breakMinutes: 60 },
+      { ...hiranoRules, clockInSteps: [] },
+    );
+    expect(r.roundedClockIn).toBe("07:30");
+  });
+});

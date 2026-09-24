@@ -36,6 +36,14 @@ export async function POST(request: Request) {
     closingDay: Number(get("closingDay")),
     breakStart: get("breakStart"),
     breakEnd: get("breakEnd"),
+    // 段階丸め表は「〜時刻」「→時刻」の行を同じ並びで受け取る。両方空の行は無視する
+    clockInSteps: formData
+      .getAll("clockInStepUntil")
+      .map((until, i) => ({
+        until: String(until).trim(),
+        roundTo: String(formData.getAll("clockInStepRoundTo")[i] ?? "").trim(),
+      }))
+      .filter((step) => step.until !== "" || step.roundTo !== ""),
     weekly: {
       enabled: formData.get("weeklyEnabled") !== null,
       startDayOfWeek: Number(get("weeklyStartDayOfWeek")),
@@ -121,6 +129,34 @@ export async function POST(request: Request) {
       error: "休憩終了は休憩開始より後にしてください",
       success: false,
     });
+  }
+  {
+    const workStart = timeToMinutes(rules.workStart)!;
+    let prevUntil = -1;
+    for (const [i, step] of rules.clockInSteps.entries()) {
+      const until = timeToMinutes(step.until);
+      const roundTo = timeToMinutes(step.roundTo);
+      const row = `出勤の段階丸め ${i + 1}行目`;
+      if (until === null || roundTo === null) {
+        return NextResponse.json<SettingsFormState>({
+          error: `${row}: 時刻を両方入力してください`,
+          success: false,
+        });
+      }
+      if (until <= prevUntil) {
+        return NextResponse.json<SettingsFormState>({
+          error: `${row}: 上の行より後の時刻を入力してください`,
+          success: false,
+        });
+      }
+      if (roundTo < until || roundTo > workStart || until >= workStart) {
+        return NextResponse.json<SettingsFormState>({
+          error: `${row}: 「〜時刻 ≦ 丸め後 ≦ 始業」かつ始業より前の時刻にしてください`,
+          success: false,
+        });
+      }
+      prevUntil = until;
+    }
   }
   if (
     !Number.isInteger(rules.weekly.startDayOfWeek) ||

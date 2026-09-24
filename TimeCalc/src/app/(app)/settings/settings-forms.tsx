@@ -40,6 +40,8 @@ import {
 } from "@/components/ui";
 
 const initialState: SettingsFormState = { error: null, success: false };
+/** 出勤の段階丸めの入力行数 */
+const CLOCK_IN_STEP_ROWS = 4;
 
 /** 会社スコープ（設定画面で選択中の会社。null = 共通設定） */
 export interface CompanyScope {
@@ -254,6 +256,35 @@ export function WorkRulesForm({
               />
               <p className="mt-1 text-xs text-muted">これより前の打刻は集計しない</p>
             </div>
+          </div>
+          <div className="mt-4">
+            <label className={labelClass}>出勤の段階丸め（任意）</label>
+            <div className="space-y-2">
+              {Array.from({ length: CLOCK_IN_STEP_ROWS }, (_, i) => rules.clockInSteps?.[i]).map(
+                (step, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <span>〜</span>
+                    <input
+                      type="time"
+                      name="clockInStepUntil"
+                      defaultValue={step?.until ?? ""}
+                      className={`${inputClass} max-w-32`}
+                    />
+                    <span>の出勤 →</span>
+                    <input
+                      type="time"
+                      name="clockInStepRoundTo"
+                      defaultValue={step?.roundTo ?? ""}
+                      className={`${inputClass} max-w-32`}
+                    />
+                  </div>
+                ),
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              始業より前の出勤を上の行から順に判定し、どれにも当たらなければ始業時刻として扱います（例: 始業8:00で
+              〜6:50→7:00 / 〜7:10→7:30 / 7:11以降→8:00）。すべて空欄なら丸め単位で切り上げます
+            </p>
           </div>
         </fieldset>
 
