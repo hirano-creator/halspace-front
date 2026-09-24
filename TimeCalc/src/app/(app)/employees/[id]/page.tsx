@@ -132,7 +132,7 @@ export default function EmployeeDetailPage() {
     <div className="print-attendance-sheet">
       <div
         ref={stickyHeadRef}
-        className="bg-background md:sticky md:top-0 md:z-30 md:pb-6 print:static print:pb-0"
+        className="bg-background md:sticky md:top-0 md:z-30 md:pb-3 print:static print:pb-0"
       >
         <SheetHeader
           name={data.employee.name}
@@ -163,9 +163,9 @@ export default function EmployeeDetailPage() {
           }
         />
 
-        {/* 固定時の下余白は親の md:pb-6 が持つため、md以上ではこの mb を外す */}
+        {/* 固定時の下余白は親の md:pb-3 が持つため、md以上ではこの mb を外す */}
         <SummaryStrip
-          className="mb-6 md:mb-0 print:mb-2"
+          className="mb-3 md:mb-0 print:mb-2"
           items={[
             ...monthSummaryItems(data),
             ...(showMoney
