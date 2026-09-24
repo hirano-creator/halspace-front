@@ -10,7 +10,6 @@ import { apiFetchJson } from "@/lib/auth/api-fetch";
 import {
   Badge,
   Card,
-  PageHeader,
   TableCard,
   buttonPrimaryClass,
   buttonSecondaryClass,
@@ -18,6 +17,7 @@ import {
   tdClass,
   thClass,
 } from "@/components/ui";
+import { SheetHeader } from "@/components/attendance-sheet-header";
 import { DeleteEmployeeButton } from "./delete-button";
 import type { EmployeesPageResponse } from "./types";
 
@@ -80,20 +80,27 @@ export default function EmployeesPage() {
 
   return (
     <>
-      <PageHeader
-        title="社員管理"
-        description={`全${data.total}名${data.totalPages > 1 ? `（${data.page}/${data.totalPages}ページ）` : ""}`}
-        action={
-          <div className="flex gap-2">
-            <Link href="/employees/bulk" className={buttonSecondaryClass}>
-              CSV一括登録
-            </Link>
-            <Link href="/employees/new" className={buttonPrimaryClass}>
-              社員を登録
-            </Link>
-          </div>
-        }
-      />
+      <div className="mb-6">
+        <SheetHeader
+          name="社員管理"
+          meta={
+            <span>
+              全{data.total}名
+              {data.totalPages > 1 ? `（${data.page}/${data.totalPages}ページ）` : ""}
+            </span>
+          }
+          actions={
+            <div className="flex gap-2">
+              <Link href="/employees/bulk" className={buttonSecondaryClass}>
+                CSV一括登録
+              </Link>
+              <Link href="/employees/new" className={buttonPrimaryClass}>
+                社員を登録
+              </Link>
+            </div>
+          }
+        />
+      </div>
 
       <Card className="mb-6">
         <form method="get" className="flex flex-wrap items-end gap-4">

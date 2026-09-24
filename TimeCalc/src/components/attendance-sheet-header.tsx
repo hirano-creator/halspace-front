@@ -1,6 +1,7 @@
-// 月次勤怠表の上部（社員詳細・マイページ共通）。
-// 印刷で1ページ目に表を多く入れるため、名前・属性・月度を1段にまとめ、月度サマリーは
-// カードではなく「上に項目名・下に数字」を均等幅で並べて縦線で区切る帯にする。
+// ページ上部の共通見出し（社員詳細・マイページ・勤怠一覧・社員管理で共通）。
+// 印刷で1ページ目に表を多く入れるため、旧PageHeader（title+説明文で2段）をやめ、
+// タイトル・属性・右側情報を1段にまとめて下線で区切る。月度サマリーはカードではなく
+// 「上に項目名・下に数字」を均等幅で並べて縦線で区切る帯にする。
 
 import type { ReactNode } from "react";
 import { formatMinutes } from "@/lib/utils/time";
@@ -25,7 +26,9 @@ export function MetaItem({ label, children }: { label: string; children: ReactNo
 }
 
 /**
- * 名前・属性（meta）・月度・操作（actions）を1段にまとめ、下線で区切る見出し。
+ * タイトル・属性（meta）・右側情報（period）・操作（actions）を1段にまとめ、下線で区切る見出し。
+ * 社員詳細・マイページでは period に月度、勤怠一覧では period に対象月度、
+ * 社員管理のように月度の概念がないページでは period を省略できる。
  * actions は印刷時に隠す。
  */
 export function SheetHeader({
@@ -36,7 +39,7 @@ export function SheetHeader({
 }: {
   name: string;
   meta: ReactNode;
-  period: ReactNode;
+  period?: ReactNode;
   actions?: ReactNode;
 }) {
   return (
@@ -47,10 +50,12 @@ export function SheetHeader({
           {meta}
         </div>
       </div>
-      <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 sm:w-auto">
-        <span className="text-xs text-gray-700">{period}</span>
-        {actions && <div className="w-full sm:w-auto print:hidden">{actions}</div>}
-      </div>
+      {(period || actions) && (
+        <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 sm:w-auto">
+          {period && <span className="text-xs text-gray-700">{period}</span>}
+          {actions && <div className="w-full sm:w-auto print:hidden">{actions}</div>}
+        </div>
+      )}
     </div>
   );
 }

@@ -11,13 +11,13 @@ import { formatYen } from "@/lib/attendance/calculator";
 import { formatMinutes } from "@/lib/utils/time";
 import {
   Card,
-  PageHeader,
   TableCard,
   buttonSecondaryClass,
   inputClass,
   tdClass,
   thClass,
 } from "@/components/ui";
+import { SheetHeader } from "@/components/attendance-sheet-header";
 import { MonthPicker } from "@/components/month-picker";
 import type { AttendancePageResponse } from "./types";
 
@@ -86,46 +86,54 @@ export default function AttendancePage() {
 
   return (
     <>
-      <PageHeader
-        title="勤怠一覧"
-        description={`${data.year}年${data.monthNum}月度（${data.periodRangeLabel}・締め${data.closingDay}日）の社員別集計${
-          !companyId && data.hasCompanyRules
-            ? "。会社別に勤務ルールを設定している場合、各社員はその会社のルール・締め期間で計算されます"
-            : ""
-        }`}
-        action={
-          data.canExport ? (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => handleDownload("summary")}
-                disabled={downloading !== null}
-                className={buttonSecondaryClass}
-              >
-                {downloading === "summary" ? "出力中..." : "集計CSV出力"}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDownload("daily")}
-                disabled={downloading !== null}
-                className={buttonSecondaryClass}
-              >
-                {downloading === "daily" ? "出力中..." : "明細CSV出力"}
-              </button>
-              {hasWeekly && (
+      <div className="mb-6">
+        <SheetHeader
+          name="勤怠一覧"
+          meta={
+            <span>
+              社員別集計
+              {!companyId && data.hasCompanyRules && (
+                <>
+                  。会社別に勤務ルールを設定している場合、各社員はその会社のルール・締め期間で計算されます
+                </>
+              )}
+            </span>
+          }
+          period={`${data.year}年${data.monthNum}月度（${data.periodRangeLabel}・締め${data.closingDay}日）`}
+          actions={
+            data.canExport ? (
+              <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => handleDownload("weekly")}
+                  onClick={() => handleDownload("summary")}
                   disabled={downloading !== null}
                   className={buttonSecondaryClass}
                 >
-                  {downloading === "weekly" ? "出力中..." : "週別CSV出力"}
+                  {downloading === "summary" ? "出力中..." : "集計CSV出力"}
                 </button>
-              )}
-            </div>
-          ) : undefined
-        }
-      />
+                <button
+                  type="button"
+                  onClick={() => handleDownload("daily")}
+                  disabled={downloading !== null}
+                  className={buttonSecondaryClass}
+                >
+                  {downloading === "daily" ? "出力中..." : "明細CSV出力"}
+                </button>
+                {hasWeekly && (
+                  <button
+                    type="button"
+                    onClick={() => handleDownload("weekly")}
+                    disabled={downloading !== null}
+                    className={buttonSecondaryClass}
+                  >
+                    {downloading === "weekly" ? "出力中..." : "週別CSV出力"}
+                  </button>
+                )}
+              </div>
+            ) : undefined
+          }
+        />
+      </div>
 
       <Card className="mb-6">
         <form method="get" className="flex flex-wrap items-end gap-4">
