@@ -80,7 +80,7 @@ export default function EmployeesPage() {
 
   return (
     <>
-      <div className="mb-6">
+      <div className="mb-3">
         <SheetHeader
           name="社員管理"
           meta={

@@ -86,7 +86,7 @@ export default function AttendancePage() {
 
   return (
     <>
-      <div className="mb-6">
+      <div className="mb-3">
         <SheetHeader
           name="勤怠一覧"
           meta={
