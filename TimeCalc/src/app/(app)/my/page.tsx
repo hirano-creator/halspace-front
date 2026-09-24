@@ -73,7 +73,7 @@ export default function MyPage() {
 
   return (
     <>
-      <div className="mb-6">
+      <div className="mb-3">
         <SheetHeader
           name={data.me.name}
           meta={
