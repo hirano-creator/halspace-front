@@ -125,5 +125,6 @@ export function ageToGroup(age: number | null): string {
   if (age < 40) return "30S";
   if (age < 50) return "40S";
   if (age < 60) return "50S";
-  return "60S";
+  if (age < 70) return "60S";
+  return "70S";
 }

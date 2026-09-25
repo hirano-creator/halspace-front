@@ -103,6 +103,7 @@ export async function POST(request: Request) {
     data: {
       customerId: input.customerId,
       guestAgeGroup: input.guestAgeGroup,
+      guestAge: input.guestAge,
       guestGender: input.guestGender,
       guestMemo: input.guestMemo,
       visitedAt: input.visitedAt,

@@ -37,6 +37,7 @@ export async function GET(request: Request, { params }: Ctx) {
     customerCode: visit.customer?.code ?? null,
     displayName: visit.customer?.name ?? guestLabel(visit),
     guestAgeGroup: visit.guestAgeGroup,
+    guestAge: visit.guestAge,
     guestGender: visit.guestGender,
     guestMemo: visit.guestMemo,
     guestBreakdown: visit.guests.map((g) => ({ ageGroup: g.ageGroup, gender: g.gender })),
@@ -89,6 +90,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
     data: {
       customerId: input.customerId,
       guestAgeGroup: input.guestAgeGroup,
+      guestAge: input.guestAge,
       guestGender: input.guestGender,
       guestMemo: input.guestMemo,
       visitedAt: input.visitedAt,

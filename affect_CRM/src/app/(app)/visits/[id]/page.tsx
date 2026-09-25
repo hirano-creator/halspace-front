@@ -14,9 +14,10 @@ import { apiFetch, apiFetchJson } from "@/lib/auth/api-fetch";
 import { useAuth } from "@/lib/auth/client";
 import { can } from "@/lib/auth/roles";
 import { formatYen } from "@/lib/display";
-import { AGE_GROUPS, AGE_GROUP_LABELS, PREFECTURES } from "@/lib/constants";
+import { PREFECTURES } from "@/lib/constants";
 import { ChipGroup, ChipMultiGroup } from "@/components/chips";
 import { GuestBreakdownEditor } from "@/components/guest-breakdown";
+import { AgeInput } from "@/components/age-input";
 import {
   Empty,
   buttonPrimaryClass,
@@ -27,7 +28,6 @@ import {
 import type { MastersResponse } from "../../customers/types";
 import type { CustomerSuggestion, GuestBreakdownRow, VisitDetailResponse } from "../types";
 
-const AGE_OPTIONS = AGE_GROUPS.map((code) => ({ code, label: AGE_GROUP_LABELS[code] }));
 const GENDER_OPTIONS = [
   { code: "MALE", label: "男性" },
   { code: "FEMALE", label: "女性" },
@@ -49,6 +49,7 @@ export default function VisitDetailPage() {
   const [visitedAt, setVisitedAt] = useState("");
   const [partySize, setPartySize] = useState("1");
   const [ageGroup, setAgeGroup] = useState<string | null>(null);
+  const [age, setAge] = useState("");
   const [gender, setGender] = useState<string | null>(null);
   const [guestBreakdown, setGuestBreakdown] = useState<GuestBreakdownRow[]>([]);
   const [purpose, setPurpose] = useState<string | null>(null);
@@ -77,6 +78,7 @@ export default function VisitDetailPage() {
         setVisitedAt(v.visitedAt);
         setPartySize(String(v.partySize));
         setAgeGroup(v.guestAgeGroup);
+        setAge(v.guestAge != null ? String(v.guestAge) : "");
         setGender(v.guestGender);
         setGuestBreakdown(v.guestBreakdown);
         setPurpose(v.purposeCode);
@@ -135,8 +137,9 @@ export default function VisitDetailPage() {
       if (customerId) form.set("customerId", customerId);
       form.set("visitedAt", visitedAt);
       form.set("partySize", partySize);
+      if (ageGroup) form.set("guestAgeGroup", ageGroup);
+      if (age) form.set("guestAge", age);
       if (!customerId) {
-        if (ageGroup) form.set("guestAgeGroup", ageGroup);
         if (gender) form.set("guestGender", gender);
         for (const g of guestBreakdown) {
           form.append("guestBreakdownAgeGroup", g.ageGroup ?? "");
@@ -348,15 +351,19 @@ export default function VisitDetailPage() {
           </section>
         )}
 
-        {/* お名前が分からない来店のときだけ、推定の年代・性別を持つ */}
+        <AgeInput
+          label={!visit.customerId && !linkedCustomer && Number(partySize) > 1 ? "年齢（代表の方）" : "年齢"}
+          ageGroup={ageGroup}
+          age={age}
+          onChange={(next) => {
+            setAgeGroup(next.ageGroup);
+            setAge(next.age);
+          }}
+        />
+
+        {/* お名前が分からない来店のときだけ、推定の性別を持つ */}
         {!visit.customerId && !linkedCustomer && (
           <>
-            <section className="border-b border-line py-4">
-              <label className={labelClass}>
-                {Number(partySize) > 1 ? "だいたいの年代（代表）" : "だいたいの年代"}
-              </label>
-              <ChipGroup options={AGE_OPTIONS} value={ageGroup} onChange={setAgeGroup} />
-            </section>
             <section className="border-b border-line py-4">
               <label className={labelClass}>{Number(partySize) > 1 ? "性別（代表）" : "性別"}</label>
               <ChipGroup options={GENDER_OPTIONS} value={gender} onChange={setGender} />

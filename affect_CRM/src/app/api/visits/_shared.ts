@@ -2,7 +2,7 @@
 
 import { AGE_GROUPS, GUEST_GENDERS, toEnum } from "@/lib/constants";
 import { trimOrNull } from "@/lib/normalize";
-import { parseJstDateTime } from "@/lib/utils/time";
+import { ageToGroup, parseJstDateTime } from "@/lib/utils/time";
 
 export interface GuestBreakdownRow {
   ageGroup: string | null;
@@ -11,7 +11,10 @@ export interface GuestBreakdownRow {
 
 export interface VisitInput {
   customerId: string | null;
+  /** 来店時点の年代。顧客が分かっている来店でも持つ */
   guestAgeGroup: string | null;
+  /** 来店時点の正確な年齢（任意）。入っていれば年代はここから決める */
+  guestAge: number | null;
   guestGender: string | null;
   guestMemo: string | null;
   /**
@@ -58,6 +61,17 @@ export function parseVisitForm(form: FormData): VisitInput | string {
     return "来店人数は 1〜50 の数字で入力してください";
   }
 
+  // 正確な年齢が分かるときは、年代は年齢から決める（選んだ年代と食い違わないように）
+  const ageRaw = trimOrNull(form.get("guestAge"));
+  let guestAge: number | null = null;
+  if (ageRaw) {
+    guestAge = Number(ageRaw);
+    if (!Number.isInteger(guestAge) || guestAge < 0 || guestAge > 120) {
+      return "年齢は 0〜120 の数字で入力してください";
+    }
+  }
+  const guestAgeGroup = guestAge !== null ? ageToGroup(guestAge) : toEnum(AGE_GROUPS, form.get("guestAgeGroup"));
+
   const followUpRaw = trimOrNull(form.get("followUpDate"));
   let followUpDate: Date | null = null;
   if (followUpRaw) {
@@ -82,8 +96,9 @@ export function parseVisitForm(form: FormData): VisitInput | string {
 
   return {
     customerId,
-    // 匿名のときだけ意味を持つ項目。顧客が特定できている場合は顧客側の情報を使う
-    guestAgeGroup: customerId ? null : toEnum(AGE_GROUPS, form.get("guestAgeGroup")),
+    guestAgeGroup,
+    guestAge,
+    // 以下は匿名のときだけ意味を持つ項目。顧客が特定できている場合は顧客側の情報を使う
     guestGender: customerId ? null : toEnum(GUEST_GENDERS, form.get("guestGender")),
     guestMemo: customerId ? null : trimOrNull(form.get("guestMemo")),
     guestBreakdown,

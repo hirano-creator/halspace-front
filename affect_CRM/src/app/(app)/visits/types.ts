@@ -40,6 +40,7 @@ export interface VisitDetailResponse {
   customerCode: string | null;
   displayName: string;
   guestAgeGroup: string | null;
+  guestAge: number | null;
   guestGender: string | null;
   guestMemo: string | null;
   guestBreakdown: GuestBreakdownRow[];

@@ -186,12 +186,16 @@ model Visit {
   customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
-  // --- 匿名来店のときだけ使う項目 ---
-  /// グループの代表となる年代・性別。1人客はこれだけで完結する。
+  /// 来店時点の年代。顧客が分かっている来店でも入れられる（分析は顧客の生年月日より優先する）。
+  /// 匿名グループではグループの代表の年代。1人客はこれだけで完結する。
   /// 2人以上で内訳が違う場合は guests（VisitGuest）に人数分の内訳を持つ。
   /// guests がある場合、分析はそちらを優先し、これは表示の簡略化にのみ使う。
-  /// "10S" | "20S" | "30S" | "40S" | "50S" | "60S" | "UNKNOWN"
+  /// "10S" | "20S" | "30S" | "40S" | "50S" | "60S" | "70S" | "UNKNOWN"
   guestAgeGroup String?
+  /// 来店時点の正確な年齢（分かるときだけ）。入っていれば guestAgeGroup はここから決める
+  guestAge      Int?
+
+  // --- 匿名来店のときだけ使う項目 ---
   /// "MALE" | "FEMALE" | "UNKNOWN"
   guestGender   String?
   /// 識別のための短いメモ（容姿の詳細は書かない運用）
@@ -248,7 +252,7 @@ model VisitGuest {
   visitId String
   visit   Visit  @relation(fields: [visitId], references: [id], onDelete: Cascade)
 
-  /// "10S" | "20S" | "30S" | "40S" | "50S" | "60S" | "UNKNOWN"
+  /// "10S" | "20S" | "30S" | "40S" | "50S" | "60S" | "70S" | "UNKNOWN"
   ageGroup String?
   /// "MALE" | "FEMALE" | "UNKNOWN"
   gender   String?

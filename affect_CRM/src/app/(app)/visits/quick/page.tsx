@@ -11,7 +11,8 @@ import { apiFetch, apiFetchJson } from "@/lib/auth/api-fetch";
 import { useAuth } from "@/lib/auth/client";
 import { ChipGroup, ChipMultiGroup } from "@/components/chips";
 import { GuestBreakdownEditor } from "@/components/guest-breakdown";
-import { AGE_GROUPS, AGE_GROUP_LABELS, PREFECTURES } from "@/lib/constants";
+import { AgeInput } from "@/components/age-input";
+import { PREFECTURES } from "@/lib/constants";
 import {
   buttonPrimaryClass,
   buttonSecondaryClass,
@@ -23,7 +24,6 @@ import type { CustomerSuggestion, GuestBreakdownRow } from "../types";
 
 type CustomerMode = "none" | "selected" | "new" | "anonymous";
 
-const AGE_OPTIONS = AGE_GROUPS.map((code) => ({ code, label: AGE_GROUP_LABELS[code] }));
 const GENDER_OPTIONS = [
   { code: "MALE", label: "男性" },
   { code: "FEMALE", label: "女性" },
@@ -51,9 +51,12 @@ export default function QuickVisitPage() {
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
 
+  // 年齢（顧客が分かっていても来店時点の年代として記録する）
+  const [ageGroup, setAgeGroup] = useState<string | null>(null);
+  const [age, setAge] = useState("");
+
   // 匿名
   const [partySize, setPartySize] = useState("1");
-  const [ageGroup, setAgeGroup] = useState<string | null>(null);
   const [gender, setGender] = useState<string | null>(null);
   const [guestBreakdown, setGuestBreakdown] = useState<GuestBreakdownRow[]>([]);
 
@@ -126,9 +129,10 @@ export default function QuickVisitPage() {
 
       const form = new FormData();
       if (customerId) form.set("customerId", customerId);
+      if (ageGroup) form.set("guestAgeGroup", ageGroup);
+      if (age) form.set("guestAge", age);
       if (mode === "anonymous") {
         form.set("partySize", partySize === "4" ? "4" : partySize);
-        if (ageGroup) form.set("guestAgeGroup", ageGroup);
         if (gender) form.set("guestGender", gender);
         // 内訳は年代・性別を必ず対で送る（片方だけ未選択でも空文字で埋めて index をずらさない）
         for (const g of guestBreakdown) {
@@ -304,6 +308,16 @@ export default function QuickVisitPage() {
           )}
         </section>
 
+        <AgeInput
+          label={mode === "anonymous" && partySize !== "1" ? "年齢（代表の方）" : "年齢"}
+          ageGroup={ageGroup}
+          age={age}
+          onChange={(next) => {
+            setAgeGroup(next.ageGroup);
+            setAge(next.age);
+          }}
+        />
+
         {/* ---------- 匿名のときだけ聞く ---------- */}
         {mode === "anonymous" && (
           <>
@@ -319,12 +333,6 @@ export default function QuickVisitPage() {
                   if (next === "1") setGuestBreakdown([]);
                 }}
               />
-            </section>
-            <section className="border-b border-line py-4">
-              <label className={labelClass}>
-                {partySize === "1" ? "だいたいの年代" : "だいたいの年代（代表）"}
-              </label>
-              <ChipGroup options={AGE_OPTIONS} value={ageGroup} onChange={setAgeGroup} />
             </section>
             <section className="border-b border-line py-4">
               <label className={labelClass}>{partySize === "1" ? "性別" : "性別（代表）"}</label>

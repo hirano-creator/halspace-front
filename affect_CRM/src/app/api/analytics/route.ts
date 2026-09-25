@@ -165,10 +165,17 @@ export async function GET(request: Request) {
   const labelOf = (type: string) => (code: string) =>
     masters.find((m) => m.type === type && m.code === code)?.label ?? code;
 
+  // 年代は来店時に入力したもの（年代・年齢）を優先し、無ければ顧客の生年月日から求める。
+  // 来店時の入力はその時点の事実なので、生年月日からの現在年齢より正確に「来店した年代」を表す。
+  const visitAgeGroup = (v: (typeof visits)[number]): string | null => {
+    if (v.guestAgeGroup) return v.guestAgeGroup;
+    if (!v.customerId || !v.customer?.birthday) return null;
+    return ageToGroup(calcAge(v.customer.birthday));
+  };
+
   // --- 来店 -------------------------------------------------------
-  // 匿名来店も必ず含める。年代・性別は顧客がいれば顧客側、いなければ来店時の推定値を使う。
+  // 匿名来店も必ず含める。性別は顧客がいれば顧客側、いなければ来店時の推定値を使う。
   const visitRows = visits.map((v) => {
-    const age = calcAge(v.customer?.birthday ?? null);
     return {
       id: v.id,
       customerId: v.customerId,
@@ -178,7 +185,7 @@ export async function GET(request: Request) {
       isNamed: !!v.customerId,
       isFirstVisit: v.isFirstVisit,
       gender: (v.customer?.gender ?? v.guestGender ?? null) as string | null,
-      ageGroup: v.customerId ? (v.customer?.birthday ? ageToGroup(age) : null) : v.guestAgeGroup,
+      ageGroup: visitAgeGroup(v),
       prefecture: v.customer?.prefecture ?? null,
       purposeCode: v.purposeCode,
       channelCodes: splitChannelCodes(v.channelCode),
@@ -227,13 +234,7 @@ export async function GET(request: Request) {
       return v.guests.map((g) => ({ ageGroup: g.ageGroup, gender: g.gender }));
     }
     if (v.customerId) {
-      const age = calcAge(v.customer?.birthday ?? null);
-      return [
-        {
-          ageGroup: v.customer?.birthday ? ageToGroup(age) : null,
-          gender: v.customer?.gender ?? null,
-        },
-      ];
+      return [{ ageGroup: visitAgeGroup(v), gender: v.customer?.gender ?? null }];
     }
     return Array.from({ length: v.partySize }, () => ({
       ageGroup: v.guestAgeGroup,

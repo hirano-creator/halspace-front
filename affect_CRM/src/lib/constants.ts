@@ -15,7 +15,7 @@ export const GENDER_LABELS: Record<Gender, string> = {
 /** 匿名来店で使う推定性別（その他は使わない） */
 export const GUEST_GENDERS = ["MALE", "FEMALE", "UNKNOWN"] as const;
 
-export const AGE_GROUPS = ["10S", "20S", "30S", "40S", "50S", "60S", "UNKNOWN"] as const;
+export const AGE_GROUPS = ["10S", "20S", "30S", "40S", "50S", "60S", "70S", "UNKNOWN"] as const;
 export type AgeGroup = (typeof AGE_GROUPS)[number];
 export const AGE_GROUP_LABELS: Record<AgeGroup, string> = {
   "10S": "10代",
@@ -23,7 +23,8 @@ export const AGE_GROUP_LABELS: Record<AgeGroup, string> = {
   "30S": "30代",
   "40S": "40代",
   "50S": "50代",
-  "60S": "60代〜",
+  "60S": "60代",
+  "70S": "70代〜",
   UNKNOWN: "不明",
 };
 

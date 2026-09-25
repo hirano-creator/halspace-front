@@ -15,7 +15,7 @@ import {
   type Gender,
   type ReservationStatus,
 } from "@/lib/constants";
-import { calcAge, formatJstDate, formatJstDateTime } from "@/lib/utils/time";
+import { ageToGroup, calcAge, formatJstDate, formatJstDateTime } from "@/lib/utils/time";
 import { channelLabel } from "@/lib/visit-channel";
 
 /** 個人情報（氏名・連絡先）を含む出力は管理者のみ */
@@ -107,19 +107,15 @@ export async function GET(request: Request) {
       return csvResponse(
         [
           [
-            "来店日時", "顧客番号", "顧客名", "お名前判明", "性別", "年代", "年代・性別の内訳",
+            "来店日時", "顧客番号", "顧客名", "お名前判明", "性別", "年代", "年齢", "年代・性別の内訳",
             "都道府県", "人数", "来店目的", "来店経路", "何を見て来たか", "興味商品", "購入",
             "未購入理由", "未購入コメント", "会話内容", "次回提案", "担当",
           ],
           ...rows.map((v) => {
-            const age = calcAge(v.customer?.birthday ?? null);
-            const ageGroup = v.customerId
-              ? age != null
-                ? `${Math.floor(age / 10) * 10}代`
-                : ""
-              : v.guestAgeGroup
-                ? (AGE_GROUP_LABELS[v.guestAgeGroup as AgeGroup] ?? "")
-                : "";
+            // 分析と同じく、来店時に入力した年代・年齢を優先し、無ければ顧客の生年月日から求める
+            const age = v.guestAge ?? calcAge(v.customer?.birthday ?? null);
+            const ageGroupCode = v.guestAgeGroup ?? (v.customerId && age != null ? ageToGroup(age) : null);
+            const ageGroup = ageGroupCode ? (AGE_GROUP_LABELS[ageGroupCode as AgeGroup] ?? "") : "";
             const gender = v.customer?.gender ?? v.guestGender;
             // グループ内訳（VisitGuest）を分けて登録した匿名来店のときだけ埋まる
             const breakdown = v.guests
@@ -137,6 +133,7 @@ export async function GET(request: Request) {
               v.customerId ? "あり" : "不明",
               gender ? (GENDER_LABELS[gender as Gender] ?? gender) : "",
               ageGroup,
+              age ?? "",
               breakdown,
               v.customer?.prefecture ?? "",
               v.partySize,
