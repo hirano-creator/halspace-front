@@ -119,7 +119,8 @@ export default function CalendarPage() {
   })();
 
   return (
-    <div className="pb-10">
+    // 月表示は PC で画面の高さいっぱいまでカレンダーを広げる（下の余白を残さない）
+    <div className={view === "month" ? "pb-10 md:flex md:min-h-dvh md:flex-col md:pb-6" : "pb-10"}>
       <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-6 sm:px-8">
         <div>
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">予約カレンダー</h1>
@@ -139,17 +140,19 @@ export default function CalendarPage() {
       {/* 表示切替 */}
       <div className="mt-4 flex items-center justify-between gap-3 border-y border-line bg-card px-5 py-3 sm:px-8">
         <div className="flex items-center gap-1">
-          <button type="button" onClick={() => move(-1)} className="min-h-10 px-3 text-gray-soft">
+          <button type="button" onClick={() => move(-1)} className="min-h-10 px-3 text-lg text-gray-soft">
             ←
           </button>
-          <span className="min-w-[132px] text-center text-sm font-semibold">{title}</span>
-          <button type="button" onClick={() => move(1)} className="min-h-10 px-3 text-gray-soft">
+          <span className="min-w-[132px] text-center text-base font-semibold sm:min-w-[180px] sm:text-lg">
+            {title}
+          </span>
+          <button type="button" onClick={() => move(1)} className="min-h-10 px-3 text-lg text-gray-soft">
             →
           </button>
           <button
             type="button"
             onClick={() => setAnchor(today)}
-            className="ml-1 min-h-10 px-2 text-[12.5px] text-accent"
+            className="ml-1 min-h-10 px-2 text-sm text-accent sm:text-[15px]"
           >
             今日
           </button>
@@ -172,15 +175,15 @@ export default function CalendarPage() {
 
       {/* 月表示 */}
       {view === "month" && (
-        <div className="border-b border-line bg-card">
+        <div className="border-b border-line bg-card md:flex md:flex-1 md:flex-col">
           <div className="grid grid-cols-7 border-b border-line-2">
             {WEEKDAYS.map((w) => (
-              <div key={w} className="px-1 py-2 text-center text-[11px] text-gray-soft">
+              <div key={w} className="px-1 py-2 text-center text-xs text-gray-soft sm:text-sm">
                 {w}
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-7">
+          <div className="grid grid-cols-7 md:flex-1 md:grid-rows-[repeat(6,minmax(96px,1fr))]">
             {days.map((d) => {
               const sessions = byDate.get(d) ?? [];
               const inMonth = d.slice(0, 7) === anchor.slice(0, 7);
@@ -193,12 +196,12 @@ export default function CalendarPage() {
                     setAnchor(d);
                     setView("day");
                   }}
-                  className={`min-h-[86px] border-r border-b border-line-2 p-1.5 text-left last:border-r-0 ${
+                  className={`flex min-h-[86px] flex-col border-r border-b border-line-2 p-1.5 text-left last:border-r-0 sm:p-2 md:min-h-0 ${
                     inMonth ? "" : "bg-bg"
                   }`}
                 >
                   <span
-                    className={`tabular text-[11px] ${
+                    className={`tabular self-start text-xs sm:text-sm ${
                       d === today
                         ? "rounded bg-accent px-1.5 py-0.5 font-semibold text-white"
                         : inMonth
@@ -212,7 +215,7 @@ export default function CalendarPage() {
                     {sessions.slice(0, 3).map((s) => (
                       <div
                         key={s.id}
-                        className={`truncate rounded px-1 py-0.5 text-[10px] ${
+                        className={`truncate rounded px-1 py-0.5 text-[10px] sm:px-1.5 sm:text-[13px] ${
                           s.remaining === 0
                             ? "bg-line-2 text-gray-soft"
                             : "bg-accent-soft text-accent"
@@ -222,7 +225,7 @@ export default function CalendarPage() {
                       </div>
                     ))}
                     {sessions.length > 3 && (
-                      <div className="px-1 text-[10px] text-gray-faint">ほか {sessions.length - 3} 件</div>
+                      <div className="px-1 text-[10px] text-gray-faint sm:text-xs">ほか {sessions.length - 3} 件</div>
                     )}
                   </div>
                 </button>
@@ -242,30 +245,30 @@ export default function CalendarPage() {
             return (
               <div key={d} className="border-b border-line-2 last:border-b-0">
                 <div className="flex items-center justify-between bg-bg px-5 py-2 sm:px-8">
-                  <span className="tabular text-[13px] font-semibold">
+                  <span className="tabular text-[13px] font-semibold sm:text-[15px]">
                     {m}/{dd}（{dow}）{d === today && <span className="ml-2 text-accent">今日</span>}
                   </span>
                   <button
                     type="button"
                     onClick={() => setSessionForm({ date: d })}
-                    className="text-[12.5px] text-accent"
+                    className="text-[12.5px] text-accent sm:text-sm"
                   >
                     ＋ この日に枠を作る
                   </button>
                 </div>
                 {sessions.length === 0 ? (
-                  <p className="px-5 py-4 text-[13px] text-gray-faint sm:px-8">枠がありません</p>
+                  <p className="px-5 py-4 text-[13px] text-gray-faint sm:px-8 sm:text-sm">枠がありません</p>
                 ) : (
                   <ul className="divide-y divide-line-2">
                     {sessions.map((s) => (
                       <li key={s.id} className="px-5 py-3.5 sm:px-8">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <span className="tabular text-[13px] font-semibold text-navy">
+                            <span className="tabular text-[13px] font-semibold text-navy sm:text-[15px]">
                               {s.startTime}〜{s.endTime}
                             </span>
-                            <span className="ml-2 text-[15px] font-semibold">{s.courseName}</span>
-                            <p className="mt-1 text-[11.5px] text-gray-soft">
+                            <span className="ml-2 text-[15px] font-semibold sm:text-[17px]">{s.courseName}</span>
+                            <p className="mt-1 text-[11.5px] text-gray-soft sm:text-[13px]">
                               定員 {s.capacity} 名／予約 {s.reserved} 名／
                               <span className={s.remaining === 0 ? "text-danger" : "font-semibold text-accent"}>
                                 残り {s.remaining} 名
@@ -303,7 +306,7 @@ export default function CalendarPage() {
                                 key={r.id}
                                 className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
                               >
-                                <span className="text-[13px]">
+                                <span className="text-[13px] sm:text-sm">
                                   {r.customerName}
                                   {r.headcount > 1 && ` ほか ${r.headcount - 1} 名`}
                                   {r.source === "WEB" && (
