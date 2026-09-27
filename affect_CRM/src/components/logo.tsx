@@ -1,45 +1,44 @@
 // affect ロゴ
 //
-// ★暫定: いただいたロゴ画像を見て CSS + SVG で近似再現したもの。
-// 本物のロゴデータ（SVG / PNG）を public/ に置いたら、このコンポーネントの
-// 中身を <img> に差し替える。字形とマークの角度が原本と細部で異なる。
+// 支給のロゴ画像（236×85px）から形・比率・色を採寸して SVG で描き直したもの。
+// 文字は Archivo Black（OFL）をパスに変換して埋め込んでいるので、フォントの読み込みは不要。
+// マークは「丸＋2本の輪」を丸の左端・下端の少し外で直線カットした形。
+// 入れ子の <svg> の viewBox がそのままカット範囲になる（clipPath の id を使わない）。
+// アイコン（src/app/icon.svg / public/icons/*）も同じマークから作っている。
 
-export function Logo({ size = 21, white = false }: { size?: number; white?: boolean }) {
-  const markSize = Math.round(size * 0.71);
-  const stroke = white ? "#fff" : "url(#affectLogoGradient)";
+export const BRAND_INK = "#252423";
+export const BRAND_ORANGE = "#e44b22";
+
+const WORD_PATH =
+  "M59.4 -36.8V-16.2Q59.4 -14.5 60.2 -13.4Q61 -12.3 62.6 -12.3H66.2V-0.8Q65.9 -0.6 64.7 -0.2Q63.4 0.3 61.1 0.8Q58.8 1.2 55.8 1.2Q50 1.2 46.2 -0.6Q42.5 -2.3 41.1 -5.4Q37.3 -2.4 32.6 -0.6Q27.9 1.2 21.6 1.2Q3 1.2 3 -13.6Q3 -21.3 7.2 -25.4Q11.3 -29.4 19.1 -30.9Q26.9 -32.4 39.5 -32.4V-35Q39.5 -38.1 37.4 -39.7Q35.2 -41.3 31.8 -41.3Q28.7 -41.3 26.5 -40.2Q24.2 -39.1 24.2 -36.7V-36.3H4.6Q4.5 -36.8 4.5 -37.7Q4.5 -45.2 11.7 -49.6Q18.8 -54 32.1 -54Q44.2 -54 51.8 -50Q59.4 -45.9 59.4 -36.8ZM22.9 -16.2Q22.9 -11.2 29.7 -11.2Q33.6 -11.2 36.5 -13.3Q39.5 -15.4 39.5 -18.5V-23Q31 -23 27 -21.1Q22.9 -19.3 22.9 -16.2ZM98 -71.9V-60.2H93.4Q90.2 -60.2 89 -59Q87.8 -57.8 87.8 -54.9V-52.8H98V-39.3H87.8V0H67.9V-39.3H60.5V-52.8H67.9V-55Q67.9 -65.2 72.9 -69.5Q77.9 -73.7 87.2 -73.7Q89.4 -73.7 92.7 -73.2Q96 -72.6 98 -71.9ZM129.9 -71.9V-60.2H125.3Q122.1 -60.2 120.9 -59Q119.7 -57.8 119.7 -54.9V-52.8H129.9V-39.3H119.7V0H99.8V-39.3H92.4V-52.8H99.8V-55Q99.8 -65.2 104.8 -69.5Q109.8 -73.7 119.1 -73.7Q121.3 -73.7 124.6 -73.2Q127.9 -72.6 129.9 -71.9ZM186.6 -26.4V-23H147Q147 -17.3 149.6 -14.4Q152.1 -11.5 157.6 -11.5Q162.6 -11.5 164.9 -13.6Q167.3 -15.7 167.3 -19.2H186.6Q186.6 -9.6 179.3 -4.2Q172 1.2 158 1.2Q143.3 1.2 135.2 -5.7Q127.1 -12.5 127.1 -26.4Q127.1 -40 135 -47Q142.9 -54 156.8 -54Q171.3 -54 178.9 -47.2Q186.6 -40.4 186.6 -26.4ZM147.1 -32.4H166.5Q166.5 -36.5 164.2 -38.9Q161.8 -41.3 157.6 -41.3Q148.2 -41.3 147.1 -32.4ZM245.6 -31.5H226.3Q226.3 -40.5 216.5 -40.5Q206.7 -40.5 206.7 -29.2V-23.5Q206.7 -12.3 216.9 -12.3Q227.1 -12.3 227.1 -21.5H245.6Q245.6 -10 237.6 -4.4Q229.5 1.2 216.5 1.2Q202.6 1.2 194.7 -5.8Q186.8 -12.8 186.8 -26.4Q186.8 -40 194.7 -47Q202.6 -54 216.5 -54Q229.5 -54 237.6 -48.5Q245.6 -42.9 245.6 -31.5ZM284.1 -52.8V-39.3H272.9V-19.2Q272.9 -15.6 274.1 -14Q275.3 -12.3 278.5 -12.3H284.1V-0.6Q281.7 0.2 277.9 0.7Q274.1 1.2 271.3 1.2Q262.5 1.2 257.8 -2Q253 -5.2 253 -12.9V-39.3H245.6V-52.8H253.8L258.1 -68.8H272.9V-52.8Z";
+
+// size は文字の大きさ（font-size 相当）
+export function Logo({ size = 21 }: { size?: number }) {
+  const h = size * 0.772;
   return (
-    <span className="flex items-baseline gap-px">
-      <span
-        style={{
-          fontFamily: '"Arial Black", "Arial Bold", Arial, Helvetica, sans-serif',
-          fontSize: size,
-          fontWeight: 900,
-          letterSpacing: "-0.045em",
-          lineHeight: 1,
-          color: white ? "#fff" : "#1a1a1a",
-        }}
-      >
-        affect
-      </span>
-      <svg
-        viewBox="2.5 10 31.5 31.5"
-        fill="none"
-        width={markSize}
-        height={markSize}
-        style={{ flex: "none" }}
-        aria-hidden
-      >
-        <defs>
-          <linearGradient id="affectLogoGradient" x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0" stopColor="#e8402a" />
-            <stop offset="0.55" stopColor="#ee5b26" />
-            <stop offset="1" stopColor="#f7941e" />
-          </linearGradient>
-        </defs>
-        <circle cx="9" cy="35" r="6.5" fill={stroke} />
-        <path d="M9 22A13 13 0 0 1 22 35" stroke={stroke} strokeWidth="6" />
-        <path d="M9 13A22 22 0 0 1 31 35" stroke={stroke} strokeWidth="6" />
+    <svg
+      viewBox="3 -76 361 77.2"
+      height={h}
+      width={(h * 361) / 77.2}
+      role="img"
+      aria-label="affect"
+      style={{ flex: "none", display: "block" }}
+    >
+      <path d={WORD_PATH} fill={BRAND_INK} />
+      <svg x="288" y="-76" width="76" height="76" viewBox="-11.5 -39 50.5 50.5">
+        <AffectMarkShapes color={BRAND_ORANGE} />
       </svg>
-    </span>
+    </svg>
+  );
+}
+
+// マーク本体（viewBox="-11.5 -39 50.5 50.5" の中で使う）
+export function AffectMarkShapes({ color }: { color: string }) {
+  return (
+    <>
+      <circle r="10" fill={color} />
+      <circle r="20" fill="none" stroke={color} strokeWidth="11" />
+      <circle r="33.5" fill="none" stroke={color} strokeWidth="11" />
+    </>
   );
 }

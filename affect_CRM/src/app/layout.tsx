@@ -5,6 +5,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "affect CRM",
   description: "サーフショップ affect の顧客・予約・スクール・販売を一元管理するシステム",
+  // アイコンは src/app の icon.svg / favicon.ico / apple-icon.png を Next.js が自動で読む
+  appleWebApp: {
+    title: "affect CRM",
+    statusBarStyle: "default",
+  },
 };
 
 // themeColor は Next.js 15 以降 metadata から分離されている
