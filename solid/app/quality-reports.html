@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="../icon-180.png">
+  <link rel="manifest" href="../manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#FF6B35">
+  <title>不具合対策書 | SOLID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/app.css">
+  <link rel="stylesheet" href="../assets/css/quality-reports.css?v=1">
+</head>
+<body class="qr-body">
+<div class="app-layout">
+
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-title">SOLID</span>
+      <span class="sidebar-logo-sub">by HaLSpace</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+      <a href="dashboard.html">
+        <i class="fa-solid fa-gauge"></i> ダッシュボード
+      </a>
+      <a href="chat.html" id="navChat" style="display:none">
+        <i class="fa-solid fa-comments"></i> チャット
+        <span class="nav-badge" id="navChatBadge" style="display:none"></span>
+      </a>
+      <a href="quality-reports.html" id="navQuality" class="active" style="display:none">
+        <i class="fa-solid fa-file-shield"></i> 不具合対策書
+        <span class="nav-badge" id="navQualityBadge" style="display:none"></span>
+      </a>
+      <a href="calendar.html">
+        <i class="fa-solid fa-calendar-days"></i> 受注カレンダー
+      </a>
+      <a href="project-new.html">
+        <i class="fa-solid fa-plus-circle"></i> 新規発注
+      </a>
+      <div class="sidebar-nav-label" id="adminNav" style="display:none">管理</div>
+      <a href="admin.html" id="adminLink" style="display:none">
+        <i class="fa-solid fa-gear"></i> 管理者画面
+      </a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div id="sidebarUser"></div>
+      <button class="btn-sidebar-copylink" type="button" onclick="copyStandaloneUrl()" title="Space.appを経由せず直接ログインできるURLをコピー">
+        <i class="fa-solid fa-link"></i> 独立URLをコピー
+      </button>
+      <button class="btn-sidebar-logout" id="btnBackToApps" onclick="solidLogout()">
+        <i class="fa-solid fa-arrow-left"></i> アプリ選択に戻る
+      </button>
+      <button class="btn-sidebar-logout" id="btnStandaloneLogout" onclick="spaceLogout()" style="display:none">
+        <i class="fa-solid fa-right-from-bracket"></i> ログアウト
+      </button>
+    </div>
+  </aside>
+
+  <!-- メインコンテンツ -->
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <span class="top-bar-title">不具合対策書</span>
+        <span class="qr-scope"><i class="fa-solid fa-lock"></i><span>HaLSpace・HILANO のみ閲覧</span></span>
+      </div>
+      <div class="top-bar-right">
+        <span id="qrMe"></span>
+        <button class="btn btn-primary btn-sm" id="btnNew" style="display:none">
+          <i class="fa-solid fa-plus"></i><span class="btn-label"> 不具合を記録</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body qr-page">
+      <!-- 権限なし -->
+      <div class="qr-denied" id="qrDenied" style="display:none">
+        <i class="fa-solid fa-lock"></i>
+        <p>この機能は HaLSpace と PT.HILANO LCZ INDONESIA の方のみご利用いただけます。</p>
+        <a href="dashboard.html" class="btn btn-outline btn-sm">ダッシュボードへ</a>
+      </div>
+
+      <!-- 一覧（トップ） -->
+      <section id="viewList" style="display:none">
+        <div class="qr-l-head">
+          <label class="qr-search"><i class="fa-solid fa-magnifying-glass"></i><input id="lQ" placeholder="件名・物件・原因で検索"></label>
+          <select class="form-select" id="lClient"><option value="">すべての客先</option></select>
+          <select class="form-select" id="lYear"><option value="">すべての年</option></select>
+        </div>
+        <div class="qr-quick" id="lQuick"></div>
+        <div id="lClientSum"></div>
+        <div class="qr-list">
+          <div class="qr-l-hdr"><span></span><span>件名</span><span>状態</span><span class="c-date">ご指摘 / 提出</span><span></span></div>
+          <div id="lList"><div class="qr-empty"><i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…</div></div>
+        </div>
+      </section>
+
+      <!-- 中身（作成ウィザード） -->
+      <section id="viewDetail" style="display:none">
+        <button class="btn btn-ghost btn-sm qr-back" id="dBack"><i class="fa-solid fa-chevron-left"></i> 一覧へ戻る</button>
+        <div class="qr-d-top" id="dTop"></div>
+        <div class="qr-sec qr-ev-card" id="dEvent"></div>
+        <div class="qr-steps qr-clickable" id="dSteps"></div>
+        <div class="qr-seg" id="dSeg"><button class="on" data-v="form"><i class="fa-solid fa-pen"></i> 入力</button><button data-v="prev"><i class="fa-regular fa-file-lines"></i> 対策書プレビュー</button></div>
+        <div class="qr-grid" id="dGrid" data-view="form">
+          <div class="qr-form">
+            <div id="dForm"></div>
+            <details class="qr-hist" id="dHist"></details>
+          </div>
+          <div class="qr-prev">
+            <div class="qr-prev-bar"><i class="fa-regular fa-file-lines"></i>対策書プレビュー（A4）<span class="sp"></span>
+              <button class="btn btn-outline btn-sm" id="dOpenReport"><i class="fa-solid fa-up-right-and-down-left-from-center"></i> 大きく開く / 印刷</button></div>
+            <div class="qr-paper-scroll" id="dPaper"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- 記録（起票・基本情報の編集） -->
+<div class="qr-modal-bg" id="editModal">
+  <div class="qr-modal" role="dialog" aria-labelledby="editTitle">
+    <div class="qr-modal-h"><b id="editTitle">不具合を記録</b><button class="qr-x" data-close><i class="fa-solid fa-xmark"></i></button></div>
+    <form class="qr-modal-b" id="editForm" autocomplete="off">
+      <div class="qr-fld qr-full">
+        <label>対象物件 <span class="req">*</span></label>
+        <div class="qr-pj" id="pjPicked"></div>
+        <label class="qr-search"><i class="fa-solid fa-magnifying-glass"></i><input id="pjQ" placeholder="物件コード・物件名・客先で検索"></label>
+        <div class="qr-pj-list" id="pjList"></div>
+      </div>
+      <div class="qr-fld qr-full"><label>件名 <span class="req">*</span></label><input class="form-input" name="title" maxlength="200" required placeholder="例: 取付穴の位置が図面と2mmずれている"></div>
+      <div class="qr-fld"><label>不具合区分</label><select class="form-select" name="defect_type"></select></div>
+      <div class="qr-fld"><label>ご指摘者（お客様）</label><input class="form-input" name="reporter_name" maxlength="100" placeholder="例: 林 政志"></div>
+      <div class="qr-fld"><label>ご指摘日 <span class="req">*</span></label><input class="form-input" type="date" name="found_on" required></div>
+      <div class="qr-fld"><label>納品日</label><input class="form-input" type="date" name="delivered_on"></div>
+      <div class="qr-fld"><label>再納品日</label><input class="form-input" type="date" name="redelivered_on"></div>
+      <div class="qr-fld qr-full"><label>発生事象 <span class="req">*</span></label><textarea class="form-textarea" name="symptom" rows="3" required placeholder="何が起きていたか"></textarea></div>
+      <div class="qr-fld qr-full"><label>影響範囲</label><textarea class="form-textarea" name="impact" rows="2" placeholder="どの範囲に影響したか（「製品への影響なし」なども明記）"></textarea></div>
+      <div class="qr-fld"><label>不具合箇所の画像</label><div class="qr-imgs" data-kind="defect"></div></div>
+      <div class="qr-fld"><label>修正後の画像</label><div class="qr-imgs" data-kind="fixed"></div></div>
+      <p class="qr-note qr-full">画像は対策書の「図1 不具合箇所」「図2 修正後」に使います。あとから追加もできます。</p>
+    </form>
+    <div class="qr-modal-f">
+      <button class="btn btn-outline btn-sm" data-close>キャンセル</button>
+      <button class="btn btn-primary btn-sm" id="editSave"><i class="fa-solid fa-check"></i> 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 対策書（印刷用） -->
+<div class="qr-report" id="report">
+  <div class="qr-report-bar"><span class="t" id="rTitle"></span>
+    <button class="btn btn-blue btn-sm" onclick="window.print()"><i class="fa-solid fa-print"></i><span class="btn-label"> 印刷 / PDF保存</span></button>
+    <button class="btn btn-outline btn-sm qr-report-close" id="rClose"><i class="fa-solid fa-xmark"></i></button></div>
+  <div class="qr-report-body">
+    <div class="qr-report-note"><i class="fa-solid fa-circle-info"></i>対策書に載るのは ④ でまとめたお客様向けの文面だけです（①③の原文・社内コメントは載りません）</div>
+    <div id="rPaper"></div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="../assets/js/auth.js?v=10"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/uploader.js"></script>
+<script src="../assets/js/pages/quality-reports.js?v=1"></script>
+</body>
+</html>

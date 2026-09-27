@@ -220,6 +220,41 @@ function renderSidebarUser(user) {
 
   /* 「チャット」は発注者には出さない */
   applyChatNav(user);
+  /* 「不具合対策書」は HaLSpace と PT.HILANO LCZ INDONESIA の所属者だけ */
+  applyQualityNav(user);
+}
+
+/* サイドバーの「不具合対策書」を出し入れする（メニューがあるSOLIDページだけで動く）。
+   2社の判定はAPI（solid.quality ミドルウェア）が正。is_operator は HaLSpace しか表せず、
+   solid_type=id_modeler は他社のモデラー個人にも付くため、候補になりうる人だけ
+   /access に問い合わせ、200 なら表示・件数バッジ（自分の番）を出す。403 なら出さない。
+   api/wnFetch には依存しない（このファイルは What'sNo からも読み込まれるため）。 */
+function applyQualityNav(user) {
+  const link = document.getElementById('navQuality');
+  if (!link) return;
+  if (!isOperator(user) && !isModeler(user)) { link.style.display = 'none'; return; }
+
+  const cacheKey = 'solid_qr_access_' + user.id;
+  const show = allowed => { link.style.display = allowed ? 'flex' : 'none'; };
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached !== null) show(cached === '1');   // 前回の結果で先に出してちらつきを防ぐ
+
+  const token = sessionStorage.getItem('space_token');
+  fetch(spaceApiBase() + '/solid/quality-reports/access', {
+    headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+  }).then(async res => {
+    if (res.status === 403) { sessionStorage.setItem(cacheKey, '0'); show(false); return; }
+    if (!res.ok) return;   // 一時的なエラーはメニューを変えない
+    const d = await res.json();
+    sessionStorage.setItem(cacheKey, '1');
+    show(true);
+    const badge = document.getElementById('navQualityBadge');
+    if (badge && !document.body.classList.contains('qr-body')) {
+      const n = d.my_turn ?? 0;
+      badge.textContent = n > 99 ? '99+' : n;
+      badge.style.display = n > 0 ? '' : 'none';
+    }
+  }).catch(() => { /* 出せないだけなので黙って諦める */ });
 }
 /* role=サイト権限、solidType=発注者/モデラー種別（solidアプリ内でのみ意味を持つ） */
 function roleLabel(role, solidType) {
