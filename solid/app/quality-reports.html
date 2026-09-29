@@ -13,7 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="../assets/css/app.css">
-  <link rel="stylesheet" href="../assets/css/quality-reports.css?v=1">
+  <link rel="stylesheet" href="../assets/css/quality-reports.css?v=2">
 </head>
 <body class="qr-body">
 <div class="app-layout">
@@ -131,9 +131,22 @@
     <form class="qr-modal-b" id="editForm" autocomplete="off">
       <div class="qr-fld qr-full">
         <label>対象物件 <span class="req">*</span></label>
-        <div class="qr-pj" id="pjPicked"></div>
-        <label class="qr-search"><i class="fa-solid fa-magnifying-glass"></i><input id="pjQ" placeholder="物件コード・物件名・客先で検索"></label>
-        <div class="qr-pj-list" id="pjList"></div>
+        <div class="qr-pj-mode" id="pjModeSeg">
+          <button type="button" data-mode="pick" class="on"><i class="fa-solid fa-list"></i> SOLIDの物件から選ぶ</button>
+          <button type="button" data-mode="manual"><i class="fa-solid fa-keyboard"></i> 直接入力（SOLID導入前など）</button>
+        </div>
+        <div id="pjPickBox">
+          <div class="qr-pj" id="pjPicked"></div>
+          <label class="qr-search"><i class="fa-solid fa-magnifying-glass"></i><input id="pjQ" placeholder="物件コード・物件名・客先で検索"></label>
+          <div class="qr-pj-list" id="pjList"></div>
+        </div>
+        <div id="pjManualBox" class="qr-pj-manual" style="display:none">
+          <div class="qr-fld"><label>物件番号</label><input class="form-input" name="manual_project_code" maxlength="50" placeholder="任意（例: 2025-118）"></div>
+          <div class="qr-fld"><label>物件名 <span class="req">*</span></label><input class="form-input" name="manual_project_title" maxlength="200" placeholder="例: 取付ブラケット"></div>
+          <div class="qr-fld qr-full"><label>客先 <span class="req">*</span></label><input class="form-input" name="manual_client_name" maxlength="200" list="clientList" placeholder="会社名（候補から選ぶか入力）">
+            <datalist id="clientList"></datalist>
+            <div class="hint">SOLID に登録済みの会社名と同じなら、その客先の記録としてまとめて見られます。</div></div>
+        </div>
       </div>
       <div class="qr-fld qr-full"><label>件名 <span class="req">*</span></label><input class="form-input" name="title" maxlength="200" required placeholder="例: 取付穴の位置が図面と2mmずれている"></div>
       <div class="qr-fld"><label>不具合区分</label><select class="form-select" name="defect_type"></select></div>
@@ -171,6 +184,6 @@
 <script src="../assets/js/auth.js?v=10"></script>
 <script src="../assets/js/api.js"></script>
 <script src="../assets/js/uploader.js"></script>
-<script src="../assets/js/pages/quality-reports.js?v=1"></script>
+<script src="../assets/js/pages/quality-reports.js?v=2"></script>
 </body>
 </html>

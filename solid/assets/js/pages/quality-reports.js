@@ -43,6 +43,10 @@ const md = d => d ? d.slice(5, 10).replace('-', '/') : '';
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const isMine = r => r.stage < 6 && r.owner === SIDE;
 const clientName = r => r.client?.name ?? '（客先未設定）';
+/* 客先で絞り込むときのキー。直接入力で会社に紐づかない客先は名前で束ねる */
+const clientKey = r => r.client ? (r.client.id ? 'c' + r.client.id : 'n' + r.client.name) : '';
+/* 物件の表示（直接入力の物件は番号が無いこともある） */
+const pjHtml = (r, titleStyle = '') => r.project ? `${r.project.code ? `<span class="qr-pjcode">${esc(r.project.code)}</span>` : ''}<span${titleStyle}>${esc(r.project.title)}</span>${r.project.manual ? '<span class="qr-manual" title="SOLIDの物件に無いため直接入力">直接入力</span>' : ''}` : '';
 
 /* ───────── 画像（Bearer が要るので fetch → Blob URL） ───────── */
 const imgCache = new Map();
@@ -124,7 +128,8 @@ function syncSummary(r) {
 
 /* ───────── 一覧（トップ） ───────── */
 function buildFilters() {
-  const clients = [...new Map(REPORTS.filter(r => r.client).map(r => [r.client.id, r.client.name])).entries()];
+  const clients = [...new Map(REPORTS.filter(r => r.client).map(r => [clientKey(r), r.client.name])).entries()]
+    .sort((a, b) => a[1].localeCompare(b[1], 'ja'));
   const cSel = $('lClient'), cur = cSel.value;
   cSel.innerHTML = '<option value="">すべての客先</option>' + clients.map(([id, n]) => `<option value="${id}">${esc(n)}</option>`).join('');
   cSel.value = clients.some(([id]) => String(id) === cur) ? cur : '';
@@ -135,7 +140,7 @@ function buildFilters() {
 }
 function renderList() {
   const q = $('lQ').value.trim(), cl = $('lClient').value, yr = $('lYear').value;
-  const base = REPORTS.filter(r => (!cl || String(r.client?.id) === cl) && (!yr || r.found_on?.startsWith(yr)));
+  const base = REPORTS.filter(r => (!cl || clientKey(r) === cl) && (!yr || r.found_on?.startsWith(yr)));
   const Q = { all: ['すべて', () => true], mine: ['自分の番', isMine], wip: ['作成中', r => r.stage < 6], done: ['提出済み', r => r.stage >= 6] };
   $('lQuick').innerHTML = Object.entries(Q).map(([k, [l, f]]) =>
     `<button class="${quick === k ? 'on' : ''}" data-q="${k}">${k === 'mine' ? '<i class="fa-solid fa-hand-point-right"></i> ' : ''}${l}<b>${base.filter(f).length}</b></button>`).join('');
@@ -155,7 +160,7 @@ function renderList() {
       ${shotHtml(firstImg(r, 'defect'), false)}
       <div style="min-width:0"><div class="m"><span class="docno">${esc(r.no)}</span>${r.defect_type ? `<span class="qr-type">${esc(r.defect_type)}</span>` : ''}</div>
         <div class="t">${esc(r.title)}</div>
-        <div class="m">${clientTag(r)}${r.project ? `<span class="qr-pjcode">${esc(r.project.code)}</span><span>${esc(r.project.title)}</span>` : ''}</div></div>
+        <div class="m">${clientTag(r)}${pjHtml(r)}</div></div>
       <div class="c-st">${stChip(r)}</div>
       <div class="col c-date">ご指摘 <b>${md(r.found_on)}</b><br>${r.submitted_on ? `提出 <b>${md(r.submitted_on)}</b>` : '未提出'}</div>
       <i class="fa-solid fa-chevron-right go"></i></div>`).join('')
@@ -208,7 +213,7 @@ const canEditBasic = r => r.stage < 6 || SIDE === 'hal';
 function renderDetail() {
   const r = CUR;
   $('dTop').innerHTML = `<div class="ttl"><div class="docno">${esc(r.no)}</div><h2>${esc(r.title)}</h2>
-      <div class="m">${stChip(r)}${clientTag(r)}${r.project ? `<span class="qr-pjcode">${esc(r.project.code)}</span><span style="color:var(--muted)">${esc(r.project.title)}</span>` : ''}${r.defect_type ? `<span class="qr-type">${esc(r.defect_type)}</span>` : ''}</div></div>
+      <div class="m">${stChip(r)}${clientTag(r)}${pjHtml(r, ' style="color:var(--muted)"')}${r.defect_type ? `<span class="qr-type">${esc(r.defect_type)}</span>` : ''}</div></div>
     <div class="acts">${canEditBasic(r) ? '<button class="btn btn-outline btn-sm" id="dEdit"><i class="fa-solid fa-pen"></i> 基本情報を編集</button>' : ''}
       ${SIDE === 'hal' ? '<button class="btn btn-ghost btn-sm" id="dDel" title="削除"><i class="fa-solid fa-trash-can"></i></button>' : ''}</div>`;
   $('dEdit')?.addEventListener('click', () => openEdit(r));
@@ -393,7 +398,7 @@ function paperHtml(r, custOverride) {
 このたびは納品物に不具合があり、多大なるご迷惑をおかけしましたことを深くお詫び申し上げます。下記のとおり原因と対策をご報告いたします。</p>
     <table>
       <tr><th>件名</th><td>${esc(r.title)}</td></tr>
-      <tr><th>対象物件</th><td>${r.project ? `${esc(r.project.code)}　${esc(r.project.title)}` : '—'}</td></tr>
+      <tr><th>対象物件</th><td>${r.project ? `${r.project.code ? esc(r.project.code) + '　' : ''}${esc(r.project.title)}` : '—'}</td></tr>
       <tr><th>納品日 / ご指摘日</th><td>${fmtJa(r.delivered_on) || '—'} / ${fmtJa(r.found_on)}</td></tr>
       <tr><th>再納品日</th><td>${fmtJa(r.redelivered_on) || '—'}</td></tr>
     </table>
@@ -447,6 +452,8 @@ async function deleteCurrent() {
 const modal = $('editModal'), form = $('editForm');
 let editing = null;          // null = 新規
 let pickedProject = null;
+let pjMode = 'pick';        // pick = SOLIDの物件から選ぶ / manual = 直接入力（SOLID導入前など）
+let clientsLoaded = false;
 let pendingFiles = { defect: [], fixed: [] };   // 新規作成時に保存後まとめて送る画像
 form.defect_type.innerHTML = '<option value="">選択してください</option>' + TYPES.map(t => `<option>${t}</option>`).join('');
 
@@ -455,7 +462,12 @@ function openEdit(r) {
   pendingFiles = { defect: [], fixed: [] };
   form.reset();
   $('editTitle').textContent = r ? '基本情報を編集' : '不具合を記録';
-  pickedProject = r?.project ? { id: r.project.id, code: r.project.code, title: r.project.title, client_company: r.client?.name } : null;
+  pickedProject = r?.project && !r.project.manual ? { id: r.project.id, code: r.project.code, title: r.project.title, client_company: r.client?.name } : null;
+  setPjMode(r?.project?.manual ? 'manual' : 'pick');
+  form.manual_project_code.value = r?.project?.manual ? (r.project.code ?? '') : '';
+  form.manual_project_title.value = r?.project?.manual ? r.project.title : '';
+  form.manual_client_name.value = r?.project?.manual ? (r.client?.name ?? '') : '';
+  loadClients();
   if (r) {
     ['title', 'defect_type', 'reporter_name', 'found_on', 'delivered_on', 'redelivered_on', 'symptom', 'impact'].forEach(k => { form[k].value = r[k] ?? ''; });
   } else {
@@ -471,6 +483,27 @@ function openEdit(r) {
 function closeEdit() { modal.classList.remove('open'); }
 modal.querySelectorAll('[data-close]').forEach(b => b.onclick = closeEdit);
 $('btnNew').onclick = () => openEdit(null);
+
+function setPjMode(mode) {
+  pjMode = mode;
+  $('pjModeSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+  $('pjPickBox').style.display = mode === 'pick' ? '' : 'none';
+  $('pjManualBox').style.display = mode === 'manual' ? '' : 'none';
+  form.manual_project_title.required = form.manual_client_name.required = mode === 'manual';
+}
+$('pjModeSeg').querySelectorAll('button').forEach(b => b.onclick = () => {
+  setPjMode(b.dataset.mode);
+  if (b.dataset.mode === 'pick' && !pickedProject) searchProjects($('pjQ').value);
+});
+/* 直接入力の客先候補（登録済みの会社）。一致すればその会社として客先別の集計に入る */
+async function loadClients() {
+  if (clientsLoaded) return;
+  try {
+    const d = await api.get(`${BASE}/clients`);
+    $('clientList').innerHTML = (d?.clients ?? []).map(c => `<option value="${esc(c.name)}">`).join('');
+    clientsLoaded = true;
+  } catch { /* 候補が出ないだけ */ }
+}
 
 function renderPicked() {
   const p = pickedProject;
@@ -544,9 +577,12 @@ async function uploadImages(id, kind, files) {
 }
 
 $('editSave').onclick = async () => {
-  if (!pickedProject) { showToast('対象物件を選んでください', 'danger'); return; }
+  if (pjMode === 'pick' && !pickedProject) { showToast('対象物件を選ぶか、「直接入力」に切り替えてください', 'danger'); return; }
   if (!form.reportValidity()) return;
-  const body = { project_id: pickedProject.id };
+  const body = pjMode === 'pick'
+    ? { project_id: pickedProject.id }
+    : { project_id: null, manual_project_code: form.manual_project_code.value.trim() || null,
+        manual_project_title: form.manual_project_title.value.trim(), manual_client_name: form.manual_client_name.value.trim() };
   ['title', 'defect_type', 'reporter_name', 'found_on', 'delivered_on', 'redelivered_on', 'symptom', 'impact'].forEach(k => { body[k] = form[k].value.trim() || null; });
   const btn = $('editSave');
   btn.disabled = true;

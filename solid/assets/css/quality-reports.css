@@ -142,6 +142,12 @@
 .qr-full { grid-column:1 / -1; }
 .qr-modal-f { display:flex; justify-content:flex-end; gap:8px; padding:12px 18px; border-top:1px solid var(--border); }
 .qr-pj { margin-bottom:6px; }
+.qr-pj-mode { display:flex; gap:4px; background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:3px; margin-bottom:8px; }
+.qr-pj-mode button { flex:1; padding:7px 8px; border:none; border-radius:7px; background:none; font:inherit; font-size:12.5px; font-weight:700; color:var(--muted); cursor:pointer; }
+.qr-pj-mode button.on { background:var(--white); color:var(--primary); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.qr-pj-manual { display:grid; grid-template-columns:1fr 2fr; gap:0 12px; }
+.qr-manual { font-size:10px; font-weight:700; color:#8a6d00; background:#fff4cc; border-radius:4px; padding:0 6px; white-space:nowrap; }
+@media (max-width: 640px) { .qr-pj-manual { grid-template-columns:1fr; } .qr-pj-mode { flex-direction:column; } }
 .qr-pj .picked { display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:#fff4ee; border:1.5px solid var(--primary); border-radius:8px; padding:8px 10px; font-size:13px; }
 .qr-pj .picked button { margin-left:auto; }
 .qr-pj-list { max-height:190px; overflow:auto; border:1px solid var(--border); border-radius:8px; margin-top:6px; }
