@@ -230,7 +230,7 @@ function renderDetail() {
         ${extra.length ? `<div class="qr-ev-more">${extra.map(i => shotHtml(i, false)).join('')}</div>` : ''}</div>
       <div><div class="qr-sec-h"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i>発生事象<span class="sp"></span>
         <span class="by">${r.reporter_name ? esc(r.reporter_name) + ' 様より ' : ''}${esc(r.found_on)} ご指摘</span></div>
-      <dl class="qr-kv"><dt>内容</dt><dd>${esc(r.symptom)}</dd><dt>影響範囲</dt><dd>${esc(r.impact) || '—'}</dd>
+      <dl class="qr-kv"><dt>内容</dt><dd>${esc(r.symptom)}</dd>
         <dt>納品 / 再納品</dt><dd>${esc(r.delivered_on) || '—'} / ${esc(r.redelivered_on) || '—'}</dd></dl></div></div>`;
   $('evToggle').onclick = () => $('dEvent').classList.toggle('open');
   hydrateImages($('dEvent'));
@@ -306,10 +306,10 @@ function outForm(r) {
     <div class="qr-acts"><button class="btn btn-outline btn-sm" data-act="save"><i class="fa-regular fa-floppy-disk"></i> 下書き保存</button>
       <button class="btn btn-primary btn-sm" data-act="submit"><i class="fa-solid fa-arrow-right"></i> 保存して ④ まとめへ</button></div>`;
 }
-const CUST_LABELS = [['cust_cause', 'cause', '3. 発生原因'], ['cust_outflow', 'outflow', '4. 流出原因'], ['cust_fix', 'fix', '5. 対策'],
-  ['cust_prevent_modeling', 'prevent_modeling', '6-(1) 再発防止策（モデリング工程）'], ['cust_prevent_inspection', 'prevent_inspection', '6-(2) 再発防止策（検査工程）'], ['cust_verify', 'verify', '7. 確認結果']];
+const CUST_LABELS = [['cust_cause', 'cause', '2. 発生原因'], ['cust_outflow', 'outflow', '3. 流出原因'], ['cust_fix', 'fix', '4. 今回分の不具合対応について'],
+  ['cust_prevent_modeling', 'prevent_modeling', '5-(1) 再発防止策（モデリング工程）'], ['cust_prevent_inspection', 'prevent_inspection', '5-(2) 再発防止策（検査工程）']];
 function custView(r) {
-  if (!r.cust.cause && !r.cust.verify) return '<p class="qr-note">③ の後に、お客様向けの文面にまとめます</p>';
+  if (!r.cust.cause) return '<p class="qr-note">③ の後に、お客様向けの文面にまとめます</p>';
   return `<dl class="qr-kv">${CUST_LABELS.map(([, k, l]) => `<dt>${l.replace(/^[\d().-]+\s*/, '')}</dt><dd>${esc(r.cust[k]) || '—'}</dd>`).join('')}</dl>`;
 }
 function custForm(r) {
@@ -370,7 +370,7 @@ function draftFromSteps(r) {
   return {
     cust_cause: r.occ.cause ?? '', cust_outflow: r.out.cause ?? '',
     cust_fix: (r.occ.fix ?? '') + (r.redelivered_on ? `\n修正した3Dモデルを ${fmtJa(r.redelivered_on)} に再納品いたしました。` : ''),
-    cust_prevent_modeling: r.occ.prevent ?? '', cust_prevent_inspection: r.out.prevent ?? '', cust_verify: '',
+    cust_prevent_modeling: r.occ.prevent ?? '', cust_prevent_inspection: r.out.prevent ?? '',
   };
 }
 
@@ -407,12 +407,10 @@ function paperHtml(r, custOverride) {
       <tr><th>再納品日</th><td>${fmtJa(r.redelivered_on) || '—'}</td></tr>
     </table>
     <h2>1. 発生事象</h2><p>${esc(r.symptom)}</p>${imgs}
-    <h2>2. 影響範囲</h2><p>${esc(r.impact) || '—'}</p>
-    <h2>3. 発生原因</h2><p>${P(c.cause)}</p>
-    <h2>4. 流出原因</h2><p>${P(c.outflow)}</p>
-    <h2>5. 対策</h2><p>${P(c.fix)}</p>
-    <h2>6. 再発防止策</h2><h3>(1) モデリング工程</h3><p>${P(c.prevent_modeling)}</p><h3>(2) 検査工程</h3><p>${P(c.prevent_inspection)}</p>
-    <h2>7. 確認結果</h2><p>${P(c.verify)}</p>
+    <h2>2. 発生原因</h2><p>${P(c.cause)}</p>
+    <h2>3. 流出原因</h2><p>${P(c.outflow)}</p>
+    <h2>4. 今回分の不具合対応について</h2><p>${P(c.fix)}</p>
+    <h2>5. 再発防止策</h2><h3>(1) モデリング工程</h3><p>${P(c.prevent_modeling)}</p><h3>(2) 検査工程</h3><p>${P(c.prevent_inspection)}</p>
     <div class="sign"><div>承認<span></span></div><div>確認<span></span></div><div>作成<span></span></div></div>
     <p class="end">以上</p></div>`;
 }
@@ -473,7 +471,7 @@ function openEdit(r) {
   form.manual_client_name.value = r?.project?.manual ? (r.client?.name ?? '') : '';
   loadClients();
   if (r) {
-    ['title', 'defect_type', 'reporter_name', 'found_on', 'delivered_on', 'redelivered_on', 'symptom', 'impact'].forEach(k => { form[k].value = r[k] ?? ''; });
+    ['title', 'defect_type', 'reporter_name', 'found_on', 'delivered_on', 'redelivered_on', 'symptom'].forEach(k => { form[k].value = r[k] ?? ''; });
   } else {
     form.found_on.value = today();
   }
@@ -587,7 +585,7 @@ $('editSave').onclick = async () => {
     ? { project_id: pickedProject.id }
     : { project_id: null, manual_project_code: form.manual_project_code.value.trim() || null,
         manual_project_title: form.manual_project_title.value.trim(), manual_client_name: form.manual_client_name.value.trim() };
-  ['title', 'defect_type', 'reporter_name', 'found_on', 'delivered_on', 'redelivered_on', 'symptom', 'impact'].forEach(k => { body[k] = form[k].value.trim() || null; });
+  ['title', 'defect_type', 'reporter_name', 'found_on', 'delivered_on', 'redelivered_on', 'symptom'].forEach(k => { body[k] = form[k].value.trim() || null; });
   const btn = $('editSave');
   btn.disabled = true;
   try {
