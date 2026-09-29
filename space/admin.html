@@ -1215,6 +1215,21 @@
           <option value="id_modeler" id="userModalSolidTypeModelerOpt">モデラー（インドネシア）</option>
         </select>
       </div>
+      <!-- 2段階認証の個別設定。編集時かつサイト運営者(super_admin)のときだけ表示する。
+           確認コードのメールが届かないユーザーを、全体を止めずに救済するための逃げ道 -->
+      <div class="form-group" id="userModalMfaGroup" style="display:none;">
+        <label class="form-label">2段階認証</label>
+        <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-top:4px;">
+          <input type="checkbox" id="userModalMfa" style="margin-top:3px;flex:none;">
+          <span style="font-size:13px;line-height:1.6;">
+            このユーザーのログイン時に確認コードを要求する
+          </span>
+        </label>
+        <div class="form-hint" id="userModalMfaHint">
+          オフにすると、このユーザーはメールアドレスとパスワードだけでログインできます。
+          確認コードのメールが届かない場合の一時的な対応に使ってください。
+        </div>
+      </div>
       <!-- 編集時のみ表示。パスワードを忘れた・連絡が取れない等、本人が「現在のパスワード」を
            入力する自己サービス（各アプリのサイドバー「パスワード変更」）を使えないユーザーの救済用 -->
       <div class="form-group" id="userModalResetPwGroup" style="display:none;">
@@ -1378,6 +1393,8 @@ function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 /* ── ローカルキャッシュ ── */
 let companiesCache = [];
 let usersCache     = [];
+/* 2段階認証の全体スイッチ（env MFA_ENABLED）。ユーザー個別設定の注意書きの出し分けに使う */
+let mfaGlobalEnabled = true;
 
 /* ═══════════════════════════════
    ダッシュボード
@@ -1835,8 +1852,10 @@ async function loadUsers() {
 
   const res = await apiFetch('/admin/users');
   if (!res?.ok) { clearSpinners(); return; }
-  const { data } = await res.json();
+  const { data, mfa_global_enabled } = await res.json();
   usersCache = data;
+  // 全体スイッチがOFFなら、ユーザー編集で「要求する」にしても効かない旨を添えるために持っておく
+  mfaGlobalEnabled = mfa_global_enabled !== false;
   userPage = 1;
   renderUserTable();
 }
@@ -2007,6 +2026,8 @@ function openAddUser() {
   document.getElementById('userModalPwArea').style.display = 'none';
   document.getElementById('userModalResetPwGroup').style.display = 'none'; // 新規作成時は作成後に仮パスワードが発行されるため不要
   document.getElementById('userModalSelfPwHint').style.display   = 'none';
+  // 新規作成は常に2段階認証あり（既定）。個別に外すのは作成後の編集から
+  document.getElementById('userModalMfaGroup').style.display = 'none';
   document.getElementById('userModalError').style.display  = 'none';
   document.getElementById('userModalSave').style.display   = '';
   // SOLID種別は会社の契約状況が確定してからのほうが判断しやすいので、作成後の編集で設定する
@@ -2052,6 +2073,13 @@ async function openEditUser(id) {
   // 自分自身、およびadminから見たsuper_adminはリセット対象外（自分自身は「現在のパスワード」を
   // 知らない他人による強制リセットの対象にする意味が無いので、システム設定への案内に差し替える。
   // super_adminのパスワードはサイト運営者のみ扱える。サーバー側にも同じ制約あり）
+  // 2段階認証の個別設定はサイト運営者だけに出す（adminには項目自体を見せない）
+  document.getElementById('userModalMfaGroup').style.display = isSuperAdmin ? '' : 'none';
+  document.getElementById('userModalMfa').checked = u.mfa_enabled !== false;
+  document.getElementById('userModalMfaHint').textContent = mfaGlobalEnabled
+    ? 'オフにすると、このユーザーはメールアドレスとパスワードだけでログインできます。確認コードのメールが届かない場合の一時的な対応に使ってください。'
+    : '現在、2段階認証はシステム全体で停止中です。ここでオンにしても確認コードは要求されません。';
+
   const isSelf = String(id) === String(currentUser.id);
   const canResetPw = !isSelf && !(u.role === 'super_admin' && !isSuperAdmin);
   document.getElementById('userModalResetPwGroup').style.display = canResetPw ? '' : 'none';
@@ -2114,6 +2142,17 @@ document.getElementById('userModalSave').addEventListener('click', async () => {
     // （SOLIDの管理画面で設定した種別を、Spaceからの編集で消さないため）
     if (document.getElementById('userModalSolidTypeGroup').style.display !== 'none') {
       payload.solid_type = document.getElementById('userModalSolidType').value || null;
+    }
+    // 2段階認証の欄を出している（=サイト運営者）ときだけ送る。
+    // adminの編集で勝手に値が書き換わらないよう、送らなければAPI側で既存値が保持される
+    if (document.getElementById('userModalMfaGroup').style.display !== 'none') {
+      payload.mfa_enabled = document.getElementById('userModalMfa').checked;
+      // ログインの防壁を外す操作なので、有効→無効のときだけ確認を挟む
+      const before = usersCache.find(x => String(x.id) === String(id))?.mfa_enabled !== false;
+      if (before && !payload.mfa_enabled
+          && !confirm(`「${name}」の2段階認証をオフにします。\nこのユーザーはメールアドレスとパスワードだけでログインできるようになります。\n\nよろしいですか？`)) {
+        return;
+      }
     }
     const res = await apiFetch(`/admin/users/${id}`, {
       method: 'PATCH', body: JSON.stringify(payload),
