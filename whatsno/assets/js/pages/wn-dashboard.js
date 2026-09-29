@@ -2011,7 +2011,7 @@ const ThumbCache = (() => {
 const thumbMemCache = {};
 
 /* サムネイル生成バージョン（解像度等を変えたら上げてキャッシュを再生成させる） */
-const THUMB_VER = 'v17'; // PDFサムネ白背景修正（透過→黒化を根本解消）
+const THUMB_VER = 'v18'; // TIFF を UTIF.js で JPEG 化（旧版は原本TIFFをキャッシュしていた）
 /* Excel/Word サムネイルの描画倍率（論理座標×この倍率で高解像度化） */
 const THUMB_SS = 2;
 
@@ -2183,7 +2183,7 @@ function wnThumbEligible(f) {
   const isVid    = mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext);
   if (isOffice && (f.file_size ?? 0) > OFFICE_MAX_BYTES) return false;
   if (isVid    && (f.file_size ?? 0) > VIDEO_MAX_BYTES)  return false;
-  return mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext)
+  return mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg','tif','tiff'].includes(ext)
       || mime === 'application/pdf' || ext === 'pdf'
       || isVid
       || ext === 'dxf'
@@ -2388,15 +2388,17 @@ async function loadOneThumbnail(f) {
      フル解像度の原画像（数MB）ではなく極小サムネを使って帯域を大幅削減する。
      CSS(object-fit:cover)がトリミングを担う。遅延ロード済みなので画面外は取得しない。 */
   const isRawImage = mime.startsWith('image/')
-    || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext);
+    || ['png','jpg','jpeg','gif','webp','heic','heif','svg','tif','tiff'].includes(ext);
   const isSvg  = ext === 'svg' || mime === 'image/svg+xml';
   const isHeic = ['heic','heif'].includes(ext) || mime === 'image/heic' || mime === 'image/heif';
+  /* TIFF も Safari 以外の <img> では表示できないので統合フロー（UTIF.js で JPEG 化）へ通す */
+  const isTiff = wnIsTiff(f.file_name, mime);
   /* 原画像URLを直接表示する条件:
        PC: SVG/HEIC 以外の画像（JPEG/PNG等はブラウザが確実に表示できる）
        モバイル: SVG のみ（ベクター・極小でサーバーGD非対応）
      HEIC は Windows Chrome/Edge 等が <img> でデコードできずアイコン化するため、
      全環境で統合フロー（クライアント heic2any/ネイティブ生成→JPEG化）へ通す。 */
-  if (isRawImage && !isHeic && (!WN_IS_MOBILE || isSvg)) {
+  if (isRawImage && !isHeic && !isTiff && (!WN_IS_MOBILE || isSvg)) {
     appendImg(iconId, wnPublicViewUrl(f.id));
     return;
   }
@@ -2438,7 +2440,16 @@ async function loadOneThumbnail(f) {
 
     await wnGenSem.acquire();
     try {
-    if (['heic','heif'].includes(ext) || mime === 'image/heic' || mime === 'image/heif') {
+    if (isTiff) {
+      const res = await fetch(directUrl);
+      if (!res.ok) return;
+      const canvas = await wnTiffToCanvas(await res.arrayBuffer());
+      const out = wnShrinkCanvas(canvas, wnThumbTargetLong());
+      wnEnhanceLineArt(out);   /* スキャン図面が多いので PDF と同じく線画強調 */
+      blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
+      wnFreeCanvas(canvas, out);
+
+    } else if (['heic','heif'].includes(ext) || mime === 'image/heic' || mime === 'image/heif') {
       const res = await fetch(directUrl);
       if (!res.ok) return;
       const srcBlob = await res.blob();
@@ -2835,7 +2846,7 @@ function fileCardHtml(f) {
   const vBadge = f.version > 1 ? `<span class="file-card-version">v${f.version}</span>` : '';
   const ext  = (f.file_name || '').split('.').pop().toLowerCase();
   const mime = f.mime_type ?? '';
-  const hasThumb = mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext)
+  const hasThumb = mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg','tif','tiff'].includes(ext)
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
                 || ext === 'dxf'
@@ -2912,7 +2923,7 @@ function fileRowHtmlClassic(f) {
   const { icon, cls } = wnFileIcon(f.file_name, f.mime_type);
   const ext  = (f.file_name || '').split('.').pop().toLowerCase();
   const mime = f.mime_type ?? '';
-  const hasThumb = mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext)
+  const hasThumb = mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg','tif','tiff'].includes(ext)
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
                 || ext === 'dxf'
@@ -2978,7 +2989,7 @@ function fileRowHtmlIG(f) {
   const { icon, cls } = wnFileIcon(f.file_name, f.mime_type);
   const ext  = (f.file_name || '').split('.').pop().toLowerCase();
   const mime = f.mime_type ?? '';
-  const hasThumb = mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext)
+  const hasThumb = mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg','tif','tiff'].includes(ext)
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
                 || ext === 'dxf'

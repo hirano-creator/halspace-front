@@ -25,7 +25,7 @@
    ══════════════════════════════════════════════════════════════════════ */
 
 /* wn-dashboard.js の THUMB_VER と必ず一致させる */
-const WN_TH_VER = 'v17';
+const WN_TH_VER = 'v18';
 
 /* 自分自身の置き場所（兄弟スクリプトを遅延読込するときの基準）。
    マニュアル画面は app/*.html なので相対パスは呼び出し元によって変わる。 */
@@ -310,8 +310,9 @@ function wnThIsHeic(file)  { return ['heic', 'heif'].includes(wnThExt(file))
                                  || ['image/heic', 'image/heif'].includes(wnThMime(file)); }
 function wnThIsVideo(file) { return wnThMime(file).startsWith('video/')
                                  || ['mp4', 'mov', 'avi', 'webm'].includes(wnThExt(file)); }
+function wnThIsTiff(file)  { return ['tif', 'tiff'].includes(wnThExt(file)) || wnThMime(file) === 'image/tiff'; }
 function wnThIsImage(file) { return wnThMime(file).startsWith('image/')
-                                 || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'heic', 'heif'].includes(wnThExt(file)); }
+                                 || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'heic', 'heif', 'tif', 'tiff'].includes(wnThExt(file)); }
 
 /* 動画は重いので上限を設ける（wn-dashboard.js と同値） */
 const WN_TH_VIDEO_MAX_BYTES = 200 * 1024 * 1024;
@@ -411,6 +412,19 @@ async function wnThGenerateBlob(file, targetLong = wnThTargetLong()) {
     const buffer = await srcBlob.arrayBuffer();
     const b = await heic2any({ blob: new Blob([buffer], { type: 'image/heic' }), toType: 'image/jpeg', quality: 0.70 });
     return Array.isArray(b) ? b[0] : b;
+  }
+
+  /* ── TIFF（Safari以外は <img> 不可・サーバーGDも不可 → UTIF.js で描画） ── */
+  if (wnThIsTiff(file)) {
+    if (typeof wnTiffToCanvas !== 'function') return null;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const canvas = await wnTiffToCanvas(await res.arrayBuffer());
+    const out = wnThShrink(canvas, targetLong);
+    wnThEnhance(out);
+    const blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
+    wnThFree(canvas, out);
+    return blob;
   }
 
   /* ── DXF ── */
