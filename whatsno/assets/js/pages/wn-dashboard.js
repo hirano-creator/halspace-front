@@ -3693,8 +3693,10 @@ function closeUploadModal() {
 
 function addToQueue(files) {
   files.forEach(f => {
-    if (f.size > 100 * 1024 * 1024) {
-      wnShowToast(`${f.name} は100MBを超えています`, 'danger');
+    /* 上限は wn-api.js の WN_MAX_UPLOAD_BYTES（1GB）に合わせる。
+       50MB超は自動でR2直送マルチパートに切り替わる */
+    if (f.size > WN_MAX_UPLOAD_BYTES) {
+      wnShowToast(`${f.name} は1GBを超えています`, 'danger');
       return;
     }
     uploadQueue.push(f);
