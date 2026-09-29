@@ -254,7 +254,10 @@ function renderDetail() {
   if (vs === 2) body = `<div class="qr-ref lcz"><b>① HILANO の入力</b>${r.occ.cause ? `発生原因: ${esc(r.occ.cause)}\n対策: ${esc(r.occ.fix)}\n再発防止: ${esc(r.occ.prevent)}` : '未入力'}</div>` + (can ? reviewForm() : reviewView(r));
   if (vs === 3) body = (r.occ.cause ? `<div class="qr-ref lcz"><b>① 発生原因（HILANO）</b>${esc(r.occ.cause)}</div>` : '') + (can ? outForm(r) : outView(r));
   if (vs === 4) body = can ? custForm(r) : custView(r);
-  if (vs === 5) body = r.stage >= 6 ? submittedView(r) : can ? submitForm(r) : '<p class="qr-note">④ の確定後に提出します</p>';
+  if (vs === 5) body = r.stage >= 6 ? submittedView(r) + stampPanel(r, false)
+    : can ? submitForm(r)
+    : r.stage === 5 ? stampPanel(r, false) + '<p class="qr-note">HaLSpace が押印して提出します</p>'
+    : '<p class="qr-note">④ の確定後に押印・提出します</p>';
   const f = $('dForm');
   f.innerHTML = `<div class="qr-sec ${step.who === 'lcz' ? 'lcz' : vs >= 4 ? 'cus' : 'hal'} ${can ? 'active' : ''}">
     <div class="qr-sec-h" style="margin-bottom:10px"><span class="qr-who ${step.who}">${WHO[step.who]}</span>${NUM[vs - 1]} ${step.t}<span class="sp"></span>${status}</div>${body}</div>`;
@@ -322,11 +325,42 @@ function custForm(r) {
     <div class="qr-acts"><button class="btn btn-outline btn-sm" data-act="save"><i class="fa-regular fa-floppy-disk"></i> 下書き保存</button>
       <button class="btn btn-primary btn-sm" data-act="submit"><i class="fa-solid fa-check"></i> 対策書を確定</button></div>`;
 }
+/* デジタル印影（日付印の形）。stamp = { name, at } */
+function stampSvg(stamp) {
+  if (!stamp) return '';
+  const d = new Date(stamp.at.replace(' ', 'T'));
+  const date = isNaN(d) ? stamp.at.slice(2, 10).replace(/-/g, '.') : `${String(d.getFullYear()).slice(2)}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+  const name = esc(stamp.name);
+  const fs = [...stamp.name].length >= 4 ? 10.5 : [...stamp.name].length === 3 ? 12.5 : 14;
+  return `<svg class="qr-stamp" viewBox="0 0 60 60" role="img" aria-label="${name} ${date} 押印">
+    <g fill="none" stroke="#d0312d" stroke-width="2"><circle cx="30" cy="30" r="27.5"/></g>
+    <g stroke="#d0312d" stroke-width="1.2"><line x1="5.5" y1="23" x2="54.5" y2="23"/><line x1="5.5" y1="37" x2="54.5" y2="37"/></g>
+    <g fill="#d0312d" text-anchor="middle" font-family="'Yu Mincho','Hiragino Mincho ProN','Noto Serif JP',serif" font-weight="700">
+      <text x="30" y="19" font-size="7.5" font-family="Poppins,Arial,sans-serif">HaLSpace</text>
+      <text x="30" y="33.2" font-size="9" font-family="Arial,sans-serif">${date}</text>
+      <text x="30" y="50.5" font-size="${fs}">${name}</text></g></svg>`;
+}
+const STAMP_KINDS = [['created', '作成'], ['approved', '承認']];
+/* ⑤ の押印欄。④確定後・提出前に HaLSpace が押す。取り消せるのは押した本人だけ */
+function stampPanel(r, editable) {
+  return `<div class="qr-stamps">${STAMP_KINDS.map(([k, l]) => {
+    const s = r.stamps?.[k];
+    const btn = !editable ? ''
+      : !s ? `<button class="btn btn-primary btn-sm" data-stamp="${k}" type="button"><i class="fa-solid fa-stamp"></i> ${l}印を押す</button>`
+      : Number(s.by) === Number(user.id) ? `<button class="btn btn-outline btn-sm" data-unstamp="${k}" type="button">取り消す</button>`
+      : '';
+    return `<div class="qr-stamp-card"><b>${l}</b><div class="qr-stamp-box">${s ? stampSvg(s) : '<span class="empty">未押印</span>'}</div>${btn}</div>`;
+  }).join('')}</div>`;
+}
+const bothStamped = r => !!(r.stamps?.created && r.stamps?.approved);
+
 function submitForm(r) {
   return `<p class="qr-note" style="margin-bottom:8px">宛先: <b style="color:var(--text)">${esc(clientName(r))} 御中</b>${r.reporter_name ? `（${esc(r.reporter_name)} 様）` : ''}</p>
+    ${stampPanel(r, true)}
+    ${bothStamped(r) ? '' : '<p class="qr-note" style="margin:0 0 8px"><i class="fa-solid fa-circle-info"></i> 作成印と承認印がそろうと提出できます。</p>'}
     <div class="qr-fld" style="max-width:220px"><label>提出日</label><input class="form-input" type="date" data-f="submitted_on" value="${today()}"></div>
     <div class="qr-acts" style="justify-content:flex-start"><button class="btn btn-blue btn-sm" data-open-report type="button"><i class="fa-regular fa-file-lines"></i> 対策書を開く / 印刷</button>
-      <button class="btn btn-success btn-sm" data-act="submit"><i class="fa-solid fa-paper-plane"></i> 提出済みにする</button></div>`;
+      <button class="btn btn-success btn-sm" data-act="submit" ${bothStamped(r) ? '' : 'disabled title="作成印と承認印を押してください"'}><i class="fa-solid fa-paper-plane"></i> 提出済みにする</button></div>`;
 }
 function submittedView(r) {
   return `<div class="qr-ok" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span><i class="fa-solid fa-circle-check"></i> ${fmtJa(r.submitted_on)} に提出済み</span>
@@ -336,6 +370,18 @@ function submittedView(r) {
 /* ステップの保存・進行 */
 function bindStep(root, vs) {
   root.querySelectorAll('[data-open-report]').forEach(b => b.onclick = () => $('dOpenReport').click());
+  root.querySelectorAll('[data-stamp], [data-unstamp]').forEach(b => b.onclick = async () => {
+    const kind = b.dataset.stamp || b.dataset.unstamp, stamp = !!b.dataset.stamp;
+    const label = kind === 'created' ? '作成印' : '承認印';
+    if (!confirm(stamp ? `${label}を押します。よろしいですか？` : `${label}を取り消します。よろしいですか？`)) return;
+    b.disabled = true;
+    try {
+      const d = await api.post(`${BASE}/${CUR.id}/stamp`, { kind, action: stamp ? 'stamp' : 'clear' });
+      if (!d) return;
+      CUR = d.report; syncSummary(CUR); renderDetail();
+      showToast(stamp ? `${label}を押しました` : `${label}を取り消しました`, 'success');
+    } catch (e) { showToast(e.message, 'danger'); b.disabled = false; }
+  });
   root.querySelectorAll('[data-draft]').forEach(b => b.onclick = () => {
     const d = draftFromSteps(CUR);
     Object.entries(d).forEach(([k, v]) => { const el = root.querySelector(`[data-f="${k}"]`); if (el && !el.value.trim()) el.value = v; });
@@ -375,7 +421,7 @@ function draftFromSteps(r) {
 }
 
 /* 履歴（差し戻し前の ① も見られる） */
-const ACT_LABEL = { create: '記録を作成', save: '下書き保存', submit: '提出', approve: '確認OK', return: '差し戻し' };
+const ACT_LABEL = { create: '記録を作成', save: '下書き保存', submit: '提出', approve: '確認OK', return: '差し戻し', stamp: '押印', unstamp: '押印を取り消し' };
 function renderHistory(r) {
   const h = $('dHist');
   const open = h.open;
@@ -411,7 +457,7 @@ function paperHtml(r, custOverride) {
     <h2>3. 流出原因</h2><p>${P(c.outflow)}</p>
     <h2>4. 今回分の不具合対応について</h2><p>${P(c.fix)}</p>
     <h2>5. 再発防止策</h2><h3>(1) モデリング工程</h3><p>${P(c.prevent_modeling)}</p><h3>(2) 検査工程</h3><p>${P(c.prevent_inspection)}</p>
-    <div class="sign"><div>承認<span></span></div><div>確認<span></span></div><div>作成<span></span></div></div>
+    <div class="sign"><div>承認<span>${stampSvg(r.stamps?.approved)}</span></div><div>作成<span>${stampSvg(r.stamps?.created)}</span></div></div>
     <p class="end">以上</p></div>`;
 }
 /* ④ の入力中はフォームの値をそのままプレビューに使う */
