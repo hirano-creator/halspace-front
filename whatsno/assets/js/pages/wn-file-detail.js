@@ -395,6 +395,30 @@ function renderPreview() {
   if (ext === 'pdf' || mime === 'application/pdf') {
     document.getElementById('previewHint').textContent = 'PDF読み込み中…';
     loadPdfPreview(1);
+  } else if (wnIsTiff(fileData.file_name, mime)) {
+    /* Safari 以外は <img> で TIFF を表示できないので UTIF.js で PNG 化して表示 */
+    document.getElementById('previewHint').textContent = 'TIFFを変換中…';
+    (async () => {
+      try {
+        const cached = await (window.WnPreviewCache?.get(fileId, fileData.updated_at) ?? null);
+        if (cached) { showImg(URL.createObjectURL(cached)); return; }
+        const buffer = await wnFetchFileBuffer(fileId, {
+          onProgress: pct => { document.getElementById('previewHint').textContent = `読み込み中… ${pct}%`; },
+        });
+        if (!buffer) throw new Error('ファイル取得失敗');
+        const canvas = await wnTiffToCanvas(buffer);
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        canvas.width = canvas.height = 0;
+        if (!blob) throw new Error('画像化に失敗');
+        window.WnPreviewCache?.set(fileId, fileData.updated_at, blob).catch(() => {});
+        showImg(URL.createObjectURL(blob));
+      } catch (e) {
+        console.error('TIFF preview error:', e);
+        document.getElementById('previewHint').textContent = 'TIFFのプレビューに失敗しました: ' + e.message;
+      }
+    })();
+  } else if (['html', 'htm'].includes(ext) || mime === 'text/html') {
+    showHtmlPreview();
   } else if (['heic', 'heif'].includes(ext) || mime === 'image/heic' || mime === 'image/heif') {
     document.getElementById('previewHint').textContent = 'HEICを変換中…';
     (async () => {
@@ -444,12 +468,57 @@ function renderPreview() {
     document.getElementById('previewHint').textContent = 'このファイル形式はブラウザプレビュー非対応です';
   }
 
-  /* 注釈ボタン：PDF・画像のみ表示（PowerPointは対象外） */
-  const annotatable = (ext === 'pdf' || mime === 'application/pdf'
-    || mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg'].includes(ext))
-    && !['pptx','ppt','pptm'].includes(ext);
+  /* 注釈ボタン：PDF・画像のみ表示（PowerPoint・TIFFは対象外） */
+  const annotatable = wnIsAnnotatable(fileData.file_name, mime);
   const annotBtn = document.getElementById('annotateBtn');
   if (annotBtn) annotBtn.style.display = annotatable ? '' : 'none';
+}
+
+/* ────────────────────────────────
+   HTML プレビュー
+   - 利用者がアップロードした HTML なので sandbox（スクリプト・フォーム・ポップアップ不可、
+     別オリジン扱い）の iframe に srcdoc で流し込む。トークン等には一切触れられない。
+   - 相対パスの画像・CSS は単体ファイルでは解決できないため表示されない。
+   ──────────────────────────────── */
+function wnDecodeHtmlBuffer(buffer) {
+  const bytes = new Uint8Array(buffer);
+  /* BOM → <meta charset> → UTF-8 厳密デコード → Shift_JIS の順で判定 */
+  if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) return new TextDecoder('utf-8').decode(bytes);
+  if (bytes[0] === 0xFF && bytes[1] === 0xFE) return new TextDecoder('utf-16le').decode(bytes);
+  if (bytes[0] === 0xFE && bytes[1] === 0xFF) return new TextDecoder('utf-16be').decode(bytes);
+  const head = new TextDecoder('latin1').decode(bytes.subarray(0, 4096));
+  const m = head.match(/<meta[^>]+charset\s*=\s*["']?\s*([\w-]+)/i);
+  if (m) {
+    try { return new TextDecoder(m[1].toLowerCase()).decode(bytes); } catch { /* 不明なラベル → 下へ */ }
+  }
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+  catch { return new TextDecoder('shift_jis').decode(bytes); }
+}
+
+async function showHtmlPreview() {
+  const placeholder = document.getElementById('previewPlaceholder');
+  const hint        = document.getElementById('previewHint');
+  const frame       = document.getElementById('previewFrame');
+  hint.textContent = 'HTML読み込み中…';
+  try {
+    const buffer = await wnFetchFileBuffer(fileId, {
+      onProgress: pct => { hint.textContent = `読み込み中… ${pct}%`; },
+    });
+    if (!buffer) throw new Error('ファイル取得失敗');
+    /* デコード済みの文字列を渡すので、元の charset 宣言（Shift_JIS 等）は外す。
+       残すと srcdoc(UTF-8) と食い違って再読み込みが走り、白紙になる */
+    const html = wnDecodeHtmlBuffer(buffer)
+      .replace(/<meta[^>]+charset\s*=[^>]*>/gi, '');
+    frame.setAttribute('sandbox', '');
+    frame.setAttribute('referrerpolicy', 'no-referrer');
+    frame.style.background = '#fff';
+    frame.onload = () => { placeholder.style.display = 'none'; };
+    frame.srcdoc = html;
+    frame.style.display = 'block';
+  } catch (e) {
+    console.error('HTML preview error:', e);
+    hint.textContent = 'HTMLのプレビューに失敗しました: ' + e.message;
+  }
 }
 
 /* ────────────────────────────────
@@ -3420,7 +3489,7 @@ const RelationThumbCache = (() => {
 })();
 
 const relationThumbMem = {};
-const RELATION_THUMB_VER = 'v9';
+const RELATION_THUMB_VER = 'v10';
 
 function loadRelationThumbnails() {
   relationsCache.forEach(r => loadOneRelationThumb(r).catch(() => {}));
@@ -3466,7 +3535,14 @@ async function loadOneRelationThumb(r) {
   let blob = null;
 
   try {
-    if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','svg'].includes(ext)) {
+    if (wnIsTiff(r.file_name, mime)) {
+      const res = await fetch(directUrl);
+      if (!res.ok) return;
+      const canvas = await wnTiffToCanvas(await res.arrayBuffer());
+      const out = fdThumbShrink(canvas, fdThumbTargetLong());
+      blob = await new Promise(res => out.toBlob(res, 'image/jpeg', 0.90));
+
+    } else if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','svg'].includes(ext)) {
       const res = await fetch(directUrl);
       if (!res.ok) return;
       blob = await res.blob();

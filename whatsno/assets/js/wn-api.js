@@ -1412,6 +1412,10 @@ function wnFileIcon(fileName, mimeType = '') {
     heic: { icon: 'fa-file-image',  cls: 'file-icon-img' },
     heif: { icon: 'fa-file-image',  cls: 'file-icon-img' },
     svg:  { icon: 'fa-file-image',  cls: 'file-icon-img' },
+    tif:  { icon: 'fa-file-image',  cls: 'file-icon-img' },
+    tiff: { icon: 'fa-file-image',  cls: 'file-icon-img' },
+    html: { icon: 'fa-file-code',   cls: 'file-icon-other' },
+    htm:  { icon: 'fa-file-code',   cls: 'file-icon-other' },
     mp4:  { icon: 'fa-file-video',  cls: 'file-icon-img' },
     mov:  { icon: 'fa-file-video',  cls: 'file-icon-img' },
     avi:  { icon: 'fa-file-video',  cls: 'file-icon-img' },
@@ -1430,11 +1434,63 @@ function wnFileIcon(fileName, mimeType = '') {
   return { icon: 'fa-file', cls: 'file-icon-other' };
 }
 
+/* ── TIFF ──
+   Safari 以外のブラウザは <img> で TIFF を表示できず、サーバーの GD も読めない。
+   UTIF.js（Deflate圧縮用に pako も必要）を必要時だけ読み込み、1ページ目を canvas に描く。 */
+function wnIsTiff(fileName, mimeType = '') {
+  const ext = (fileName || '').split('.').pop().toLowerCase();
+  return ext === 'tif' || ext === 'tiff' || mimeType === 'image/tiff';
+}
+
+const wnTiffScripts = {};
+function wnLoadScriptOnce(src) {
+  if (wnTiffScripts[src]) return wnTiffScripts[src];
+  wnTiffScripts[src] = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.onload  = () => resolve();
+    s.onerror = () => { delete wnTiffScripts[src]; reject(new Error('script load failed: ' + src)); };
+    document.head.appendChild(s);
+  });
+  return wnTiffScripts[src];
+}
+
+/* TIFF の ArrayBuffer → canvas。本体ページ（通常は1ページ目）を白背景で描く */
+async function wnTiffToCanvas(buffer) {
+  if (typeof pako === 'undefined') {
+    await wnLoadScriptOnce('https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js');
+  }
+  if (typeof UTIF === 'undefined') {
+    await wnLoadScriptOnce('https://cdn.jsdelivr.net/npm/utif2@4.1.0/UTIF.js');
+  }
+  const ifds = UTIF.decode(buffer);
+  /* サムネイル用の縮小版 IFD が先頭に来るファイルもあるので、最大面積のページを選ぶ */
+  const pages = ifds.filter(i => i.t256 && i.t257);
+  if (!pages.length) throw new Error('TIFFの画像が見つかりません');
+  const ifd = pages.reduce((a, b) => (b.t256[0] * b.t257[0] > a.t256[0] * a.t257[0] ? b : a), pages[0]);
+  UTIF.decodeImage(buffer, ifd, ifds);
+  const rgba = UTIF.toRGBA8(ifd);
+  const w = ifd.width, h = ifd.height;
+  const src = document.createElement('canvas');
+  src.width = w; src.height = h;
+  src.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(rgba.buffer, 0, w * h * 4), w, h), 0, 0);
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(src, 0, 0);
+  src.width = src.height = 0;
+  return canvas;
+}
+
 /* annotate.html で注釈編集できる形式か（PDF・画像のみ。PowerPointは対象外） */
 function wnIsAnnotatable(fileName, mimeType = '') {
   const ext  = (fileName || '').split('.').pop().toLowerCase();
   const mime = mimeType || '';
   if (['pptx', 'ppt', 'pptm'].includes(ext)) return false;
+  if (wnIsTiff(fileName, mime)) return false;   /* annotate.html は <img> 読み込みのため TIFF 不可 */
   return ext === 'pdf' || mime === 'application/pdf'
     || mime.startsWith('image/')
     || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif', 'svg'].includes(ext);
