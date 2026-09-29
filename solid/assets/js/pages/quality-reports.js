@@ -61,7 +61,7 @@ function authImage(url) {
   return imgCache.get(url);
 }
 function shotHtml(img, label) {
-  const lbl = label ? `<span class="lbl ${img?.kind ?? ''}">${img?.kind === 'fixed' ? '修正後' : '不具合箇所'}</span>` : '';
+  const lbl = label ? `<span class="lbl ${img?.kind ?? ''}">${kindLabel(img?.kind)}</span>` : '';
   if (!img) return `<div class="qr-shot"><i class="fa-regular fa-image"></i></div>`;
   return `<div class="qr-shot" data-img="${esc(img.url)}">${lbl}<i class="fa-regular fa-image"></i></div>`;
 }
@@ -85,6 +85,9 @@ function openLightbox(src) {
   document.body.appendChild(box);
 }
 const firstImg = (r, kind) => (r.images || []).find(i => i.kind === kind) ?? null;
+/* 画像の種類。この順番で対策書の図1・図2・図3になる */
+const IMG_KINDS = [['drawing', 'お客様図面'], ['defect', '不具合箇所'], ['fixed', '修正後']];
+const kindLabel = k => (IMG_KINDS.find(([x]) => x === k) ?? [, ''])[1];
 
 /* ───────── 状態の表示 ───────── */
 function stChip(r) {
@@ -157,7 +160,7 @@ function renderList() {
     .sort((a, b) => (isMine(b) - isMine(a)) || (b.found_on || '').localeCompare(a.found_on || '') || b.id - a.id);
 
   $('lList').innerHTML = list.map(r => `<div class="qr-row ${isMine(r) ? 'mine' : ''}" data-id="${r.id}">
-      ${shotHtml(firstImg(r, 'defect'), false)}
+      ${shotHtml(firstImg(r, 'defect') ?? firstImg(r, 'drawing'), false)}
       <div style="min-width:0"><div class="m"><span class="docno">${esc(r.no)}</span>${r.defect_type ? `<span class="qr-type">${esc(r.defect_type)}</span>` : ''}</div>
         <div class="t">${esc(r.title)}</div>
         <div class="m">${clientTag(r)}${pjHtml(r)}</div></div>
@@ -219,10 +222,11 @@ function renderDetail() {
   $('dEdit')?.addEventListener('click', () => openEdit(r));
   $('dDel')?.addEventListener('click', deleteCurrent);
 
-  const defects = r.images.filter(i => i.kind === 'defect'), fixes = r.images.filter(i => i.kind === 'fixed');
-  const extra = [...defects.slice(1), ...fixes.slice(1)];
+  const byKind = Object.fromEntries(IMG_KINDS.map(([k]) => [k, r.images.filter(i => i.kind === k)]));
+  const heads = IMG_KINDS.map(([k]) => byKind[k][0]).filter(Boolean);
+  const extra = IMG_KINDS.flatMap(([k]) => byKind[k].slice(1));
   $('dEvent').innerHTML = `<button class="qr-ev-toggle" id="evToggle" type="button"><span><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i> 発生事象を見る</span><i class="fa-solid fa-chevron-down"></i></button>
-    <div class="qr-ev"><div class="qr-ev-imgs"><div class="qr-pair">${shotHtml(defects[0] ?? null, true)}${shotHtml(fixes[0] ? fixes[0] : null, true)}</div>
+    <div class="qr-ev"><div class="qr-ev-imgs"><div class="qr-pair ${heads.length === 3 ? 'three' : ''}">${heads.length ? heads.map(i => shotHtml(i, true)).join('') : shotHtml(null, false)}</div>
         ${extra.length ? `<div class="qr-ev-more">${extra.map(i => shotHtml(i, false)).join('')}</div>` : ''}</div>
       <div><div class="qr-sec-h"><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i>発生事象<span class="sp"></span>
         <span class="by">${r.reporter_name ? esc(r.reporter_name) + ' 様より ' : ''}${esc(r.found_on)} ご指摘</span></div>
@@ -387,8 +391,8 @@ function renderHistory(r) {
 function paperHtml(r, custOverride) {
   const c = custOverride ?? r.cust ?? {};
   const P = v => v ? esc(v) : '<span class="ph">（④ まとめで作成）</span>';
-  const d = firstImg(r, 'defect'), f = firstImg(r, 'fixed');
-  const imgs = d || f ? `<div class="imgs">${d ? `<figure>${shotHtml(d, false)}<figcaption>図1 不具合箇所</figcaption></figure>` : '<div></div>'}${f ? `<figure>${shotHtml(f, false)}<figcaption>図2 修正後</figcaption></figure>` : ''}</div>` : '';
+  const figs = IMG_KINDS.map(([k, l]) => [firstImg(r, k), l]).filter(([i]) => i);
+  const imgs = figs.length ? `<div class="imgs n${figs.length}">${figs.map(([i, l], n) => `<figure>${shotHtml(i, false)}<figcaption>図${n + 1} ${l}</figcaption></figure>`).join('')}</div>` : '';
   return `<div class="qr-paper">
     <div class="doc-top"><span>文書番号：${esc(r.no)}</span><span>提出日：${fmtJa(r.submitted_on || today())}</span></div>
     <h1>不具合対策書</h1>
@@ -454,12 +458,12 @@ let editing = null;          // null = 新規
 let pickedProject = null;
 let pjMode = 'pick';        // pick = SOLIDの物件から選ぶ / manual = 直接入力（SOLID導入前など）
 let clientsLoaded = false;
-let pendingFiles = { defect: [], fixed: [] };   // 新規作成時に保存後まとめて送る画像
+let pendingFiles = { drawing: [], defect: [], fixed: [] };   // 新規作成時に保存後まとめて送る画像
 form.defect_type.innerHTML = '<option value="">選択してください</option>' + TYPES.map(t => `<option>${t}</option>`).join('');
 
 function openEdit(r) {
   editing = r ?? null;
-  pendingFiles = { defect: [], fixed: [] };
+  pendingFiles = { drawing: [], defect: [], fixed: [] };
   form.reset();
   $('editTitle').textContent = r ? '基本情報を編集' : '不具合を記録';
   pickedProject = r?.project && !r.project.manual ? { id: r.project.id, code: r.project.code, title: r.project.title, client_company: r.client?.name } : null;
@@ -592,7 +596,7 @@ $('editSave').onclick = async () => {
       d = await api.patch(`${BASE}/${editing.id}`, body);
     } else {
       d = await api.post(BASE, body);
-      for (const kind of ['defect', 'fixed']) {
+      for (const [kind] of IMG_KINDS) {
         if (pendingFiles[kind].length) {
           const up = await uploadImages(d.report.id, kind, pendingFiles[kind]);
           if (up) d.report = up;

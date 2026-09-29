@@ -13,7 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="../assets/css/app.css">
-  <link rel="stylesheet" href="../assets/css/quality-reports.css?v=2">
+  <link rel="stylesheet" href="../assets/css/quality-reports.css?v=3">
 </head>
 <body class="qr-body">
 <div class="app-layout">
@@ -156,9 +156,12 @@
       <div class="qr-fld"><label>再納品日</label><input class="form-input" type="date" name="redelivered_on"></div>
       <div class="qr-fld qr-full"><label>発生事象 <span class="req">*</span></label><textarea class="form-textarea" name="symptom" rows="3" required placeholder="何が起きていたか"></textarea></div>
       <div class="qr-fld qr-full"><label>影響範囲</label><textarea class="form-textarea" name="impact" rows="2" placeholder="どの範囲に影響したか（「製品への影響なし」なども明記）"></textarea></div>
-      <div class="qr-fld"><label>不具合箇所の画像</label><div class="qr-imgs" data-kind="defect"></div></div>
-      <div class="qr-fld"><label>修正後の画像</label><div class="qr-imgs" data-kind="fixed"></div></div>
-      <p class="qr-note qr-full">画像は対策書の「図1 不具合箇所」「図2 修正後」に使います。あとから追加もできます。</p>
+      <div class="qr-img-row qr-full">
+        <div class="qr-fld"><label>図1 お客様図面の画像</label><div class="qr-imgs" data-kind="drawing"></div></div>
+        <div class="qr-fld"><label>図2 不具合箇所の画像</label><div class="qr-imgs" data-kind="defect"></div></div>
+        <div class="qr-fld"><label>図3 修正後の画像</label><div class="qr-imgs" data-kind="fixed"></div></div>
+      </div>
+      <p class="qr-note qr-full">画像は対策書の図1〜図3に、この順番で使います（登録の無い図は詰めて番号を振ります）。あとから追加もできます。</p>
     </form>
     <div class="qr-modal-f">
       <button class="btn btn-outline btn-sm" data-close>キャンセル</button>
@@ -184,6 +187,6 @@
 <script src="../assets/js/auth.js?v=10"></script>
 <script src="../assets/js/api.js"></script>
 <script src="../assets/js/uploader.js"></script>
-<script src="../assets/js/pages/quality-reports.js?v=2"></script>
+<script src="../assets/js/pages/quality-reports.js?v=3"></script>
 </body>
 </html>
