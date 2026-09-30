@@ -75,15 +75,27 @@ if (user) {
     sel.style.display = '';
   }
 
-  /* ── プロジェクト取得 ── */
+  /* ── プロジェクト取得 ──
+     通信に失敗しても前回取得した一覧は残す（以前はモックデータに差し替わり、実データが消えて見えた）。
+     通知は「正常→失敗」に変わった1回だけ。戻り値falseで自動更新側のバックオフを効かせる */
+  let loadFailing = false;
+  let loadedOnce  = false;
   async function loadProjects() {
     const cf = document.getElementById('companyFilter')?.value;
     try {
       const params = cf ? `?company_id=${cf}` : '';
       const data = await api.get('/projects' + params);
-      allProjects = data?.projects ?? MOCK.projects;
-    } catch {
-      allProjects = MOCK.projects;
+      if (!data) return true;   // 401はapiFetch側でログアウト済み
+      allProjects = data.projects ?? [];
+      if (loadFailing) showToast('サーバーとの通信が回復しました', 'success');
+      loadFailing = false;
+      loadedOnce  = true;
+    } catch (err) {
+      if (!loadFailing) {
+        showToast(err.message + (loadedOnce ? '（表示中の一覧は前回取得した内容です）' : ''), 'danger');
+      }
+      loadFailing = true;
+      return false;
     }
     /* 会社フィルタの選択肢を更新。絞り込み中のallProjectsからは全社分を復元できないため、
        一度見つけた会社は消さずに積み上げる */
@@ -114,6 +126,7 @@ if (user) {
       sel.appendChild(unassigned);
     }
     renderTable();
+    return true;
   }
 
   /* ── サマリーカード ── */
@@ -286,5 +299,8 @@ if (user) {
   loadCompanyFilter().then(() => loadProjects());
 
   // タブ表示中は30秒ごと＋タブ復帰時に即時、一覧を自動更新
-  startAutoRefresh(loadProjects, 30000);
+  // 失敗時は例外にしてstartAutoRefreshのバックオフ（間隔を延ばす）を効かせる
+  startAutoRefresh(async () => {
+    if (!await loadProjects()) throw new Error('load failed');
+  }, 30000);
 }
