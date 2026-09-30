@@ -37,18 +37,36 @@ const STATUS_LABEL = {
 };
 
 /* ── データ取得 ── */
+/* 読み込めなかった場合は画面を「再読み込み」案内に差し替えてfalseを返す。
+   以前はモックの案件に差し替えており、通信断のときに架空の案件が表示されていた */
 async function loadProject() {
+  let data;
   try {
-    const data = await api.get(`/projects/${projId}`);
-    project  = data.project;
-    comments = project.comments ?? [];
-  } catch {
-    /* APIが使えない場合はモックにフォールバック */
-    project  = MOCK.projects.find(p => p.id === projId) || MOCK.projects[0];
-    comments = [...MOCK.comments];
-    project.files = MOCK.files;
+    data = await api.get(`/projects/${projId}`);
+  } catch (err) {
+    renderLoadError(err.message);
+    return false;
   }
+  if (!data?.project) return false;   // 401はapiFetch側でログアウト済み
+  project  = data.project;
+  comments = project.comments ?? [];
   renderAll();
+  return true;
+}
+
+function renderLoadError(message) {
+  const body = document.querySelector('.page-body');
+  if (!body) return;
+  body.innerHTML = `
+    <div class="card" style="padding:32px;text-align:center;">
+      <i class="fa-solid fa-triangle-exclamation" style="font-size:28px;color:var(--danger);"></i>
+      <p style="margin:12px 0 4px;font-weight:700;">プロジェクト情報を読み込めませんでした</p>
+      <p class="load-error-msg" style="margin:0 0 16px;font-size:13px;color:var(--muted);"></p>
+      <button class="btn btn-primary btn-sm" type="button" onclick="location.reload()">
+        <i class="fa-solid fa-rotate-right"></i> 再読み込み
+      </button>
+    </div>`;
+  body.querySelector('.load-error-msg').textContent = message;
 }
 
 function renderAll() {
@@ -2681,7 +2699,7 @@ async function init() {
       allModelers = data.modelers || [];
     } catch {}
   }
-  await loadProject();
+  if (!await loadProject()) return;   // 読み込めない間は自動更新も始めない
   adjustChatCardHeight();
 
   // ほぼリアルタイム更新: 3秒ごとに軽量version APIをポーリングし、

@@ -2,11 +2,18 @@
 /* API通信共通モジュール
    ⑨でLaravel APIに接続する際はBASE_URLを変更するだけでOK */
 
-const API_BASE = (() => {
+const IS_LOCAL_API = (() => {
   const h = location.hostname;
-  if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.test')) return 'http://127.0.0.1:8000/api';
-  return 'https://halspace-api-production.up.railway.app/api';
+  return h === 'localhost' || h === '127.0.0.1' || h.endsWith('.test');
 })();
+const API_BASE = IS_LOCAL_API
+  ? 'http://127.0.0.1:8000/api'
+  : 'https://halspace-api-production.up.railway.app/api';
+
+/* 1回の通信の待ち時間上限。Railwayの入口(エッジ)が詰まるとリクエストが数分〜十数分
+   返らないことがあり（2026-09-30実例: サーバー処理0.1秒なのに応答まで最大12分）、
+   上限が無いと画面が固まったまま待ち続ける。options.timeoutで個別に変更可 */
+const API_TIMEOUT_MS = 20000;
 
 async function apiFetch(path, options = {}) {
   const token = sessionStorage.getItem('space_token');
@@ -16,19 +23,43 @@ async function apiFetch(path, options = {}) {
     throw new Error('セッションが無効です。再ログインしてください。');
   }
 
+  const { timeout = API_TIMEOUT_MS, ...fetchOptions } = options;
+  const method = (fetchOptions.method || 'GET').toUpperCase();
+
+  const attempt = async () => {
+    const ctrl  = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeout);
+    try {
+      return await fetch(API_BASE + path, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept':        'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          ...fetchOptions.headers,
+        },
+        ...fetchOptions,
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
   let res;
   try {
-    res = await fetch(API_BASE + path, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept':        'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        ...options.headers,
-      },
-      ...options,
-    });
+    res = await attempt();
   } catch {
-    throw new Error('サーバーに接続できません。Laragonが起動しているか確認してください。');
+    /* 通信自体の失敗（タイムアウト含む）。GETは副作用が無いので少し待って1回だけやり直す。
+       POST等は届いていて二重登録になる恐れがあるので再送しない */
+    if (method === 'GET') {
+      await new Promise(r => setTimeout(r, 1500));
+      try { res = await attempt(); } catch { /* 下で通知 */ }
+    }
+    if (!res) {
+      throw new Error(IS_LOCAL_API
+        ? 'サーバーに接続できません。Laragonが起動しているか確認してください。'
+        : 'サーバーに接続できません。通信環境を確認し、しばらくしてから再度お試しください。');
+    }
   }
 
   if (res.status === 401) {

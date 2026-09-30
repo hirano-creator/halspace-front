@@ -24,20 +24,31 @@ let projects = [];
 let uploadTargetId = null;
 let pendingFiles   = [];
 
-/* ── データ取得 ── */
+/* ── データ取得 ──
+   通信に失敗しても前回取得した一覧は残す（以前はモックデータに差し替わり、実データが消えて見えた）。
+   通知は「正常→失敗」に変わった1回だけ。戻り値falseで自動更新側のバックオフを効かせる */
+let loadFailing = false;
+let loadedOnce  = false;
 async function loadProjects() {
   try {
     const data = await api.get('/projects');
+    if (!data) return true;   // 401はapiFetch側でログアウト済み
     // 手直し中(rework)は納品後の再作業なので一覧に出す（次アクションは詳細画面のファイル単位で行う）
-    projects = (data?.projects ?? []).filter(p =>
+    projects = (data.projects ?? []).filter(p =>
       ['submitted', 'in_progress', 'review_pending', 'revision_requested', 'rework', 'cancelled'].includes(p.status)
     );
-  } catch {
-    projects = MOCK.projects.filter(p =>
-      ['submitted', 'in_progress', 'review_pending', 'revision_requested', 'rework', 'cancelled'].includes(p.status)
-    );
+    if (loadFailing) showToast('サーバーとの通信が回復しました', 'success');
+    loadFailing = false;
+    loadedOnce  = true;
+  } catch (err) {
+    if (!loadFailing) {
+      showToast(err.message + (loadedOnce ? '（表示中の一覧は前回取得した内容です）' : ''), 'danger');
+    }
+    loadFailing = true;
+    return false;
   }
   renderTable();
+  return true;
 }
 
 /* ── テーブル描画 ── */
@@ -260,4 +271,7 @@ document.getElementById('uploadSubmitBtn').addEventListener('click', async () =>
 loadProjects();
 
 // タブ表示中は30秒ごと＋タブ復帰時に即時、一覧を自動更新
-startAutoRefresh(loadProjects, 30000);
+// 失敗時は例外にしてstartAutoRefreshのバックオフ（間隔を延ばす）を効かせる
+startAutoRefresh(async () => {
+  if (!await loadProjects()) throw new Error('load failed');
+}, 30000);
