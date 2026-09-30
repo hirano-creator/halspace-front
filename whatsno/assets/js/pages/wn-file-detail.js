@@ -3542,6 +3542,14 @@ async function loadOneRelationThumb(r) {
       const out = fdThumbShrink(canvas, fdThumbTargetLong());
       blob = await new Promise(res => out.toBlob(res, 'image/jpeg', 0.90));
 
+    } else if (wnIsHtml(r.file_name, mime)) {
+      const res = await fetch(directUrl);
+      if (!res.ok) return;
+      const canvas = await wnHtmlToCanvas(await res.arrayBuffer());
+      if (!canvas) return;
+      const out = fdThumbShrink(canvas, fdThumbTargetLong());
+      blob = await new Promise(res => out.toBlob(res, 'image/jpeg', 0.90));
+
     } else if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','svg'].includes(ext)) {
       const res = await fetch(directUrl);
       if (!res.ok) return;

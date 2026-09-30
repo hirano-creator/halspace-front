@@ -164,6 +164,53 @@ const near = (a, b, tol = 40) => a && b && a.every((v, i) => Math.abs(v - b[i]) 
     await page.close();
   }
 
+  /* ════ 5. ダッシュボード: HTML サムネイル（SVG foreignObject 経由・スクリプトは動かない） ════ */
+  {
+    const page = await ctx.newPage();
+    const errs = [];
+    page.on('pageerror', e => errs.push(e.message));
+    await mockFiles(page);
+    let uploaded = 0;
+    await page.route('**/api/wn/files/301/thumb*', r => {
+      if (r.request().method() === 'POST') { uploaded++; return r.fulfill({ json: { ok: true } }); }
+      return r.fulfill({ status: 404, json: {} });
+    });
+    await page.goto(`${BASE}/app/dashboard.html`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => typeof loadOneThumbnail === 'function', null, { timeout: 10000 });
+    const card = await page.evaluate(() => fileCardHtml({ id: 301, file_name: '見積書.html', mime_type: 'text/html', file_size: 1000 }));
+    check('ダッシュボード HTMLカードにサムネ受け皿', card.includes('id="thumb-icon-301"'));
+    await page.evaluate(() => {
+      const box = document.createElement('div');
+      box.id = 'e2eBoxH';
+      box.innerHTML = '<div class="file-card-thumb" style="position:relative;width:200px;height:150px"><i id="thumb-icon-301"></i></div>';
+      document.body.appendChild(box);
+      return loadOneThumbnail({ id: 301, file_name: '見積書.html', mime_type: 'text/html', file_size: 1000, updated_at: '2026-09-30T00:00:00Z' });
+    });
+    await page.waitForSelector('#e2eBoxH img', { timeout: 10000 }).catch(() => {});
+    const src = await page.$eval('#e2eBoxH img', el => el.naturalWidth > 0 ? el.src : '').catch(() => '');
+    const title = await page.title();
+    check('ダッシュボード HTMLサムネ表示', src.startsWith('blob:'), `src=${src.slice(0, 20)} ${errs.join(' / ')}`);
+    check('ダッシュボード HTMLサムネ生成でスクリプトが動かない', title !== 'HACKED', title);
+    await page.waitForTimeout(500);
+    check('ダッシュボード HTMLサムネをサーバーへ保存', uploaded === 1, `POST=${uploaded}`);
+    await page.screenshot({ path: path.join(SHOTS, 'html-thumb-dashboard.png'), clip: { x: 0, y: 0, width: 1280, height: 900 } });
+    await page.close();
+  }
+
+  /* ════ 6. 並べる(wn-thumb.js): HTML サムネイル ════ */
+  {
+    const page = await ctx.newPage();
+    const errs = [];
+    page.on('pageerror', e => errs.push(e.message));
+    await mockFiles(page);
+    await page.goto(`${BASE}/app/align.html?ids=301,302`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => document.querySelectorAll('img[src^="blob:"]').length >= 2, null, { timeout: 15000 }).catch(() => {});
+    const n = await page.$$eval('img[src^="blob:"]', els => els.filter(e => e.naturalWidth > 0).length);
+    check('並べる HTMLサムネ表示', n >= 2, `blob img=${n} ${errs.join(' / ')}`);
+    await page.screenshot({ path: path.join(SHOTS, 'html-align.png') });
+    await page.close();
+  }
+
   await browser.close();
   const fail = results.filter(r => !r.ok).length;
   console.log(`\n${results.length - fail}/${results.length} PASS`);
