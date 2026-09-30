@@ -1493,8 +1493,11 @@ async function wnTiffToCanvas(buffer) {
    ブラウザがスクリプトも外部通信も一切行わないので安全。代わりに外部 CSS・画像・
    Webフォントは読めない（インラインの <style> と data: 画像だけが反映される）。
    Safari 等で canvas が汚染扱いになり書き出せない場合や、真っ白（JS で描く画面）の
-   場合は null を返し、呼び出し側はアイコン表示のままにする。 */
+   場合は null を返し、呼び出し側はアイコン表示のままにする。
+   描画ロジックを変えたら WN_HTML_THUMB_VER を上げる（HTML のサムネはサーバーに
+   保存せず端末内だけに置くので、これだけで全端末が作り直す）。 */
 const WN_HTML_THUMB_MAX_BYTES = 5 * 1024 * 1024;
+const WN_HTML_THUMB_VER = 'h2';   /* h2: CSS アニメーションを最終状態で固定 */
 
 function wnIsHtml(fileName, mimeType = '') {
   const ext = (fileName || '').split('.').pop().toLowerCase();
@@ -1510,7 +1513,7 @@ function wnDecodeHtmlBuffer(buffer) {
   catch { return new TextDecoder('utf-8').decode(buffer); }
 }
 
-async function wnHtmlToCanvas(buffer, { width = 1280, height = 800 } = {}) {
+async function wnHtmlToCanvas(buffer, { width = 1280, height = 720 } = {}) {
   if (!buffer || buffer.byteLength > WN_HTML_THUMB_MAX_BYTES) return null;
   const doc = new DOMParser().parseFromString(wnDecodeHtmlBuffer(buffer), 'text/html');
   /* 描画に不要・外部参照するものは落とす（<img> 経由なのでどのみち動かないが、SVG を軽くする） */
@@ -1526,6 +1529,12 @@ async function wnHtmlToCanvas(buffer, { width = 1280, height = 800 } = {}) {
     if (!/^data:/i.test(img.getAttribute('src') || '')) img.remove();
   });
   if (!doc.body || !doc.body.textContent.trim() && !doc.body.querySelector('img, svg, canvas')) return null;
+  /* <img> 経由の SVG ではアニメーションが開始時点で止まる。スライド資料の
+     「opacity:0 からフェードイン」等が透明のまま写るので、0秒で最終状態へ飛ばす。 */
+  const freeze = doc.createElement('style');
+  freeze.textContent = '*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;'
+    + 'animation-iteration-count:1!important;animation-fill-mode:both!important;transition:none!important}';
+  (doc.head || doc.documentElement).appendChild(freeze);
 
   const xhtml = new XMLSerializer().serializeToString(doc.documentElement);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">`

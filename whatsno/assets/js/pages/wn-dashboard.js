@@ -2376,12 +2376,15 @@ async function loadOneThumbnail(f) {
   const mime     = f.mime_type ?? '';
   /* 世代(WN_THUMB_GEN)も含める: サーバー世代を上げた時に古いIDBエントリも確実に無効化する */
   const gen      = (typeof WN_THUMB_GEN !== 'undefined') ? WN_THUMB_GEN : '';
-  const cacheKey = `thumb_${f.id}_${f.updated_at ?? f.created_at ?? ''}_${THUMB_VER}_${gen}`;
+  /* HTML はサーバーに保存せず端末内だけで持つ（描画を直したとき WN_HTML_THUMB_VER だけで作り直せるように。
+     サーバー保存だと旧版の誤サムネが全端末に配られ続ける） */
+  const isHtml   = wnIsHtml(f.file_name, mime);
+  const cacheKey = `thumb_${f.id}_${f.updated_at ?? f.created_at ?? ''}_${THUMB_VER}_${gen}` + (isHtml ? `_${WN_HTML_THUMB_VER}` : '');
 
   /* 文書系 (PDF/Excel/Word) は先頭(タイトル付近)を見せたいので object-position:top */
   const isDoc = (mime === 'application/pdf' || ext === 'pdf'
               || ['xlsx','xls','xlsm','docx','docm'].includes(ext)
-              || wnIsHtml(f.file_name, mime));
+              || isHtml);
   const appendOpts = isDoc ? { anchor: 'top' } : {};
 
   /* ── 画像ファイルのハイブリッド表示 ──
@@ -2424,7 +2427,7 @@ async function loadOneThumbnail(f) {
     /* ── サーバー保存型サムネイル確認（画像/Office等）──
        保存済みなら極小JPEGを取得し、IndexedDB へも保存して再訪をゼロ通信化する。
        404（pdf/video/dxf/HEIC の未生成）なら下のクライアント生成へ進む。 */
-    const serverBlob = await wnFetchServerThumb(f.id, f.updated_at ?? f.created_at);
+    const serverBlob = isHtml ? null : await wnFetchServerThumb(f.id, f.updated_at ?? f.created_at);
     if (serverBlob) {
       await ThumbCache.evictOld(f.id).catch(() => {});
       await ThumbCache.set(cacheKey, serverBlob).catch(() => {});  // 永続化＝次回IDBヒット
@@ -2451,7 +2454,7 @@ async function loadOneThumbnail(f) {
       blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
       wnFreeCanvas(canvas, out);
 
-    } else if (wnIsHtml(f.file_name, mime)) {
+    } else if (isHtml) {
       /* HTML: スクリプトを動かさず SVG(foreignObject) 経由で先頭画面を描く（wn-api.js） */
       const res = await fetch(directUrl);
       if (!res.ok) return;
@@ -2667,7 +2670,7 @@ async function loadOneThumbnail(f) {
     await ThumbCache.set(cacheKey, blob).catch(() => {});
 
     /* ── サーバーへも保存（全端末・全ユーザーの次回を即配信化） ── */
-    wnUploadThumb(f.id, blob);
+    if (!isHtml) wnUploadThumb(f.id, blob);
 
     /* ── 表示 ── */
     const objUrl = URL.createObjectURL(blob);

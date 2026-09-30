@@ -3501,7 +3501,7 @@ async function loadOneRelationThumb(r) {
 
   const ext = (r.file_name || '').split('.').pop().toLowerCase();
   const mime = r.mime_type ?? '';
-  const cacheKey = `thumb_${r.id}_${r.updated_at ?? r.created_at ?? ''}_${RELATION_THUMB_VER}`;
+  const cacheKey = `thumb_${r.id}_${r.updated_at ?? r.created_at ?? ''}_${RELATION_THUMB_VER}` + (wnIsHtml(r.file_name, r.mime_type ?? "") ? `_${WN_HTML_THUMB_VER}` : "");
   const isDoc = mime === 'application/pdf' || ext === 'pdf'
              || ['xlsx','xls','xlsm','docx','docm'].includes(ext);
 

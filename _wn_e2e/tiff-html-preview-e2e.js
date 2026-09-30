@@ -170,9 +170,10 @@ const near = (a, b, tol = 40) => a && b && a.every((v, i) => Math.abs(v - b[i]) 
     const errs = [];
     page.on('pageerror', e => errs.push(e.message));
     await mockFiles(page);
-    let uploaded = 0;
+    let uploaded = 0, serverGet = 0;
     await page.route('**/api/wn/files/301/thumb*', r => {
       if (r.request().method() === 'POST') { uploaded++; return r.fulfill({ json: { ok: true } }); }
+      serverGet++;
       return r.fulfill({ status: 404, json: {} });
     });
     await page.goto(`${BASE}/app/dashboard.html`, { waitUntil: 'domcontentloaded' });
@@ -192,7 +193,8 @@ const near = (a, b, tol = 40) => a && b && a.every((v, i) => Math.abs(v - b[i]) 
     check('ダッシュボード HTMLサムネ表示', src.startsWith('blob:'), `src=${src.slice(0, 20)} ${errs.join(' / ')}`);
     check('ダッシュボード HTMLサムネ生成でスクリプトが動かない', title !== 'HACKED', title);
     await page.waitForTimeout(500);
-    check('ダッシュボード HTMLサムネをサーバーへ保存', uploaded === 1, `POST=${uploaded}`);
+    /* HTML は端末内だけで持つ（旧版の誤サムネがサーバーから配られ続けないように） */
+    check('ダッシュボード HTMLサムネはサーバーを使わない', uploaded === 0 && serverGet === 0, `POST=${uploaded} GET=${serverGet}`);
     await page.screenshot({ path: path.join(SHOTS, 'html-thumb-dashboard.png'), clip: { x: 0, y: 0, width: 1280, height: 900 } });
     await page.close();
   }

@@ -570,7 +570,9 @@ function wnThumbResolve(file, opts = {}) {
   const stamp   = file.updated_at ?? file.created_at ?? '';
   const gen     = (typeof WN_THUMB_GEN !== 'undefined') ? WN_THUMB_GEN : '';
   const prefix  = preview ? 'preview' : 'thumb';
-  const key     = `${prefix}_${file.id}_${stamp}_${WN_TH_VER}_${gen}`;
+  /* HTML はサーバーに保存せず端末内だけで持つ（描画を直したとき WN_HTML_THUMB_VER だけで作り直せるように） */
+  const isHtml  = typeof wnIsHtml === 'function' && wnIsHtml(file.file_name, wnThMime(file));
+  const key     = `${prefix}_${file.id}_${stamp}_${WN_TH_VER}_${gen}` + (isHtml ? `_${WN_HTML_THUMB_VER}` : '');
 
   if (wnThMem[key])     return Promise.resolve(wnThMem[key]);
   if (wnThPending[key]) return wnThPending[key];
@@ -583,7 +585,7 @@ function wnThumbResolve(file, opts = {}) {
 
       /* 2) サーバー保存サムネ（画像/Office、および誰かが生成済みのPDF等）。
             拡大表示用は 400px では足りないのでここは通さない。 */
-      if (!preview) {
+      if (!preview && !isHtml) {
         const serverBlob = await wnThFetchServerThumb(file);
         if (serverBlob) {
           await WnThumbStore.evictOld(file.id, prefix).catch(() => {});
@@ -608,7 +610,7 @@ function wnThumbResolve(file, opts = {}) {
 
       await WnThumbStore.evictOld(file.id, prefix).catch(() => {});
       await WnThumbStore.set(key, blob).catch(() => {});
-      if (!preview) wnUploadThumb(file.id, blob);  /* 他端末・他ユーザーの次回を即配信化 */
+      if (!preview && !isHtml) wnUploadThumb(file.id, blob);  /* 他端末・他ユーザーの次回を即配信化 */
       return (wnThMem[key] = URL.createObjectURL(blob));
     } catch (e) {
       console.warn('thumb resolve failed:', file.file_name, e);

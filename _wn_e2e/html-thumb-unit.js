@@ -12,6 +12,9 @@ body{margin:0;font-family:sans-serif} .slide{width:100vw;height:100vh;background
 </style></head><body><div class="slide">Space.app 提案 &amp; 資料&nbsp;</div>
 <img src="https://example.com/a.png" onerror="window.parent.__pwned=1">
 <img src="x" onerror="window.__pwned=1"><script>window.__pwned=2</script></body></html>`;
+/* スライド資料テンプレート（.slide.active が opacity:0 からのフェードイン）。
+   アニメーションを止めないと透明のまま写る不具合があった */
+const deckTpl = fs.readFileSync(path.join(__dirname, 'fixtures/sample-deck.html'), 'utf8');
 const blank = `<!doctype html><html><body><div id="app"></div><script>document.body.innerHTML='x'</script></body></html>`;
 
 (async () => {
@@ -21,7 +24,7 @@ const blank = `<!doctype html><html><body><div id="app"></div><script>document.b
     const p = await b.newPage();
     await p.goto('http://127.0.0.1:8765/whatsno/index.html');
     await p.addScriptTag({ content: code + '\nwindow.wnHtmlToCanvas = wnHtmlToCanvas;' });
-    const r = await p.evaluate(async ({ deck, blank }) => {
+    const r = await p.evaluate(async ({ deck, blank, deckTpl }) => {
       const enc = s => new TextEncoder().encode(s).buffer;
       const out = {};
       try {
@@ -29,6 +32,12 @@ const blank = `<!doctype html><html><body><div id="app"></div><script>document.b
         out.deck = c ? c.getContext('2d').getImageData(640, 400, 1, 1).data.join(',') : null;
         out.deckUrl = c ? c.toDataURL('image/jpeg', 0.8) : null;
       } catch (e) { out.deckErr = String(e); }
+      try {
+        const c = await wnHtmlToCanvas(enc(deckTpl));
+        /* 表紙タイトル「Product」の太字部分（白）が写っているか */
+        out.deckTpl = c ? Array.from(c.getContext('2d').getImageData(90, 260, 300, 50).data)
+          .filter((v, i) => i % 4 === 0 && v > 230).length : 0;
+      } catch (e) { out.deckTplErr = String(e); }
       try { out.blank = await wnHtmlToCanvas(enc(blank)); } catch (e) { out.blankErr = String(e); }
       /* Shift_JIS: 「図面」= 0x90 0x7D 0x96 0xCA */
       const pre = new TextEncoder().encode('<html><head><meta charset="Shift_JIS"><style>body{background:#000;color:#fff;font-size:120px}</style></head><body>');
@@ -38,10 +47,10 @@ const blank = `<!doctype html><html><body><div id="app"></div><script>document.b
       await new Promise(r => setTimeout(r, 500));
       out.pwned = window.__pwned || 0;
       return out;
-    }, { deck, blank });
+    }, { deck, blank, deckTpl });
     if (r.deckUrl) fs.writeFileSync(path.join(__dirname, `shots/html-thumb-${name}.jpg`), Buffer.from(r.deckUrl.split(',')[1], 'base64'));
     delete r.deckUrl;
-    const ok = r.deck && r.blank === null && r.sjis && r.sjisText && r.pwned === 0;
+    const ok = r.deck && r.deckTpl > 500 && r.blank === null && r.sjis && r.sjisText && r.pwned === 0;
     if (!ok) fail++;
     console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`, JSON.stringify(r));
     await b.close();
