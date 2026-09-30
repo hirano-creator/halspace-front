@@ -325,7 +325,9 @@ function wnThumbSupported(file) {
   if (wnThIsVideo(file) && (file.file_size ?? 0) > WN_TH_VIDEO_MAX_BYTES) return false;
   return wnThIsImage(file) || wnThIsPdf(file) || wnThIsVideo(file)
       || ext === 'dxf'
-      || ['xlsx', 'xls', 'xlsm', 'docx', 'docm', 'pptx', 'ppt', 'pptm'].includes(ext);
+      || ['xlsx', 'xls', 'xlsm', 'docx', 'docm', 'pptx', 'ppt', 'pptm'].includes(ext)
+      || (typeof wnIsHtml === 'function' && wnIsHtml(file.file_name, wnThMime(file))
+          && (file.file_size ?? 0) <= WN_HTML_THUMB_MAX_BYTES);
 }
 
 /* ── クライアント生成（サーバーが404を返した種別だけここへ来る） ── */
@@ -422,6 +424,18 @@ async function wnThGenerateBlob(file, targetLong = wnThTargetLong()) {
     const canvas = await wnTiffToCanvas(await res.arrayBuffer());
     const out = wnThShrink(canvas, targetLong);
     wnThEnhance(out);
+    const blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
+    wnThFree(canvas, out);
+    return blob;
+  }
+
+  /* ── HTML: スクリプトを動かさず SVG(foreignObject) 経由で先頭画面を描く（wn-api.js） ── */
+  if (typeof wnIsHtml === 'function' && wnIsHtml(file.file_name, wnThMime(file))) {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const canvas = await wnHtmlToCanvas(await res.arrayBuffer());
+    if (!canvas) return null;
+    const out  = wnThShrink(canvas, targetLong);
     const blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
     wnThFree(canvas, out);
     return blob;

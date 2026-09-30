@@ -1485,6 +1485,79 @@ async function wnTiffToCanvas(buffer) {
   return canvas;
 }
 
+/* ── HTML ──
+   サムネイル用に HTML の見た目（先頭画面）を canvas へ描く。
+   利用者がアップロードした任意の HTML なので、同一オリジンの DOM に入れて描く方式
+   （html2canvas 等）は使わない（onerror 等のイベント属性が走ると space_token を読まれる）。
+   SVG の <foreignObject> に入れて <img> として描画する。<img> 経由の SVG は
+   ブラウザがスクリプトも外部通信も一切行わないので安全。代わりに外部 CSS・画像・
+   Webフォントは読めない（インラインの <style> と data: 画像だけが反映される）。
+   Safari 等で canvas が汚染扱いになり書き出せない場合や、真っ白（JS で描く画面）の
+   場合は null を返し、呼び出し側はアイコン表示のままにする。 */
+const WN_HTML_THUMB_MAX_BYTES = 5 * 1024 * 1024;
+
+function wnIsHtml(fileName, mimeType = '') {
+  const ext = (fileName || '').split('.').pop().toLowerCase();
+  return ext === 'html' || ext === 'htm' || mimeType === 'text/html';
+}
+
+/* バイト列 → 文字列。<meta charset> に Shift_JIS 等の指定があればそれで読む */
+function wnDecodeHtmlBuffer(buffer) {
+  const head = new TextDecoder('ascii').decode(new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 4096)));
+  const m = head.match(/<meta[^>]+charset\s*=\s*["']?\s*([\w-]+)/i);
+  let label = (m && m[1]) || 'utf-8';
+  try { return new TextDecoder(label).decode(buffer); }
+  catch { return new TextDecoder('utf-8').decode(buffer); }
+}
+
+async function wnHtmlToCanvas(buffer, { width = 1280, height = 800 } = {}) {
+  if (!buffer || buffer.byteLength > WN_HTML_THUMB_MAX_BYTES) return null;
+  const doc = new DOMParser().parseFromString(wnDecodeHtmlBuffer(buffer), 'text/html');
+  /* 描画に不要・外部参照するものは落とす（<img> 経由なのでどのみち動かないが、SVG を軽くする） */
+  doc.querySelectorAll('script, noscript, iframe, frame, object, embed, link, meta, base, video, audio')
+     .forEach(el => el.remove());
+  doc.querySelectorAll('*').forEach(el => {
+    for (const a of Array.from(el.attributes)) {
+      if (/^on/i.test(a.name)) el.removeAttribute(a.name);
+    }
+  });
+  /* 外部画像は読めず壊れたアイコンになるので消す（data: だけ残す） */
+  doc.querySelectorAll('img').forEach(img => {
+    if (!/^data:/i.test(img.getAttribute('src') || '')) img.remove();
+  });
+  if (!doc.body || !doc.body.textContent.trim() && !doc.body.querySelector('img, svg, canvas')) return null;
+
+  const xhtml = new XMLSerializer().serializeToString(doc.documentElement);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">`
+            + `<foreignObject x="0" y="0" width="100%" height="100%">${xhtml}</foreignObject></svg>`;
+  const img = new Image();
+  img.width = width; img.height = height;
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = () => reject(new Error('HTMLを画像化できませんでした'));
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(img, 0, 0, width, height);
+
+  /* 汚染（書き出し不可）チェックと、ほぼ単色（中身が JS 描画で空）の判定を兼ねる */
+  let data;
+  try { data = ctx.getImageData(0, 0, width, height).data; }
+  catch { canvas.width = canvas.height = 0; return null; }
+  const r0 = data[0], g0 = data[1], b0 = data[2];
+  let diff = 0;
+  for (let i = 0; i < data.length; i += 4 * 97) {
+    if (Math.abs(data[i] - r0) + Math.abs(data[i + 1] - g0) + Math.abs(data[i + 2] - b0) > 24) diff++;
+  }
+  if (diff < 20) { canvas.width = canvas.height = 0; return null; }
+  return canvas;
+}
+
 /* annotate.html で注釈編集できる形式か（PDF・画像のみ。PowerPointは対象外） */
 function wnIsAnnotatable(fileName, mimeType = '') {
   const ext  = (fileName || '').split('.').pop().toLowerCase();

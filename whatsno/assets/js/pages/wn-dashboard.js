@@ -2188,7 +2188,8 @@ function wnThumbEligible(f) {
       || isVid
       || ext === 'dxf'
       || isOffice
-      || ['pptx','ppt','pptm'].includes(ext);
+      || ['pptx','ppt','pptm'].includes(ext)
+      || (wnIsHtml(f.file_name, mime) && (f.file_size ?? 0) <= WN_HTML_THUMB_MAX_BYTES);
 }
 
 /* 取得キューの並列数。各タスクは主に軽い fetch/IDB 取得（サーバー保存済みサムネ or
@@ -2379,7 +2380,8 @@ async function loadOneThumbnail(f) {
 
   /* 文書系 (PDF/Excel/Word) は先頭(タイトル付近)を見せたいので object-position:top */
   const isDoc = (mime === 'application/pdf' || ext === 'pdf'
-              || ['xlsx','xls','xlsm','docx','docm'].includes(ext));
+              || ['xlsx','xls','xlsm','docx','docm'].includes(ext)
+              || wnIsHtml(f.file_name, mime));
   const appendOpts = isDoc ? { anchor: 'top' } : {};
 
   /* ── 画像ファイルのハイブリッド表示 ──
@@ -2446,6 +2448,16 @@ async function loadOneThumbnail(f) {
       const canvas = await wnTiffToCanvas(await res.arrayBuffer());
       const out = wnShrinkCanvas(canvas, wnThumbTargetLong());
       wnEnhanceLineArt(out);   /* スキャン図面が多いので PDF と同じく線画強調 */
+      blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
+      wnFreeCanvas(canvas, out);
+
+    } else if (wnIsHtml(f.file_name, mime)) {
+      /* HTML: スクリプトを動かさず SVG(foreignObject) 経由で先頭画面を描く（wn-api.js） */
+      const res = await fetch(directUrl);
+      if (!res.ok) return;
+      const canvas = await wnHtmlToCanvas(await res.arrayBuffer());
+      if (!canvas) return;
+      const out = wnShrinkCanvas(canvas, wnThumbTargetLong());
       blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
       wnFreeCanvas(canvas, out);
 
@@ -2850,7 +2862,8 @@ function fileCardHtml(f) {
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
                 || ext === 'dxf'
-                || ['xlsx','xls','xlsm','docx','docm','pptx','ppt','pptm'].includes(ext);
+                || ['xlsx','xls','xlsm','docx','docm','pptx','ppt','pptm'].includes(ext)
+                || wnIsHtml(f.file_name, mime);
   const thumbHtml = hasThumb
     ? `<i class="fa-solid ${icon} file-type-icon ${cls}" id="thumb-icon-${f.id}"></i>`
     : `<i class="fa-solid ${icon} file-type-icon ${cls}"></i>`;
@@ -2927,7 +2940,8 @@ function fileRowHtmlClassic(f) {
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
                 || ext === 'dxf'
-                || ['xlsx','xls','xlsm','docx','docm','pptx','ppt','pptm'].includes(ext);
+                || ['xlsx','xls','xlsm','docx','docm','pptx','ppt','pptm'].includes(ext)
+                || wnIsHtml(f.file_name, mime);
   const iconContent = hasThumb
     ? `<i class="fa-solid ${icon} ${cls}" id="thumb-icon-row-${f.id}"></i>`
     : `<i class="fa-solid ${icon} ${cls}"></i>`;
@@ -2993,7 +3007,8 @@ function fileRowHtmlIG(f) {
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
                 || ext === 'dxf'
-                || ['xlsx','xls','xlsm','docx','docm','pptx','ppt','pptm'].includes(ext);
+                || ['xlsx','xls','xlsm','docx','docm','pptx','ppt','pptm'].includes(ext)
+                || wnIsHtml(f.file_name, mime);
   const placeholderIcon = hasThumb
     ? `<i class="fa-solid ${icon} ${cls}" id="thumb-icon-row-${f.id}"></i>`
     : `<i class="fa-solid ${icon} ${cls}"></i>`;
