@@ -1247,7 +1247,7 @@ const Viewer = (() => {
         .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
         .then(buf => {
           loading.remove();
-          if (_hasPdf3D(buf)) { _render3dPdfNotice(content, file, buf); return; }
+          /* 3D PDFも案内画面を挟まずそのままPDFとして表示する */
           const blobUrl = URL.createObjectURL(new Blob([buf], { type: 'application/pdf' }));
           const iframe = document.createElement('iframe');
           iframe.id = 'pdfFrame';
