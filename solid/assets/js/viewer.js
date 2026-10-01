@@ -1124,9 +1124,11 @@ const Viewer = (() => {
     return /\/Subtype\s*\/(?:PRC|U3D|3D)[^A-Za-z]/.test(new TextDecoder('latin1').decode(buf));
   }
 
-  /* 3D PDFの案内を描画する。ブラウザでは3Dを表示できないため、
-     ダウンロードとAcrobat Reader（3Dを表示できるのはデスクトップ版のみ）へ誘導する。 */
+  /* 3D PDFの案内を描画する。ブラウザでは3Dを表示できず、ブラウザからAcrobat Readerを
+     直接起動する手段もないため、PC（マウス操作の端末）では自動でダウンロードを始め、
+     ダウンロードしたファイルをAcrobat Reader（3Dを表示できるのはデスクトップ版のみ）で開いてもらう。 */
   function _render3dPdfNotice(container, file, buf) {
+    const isDesktop = window.matchMedia('(pointer: fine)').matches;
     const btn = 'display:inline-flex;align-items:center;gap:7px;padding:10px 18px;border-radius:8px;'
       + 'font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;border:1px solid transparent;';
     const wrap = document.createElement('div');
@@ -1136,9 +1138,16 @@ const Viewer = (() => {
       <i class="fa-solid fa-cube" style="font-size:56px;color:#00b894;"></i>
       <strong style="font-size:16px;color:#cdd6f4;">3Dモデル埋め込みPDF（PRC形式）</strong>
       <span style="max-width:540px;line-height:1.9;">
-        このPDFは3Dモデルだけが入っているため、ブラウザでは表示できません。<br>
-        ダウンロードして <b style="color:#cdd6f4;">Adobe Acrobat Reader</b> で開くと、回転・拡大して確認できます。
+        ${isDesktop
+          ? `ダウンロードを開始しました。ダウンロードしたファイルを開くと<br>
+             <b style="color:#cdd6f4;">Adobe Acrobat Reader</b> で3Dモデルを回転・拡大して確認できます。`
+          : `このPDFは3Dモデルだけが入っているため、ブラウザでは表示できません。<br>
+             PCでダウンロードして <b style="color:#cdd6f4;">Adobe Acrobat Reader</b> で開いてください。`}
       </span>
+      ${isDesktop ? `<span style="max-width:540px;font-size:12px;line-height:1.8;">
+        ブラウザやEdgeで開いてしまう場合は、ファイルを右クリック →「プログラムから開く」→ Adobe Acrobat を選んでください。<br>
+        3Dが表示されない場合は、Acrobatの「環境設定 → 3D とマルチメディア → 3D コンテンツの再生を有効にする」をオンにしてください。
+      </span>` : ''}
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:4px;">
         <button type="button" data-act="dl" style="${btn}background:#ff6b35;color:#fff;">
           <i class="fa-solid fa-download"></i> ダウンロード
@@ -1157,12 +1166,14 @@ const Viewer = (() => {
     const blobUrl = URL.createObjectURL(new Blob([buf], { type: 'application/pdf' }));
     wrap.dataset.blobUrl = blobUrl;
 
-    wrap.querySelector('[data-act="dl"]').addEventListener('click', () => {
+    const download = () => {
       const a = document.createElement('a');
       a.href = blobUrl;
       a.download = file.file_name || 'model.pdf';
       a.click();
-    });
+    };
+    wrap.querySelector('[data-act="dl"]').addEventListener('click', download);
+    if (isDesktop) download();
     /* 2Dページを併せ持つ複合PDF向けの逃げ道。3D注釈のみのPDFなら白紙が出る */
     wrap.querySelector('[data-act="raw"]').addEventListener('click', () => {
       wrap.remove();
@@ -1247,7 +1258,7 @@ const Viewer = (() => {
         .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); })
         .then(buf => {
           loading.remove();
-          /* 3D PDFも案内画面を挟まずそのままPDFとして表示する */
+          if (_hasPdf3D(buf)) { _render3dPdfNotice(content, file, buf); return; }
           const blobUrl = URL.createObjectURL(new Blob([buf], { type: 'application/pdf' }));
           const iframe = document.createElement('iframe');
           iframe.id = 'pdfFrame';
