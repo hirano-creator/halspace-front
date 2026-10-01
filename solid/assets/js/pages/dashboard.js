@@ -79,6 +79,7 @@ if (user) {
      通信に失敗しても前回取得した一覧は残す（以前はモックデータに差し替わり、実データが消えて見えた）。
      通知は「正常→失敗」に変わった1回だけ。戻り値falseで自動更新側のバックオフを効かせる */
   let loadFailing = false;
+  let failStreak = 0; // 連続失敗回数。表示中の一覧がある間は1回の瞬断では知らせない
   let loadedOnce  = false;
   async function loadProjects() {
     const cf = document.getElementById('companyFilter')?.value;
@@ -89,8 +90,12 @@ if (user) {
       allProjects = data.projects ?? [];
       if (loadFailing) showToast('サーバーとの通信が回復しました', 'success');
       loadFailing = false;
+      failStreak  = 0;
       loadedOnce  = true;
     } catch (err) {
+      failStreak++;
+      // 初回（表示する一覧がまだ無い）は即知らせる。表示中なら2回続けて失敗したときだけ
+      if (loadedOnce && failStreak < 2) return false;
       if (!loadFailing) {
         showToast(err.message + (loadedOnce ? '（表示中の一覧は前回取得した内容です）' : ''), 'danger');
       }
