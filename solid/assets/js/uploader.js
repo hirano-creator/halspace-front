@@ -208,6 +208,13 @@ function createProgressTracker(items, onProgress) {
   };
 }
 
+/* 失敗したファイル名の通知用。数百件を並べるとトーストが画面を覆うため先頭数件＋件数にする */
+function summarizeFileNames(names, max = 5) {
+  return names.length <= max
+    ? names.join(", ")
+    : `${names.slice(0, max).join(", ")} ほか${names.length - max}件（計${names.length}件）`;
+}
+
 function authHeaders() {
   const token = sessionStorage.getItem('space_token');
   return {
@@ -225,88 +232,191 @@ function uploadItems(projectId, items, {
   const resolveType = item => (typeof fileType === 'function' ? fileType(item) : fileType);
 
   return (async () => {
+    const tracker = createProgressTracker(items, onProgress);
     try {
-      return await uploadItemsDirect(projectId, items, { resolveType, onProgress, concurrency });
+      return await uploadItemsDirect(projectId, items, { resolveType, tracker, concurrency });
     } catch (err) {
-      console.warn('[uploader] R2直送を使えないためAPI経由で送信します:', err?.message ?? err);
+      if (!(err instanceof DirectUnavailableError)) throw err;
+      console.warn('[uploader] R2直送を使えないためAPI経由で送信します:', err.message);
       return await uploadItemsViaApi(projectId, items, { resolveType, onProgress, concurrency });
     }
   })();
 }
 
-/* R2直送。署名一括取得 → ブラウザからR2へ並列PUT → 一括登録 の3ステップ */
-async function uploadItemsDirect(projectId, items, { resolveType, onProgress, concurrency }) {
-  const tracker = createProgressTracker(items, onProgress);
-  tracker.setPhase('アップロードの準備中…');
+/* 直送の経路そのものが使えない（＝API経由へ丸ごと切り替えるべき）ことを表す。
+   これ以外の失敗は個別のファイルのエラーとして扱い、API経由へは落とさない——
+   API経由は1ファイル100MBまで・Railwayを2段で通るので、落とすと遅いうえ大きいファイルが必ず失敗する */
+class DirectUnavailableError extends Error {}
 
-  const res = await fetch(`${API_BASE}/projects/${projectId}/files/upload-urls`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ files: items.map(it => ({ name: it.file.name })) }),
-  });
+/* 署名発行・一括登録APIの1回あたりの件数。API側の上限(BULK_MAX=300)より小さくする。
+   超えるとAPIが422を返し、以前はそれでAPI経由へ丸ごと切り替わって遅く・失敗していた。
+   束ごとに署名するので、長時間のアップロードでも後半の署名(60分)が切れない */
+const DIRECT_BATCH_SIZE = 200;
+
+/* PUTの再試行。回線の瞬断やR2の一時エラーで1件でも落ちると、そのファイルは
+   エラー扱いのまま残っていた */
+const PUT_RETRY_DELAYS_MS = [1500, 5000];
+/* 送信が進まないまま待つ上限。回線が切れたまま止まったPUTはブラウザが諦めるまで数分かかり、
+   その間は並列枠を1本ふさぎ続ける */
+const PUT_STALL_TIMEOUT_MS = 60000;
+
+/* R2直送。束ごとに 署名一括取得 → ブラウザからR2へ並列PUT → 一括登録 */
+async function uploadItemsDirect(projectId, items, { resolveType, tracker, concurrency }) {
+  const uploaded = [];
+  const errors = [];
+
+  for (let start = 0; start < items.length; start += DIRECT_BATCH_SIZE) {
+    const batch = items.slice(start, start + DIRECT_BATCH_SIZE);
+    const isFirst = start === 0;
+    try {
+      const r = await uploadBatchDirect(projectId, batch, start, { resolveType, tracker, concurrency, isFirst });
+      uploaded.push(...r.uploaded);
+      errors.push(...r.errors);
+    } catch (err) {
+      // 1束目で経路が使えないと分かった場合だけ、API経由へ丸ごと切り替える
+      if (isFirst && err instanceof DirectUnavailableError) throw err;
+      console.warn('[uploader] アップロードの一部に失敗しました:', err?.message ?? err);
+      errors.push(...batch.map(it => it.file.name));
+      batch.forEach((_, i) => tracker.finish(start + i));
+    }
+  }
+  return { uploaded, errors };
+}
+
+async function uploadBatchDirect(projectId, batch, offset, { resolveType, tracker, concurrency, isFirst }) {
+  tracker.setPhase(isFirst ? 'アップロードの準備中…' : '');
+
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/projects/${projectId}/files/upload-urls`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ files: batch.map(it => ({ name: it.file.name })) }),
+    });
+  } catch {
+    throw new Error('署名URLの取得で通信に失敗しました');
+  }
+  // 501 = ストレージが直送に未対応（ローカルディスク構成）
+  if (res.status === 501) throw new DirectUnavailableError('ストレージが直送に未対応です');
   if (!res.ok) throw new Error(`署名URLの取得に失敗しました (HTTP ${res.status})`);
 
   const { uploads } = await res.json();
-  if (!Array.isArray(uploads) || uploads.length !== items.length) {
+  if (!Array.isArray(uploads) || uploads.length !== batch.length) {
     throw new Error('署名URLの件数がファイル数と一致しません');
   }
   tracker.setPhase('');
 
-  const succeeded = new Array(items.length).fill(false);
+  const succeeded = new Array(batch.length).fill(false);
   const errors = [];
 
-  /* 署名URLへ実体をPUTする。ヘッダは付けない——署名はクエリ側(SigV4)にあり、
-     余計なヘッダを足すとCORSプリフライトが増えるだけになる。 */
-  function putOne(idx) {
-    const item = items[idx];
+  /* 署名URLへ実体をPUTする（1回分）。ヘッダは付けない——署名はクエリ側(SigV4)にあり、
+     余計なヘッダを足すとCORSプリフライトが増えるだけになる。
+     失敗時は送った分の進捗を戻し、再試行してよい失敗かを retryable で返す */
+  function putOnce(idx) {
+    const item = batch[idx];
     return new Promise((resolve, reject) => {
-      tracker.start(idx, item.file.name);
       const xhr = new XMLHttpRequest();
       xhr.open('PUT', uploads[idx].url);
 
       let lastLoaded = 0;
+      let stallTimer;
+      const armStall = () => {
+        clearTimeout(stallTimer);
+        stallTimer = setTimeout(() => xhr.abort(), PUT_STALL_TIMEOUT_MS);
+      };
+      const fail = (message, retryable) => {
+        clearTimeout(stallTimer);
+        tracker.addBytes(-lastLoaded);
+        reject(Object.assign(new Error(message), { retryable }));
+      };
+
       xhr.upload.onprogress = e => {
+        armStall();
         const loaded = e.lengthComputable ? e.loaded : lastLoaded;
         tracker.addBytes(loaded - lastLoaded);
         lastLoaded = loaded;
       };
       xhr.onload = () => {
-        tracker.finish(idx);
-        if (xhr.status >= 200 && xhr.status < 300) { succeeded[idx] = true; resolve(); }
-        else reject(new Error(`R2へのPUTが失敗しました (HTTP ${xhr.status})`));
+        clearTimeout(stallTimer);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          tracker.addBytes(item.file.size - lastLoaded); // 進捗イベントが最後まで来ない場合の補正
+          resolve();
+        } else {
+          fail(`R2へのPUTが失敗しました (HTTP ${xhr.status})`,
+            xhr.status >= 500 || xhr.status === 408 || xhr.status === 429);
+        }
       };
-      xhr.onerror = () => { tracker.finish(idx); reject(new Error('R2へ接続できません')); };
+      xhr.onerror = () => fail('R2へ接続できません', true);
+      xhr.onabort = () => fail('R2への送信が止まったため中断しました', true);
+      armStall();
       xhr.send(item.file);
     });
   }
 
-  // 1件目は疎通確認を兼ねる。ここで落ちた場合だけAPI経由へ丸ごと切り替える
-  await putOne(0);
-  await runWithConcurrency(items.length - 1, concurrency, i =>
-    putOne(i + 1).catch(() => { errors.push(items[i + 1].file.name); }));
+  async function putWithRetry(idx, delays) {
+    tracker.start(offset + idx, batch[idx].file.name);
+    try {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          await putOnce(idx);
+          succeeded[idx] = true;
+          return;
+        } catch (err) {
+          if (!err.retryable || attempt >= delays.length) throw err;
+          console.warn(`[uploader] ${batch[idx].file.name} を再送します (${attempt + 1}回目):`, err.message);
+          await new Promise(r => setTimeout(r, delays[attempt]));
+        }
+      }
+    } finally {
+      tracker.finish(offset + idx);
+    }
+  }
 
-  const okIdx = items.map((_, i) => i).filter(i => succeeded[i]);
+  /* 1束目の1件は疎通確認を兼ねる（ここで落ちた場合だけAPI経由へ丸ごと切り替える）。
+     以前は先頭のファイルを使っていたため、先頭が大きいと他の全ファイルがその完了まで
+     待たされていた。いちばん小さいファイルで確かめてから並列に移る */
+  let pending = batch.map((_, i) => i);
+  if (isFirst) {
+    const probe = pending.reduce((a, b) => (batch[b].file.size < batch[a].file.size ? b : a));
+    try {
+      await putWithRetry(probe, PUT_RETRY_DELAYS_MS.slice(0, 1));
+    } catch (err) {
+      throw new DirectUnavailableError(err.message);
+    }
+    pending = pending.filter(i => i !== probe);
+  }
+  await runWithConcurrency(pending.length, concurrency, n =>
+    putWithRetry(pending[n], PUT_RETRY_DELAYS_MS).catch(err => {
+      console.warn('[uploader] 送信失敗:', batch[pending[n]].file.name, err.message);
+      errors.push(batch[pending[n]].file.name);
+    }));
+
+  const okIdx = batch.map((_, i) => i).filter(i => succeeded[i]);
   if (!okIdx.length) return { uploaded: [], errors };
 
   tracker.setPhase('登録中…');
-  const regRes = await fetch(`${API_BASE}/projects/${projectId}/files/register`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({
-      files: okIdx.map(i => ({
-        key: uploads[i].key,
-        file_name: items[i].file.name,
-        relative_path: items[i].relativePath || null,
-        file_type: resolveType(items[i]),
-        file_size: items[i].file.size,
-        mime_type: items[i].file.type || null,
-      })),
-    }),
-  });
+  let regRes;
+  try {
+    regRes = await fetch(`${API_BASE}/projects/${projectId}/files/register`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        files: okIdx.map(i => ({
+          key: uploads[i].key,
+          file_name: batch[i].file.name,
+          relative_path: batch[i].relativePath || null,
+          file_type: resolveType(batch[i]),
+          file_size: batch[i].file.size,
+          mime_type: batch[i].file.type || null,
+        })),
+      }),
+    });
+  } catch { /* 下で失敗扱い */ }
+  tracker.setPhase('');
 
-  if (!regRes.ok) {
-    // 実体はR2に載っているが登録できなかった。二重アップロードを避けるため再送はしない
-    return { uploaded: [], errors: [...errors, ...okIdx.map(i => items[i].file.name)] };
+  if (!regRes?.ok) {
+    // 実体はR2に載っているが登録できなかった。二重登録を避けるため再送はしない
+    return { uploaded: [], errors: [...errors, ...okIdx.map(i => batch[i].file.name)] };
   }
 
   const { files } = await regRes.json();
