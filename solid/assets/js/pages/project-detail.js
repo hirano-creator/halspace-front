@@ -657,7 +657,7 @@ async function uploadModelItemsAndRefresh(items) {
     showToast(msg, 'success');
   }
   if (errors.length) {
-    showToast(`アップロードに失敗しました: ${errors.join(', ')}`, 'danger');
+    showToast(`アップロードに失敗しました: ${summarizeFileNames(errors)}`, 'danger');
   }
 }
 
@@ -687,7 +687,7 @@ async function uploadDrawingItemsAndRefresh(items) {
     showToast(`${uploaded.length}件のファイルを追加しました`, 'success');
   }
   if (errors.length) {
-    showToast(`アップロードに失敗しました: ${errors.join(', ')}`, 'danger');
+    showToast(`アップロードに失敗しました: ${summarizeFileNames(errors)}`, 'danger');
   }
 }
 

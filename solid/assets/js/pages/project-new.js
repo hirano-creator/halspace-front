@@ -240,7 +240,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     });
 
     if (errors.length > 0) {
-      showToast(`一部ファイルのアップロードに失敗しました: ${errors.join(', ')}`, 'warning');
+      showToast(`一部ファイルのアップロードに失敗しました: ${summarizeFileNames(errors)}`, 'warning');
     }
   }
 
