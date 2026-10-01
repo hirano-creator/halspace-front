@@ -194,12 +194,12 @@
                       <i class="fa-solid fa-file"></i> ファイルを選択（複数可）
                     </button>
                     <button type="button" class="upload-model-menu-item" id="uploadModelMenuFolder">
-                      <i class="fa-solid fa-folder-open"></i> フォルダを選択
+                      <i class="fa-solid fa-folder-open"></i> フォルダを選択（複数可）
                     </button>
-                    <!-- ブラウザのフォルダ選択ダイアログは1回に1フォルダしか選べない（OS側の制約）。
-                         複数フォルダ・ファイル混在はドラッグ&ドロップで受ける -->
+                    <!-- OSのフォルダ選択ダイアログは1回に1フォルダしか選べない。複数フォルダは
+                         「それらが入っている親フォルダ」を選ばせ、中身を folderPickModal で選ばせる -->
                     <div class="upload-model-menu-note">
-                      <i class="fa-solid fa-hand-pointer"></i> 複数フォルダはこの枠へドラッグ&amp;ドロップ
+                      複数フォルダは、それらが入っているフォルダを選ぶと<br>中から選べます（この枠へのドラッグ&amp;ドロップも可）
                     </div>
                   </div>
                 </div>
@@ -408,6 +408,25 @@
       <button class="btn btn-primary" id="reworkSubmit">
         <i class="fa-solid fa-wrench"></i> 手直しを開始する
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- フォルダ選択後に中身から複数選ぶモーダル（3Dモデル・制作データ） -->
+<div class="modal-overlay hidden" id="folderPickModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-folder-open" style="margin-right:6px;color:var(--blue);"></i>アップロードするものを選択</span>
+      <button class="modal-close" id="folderPickClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.7;">
+      「<strong id="folderPickRoot"></strong>」の中身です。アップロードするフォルダ・ファイルにチェックを入れてください（複数可）。
+    </p>
+    <label class="folder-pick-all"><input type="checkbox" id="folderPickAll"> すべて選択</label>
+    <ul class="folder-pick-list" id="folderPickList"></ul>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="folderPickCancel">キャンセル</button>
+      <button class="btn btn-primary" id="folderPickOk" disabled><i class="fa-solid fa-upload"></i> アップロード</button>
     </div>
   </div>
 </div>
