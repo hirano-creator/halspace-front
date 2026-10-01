@@ -268,8 +268,7 @@ function renderFiles() {
   // （currentReviewOpts も納品完了後まで開けてあるので、この検査フローは納品完了のまま回る）。
   // HaLSpace側が既存フォルダに追加した場合は、そのフォルダの既存ファイルと同じ
   // review_statusで登録される（バックエンド側 initialReviewAttrsFor と揃えること）
-  const canUploadModel = (isModeler(user) || isInternalAdmin(user))
-    && MODEL_UPLOAD_STATUSES.includes(project.status);
+  const canUploadModel = canUploadModelNow();
   document.getElementById('uploadModelBtn').style.display = canUploadModel ? '' : 'none';
 
   // 3Dモデルエリアの表示制御
@@ -451,6 +450,8 @@ function renderFiles() {
     });
   }
 
+  bindModelDropZone();
+
   const saveFolderBtnEl = document.getElementById('saveFolderBtn');
   if (saveFolderBtnEl && !saveFolderBtnEl.dataset.bound) {
     saveFolderBtnEl.dataset.bound = '1';
@@ -476,6 +477,58 @@ function renderFiles() {
     zipDrawingBtnEl.dataset.bound = '1';
     zipDrawingBtnEl.addEventListener('click', () => downloadFilesAsZip(drawingFilesForBulk()));
   }
+}
+
+/* 3Dモデル・制作データを追加できるか（アップロードボタンとドロップ受付で共通） */
+function canUploadModelNow() {
+  return (isModeler(user) || isInternalAdmin(user))
+    && MODEL_UPLOAD_STATUSES.includes(project.status);
+}
+
+/* 3Dモデル・制作データカードへのドラッグ&ドロップ。ファイル・フォルダを複数まとめて
+   受け付ける（フォルダ選択ダイアログは1回1フォルダしか選べないため、複数フォルダはこちら）。
+   フォルダ構造は collectDroppedItems が relativePath に保持するので、ボタンから
+   フォルダを選んだときと同じ形で登録される。
+   権限・ステータスはドロップのたびに判定する（renderFiles 後に案件ステータスが変わるため） */
+function bindModelDropZone() {
+  const card = document.getElementById('modelFileCard');
+  if (!card || card.dataset.dropBound) return;
+  card.dataset.dropBound = '1';
+
+  // 子要素をまたぐたびに dragenter/dragleave が対で飛ぶので、深さで出入りを数える
+  let depth = 0;
+  const isFileDrag = e => Array.from(e.dataTransfer?.types ?? []).includes('Files');
+  const reset = () => { depth = 0; card.classList.remove('dragover'); };
+
+  card.addEventListener('dragenter', e => {
+    if (!isFileDrag(e) || !canUploadModelNow()) return;
+    e.preventDefault();
+    depth++;
+    card.classList.add('dragover');
+  });
+  card.addEventListener('dragover', e => {
+    if (!isFileDrag(e) || !canUploadModelNow()) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+  card.addEventListener('dragleave', () => {
+    if (depth === 0) return;
+    if (--depth === 0) card.classList.remove('dragover');
+  });
+  card.addEventListener('drop', async e => {
+    if (!isFileDrag(e) || !canUploadModelNow()) return;
+    e.preventDefault();
+    reset();
+    const items = await collectDroppedItems(e.dataTransfer);
+    if (!items.length) {
+      showToast('アップロードできるファイルがありませんでした', 'warning');
+      return;
+    }
+    await uploadModelItemsAndRefresh(items);
+  });
+  // カード外でドロップ/キャンセルされたときにオーバーレイが残らないように
+  window.addEventListener('dragend', reset);
+  window.addEventListener('drop', reset);
 }
 
 /* 3Dデータをアップロードする。モデラーは検査依頼前(pending)のまま画面へ反映するが、

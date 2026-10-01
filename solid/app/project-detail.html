@@ -195,15 +195,20 @@
                   </button>
                   <div id="uploadModelMenu" class="upload-model-menu">
                     <button type="button" class="upload-model-menu-item" id="uploadModelMenuFile">
-                      <i class="fa-solid fa-file"></i> ファイルを選択
+                      <i class="fa-solid fa-file"></i> ファイルを選択（複数可）
                     </button>
                     <button type="button" class="upload-model-menu-item" id="uploadModelMenuFolder">
                       <i class="fa-solid fa-folder-open"></i> フォルダを選択
                     </button>
+                    <!-- ブラウザのフォルダ選択ダイアログは1回に1フォルダしか選べない（OS側の制約）。
+                         複数フォルダ・ファイル混在はドラッグ&ドロップで受ける -->
+                    <div class="upload-model-menu-note">
+                      <i class="fa-solid fa-hand-pointer"></i> 複数フォルダはこの枠へドラッグ&amp;ドロップ
+                    </div>
                   </div>
                 </div>
                 <input type="file" id="modelFileInput" accept=".stp,.step,.stl,.obj,.iges,.fbx,.sldprt,.sldasm,.slddrw,.dxf" multiple style="display:none">
-                <input type="file" id="modelFolderInput" webkitdirectory style="display:none">
+                <input type="file" id="modelFolderInput" webkitdirectory multiple style="display:none">
                 <!-- 全ロール共通: フォルダごと保存 / zip一括ダウンロード -->
                 <button class="btn btn-outline btn-sm tooltip-hint" id="saveFolderBtn" style="display:none;"
                         data-tooltip="デスクトップが開きます。ブラウザの制限でデスクトップ・ドキュメント・ダウンロード自体は選べないため、ダイアログ内の「新しいフォルダー」で保存用フォルダを作り、それを選択してください（次回からは前回の場所が開きます）。">
@@ -225,6 +230,10 @@
             <!-- 状態別の件数サマリー（クリックで絞り込み）＋表示中を全選択 -->
             <div id="modelFileSummary" class="file-status-summary" style="display:none;"></div>
             <div id="modelFileArea"></div>
+            <!-- ドラッグ中だけ出すオーバーレイ（アップロード権限があるときのみ。bindModelDropZone） -->
+            <div class="model-drop-overlay" id="modelDropOverlay">
+              <div><i class="fa-solid fa-cloud-arrow-up"></i>ここにドロップしてアップロード<span>ファイル・フォルダを複数まとめて追加できます</span></div>
+            </div>
           </div>
 
           <!-- 修正依頼ファイル -->

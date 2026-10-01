@@ -347,6 +347,42 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   text-align: left;
 }
 .upload-model-menu-item:hover { background: rgba(0,0,0,.05); color: var(--primary); }
+.upload-model-menu-note {
+  margin-top: 4px;
+  padding: 6px 10px 4px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* 3Dモデル・制作データカードへのドラッグ&ドロップ */
+#modelFileCard { position: relative; }
+.model-drop-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  border: 2px dashed var(--blue);
+  border-radius: inherit;
+  background: rgba(9,132,227,.08);
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none; /* dragleave の誤発火を避けるため、イベントはカード本体で受ける */
+}
+#modelFileCard.dragover .model-drop-overlay { display: flex; }
+.model-drop-overlay > div {
+  background: var(--bg-card, #fff);
+  padding: 16px 24px;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.12);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--blue);
+}
+.model-drop-overlay i { display: block; font-size: 30px; margin-bottom: 8px; }
+.model-drop-overlay span { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--muted); }
 
 /* カード */
 .card {
