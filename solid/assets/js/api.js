@@ -48,12 +48,19 @@ async function apiFetch(path, options = {}) {
   let res;
   try {
     res = await attempt();
-  } catch {
-    /* 通信自体の失敗（タイムアウト含む）。GETは副作用が無いので少し待って1回だけやり直す。
-       POST等は届いていて二重登録になる恐れがあるので再送しない */
+  } catch (err) {
+    /* 通信自体の失敗（タイムアウト含む）。GETは副作用が無いので少し待ってやり直す。
+       POST等は届いていて二重登録になる恐れがあるので再送しない。
+       即座に失敗した場合（スリープ復帰・Wi-Fi再接続の直後など、回線が戻りきっていない）は
+       数秒で戻ることが多いので2回まで、タイムアウトは待ち時間が長いので1回だけ */
     if (method === 'GET') {
-      await new Promise(r => setTimeout(r, 1500));
-      try { res = await attempt(); } catch { /* 下で通知 */ }
+      const delays = err?.name === 'AbortError' ? [1500] : [1500, 4000];
+      for (const d of delays) {
+        await new Promise(r => setTimeout(r, d));
+        try { res = await attempt(); break; } catch (e) {
+          if (e?.name === 'AbortError') break;
+        }
+      }
     }
     if (!res) {
       throw new Error(IS_LOCAL_API
@@ -120,6 +127,8 @@ function startAutoRefresh(fn, intervalMs) {
 
   const tick = async (force = false) => {
     if (running || document.hidden && !force) return;
+    // 回線が切れているのが明らかなときは取りに行かない（失敗表示を出さず、onlineで再開）
+    if (navigator.onLine === false) return;
     const backoff = intervalMs * Math.min(2 ** failures, 8);
     if (!force && Date.now() - lastRun < backoff - 50) return;
     running = true;
@@ -135,8 +144,16 @@ function startAutoRefresh(fn, intervalMs) {
   };
 
   const timer = setInterval(() => tick(false), intervalMs);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(true); });
-  window.addEventListener('focus', () => tick(true));
+  /* タブ復帰・フォーカス時は少し待ってから取る。スリープ復帰やWi-Fi再接続の直後は
+     回線が戻りきっておらず、即時に取りに行くと失敗表示→すぐ回復、になっていた */
+  let resumeTimer;
+  const resume = () => {
+    clearTimeout(resumeTimer);
+    resumeTimer = setTimeout(() => tick(true), 1000);
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) resume(); });
+  window.addEventListener('focus', resume);
+  window.addEventListener('online', resume);
   return () => clearInterval(timer);
 }
 
