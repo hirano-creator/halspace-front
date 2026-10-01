@@ -443,9 +443,11 @@ function renderFiles() {
   if (modelFolderInput && !modelFolderInput.dataset.bound) {
     modelFolderInput.dataset.bound = '1';
     modelFolderInput.addEventListener('change', async e => {
-      const items = filesFromDirectoryInput(e.target);
+      const picked = filesFromDirectoryInput(e.target);
       e.target.value = '';
-      if (!items.length) return;
+      if (!picked.length) return;
+      const items = await pickFromFolderModal(picked);
+      if (!items?.length) return;
       await uploadModelItemsAndRefresh(items);
     });
   }
@@ -529,6 +531,105 @@ function bindModelDropZone() {
   // カード外でドロップ/キャンセルされたときにオーバーレイが残らないように
   window.addEventListener('dragend', reset);
   window.addEventListener('drop', reset);
+}
+
+/* フォルダ選択ダイアログで選ばれたフォルダの中身（直下のフォルダ・ファイル）を一覧にし、
+   アップロードするものを複数選ばせる。OSのダイアログは1回1フォルダしか選べないため、
+   複数フォルダは「それらが入っている親フォルダ」を選んでもらい、ここで絞り込む。
+   直下のフォルダを選んだ場合は親フォルダ名を外した相対パスで登録する
+   （親フォルダ名が余計な階層として付かず、各フォルダを個別に選んだのと同じ形になる）。
+   選んだフォルダ自体を上げたいとき（従来の1フォルダ選択）は先頭の「フォルダごと」行を使う。
+   キャンセル時は null を返す */
+function pickFromFolderModal(items) {
+  const modal   = document.getElementById('folderPickModal');
+  const listEl  = document.getElementById('folderPickList');
+  const allCb   = document.getElementById('folderPickAll');
+  const okBtn   = document.getElementById('folderPickOk');
+  const rootName = (items[0].relativePath || '').split('/')[0];
+  document.getElementById('folderPickRoot').textContent = rootName;
+
+  // 直下のエントリごとにまとめる（key: 'd:名前' = フォルダ / 'f:名前' = 直下のファイル）
+  const groups = new Map();
+  for (const item of items) {
+    const parts = item.relativePath.split('/');
+    const isDir = parts.length > 2;
+    const key = (isDir ? 'd:' : 'f:') + parts[1];
+    if (!groups.has(key)) groups.set(key, { name: parts[1], isDir, items: [], size: 0 });
+    const g = groups.get(key);
+    g.items.push(item);
+    g.size += item.file.size;
+  }
+  const entries = [...groups.entries()].sort(([a, ga], [b, gb]) =>
+    (ga.isDir === gb.isDir ? ga.name.localeCompare(gb.name, 'ja') : (ga.isDir ? -1 : 1)));
+  const totalSize = items.reduce((s, it) => s + it.file.size, 0);
+  const hasDir = entries.some(([, g]) => g.isDir);
+
+  listEl.innerHTML = `
+    <li class="fp-self"><label>
+      <input type="checkbox" class="fp-cb-self" ${hasDir ? '' : 'checked'}>
+      <i class="fa-solid fa-folder-open"></i>
+      <span class="fp-name">「${escapeHtml(rootName)}」フォルダごとアップロード</span>
+      <span class="fp-meta">${items.length}件 · ${formatBytes(totalSize)}</span>
+    </label></li>
+    ${entries.map(([key, g]) => `
+      <li><label>
+        <input type="checkbox" class="fp-cb" data-key="${escapeHtml(key)}">
+        <i class="fa-solid ${g.isDir ? 'fa-folder' : 'fa-file'}"></i>
+        <span class="fp-name">${escapeHtml(g.name)}</span>
+        <span class="fp-meta">${g.isDir ? `${g.items.length}件 · ` : ''}${formatBytes(g.size)}</span>
+      </label></li>`).join('')}`;
+
+  const selfCb = listEl.querySelector('.fp-cb-self');
+  const cbs = [...listEl.querySelectorAll('.fp-cb')];
+  const refresh = () => {
+    const n = cbs.filter(cb => cb.checked).length;
+    allCb.checked = n > 0 && n === cbs.length;
+    allCb.indeterminate = n > 0 && n < cbs.length;
+    okBtn.disabled = !selfCb.checked && n === 0;
+    okBtn.innerHTML = selfCb.checked
+      ? '<i class="fa-solid fa-upload"></i> フォルダごとアップロード'
+      : `<i class="fa-solid fa-upload"></i> ${n ? `選択した${n}件を` : ''}アップロード`;
+  };
+  // 「フォルダごと」と個別選択は排他（両方入ると同じファイルが二重に上がるため）
+  selfCb.addEventListener('change', () => {
+    if (selfCb.checked) cbs.forEach(cb => { cb.checked = false; });
+    refresh();
+  });
+  cbs.forEach(cb => cb.addEventListener('change', () => {
+    if (cb.checked) selfCb.checked = false;
+    refresh();
+  }));
+  allCb.onchange = () => {
+    cbs.forEach(cb => { cb.checked = allCb.checked; });
+    if (allCb.checked) selfCb.checked = false;
+    refresh();
+  };
+  refresh();
+  modal.classList.remove('hidden');
+
+  return new Promise(resolve => {
+    const close = result => {
+      modal.classList.add('hidden');
+      okBtn.onclick = null;
+      document.getElementById('folderPickCancel').onclick = null;
+      document.getElementById('folderPickClose').onclick = null;
+      resolve(result);
+    };
+    document.getElementById('folderPickCancel').onclick = () => close(null);
+    document.getElementById('folderPickClose').onclick = () => close(null);
+    okBtn.onclick = () => {
+      if (selfCb.checked) return close(items);
+      const picked = [];
+      cbs.filter(cb => cb.checked).forEach(cb => {
+        const g = groups.get(cb.dataset.key);
+        g.items.forEach(it => picked.push({
+          file: it.file,
+          relativePath: g.isDir ? it.relativePath.split('/').slice(1).join('/') : '',
+        }));
+      });
+      close(picked);
+    };
+  });
 }
 
 /* 3Dデータをアップロードする。モデラーは検査依頼前(pending)のまま画面へ反映するが、
