@@ -135,6 +135,105 @@
     .stat-bar-wrap{flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden;}
     .stat-bar{height:100%;border-radius:4px;transition:width .5s;}
     .stat-val{font-size:12px;font-weight:700;width:32px;text-align:right;}
+
+    /* ── パーツ集計 ── */
+    .pu-filters{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+    .pu-month{display:flex;align-items:center;background:var(--white);border:1px solid var(--border);border-radius:9px;overflow:hidden;}
+    .pu-month button{width:34px;height:36px;border:none;background:none;color:var(--muted);cursor:pointer;}
+    .pu-month button:hover:not(:disabled){background:var(--surface);}
+    .pu-month button:disabled{opacity:.3;cursor:default;}
+    .pu-month span{font-weight:700;font-size:14px;padding:0 10px;min-width:110px;text-align:center;}
+    .pu-seg{display:inline-flex;background:var(--white);border:1px solid var(--border);border-radius:9px;padding:3px;gap:2px;}
+    .pu-seg button{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;color:var(--muted);border:none;background:none;cursor:pointer;white-space:nowrap;}
+    .pu-seg button.on{background:rgba(9,132,227,.1);color:var(--blue);}
+    .pu-sp{flex:1;}
+    .pu-asof{font-size:12px;color:var(--muted);}
+    .pu-layout{display:flex;gap:14px;align-items:flex-start;}
+    #tab-parts.pu-loading .pu-main,#tab-parts.pu-loading .pu-list{opacity:.55;transition:opacity .2s;}
+    .pu-list{width:240px;flex-shrink:0;background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;position:sticky;top:12px;}
+    .pu-list h4{font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--muted);padding:12px 14px 6px;}
+    .pu-co{display:flex;align-items:flex-start;gap:9px;padding:10px 14px;width:100%;text-align:left;border:none;background:none;border-left:3px solid transparent;cursor:pointer;font:inherit;color:inherit;}
+    .pu-co:hover{background:var(--surface);}
+    .pu-co.on{background:rgba(9,132,227,.07);border-left-color:var(--blue);}
+    .pu-co .pu-dot{margin-top:6px;}
+    .pu-co-b{flex:1;min-width:0;display:block;}
+    .pu-co-b b{font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .pu-co-b small{font-size:11.5px;color:var(--muted);display:block;}
+    .pu-co-tags{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;}
+    .pu-mini{display:block;height:4px;border-radius:999px;background:#edf0f3;margin-top:5px;overflow:hidden;}
+    .pu-mini i{display:block;height:100%;border-radius:999px;}
+    .pu-mini i.ok{background:#0d9c80;} .pu-mini i.warn{background:#c98500;} .pu-mini i.over{background:#d63031;}
+    .pu-sep{border-top:1px solid var(--border);margin:2px 0;}
+    .pu-main{flex:1;min-width:0;}
+    .pu-dot{width:9px;height:9px;border-radius:3px;display:inline-block;flex-shrink:0;margin-right:6px;}
+    .pu-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap;}
+    .pu-chip.sm{font-size:10px;padding:0 7px;}
+    .pu-chip.ok{background:rgba(13,156,128,.12);color:#0d9c80;}
+    .pu-chip.warn{background:rgba(225,161,0,.16);color:#9a6700;}
+    .pu-chip.over{background:rgba(214,48,49,.12);color:#d63031;}
+    .pu-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+    .pu-kpi{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:12px 14px;min-width:0;}
+    .pu-kpi small{font-size:11.5px;color:var(--muted);font-weight:700;display:block;}
+    .pu-kpi b{display:block;font-size:24px;font-weight:900;line-height:1.3;font-variant-numeric:tabular-nums;}
+    .pu-kpi b em{font-style:normal;font-size:13px;color:var(--muted);font-weight:400;margin:0 10px 0 2px;}
+    .pu-kpi b.c-over{color:#d63031;} .pu-kpi b.c-warn{color:#c98500;}
+    .pu-kpi > span{font-size:12px;color:var(--muted);display:block;}
+    .pu-kpi-split{font-size:18px!important;line-height:1.9!important;}
+    .pu-link{border:none;background:none;color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;padding:0 0 0 6px;}
+    .pu-limit-edit{display:flex;gap:6px;align-items:center;margin-top:4px;}
+    .pu-limit-edit .form-input{width:96px;padding:5px 8px;font-size:16px;}
+    .pu-card{border-radius:12px;padding:16px 18px;margin-bottom:14px;}
+    .pu-card-h{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+    .pu-card-h h3{font-size:15px;font-weight:700;}
+    .pu-sub{font-size:12px;color:var(--muted);}
+    .pu-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:4px;}
+    .pu-legend span{display:inline-flex;align-items:center;}
+    .pu-legend.in{margin:0;}
+    .pu-ln{display:inline-block;width:18px;border-top:2px dashed #7b8794;margin-right:6px;}
+    .pu-svg{display:block;width:100%;height:auto;}
+    .pu-svg text{font-family:inherit;}
+    .pu-ax{font-size:11px;fill:#7b8794;} .pu-ax.on{fill:var(--blue);font-weight:800;} .pu-ax.yr{font-size:9.5px;fill:#a3abb5;}
+    .pu-grid{stroke:#eef0f3;stroke-width:1;} .pu-base{stroke:#c9ced5;stroke-width:1;}
+    .pu-val{font-size:11.5px;font-weight:800;fill:#2D3436;} .pu-val.sm{font-size:11px;font-weight:700;}
+    .pu-over-t{font-size:11px;font-weight:800;fill:#d63031;}
+    .pu-limit{stroke:#7b8794;stroke-width:1.5;stroke-dasharray:6 5;}
+    .pu-limit-t{font-size:11px;font-weight:700;fill:#52514e;}
+    .pu-end{font-size:11px;fill:#2D3436;}
+    .pu-hitm,.pu-hit3,.pu-go{cursor:pointer;}
+    .pu-hint{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-top:4px;}
+    .pu-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    .pu-tbl{width:100%;border-collapse:collapse;font-size:13px;}
+    .pu-tbl th{font-size:11.5px;color:var(--muted);font-weight:700;text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--surface);white-space:nowrap;}
+    .pu-tbl td{padding:9px 10px;border-bottom:1px solid #f0f2f4;white-space:nowrap;}
+    .pu-tbl tfoot td{font-weight:700;color:var(--muted);border-bottom:none;}
+    .pu-tbl .n{text-align:right;font-variant-numeric:tabular-nums;}
+    .pu-tbl tbody tr.pu-go:hover td{background:#fafbfc;}
+    .pu-code{font-weight:700;color:var(--blue);}
+    .pu-muted{color:var(--muted);}
+    .pu-empty{padding:40px 16px;text-align:center;color:var(--muted);font-size:13px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;}
+    .pu-empty.sm{padding:18px 12px;}
+    .pu-note{font-size:12px;color:var(--muted);margin-top:4px;}
+    .pu-tip{position:fixed;pointer-events:none;background:#1f2427;color:#fff;border-radius:9px;padding:8px 11px;font-size:12px;line-height:1.65;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:1000;opacity:0;transition:opacity .12s;min-width:150px;left:0;top:0;}
+    .pu-tip.show{opacity:1;}
+    .pu-tip .r{display:flex;align-items:center;}
+    .pu-tip .v{margin-left:auto;font-weight:700;padding-left:14px;font-variant-numeric:tabular-nums;}
+    .pu-tip .hr{border-top:1px solid rgba(255,255,255,.15);margin:4px 0;}
+    .pu-tip .dim{opacity:.6;} .pu-tip .ov{color:#ff8a80;}
+    @media (max-width:1100px){
+      .pu-layout{flex-direction:column;align-items:stretch;}
+      .pu-list{width:auto;position:static;}
+      #puList{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+      #puList .pu-co{min-width:200px;border-left:none;border-bottom:3px solid transparent;}
+      #puList .pu-co.on{border-bottom-color:var(--blue);}
+      #puList .pu-sep{display:none;}
+    }
+    @media (max-width:700px){
+      .pu-kpis{grid-template-columns:repeat(2,1fr);}
+      .pu-kpi b{font-size:20px;}
+      .pu-asof{width:100%;order:5;}
+      .pu-chart{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+      .pu-chart .pu-svg{min-width:640px;}
+    }
   </style>
 </head>
 <body>
@@ -186,6 +285,9 @@
         </button>
         <button class="tab-btn" data-tab="notify" id="tabBtnNotify">
           <i class="fa-solid fa-envelope"></i> 通知先管理
+        </button>
+        <button class="tab-btn" data-tab="parts" id="tabBtnParts">
+          <i class="fa-solid fa-cubes"></i> パーツ集計
         </button>
       </div>
 
@@ -341,6 +443,29 @@
           </div>
         </div>
       </div>
+
+      <!-- タブ4: パーツ集計（社内管理者のみ。他社の発注量が見えるため発注者会社のadminには出さない） -->
+      <div class="tab-pane" id="tab-parts">
+        <div class="pu-filters">
+          <div class="pu-month">
+            <button type="button" id="puPrev" aria-label="前の月"><i class="fa-solid fa-chevron-left"></i></button>
+            <span id="puMonthLabel">—</span>
+            <button type="button" id="puNext" aria-label="次の月"><i class="fa-solid fa-chevron-right"></i></button>
+          </div>
+          <div class="pu-seg" id="puBasis">
+            <button type="button" data-basis="registered" class="on">登録日で数える</button>
+            <button type="button" data-basis="delivered">納品日で数える</button>
+          </div>
+          <span class="pu-sp"></span>
+          <span class="pu-asof"><i class="fa-regular fa-clock"></i> <span id="puAsOf">—</span>・対象 .SLDPRT / .SLDASM</span>
+          <button type="button" class="btn btn-outline btn-sm" id="puCsv"><i class="fa-solid fa-file-csv"></i> CSV</button>
+        </div>
+        <div class="pu-layout">
+          <div class="pu-list"><h4>発注者の会社</h4><div id="puList"></div></div>
+          <div class="pu-main" id="puMain"><div class="pu-empty"><i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…</div></div>
+        </div>
+        <p class="pu-note">同じ物件・同じファイルの上げ直しは1パーツとして最初の月に数えます。手動で削除したファイルは数えません（保持期限による自動削除は数えます）。</p>
+      </div>
     </div>
   </div>
 </div>
@@ -492,5 +617,6 @@
 <script src="../assets/js/api.js"></script>
 <script src="../assets/js/uploader.js"></script>
 <script src="../assets/js/pages/admin.js"></script>
+<script src="../assets/js/pages/part-usage.js?v=1"></script>
 </body>
 </html>
