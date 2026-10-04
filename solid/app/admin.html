@@ -213,6 +213,9 @@
     .pu-empty{padding:40px 16px;text-align:center;color:var(--muted);font-size:13px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;}
     .pu-empty.sm{padding:18px 12px;}
     .pu-note{font-size:12px;color:var(--muted);margin-top:4px;}
+    .pu-basis{font-size:12px;font-weight:700;color:var(--muted);background:var(--white);border:1px solid var(--border);border-radius:9px;padding:8px 12px;}
+    .pu-code.del{color:var(--muted);}
+    .pu-chip.del{background:#eef0f3;color:var(--muted);}
     .pu-tip{position:fixed;pointer-events:none;background:#1f2427;color:#fff;border-radius:9px;padding:8px 11px;font-size:12px;line-height:1.65;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:1000;opacity:0;transition:opacity .12s;min-width:150px;left:0;top:0;}
     .pu-tip.show{opacity:1;}
     .pu-tip .r{display:flex;align-items:center;}
@@ -452,10 +455,7 @@
             <span id="puMonthLabel">—</span>
             <button type="button" id="puNext" aria-label="次の月"><i class="fa-solid fa-chevron-right"></i></button>
           </div>
-          <div class="pu-seg" id="puBasis">
-            <button type="button" data-basis="registered" class="on">登録日で数える</button>
-            <button type="button" data-basis="delivered">納品日で数える</button>
-          </div>
+          <span class="pu-basis"><i class="fa-solid fa-truck"></i> 納品日で集計</span>
           <span class="pu-sp"></span>
           <span class="pu-asof"><i class="fa-regular fa-clock"></i> <span id="puAsOf">—</span>・対象 .SLDPRT / .SLDASM</span>
           <button type="button" class="btn btn-outline btn-sm" id="puCsv"><i class="fa-solid fa-file-csv"></i> CSV</button>
@@ -464,7 +464,7 @@
           <div class="pu-list"><h4>発注者の会社</h4><div id="puList"></div></div>
           <div class="pu-main" id="puMain"><div class="pu-empty"><i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…</div></div>
         </div>
-        <p class="pu-note">同じ物件・同じファイルの上げ直しは1パーツとして最初の月に数えます。手動で削除したファイルは数えません（保持期限による自動削除は数えます）。</p>
+        <p class="pu-note">納品済みになった時点で数え、あとでファイルや物件を削除しても数は減りません。同じ物件・同じファイルの再納品（手直し後など）は1パーツとして最初に納品した月に数えます。</p>
       </div>
     </div>
   </div>
@@ -617,6 +617,6 @@
 <script src="../assets/js/api.js"></script>
 <script src="../assets/js/uploader.js"></script>
 <script src="../assets/js/pages/admin.js"></script>
-<script src="../assets/js/pages/part-usage.js?v=1"></script>
+<script src="../assets/js/pages/part-usage.js?v=2"></script>
 </body>
 </html>
