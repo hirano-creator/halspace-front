@@ -31,7 +31,6 @@
   };
   const state = {
     month: nowYm(),
-    basis: 'registered',
     sel: 'all',        // 'all' か company id
     monIdx: 11,        // 選択中の月（months配列の添字）
     data: null,
@@ -66,7 +65,7 @@
     const seq = ++reqSeq;
     pane.classList.add('pu-loading');
     try {
-      const q = new URLSearchParams({ month: state.month, basis: state.basis });
+      const q = new URLSearchParams({ month: state.month });
       const data = await api.get('/admin/solid/part-usage?' + q);
       if (seq !== reqSeq) return;
       data.companies.forEach((c, i) => {
@@ -96,7 +95,7 @@
     renderProjects();
     try {
       const q = new URLSearchParams({
-        company_id: state.sel, month: state.data.months[state.monIdx], basis: state.basis,
+        company_id: state.sel, month: state.data.months[state.monIdx],
       });
       const data = await api.get('/admin/solid/part-usage/projects?' + q);
       if (seq !== projSeq) return;
@@ -114,7 +113,6 @@
     const d = state.data;
     pane.querySelector('#puMonthLabel').textContent = ymLabel(state.month);
     pane.querySelector('#puNext').disabled = state.month >= nowYm();
-    pane.querySelectorAll('#puBasis button').forEach(b => b.classList.toggle('on', b.dataset.basis === state.basis));
     pane.querySelector('#puAsOf').textContent = `${d.as_of} 時点`;
     renderList();
     pane.querySelector('#puMain').innerHTML = state.sel === 'all' ? overallHtml() : companyHtml();
@@ -299,8 +297,10 @@
     if (!p.length) { box.innerHTML = head + '<div class="pu-empty sm">この月に数えたパーツはありません</div>'; return; }
     const sp = p.reduce((a, r) => a + r.prt, 0), sa = p.reduce((a, r) => a + r.asm, 0);
     box.innerHTML = head + `<div class="pu-scroll"><table class="pu-tbl">
-      <thead><tr><th>物件コード</th><th>件名</th><th class="n">SLDPRT</th><th class="n">SLDASM</th><th class="n">計</th><th class="n">最終${state.basis === 'delivered' ? '納品' : '登録'}</th></tr></thead>
-      <tbody>${p.map(r => `<tr><td><a class="pu-code" href="project-detail.html?id=${encodeURIComponent(r.project_id)}">${esc(r.project_code || '#' + r.project_id)}</a></td><td>${esc(r.title || '')}</td>
+      <thead><tr><th>物件コード</th><th>件名</th><th class="n">SLDPRT</th><th class="n">SLDASM</th><th class="n">計</th><th class="n">最終納品</th></tr></thead>
+      <tbody>${p.map(r => `<tr><td>${r.deleted
+          ? `<span class="pu-code del">${esc(r.project_code || '#' + r.project_id)}</span> <span class="pu-chip del sm" title="物件は削除済み。納品した数は残しています">削除済み</span>`
+          : `<a class="pu-code" href="project-detail.html?id=${encodeURIComponent(r.project_id)}">${esc(r.project_code || '#' + r.project_id)}</a>`}</td><td>${esc(r.title || '')}</td>
         <td class="n">${r.prt}</td><td class="n">${r.asm}</td><td class="n"><b>${r.prt + r.asm}</b></td><td class="n pu-muted">${esc(r.last_at.slice(5, 10).replace('-', '/'))}</td></tr>`).join('')}</tbody>
       <tfoot><tr><td colspan="2">合計</td><td class="n">${sp}</td><td class="n">${sa}</td><td class="n">${sp + sa}</td><td></td></tr></tfoot>
     </table></div>`;
@@ -429,11 +429,10 @@
     } else {
       const c = d.companies.find(x => x.id === state.sel), ym = d.months[state.monIdx];
       if (!Array.isArray(state.projects)) { showToast('内訳の読み込みが終わってから出力してください'); return; }
-      rows = [['物件コード', '件名', 'SLDPRT', 'SLDASM', '計', state.basis === 'delivered' ? '最終納品' : '最終登録']];
-      state.projects.forEach(r => rows.push([r.project_code, r.title, r.prt, r.asm, r.prt + r.asm, r.last_at]));
+      rows = [['物件コード', '件名', 'SLDPRT', 'SLDASM', '計', '最終納品', '物件削除済み']];
+      state.projects.forEach(r => rows.push([r.project_code, r.title, r.prt, r.asm, r.prt + r.asm, r.last_at, r.deleted ? '削除済み' : '']));
       name = `SOLIDパーツ集計_${c.name}_${ym}`;
     }
-    name += state.basis === 'delivered' ? '_納品日基準' : '_登録日基準';
     const blob = new Blob(['﻿' + rows.map(r => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -445,10 +444,6 @@
   /* ── 初期化（タブを開いたときに初めて取得する） ── */
   pane.querySelector('#puPrev').addEventListener('click', () => { state.month = addMonths(state.month, -1); state.monIdx = 11; load(); });
   pane.querySelector('#puNext').addEventListener('click', () => { if (state.month < nowYm()) { state.month = addMonths(state.month, 1); state.monIdx = 11; load(); } });
-  pane.querySelectorAll('#puBasis button').forEach(b => b.addEventListener('click', () => {
-    if (state.basis === b.dataset.basis) return;
-    state.basis = b.dataset.basis; load();
-  }));
   pane.querySelector('#puCsv').addEventListener('click', downloadCsv);
   tabBtn.addEventListener('click', () => { if (!state.loaded) load(); });
   if (location.hash === '#parts') tabBtn.click();
