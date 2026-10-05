@@ -101,6 +101,18 @@
     .viewer-unsupported i { font-size: 64px; color: var(--muted); }
     .viewer-unsupported strong { font-size: 16px; color: var(--text); }
 
+    /* ── Office（ローカル表示用） ── */
+    .office-sheets { position: absolute; inset: 0; display: flex; flex-direction: column; background: #fff; }
+    .office-sheet-body { flex: 1; overflow: auto; }
+    .office-sheet-body table { border-collapse: collapse; font-size: 13px; color: #222; }
+    .office-sheet-body td { border: 1px solid #d0d7de; padding: 3px 8px; white-space: nowrap; }
+    .office-sheet-empty { padding: 24px; color: #666; font-size: 14px; }
+    .office-sheet-tabs { display: flex; gap: 2px; overflow-x: auto; background: #f3f3f3; border-top: 1px solid #ccc; flex-shrink: 0; }
+    .office-sheet-tabs button { padding: 8px 14px; border: none; background: transparent; color: #444;
+      font-size: 13px; cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent; }
+    .office-sheet-tabs button.active { background: #fff; color: #21a366; font-weight: 700; border-bottom-color: #21a366; }
+    .office-doc { position: absolute; inset: 0; overflow: auto; background: #e8e8e8; }
+
     /* ── レスポンシブ ── */
     @media (max-width: 768px) {
       .viewer-header { padding: 0 10px; gap: 8px; height: 46px; }
@@ -168,6 +180,20 @@ const params   = new URLSearchParams(location.search);
 const fileId   = Number(params.get('file_id'));
 const fileName = params.get('file_name') || '';
 
+/* Office系（Excel/Word/PowerPoint/CSV）。project-detail.js の OFFICE_PREVIEW_EXTS と揃えること */
+const OFFICE_KIND = {
+  xlsx: { app:'excel', label:'Excel', icon:'fa-file-excel', color:'#21a366' },
+  xlsm: { app:'excel', label:'Excel', icon:'fa-file-excel', color:'#21a366' },
+  xls:  { app:'excel', label:'Excel', icon:'fa-file-excel', color:'#21a366' },
+  csv:  { app:'csv',   label:'CSV',   icon:'fa-file-csv',   color:'#21a366' },
+  docx: { app:'word',  label:'Word',  icon:'fa-file-word',  color:'#2b7cd3' },
+  docm: { app:'word',  label:'Word',  icon:'fa-file-word',  color:'#2b7cd3' },
+  doc:  { app:'word',  label:'Word',  icon:'fa-file-word',  color:'#2b7cd3' },
+  pptx: { app:'ppt',   label:'PowerPoint', icon:'fa-file-powerpoint', color:'#d24726' },
+  pptm: { app:'ppt',   label:'PowerPoint', icon:'fa-file-powerpoint', color:'#d24726' },
+  ppt:  { app:'ppt',   label:'PowerPoint', icon:'fa-file-powerpoint', color:'#d24726' },
+};
+
 if (!fileId) {
   document.getElementById('initialLoading').outerHTML =
     '<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><strong>ファイルIDが指定されていません</strong></div>';
@@ -181,17 +207,21 @@ if (!fileId) {
   // ヘッダー情報をURLパラメータから先行設定
   const ext = fileName.split('.').pop().toLowerCase();
   const is3d = ['stl','stp','step'].includes(ext);
+  const office = OFFICE_KIND[ext];
   document.title = fileName + ' | SOLID ビューア';
   document.getElementById('viewerFileName').textContent = fileName;
   document.getElementById('viewerFileType').textContent =
     { pdf:'PDF図面', dxf:'DXF図面', dwg:'DWG図面',
-      stl:'3Dモデル (STL)', stp:'3Dモデル (STEP)', step:'3Dモデル (STEP)' }[ext] || ext.toUpperCase();
+      stl:'3Dモデル (STL)', stp:'3Dモデル (STEP)', step:'3Dモデル (STEP)' }[ext]
+    || (office ? `${office.label} (${ext.toUpperCase()})` : ext.toUpperCase());
   document.getElementById('viewerIcon').innerHTML =
     ext === 'pdf'
       ? '<i class="fa-solid fa-file-pdf" style="color:#e17055;"></i>'
       : is3d
         ? '<i class="fa-solid fa-cube" style="color:#00b894;"></i>'
-        : '<i class="fa-solid fa-file-lines" style="color:#74b9ff;"></i>';
+        : office
+          ? `<i class="fa-solid ${office.icon}" style="color:${office.color};"></i>`
+          : '<i class="fa-solid fa-file-lines" style="color:#74b9ff;"></i>';
 
   // viewer.js の open() をファイルオブジェクト形式で呼び出す
   document.addEventListener('DOMContentLoaded', () => {
@@ -233,6 +263,8 @@ async function _openFile(file) {
     await _openDxf(file, content, loading, dxfTb);
   } else if (is3d) {
     await _open3D(file, content, loading, threejsTb, ext);
+  } else if (OFFICE_KIND[ext]) {
+    await _openOffice(file, content, loading, ext);
   } else {
     loading.outerHTML = `
       <div class="viewer-unsupported">
@@ -267,6 +299,112 @@ async function _openPdf(file, content, loading) {
   } catch (err) {
     loading.outerHTML = `<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><span>PDFの読み込みに失敗しました: ${err.message}</span></div>`;
   }
+}
+
+/* ── Office（Excel / Word / PowerPoint / CSV） ──
+   本番は /view が R2 の署名URL（15分で失効）を返すので、それを Microsoft の
+   Office Online ビューアに渡して表示する（書式・図形・グラフまで元のまま見える）。
+   ログイントークンは渡さない。署名URLが無いローカル環境と、Office Online が扱えない
+   CSV はブラウザ内で表示する（Excel は表のみ、Word は docx のみ）。 */
+async function _openOffice(file, content, loading, ext) {
+  const kind = OFFICE_KIND[ext];
+  const url  = `${API_BASE}/files/${file.id}/view`;
+  try {
+    const token = sessionStorage.getItem('space_token');
+    const r = await fetch(url, {
+      headers: { 'Accept': '*/*', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const ct = r.headers.get('Content-Type') || '';
+    const signedUrl = ct.includes('application/json') ? (await r.json()).url : null;
+
+    if (signedUrl && kind.app !== 'csv') {
+      const iframe = document.createElement('iframe');
+      iframe.src = 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(signedUrl);
+      iframe.style.background = '#fff';
+      iframe.addEventListener('load', () => loading.remove(), { once: true });
+      content.appendChild(iframe);
+      return;
+    }
+
+    const buf = signedUrl
+      ? await fetch(signedUrl).then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.arrayBuffer(); })
+      : await r.arrayBuffer();
+
+    if (kind.app === 'excel' || kind.app === 'csv') {
+      await _loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+      const wb = kind.app === 'csv'
+        ? XLSX.read(_decodeText(buf), { type: 'string', raw: true })
+        : XLSX.read(buf, { type: 'array' });
+      loading.remove();
+      _renderSheets(content, wb);
+    } else if (ext === 'docx' || ext === 'docm') {
+      await _loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+      await _loadScript('https://cdn.jsdelivr.net/npm/docx-preview@0.3.3/dist/docx-preview.min.js');
+      const box = document.createElement('div');
+      box.className = 'office-doc';
+      content.appendChild(box);
+      await docx.renderAsync(buf, box, null, { inWrapper: true, ignoreLastRenderedPageBreak: true });
+      loading.remove();
+    } else {
+      loading.outerHTML = `
+        <div class="viewer-unsupported">
+          <i class="fa-solid ${kind.icon}"></i>
+          <strong>この環境ではプレビューできません</strong>
+          <span>${kind.label}ファイル（.${ext}）のプレビューは本番環境でのみ利用できます。<br>ダウンロードしてご利用ください。</span>
+        </div>`;
+    }
+  } catch (err) {
+    const msg = String(err.message).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    loading.outerHTML = `<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><span>${kind.label}ファイルの読み込みに失敗しました: ${msg}</span></div>`;
+  }
+}
+
+/* シートごとにタブを付けて表で表示（セルの値はSheetJSがエスケープする） */
+function _renderSheets(content, wb) {
+  const wrap = document.createElement('div');
+  wrap.className = 'office-sheets';
+  const tabs = document.createElement('div');
+  tabs.className = 'office-sheet-tabs';
+  const body = document.createElement('div');
+  body.className = 'office-sheet-body';
+  wrap.append(body, tabs);
+  content.appendChild(wrap);
+
+  const show = (name, btn) => {
+    tabs.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+    const ws = wb.Sheets[name];
+    body.innerHTML = ws && ws['!ref']
+      ? XLSX.utils.sheet_to_html(ws, { header: '', footer: '' })
+      : '<p class="office-sheet-empty">このシートは空です</p>';
+    body.scrollTop = 0; body.scrollLeft = 0;
+  };
+  wb.SheetNames.forEach((name, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = name;
+    btn.onclick = () => show(name, btn);
+    tabs.appendChild(btn);
+    if (i === 0) show(name, btn);
+  });
+  if (wb.SheetNames.length <= 1) tabs.style.display = 'none';
+}
+
+/* CSVは Excel 保存の Shift-JIS が多いので、UTF-8 で化けたら Shift-JIS で読み直す */
+function _decodeText(buf) {
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf).replace(/^\uFEFF/, ''); }
+  catch { return new TextDecoder('shift_jis').decode(buf); }
+}
+
+function _loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('表示ライブラリの読み込みに失敗しました'));
+    document.head.appendChild(s);
+  });
 }
 
 /* ── DXF ── */

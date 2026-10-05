@@ -959,6 +959,9 @@ function canSetStatus(status, opts) {
   return false;
 }
 
+/* viewer.html の OFFICE_KIND と揃えること */
+const OFFICE_PREVIEW_EXTS = ['xlsx', 'xlsm', 'xls', 'csv', 'docx', 'docm', 'doc', 'pptx', 'pptm', 'ppt'];
+
 function renderFileSection(area, files, opts = {}) {
   const {
     canDelete = false, showAdminBtns = false, showModelerBtns = false,
@@ -986,7 +989,7 @@ function renderFileSection(area, files, opts = {}) {
 
   function renderFileItem(f, indentPx) {
     const ext = f.file_name.split('.').pop().toLowerCase();
-    const canPreview = ['pdf', 'dxf', 'dwg', 'stl', 'stp', 'step'].includes(ext);
+    const canPreview = ['pdf', 'dxf', 'dwg', 'stl', 'stp', 'step', ...OFFICE_PREVIEW_EXTS].includes(ext);
     const name  = escapeHtml(f.file_name);
     const isSel = selectedFileIds.has(f.id);
     // アップロード日時（APIは Y-m-d H:i 形式の文字列で返す）
