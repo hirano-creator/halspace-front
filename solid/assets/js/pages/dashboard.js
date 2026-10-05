@@ -134,8 +134,17 @@ if (user) {
     return true;
   }
 
+  /* 発注者が削除した物件。APIは発注者側には返さないので、ここに来るのは社内側だけ。
+     一覧には薄く残すが、件数・期限アラートなど「動いている案件」の集計からは外す */
+  const isClientDeleted = p => !!p.client_deleted_at;
+
+  function escHtml(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  }
+
   /* ── サマリーカード ── */
   function renderSummary(ps) {
+    ps = ps.filter(p => !isClientDeleted(p));
     const today = new Date();
     const in3d  = new Date(today.getTime() + 3 * 86400000);
     document.getElementById('countProgress').textContent =
@@ -171,7 +180,8 @@ if (user) {
 
     let ps = [...allProjects];
 
-    /* サマリーカードフィルタ（他フィルタより優先） */
+    /* サマリーカードフィルタ（他フィルタより優先）。件数と揃えるため削除済みは含めない */
+    if (activeCardFilter) ps = ps.filter(p => !isClientDeleted(p));
     if (activeCardFilter === 'in_progress') {
       ps = ps.filter(p => p.status === 'in_progress');
     } else if (activeCardFilter === 'review_pending') {
@@ -201,8 +211,12 @@ if (user) {
     empty.style.display = ps.length ? 'none' : '';
 
     ps.forEach(p => {
-      const isAlert = p.deadline_requested && new Date(p.deadline_requested) <= in3d
+      const deleted = isClientDeleted(p);
+      const isAlert = !deleted && p.deadline_requested && new Date(p.deadline_requested) <= in3d
                       && !['delivered', 'cancelled', 'rework'].includes(p.status);
+      const deletedTip = deleted
+        ? `お客様が削除しました（${p.client_deleted_at}${p.client_deleted_by_name ? '・' + p.client_deleted_by_name : ''}）`
+        : '';
 
       /* 回答納期セル（APIフィールド: deadline_reply_status / deadline_replied） */
       const replyStatus = p.deadline_reply_status ?? p.deadline_reply?.status;
@@ -225,6 +239,10 @@ if (user) {
 
       const tr = document.createElement('tr');
       tr.style.cursor = 'pointer';
+      if (deleted) {
+        tr.classList.add('row-client-deleted');
+        tr.title = deletedTip;
+      }
       tr.addEventListener('click', () => { location.href = `project-detail.html?id=${p.id}`; });
       tr.innerHTML = `
         <td style="font-size:13px;color:var(--muted);white-space:nowrap;">${(p.created_at||'—').slice(0,10)}</td>
@@ -233,6 +251,7 @@ if (user) {
           <div style="display:flex;align-items:center;gap:6px;">
             <span class="project-title-clamp" style="font-weight:600;color:var(--dark);">${p.title}</span>
             ${isAlert ? '<i class="fa-solid fa-triangle-exclamation text-danger" style="flex-shrink:0;" title="期限間近"></i>' : ''}
+            ${deleted ? `<span class="client-deleted-badge" title="${escHtml(deletedTip)}"><i class="fa-solid fa-trash-can"></i> お客様削除</span>` : ''}
             ${p.unread_count ? `<span class="unread-badge" title="未読メッセージ${p.unread_count}件">${p.unread_count > 99 ? '99+' : p.unread_count}</span>` : ''}
           </div>
           <span class="project-company-label" style="font-size:11px;color:var(--muted);">${companyName}</span>
@@ -243,14 +262,14 @@ if (user) {
         <td style="font-size:13px;white-space:nowrap;">${replyCell}</td>
         ${isAdmin(user) || isModeler(user) ? `<td style="font-size:13px;white-space:nowrap;">${modelerName||'<span style="color:var(--muted)">未割当</span>'}</td>` : ''}
         ${(isAdmin(user) || !isModeler(user)) ? `<td style="text-align:center;white-space:nowrap;">
-          <button class="row-delete-btn" data-id="${p.id}" title="削除">
+          <button class="row-delete-btn" data-id="${p.id}" title="${deleted ? '完全に削除' : '削除'}">
             <i class="fa-solid fa-trash-can"></i>
           </button>
         </td>` : ''}`;
       if (isAdmin(user) || !isModeler(user)) {
         tr.querySelector('.row-delete-btn').addEventListener('click', (e) => {
           e.stopPropagation();
-          deleteProject(p.id, p.project_code);
+          deleteProject(p.id, p.project_code, deleted);
         });
       }
       tbody.appendChild(tr);
@@ -259,8 +278,12 @@ if (user) {
   }
 
   /* ── プロジェクト削除 ── */
-  async function deleteProject(id, code) {
-    if (!confirm('本当に削除してよろしいですか？')) return;
+  async function deleteProject(id, code, clientDeleted = false) {
+    /* 社内側の削除は物理削除（発注者の削除だけが印を付けて社内側に残す） */
+    const msg = clientDeleted
+      ? 'お客様が削除済みのプロジェクトです。完全に削除してよろしいですか？\n（元に戻せません）'
+      : '本当に削除してよろしいですか？';
+    if (!confirm(msg)) return;
     try {
       await api.delete(`/projects/${id}`);
       showToast(`${code} を削除しました`, 'success');
