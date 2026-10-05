@@ -70,12 +70,32 @@ function renderLoadError(message) {
 }
 
 function renderAll() {
+  renderClientDeletedBanner();
   renderTimeline();
   renderInfo();
   renderDeadlinePanel();
   renderFiles();
   initChatTabs();
   renderChat();
+}
+
+/* 発注者が削除したプロジェクト。発注者側にはAPIが404を返すので、ここに来るのは社内側だけ */
+function renderClientDeletedBanner() {
+  const body = document.querySelector('.page-body');
+  if (!body) return;
+  let el = document.getElementById('clientDeletedBanner');
+  if (!project?.client_deleted_at) { el?.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'clientDeletedBanner';
+    el.className = 'client-deleted-banner';
+    body.prepend(el);
+  }
+  el.innerHTML = '<i class="fa-solid fa-trash-can"></i> <span></span>';
+  el.querySelector('span').textContent =
+    `このプロジェクトはお客様が削除しました（${project.client_deleted_at}`
+    + (project.client_deleted_by_name ? `・${project.client_deleted_by_name}` : '')
+    + '）。お客様の画面には表示されません。';
 }
 
 /* ── タイムライン描画 ── */
