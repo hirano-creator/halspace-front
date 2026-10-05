@@ -534,8 +534,8 @@ function populateInviteCompany(companies) {
    言語は会社名から推測せず、宛先ごとに明示して持つ。
    ============================================================ */
 const NOTIFY_CHANNELS = [
-  { key:'order_halspace',  label:'受注通知先（株式会社HaLSpace）',        defaultLocale:'ja' },
-  { key:'order_hilano',    label:'受注通知先（PT.HILANO LCZ INDONESIA）', defaultLocale:'en' },
+  { key:'order_halspace',  label:'受注・変更通知先（株式会社HaLSpace）',   defaultLocale:'ja' },
+  { key:'order_hilano',    label:'受注・変更通知先（PT.HILANO LCZ INDONESIA）', defaultLocale:'en' },
   { key:'client_message',  label:'お客様連絡の通知先（株式会社HaLSpace）', defaultLocale:'ja' },
 ];
 const LOCALE_LABEL = { ja:'日本語', en:'English' };
@@ -688,7 +688,10 @@ async function loadNotifyLogs() {
   const wrap = document.getElementById('notifyLogList');
   if (!wrap) return;
 
-  const EVENT_LABEL = { order_submitted:'受注通知', project_delivered:'納品通知' };
+  const EVENT_LABEL = {
+    order_submitted:'受注通知', project_delivered:'納品通知', client_message:'お客様連絡',
+    deadline_changed:'希望納期変更',
+  };
   try {
     const data = await api.get('/admin/solid/mail-logs');
     const logs = data.logs || [];
