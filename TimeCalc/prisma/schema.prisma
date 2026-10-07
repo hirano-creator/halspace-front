@@ -63,6 +63,7 @@ model Department {
   attendQrEnabled     Boolean      @default(true) // 出勤・退勤QRをQR表示画面に表示するか
   outingQrEnabled     Boolean      @default(true) // 外出・戻りQRをQR表示画面に表示するか
   kioskKey            String?      @unique // キオスク表示用の秘密キー（NULL=未発行）。URL: /qr/[kioskKey]
+  kioskPunchEnabled   Boolean      @default(false) // trueの場合、キオスク画面からスマホを忘れたスタッフが顔写真つきで打刻できる
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   users               User[]
@@ -147,6 +148,8 @@ model ClockEvent {
   distanceMeters Float? // 判定対象店舗との距離（参考値として保存）
   departmentId   String? // 判定に使った部署（QR経由なら店舗、それ以外は本人の所属部署）
   department     Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  via            String      @default("SELF") // "SELF"(本人の端末) | "KIOSK"(店舗タブレットでのスマホ忘れ打刻)
+  photoKey       String? // KIOSK打刻時の撮影写真の保存キー（写真の保存に失敗した場合はnull）
   createdAt      DateTime    @default(now())
 
   @@index([userId, date])

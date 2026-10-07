@@ -10,6 +10,7 @@ import type { AttendanceEditState } from "./types";
 import { Badge, buttonPrimaryClass, buttonSecondaryClass, inputClass } from "@/components/ui";
 import { WeekSubtotalRow, groupRowsByWeek } from "@/components/weekly-summary";
 import type { WeeklyBucket } from "@/lib/attendance/types";
+import { KioskPhotoBadge, type KioskPunchInfo } from "@/components/kiosk-photo-badge";
 
 // 列数が多いため、共通のtdClass/thClassより余白を詰めた専用クラスを使う。
 // text-align はデフォルトの左寄せに任せ、中央/右寄せにしたい列だけ
@@ -73,6 +74,8 @@ export interface DailyRow {
   attendanceId: string | null; // 打刻がない日は null
   /** この日の打刻ログ（ClockEvent）が残っているか。Attendance が無くても削除ボタンを出す判定に使う */
   hasClockEvents: boolean;
+  /** スマホを忘れて店舗の端末で打刻したもの（写真つき）。なければ空配列 */
+  kioskPunches: KioskPunchInfo[];
   date: string; // "YYYY-MM-DD"
   dayLabel: string; // "1(水)" など
   isWeekend: boolean;
@@ -475,6 +478,7 @@ export function AttendanceEditor({
                     {row.lateMinutes > 0 && <Badge tone="amber">遅刻</Badge>}
                     {row.earlyLeaveMinutes > 0 && <Badge tone="amber">早退</Badge>}
                     {row.hasPendingRequest && <Badge tone="purple">申請中</Badge>}
+                    <KioskPhotoBadge punches={row.kioskPunches} dateLabel={row.dayLabel} />
                     <span>{[row.lateReason, row.earlyLeaveReason].filter(Boolean).join(" / ")}</span>
                   </span>
                 </td>

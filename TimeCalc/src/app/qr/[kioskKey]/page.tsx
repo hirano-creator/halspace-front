@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { prisma } from "@/lib/db";
+import { isPhotoStorageReady } from "@/lib/storage/photo-storage";
 import { DepartmentQrPanel } from "@/components/qr/department-qr-panel";
 import { InstallShortcutButton } from "@/components/qr/install-shortcut-button";
 import { INSTALL_PROMPT_EVENT, INSTALL_PROMPT_KEY } from "@/components/qr/install-prompt-shared";
@@ -74,6 +75,14 @@ export default async function KioskQrPage({
       </h1>
       <InstallShortcutButton />
       <DepartmentQrPanel department={department} variant="kiosk" />
+      {department.kioskPunchEnabled && isPhotoStorageReady() && (
+        <a
+          href={`/qr/${kioskKey}/punch`}
+          className="mt-8 inline-flex min-h-14 items-center justify-center rounded-xl border border-border bg-white px-6 text-lg font-semibold shadow-sm transition hover:border-primary hover:bg-primary/5 print:hidden"
+        >
+          スマホを忘れた方はこちら
+        </a>
+      )}
     </main>
   );
 }

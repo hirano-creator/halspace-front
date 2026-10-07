@@ -23,5 +23,7 @@ export interface SettingsPageResponse {
   roleLabels: Record<Role, string>;
   showMoney: boolean;
   departments: DepartmentWithGps[];
+  /** スマホ忘れ打刻の写真の保存先（R2）が使えるか。false なら部署でONにしても機能しない */
+  photoStorageReady: boolean;
   overrideKeys: string[];
 }

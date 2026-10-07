@@ -28,6 +28,7 @@ import {
   updateDepartmentCompanyAction,
   updateDepartmentGpsAction,
   updateDepartmentQrKindsAction,
+  updateDepartmentKioskPunchAction,
   updateDepartmentQrModeAction,
 } from "./client-actions";
 import type { SettingsFormState } from "./types";
@@ -646,6 +647,7 @@ export interface DepartmentWithGps {
   standardQrEnabled: boolean;
   attendQrEnabled: boolean;
   outingQrEnabled: boolean;
+  kioskPunchEnabled: boolean;
 }
 
 /** 会社（グループ会社）管理 */
@@ -872,6 +874,57 @@ function DepartmentQrModeRow({
   );
 }
 
+/** スマホを忘れたスタッフが店舗タブレット（キオスク画面）から顔写真つきで打刻できるかの設定行 */
+function DepartmentKioskPunchRow({
+  department,
+  photoStorageReady,
+  onSaved,
+}: {
+  department: { id: string; kioskPunchEnabled: boolean };
+  photoStorageReady: boolean;
+  onSaved?: () => void;
+}) {
+  const [state, formAction, pending] = useActionState(updateDepartmentKioskPunchAction, initialState);
+
+  useEffect(() => {
+    if (state.success && !state.error) onSaved?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.success, state.error]);
+
+  return (
+    <form action={formAction} className="mt-2 flex flex-wrap items-center gap-4">
+      <input type="hidden" name="id" value={department.id} />
+      <label className="flex items-center gap-1.5 text-sm">
+        <input
+          type="checkbox"
+          name="kioskPunchEnabled"
+          defaultChecked={department.kioskPunchEnabled}
+          className="h-4 w-4 rounded border-border accent-[var(--primary)]"
+        />
+        スマホ忘れ打刻（店舗タブレットで顔写真つき）
+      </label>
+      <button type="submit" disabled={pending} className={buttonSecondaryClass}>
+        {pending ? "保存中..." : "保存"}
+      </button>
+      <p className="w-full text-xs text-muted">
+        キオスク画面に「スマホを忘れた方はこちら」が表示されます。写真は90日で自動削除されます。
+        {!photoStorageReady && (
+          <span className="text-amber-700">
+            {" "}
+            現在は写真の保存先（R2）が未設定のため、ONにしても利用できません。
+          </span>
+        )}
+      </p>
+      {state.error && (
+        <p className="w-full rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>
+      )}
+      {state.success && !state.error && (
+        <p className="w-full rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">保存しました</p>
+      )}
+    </form>
+  );
+}
+
 /** 部署のQR表示画面に表示するQRの種類を選ぶ行 */
 function DepartmentQrKindsRow({
   department,
@@ -1042,11 +1095,13 @@ export function DepartmentManager({
   departments,
   companies,
   scope,
+  photoStorageReady,
   onSaved,
 }: {
   departments: DepartmentWithGps[];
   companies: CompanyOption[];
   scope: CompanyScope;
+  photoStorageReady: boolean;
   onSaved?: () => void;
 }) {
   const [addState, addAction, addPending] = useActionState(addDepartmentAction, initialState);
@@ -1095,6 +1150,7 @@ export function DepartmentManager({
             <DepartmentGpsRow department={d} onSaved={onSaved} />
             <DepartmentQrModeRow department={d} onSaved={onSaved} />
             <DepartmentQrKindsRow department={d} onSaved={onSaved} />
+            <DepartmentKioskPunchRow department={d} photoStorageReady={photoStorageReady} onSaved={onSaved} />
           </li>
         ))}
         {departments.length === 0 && (

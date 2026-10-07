@@ -18,6 +18,7 @@ import {
   controlHeightClass,
   inputClass,
 } from "@/components/ui";
+import { KioskPhotoBadge, type KioskPunchInfo } from "@/components/kiosk-photo-badge";
 import { WeekSubtotalBar, WeekSubtotalRow, groupRowsByWeek } from "@/components/weekly-summary";
 import type { WeeklyBucket } from "@/lib/attendance/types";
 
@@ -77,6 +78,8 @@ export interface MyDailyRow {
   isToday: boolean;
   /** この日の承認待ち修正申請があるか */
   hasPendingRequest: boolean;
+  /** スマホを忘れて店舗の端末で打刻したもの（写真つき）。なければ空配列 */
+  kioskPunches: KioskPunchInfo[];
   error: string | null;
 }
 
@@ -497,6 +500,7 @@ export function MyAttendanceTable({
         {row.lateMinutes > 0 && <Badge tone="amber">遅刻</Badge>}
         {row.earlyLeaveMinutes > 0 && <Badge tone="amber">早退</Badge>}
         {row.hasPendingRequest && <Badge tone="purple">申請中</Badge>}
+        <KioskPhotoBadge punches={row.kioskPunches} dateLabel={row.dayLabel} />
         {row.isToday && !row.hasRecord && !row.isOpen && (
           <span className="text-xs text-muted">本日</span>
         )}
@@ -657,6 +661,7 @@ export function MyAttendanceTable({
                     {row.lateMinutes > 0 && <Badge tone="amber">遅刻</Badge>}
                     {row.earlyLeaveMinutes > 0 && <Badge tone="amber">早退</Badge>}
                     {row.hasPendingRequest && <Badge tone="purple">申請中</Badge>}
+                    <KioskPhotoBadge punches={row.kioskPunches} dateLabel={row.dayLabel} />
                     <span>{[row.lateReason, row.earlyLeaveReason].filter(Boolean).join(" / ")}</span>
                   </span>
                 </td>

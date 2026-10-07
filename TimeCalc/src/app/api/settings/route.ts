@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireApiPermission } from "@/lib/auth/api-guard";
 import { getDisplaySettings, getRoleLabels, getWorkRules } from "@/lib/settings";
 import { COMPANY_SETTING_KEYS } from "@/lib/settings-keys";
+import { isPhotoStorageReady } from "@/lib/storage/photo-storage";
 import { nextEmployeeCode, normalizeCodeRule } from "@/lib/employee-code";
 import type { SettingsPageResponse } from "@/app/(app)/settings/types";
 
@@ -69,7 +70,9 @@ export async function GET(request: Request) {
       standardQrEnabled: d.standardQrEnabled,
       attendQrEnabled: d.attendQrEnabled,
       outingQrEnabled: d.outingQrEnabled,
+      kioskPunchEnabled: d.kioskPunchEnabled,
     })),
+    photoStorageReady: isPhotoStorageReady(),
     overrideKeys: overrideRows.map((row) => row.key),
   };
 

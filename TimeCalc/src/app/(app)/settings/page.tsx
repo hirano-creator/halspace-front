@@ -117,6 +117,7 @@ export default function SettingsPage() {
           scope={scopeFor("")}
           companies={data.companies}
           departments={data.departments}
+          photoStorageReady={data.photoStorageReady}
           onSaved={refetch}
         />
         <WorkRulesForm

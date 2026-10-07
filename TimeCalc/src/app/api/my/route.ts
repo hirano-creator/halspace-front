@@ -15,6 +15,7 @@ import {
 import type { DailyCalcResult } from "@/lib/attendance/types";
 import { deriveDailyFromEvents, outingsFromEvents, type ClockEventType } from "@/lib/attendance/clock";
 import { dailyDeductionMinutes, resolveOuting } from "@/lib/attendance/deduction";
+import type { KioskPunchInfo } from "@/components/kiosk-photo-badge";
 import { getAllWorkRules, getRoleLabels, workRulesFor } from "@/lib/settings";
 import { toRole } from "@/lib/auth/roles";
 import {
@@ -72,10 +73,17 @@ export async function GET(request: Request) {
 
   const recordByDate = new Map(records.map((r) => [r.date, r]));
   const eventsByDate = new Map<string, { type: ClockEventType; time: string }[]>();
+  // 店舗の端末で打刻した日（身に覚えのない打刻に本人が気付けるよう備考にバッジを出す）
+  const kioskByDate = new Map<string, KioskPunchInfo[]>();
   for (const e of events) {
     const list = eventsByDate.get(e.date) ?? [];
     list.push({ type: e.type as ClockEventType, time: e.time });
     eventsByDate.set(e.date, list);
+    if (e.via === "KIOSK") {
+      const kiosk = kioskByDate.get(e.date) ?? [];
+      kiosk.push({ eventId: e.id, type: e.type as ClockEventType, time: e.time, hasPhoto: e.photoKey !== null });
+      kioskByDate.set(e.date, kiosk);
+    }
   }
   const pendingDates = new Set(requests.filter((r) => r.status === "PENDING").map((r) => r.date));
 
@@ -184,6 +192,7 @@ export async function GET(request: Request) {
       isOpen,
       isToday: date === today,
       hasPendingRequest: pendingDates.has(date),
+      kioskPunches: kioskByDate.get(date) ?? [],
       error: calc?.error ?? null,
     });
   }

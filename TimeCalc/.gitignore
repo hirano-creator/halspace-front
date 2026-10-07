@@ -71,3 +71,6 @@ worker-configuration.d.ts
 .dev.vars
 # D1へ流すために生成する一時DDL
 /d1-schema.sql
+
+# スマホ忘れ打刻の写真（R2未設定の開発環境での保存先）
+/.local-uploads/

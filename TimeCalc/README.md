@@ -155,6 +155,23 @@ pg_restore --clean --if-exists --no-owner --no-privileges -d "$DATABASE_URL" bac
 `pg_restore` は PostgreSQL 15 以上のクライアントが必要（Windows は EDB のインストーラーから「Command Line Tools」だけ入れれば足りる）。
 `--clean --if-exists` で既存テーブルを落としてから作り直すので、`_prisma_migrations` も含めて丸ごとバックアップ時点に戻る。
 
+### スマホ忘れ打刻（店舗タブレットで顔写真つき打刻）の写真保存
+
+スマホを忘れたスタッフは、店舗のキオスク画面（`/qr/<kioskKey>`）の「スマホを忘れた方はこちら」から
+名前を選び、前面カメラで撮影して打刻できる（顔の照合はしない。写真は管理者が社員詳細の「📷 店舗端末」から確認する）。
+部署ごとに 設定 → 部署管理 の「スマホ忘れ打刻」で ON にしたときだけ表示される（既定 OFF）。
+
+写真は R2 に `clock-photos/<YYYY-MM>/<打刻ID>.jpg` で保存する。**有効化の前に以下が必要**:
+
+1. `timecalc` サービスに `R2_ACCOUNT_ID` / `R2_BUCKET` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` を設定する
+   （バックアップと同じバケット・トークンでよい。未設定のままだと部署で ON にしても入口は出ず、設定画面に注意書きが出る）。
+2. R2 バケットにライフサイクルルールを追加する: Cloudflare ダッシュボード → R2 → バケット → Settings →
+   Object lifecycle rules → prefix `clock-photos/`、**90日後に削除**。アプリ側も90日を過ぎた写真は配信しない。
+3. スタッフへの周知（就業規則・店舗掲示など）:「スマホ忘れ打刻のときに顔写真を撮影し、勤怠の確認のためだけに使い、90日で削除する」。
+
+ローカルの `next dev` では R2 が無くても `.local-uploads/` に保存される。本番ビルドをローカルで動かす（`next start`）ときは
+`PHOTO_STORAGE_LOCAL=1` を付けたときだけローカル保存になる（Railway では付けないこと。再デプロイで消える）。
+
 ### Cloudflare D1 からのデータ移行（移行時の1回限り・2026-09-19 完了）
 
 ```bash

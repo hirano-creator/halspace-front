@@ -6,6 +6,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { normalizeDate } from "@/lib/utils/time";
+import { deletePhoto } from "@/lib/storage/photo-storage";
 import type { AttendanceEditState } from "@/app/(app)/employees/[id]/types";
 import { attendanceSnapshot, checkEditable } from "../_shared";
 
@@ -26,10 +27,11 @@ export async function DELETE(
     return NextResponse.json<AttendanceEditState>({ error: check.error, success: false });
   }
 
-  const [record, eventCount] = await Promise.all([
+  const [record, events] = await Promise.all([
     prisma.attendance.findUnique({ where: { userId_date: { userId, date } } }),
-    prisma.clockEvent.count({ where: { userId, date } }),
+    prisma.clockEvent.findMany({ where: { userId, date }, select: { photoKey: true } }),
   ]);
+  const eventCount = events.length;
   if (!record && eventCount === 0) {
     return NextResponse.json<AttendanceEditState>({ error: "対象の勤怠が見つかりません", success: false });
   }
@@ -54,6 +56,9 @@ export async function DELETE(
     console.error("勤怠削除エラー:", e);
     return NextResponse.json<AttendanceEditState>({ error: "勤怠の削除に失敗しました", success: false }, { status: 500 });
   }
+
+  // 店舗端末での打刻写真も消す（失敗しても無視。最終的には保存期間のルールで消える）
+  await Promise.all(events.flatMap((e) => (e.photoKey ? [deletePhoto(e.photoKey)] : [])));
 
   return NextResponse.json<AttendanceEditState>({ error: null, success: true });
 }

@@ -36,6 +36,7 @@ import {
   todayString,
 } from "@/lib/utils/time";
 import type { DailyRow } from "@/app/(app)/employees/[id]/attendance-editor";
+import type { KioskPunchInfo } from "@/components/kiosk-photo-badge";
 import type { AttendanceLogRow, EmployeeDetailResponse } from "@/app/(app)/employees/[id]/types";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
@@ -97,10 +98,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const recordByDate = new Map(records.map((r) => [r.date, r]));
   const eventsByDate = new Map<string, { type: ClockEventType; time: string }[]>();
+  // スマホを忘れて店舗の端末で打刻したもの（写真つき）。日別行のバッジと写真確認に使う
+  const kioskByDate = new Map<string, KioskPunchInfo[]>();
   for (const e of events) {
     const list = eventsByDate.get(e.date) ?? [];
     list.push({ type: e.type as ClockEventType, time: e.time });
     eventsByDate.set(e.date, list);
+    if (e.via === "KIOSK") {
+      const kiosk = kioskByDate.get(e.date) ?? [];
+      kiosk.push({ eventId: e.id, type: e.type as ClockEventType, time: e.time, hasPhoto: e.photoKey !== null });
+      kioskByDate.set(e.date, kiosk);
+    }
   }
   const pendingDates = new Set(
     requests.filter((r) => r.status === "PENDING").map((r) => r.date),
@@ -195,6 +203,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     rows.push({
       attendanceId: record?.id ?? null,
       hasClockEvents: dayEvents.length > 0,
+      kioskPunches: kioskByDate.get(date) ?? [],
       date,
       dayLabel: `${m}/${d}(${WEEKDAYS[weekday]})`,
       isWeekend: weekday === 0 || weekday === 6,

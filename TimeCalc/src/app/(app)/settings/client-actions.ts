@@ -109,6 +109,14 @@ export async function updateDepartmentQrKindsAction(
   return patchForm(`/api/settings/departments/${id}/qr-kinds`, formData);
 }
 
+export async function updateDepartmentKioskPunchAction(
+  _prev: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const id = String(formData.get("id") ?? "");
+  return patchForm(`/api/settings/departments/${id}/kiosk-punch`, formData);
+}
+
 export async function updateDepartmentCompanyAction(
   _prev: SettingsFormState,
   formData: FormData,
