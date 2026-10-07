@@ -80,7 +80,7 @@
 .qr-sec-h .sp { flex:1; }
 .qr-sec-h .by { font-size:11px; color:var(--muted); font-weight:500; }
 .qr-lock { font-size:12px; color:var(--muted); display:flex; gap:6px; align-items:center; font-weight:500; }
-.qr-ev { display:grid; grid-template-columns:360px minmax(0,1fr); gap:14px; align-items:start; }
+.qr-ev { display:grid; grid-template-columns:minmax(0,3fr) minmax(0,2fr); gap:14px; align-items:start; }
 .qr-ev-imgs { display:flex; flex-direction:column; gap:6px; }
 .qr-ev-more { display:flex; gap:6px; flex-wrap:wrap; }
 .qr-ev-more .qr-shot { width:56px; aspect-ratio:1; }
@@ -160,8 +160,14 @@
 .qr-img-row { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:0 14px; }
 .qr-imgs { display:flex; gap:6px; flex-wrap:wrap; }
 /* ステップの文章に添えた説明画像 */
-.qr-figs { display:flex; gap:8px; flex-wrap:wrap; margin:6px 0 2px; white-space:normal; }
-.qr-figs .qr-shot { width:160px; max-width:100%; }
+/* 対策書プレビューと同じくらいの大きさで並べる */
+.qr-figs { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; margin:6px 0 2px; white-space:normal; }
+.qr-kv dd.qr-kv-figs { grid-column:1 / -1; margin-top:-2px; }
+.qr-imgs[data-step-kind] { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; }
+.qr-imgs[data-step-kind] .qr-shot { width:auto; aspect-ratio:4/3; }
+/* 追加ボタンは画像が無いときは低く、画像の隣では同じ高さに伸びる */
+.qr-imgs[data-step-kind] .add { width:auto; aspect-ratio:auto; min-height:72px; }
+.qr-imgs[data-step-kind] .rm { width:26px; height:26px; font-size:12px; top:6px; right:6px; }
 .qr-imgs .qr-shot { width:72px; aspect-ratio:1; }
 .qr-imgs .rm { position:absolute; top:3px; right:3px; z-index:2; width:20px; height:20px; border-radius:50%; background:rgba(0,0,0,.6); color:#fff; border:none; font-size:10px; cursor:pointer; display:grid; place-items:center; }
 .qr-imgs .add { width:72px; aspect-ratio:1; border:1.5px dashed var(--border-md); border-radius:8px; display:grid; place-items:center; color:var(--muted); cursor:pointer; background:var(--white); font-size:11px; text-align:center; line-height:1.4; }

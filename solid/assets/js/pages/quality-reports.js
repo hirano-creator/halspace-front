@@ -96,6 +96,8 @@ const stepFigs = (r, kind) => {
   const list = stepImgs(r, kind);
   return list.length ? `<div class="qr-figs">${list.map(i => shotHtml(i, false)).join('')}</div>` : '';
 };
+/* 項目名の列に場所を取られないよう、画像は行の幅いっぱいに出す */
+const figRow = (r, kind) => stepImgs(r, kind).length ? `<dd class="qr-kv-figs">${stepFigs(r, kind)}</dd>` : '';
 /* 入力中の画像欄（追加・削除） */
 const stepImgBox = (r, kind) => `<div class="qr-fld"><label><i class="fa-regular fa-image"></i> ${STEP_IMG[kind]}の画像（任意）</label>
   <div class="qr-imgs" data-step-kind="${kind}">${stepImgs(r, kind).map(i => `<div class="qr-shot" data-img="${esc(i.url)}"><button type="button" class="rm" data-rm-step="${i.id}" title="削除"><i class="fa-solid fa-xmark"></i></button></div>`).join('')}
@@ -286,8 +288,8 @@ const sel = (k, label, arr, v) => `<div class="qr-fld"><label>${label}</label><s
 const byLine = (by, at, who) => by ? `<p class="qr-note" style="margin-top:6px">${esc(by)}（${who}）· ${esc((at || '').slice(0, 16))}</p>` : '';
 function occView(r) {
   if (!r.occ.cause) return '<p class="qr-note">まだ入力されていません</p>';
-  return `<dl class="qr-kv"><dt>発生原因</dt><dd>${esc(r.occ.cause)}${stepFigs(r, 'occ_cause')}</dd><dt>原因の分類</dt><dd>${esc(r.occ.category) || '—'}</dd>
-    <dt>対策</dt><dd>${esc(r.occ.fix)}</dd><dt>再発防止</dt><dd>${esc(r.occ.prevent)}${stepFigs(r, 'occ_prev')}</dd></dl>${byLine(r.occ.by, r.occ.at, 'HILANO')}`;
+  return `<dl class="qr-kv"><dt>発生原因</dt><dd>${esc(r.occ.cause)}</dd>${figRow(r, 'occ_cause')}<dt>原因の分類</dt><dd>${esc(r.occ.category) || '—'}</dd>
+    <dt>対策</dt><dd>${esc(r.occ.fix)}</dd><dt>再発防止</dt><dd>${esc(r.occ.prevent)}</dd>${figRow(r, 'occ_prev')}</dl>${byLine(r.occ.by, r.occ.at, 'HILANO')}`;
 }
 function occForm(r) {
   return `${r.returned && r.review ? `<div class="qr-ret"><b><i class="fa-solid fa-rotate-left"></i> HaLSpace からの差し戻し（${esc(r.review.by)}・${esc((r.review.at || '').slice(0, 16))}）</b>\n${esc(r.review.comment)}</div>` : ''}
