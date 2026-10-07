@@ -22,12 +22,14 @@ const PLOT_HEIGHT = 200;
 const PLOT_TOP_PAD = 24;
 const Y_STEP_COUNT = 4;
 
+// Y_STEP_COUNT（4）で割り切れる値だけにする。5 や 10 だと目盛りが丸められて
+// 0,1,3,4,5 のように飛び、横線の間隔も不揃いになる
 function niceMax(value: number): number {
-  const steps = [2, 4, 5, 8, 10, 12, 15, 20, 25, 30];
+  const steps = [2, 4, 8, 12, 16, 20, 24, 32, 40];
   for (const step of steps) {
     if (value <= step) return step;
   }
-  return Math.ceil(value / 10) * 10;
+  return Math.ceil(value / 20) * 20;
 }
 
 /** 日曜と定休日は曜日ラベルを赤にする */
@@ -58,7 +60,7 @@ export function VisitTrendChart({ trend }: { trend: DashboardVisitTrend }) {
     ...trend.previous.filter((d) => d.day <= days).map((d) => d.count),
   );
   const yMax = niceMax(maxValue);
-  // yMax が小さいと丸めで同じ値が並ぶことがあるため（例: yMax=2 → 0,1,1,2,2）重複を除く
+  // yMax=2 だけは 4 で割り切れず同じ値が並ぶため（0,1,1,2,2）重複を除く
   const ySteps = Array.from(
     new Set(Array.from({ length: Y_STEP_COUNT + 1 }, (_, i) => Math.round((yMax / Y_STEP_COUNT) * i))),
   );
@@ -144,7 +146,8 @@ export function VisitTrendChart({ trend }: { trend: DashboardVisitTrend }) {
                 {ySteps.map((val) => (
                   <div
                     key={val}
-                    className="tabular absolute inset-x-0 -translate-y-1/2 text-right text-[10px] text-gray-faint"
+                    // bottom で下端を目盛りの高さに置くので、中心を合わせるには下へ半分ずらす
+                    className="tabular absolute inset-x-0 translate-y-1/2 text-right text-[10px] text-gray-faint"
                     style={{ bottom: (val / yMax) * PLOT_HEIGHT }}
                   >
                     {val}
