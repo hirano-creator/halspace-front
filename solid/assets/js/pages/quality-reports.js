@@ -88,6 +88,19 @@ const firstImg = (r, kind) => (r.images || []).find(i => i.kind === kind) ?? nul
 /* 画像の種類。この順番で対策書の図1・図2・図3になる */
 const IMG_KINDS = [['drawing', 'お客様図面'], ['defect', '不具合箇所'], ['fixed', '修正後']];
 const kindLabel = k => (IMG_KINDS.find(([x]) => x === k) ?? [, ''])[1];
+/* ステップの文章に添える説明画像（① の担当が入力中のときだけ追加・削除できる） */
+const STEP_IMG = { occ_cause: '発生原因の説明', occ_prev: '再発防止の説明' };
+const stepImgs = (r, kind) => (r.images || []).filter(i => i.kind === kind);
+/* 画面上の図（クリックで拡大） */
+const stepFigs = (r, kind) => {
+  const list = stepImgs(r, kind);
+  return list.length ? `<div class="qr-figs">${list.map(i => shotHtml(i, false)).join('')}</div>` : '';
+};
+/* 入力中の画像欄（追加・削除） */
+const stepImgBox = (r, kind) => `<div class="qr-fld"><label><i class="fa-regular fa-image"></i> ${STEP_IMG[kind]}の画像（任意）</label>
+  <div class="qr-imgs" data-step-kind="${kind}">${stepImgs(r, kind).map(i => `<div class="qr-shot" data-img="${esc(i.url)}"><button type="button" class="rm" data-rm-step="${i.id}" title="削除"><i class="fa-solid fa-xmark"></i></button></div>`).join('')}
+  <label class="add"><i class="fa-solid fa-plus"></i>追加<input type="file" accept="image/*" multiple hidden></label></div>
+  <div class="hint">図面に線や印を書き込んだ画像などを添えると、伝わりやすくなります</div></div>`;
 
 /* ───────── 状態の表示 ───────── */
 function stChip(r) {
@@ -251,8 +264,8 @@ function renderDetail() {
     : '<span class="qr-lock"><i class="fa-solid fa-check"></i>完了</span>';
   let body = '';
   if (vs === 1) body = can ? occForm(r) : occView(r);
-  if (vs === 2) body = `<div class="qr-ref lcz"><b>① HILANO の入力</b>${r.occ.cause ? `発生原因: ${esc(r.occ.cause)}\n対策: ${esc(r.occ.fix)}\n再発防止: ${esc(r.occ.prevent)}` : '未入力'}</div>` + (can ? reviewForm() : reviewView(r));
-  if (vs === 3) body = (r.occ.cause ? `<div class="qr-ref lcz"><b>① 発生原因（HILANO）</b>${esc(r.occ.cause)}</div>` : '') + (can ? outForm(r) : outView(r));
+  if (vs === 2) body = `<div class="qr-ref lcz"><b>① HILANO の入力</b>${r.occ.cause ? `発生原因: ${esc(r.occ.cause)}${stepFigs(r, 'occ_cause')}\n対策: ${esc(r.occ.fix)}\n再発防止: ${esc(r.occ.prevent)}${stepFigs(r, 'occ_prev')}` : '未入力'}</div>` + (can ? reviewForm() : reviewView(r));
+  if (vs === 3) body = (r.occ.cause ? `<div class="qr-ref lcz"><b>① 発生原因（HILANO）</b>${esc(r.occ.cause)}${stepFigs(r, 'occ_cause')}</div>` : '') + (can ? outForm(r) : outView(r));
   if (vs === 4) body = can ? custForm(r) : custView(r);
   if (vs === 5) body = r.stage >= 6 ? submittedView(r) + stampPanel(r, false)
     : can ? submitForm(r)
@@ -262,6 +275,7 @@ function renderDetail() {
   f.innerHTML = `<div class="qr-sec ${step.who === 'lcz' ? 'lcz' : vs >= 4 ? 'cus' : 'hal'} ${can ? 'active' : ''}">
     <div class="qr-sec-h" style="margin-bottom:10px"><span class="qr-who ${step.who}">${WHO[step.who]}</span>${NUM[vs - 1]} ${step.t}<span class="sp"></span>${status}</div>${body}</div>`;
   bindStep(f, vs);
+  hydrateImages(f);
   renderHistory(r);
   renderPaperPreview();
 }
@@ -272,15 +286,17 @@ const sel = (k, label, arr, v) => `<div class="qr-fld"><label>${label}</label><s
 const byLine = (by, at, who) => by ? `<p class="qr-note" style="margin-top:6px">${esc(by)}（${who}）· ${esc((at || '').slice(0, 16))}</p>` : '';
 function occView(r) {
   if (!r.occ.cause) return '<p class="qr-note">まだ入力されていません</p>';
-  return `<dl class="qr-kv"><dt>発生原因</dt><dd>${esc(r.occ.cause)}</dd><dt>原因の分類</dt><dd>${esc(r.occ.category) || '—'}</dd>
-    <dt>対策</dt><dd>${esc(r.occ.fix)}</dd><dt>再発防止</dt><dd>${esc(r.occ.prevent)}</dd></dl>${byLine(r.occ.by, r.occ.at, 'HILANO')}`;
+  return `<dl class="qr-kv"><dt>発生原因</dt><dd>${esc(r.occ.cause)}${stepFigs(r, 'occ_cause')}</dd><dt>原因の分類</dt><dd>${esc(r.occ.category) || '—'}</dd>
+    <dt>対策</dt><dd>${esc(r.occ.fix)}</dd><dt>再発防止</dt><dd>${esc(r.occ.prevent)}${stepFigs(r, 'occ_prev')}</dd></dl>${byLine(r.occ.by, r.occ.at, 'HILANO')}`;
 }
 function occForm(r) {
   return `${r.returned && r.review ? `<div class="qr-ret"><b><i class="fa-solid fa-rotate-left"></i> HaLSpace からの差し戻し（${esc(r.review.by)}・${esc((r.review.at || '').slice(0, 16))}）</b>\n${esc(r.review.comment)}</div>` : ''}
     ${ta('occ_cause', '発生原因（なぜ間違えたか）', r.occ.cause, 'なぜ起きたかを具体的に。「確認不足」だけでは差し戻しになります')}
+    ${stepImgBox(r, 'occ_cause')}
     ${sel('occ_category', '原因の分類', OCC, r.occ.category)}
     ${ta('occ_fix', '対策（今回の修正内容）', r.occ.fix)}
     ${ta('occ_prevent', '再発防止策', r.occ.prevent, '誰が・いつ・何をするか分かるように')}
+    ${stepImgBox(r, 'occ_prev')}
     <div class="qr-acts"><button class="btn btn-outline btn-sm" data-act="save"><i class="fa-regular fa-floppy-disk"></i> 下書き保存</button>
       <button class="btn btn-primary btn-sm" data-act="submit"><i class="fa-solid fa-paper-plane"></i> HaLSpace へ提出</button></div>`;
 }
@@ -316,9 +332,9 @@ function custView(r) {
   return `<dl class="qr-kv">${CUST_LABELS.map(([, k, l]) => `<dt>${l.replace(/^[\d().-]+\s*/, '')}</dt><dd>${esc(r.cust[k]) || '—'}</dd>`).join('')}</dl>`;
 }
 function custForm(r) {
-  const ref = (who, label, v) => `<div class="qr-ref ${who}"><b>${label}（${WHO[who]}の原文）</b>${esc(v) || '—'}</div>`;
-  const refs = { cust_cause: ref('lcz', '発生原因', r.occ.cause), cust_outflow: ref('hal', '流出原因', r.out.cause),
-    cust_prevent_modeling: ref('lcz', '再発防止', r.occ.prevent), cust_prevent_inspection: ref('hal', '再発防止', r.out.prevent) };
+  const ref = (who, label, v, figs = '') => `<div class="qr-ref ${who}"><b>${label}（${WHO[who]}の原文）</b>${esc(v) || '—'}${figs}</div>`;
+  const refs = { cust_cause: ref('lcz', '発生原因', r.occ.cause, stepFigs(r, 'occ_cause')), cust_outflow: ref('hal', '流出原因', r.out.cause),
+    cust_prevent_modeling: ref('lcz', '再発防止', r.occ.prevent, stepFigs(r, 'occ_prev')), cust_prevent_inspection: ref('hal', '再発防止', r.out.prevent) };
   return `<button class="btn qr-draft btn-sm" data-draft type="button"><i class="fa-solid fa-wand-magic-sparkles"></i> ①③の内容から下書きを作る（空欄だけ）</button>
     <p class="qr-note" style="margin:-4px 0 10px">お客様向けに言い回しを整えてください（社内用語・担当者名は書かない）</p>
     ${CUST_LABELS.map(([f, k, l]) => (refs[f] ?? '') + ta(f, l, r.cust[k])).join('')}
@@ -369,6 +385,28 @@ function submittedView(r) {
 
 /* ステップの保存・進行 */
 function bindStep(root, vs) {
+  root.querySelectorAll('[data-step-kind]').forEach(box => {
+    const kind = box.dataset.stepKind;
+    // 画像の追加・削除で画面を描き直すので、保存前の入力を退避して戻す
+    const keepInput = async fn => {
+      const vals = Object.fromEntries([...root.querySelectorAll('[data-f]')].map(el => [el.dataset.f, el.value]));
+      await fn();
+      Object.entries(vals).forEach(([k, v]) => { const el = $('dForm').querySelector(`[data-f="${k}"]`); if (el) el.value = v; });
+    };
+    box.querySelector('input[type=file]').onchange = e => {
+      const files = [...e.target.files];
+      if (files.length) keepInput(() => uploadImages(CUR.id, kind, files));
+    };
+    box.querySelectorAll('[data-rm-step]').forEach(b => b.onclick = () => {
+      if (!confirm('この画像を削除しますか？')) return;
+      keepInput(async () => {
+        try {
+          const d = await api.delete(`${BASE}/${CUR.id}/images/${b.dataset.rmStep}`);
+          CUR = d.report; syncSummary(CUR); renderDetail();
+        } catch (err) { showToast(err.message, 'danger'); }
+      });
+    });
+  });
   root.querySelectorAll('[data-open-report]').forEach(b => b.onclick = () => $('dOpenReport').click());
   root.querySelectorAll('[data-stamp], [data-unstamp]').forEach(b => b.onclick = async () => {
     const kind = b.dataset.stamp || b.dataset.unstamp, stamp = !!b.dataset.stamp;
@@ -438,7 +476,12 @@ function paperHtml(r, custOverride) {
   const c = custOverride ?? r.cust ?? {};
   const P = v => v ? esc(v) : '<span class="ph">（④ まとめで作成）</span>';
   const figs = IMG_KINDS.map(([k, l]) => [firstImg(r, k), l]).filter(([i]) => i);
-  const imgs = figs.length ? `<div class="imgs n${figs.length}">${figs.map(([i, l], n) => `<figure>${shotHtml(i, false)}<figcaption>図${n + 1} ${l}</figcaption></figure>`).join('')}</div>` : '';
+  let figNo = 0;
+  const figHtml = list => list.length ? `<div class="imgs n${Math.min(list.length, 3)}">${list.map(([i, l]) => `<figure>${shotHtml(i, false)}<figcaption>図${++figNo} ${l}</figcaption></figure>`).join('')}</div>` : '';
+  const imgs = figHtml(figs);
+  // ① で HILANO が添えた説明画像は、対応する章（発生原因 / モデリング工程の再発防止）に載せる
+  const causeImgs = figHtml(stepImgs(r, 'occ_cause').map(i => [i, STEP_IMG.occ_cause]));
+  const prevImgs = figHtml(stepImgs(r, 'occ_prev').map(i => [i, STEP_IMG.occ_prev]));
   return `<div class="qr-paper">
     <div class="doc-top"><span>文書番号：${esc(r.no)}</span><span>提出日：${fmtJa(r.submitted_on || today())}</span></div>
     <h1>不具合対策書</h1>
@@ -453,10 +496,10 @@ function paperHtml(r, custOverride) {
       <tr><th>再納品日</th><td>${fmtJa(r.redelivered_on) || '—'}</td></tr>
     </table>
     <h2>1. 発生事象</h2><p>${esc(r.symptom)}</p>${imgs}
-    <h2>2. 発生原因</h2><p>${P(c.cause)}</p>
+    <h2>2. 発生原因</h2><p>${P(c.cause)}</p>${causeImgs}
     <h2>3. 流出原因</h2><p>${P(c.outflow)}</p>
     <h2>4. 今回分の不具合対応について</h2><p>${P(c.fix)}</p>
-    <h2>5. 再発防止策</h2><h3>(1) モデリング工程</h3><p>${P(c.prevent_modeling)}</p><h3>(2) 検査工程</h3><p>${P(c.prevent_inspection)}</p>
+    <h2>5. 再発防止策</h2><h3>(1) モデリング工程</h3><p>${P(c.prevent_modeling)}</p>${prevImgs}<h3>(2) 検査工程</h3><p>${P(c.prevent_inspection)}</p>
     <div class="sign"><div>承認<span>${stampSvg(r.stamps?.approved)}</span></div><div>作成<span>${stampSvg(r.stamps?.created)}</span></div></div>
     <p class="end">以上</p></div>`;
 }
