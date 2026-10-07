@@ -154,7 +154,11 @@ export function VisitTrendChart({ trend }: { trend: DashboardVisitTrend }) {
 
               {/* 1 日あたり最低 DAY_COL_WIDTH。画面に余裕があれば列を広げて右の空きを埋める */}
               <div className="relative flex-1" style={{ minWidth: days * DAY_COL_WIDTH }}>
-                <div className="pointer-events-none absolute inset-0">
+                {/* 棒の領域と同じ高さにする（日付ラベル行を含めると 0 の位置が棒の底とズレる） */}
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0"
+                  style={{ height: PLOT_HEIGHT + PLOT_TOP_PAD }}
+                >
                   {ySteps.map((val, i) => (
                     <div
                       key={val}
