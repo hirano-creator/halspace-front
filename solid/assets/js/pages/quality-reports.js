@@ -94,7 +94,7 @@ const stepImgs = (r, kind) => (r.images || []).filter(i => i.kind === kind);
 /* 画面上の図（クリックで拡大） */
 const stepFigs = (r, kind) => {
   const list = stepImgs(r, kind);
-  return list.length ? `<div class="qr-figs">${list.map(i => shotHtml(i, false)).join('')}</div>` : '';
+  return list.length ? `<div class="qr-figs n${Math.min(list.length, 3)}">${list.map(i => shotHtml(i, false)).join('')}</div>` : '';
 };
 /* 項目名の列に場所を取られないよう、画像は行の幅いっぱいに出す */
 const figRow = (r, kind) => stepImgs(r, kind).length ? `<dd class="qr-kv-figs">${stepFigs(r, kind)}</dd>` : '';

@@ -80,7 +80,7 @@
 .qr-sec-h .sp { flex:1; }
 .qr-sec-h .by { font-size:11px; color:var(--muted); font-weight:500; }
 .qr-lock { font-size:12px; color:var(--muted); display:flex; gap:6px; align-items:center; font-weight:500; }
-.qr-ev { display:grid; grid-template-columns:minmax(0,3fr) minmax(0,2fr); gap:14px; align-items:start; }
+.qr-ev { display:grid; grid-template-columns:360px minmax(0,1fr); gap:14px; align-items:start; }
 .qr-ev-imgs { display:flex; flex-direction:column; gap:6px; }
 .qr-ev-more { display:flex; gap:6px; flex-wrap:wrap; }
 .qr-ev-more .qr-shot { width:56px; aspect-ratio:1; }
@@ -160,8 +160,10 @@
 .qr-img-row { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:0 14px; }
 .qr-imgs { display:flex; gap:6px; flex-wrap:wrap; }
 /* ステップの文章に添えた説明画像 */
-/* 対策書プレビューと同じくらいの大きさで並べる */
-.qr-figs { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; margin:6px 0 2px; white-space:normal; }
+/* 対策書プレビューと同じ並べ方で、枠の幅に合わせて少し小さめに（1枚=半分強、2枚=2列、3枚以上=3列） */
+.qr-figs { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; max-width:88%; margin:6px 0 2px; white-space:normal; }
+.qr-figs.n1 { grid-template-columns:minmax(0,60%); }
+.qr-figs.n3 { grid-template-columns:repeat(3, minmax(0,1fr)); }
 .qr-kv dd.qr-kv-figs { grid-column:1 / -1; margin-top:-2px; }
 .qr-imgs[data-step-kind] { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; }
 .qr-imgs[data-step-kind] .qr-shot { width:auto; aspect-ratio:4/3; }
