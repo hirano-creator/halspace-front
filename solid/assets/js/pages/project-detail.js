@@ -380,6 +380,7 @@ function renderFiles() {
   const canBulkDownload = visibleModelFiles.length > 0;
   saveFolderBtn.style.display = (canBulkDownload && 'showDirectoryPicker' in window) ? '' : 'none';
   zipAllBtn.style.display = canBulkDownload ? '' : 'none';
+  updateSectionMeta();
 
   /* 図面・参考資料の追加（全ロール共通、ファイル/フォルダ両対応）*/
   const uploadDrawingBtn = document.getElementById('uploadDrawingBtn');
@@ -1898,6 +1899,85 @@ function adjustChatCardHeight() {
 window.addEventListener('resize', adjustChatCardHeight);
 window.addEventListener('scroll', adjustChatCardHeight, { passive: true });
 
+/* ── スマホ用: セクションの折りたたみ ──
+   スマホでは各カードが縦に積まれて画面がとても長くなるため、data-collapse を付けたカードは
+   見出し（タイトルか右端の ⌄）のタップで開閉する。閉じていても件数・未読が見出しに出る。
+   開閉の見た目は CSS の @media (max-width: 768px) だけで効かせるので、PC では常に開いた表示。
+   初期状態は中身で決める（保存はしない。「ファイルが消えた」と見間違えないよう、
+   作業が要るカードは開いておく）。 */
+function isMobileLayout() {
+  return window.matchMedia('(max-width: 768px)').matches;
+}
+
+function unreadCommentCount() {
+  return (project.unread_client ?? 0) + (project.unread_modeler ?? 0);
+}
+
+function initCollapsibles() {
+  const visibleModels = visibleModelFilesForBulk().length;
+  const defaults = {
+    drawing:  false,
+    // モデラーがアップロードする場所なので、上げられる間かファイルがあるときは開いておく
+    model:    !(visibleModels > 0 || canUploadModelNow()),
+    revision: false,
+    // コメントは一番下にあるので、未読があるときだけ開いておく
+    chat:     unreadCommentCount() === 0,
+  };
+  document.querySelectorAll('.card[data-collapse]').forEach(card => {
+    const key    = card.dataset.collapse;
+    const header = card.querySelector(':scope > .card-header');
+    const title  = header?.querySelector('.card-title');
+    if (!title || header.querySelector('.sec-toggle')) return;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sec-toggle';
+    btn.innerHTML = '<span class="sec-meta"></span><i class="fa-solid fa-chevron-down"></i>';
+    title.after(btn);
+
+    const setCollapsed = collapsed => {
+      card.classList.toggle('is-collapsed', collapsed);
+      btn.setAttribute('aria-expanded', String(!collapsed));
+      btn.title = collapsed ? '開く' : '閉じる';
+    };
+    setCollapsed(defaults[key] ?? false);
+
+    const toggle = () => {
+      if (!isMobileLayout()) return;
+      const collapsed = !card.classList.contains('is-collapsed');
+      setCollapsed(collapsed);
+      // 閉じている間は高さ0なので、開いたときに最新のコメントまで送る
+      if (!collapsed && key === 'chat') {
+        const box = document.getElementById('chatMessages');
+        if (box) box.scrollTop = box.scrollHeight;
+        // 表示中のチャンネルは読み込み時に既読にしてあるので、開いて見たら見出しの未読から外す
+        project[`unread_${currentChannel}`] = 0;
+        updateSectionMeta();
+      }
+    };
+    title.addEventListener('click', toggle);
+    btn.addEventListener('click', toggle);
+  });
+  updateSectionMeta();
+}
+
+/* 折りたたみ見出しの件数・未読（ファイルやコメントが更新されるたびに呼ばれる） */
+function updateSectionMeta() {
+  const set = (key, html) => {
+    const el = document.querySelector(`.card[data-collapse="${key}"] .sec-meta`);
+    if (el) el.innerHTML = html;
+  };
+  const files = project?.files ?? [];
+  set('drawing',  `${files.filter(f => DRAWING_TYPES.includes(f.file_type)).length}件`);
+  set('model',    `${visibleModelFilesForBulk().length}件`);
+  set('revision', `${files.filter(f => REVISION_TYPES.includes(f.file_type)
+                     || (MODEL_TYPES.includes(f.file_type) && f.review_status === 'revision')).length}件`);
+  const unread = unreadCommentCount();
+  set('chat', unread > 0
+    ? `<span class="sec-unread">未読 ${unread > 99 ? '99+' : unread}</span>`
+    : `${comments.length}件`);
+}
+
 function avatarCls(role, solidType) {
   if (role === 'admin')          return 'chat-avatar-admin';
   if (solidType === 'id_modeler') return 'chat-avatar-modeler';
@@ -1910,6 +1990,7 @@ function renderChat() {
   const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
   const prevScrollTop = box.scrollTop;
   const list = comments.filter(c => c.channel === currentChannel);
+  updateSectionMeta();
 
   // 編集中のコメントが表示対象から外れたとき（チャンネル切替・他端末での削除）は編集状態を落とす
   if (editingCommentId && !list.some(c => Number(c.id) === Number(editingCommentId))) {
@@ -2878,6 +2959,7 @@ async function init() {
   }
   if (!await loadProject()) return;   // 読み込めない間は自動更新も始めない
   adjustChatCardHeight();
+  initCollapsibles();
 
   // ほぼリアルタイム更新: 3秒ごとに軽量version APIをポーリングし、
   // 変化があったときだけ詳細を再取得して差分単位で再描画する

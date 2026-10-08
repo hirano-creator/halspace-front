@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="../assets/css/app.css?v=20261009">
+  <link rel="stylesheet" href="../assets/css/app.css?v=20261009b">
   <!-- Three.js（3Dビューア用） r128: examples/js がグローバル THREE に追記される最後のバージョン -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
@@ -88,10 +88,10 @@
       <div class="detail-layout">
 
         <!-- 左カラム -->
-        <div style="display:flex;flex-direction:column;gap:5px;">
+        <div class="detail-main" style="display:flex;flex-direction:column;gap:5px;">
 
-          <!-- 図面・参考資料 -->
-          <div class="card">
+          <!-- 図面・参考資料（data-collapse: スマホでは見出しのタップで開閉する） -->
+          <div class="card" id="drawingCard" data-collapse="drawing">
             <div class="card-header">
               <span class="card-title"><i class="fa-solid fa-file-lines text-blue"></i> 図面・参考資料</span>
               <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -145,7 +145,7 @@
           </div>
 
           <!-- ステータスタイムライン -->
-          <div class="card">
+          <div class="card" id="timelineCard">
             <div class="timeline" id="timeline"></div>
             <!-- 管理者検査アクションバー（review_pending × 管理者のみ）。
                  ボタンのラベル・役割は updateAdminReviewBarState() が状況に応じて切り替える -->
@@ -184,7 +184,7 @@
           </div>
 
           <!-- 3Dモデル・制作データ -->
-          <div class="card" id="modelFileCard">
+          <div class="card" id="modelFileCard" data-collapse="model">
             <div class="card-header">
               <span class="card-title"><i class="fa-solid fa-cube" style="color:var(--accent)"></i> 3Dモデル・制作データ</span>
               <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -237,7 +237,7 @@
           </div>
 
           <!-- 修正依頼ファイル -->
-          <div class="card" id="revisionFileCard" style="display:none;">
+          <div class="card" id="revisionFileCard" data-collapse="revision" style="display:none;">
             <div class="card-header">
               <span class="card-title"><i class="fa-solid fa-rotate-left" style="color:var(--warning)"></i> 修正依頼ファイル</span>
             </div>
@@ -247,7 +247,7 @@
         </div>
 
         <!-- 右カラム: チャットルーム -->
-        <div class="card chat-card" style="position:sticky;top:80px;">
+        <div class="card chat-card" id="chatCard" data-collapse="chat" style="position:sticky;top:80px;">
           <div class="card-header" style="padding-bottom:0;border-bottom:none;">
             <span class="card-title"><i class="fa-solid fa-comments text-blue"></i> コメント・連絡</span>
           </div>
@@ -485,6 +485,6 @@
 <script src="../assets/js/wn-picker.js"></script>
 <script src="../assets/js/viewer.js"></script>
 <script src="../assets/js/chat-reply.js"></script>
-<script src="../assets/js/pages/project-detail.js?v=20261005"></script>
+<script src="../assets/js/pages/project-detail.js?v=20261009b"></script>
 </body>
 </html>

@@ -2275,8 +2275,10 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   .deadline-grid-3 { grid-template-columns: 1fr !important; }
   .deadline-grid-2 { grid-template-columns: 1fr !important; }
 
-  /* プロジェクト情報グリッド → 1カラム */
-  .info-grid { grid-template-columns: 1fr !important; }
+  /* プロジェクト情報グリッド → 2カラム（1列だと8項目だけで画面1枚分になる） */
+  .info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px 14px; }
+  .info-item-label { font-size: 11px; margin-bottom: 2px; }
+  .info-item-value { font-weight: 700; }
 
   /* アクションバーをモバイルで縦スタック */
   #adminReviewBar  .flex,
@@ -2705,4 +2707,45 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
       "reply del";
     row-gap: 4px;
   }
+}
+
+/* ── プロジェクト詳細: スマホは「コンパクト＋折りたたみ」 ──
+   縦に積むと画面がとても長くなるので、
+   ・納期カードと進捗（タイムライン＋開始ボタン等）を情報カードのすぐ下へ上げる
+     （納期を開始ボタンより上に置く決まりは保つ: 納期 → 進捗 の順）
+   ・data-collapse のカードは見出しのタップで開閉（is-collapsed は project-detail.js が付ける） */
+.sec-toggle { display: none; }
+@media (max-width: 768px) {
+  .detail-main > #deadlineCard { order: -2; }
+  .detail-main > #timelineCard { order: -1; }
+  #timelineCard .timeline { margin: 2px 0 6px; }
+  /* 段階名は丸だけだと意味が分からないので、480px以下で隠す共通ルールより優先して出す。
+     4段階＋つなぎ線を幅340pxでも1行に収めるため、最小幅を詰める */
+  #timelineCard .timeline-step  { min-width: 58px; }
+  #timelineCard .timeline-label { display: block; font-size: 10px; white-space: nowrap; }
+
+  .card[data-collapse] > .card-header { flex-wrap: wrap; }
+  .card[data-collapse] > .card-header > .card-title { flex: 1 1 auto; min-width: 0; cursor: pointer; }
+  /* 見出しの右端: 件数＋開閉マーク。ボタン類は次の行へ回す */
+  .sec-toggle {
+    display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;
+    border: none; background: none; padding: 4px 2px 4px 8px; cursor: pointer;
+    font: inherit; font-size: 12px; color: var(--muted);
+  }
+  .sec-toggle i { transition: transform .2s; color: #999; }
+  .card.is-collapsed .sec-toggle i { transform: rotate(-90deg); }
+  .sec-unread {
+    background: var(--danger); color: var(--white); border-radius: 999px;
+    padding: 1px 8px; font-size: 11px; font-weight: 700;
+  }
+  .card[data-collapse] > .card-header > :not(.card-title):not(.sec-toggle) { order: 2; }
+  .card[data-collapse] > .card-header > div:not(.card-title) { flex-basis: 100%; }
+
+  /* 閉じているときは見出しの1行だけ */
+  .card.is-collapsed { padding-top: 12px; padding-bottom: 12px; }
+  .card.is-collapsed > :not(.card-header) { display: none !important; }
+  .card.is-collapsed > .card-header { margin-bottom: 0; padding-bottom: 0 !important; }
+  .card.is-collapsed > .card-header > :not(.card-title):not(.sec-toggle) { display: none !important; }
+  .chat-card.is-collapsed .card-header { padding: 0 !important; }
+  .chat-card.is-collapsed { padding: 12px 16px; }
 }
