@@ -174,6 +174,10 @@ function initMobileMenu() {
   const sidebar = document.querySelector('.sidebar');
   const overlay = document.getElementById('sidebarOverlay');
   if (!toggle || !sidebar || !overlay) return;
+  /* 画面側 JS と DOMContentLoaded の両方から呼ばれるので、2回目は何もしない
+     （クリック処理が2つ付くと「開く→すぐ閉じる」になりメニューが開かない） */
+  if (toggle.dataset.menuReady) return;
+  toggle.dataset.menuReady = '1';
 
   function openSidebar() {
     sidebar.classList.add('open');
