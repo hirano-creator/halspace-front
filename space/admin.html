@@ -1297,6 +1297,16 @@ document.getElementById('sidebarUserRole').textContent = roleLabel(currentUser.r
 // 中身に会社横断の情報は無く、自分のパスワードを変える手段がadmin.htmlに他に無いため
 // （管理者自身の行は編集モーダルの「パスワードをリセット」からも除外している。自己サービスへ誘導するため）
 document.getElementById('sidebarSystem').style.display = '';
+// 監査ログはHaLSpace／PT.HILANO LCZ INDONESIAの2社専用（サーバー側も403で弾く）。
+// can_view_audit_logs が無いのは導入前に発行されたセッションなので、会社名で判定する
+const canViewAuditLogs = currentUser.can_view_audit_logs ?? (
+  isSuperAdmin || currentUser.is_operator ||
+  /^pt\.?\s*hilano lcz indonesia$/i.test((currentUser.company_name || '').trim())
+);
+if (!canViewAuditLogs) {
+  document.querySelector('.sidebar-nav-item[data-section="logs"]')?.remove();
+  document.getElementById('sectionLogs')?.remove();
+}
 if (!isSuperAdmin) {
   // adminは会社管理・ダッシュボード・利用状況を非表示（自社のユーザー管理・監査ログのみ）
   document.getElementById('sidebarCompanySection').querySelector('[data-section="companies"]').style.display = 'none';

@@ -427,6 +427,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   renderSidebarUser(currentUser);
+  // 監査ログはHaLSpace／PT.HILANO LCZ INDONESIAの2社専用（サーバー側も403で弾く）。
+  // can_view_audit_logs が無いのは導入前に発行されたセッションなので、会社名で判定する
+  const canViewAuditLogs = currentUser.can_view_audit_logs ?? (
+    currentUser.role === 'super_admin' || currentUser.is_operator ||
+    /^pt\.?\s*hilano lcz indonesia$/i.test((currentUser.company_name || '').trim())
+  );
+  if (!canViewAuditLogs) {
+    document.querySelector('.tab-btn[data-tab="audit"]')?.remove();
+    document.getElementById('tab-audit')?.remove();
+  }
   initTabs();
   loadApproval();
   initInviteModal();
