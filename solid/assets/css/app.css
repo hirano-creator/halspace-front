@@ -2199,23 +2199,7 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   /* テーブル行の会社名サブテキストを非表示 */
   .project-company-label { display: none; }
 
-  /* ダッシュボードテーブル: 依頼日(1)・優先度(5)・希望納期(6)・回答納期(7)・担当モデラー(8)を非表示 */
-  /* → プロジェクトコード(2)・タイトル(3)・ステータス(4)の3列のみ表示 */
-  #projectTable th:nth-child(1), #projectTable td:nth-child(1),
-  #projectTable th:nth-child(5), #projectTable td:nth-child(5),
-  #projectTable th:nth-child(6), #projectTable td:nth-child(6),
-  #projectTable th:nth-child(7), #projectTable td:nth-child(7),
-  #projectTable th:nth-child(8), #projectTable td:nth-child(8) { display: none; }
-
-  /* テーブルのinline white-space:nowrapを解除してセル内折り返しを許可 */
-  #projectTable td { white-space: normal !important; }
-  /* タイトル列のmin-widthを解除 */
-  #projectTable td:nth-child(3) { min-width: 0 !important; }
-  /* テーブル幅を100%に固定してコンテナ外に飛び出さない */
-  #projectTable { width: 100%; table-layout: fixed; }
-  #projectTable th:nth-child(2) { width: 30%; }
-  #projectTable th:nth-child(3) { width: 45%; }
-  #projectTable th:nth-child(4) { width: 25%; }
+  /* ダッシュボードの物件一覧はカード表示（ファイル末尾の #projectTable ブロック） */
 
   /* テーブル: 横スクロール */
   .table-wrap { -webkit-overflow-scrolling: touch; }
@@ -2320,14 +2304,6 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   .page-body { padding: 10px; }
   .card { padding: 12px; border-radius: 5px; }
 
-  /* ダッシュボードテーブル: 依頼日(1)・優先度(5)・希望納期(6)・回答納期(7)・担当モデラー(8)を非表示 */
-  /* → プロジェクトコード(2)・タイトル(3)・ステータス(4)のみ表示 */
-  #projectTable th:nth-child(1), #projectTable td:nth-child(1),
-  #projectTable th:nth-child(5), #projectTable td:nth-child(5),
-  #projectTable th:nth-child(6), #projectTable td:nth-child(6),
-  #projectTable th:nth-child(7), #projectTable td:nth-child(7),
-  #projectTable th:nth-child(8), #projectTable td:nth-child(8) { display: none; }
-
   /* モデラーテーブル: 会社・希望納期を非表示 */
   #modelerTable th:nth-child(3), #modelerTable td:nth-child(3),
   #modelerTable th:nth-child(5), #modelerTable td:nth-child(5) { display: none; }
@@ -2337,13 +2313,6 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
 
   /* top-bar: 管理者会社フィルタをさらに縮小 */
   .top-bar-right #companyFilter { max-width: 100px !important; font-size: 11px; padding: 5px 6px; }
-
-  /* テーブルセルをコンパクトに */
-  #projectTable thead th, #projectTable tbody td { padding: 8px 6px; font-size: 12px; }
-  /* プロジェクトコードのフォントを縮小して幅を節約 */
-  #projectTable td:nth-child(2) code { font-size: 10px; }
-  /* タイトル列のmin-widthを解除してレイアウト崩れを防止 */
-  #projectTable td:nth-child(3) { min-width: 0 !important; }
 
   /* チャットの最大幅拡大 */
   .chat-bubble-wrap { max-width: 94%; }
@@ -2360,9 +2329,6 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   .card { padding: 10px; }
   .summary-num { font-size: 18px; }
   .top-bar-title { font-size: 13px; }
-
-  /* 極小画面: プロジェクトコード(2)も非表示 → タイトル(3)・ステータス(4)のみ */
-  #projectTable th:nth-child(2), #projectTable td:nth-child(2) { display: none; }
 
   /* テーブルセルのパディングを最小化 */
   thead th, tbody td { padding: 8px 6px; font-size: 12px; }
@@ -2681,4 +2647,62 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
   .cr-back { display: grid; }
   .cr-msgs { padding: 14px 12px; }
   .cr-input { padding: 10px 12px 12px; }
+}
+
+/* ── ダッシュボード物件一覧: スマホは1件1枚のカード表示 ──
+   表のままだと列が画面に収まらず、コードが切れて削除列がはみ出していた。
+   1段目: コード ／ ステータス、2段目: タイトル、3段目: 希望納期・回答 ／ 削除
+   依頼日・優先度・担当モデラーはフィルタで絞れるのでカードには出さない。 */
+@media (max-width: 768px) {
+  .project-table-wrap { max-height: none; overflow: visible; }
+  #projectTable, #projectTable tbody { display: block; width: 100%; }
+  #projectTable thead { display: none; }
+  #projectTable tbody tr {
+    display: grid;
+    /* 納期2つは中身の幅ぶん確保する（auto だと min-width:0 のせいで縮んで文字が重なる） */
+    grid-template-columns: max-content max-content 1fr auto;
+    grid-template-areas:
+      "code  code  code  status"
+      "title title title title"
+      "req   reply .     del";
+    align-items: center;
+    gap: 6px 14px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--white);
+  }
+  #projectTable tbody tr:last-child { border-bottom: 1px solid var(--border); margin-bottom: 0; }
+  #projectTable tbody td {
+    padding: 0; font-size: 12px; min-width: 0 !important; max-width: none !important;
+  }
+  #projectTable .c-date, #projectTable .c-prio, #projectTable .c-modeler { display: none; }
+  #projectTable .c-code   { grid-area: code; overflow: hidden; text-overflow: ellipsis; }
+  #projectTable .c-code code { font-size: 12px !important; }
+  #projectTable .c-status { grid-area: status; justify-self: end; }
+  #projectTable .c-title  { grid-area: title; white-space: normal !important; }
+  #projectTable .c-title .project-title-clamp { font-size: 14px; line-height: 1.45; }
+  #projectTable .c-req    { grid-area: req; font-size: 12px !important; }
+  #projectTable .c-reply  { grid-area: reply; font-size: 12px !important; }
+  #projectTable .c-req::before, #projectTable .c-reply::before {
+    color: var(--muted); font-weight: 400; margin-right: 4px;
+  }
+  #projectTable .c-req::before   { content: '希望納期'; }
+  #projectTable .c-reply::before { content: '回答'; }
+  #projectTable .c-del    { grid-area: del; justify-self: end; }
+  /* お客様削除の行は td ごと薄くしているので、カードの地も同じ色に */
+  #projectTable tbody tr.row-client-deleted { background: #f5f5f5; }
+}
+/* 幅の狭い端末では希望納期と回答が1行に並ばないので縦に積む */
+@media (max-width: 374px) {
+  #projectTable tbody tr {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "code  status"
+      "title title"
+      "req   del"
+      "reply del";
+    row-gap: 4px;
+  }
 }

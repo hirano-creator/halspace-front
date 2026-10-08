@@ -245,9 +245,9 @@ if (user) {
       }
       tr.addEventListener('click', () => { location.href = `project-detail.html?id=${p.id}`; });
       tr.innerHTML = `
-        <td style="font-size:13px;color:var(--muted);white-space:nowrap;">${(p.created_at||'—').slice(0,10)}</td>
-        <td style="white-space:nowrap;"><code style="font-size:12px;color:var(--blue);">${p.project_code}</code></td>
-        <td style="min-width:160px;max-width:260px;">
+        <td class="c-date" style="font-size:13px;color:var(--muted);white-space:nowrap;">${(p.created_at||'—').slice(0,10)}</td>
+        <td class="c-code" style="white-space:nowrap;"><code style="font-size:12px;color:var(--blue);">${p.project_code}</code></td>
+        <td class="c-title" style="min-width:160px;max-width:260px;">
           <div style="display:flex;align-items:center;gap:6px;">
             <span class="project-title-clamp" style="font-weight:600;color:var(--dark);">${p.title}</span>
             ${isAlert ? '<i class="fa-solid fa-triangle-exclamation text-danger" style="flex-shrink:0;" title="期限間近"></i>' : ''}
@@ -256,12 +256,12 @@ if (user) {
           </div>
           <span class="project-company-label" style="font-size:11px;color:var(--muted);">${companyName}</span>
         </td>
-        <td style="white-space:nowrap;"><span class="badge badge-${p.status}">${STATUS_LABEL[p.status]||p.status}</span></td>
-        <td style="white-space:nowrap;"><span class="priority-${p.priority}">${PRIORITY_LABEL[p.priority]||p.priority}</span></td>
-        <td style="font-size:13px;white-space:nowrap;${isAlert?'color:var(--danger);font-weight:700;':''}">${p.deadline_requested||'—'}</td>
-        <td style="font-size:13px;white-space:nowrap;">${replyCell}</td>
-        ${isAdmin(user) || isModeler(user) ? `<td style="font-size:13px;white-space:nowrap;">${modelerName||'<span style="color:var(--muted)">未割当</span>'}</td>` : ''}
-        ${(isAdmin(user) || !isModeler(user)) ? `<td style="text-align:center;white-space:nowrap;">
+        <td class="c-status" style="white-space:nowrap;"><span class="badge badge-${p.status}">${STATUS_LABEL[p.status]||p.status}</span></td>
+        <td class="c-prio" style="white-space:nowrap;"><span class="priority-${p.priority}">${PRIORITY_LABEL[p.priority]||p.priority}</span></td>
+        <td class="c-req" style="font-size:13px;white-space:nowrap;${isAlert?'color:var(--danger);font-weight:700;':''}">${p.deadline_requested||'—'}</td>
+        <td class="c-reply" style="font-size:13px;white-space:nowrap;">${replyCell}</td>
+        ${isAdmin(user) || isModeler(user) ? `<td class="c-modeler" style="font-size:13px;white-space:nowrap;">${modelerName||'<span style="color:var(--muted)">未割当</span>'}</td>` : ''}
+        ${(isAdmin(user) || !isModeler(user)) ? `<td class="c-del" style="text-align:center;white-space:nowrap;">
           <button class="row-delete-btn" data-id="${p.id}" title="${deleted ? '完全に削除' : '削除'}">
             <i class="fa-solid fa-trash-can"></i>
           </button>
