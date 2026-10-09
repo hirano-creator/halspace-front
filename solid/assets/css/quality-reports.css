@@ -189,11 +189,10 @@
 .qr-paper h3 { font-size:12.3px; margin:6px 0 2px; }
 .qr-paper p { white-space:pre-wrap; overflow-wrap:anywhere; margin:0; }
 .qr-paper .ph { color:#b0b5ba; font-style:italic; }
-.qr-paper .imgs { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:6px; }
-.qr-paper .imgs.n1 { grid-template-columns:minmax(0,60%); }
-.qr-paper .imgs.n3 { grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; }
-.qr-paper .imgs figure { margin:0; }
-.qr-paper .imgs .qr-shot { border-color:#d0d4d9; }
+/* 対策書の図は 300×200 固定（並びきらない分は折り返す） */
+.qr-paper .imgs { display:flex; flex-wrap:wrap; gap:12px; margin-top:6px; }
+.qr-paper .imgs figure { margin:0; width:300px; max-width:100%; }
+.qr-paper .imgs .qr-shot { border-color:#d0d4d9; width:300px; height:200px; max-width:100%; aspect-ratio:auto; }
 .qr-paper .imgs .qr-shot img { cursor:default; }
 .qr-paper .imgs figcaption { font-size:11px; text-align:center; margin-top:3px; }
 .qr-paper .sign { display:flex; justify-content:flex-end; margin-top:20px; }
