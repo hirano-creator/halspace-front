@@ -486,8 +486,8 @@ function paperHtml(r, custOverride) {
   return `<div class="qr-paper">
     <div class="doc-top"><span>文書番号：${esc(r.no)}</span><span>提出日：${fmtJa(r.submitted_on || today())}</span></div>
     <h1>不具合対策書</h1>
-    <div class="to">${esc(r.client?.name ?? '　　　　　　　　')}　御中</div>
-    <div class="from">株式会社HaLSpace<br>SOLID 3Dモデリングサービス</div>
+    <div class="hdr"><div class="to">${esc(r.client?.name ?? '　　　　　　　　')}　御中</div>
+    <div class="from">株式会社HaLSpace<br>SOLID 3Dモデリングサービス</div></div>
     <p class="lead">平素より SOLID をご利用いただき、誠にありがとうございます。
 このたびは納品物に不具合があり、多大なるご迷惑をおかけしましたことを深くお詫び申し上げます。下記のとおり原因と対策をご報告いたします。</p>
     <table>

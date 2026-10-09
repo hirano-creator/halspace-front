@@ -178,12 +178,14 @@
 .qr-paper { background:#fff; color:#1f2328; width:100%; max-width:794px; margin:0 auto; padding:44px 50px; box-shadow:0 4px 18px rgba(0,0,0,.12); font-size:12.3px; line-height:1.75; font-family:'Noto Sans JP',sans-serif; }
 .qr-paper + .qr-paper { margin-top:22px; }
 .qr-paper .doc-top { display:flex; justify-content:space-between; gap:12px; font-size:11.5px; }
-.qr-paper h1 { text-align:center; font-size:21px; letter-spacing:.35em; margin:18px 0 20px; font-weight:700; }
+.qr-paper h1 { text-align:center; font-size:21px; letter-spacing:.35em; margin:6px 0 8px; font-weight:700; }
+/* 宛名と差出人は横1行に並べて縦の余白を詰める（狭い画面では折り返す） */
+.qr-paper .hdr { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:4px 12px; }
 .qr-paper .to { font-size:14px; font-weight:700; border-bottom:1px solid #1f2328; display:inline-block; padding:0 24px 2px 0; }
-.qr-paper .from { text-align:right; font-size:12px; margin-top:-4px; }
-.qr-paper .lead { margin:14px 0 12px; }
+.qr-paper .from { text-align:right; font-size:12px; line-height:1.5; margin-left:auto; }
+.qr-paper .lead { margin:8px 0 8px; }
 .qr-paper table { width:100%; border-collapse:collapse; margin-bottom:12px; }
-.qr-paper th, .qr-paper td { border:1px solid #9aa0a6; padding:5px 10px; text-align:left; vertical-align:top; }
+.qr-paper th, .qr-paper td { border:1px solid #9aa0a6; padding:3px 10px; text-align:left; vertical-align:top; }
 .qr-paper th { background:#f1f3f4; width:120px; font-weight:700; white-space:nowrap; }
 .qr-paper h2 { font-size:13.3px; margin:14px 0 5px; padding-left:8px; border-left:4px solid #1f2328; }
 .qr-paper h3 { font-size:12.3px; margin:6px 0 2px; }
