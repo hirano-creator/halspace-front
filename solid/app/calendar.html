@@ -28,7 +28,9 @@
     .cal-cell.today{border-color:var(--primary);border-width:2px;}
     .cal-cell.today .cal-date{background:var(--primary);color:var(--white);border-radius:50%;}
     .cal-date{width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;margin-bottom:4px;}
-    .cal-bar{font-size:11px;font-weight:600;padding:2px 6px;border-radius:4px;margin-bottom:2px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:opacity var(--trans);}
+    /* 淡い背景色だけだと青/紫・橙/赤・黄緑/緑が見分けにくく凡例の濃い色と結びつかないため、
+       左端にステータス色（文字色と同じ）の帯を付ける。凡例も同じ見た目の見本にする */
+    .cal-bar{font-size:11px;font-weight:600;padding:2px 6px;border-radius:4px;border-left:3px solid currentColor;margin-bottom:2px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:opacity var(--trans);}
     .cal-bar:hover{opacity:.8;}
     .cal-bar-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     /* 会社名行は管理者・モデラーのみ（body.show-company）。その分セルを高くする */
@@ -53,7 +55,7 @@
     /* 凡例 */
     .legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
     .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
-    .legend-dot{width:12px;height:12px;border-radius:3px;}
+    .legend-dot{width:18px;height:12px;border-radius:3px;border-left:3px solid currentColor;}
 
     @media (max-width: 768px) {
       .cal-header { margin-bottom: 12px; gap: 8px; }
@@ -144,12 +146,13 @@
         </div>
         <!-- 凡例 -->
         <div class="legend">
-          <div class="legend-item"><div class="legend-dot" style="background:var(--s-submitted)"></div>提出済み（納期）</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--s-progress)"></div>モデリング中（納期）</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--s-review)"></div>検査待ち（納期）</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--s-revision)"></div>修正依頼中（納期）</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--s-approved)"></div>納品待ち（納期）</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--s-delivered)"></div>納品完了/納品日</div>
+          <div class="legend-item"><div class="legend-dot cal-bar-submitted"></div>提出済み（納期）</div>
+          <div class="legend-item"><div class="legend-dot cal-bar-in_progress"></div>モデリング中（納期）</div>
+          <div class="legend-item"><div class="legend-dot cal-bar-review_pending"></div>検査待ち（納期）</div>
+          <div class="legend-item"><div class="legend-dot cal-bar-revision_requested"></div>修正依頼中（納期）</div>
+          <div class="legend-item"><div class="legend-dot cal-bar-approved"></div>納品待ち（納期）</div>
+          <div class="legend-item"><div class="legend-dot cal-bar-delivered"></div>納品完了/納品日</div>
+          <div class="legend-item"><div class="legend-dot cal-bar-rework"></div>手直し中</div>
         </div>
       </div>
 
