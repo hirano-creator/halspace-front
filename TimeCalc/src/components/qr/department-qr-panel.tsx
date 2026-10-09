@@ -1,6 +1,7 @@
 // 部署ごとの打刻用QRコード表示（サーバーコンポーネント）
 // 管理者画面（/settings/qr/[departmentId]）と公開キオスクページ（/qr/[kioskKey]）の両方から使う。
 
+import type { ReactNode } from "react";
 import { headers } from "next/headers";
 import { buildClockUrl, dailyQrToken, generateQrDataUrl, type QrKind } from "@/lib/qr";
 import { todayString } from "@/lib/utils/time";
@@ -40,10 +41,16 @@ export async function getBaseUrl(): Promise<string> {
 export async function DepartmentQrPanel({
   department,
   variant,
+  forgotHref,
+  footer,
 }: {
   department: DepartmentForQr;
   /** admin=管理者画面（設定の補足説明・印刷ボタンあり） / kiosk=公開キオスクページ（表示専用でシンプルに） */
   variant: "admin" | "kiosk";
+  /** スマホ忘れ打刻の入口（部署で有効なときだけ渡す） */
+  forgotHref?: string;
+  /** QRの白い面の一番下に置く追加要素 */
+  footer?: ReactNode;
 }) {
   const baseUrl = await getBaseUrl();
   const today = todayString();
@@ -90,6 +97,9 @@ export async function DepartmentQrPanel({
         workStart={workStart}
         workEnd={workEnd}
         variant={variant}
+        departmentName={department.name}
+        forgotHref={forgotHref}
+        footer={footer}
         dailyQrEnabled={department.dailyQrEnabled}
         today={today}
         gpsUnset={gpsUnset}

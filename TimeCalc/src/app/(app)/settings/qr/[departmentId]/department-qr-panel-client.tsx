@@ -65,6 +65,7 @@ export function DepartmentQrPanelClient({
         workStart={data.workStart}
         workEnd={data.workEnd}
         variant="admin"
+        departmentName={data.departmentName}
         dailyQrEnabled={data.dailyQrEnabled}
         today={data.today}
         gpsUnset={data.gpsUnset}

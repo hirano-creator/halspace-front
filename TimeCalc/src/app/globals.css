@@ -50,6 +50,16 @@ input:-webkit-autofill:focus {
   margin: 0;
 }
 
+/* スマホ忘れ打刻の完了画面：最初の画面へ戻るまでの残り時間バー */
+@keyframes kiosk-reset-bar {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0;
+  }
+}
+
 /* 印刷時はサイドバー・モバイルヘッダー等の操作UIを隠す（打刻QRコードの印刷用） */
 @media print {
   aside,

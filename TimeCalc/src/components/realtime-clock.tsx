@@ -21,16 +21,23 @@ function subscribe(onTick: () => void): () => void {
 const getSeconds = () => Math.floor(Date.now() / 1000);
 const getServerSeconds = () => 0;
 
-export function RealtimeClock() {
+/** 秒単位で更新される現在時刻（ハイドレーション前は null） */
+export function useNowSeconds(): Date | null {
   const seconds = useSyncExternalStore(subscribe, getSeconds, getServerSeconds);
-  const now = seconds === 0 ? null : new Date(seconds * 1000);
+  return seconds === 0 ? null : new Date(seconds * 1000);
+}
+
+export function formatJaDate(now: Date): string {
+  return `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日（${WEEKDAYS[now.getDay()]}）`;
+}
+
+export function RealtimeClock() {
+  const now = useNowSeconds();
 
   return (
     <div className="text-center" aria-live="off">
       <p className="text-sm text-muted">
-        {now
-          ? `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日（${WEEKDAYS[now.getDay()]}）`
-          : " "}
+        {now ? formatJaDate(now) : " "}
       </p>
       <p className="mt-1 font-mono text-5xl font-semibold tracking-tight tabular-nums sm:text-6xl">
         {now ? (

@@ -68,21 +68,16 @@ export default async function KioskQrPage({
   if (!department) notFound();
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-start px-4 py-8">
+    <main className="min-h-dvh">
       <script dangerouslySetInnerHTML={{ __html: EARLY_INSTALL_CAPTURE }} />
-      <h1 className="mb-2 text-center text-2xl font-semibold tracking-tight">
-        {department.name} の打刻QR
-      </h1>
-      <InstallShortcutButton />
-      <DepartmentQrPanel department={department} variant="kiosk" />
-      {department.kioskPunchEnabled && isPhotoStorageReady() && (
-        <a
-          href={`/qr/${kioskKey}/punch`}
-          className="mt-8 inline-flex min-h-14 items-center justify-center rounded-xl border border-border bg-white px-6 text-lg font-semibold shadow-sm transition hover:border-primary hover:bg-primary/5 print:hidden"
-        >
-          スマホを忘れた方はこちら
-        </a>
-      )}
+      {/* 部署名は色面に出すので、見出しは読み上げ用だけにする */}
+      <h1 className="sr-only">{department.name} の打刻QR</h1>
+      <DepartmentQrPanel
+        department={department}
+        variant="kiosk"
+        forgotHref={department.kioskPunchEnabled && isPhotoStorageReady() ? `/qr/${kioskKey}/punch` : undefined}
+        footer={<InstallShortcutButton />}
+      />
     </main>
   );
 }

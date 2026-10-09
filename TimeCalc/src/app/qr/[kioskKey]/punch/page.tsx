@@ -28,11 +28,11 @@ export default async function KioskPunchPage({ params }: { params: Promise<{ kio
   const enabled = department.kioskPunchEnabled && isPhotoStorageReady();
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-6">
+    <main className="flex min-h-dvh flex-col">
       {enabled ? (
         <KioskPunch kioskKey={kioskKey} departmentName={department.name} />
       ) : (
-        <div className="mt-16 text-center">
+        <div className="mt-16 px-4 text-center">
           <p className="text-lg font-semibold">この店舗ではスマホを忘れた方の打刻は利用できません</p>
           <p className="mt-2 text-sm text-muted">打刻を忘れた日は、後日マイページから修正申請をしてください。</p>
           <a href={`/qr/${kioskKey}`} className="mt-6 inline-block text-sm text-primary underline">
