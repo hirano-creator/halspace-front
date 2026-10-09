@@ -11,7 +11,6 @@ const user = requireSpaceAuth();
 if (!user) throw new Error('未認証');
 renderSidebarUser(user);
 if (isAdmin(user)) {
-  document.getElementById('adminNav').style.display = '';
   document.getElementById('adminLink').style.display = '';
 }
 initMobileMenu();
