@@ -280,4 +280,10 @@
   .qr-paper { box-shadow:none; padding:0; max-width:none; break-after:page; }
   .qr-paper + .qr-paper { margin-top:0; }
   .qr-paper:last-child { break-after:auto; }
+  /* 図がページの境目で上下に切れないよう、図ごと次のページへ送る（inline-block は分割されない） */
+  .qr-paper .imgs { display:block; }
+  .qr-paper .imgs figure { display:inline-block; vertical-align:top; margin:0 12px 12px 0; break-inside:avoid; page-break-inside:avoid; }
+  /* 見出しだけがページ末尾に取り残されないようにする */
+  .qr-paper h2, .qr-paper h3 { break-after:avoid; page-break-after:avoid; }
+  .qr-paper tr { break-inside:avoid; page-break-inside:avoid; }
 }
