@@ -248,16 +248,16 @@ export function KioskPunch({ kioskKey, departmentName }: { kioskKey: string; dep
   const backLinkClass = "text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900";
 
   return (
-    <div className="grid min-h-dvh flex-1 grid-cols-1 md:grid-cols-[0.9fr_1.1fr]">
+    <div className="grid min-h-dvh flex-1 grid-cols-1 grid-rows-[auto_1fr] md:landscape:grid-cols-[0.9fr_1.1fr] md:landscape:grid-rows-1">
       {/* 左：色面（今どのステップかと時計）。撮影から先は選んだ打刻の色になる */}
       <section
-        className="@container flex flex-col px-6 py-6 text-white transition-colors duration-500 sm:px-10 sm:py-9"
+        className="@container flex flex-col px-6 py-5 text-white transition-colors duration-500 sm:px-10 sm:py-8"
         style={{ backgroundColor: panelColor(step) }}
       >
         <div>
           <p className="text-sm font-medium tracking-wider opacity-80">{departmentName}</p>
-          <h1 className="mt-3 text-2xl font-black leading-snug sm:mt-4 sm:text-3xl">スマホを忘れた方の打刻</h1>
-          <ol className="mt-4 flex flex-wrap gap-x-4 gap-y-2 md:mt-6 md:flex-col md:gap-2.5">
+          <h1 className="mt-2 text-xl font-black leading-snug sm:mt-4 sm:text-3xl">スマホを忘れた方の打刻</h1>
+          <ol className="mt-3 flex flex-wrap gap-x-4 gap-y-2 sm:mt-4 md:landscape:mt-6 md:landscape:flex-col md:landscape:gap-2.5">
             {STEP_LABELS.map((label, i) => {
               const n = i + 1;
               const state = n === current ? "on" : n < current ? "done" : "todo";
@@ -276,19 +276,19 @@ export function KioskPunch({ kioskKey, departmentName }: { kioskKey: string; dep
                     {state === "done" ? "✓" : n}
                   </span>
                   {/* スマホ幅では今のステップ名だけ出して1行に収める */}
-                  <span className={state === "on" ? "" : "hidden md:inline"}>{label}</span>
+                  <span className={state === "on" ? "" : "hidden sm:inline"}>{label}</span>
                 </li>
               );
             })}
           </ol>
         </div>
-        <div className="mt-6 md:mt-auto md:pt-7">
+        <div className="mt-4 sm:mt-6 md:landscape:mt-auto md:landscape:pt-7">
           <BigClock size="lg" />
         </div>
       </section>
 
       {/* 右：操作 */}
-      <section className="flex min-w-0 flex-col bg-white px-6 py-6 sm:px-9 sm:py-8">
+      <section className="flex min-w-0 flex-col bg-white px-6 py-5 sm:px-9 sm:py-8">
         <div className="flex justify-end">
           {step.kind === "select" ? (
             <a href={`/qr/${kioskKey}`} className={backLinkClass}>
@@ -395,7 +395,7 @@ export function KioskPunch({ kioskKey, departmentName }: { kioskKey: string; dep
                       key={t}
                       type="button"
                       onClick={() => void startCamera(step.staff, t)}
-                      className={`flex min-h-[120px] flex-col items-center justify-center gap-1 rounded-2xl text-white transition hover:brightness-110 ${
+                      className={`flex min-h-[clamp(84px,18vh,140px)] flex-col items-center justify-center gap-1 rounded-2xl text-white transition hover:brightness-110 ${
                         step.status.allowedTypes.length === 1 ? "col-span-2" : ""
                       }`}
                       style={{ backgroundColor: TYPE_COLORS[t] }}
@@ -419,7 +419,7 @@ export function KioskPunch({ kioskKey, departmentName }: { kioskKey: string; dep
               {step.staff.name} さんの{CLOCK_EVENT_LABELS[step.type]}
               <span className="mt-0.5 block text-sm font-normal text-muted">カメラに顔を向けてください</span>
             </p>
-            <div className="relative mt-4 w-full max-w-xs overflow-hidden rounded-3xl bg-black">
+            <div className="relative mt-4 w-full max-w-[min(20rem,48vh)] overflow-hidden rounded-3xl bg-black">
               {/* 前面カメラは鏡像のほうが自然なので表示だけ反転する（撮影画像は反転しない） */}
               <video ref={attachVideo} playsInline muted className="aspect-[3/4] w-full -scale-x-100 object-cover" />
               <span className="absolute inset-0 flex items-center justify-center text-[132px] font-extrabold text-white drop-shadow-lg">

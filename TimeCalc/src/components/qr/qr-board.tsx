@@ -117,7 +117,7 @@ function OptionButton({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className="flex w-full items-center gap-3 rounded-xl border-[1.5px] border-gray-200 bg-white px-3.5 py-3 text-left transition-colors"
+      className="flex w-full items-center gap-3 rounded-xl border-[1.5px] border-gray-200 bg-white px-3.5 py-2.5 text-left transition-colors"
       style={selected ? { borderColor: color, color } : undefined}
     >
       <span
@@ -214,119 +214,133 @@ export function QrBoard({
   return (
     <>
       <div
-        className={`grid grid-cols-1 overflow-hidden bg-white md:grid-cols-[1.1fr_1fr] print:hidden ${
-          isAdmin ? "rounded-2xl border border-border shadow-sm md:min-h-[600px]" : "min-h-dvh"
+        className={`grid grid-cols-1 grid-rows-[auto_1fr] overflow-hidden bg-white md:landscape:grid-cols-[1.1fr_1fr] md:landscape:grid-rows-1 print:hidden ${
+          isAdmin ? "rounded-2xl border border-border shadow-sm md:landscape:min-h-[600px]" : "min-h-dvh"
         }`}
       >
         {/* 左：色面（時計と、今どの打刻のQRか） */}
         <section
-          className="@container flex flex-col px-6 py-6 text-white transition-colors duration-500 sm:px-10 sm:py-9"
+          className="@container flex flex-col px-6 py-5 text-white transition-colors duration-500 sm:px-10 sm:py-8"
           style={{ backgroundColor: tone.panel }}
         >
           <p className="text-sm font-medium tracking-wider opacity-85">{departmentName}</p>
-          <div className="mt-6 md:mt-auto">
+          <div className="mt-4 sm:mt-6 md:landscape:mt-auto">
             <BigClock />
           </div>
           {display && (
-            <div className="mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-t border-white/35 pt-5">
-              <span className="text-[clamp(32px,9cqw,56px)] font-black leading-none">{display.word}</span>
+            <div className="mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-t border-white/35 pt-4 sm:mt-6 sm:pt-5">
+              <span className="text-[clamp(32px,9cqw,72px)] font-black leading-none">{display.word}</span>
               <span className="text-xs font-bold tracking-[0.3em] opacity-75">{display.en}</span>
             </div>
           )}
           {display?.notice && (
-            <p className="mt-6 self-start rounded-lg bg-black/15 px-3.5 py-2 text-sm leading-relaxed md:mt-auto">
+            <p className="mt-4 self-start rounded-lg bg-black/15 px-3.5 py-2 text-sm leading-relaxed sm:mt-6 md:landscape:mt-auto">
               {display.notice}
             </p>
           )}
         </section>
 
-        {/* 右：白い面（QRと切り替え） */}
-        <section className="flex flex-col items-center justify-center gap-4 px-6 py-8 sm:px-10">
-          {display ? (
-            <>
-              <QrSvg
-                key={display.data.url}
-                value={display.data.url}
-                label={display.data.label}
-                finderColor={tone.finder}
-                className="w-full max-w-[min(290px,42vh)]"
-              />
-              <div className="max-w-xs text-center">
-                <p className="text-sm font-medium text-foreground">カメラで読み取って打刻</p>
-                <p className="mt-0.5 text-xs text-muted">{display.data.description}</p>
+        {/* 右（縦長の画面では下）：白い面（QRと切り替え）。
+            縦置きタブレットなど上下に積む幅のある画面では、QRと操作を横に並べて1画面に収める */}
+        <section
+          className={`flex flex-col items-center justify-center gap-3 px-6 py-6 sm:py-8 ${
+            // 管理画面はサイドバーの分だけ狭く、横に並べるとQRが小さくなりすぎるので縦並びのまま
+            isAdmin ? "sm:gap-4 sm:px-10" : "sm:flex-row sm:gap-8 sm:px-8 md:landscape:flex-col md:landscape:gap-4 md:landscape:px-10"
+          }`}
+        >
+          <div
+            className={`flex w-full max-w-[min(400px,36vh)] min-w-0 flex-col items-center gap-3 sm:gap-4 ${
+              isAdmin ? "" : "sm:flex-1 md:landscape:w-full md:landscape:flex-none"
+            }`}
+          >
+            {display ? (
+              <>
+                <QrSvg
+                  key={display.data.url}
+                  value={display.data.url}
+                  label={display.data.label}
+                  finderColor={tone.finder}
+                  className="w-full"
+                />
+                <div className="max-w-xs text-center">
+                  <p className="text-sm font-medium text-foreground">カメラで読み取って打刻</p>
+                  <p className="mt-0.5 text-xs text-muted">{display.data.description}</p>
+                </div>
+                {isAdmin && <UrlToggle url={display.data.url} />}
+              </>
+            ) : (
+              <p className="max-w-xs rounded-lg bg-amber-50 px-4 py-3 text-center text-sm text-amber-700">
+                表示するQRコードが設定されていません。
+                {isAdmin ? "下の「表示するQR」から表示したい種類を選んでください。" : "管理者に設定を確認してください。"}
+              </p>
+            )}
+          </div>
+
+          <div className="flex w-full max-w-xs flex-col items-center gap-3 sm:shrink-0 sm:gap-4">
+            {hasOptions && primary && (
+              <div className="flex w-full flex-col gap-2">
+                <OptionButton
+                  title={board.primaryHeading}
+                  subtitle="いつもの出退勤はこちら"
+                  selected={selection === "main"}
+                  color={TONES[mainTone].panel}
+                  onClick={() => setManual("main")}
+                />
+                {canSwapOuting && (
+                  <OptionButton
+                    title="外出・戻りの打刻"
+                    subtitle="勤務時間から差し引かれます"
+                    selected={selection === "outing"}
+                    color={TONES.amber.panel}
+                    onClick={() => setManual("outing")}
+                  />
+                )}
+                {canShowStandard && (
+                  <OptionButton
+                    title="その他の打刻（標準QR）"
+                    subtitle="4つのボタンから選んで打刻"
+                    selected={selection === "standard"}
+                    color={TONES.slate.panel}
+                    onClick={() => setManual("standard")}
+                  />
+                )}
               </div>
-              {isAdmin && <UrlToggle url={display.data.url} />}
-            </>
-          ) : (
-            <p className="max-w-xs rounded-lg bg-amber-50 px-4 py-3 text-center text-sm text-amber-700">
-              表示するQRコードが設定されていません。
-              {isAdmin ? "下の「表示するQR」から表示したい種類を選んでください。" : "管理者に設定を確認してください。"}
-            </p>
-          )}
+            )}
 
-          {hasOptions && primary && (
-            <div className="flex w-full max-w-xs flex-col gap-2">
-              <OptionButton
-                title={board.primaryHeading}
-                subtitle="いつもの出退勤はこちら"
-                selected={selection === "main"}
-                color={TONES[mainTone].panel}
-                onClick={() => setManual("main")}
-              />
-              {canSwapOuting && (
-                <OptionButton
-                  title="外出・戻りの打刻"
-                  subtitle="勤務時間から差し引かれます"
-                  selected={selection === "outing"}
-                  color={TONES.amber.panel}
-                  onClick={() => setManual("outing")}
-                />
-              )}
-              {canShowStandard && (
-                <OptionButton
-                  title="その他の打刻（標準QR）"
-                  subtitle="4つのボタンから選んで打刻"
-                  selected={selection === "standard"}
-                  color={TONES.slate.panel}
-                  onClick={() => setManual("standard")}
-                />
-              )}
-            </div>
-          )}
-
-          {forgotHref && (
-            <a
-              href={forgotHref}
-              className="flex w-full max-w-xs items-center gap-3 rounded-xl bg-gray-900 px-4 py-3.5 text-left text-white transition-colors hover:bg-gray-800"
-            >
-              <svg
-                width="26"
-                height="26"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="shrink-0 opacity-90"
-                aria-hidden
+            {forgotHref && (
+              <a
+                href={forgotHref}
+                className="flex w-full items-center gap-3 rounded-xl bg-gray-900 px-4 py-3 text-left text-white transition-colors hover:bg-gray-800"
               >
-                <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
-                <path d="M10.5 18.5h3" />
-                <path d="M3 3l18 18" />
-              </svg>
-              <span>
-                <span className="block text-[15px] font-bold">スマホを忘れた方はこちら</span>
-                <span className="block text-xs opacity-65">名前を選んで、顔写真つきで打刻</span>
-              </span>
-              <span className="ml-auto text-lg opacity-60" aria-hidden>
-                ›
-              </span>
-            </a>
-          )}
+                <svg
+                  width="26"
+                  height="26"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="shrink-0 opacity-90"
+                  aria-hidden
+                >
+                  <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
+                  <path d="M10.5 18.5h3" />
+                  <path d="M3 3l18 18" />
+                </svg>
+                <span>
+                  <span className="block text-[15px] font-bold">スマホを忘れた方はこちら</span>
+                  <span className="block text-xs opacity-65">名前を選んで、顔写真つきで打刻</span>
+                </span>
+                <span className="ml-auto text-lg opacity-60" aria-hidden>
+                  ›
+                </span>
+              </a>
+            )}
 
-          {dailyQrEnabled && <p className="text-xs text-muted">このQRコードは本日（{today}）限り有効です</p>}
-          {footer}
+            {dailyQrEnabled && <p className="text-xs text-muted">このQRコードは本日（{today}）限り有効です</p>}
+            {footer}
+          </div>
         </section>
       </div>
 
