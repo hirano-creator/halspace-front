@@ -1,5 +1,17 @@
 'use strict';
 
+/* 依頼日セル：日付の下に依頼時刻を小さく出す。
+   created_at はUTC（末尾Z）で届くので、Dateで端末のローカル時刻に直す（slice だと日本時間0〜9時の依頼が前日になる） */
+function requestedAtCell(createdAt) {
+  if (!createdAt) return '—';
+  // Laravel は小数秒6桁で返す。古いSafariは6桁を解釈できないので3桁に揃える
+  const d = new Date(String(createdAt).replace(/(\.\d{3})\d+/, '$1'));
+  if (isNaN(d)) return String(createdAt).slice(0, 10);
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+       + `<div class="requested-time" style="font-size:11px;margin-top:2px;">${p(d.getHours())}:${p(d.getMinutes())}</div>`;
+}
+
 const user = requireSpaceAuth();
 if (user) {
   renderSidebarUser(user);
@@ -245,7 +257,7 @@ if (user) {
       }
       tr.addEventListener('click', () => { location.href = `project-detail.html?id=${p.id}`; });
       tr.innerHTML = `
-        <td style="font-size:13px;color:var(--muted);white-space:nowrap;">${(p.created_at||'—').slice(0,10)}</td>
+        <td style="font-size:13px;color:var(--muted);white-space:nowrap;">${requestedAtCell(p.created_at)}</td>
         <td style="white-space:nowrap;"><code style="font-size:12px;color:var(--blue);">${p.project_code}</code></td>
         <td style="min-width:160px;max-width:260px;">
           <div style="display:flex;align-items:center;gap:6px;">
