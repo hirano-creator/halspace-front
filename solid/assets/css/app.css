@@ -2653,8 +2653,10 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
 
 /* ── ダッシュボード物件一覧: スマホは1件1枚のカード表示 ──
    表のままだと列が画面に収まらず、コードが切れて削除列がはみ出していた。
-   1段目: コード ／ ステータス、2段目: タイトル、3段目: 希望納期・回答 ／ 削除
-   依頼日・優先度・担当モデラーはフィルタで絞れるのでカードには出さない。 */
+   1段目: コード ／ ステータス、2段目: タイトル、3段目: 会社名・依頼日、4段目: 希望納期・回答 ／ 削除
+   優先度・担当モデラーはフィルタで絞れるのでカードには出さない。
+   会社名は依頼日のセル（.c-date-company）にもスマホ専用で入れてあり、1行にまとめて出す。 */
+.c-date-company { display: none; }
 @media (max-width: 768px) {
   .project-table-wrap { max-height: none; overflow: visible; }
   #projectTable, #projectTable tbody { display: block; width: 100%; }
@@ -2666,6 +2668,7 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
     grid-template-areas:
       "code  code  code  status"
       "title title title title"
+      "date  date  date  date"
       "req   reply .     del";
     align-items: center;
     gap: 6px 14px;
@@ -2679,7 +2682,14 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
   #projectTable tbody td {
     padding: 0; font-size: 12px; min-width: 0 !important; max-width: none !important;
   }
-  #projectTable .c-date, #projectTable .c-prio, #projectTable .c-modeler { display: none; }
+  #projectTable .c-prio, #projectTable .c-modeler { display: none; }
+  /* 会社名（長ければ…で切る）・依頼日 */
+  #projectTable .c-date { grid-area: date; display: flex; align-items: baseline; gap: 6px;
+                          font-size: 12px !important; color: var(--muted); }
+  #projectTable .c-date-company { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  #projectTable .c-date-value { flex-shrink: 0; color: var(--dark); }
+  /* 区切りの「・」は会社名側に付けると長い名前の「…」に巻き込まれて消えるので、こちらに付ける */
+  #projectTable .c-date-value::before { content: '・ 依頼日'; color: var(--muted); margin-right: 4px; }
   #projectTable .c-code   { grid-area: code; overflow: hidden; text-overflow: ellipsis; }
   #projectTable .c-code code { font-size: 12px !important; }
   #projectTable .c-status { grid-area: status; justify-self: end; }
@@ -2703,6 +2713,7 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
     grid-template-areas:
       "code  status"
       "title title"
+      "date  date"
       "req   del"
       "reply del";
     row-gap: 4px;

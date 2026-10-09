@@ -245,7 +245,7 @@ if (user) {
       }
       tr.addEventListener('click', () => { location.href = `project-detail.html?id=${p.id}`; });
       tr.innerHTML = `
-        <td class="c-date" style="font-size:13px;color:var(--muted);white-space:nowrap;">${(p.created_at||'—').slice(0,10)}</td>
+        <td class="c-date" style="font-size:13px;color:var(--muted);white-space:nowrap;"><span class="c-date-company">${escHtml(companyName)}</span><span class="c-date-value">${(p.created_at||'—').slice(0,10)}</span></td>
         <td class="c-code" style="white-space:nowrap;"><code style="font-size:12px;color:var(--blue);">${p.project_code}</code></td>
         <td class="c-title" style="min-width:160px;max-width:260px;">
           <div style="display:flex;align-items:center;gap:6px;">
