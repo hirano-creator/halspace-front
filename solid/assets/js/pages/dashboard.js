@@ -1,5 +1,18 @@
 'use strict';
 
+/* 依頼日セル：日付に依頼時刻を添える。
+   created_at はUTC（末尾Z）で届くので、Dateで端末のローカル時刻に直す（slice だと日本時間0〜9時の依頼が前日になる） */
+function requestedAtCell(createdAt) {
+  if (!createdAt) return '—';
+  // Laravel は小数秒6桁で返す。古いSafariは6桁を解釈できないので3桁に揃える
+  const d = new Date(String(createdAt).replace(/(\.\d{3})\d+/, '$1'));
+  if (isNaN(d)) return String(createdAt).slice(0, 10);
+  const p = n => String(n).padStart(2, '0');
+  // 時刻は .c-date-time（PCは日付の下・スマホのカードは日付の横。app.css）
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+       + `<span class="c-date-time">${p(d.getHours())}:${p(d.getMinutes())}</span>`;
+}
+
 const user = requireSpaceAuth();
 if (user) {
   renderSidebarUser(user);
@@ -245,7 +258,7 @@ if (user) {
       }
       tr.addEventListener('click', () => { location.href = `project-detail.html?id=${p.id}`; });
       tr.innerHTML = `
-        <td class="c-date" style="font-size:13px;color:var(--muted);white-space:nowrap;"><span class="c-date-company">${escHtml(companyName)}</span><span class="c-date-value">${(p.created_at||'—').slice(0,10)}</span></td>
+        <td class="c-date" style="font-size:13px;color:var(--muted);white-space:nowrap;"><span class="c-date-company">${escHtml(companyName)}</span><span class="c-date-value">${requestedAtCell(p.created_at)}</span></td>
         <td class="c-code" style="white-space:nowrap;"><code style="font-size:12px;color:var(--blue);">${p.project_code}</code></td>
         <td class="c-title" style="min-width:160px;max-width:260px;">
           <div style="display:flex;align-items:center;gap:6px;">

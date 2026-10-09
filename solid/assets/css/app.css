@@ -2657,6 +2657,8 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
    優先度・担当モデラーはフィルタで絞れるのでカードには出さない。
    会社名は依頼日のセル（.c-date-company）にもスマホ専用で入れてあり、1行にまとめて出す。 */
 .c-date-company { display: none; }
+/* 依頼時刻：PCは日付の下に小さく、スマホのカードは日付の横に並べる */
+.c-date-time { display: block; font-size: 11px; margin-top: 2px; }
 @media (max-width: 768px) {
   .project-table-wrap { max-height: none; overflow: visible; }
   #projectTable, #projectTable tbody { display: block; width: 100%; }
@@ -2688,6 +2690,7 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
                           font-size: 12px !important; color: var(--muted); }
   #projectTable .c-date-company { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   #projectTable .c-date-value { flex-shrink: 0; color: var(--dark); }
+  #projectTable .c-date-time { display: inline; font-size: inherit; margin: 0 0 0 4px; }
   /* 区切りの「・」は会社名側に付けると長い名前の「…」に巻き込まれて消えるので、こちらに付ける */
   #projectTable .c-date-value::before { content: '・ 依頼日'; color: var(--muted); margin-right: 4px; }
   #projectTable .c-code   { grid-area: code; overflow: hidden; text-overflow: ellipsis; }
