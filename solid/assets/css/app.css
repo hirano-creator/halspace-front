@@ -767,8 +767,8 @@ tbody tr:last-child { border-bottom: none; }
 /* フォルダごとの備考（HaLSpace 社内専用）: PC は行の右端に固定幅の列、スマホは行の下段 */
 .folder-note-cell {
   position: relative;
-  flex: 0 0 260px;
-  width: 260px;
+  flex: 0 1 260px;
+  min-width: 180px;
   min-height: 30px;
   display: flex;
   align-items: center;
@@ -846,12 +846,49 @@ tbody tr:last-child { border-bottom: none; }
 .folder-note-foot {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
   margin-top: 8px;
 }
-.folder-note-meta { flex: 1; min-width: 0; font-size: 11px; color: var(--muted); }
-@media (max-width: 1100px) {
-  .folder-note-cell { flex-basis: 180px; width: 180px; }
+.folder-note-meta { flex: 1 1 120px; min-width: 0; font-size: 11px; color: var(--muted); }
+
+/* 行の幅に収まらず折り返したとき（狭いPC・タブレット・スマホ）は、JS（layoutFolderNoteCells）が
+   行に .note-stacked を付ける。画面幅ではなく実際の折り返しで判定するので、
+   サイドバーやコメント欄の幅に左右されない。備考は下段に全幅で2行まで、編集欄は行内に開く
+   （吹き出しのままだと左端からはみ出して切れる） */
+.file-tree-folder-row.note-stacked .folder-note-cell {
+  order: 10;
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+  margin: 4px 0 0;
+  padding: 8px 2px 0;
+  border-left: none;
+  border-top: 1px dashed var(--border);
+  border-radius: 0;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.file-tree-folder-row.note-stacked .folder-note-cell:hover,
+.file-tree-folder-row.note-stacked .folder-note-cell.is-editing { background: transparent; }
+.file-tree-folder-row.note-stacked .folder-note-icon { margin-top: 3px; }
+.file-tree-folder-row.note-stacked .folder-note-text {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-all;
+}
+.file-tree-folder-row.note-stacked .folder-note-cell.is-editing .folder-note-text,
+.file-tree-folder-row.note-stacked .folder-note-cell.is-editing .folder-note-ph { display: none; }
+.file-tree-folder-row.note-stacked .folder-note-pop {
+  position: static;
+  flex: 1 1 100%;
+  width: 100%;
+  max-width: none;
+  box-shadow: none;
+  padding: 10px;
 }
 
 /* ── 行の「⋯」メニュー ── */
@@ -2333,41 +2370,6 @@ body.has-bulk-bar .toast-container { bottom: 100px; }
   .file-select-all-label { flex-basis: 100%; }
   .file-tree-folder-row { padding: 10px; gap: 6px; }
   .file-tree-folder-name { flex: 1 1 100%; min-width: 0; }
-  /* 備考は行の下段に全幅で回り込み、2行まで見せる。編集欄は吹き出しにせず行内に開く */
-  .folder-note-cell {
-    order: 10;
-    flex: 1 1 100%;
-    width: 100%;
-    margin: 4px 0 0;
-    padding: 8px 2px 0;
-    border-left: none;
-    border-top: 1px dashed var(--border);
-    border-radius: 0;
-    flex-wrap: wrap;
-    align-items: flex-start;
-  }
-  .folder-note-cell:hover,
-  .folder-note-cell.is-editing { background: transparent; }
-  .folder-note-icon { margin-top: 3px; }
-  .folder-note-text {
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    word-break: break-all;
-  }
-  .folder-note-cell.is-editing .folder-note-text,
-  .folder-note-cell.is-editing .folder-note-ph { display: none; }
-  .folder-note-pop,
-  .folder-note-pop.drop-up {
-    position: static;
-    flex: 1 1 100%;
-    width: 100%;
-    max-width: none;
-    box-shadow: none;
-    padding: 10px;
-    background: #fff;
-  }
   /* サブフォルダの階層インデントを浅くして横幅を稼ぐ */
   .file-tree-group-body .upload-file-item { margin-left: 0 !important; }
   .file-tree-subdir { padding-left: 0 !important; }

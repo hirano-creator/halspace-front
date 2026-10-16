@@ -1172,6 +1172,7 @@ function renderFileSection(area, files, opts = {}) {
 
   area.innerHTML = html;
   syncFolderCheckboxes(area);
+  if (showFolderNotes) layoutFolderNoteCells();
 
   // フォルダ行の開閉トグル（チェックボックス・ボタンのクリックは伝播させない）
   area.querySelectorAll('.file-tree-folder-row').forEach(row => {
@@ -1673,13 +1674,52 @@ function refreshFolderNoteCells() {
   document.querySelectorAll('.folder-note-cell').forEach(cell => {
     cell.outerHTML = renderFolderNoteCell(cell.dataset.folder);
   });
+  layoutFolderNoteCells();
   const pop = document.querySelector('.folder-note-pop');
   if (!pop) return;
-  // 画面下部の行では上向きに開く
-  if (pop.getBoundingClientRect().bottom > window.innerHeight - 8) pop.classList.add('drop-up');
   const ta = pop.querySelector('.folder-note-input');
   ta.focus();
   ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+/* 備考セルが行の右端に収まらず折り返したかを実測し、折り返した行だけ下段表示（.note-stacked）にする。
+   画面幅のブレークポイントでは、サイドバーやコメント欄・バッジの数で収まり方が変わるので判定しきれない */
+function layoutFolderNoteCells() {
+  const rows = [...document.querySelectorAll('.file-tree-folder-row')]
+    .filter(row => row.querySelector(':scope > .folder-note-cell'));
+  rows.forEach(row => row.classList.remove('note-stacked'));
+  const stacked = rows.filter(row => {
+    const cell = row.querySelector(':scope > .folder-note-cell').getBoundingClientRect();
+    const name = row.querySelector('.file-tree-folder-name')?.getBoundingClientRect();
+    return name && cell.top >= name.bottom - 2;
+  });
+  stacked.forEach(row => row.classList.add('note-stacked'));
+
+  // 編集中の吹き出しが行の左端からはみ出すなら、その行も行内に開く形にする（切れて見えなくなるのを防ぐ）
+  const pop = document.querySelector('.folder-note-pop');
+  const popRow = pop?.closest('.file-tree-folder-row');
+  if (popRow && !popRow.classList.contains('note-stacked')) {
+    pop.classList.remove('drop-up');
+    if (pop.getBoundingClientRect().left < popRow.getBoundingClientRect().left) {
+      popRow.classList.add('note-stacked');
+    } else if (pop.getBoundingClientRect().bottom > window.innerHeight - 8) {
+      pop.classList.add('drop-up');   // 画面下部の行では上向きに開く
+    }
+  }
+}
+if (canUseFolderNotes && 'ResizeObserver' in window) {
+  // 幅が変わったときだけ測り直す（備考の開閉による高さの変化では呼ばない）
+  let rafId = 0, lastWidth = -1;
+  const ro = new ResizeObserver(entries => {
+    const w = Math.round(entries[0].contentRect.width);
+    if (w === lastWidth) return;
+    lastWidth = w;
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(layoutFolderNoteCells);
+  });
+  const watch = () => { const a = document.getElementById('modelFileArea'); if (a) ro.observe(a); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch);
+  else watch();
 }
 
 function openFolderNote(folder) {
