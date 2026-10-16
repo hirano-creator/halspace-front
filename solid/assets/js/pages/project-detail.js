@@ -41,6 +41,8 @@ const STATUS_LABEL = {
    以前はモックの案件に差し替えており、通信断のときに架空の案件が表示されていた */
 async function loadProject() {
   let data;
+  // フォルダ備考は物件と並行して取る（失敗しても物件の表示は止めない）
+  const notesReq = loadFolderNotes();
   try {
     data = await api.get(`/projects/${projId}`);
   } catch (err) {
@@ -48,6 +50,7 @@ async function loadProject() {
     return false;
   }
   if (!data?.project) return false;   // 401はapiFetch側でログアウト済み
+  await notesReq;
   project  = data.project;
   comments = project.comments ?? [];
   renderAll();
@@ -272,7 +275,7 @@ const MODEL_UPLOAD_STATUSES = ['in_progress', 'revision_requested', 'review_pend
 function renderFiles() {
   // ⋯メニューを開いている最中に自動更新で作り直すと操作が中断されるため、
   // メニューが閉じるまで再描画を保留する
-  if (document.querySelector('.row-menu-wrap.open')) {
+  if (document.querySelector('.row-menu-wrap.open') || folderNoteEdit) {
     pendingFileRerender = true;
     return;
   }
@@ -332,6 +335,7 @@ function renderFiles() {
       showModelerBtns: opts.showModelerBtns,
       selectable,
       canUploadToFolder: canUploadModel,
+      folderNotes: canUseFolderNotes,
       emptyMsg: modelStatusFilter
         ? `${REVIEW_STATUS_META[modelStatusFilter]?.label ?? ''}のファイルはありません`
         : 'ファイルがありません',
@@ -986,7 +990,7 @@ function renderFileSection(area, files, opts = {}) {
   const {
     canDelete = false, showAdminBtns = false, showModelerBtns = false,
     selectable = false, emptyMsg = 'ファイルがありません', canUploadToFolder = false,
-    saveProgressId = 'modelFolderSaveProgress',
+    saveProgressId = 'modelFolderSaveProgress', folderNotes: showFolderNotes = false,
   } = opts;
 
   if (!files.length) {
@@ -1157,6 +1161,7 @@ function renderFileSection(area, files, opts = {}) {
                 title="このフォルダにファイルを追加">
           <i class="fa-solid fa-plus"></i>
         </button>` : ''}
+        ${showFolderNotes ? renderFolderNoteCell(topDir) : ''}
       </div>
       <div class="file-tree-group-body" style="display:${isOpen ? '' : 'none'};">
         ${renderFolderBody(topDir, groupFiles)}
@@ -1170,7 +1175,8 @@ function renderFileSection(area, files, opts = {}) {
   // フォルダ行の開閉トグル（チェックボックス・ボタンのクリックは伝播させない）
   area.querySelectorAll('.file-tree-folder-row').forEach(row => {
     row.addEventListener('click', e => {
-      if (e.target.closest('button') || e.target.closest('input')) return;
+      if (e.target.closest('button') || e.target.closest('input')
+          || e.target.closest('.folder-note-cell')) return;
       const [topDir] = folderEntries[Number(row.dataset.folderIdx)];
       const key = `${area.id}::${topDir}`;
       const body = row.nextElementSibling;
@@ -1602,6 +1608,144 @@ async function bulkDeleteFiles(files) {
 
   if (failed) showToast(`${failed}件の削除に失敗しました`, 'danger');
   else        showToast(`${files.length}件を削除しました`, 'success');
+}
+
+/* ══════════════════════════════════════════
+   フォルダごとの備考（HaLSpace 社内専用）
+   ══════════════════════════════════════════
+   3Dモデル・制作データのフォルダ行の右端に1行で出し、クリックで吹き出しの編集欄を開く。
+   見られるのは HaLSpace 所属者だけ（API の SolidFolderNoteController も会社で判定している）。
+   発注者・モデラー・他社の super_admin には列ごと出さない */
+const canUseFolderNotes = isOperator(user);
+const folderNotes = new Map();      // folder -> { note, updated_by_name, updated_at }
+let folderNoteEdit = null;          // 編集中 { folder, draft, saving }
+let folderNotesLoadFailed = false;
+
+async function loadFolderNotes() {
+  if (!canUseFolderNotes) return;
+  try {
+    const data = await api.get(`/projects/${projId}/folder-notes`);
+    folderNotes.clear();
+    (data?.notes ?? []).forEach(n => folderNotes.set(n.folder, n));
+    folderNotesLoadFailed = false;
+  } catch {
+    // 前回取得分を残す（空にすると備考が消えたように見える）
+    if (!folderNotesLoadFailed) showToast('フォルダの備考を読み込めませんでした', 'warning');
+    folderNotesLoadFailed = true;
+  }
+}
+
+function renderFolderNoteCell(folder) {
+  const n = folderNotes.get(folder);
+  const editing = folderNoteEdit?.folder === folder;
+  const text = n?.note ?? '';
+  const meta = n ? `${escapeHtml(n.updated_by_name ?? '')}${n.updated_at ? ` · ${escapeHtml(n.updated_at)}` : ''}` : '';
+  const pop = editing ? `
+    <div class="folder-note-pop" role="dialog" aria-label="${escapeHtml(folder)} の備考">
+      <div class="folder-note-pop-title">
+        <i class="fa-regular fa-note-sticky"></i><span>${escapeHtml(folder)} の備考</span>
+        <span class="folder-note-scope"><i class="fa-solid fa-lock"></i>HaLSpaceのみ表示</span>
+      </div>
+      <textarea class="folder-note-input" maxlength="2000" rows="3"
+                placeholder="このフォルダの備考（例: M10の下穴径はお客様回答待ち）">${escapeHtml(folderNoteEdit.draft)}</textarea>
+      <div class="folder-note-foot">
+        <span class="folder-note-meta">${meta}</span>
+        <button type="button" class="btn btn-ghost btn-sm folder-note-cancel">キャンセル</button>
+        <button type="button" class="btn btn-primary btn-sm folder-note-save" ${folderNoteEdit.saving ? 'disabled' : ''}>
+          <i class="fa-solid fa-check"></i> 保存
+        </button>
+      </div>
+    </div>` : '';
+  return `
+    <div class="folder-note-cell${text ? ' has-note' : ''}${editing ? ' is-editing' : ''}"
+         data-folder="${escapeHtml(folder)}" role="button" tabindex="0"
+         title="${text ? escapeHtml(text) : '備考を入力'}">
+      <i class="fa-regular fa-note-sticky folder-note-icon"></i>
+      ${text ? `<span class="folder-note-text">${escapeHtml(text)}</span>`
+             : '<span class="folder-note-ph">備考を入力…</span>'}
+      ${pop}
+    </div>`;
+}
+
+/* 編集の開閉はセルだけ差し替える（ファイル一覧全体を作り直すと開閉状態や選択が揺れる） */
+function refreshFolderNoteCells() {
+  document.querySelectorAll('.folder-note-cell').forEach(cell => {
+    cell.outerHTML = renderFolderNoteCell(cell.dataset.folder);
+  });
+  const pop = document.querySelector('.folder-note-pop');
+  if (!pop) return;
+  // 画面下部の行では上向きに開く
+  if (pop.getBoundingClientRect().bottom > window.innerHeight - 8) pop.classList.add('drop-up');
+  const ta = pop.querySelector('.folder-note-input');
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+function openFolderNote(folder) {
+  if (folderNoteEdit?.saving) return;
+  folderNoteEdit = { folder, draft: folderNotes.get(folder)?.note ?? '', saving: false };
+  refreshFolderNoteCells();
+}
+
+function closeFolderNote() {
+  if (!folderNoteEdit || folderNoteEdit.saving) return;
+  folderNoteEdit = null;
+  refreshFolderNoteCells();
+  // 編集中に保留した自動更新の再描画をここで流す
+  if (pendingFileRerender && !document.querySelector('.row-menu-wrap.open')) {
+    pendingFileRerender = false;
+    renderFiles();
+  }
+}
+
+async function saveFolderNote() {
+  if (!folderNoteEdit || folderNoteEdit.saving) return;
+  const { folder, draft } = folderNoteEdit;
+  folderNoteEdit.saving = true;
+  document.querySelector('.folder-note-save')?.setAttribute('disabled', '');
+  try {
+    const data = await api.put(`/projects/${projId}/folder-notes`, { folder, note: draft });
+    if (data?.note) folderNotes.set(folder, data.note);
+    else folderNotes.delete(folder);
+    folderNoteEdit.saving = false;
+    closeFolderNote();
+    showToast(data?.note ? '備考を保存しました' : '備考を削除しました', 'success');
+  } catch (err) {
+    folderNoteEdit.saving = false;
+    document.querySelector('.folder-note-save')?.removeAttribute('disabled');
+    showToast(`備考を保存できませんでした: ${err.message}`, 'danger');
+  }
+}
+
+if (canUseFolderNotes) {
+  document.addEventListener('click', e => {
+    const cell = e.target.closest('.folder-note-cell');
+    if (!folderNoteEdit) {
+      if (cell) openFolderNote(cell.dataset.folder);
+      return;
+    }
+    if (e.target.closest('.folder-note-save')) { saveFolderNote(); return; }
+    if (e.target.closest('.folder-note-cancel')) { closeFolderNote(); return; }
+    if (e.target.closest('.folder-note-pop')) return;
+    // 他のセルを押したら切り替え、外を押したら閉じる（書きかけがあるときは閉じない）
+    const changed = folderNoteEdit.draft.trim() !== (folderNotes.get(folderNoteEdit.folder)?.note ?? '');
+    if (changed) return;
+    if (cell && cell.dataset.folder !== folderNoteEdit.folder) openFolderNote(cell.dataset.folder);
+    else closeFolderNote();
+  });
+  document.addEventListener('input', e => {
+    if (folderNoteEdit && e.target.classList?.contains('folder-note-input')) folderNoteEdit.draft = e.target.value;
+  });
+  document.addEventListener('keydown', e => {
+    if (!folderNoteEdit) {
+      const cell = e.target.closest?.('.folder-note-cell');
+      if (cell && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openFolderNote(cell.dataset.folder); }
+      return;
+    }
+    if (!e.target.classList?.contains('folder-note-input')) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeFolderNote(); }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveFolderNote(); }
+  });
 }
 
 /* ══════════════════════════════════════════
