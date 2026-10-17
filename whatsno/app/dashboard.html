@@ -14,7 +14,7 @@
   <link rel="dns-prefetch" href="https://halspace-api-production.up.railway.app">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20260919a">
+  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20261018a">
   <style>
     /* ── 連絡先モーダル（2カラム＋タグ） ── */
     /* フォームと一覧を一度に見渡せるよう画面の広さに合わせて大きく取る。
@@ -183,9 +183,10 @@
       body.tag-sheet-open #tagFilterCard {
         display: block !important;
         position: fixed;
-        left: 0; right: 0; bottom: 60px;
+        /* 下部ナビは浮いたカプセル（wn-app.css）なので、その上に浮かせる */
+        left: 8px; right: 8px; bottom: calc(82px + env(safe-area-inset-bottom));
         margin: 0 !important;
-        border-radius: 16px 16px 0 0;
+        border-radius: 16px;
         max-height: 60vh;
         overflow-y: auto;
         z-index: 305;
@@ -268,6 +269,7 @@
       <a href="#" id="navRecent"><i class="fa-solid fa-clock-rotate-left"></i> 最近のファイル</a>
       <a href="#" id="navLiked"><i class="fa-solid fa-heart"></i> いいね済み</a>
       <a href="manuals.html" id="navManuals"><i class="fa-solid fa-book"></i> マニュアル</a>
+      <div id="wnSidebarPins" class="wn-sidebar-pins" style="display:none;"></div>
       <div class="sidebar-nav-label" style="margin-top:16px;">AI</div>
       <a href="brain.html" id="navBrainSidebar"><i class="fa-solid fa-circle-nodes"></i> Knowl</a>
       <div class="sidebar-nav-label" style="margin-top:16px;">管理</div>
@@ -441,8 +443,12 @@
           <div style="display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;">
             <span class="card-title" id="areaTitle" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">すべてのファイル</span>
             <span style="font-size:13px;color:var(--muted);flex-shrink:0;" id="fileCountLabel"></span>
+            <span id="wnFolderActs" class="wn-folder-acts"></span>
           </div>
           <div class="filter-bar" style="margin:0;flex-shrink:0;flex-wrap:nowrap;">
+            <button class="btn btn-outline btn-sm" id="newFolderBtn" style="height:34px;white-space:nowrap;display:none;" title="新しいフォルダー">
+              <i class="fa-solid fa-folder-plus"></i> <span class="wn-hide-sm">フォルダー</span>
+            </button>
             <button class="btn btn-outline btn-sm" id="selectModeBtn" style="height:34px;white-space:nowrap;">
               <i class="fa-solid fa-object-group"></i> <span id="selectModeBtnLabel">選択</span>
             </button>
@@ -458,6 +464,9 @@
             </div>
           </div>
         </div>
+
+        <!-- 種類で絞り込み（PDF・図面・写真…） -->
+        <div class="wn-kind-bar" id="wnKindBar" style="display:none;"></div>
 
         <!-- ローディング -->
         <div id="loadingArea" style="padding:40px;text-align:center;color:var(--muted);display:none;">
@@ -496,6 +505,14 @@
         </button>
       </div>
       <div class="mab-actions">
+        <button class="btn btn-outline btn-sm" id="moveSelBtn" disabled title="選択中のファイルをフォルダーへ移動">
+          <i class="fa-solid fa-folder-tree"></i>
+          <span class="mab-t">フォルダーへ移動</span><span class="mab-t-sm">移動</span>
+        </button>
+        <button class="btn btn-outline btn-sm" id="pinSelBtn" disabled title="選択中のファイルをピン留め">
+          <i class="fa-solid fa-thumbtack"></i>
+          <span class="mab-t">ピン留め</span><span class="mab-t-sm">ピン</span>
+        </button>
         <button class="btn btn-outline btn-sm" id="bulkTagBtn" disabled title="選択中のファイルにタグを付ける">
           <i class="fa-solid fa-tag"></i>
           <span class="mab-t">タグ</span><span class="mab-t-sm">タグ</span>
@@ -550,7 +567,7 @@
   <div class="drop-overlay-inner">
     <i class="fa-solid fa-cloud-arrow-up"></i>
     <div class="drop-overlay-title">ここにドロップして保存</div>
-    <div class="drop-overlay-sub">メールの添付ファイルもドラッグでOK · 複数同時対応 · STP, STEP, STL, PDF, DXF, 画像, 動画 他</div>
+    <div class="drop-overlay-sub">フォルダーはフォルダー構成ごと保存 · メールの添付ファイルもドラッグでOK · STP, STEP, STL, PDF, DXF, 画像, 動画 他</div>
   </div>
 </div>
 
@@ -561,6 +578,8 @@
       <span class="modal-title"><i class="fa-solid fa-cloud-arrow-up" style="color:var(--accent);"></i> ファイルをアップロード</span>
       <button class="modal-close" id="uploadModalClose"><i class="fa-solid fa-xmark"></i></button>
     </div>
+
+    <div class="wn-upload-dest" id="uploadDestLabel"></div>
 
     <!-- ソース選択ボタン（capture属性: モバイルはカメラ起動、PCは通常選択） -->
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
@@ -573,15 +592,22 @@
       <button class="btn btn-outline btn-sm" id="takeVideoBtn" style="flex:1;min-width:120px;">
         <i class="fa-solid fa-video"></i> 動画を撮る
       </button>
+      <button class="btn btn-outline btn-sm" id="pickFolderBtn" style="flex:1;min-width:120px;" title="フォルダーの中身をフォルダー構成ごと保存します">
+        <i class="fa-solid fa-folder-tree" style="color:var(--wn-folder);"></i> フォルダーを選ぶ
+      </button>
+      <button class="btn btn-outline btn-sm" id="makeFolderBtn" style="flex:1;min-width:120px;">
+        <i class="fa-solid fa-folder-plus" style="color:var(--wn-folder);"></i> フォルダーを作る
+      </button>
     </div>
 
     <input type="file" id="inputFile"  accept="*/*"     multiple              style="display:none;">
     <input type="file" id="inputPhoto" accept="image/*" capture="environment" style="display:none;">
     <input type="file" id="inputVideo" accept="video/*" capture="environment" style="display:none;">
+    <input type="file" id="inputFolder" webkitdirectory multiple style="display:none;">
 
     <div class="upload-zone" id="uploadZone">
       <i class="fa-solid fa-cloud-arrow-up"></i>
-      <p class="upload-zone-text">クリックまたはドラッグ&ドロップ</p>
+      <p class="upload-zone-text">クリックまたはドラッグ&ドロップ<span class="wn-hide-touch">（フォルダーごとでもOK）</span></p>
       <p class="upload-zone-sub">PDF, DXF, STL, STP, STEP, 画像, 動画, Excel, ZIP など（最大1GB）</p>
     </div>
 
@@ -647,16 +673,13 @@
 </div>
 
 <!-- スマホ ボトムナビ -->
-<nav class="bottom-nav">
+<nav class="bottom-nav has-fab">
   <div class="bottom-nav-inner">
     <div class="bottom-nav-item active" id="bnHome">
       <i class="fa-solid fa-user"></i><span>マイ</span>
     </div>
     <div class="bottom-nav-item" id="bnCompany">
       <i class="fa-solid fa-users"></i><span>社内共有</span>
-    </div>
-    <div class="bottom-nav-item" id="bnUpload">
-      <i class="fa-solid fa-plus bottom-nav-upload"></i>
     </div>
     <div class="bottom-nav-item" id="bnLiked">
       <i class="fa-solid fa-heart"></i><span>いいね</span>
@@ -665,6 +688,7 @@
       <i class="fa-solid fa-tag"></i><span>タグ</span>
     </div>
   </div>
+  <button type="button" class="bottom-nav-fab" id="bnUpload" aria-label="追加"><i class="fa-solid fa-plus"></i></button>
 </nav>
 
 <!-- ページトップへ戻る（無限スクロールで一覧が長くなるため） -->
@@ -1174,8 +1198,9 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=11"></script>
-<script src="../assets/js/wn-api.js?v=35"></script>
-<script src="../assets/js/pages/wn-dashboard.js?v=104"></script>
+<script src="../assets/js/wn-api.js?v=36"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=105"></script>
+<script src="../assets/js/pages/wn-folders.js?v=1"></script>
 
 <script>
 /* ── ボトムナビ ── */

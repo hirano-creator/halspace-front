@@ -163,10 +163,17 @@ const NAV_COVER_PROBE = () => {
     await page.goto(`${BASE}/whatsno/app/dashboard.html`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(500);
 
-    /* 選択前（通常表示）でボトムナビが操作を覆っていないか */
+    /* 選択前（通常表示）でボトムナビが操作を覆っていないか。
+       ボトムナビは浮いたカプセルで、一覧はその下をスクロールで通り抜ける（2026-10-18〜）。
+       スクロールすれば出てくるものは覆っていることにならないので、いちばん下まで送って
+       「それでも裏に残る操作」が無いかを見る */
     if (w < 768) {
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await page.waitForTimeout(300);
       const covered = await page.evaluate(NAV_COVER_PROBE);
       check(`w=${w} ボトムナビが操作を覆っていない`, covered.length === 0, covered.slice(0, 4).join(' / '));
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(200);
     }
 
     /* 選択モードに入って1件選ぶ（スマホは上部の選択ボタンが隠れるので関数を直に叩く） */

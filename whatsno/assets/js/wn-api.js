@@ -197,7 +197,7 @@ const WN_SIGN_BATCH            = 50;                       /* 一度にまとめ
 
    ローカル開発など分割が使えない環境では init が 409 を返すので、
    fallback フラグ付きで throw して呼び出し元が単発送信に切り替える。 */
-async function wnUploadFileMultipart(file, { onProgress, overwriteId = null, shareToCompany = false } = {}) {
+async function wnUploadFileMultipart(file, { onProgress, overwriteId = null, shareToCompany = false, folderId = null } = {}) {
   const initRes = await wnFetch('/wn/uploads/init', {
     method: 'POST',
     body: JSON.stringify({
@@ -345,6 +345,7 @@ async function wnUploadFileMultipart(file, { onProgress, overwriteId = null, sha
       ticket,
       parts: etags.map((etag, i) => ({ number: i + 1, etag })),
       share_to_company: shareToCompany ? 1 : 0,
+      folder_id: folderId || null,
     }),
   });
   if (!res) throw new Error('認証が切れました');
@@ -363,13 +364,13 @@ async function wnUploadFileMultipart(file, { onProgress, overwriteId = null, sha
    - 50MB以下は multipart ではなく raw バイナリで送信（CF Workers のメモリ二重バッファ回避）
    - サーバー側は Content-Type が multipart 以外なら X-File-Name ヘッダーで名前を受け取る
    - ネットワーク系エラーは指数バックオフで最大3回リトライ（wnOverwriteFile と同方針） */
-async function wnUploadFile(file, { onProgress, shareToCompany = false } = {}) {
+async function wnUploadFile(file, { onProgress, shareToCompany = false, folderId = null } = {}) {
   if (file.size > WN_MAX_UPLOAD_BYTES) {
     throw new Error(`${file.name} は1GBを超えています`);
   }
   if (file.size > WN_MULTIPART_THRESHOLD) {
     try {
-      return await wnUploadFileMultipart(file, { onProgress, shareToCompany });
+      return await wnUploadFileMultipart(file, { onProgress, shareToCompany, folderId });
     } catch (e) {
       if (!e || !e.fallback) throw e;   /* fallback は分割非対応環境のみ */
     }
@@ -394,6 +395,7 @@ async function wnUploadFile(file, { onProgress, shareToCompany = false } = {}) {
     xhr.setRequestHeader('Accept', 'application/json');
     xhr.setRequestHeader('Content-Type', blob.type);
     xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
+    if (folderId) xhr.setRequestHeader('X-Folder-Id', String(folderId));
     xhr.upload.onprogress = e => {
       if (e.lengthComputable && onProgress) onProgress(Math.round(e.loaded / e.total * 100));
     };
@@ -435,6 +437,48 @@ async function wnUploadFile(file, { onProgress, shareToCompany = false } = {}) {
   }
   throw lastErr;
 }
+
+/* ── フォルダー・ピン留め ──────────────────────────────
+   フォルダーは「置き場所」（ファイルは1つにだけ入る）、タグは横断の目印。
+   ピンは me=自分用 / all=全員用（管理者のみ）。
+   どれも失敗時は { error: メッセージ } を返す（呼び出し側でトーストに出す）。 */
+async function _wnJson(path, method = 'GET', body) {
+  const res = await wnFetch(path, { method, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+  if (!res) return { error: '認証が切れました' };
+  let json = null;
+  try { json = await res.json(); } catch {}
+  if (!res.ok) return { error: json?.message || `エラーが発生しました (${res.status})` };
+  return json ?? {};
+}
+
+/* parentId=null でいちばん上。scope は 'mine' | 'company'（いちばん上でだけ効く） */
+async function wnGetFolders({ parentId = null, scope } = {}) {
+  const q = new URLSearchParams();
+  if (parentId) q.set('parent_id', parentId);
+  else if (scope) q.set('scope', scope);
+  return _wnJson('/wn/folders?' + q.toString());
+}
+/* 移動先選び用：見えるフォルダーを全部フラットに */
+async function wnGetAllFolders() { return _wnJson('/wn/folders?all=1'); }
+async function wnGetFolder(id) { return _wnJson(`/wn/folders/${id}`); }
+async function wnCreateFolder(name, { parentId = null, share = false } = {}) {
+  return _wnJson('/wn/folders', 'POST', { name, parent_id: parentId, share });
+}
+/* フォルダーアップロード用：相対パスの一覧 → { パス: フォルダーID } */
+async function wnEnsureFolderPaths(paths, { parentId = null, share = false } = {}) {
+  return _wnJson('/wn/folders/ensure', 'POST', { paths, parent_id: parentId, share });
+}
+async function wnUpdateFolder(id, patch) { return _wnJson(`/wn/folders/${id}`, 'PATCH', patch); }
+async function wnDeleteFolder(id) { return _wnJson(`/wn/folders/${id}`, 'DELETE'); }
+/* folderId=null でいちばん上へ戻す。戻り値 { moved, skipped:[名前], denied } */
+async function wnMoveFiles(fileIds, folderId) {
+  return _wnJson('/wn/files/move', 'POST', { file_ids: fileIds, folder_id: folderId });
+}
+async function wnGetPins() { return _wnJson('/wn/pins'); }
+async function wnPin({ fileId = null, folderId = null, scope = 'me' }) {
+  return _wnJson('/wn/pins', 'POST', fileId ? { file_id: fileId, scope } : { folder_id: folderId, scope });
+}
+async function wnUnpin(pinId) { return _wnJson(`/wn/pins/${pinId}`, 'DELETE'); }
 
 /* 既存ファイルの内容を上書き（新バージョンを作らない）
    50MB超は wnUploadFile と同じく R2直送マルチパートへ委譲する。 */

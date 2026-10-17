@@ -1,7 +1,7 @@
 'use strict';
 /* What'sNo Service Worker — /whatsno/sw.js */
 
-const CACHE_NAME  = 'whatsno-v81';
+const CACHE_NAME  = 'whatsno-v82';
 const SHARE_CACHE = 'wn-share';   /* Web Share Target で受け取ったファイルの一時退避先 */
 const SHELL_URLS = [
   '/whatsno/app/dashboard.html',
@@ -9,9 +9,10 @@ const SHELL_URLS = [
   '/whatsno/app/file-detail.html',
   '/whatsno/app/admin.html',
   '/whatsno/app/diff.html',
-  '/whatsno/assets/css/wn-app.css?v=20260801a',
+  '/whatsno/assets/css/wn-app.css?v=20261018a',
   '/whatsno/assets/js/wn-api.js',
   '/whatsno/assets/js/pages/wn-dashboard.js',
+  '/whatsno/assets/js/pages/wn-folders.js',
   '/whatsno/assets/js/pages/wn-file-detail.js',
 ];
 

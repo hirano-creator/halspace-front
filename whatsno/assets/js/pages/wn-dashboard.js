@@ -51,9 +51,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (selectedTags.length) navView = 'all';
   }
 
+  /* ?folder= で開いたときは、一覧を取る前にフォルダー状態を復元する */
+  wnFoldersInitState();
+
   await loadTags();
   await loadFiles();
   initNav();
+  initFolders();
   initShareAll();
   applyStorageModeUi();
   initDragDrop();
@@ -1752,6 +1756,7 @@ function buildFileListParams() {
     search_reading: normalizedSearch ? toHiraganaQuery(normalizedSearch) : undefined,
   };
   if (selectedTags.length) params.tag = selectedTags.join(',');
+  if (wnKind !== 'all') params.type = wnKind;
 
   /* 検索中はビューの絞り込みを外し、自分に見えるもの全体から探す。
      マイファイルと社内共有の2ビューしか無いので、ビュー内検索のままだと
@@ -1763,6 +1768,10 @@ function buildFileListParams() {
   if (navView === 'company') params.scope  = 'company';
   if (navView === 'recent')  params.recent = 1;
   if (navView === 'liked')   params.liked  = 1;
+  /* フォルダー: マイファイル/社内共有のいちばん上では「どこにも入っていないもの」だけ、
+     フォルダーの中ではそのフォルダーの中身だけ。タグで絞っているときはフォルダーを問わない */
+  if (wnCurrentFolder) params.folder = wnCurrentFolder.id;
+  else if (wnFolderViewActive()) params.folder = 'root';
   return params;
 }
 
@@ -1772,7 +1781,9 @@ async function loadFiles() {
   wnPage    = 1;
   wnHasMore = true;
 
+  const topZoneReady = wnLoadTopZone();
   const result = await wnGetFiles({ ...buildFileListParams(), page: 1, per_page: WN_PAGE_SIZE });
+  await topZoneReady;
   showLoading(false);
 
   if (result.error) {
@@ -1787,6 +1798,7 @@ async function loadFiles() {
 
   allFiles     = result.data;
   wnTotalCount = result.meta?.total ?? result.data.length;
+  wnSetKindCounts(result.meta?.type_counts);
   wnHasMore    = result.meta ? result.meta.current_page < result.meta.last_page : false;
   renderFiles(true);
 }
@@ -1874,19 +1886,22 @@ function renderFiles(reset = true, newItems = null) {
   if (!allFiles.length) {
     grid.innerHTML = '';
     rows.innerHTML = '';
-    empty.classList.remove('hidden');
+    /* フォルダーやピンがあるときは「ファイルがありません」の大きな表示は出さない */
+    wnRenderEmpty(empty);
+    wnAfterRender(true);
     updateLoadMoreSentinel();
     return;
   }
   empty.classList.add('hidden');
 
   const itemsToRender = reset ? allFiles : (newItems ?? []);
+  if (reset) wnDateHeadReset();
   if (reset) {
-    grid.innerHTML = allFiles.map(fileCardHtml).join('');
-    rows.innerHTML = allFiles.map(fileRowHtml).join('');
+    grid.innerHTML = wnWithDateHeads(allFiles, fileCardHtml, 'grid');
+    rows.innerHTML = wnWithDateHeads(allFiles, fileRowHtml, 'list');
   } else if (itemsToRender.length) {
-    grid.insertAdjacentHTML('beforeend', itemsToRender.map(fileCardHtml).join(''));
-    rows.insertAdjacentHTML('beforeend', itemsToRender.map(fileRowHtml).join(''));
+    grid.insertAdjacentHTML('beforeend', wnWithDateHeads(itemsToRender, fileCardHtml, 'grid'));
+    rows.insertAdjacentHTML('beforeend', wnWithDateHeads(itemsToRender, fileRowHtml, 'list'));
   }
 
   // サムネイルを非同期で差し込む（画像・PDF・動画） / reset時は全件、追加時は新規分のみ
@@ -1916,6 +1931,7 @@ function renderFiles(reset = true, newItems = null) {
 
   // 選択モード中の再描画（ソート・フィルタ変更等）でも選択状態を復元
   if (selectMode) selectedIds.forEach(id => applySelectedVisual(id, true));
+  wnAfterRender(reset);
 
   const likeBtnScope = reset
     ? Array.from(document.querySelectorAll('.like-btn[data-id]'))
@@ -2855,7 +2871,6 @@ function appendImg(iconId, url, opts = {}) {
 
 function fileCardHtml(f) {
   const { icon, cls } = wnFileIcon(f.file_name, f.mime_type);
-  const vBadge = f.version > 1 ? `<span class="file-card-version">v${f.version}</span>` : '';
   const ext  = (f.file_name || '').split('.').pop().toLowerCase();
   const mime = f.mime_type ?? '';
   const hasThumb = mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','heic','heif','svg','tif','tiff'].includes(ext)
@@ -2868,55 +2883,50 @@ function fileCardHtml(f) {
     ? `<i class="fa-solid ${icon} file-type-icon ${cls}" id="thumb-icon-${f.id}"></i>`
     : `<i class="fa-solid ${icon} file-type-icon ${cls}"></i>`;
 
-  const visBadgeHtml = wnVisibilityBadgeHtml(f);
+  /* 社内共有を見ているときに「社内共有」バッジは情報にならないので、個人のものだけ示す */
+  const visBadgeHtml = (navView === 'company' && (f.visibility ?? 'company') === 'company') ? '' : wnVisibilityBadgeHtml(f);
 
   const apStatus = f.approval_status ?? 'none';
   const apBadge  = wnApprovalBadge(apStatus);
   const apBadgeHtml = apStatus !== 'none'
-    ? `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;
-        color:${apBadge.color};background:${apBadge.bg};white-space:nowrap;">
-        ${apBadge.label}
-       </span>`
+    ? `<span class="wn-card-badge" style="color:${apBadge.color};background:${apBadge.bg};">${apBadge.label}</span>`
     : '';
 
+  const isNew   = Date.now() - Date.parse(f.created_at) < 48 * 3600 * 1000;
+  const canMail = typeof wnHasExtendedOptions !== 'function' || wnHasExtendedOptions();
+  const pin     = wnPinOfFile(f.id);
+  const uname   = f.uploader?.name || '';
+
   return `
-  <div class="file-card" data-file-id="${f.id}">
-    <div class="file-card-thumb"><span class="wn-select-check" data-check-id="${f.id}"><i class="fa-regular fa-circle"></i></span>${thumbHtml}</div>
-    ${vBadge ? `<div class="file-card-badge">${vBadge}</div>` : ''}
-    <div class="file-card-body">
-      <div class="file-card-name" title="${h(f.file_name)}">${h(f.file_name)}</div>
-      ${(visBadgeHtml || apBadgeHtml) ? `<div style="margin-bottom:4px;display:flex;gap:4px;flex-wrap:wrap;">${visBadgeHtml}${apBadgeHtml}</div>` : ''}
-      <div class="file-card-meta">
-        <span>${wnFormatDate(f.created_at)}</span>
-        <span>${wnFormatSize(f.file_size)}</span>
-        ${ext ? `<span class="file-card-ext">${ext.toUpperCase()}</span>` : ''}
+  <div class="file-card wn-card" data-file-id="${f.id}" ${wnCanDragCards() ? 'draggable="true"' : ''}>
+    <div class="file-card-thumb">
+      <span class="wn-select-check" data-check-id="${f.id}"><i class="fa-regular fa-circle"></i></span>
+      ${thumbHtml}
+      ${ext ? `<span class="wn-card-ext" style="background:${wnKindColor(ext)}">${h(ext.toUpperCase())}</span>` : ''}
+      ${f.version > 1 ? `<span class="wn-card-ver">v${f.version}</span>` : ''}
+      <span class="wn-card-pin${pin ? (pin.scope === 'all' ? ' is-all' : ' is-me') : ''}" data-pin-mark="f:${f.id}" title="${pin ? (pin.scope === 'all' ? '全員にピン留め' : 'ピン留め中') : ''}"><i class="fa-solid ${pin?.scope === 'all' ? 'fa-bullhorn' : 'fa-thumbtack'}"></i></span>
+      ${isNew ? '<span class="wn-card-new">NEW</span>' : ''}
+      <div class="wn-card-hover">
+        <button class="file-action-btn" data-wn-act="pin" data-key="f:${f.id}" title="ピン留め"><i class="fa-solid fa-thumbtack"></i></button>
+        <button class="file-action-btn" data-wn-act="download" data-id="${f.id}" title="ダウンロード"><i class="fa-solid fa-download"></i></button>
+        ${canMail ? `<button class="file-action-btn" data-wn-act="email" data-id="${f.id}" title="メールで共有" onmouseenter="prefetchEmailShare(${f.id})"><i class="fa-solid fa-envelope"></i></button>` : ''}
+        <button class="file-action-btn" data-wn-act="menu" data-key="f:${f.id}" title="その他"><i class="fa-solid fa-ellipsis"></i></button>
       </div>
-      ${f.uploader?.name ? `<div class="file-card-uploader"><i class="fa-regular fa-user"></i>${h(f.uploader.name)}</div>` : ''}
-      <div class="file-card-actions">
-        <span class="file-card-stat" title="閲覧数">
-          <i class="fa-regular fa-eye"></i>${f.view_count ?? 0}
-        </span>
-        <span class="file-card-stat" title="コメント数">
-          <i class="fa-regular fa-comment"></i>${f.comment_count ?? 0}
-        </span>
-        <button class="file-action-btn like-btn${f.liked ? ' liked' : ''}" data-id="${f.id}" title="いいね">
-          <i class="fa-${f.liked ? 'solid' : 'regular'} fa-heart"></i>
-          <span>${f.like_count ?? 0}</span>
-        </button>
-        <button class="file-action-btn" title="メールで共有"
-                onmouseenter="prefetchEmailShare(${f.id})"
-                onclick="event.stopPropagation();openEmailModal([{id:${f.id},name:'${jsq(f.file_name)}'}])">
-          <i class="fa-solid fa-envelope"></i>
-        </button>
-        <button class="file-action-btn file-action-delete" title="削除"
-                onclick="event.stopPropagation();confirmDeleteFile(${f.id},'${jsq(f.file_name)}')">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-        <button class="file-action-btn" title="ダウンロード"
-                onclick="event.stopPropagation();wnDownload(${f.id})">
-          <i class="fa-solid fa-download"></i>
-        </button>
+    </div>
+    <div class="file-card-body">
+      <div class="file-card-name wn-clamp2" title="${h(f.file_name)}">${h(f.file_name)}</div>
+      ${(visBadgeHtml || apBadgeHtml) ? `<div class="wn-card-badges">${visBadgeHtml}${apBadgeHtml}</div>` : ''}
+      <div class="wn-card-meta">
+        ${uname ? `<span class="wn-avatar" style="background:${wnAvatarColor(uname)}" title="${h(uname)}">${h(uname.slice(0, 1))}</span>` : ''}
+        <span class="wn-card-date" title="${h(wnFormatDate(f.created_at))} · ${h(wnFormatSize(f.file_size))}">${h(wnRelativeDate(f.created_at))}</span>
         ${pageCountBadgeHtml(f)}
+        <span class="wn-card-stats">
+          ${(f.comment_count ?? 0) > 0 ? `<span class="wn-stat-hot" title="コメント"><i class="fa-solid fa-comment"></i>${f.comment_count}</span>` : ''}
+          <button class="file-action-btn like-btn${f.liked ? ' liked' : ''}" data-id="${f.id}" title="いいね">
+            <i class="fa-${f.liked ? 'solid' : 'regular'} fa-heart"></i><span>${(f.like_count ?? 0) || ''}</span>
+          </button>
+        </span>
+        <button class="file-action-btn wn-card-more" data-wn-act="menu" data-key="f:${f.id}" title="その他"><i class="fa-solid fa-ellipsis-vertical"></i></button>
       </div>
     </div>
   </div>`;
@@ -3418,6 +3428,7 @@ function initNav() {
          切り替え＝そのビューを見に行く操作なので、検索は必ず解除する。 */
       const searchInput = document.getElementById('searchInput');
       if (searchInput?.value) searchInput.value = '';
+      wnOnNavChange();
       loadFiles();
     });
   });
@@ -3447,6 +3458,7 @@ function applyLayoutView(view, { loadComments = false } = {}) {
   const listArea = document.getElementById('listArea');
   if (gridArea) gridArea.style.display = isList ? 'none'  : 'block';
   if (listArea) listArea.style.display = isList ? 'block' : 'none';
+  wnPlaceTopZone();
 
   if (isList && loadComments) loadRowComments();
 }
@@ -3610,6 +3622,7 @@ function initDragDrop() {
   let dragCount = 0;
 
   document.addEventListener('dragenter', e => {
+    if (wnInternalDrag) return;   /* 一覧内のカードをフォルダーへ動かすドラッグは対象外 */
     if (!e.dataTransfer.types.includes('Files')) return;
     dragCount++;
     if (dragCount === 1) overlay.classList.add('active');
@@ -3623,6 +3636,13 @@ function initDragDrop() {
     e.preventDefault();
     dragCount = 0;
     overlay.classList.remove('active');
+    if (wnInternalDrag) return;
+    /* フォルダーが含まれていれば中身を階層ごと読む（items は drop の中でしか触れない） */
+    const entries = wnDropEntries(e.dataTransfer);
+    if (entries.some(en => en.isDirectory)) {
+      wnFilesFromEntries(entries).then(files => { if (files.length) openUploadModal(files); });
+      return;
+    }
     const files = Array.from(e.dataTransfer.files);
     if (files.length) openUploadModal(files);
   });
@@ -3682,6 +3702,12 @@ function initUploadModal() {
       this.value = '';
     });
   });
+  /* フォルダーを選ぶ（PCのみ。スマホのブラウザは非対応） */
+  document.getElementById('pickFolderBtn')?.addEventListener('click', () => document.getElementById('inputFolder').click());
+  document.getElementById('inputFolder')?.addEventListener('change', function() {
+    addToQueue(wnFilesFromDirectoryInput(this.files));
+    this.value = '';
+  });
 
   /* モーダル内ドラッグ&ドロップゾーン */
   const zone = document.getElementById('uploadZone');
@@ -3690,7 +3716,13 @@ function initUploadModal() {
   zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
   zone.addEventListener('drop', e => {
     e.preventDefault();
+    e.stopPropagation();   /* 画面全体のドロップ受けで二重にモーダルを開かない */
     zone.classList.remove('drag-over');
+    const entries = wnDropEntries(e.dataTransfer);
+    if (entries.some(en => en.isDirectory)) {
+      wnFilesFromEntries(entries).then(addToQueue);
+      return;
+    }
     addToQueue(Array.from(e.dataTransfer.files));
   });
 
@@ -3705,6 +3737,7 @@ function openUploadModal(files = []) {
   const upEl = document.getElementById('uploadModal');
   if (upEl.classList.contains('hidden')) wnLockBodyScroll();
   upEl.classList.remove('hidden');
+  wnUpdateUploadDest();
   if (files.length) addToQueue(files);
 }
 
@@ -3748,7 +3781,7 @@ function renderUploadQueue() {
     return `
     <div class="upload-file-item" id="qitem-${i}">
       ${thumb}
-      <span class="upload-file-name">${h(f.name)}</span>
+      <span class="upload-file-name">${f._wnDir ? `<span class="wn-upload-dir"><i class="fa-solid fa-folder"></i>${h(f._wnDir)}/</span>` : ''}${h(f.name)}</span>
       <span class="upload-file-size">${wnFormatSize(f.size)}</span>
       <button class="upload-file-remove" onclick="removeFromQueue(${i})">
         <i class="fa-solid fa-xmark"></i>
@@ -3771,7 +3804,23 @@ async function doUpload() {
   const uploadedFiles = [];
   let failCount = 0;
 
-  for (let i = 0; i < uploadQueue.length; i++) {
+  /* フォルダーごとのアップロードなら、先に階層を作って { 相対パス: フォルダーID } を得る */
+  let dirMap = {};
+  const dirs = [...new Set(uploadQueue.map(f => f._wnDir).filter(Boolean))];
+  if (dirs.length) {
+    const r = await wnEnsureFolderPaths(dirs, { parentId: wnCurrentFolder?.id ?? null, share: wnShareForNewFolder() });
+    if (r.error) {
+      wnShowToast(r.error, 'danger');
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> アップロード';
+      return;
+    }
+    dirMap = r.data || {};
+  }
+
+  /* 1件ずつだとフォルダー丸ごと（数十〜数百件）で待ちが長いので3並列で送る */
+  let nextIndex = 0;
+  const uploadOne = async (i) => {
     const file = uploadQueue[i];
     const prog = document.getElementById(`prog-${i}`);
     const bar  = prog?.parentElement;
@@ -3780,8 +3829,10 @@ async function doUpload() {
     if (stat) { stat.style.display = 'block'; stat.textContent = 'アップロード中…'; }
     try {
       const shareToCompany = !!document.getElementById('uploadShareToCompany')?.checked;
-      const result = await wnUploadFile(file, {
+      const folderId = file._wnDir ? (dirMap[file._wnDir] ?? null) : (wnCurrentFolder?.id ?? null);
+      const send = () => wnUploadFile(file, {
         shareToCompany,
+        folderId,
         onProgress: pct => {
           if (prog) prog.style.width = pct + '%';
           if (pct >= 100 && stat) {
@@ -3789,6 +3840,17 @@ async function doUpload() {
           }
         },
       });
+      /* フォルダー丸ごと（数百件）だとAPIの回数制限（1分300回）に当たることがある。
+         429 は待てば通るので、少し待って送り直す */
+      let result;
+      for (let attempt = 0; ; attempt++) {
+        try { result = await send(); break; }
+        catch (e) {
+          if (attempt >= 3 || !/429|Too Many/i.test(e?.message || '')) throw e;
+          if (stat) stat.textContent = '混み合っているため少し待っています…';
+          await new Promise(r => setTimeout(r, 20000));
+        }
+      }
       document.getElementById(`qitem-${i}`)?.style.setProperty('background', 'rgba(0,184,148,.08)');
       if (stat) stat.innerHTML = '<i class="fa-solid fa-check" style="color:#2E7D32;"></i> 保存完了';
       if (result?.data?.id) uploadedFiles.push(result.data);
@@ -3796,15 +3858,20 @@ async function doUpload() {
       failCount++;
       document.getElementById(`qitem-${i}`)?.style.setProperty('background', 'rgba(231,76,60,.08)');
       if (stat) stat.innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color:#C62828;"></i> 失敗';
-      wnShowToast(`${file.name} のアップロードに失敗しました: ${err.message}`, 'danger');
+      /* 数百件のうち多数が失敗したときにトーストで画面が埋まらないよう、最初の3件だけ出す */
+      if (failCount <= 3) wnShowToast(`${file.name} のアップロードに失敗しました: ${err.message}`, 'danger');
     }
-  }
+  };
+  const worker = async () => { while (nextIndex < uploadQueue.length) await uploadOne(nextIndex++); };
+  await Promise.all(Array.from({ length: Math.min(3, uploadQueue.length) }, worker));
 
   closeUploadModal();
   await loadFiles();
 
   if (failCount === 0) {
     wnShowToast('アップロードが完了しました', 'success');
+  } else if (failCount > 3) {
+    wnShowToast(`${failCount}件のアップロードに失敗しました`, 'danger');
   }
 }
 
@@ -5210,6 +5277,8 @@ function updateMergeActionBar() {
     unshareBtn.disabled = n === 0;
     unshareBtn.title = n === 0 ? '個人に戻せるファイルが選択されていません' : `${n}件を自分だけが見られる状態に戻します`;
   }
+
+  wnUpdateFolderSelButtons();
 
   // 選んだ時点で共有リンクを用意しておく（実行時の待ちを消す）
   scheduleSharePrefetch();
