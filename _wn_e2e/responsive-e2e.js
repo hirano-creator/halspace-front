@@ -294,26 +294,22 @@ const NAV_COVER_PROBE = () => {
       check(`${label} w=${w} 縦書きに潰れた文字が無い`, squashed.length === 0, squashed.slice(0, 5).join(' / '));
       check(`${label} w=${w} 横スクロールが出ない`, over <= 1, `over=${over}px`);
 
-      /* ファイル詳細: ツールバーは flex-shrink:0 の帯なので、
-         はみ出すと押せないまま切り落とされる。実座標で見る */
+      /* ファイル詳細: ヘッダーのボタンは flex-shrink:0 なので、
+         はみ出すと押せないまま切り落とされる。実座標で見る（2026-10 にメニューバー型へ刷新） */
       if (rel.startsWith('app/file-detail')) {
         const tb = await page.evaluate(() => {
-          const bar   = document.querySelector('.detail-topbar');
-          const strip = document.querySelector('.detail-topbar-actions');
-          if (!bar || !strip) return null;
-          const br = bar.getBoundingClientRect();
-          const sr = strip.getBoundingClientRect();
-          const cs = getComputedStyle(bar);
-          const padR = parseFloat(cs.paddingRight);
+          const head = document.querySelector('.fd-head');
+          if (!head) return null;
+          const hr = head.getBoundingClientRect();
+          const btns = [...head.querySelectorAll('.fd-ib, .fd-sq')].filter(e => e.offsetParent);
           return {
-            /* 帯そのものがバーからはみ出していたら、その先は取り出せない */
-            cut: Math.round(sr.right - (br.right - padR)),
-            /* 帯の中で横スクロールしているぶんは指で送れば届く */
-            scrollable: strip.scrollWidth - strip.clientWidth,
+            cut: btns.filter(e => { const r = e.getBoundingClientRect(); return r.right > hr.right + 1 || r.left < hr.left - 1; })
+                     .map(e => e.textContent.trim().slice(0, 8)),
+            n: btns.length,
           };
         });
-        check(`${label} w=${w} ツールバーのボタンが切れない`, tb && tb.cut <= 1,
-          tb ? `はみ出し${tb.cut}px / 帯内スクロール${tb.scrollable}px` : 'topbarが無い');
+        check(`${label} w=${w} ヘッダーのボタンが切れない`, tb && tb.n > 0 && tb.cut.length === 0,
+          tb ? `ボタン${tb.n}個 / 切れ: ${tb.cut.join(',') || 'なし'}` : 'ヘッダーが無い');
       }
 
       if (process.env.SHOT) {

@@ -144,6 +144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initRelations();
   initEmailModal();
   initAaPostModal();
+  initDetailMenus();   /* 各ボタンの表示条件が決まった後に呼ぶ（変換可否などを見るため） */
 });
 
 /* モバイル時、コメントパネル(.detail-right)を .detail-info-section の前に
@@ -348,6 +349,10 @@ function renderApproval() {
     cardHtml += `<p style="font-size:12px;color:var(--muted);">承認申請すると、管理者が承認・差し戻しできるようになります。</p>`;
   }
   cardBody.innerHTML = cardHtml;
+
+  /* 「その他 → 承認」の説明に今の状況を出す（承認はヘッダーに出さないので、ここで気づけるように） */
+  const menuDesc = document.getElementById('fdApprovalMenuDesc');
+  if (menuDesc) menuDesc.textContent = status === 'none' ? '承認の申請・状況の確認' : `現在：${statusLabels[status] ?? badge.label}`;
 }
 
 /* 差し戻しモーダル初期化 */
@@ -469,7 +474,9 @@ function renderPreview() {
   }
 
   /* 注釈ボタン：PDF・画像のみ表示（PowerPoint・TIFFは対象外） */
-  const annotatable = wnIsAnnotatable(fileData.file_name, mime);
+  /* 拡張オプション未契約の会社では出さない（wnApplyExtendedOptionsUi で隠した後にここで再表示していた） */
+  const annotatable = wnIsAnnotatable(fileData.file_name, mime)
+    && (typeof wnHasExtendedOptions !== 'function' || wnHasExtendedOptions());
   const annotBtn = document.getElementById('annotateBtn');
   if (annotBtn) annotBtn.style.display = annotatable ? '' : 'none';
 }
@@ -2163,7 +2170,10 @@ async function loadPdfPreview(attempt) {
 
 function renderInfo() {
   const f = fileData;
+  const ext = (f.file_name || '').split('.').pop().toUpperCase();
   const rows = [
+    ['ファイル名',    h(f.file_name)],
+    ['種類',          h(ext)],
     ['サイズ',        wnFormatSize(f.file_size)],
     ['アップロード',  wnFormatDate(f.created_at)],
     ['アップロード者', h(f.uploader?.name ?? '—')],
@@ -2179,7 +2189,21 @@ function renderInfo() {
   `).join('');
 }
 
+/* タイトル下の付箋：公開範囲（個人保管モードのときだけ）とタグ */
+function fdRenderMeta() {
+  const meta = document.getElementById('fdMeta');
+  if (!meta || !fileData) return;
+  const chips = [];
+  if (wnIsPersonalMode()) {
+    const shared = (fileData.visibility ?? 'company') === 'company';
+    chips.push(`<span class="fd-chip"><i class="fa-solid fa-${shared ? 'users' : 'lock'}"></i> ${shared ? '社内共有' : '自分のみ'}</span>`);
+  }
+  (fileData.tags ?? []).forEach(t => chips.push(`<span class="fd-chip">#${h(t.name)}</span>`));
+  meta.innerHTML = chips.join('');
+}
+
 function renderTags() {
+  fdRenderMeta();
   const list = document.getElementById('tagList');
   const tags = fileData.tags ?? [];
   if (!tags.length) {
@@ -2200,6 +2224,8 @@ function renderTags() {
       tag.style.transition = 'opacity .2s';
       setTimeout(() => tag.remove(), 200);
       await wnRemoveTag(fileId, tagId);
+      fileData.tags = (fileData.tags ?? []).filter(t => String(t.id) !== String(tagId));
+      fdRenderMeta();
     });
   });
 }
@@ -2285,18 +2311,44 @@ async function loadSimilarFiles() {
   if (!card || !list) return;
 
   const files = await wnGetSimilarFiles(fileId);
-  if (!files.length) return;
+  const badge = document.getElementById('similarBadge');
+  if (!files.length) {
+    list.innerHTML = '<p class="fd-empty">似ているファイルは見つかりませんでした</p>';
+    return;
+  }
+  if (badge) { badge.textContent = files.length; badge.classList.add('show'); }
 
-  card.style.display = '';
+  const linked = new Set(relationsCache.map(r => r.id));
   list.innerHTML = files.map(f => `
     <a class="similar-item" href="file-detail.html?id=${f.id}">
-      <div>
+      <span class="thumb"><i class="${wnFileIconClass(f.mime_type)}"></i></span>
+      <div style="min-width:0;">
         <div class="name" title="${h(f.file_name)}">${h(f.file_name)}</div>
-        <div class="meta">類似度 ${Math.round(f.similarity * 100)}% · ${wnFormatSize(f.file_size)}</div>
+        <div class="meta"><span class="score">類似 ${Math.round(f.similarity * 100)}%</span>${wnFormatSize(f.file_size)}</div>
       </div>
-      <i class="fa-solid fa-chevron-right arrow"></i>
+      ${linked.has(f.id)
+        ? '<span class="similar-link-btn done"><i class="fa-solid fa-check"></i> 関連済み</span>'
+        : `<button type="button" class="similar-link-btn" data-id="${f.id}"><i class="fa-solid fa-link"></i> 関連に追加</button>`}
     </a>
   `).join('');
+
+  /* 「関連に追加」：類似ファイルをそのまま関連付ける（リンク遷移はさせない） */
+  list.querySelectorAll('button.similar-link-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.preventDefault();
+      e.stopPropagation();
+      btn.disabled = true;
+      const result = await wnAddRelation(fileId, parseInt(btn.dataset.id));
+      if (result) {
+        btn.outerHTML = '<span class="similar-link-btn done"><i class="fa-solid fa-check"></i> 関連済み</span>';
+        await loadRelations();
+        wnShowToast('関連ファイルに追加しました', 'success');
+      } else {
+        btn.disabled = false;
+        wnShowToast('追加に失敗しました（既に追加済みかもしれません）', 'danger');
+      }
+    });
+  });
 }
 
 /* ────────────────────────────────
@@ -2418,6 +2470,9 @@ function initActions() {
     visBtn.title = shared
       ? '自分だけが見られる状態に戻します（発行済みの共有リンクは無効になります）'
       : '社内の全員が見られるようにします';
+    const desc = visBtn.querySelector('#visibilityBtnDesc');
+    if (desc) desc.textContent = visBtn.title;
+    fdRenderMeta();
   }
   refreshVisibilityBtn();
 
@@ -2544,7 +2599,10 @@ async function loadComments() {
   const list = document.getElementById('commentList');
   const comments = await wnGetComments(fileId);
   const badge = document.getElementById('commentBadge');
-  if (badge) badge.textContent = comments.length ? comments.length : '';
+  if (badge) {
+    badge.textContent = comments.length ? comments.length : '';
+    badge.classList.toggle('show', comments.length > 0);
+  }
 
   if (!comments.length) {
     list.innerHTML = '<p style="font-size:13px;color:var(--muted);">まだコメントはありません</p>';
@@ -3339,6 +3397,52 @@ function jsq(str) {
 }
 
 /* ─────────────────────────────────
+   ヘッダーのメニュー（社外に送る／社内で使う／加工・出力／3D化を発注／その他）と、
+   そこから開く画面（ファイル情報・タグ・バージョン・承認・変換・SOLID案内）
+   メニューの項目は既存のボタンそのもの（id 同じ）なので、押したときの処理は initActions 等のまま。
+   ここでは開閉と、項目の出し分けだけを行う。
+   ───────────────────────────────── */
+function initDetailMenus() {
+  const closeAll = except => {
+    document.querySelectorAll('.fd-dd.open').forEach(d => { if (d !== except) d.classList.remove('open'); });
+    document.body.classList.toggle('fd-menu-open', !!document.querySelector('.fd-dd.open'));
+  };
+  document.querySelectorAll('[data-fd-menu]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const dd = btn.closest('.fd-dd');
+      dd.classList.toggle('open');
+      closeAll(dd);
+    });
+  });
+  /* 外側を押す・項目を押す・Esc で閉じる（項目自体の処理は各ボタンの既存ハンドラが行う） */
+  document.addEventListener('click', e => { if (!e.target.closest('.fd-menu')) closeAll(); });
+  document.querySelectorAll('.fd-menu .fd-mi').forEach(mi => mi.addEventListener('click', () => closeAll()));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(); });
+
+  const openModal = id => document.getElementById(id)?.classList.remove('hidden');
+  document.querySelectorAll('[data-fd-open]').forEach(b =>
+    b.addEventListener('click', () => openModal(b.dataset.fdOpen)));
+  document.querySelectorAll('.fd-modal').forEach(m =>
+    m.addEventListener('click', e => {
+      if (e.target === m || e.target.closest('[data-fd-close]')) m.classList.add('hidden');
+    }));
+  /* タイトル下のタグを押したらタグ編集を開く */
+  document.getElementById('fdMeta')?.addEventListener('click', () => openModal('fdTagModal'));
+
+  /* SOLID：本人のアカウントで有効な人だけヘッダーに出す。未契約の人には「その他」に案内を置く
+     （押せないボタンを置くとスマホでは理由が分からないため） */
+  const hasSolid = !!getSpaceUser()?.apps?.includes('solid');
+  document.getElementById('fdSolidDd').style.display = hasSolid ? '' : 'none';
+  document.getElementById('fdSolidInfoBtn').style.display = hasSolid ? 'none' : '';
+
+  /* 形式変換：変換できる形式のときだけ（initConvert がカードを出したかで判定） */
+  const conv = document.getElementById('convertCard');
+  document.getElementById('fdConvertOpen').style.display =
+    conv && conv.style.display !== 'none' ? '' : 'none';
+}
+
+/* ─────────────────────────────────
    右パネル タブ切替
    ───────────────────────────────── */
 function initRightPanelTabs() {
@@ -3417,8 +3521,7 @@ function renderRelations() {
       <div class="relation-item-footer">
         <span class="relation-item-name" title="${h(r.file_name)}">${h(r.file_name)}</span>
         <div class="relation-item-meta">
-          v${r.version}
-          ${r.approval_status === 'approved' ? '<span style="color:#6ee7b7;">✓承認済</span>' : ''}
+          ${r.updated_at || r.created_at ? wnFormatDate(r.updated_at || r.created_at) : ''}
         </div>
       </div>
       <button class="relation-item-del" data-relation-id="${r.relation_id}" title="関連を解除">
@@ -3612,7 +3715,7 @@ function renderRelationSuggestions() {
         </div>
         <div class="relation-suggest-body">
           <div class="relation-suggest-name" title="${h(s.file_name)}">${h(s.file_name)}</div>
-          <div class="relation-suggest-meta">v${s.version}${s.approval_status === 'approved' ? ' · <span style="color:#6ee7b7;">✓承認済</span>' : ''}</div>
+          <div class="relation-suggest-meta">${s.updated_at || s.created_at ? wnFormatDate(s.updated_at || s.created_at) : ''}</div>
         </div>
         <div class="relation-suggest-actions">
           <button class="btn btn-accent btn-sm suggest-add-btn" data-id="${s.id}" style="font-size:11px;padding:4px 8px;">
