@@ -2979,7 +2979,8 @@ body.select-mode .wn-card-hover { display: none !important; }
 .wn-crumb-back:hover { background: #f1f3f6; color: var(--text); }
 .wn-crumb-sep { color: #c3c9d2; font-size: 10px; flex-shrink: 0; }
 .wn-crumb-cur { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 4px; }
-.wn-crumb-cur i { color: var(--wn-folder); }
+.wn-crumb-cur i { color: var(--wn-folder); flex-shrink: 0; }
+.wn-crumb-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wn-folder-acts { display: inline-flex; gap: 2px; flex-shrink: 0; }
 .wn-icon-btn { width: 30px; height: 30px; border-radius: 8px; border: none; background: none; color: var(--muted); cursor: pointer; }
 .wn-icon-btn:hover { background: #f1f3f6; color: var(--text); }
@@ -3114,6 +3115,18 @@ body.select-mode .wn-card-hover { display: none !important; }
 /* ── スマホ ── */
 @media (max-width: 767px) {
   .wn-hide-sm { display: none; }
+  /* 一覧の見出しは2段に分ける（1段目=タイトル/パンくず、2段目=選択・並び順・表示切替）。
+     1行に詰めると操作ボタンにタイトルが押しつぶされ「(2…」しか見えなくなる */
+  #fileListCard > .card-header { flex-wrap: wrap !important; row-gap: 8px; }
+  #fileListCard > .card-header > div:first-child { flex: 1 1 100%; min-width: 0; }
+  #fileListCard > .card-header > .filter-bar { flex: 1 1 100%; justify-content: flex-end; }
+  /* フォルダーの中では途中の階層を省き「← 今いるフォルダー名」だけにする（細切れの「社…›2…」は読めない）。
+     1つ上へは ← で戻れる */
+  .wn-crumbs { flex: 1 1 auto; }
+  .wn-crumbs .wn-crumb, .wn-crumbs .wn-crumb-sep { display: none; }
+  .wn-crumb-cur { flex: 1 1 auto; padding-left: 0; }
+  /* フォルダーの作成は ＋ →「フォルダーを作る」とフォルダー欄の「新しいフォルダー」から */
+  #newFolderBtn { display: none !important; }
   .wn-card, .wn-folder-card, .wn-pin { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .wn-card:hover, .wn-folder-card:hover { transform: none; }
   .wn-card .file-card-name { font-size: 12px; }

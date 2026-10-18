@@ -375,7 +375,7 @@ function wnRenderCrumbs() {
     `<button type="button" class="wn-crumb-back" data-wn-act="go" data-folder-id="${up}" title="1つ上へ"><i class="fa-solid fa-arrow-left"></i></button>` +
     `<button type="button" class="wn-crumb" data-wn-act="go" data-folder-id="" data-wn-drop="">${h(viewLabel)}</button>` +
     path.map((p, i) => i === path.length - 1
-      ? `<span class="wn-crumb-sep"><i class="fa-solid fa-chevron-right"></i></span><span class="wn-crumb-cur"><i class="fa-solid fa-folder"></i>${h(p.name)}</span>`
+      ? `<span class="wn-crumb-sep"><i class="fa-solid fa-chevron-right"></i></span><span class="wn-crumb-cur" title="${h(p.name)}"><i class="fa-solid fa-folder"></i><span class="wn-crumb-name">${h(p.name)}</span></span>`
       : `<span class="wn-crumb-sep"><i class="fa-solid fa-chevron-right"></i></span><button type="button" class="wn-crumb" data-wn-act="go" data-folder-id="${p.id}" data-wn-drop="${p.id}">${h(p.name)}</button>`
     ).join('');
   if (acts) {
