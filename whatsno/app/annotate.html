@@ -98,112 +98,170 @@
     .save-dropdown-title { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
     .save-dropdown-desc  { font-size: 11px; color: #546E7A; }
 
-    /* ── 右サイドパネル ── */
-    .toolbar {
-      position: fixed;
-      top: 52px; right: 0; bottom: 0;
-      width: 330px;
-      z-index: 99;
-      background: var(--white);
-      border-left: 1px solid var(--border);
-      display: flex; flex-direction: column;
-      padding: 14px 16px;
-      gap: 4px;
-      overflow-y: auto;
-      overscroll-behavior: contain; /* キャンバスからのスクロール連鎖を防ぐ */
+    /* ── 画面の骨組み：左=道具レール / 上=選んだ道具の設定帯 / 右=ページ一覧（複数ページPDFのみ） ── */
+    :root { --rail-w: 62px; --ctx-h: 50px; --strip-w: 0px; }
+    body.has-pages { --strip-w: 176px; }
+
+    .topbar-sub { color: rgba(255,255,255,.6); font-size: 12px; font-weight: 400; margin-left: 8px; }
+    .top-pagenav { display: none; align-items: center; gap: 2px; color: #fff; font-size: 13px; font-weight: 700; white-space: nowrap; }
+    body.has-pages .top-pagenav { display: flex; }
+    .top-pagenav button { width: 30px; height: 30px; border-radius: 6px; border: none; background: none; color: #fff; cursor: pointer; }
+    .top-pagenav button:hover { background: rgba(255,255,255,.15); }
+    .top-pagenav button:disabled { opacity: .35; cursor: default; }
+
+    /* その他メニュー（全消去など、誤操作が怖いものはここへ） */
+    .more-wrap { position: relative; }
+    .more-menu {
+      display: none; position: absolute; top: calc(100% + 6px); right: 0; z-index: 300;
+      background: #fff; border: 1px solid #e0e0e0; border-radius: 10px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.15); min-width: 240px; overflow: hidden;
     }
-    .tool-section-label {
-      font-size: 10px; font-weight: 700; color: var(--muted);
-      text-transform: uppercase; letter-spacing: .05em;
-      margin: 8px 0 4px; padding: 0 2px;
+    .more-menu.open { display: block; }
+    .more-item {
+      display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px;
+      border: none; background: #fff; cursor: pointer; font-size: 13px; color: var(--text); text-align: left;
     }
-    .tool-section-label:first-child { margin-top: 0; }
-    .tool-sep { height: 1px; background: var(--border); margin: 6px 0; }
-    .tool-row { display: flex; flex-wrap: wrap; gap: 4px; }
+    .more-item:hover { background: var(--bg); }
+    .more-item + .more-item { border-top: 1px solid #F0F4F8; }
+    .more-item i { width: 16px; color: var(--muted); }
+    .more-item.danger { color: var(--red); }
+    .more-item.danger i { color: var(--red); }
+
+    /* 設定帯 */
+    .ctxbar {
+      position: fixed; top: 52px; left: 0; right: 0; height: var(--ctx-h); z-index: 98;
+      background: var(--white); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 16px 0 calc(var(--rail-w) + 14px);
+      font-size: 12px; color: var(--muted); white-space: nowrap; overflow-x: auto; overflow-y: hidden;
+    }
+    .ctx-label { font-weight: 700; color: var(--text); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+    .ctx-sec { display: flex; align-items: center; gap: 8px; }
+    .ctx-sec[hidden] { display: none; }
+    .ctx-vsep { width: 1px; height: 26px; background: var(--border); flex-shrink: 0; }
+    .ctx-hint { margin-left: auto; padding-left: 12px; }
+    .ctx-small { font-size: 11px; color: var(--muted); }
+    .tool-color-row { display: flex; gap: 6px; align-items: center; position: relative; }
+    .tool-color-btn {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      border: 2.5px solid #fff; box-shadow: 0 0 0 1px #cfd8dc; cursor: pointer;
+      transition: box-shadow var(--trans);
+    }
+    .tool-color-btn.active { box-shadow: 0 0 0 2px var(--accent) !important; }
+    .wchip {
+      height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: #fff; color: var(--text); display: flex; align-items: center; gap: 6px;
+      font-size: 12px; cursor: pointer; font-family: inherit; flex-shrink: 0;
+    }
+    .wchip:hover { border-color: #b0bec5; }
+    .wchip.active { border-color: var(--accent); background: rgba(33,150,243,.1); color: var(--accent); }
+    .wchip b { display: block; width: 22px; background: currentColor; border-radius: 9px; }
     .tool-btn {
-      width: 36px; height: 36px; border-radius: var(--radius);
+      width: 32px; height: 32px; border-radius: var(--radius);
       display: flex; align-items: center; justify-content: center;
-      font-size: 15px; color: var(--muted); border: 1.5px solid transparent;
-      cursor: pointer; background: none; transition: all var(--trans);
+      font-size: 14px; color: var(--muted); border: 1.5px solid transparent;
+      cursor: pointer; background: none; transition: all var(--trans); flex-shrink: 0;
     }
     .tool-btn:hover  { background: var(--bg); color: var(--text); }
     .tool-btn.active { background: rgba(33,150,243,.1); border-color: var(--accent); color: var(--accent); }
-    .tool-color-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0; }
-    .tool-color-btn {
-      width: 26px; height: 26px; border-radius: 50%;
-      border: 2.5px solid transparent; cursor: pointer;
-      transition: border-color var(--trans);
+    .num-in {
+      width: 58px; height: 32px; padding: 0 6px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 13px; color: var(--text); background: #fff; font-family: inherit;
     }
-    .tool-color-btn.active { border-color: var(--text) !important; }
-    .tool-size-select {
-      width: 100%; height: 40px; padding: 0 10px;
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius); font-size: 14px;
-      background: var(--white); cursor: pointer; color: var(--text);
-      -webkit-appearance: none; appearance: none;
-      min-height: 40px; box-sizing: border-box;
+    .num-in:focus { outline: none; border-color: var(--accent); }
+    .text-in {
+      width: 140px; height: 32px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 13px; color: var(--text); background: #fff; font-family: inherit;
     }
-    .tool-size-select:focus { outline: none; border-color: var(--accent); }
-    input[type="number"].tool-size-select { cursor: text; }
-    /* ── コンパクトな数値フィールド（太さ／文字サイズ／塗りつぶしを2行に集約） ── */
-    .tool-compact-row { display: flex; gap: 8px; align-items: flex-end; }
-    .tool-compact-row + .tool-compact-row { margin-top: 8px; }
-    .tool-field { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-    .tool-field-label {
-      font-size: 10px; font-weight: 700; color: var(--muted);
-      text-transform: uppercase; letter-spacing: .04em; padding: 0 2px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .tool-field .tool-size-select { height: 36px; min-height: 36px; }
-    .fill-control { display: flex; align-items: center; gap: 6px; }
-    .fill-control .tool-btn { flex-shrink: 0; width: 36px; height: 36px; }
-    .fill-control .tool-size-select { flex: 1; min-width: 0; }
-    .fill-pct { font-size: 13px; color: var(--muted); font-weight: 700; flex-shrink: 0; }
-    /* ズームボタン */
-    .zoom-btn {
-      width: 100%; height: 34px;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      border-radius: var(--radius); border: 1.5px solid var(--border);
-      background: var(--white); color: var(--text);
-      font-size: 12px; font-weight: 600; cursor: pointer;
-      transition: all var(--trans); margin-bottom: 4px;
-    }
-    .zoom-btn:hover { background: var(--bg); border-color: var(--accent); color: var(--accent); }
-    .zoom-btn.active { background: rgba(33,150,243,.1); border-color: var(--accent); color: var(--accent); }
-    /* ── ズームステッパー ── */
-    .zoom-stepper {
-      display: flex; align-items: center; gap: 4px; margin-top: 2px;
-    }
-    .zoom-step-btn {
-      width: 28px; height: 28px; border-radius: 4px;
-      border: 1.5px solid var(--border); background: var(--white);
-      font-size: 16px; line-height: 1; font-weight: 700;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: all var(--trans); flex-shrink: 0;
-    }
-    .zoom-step-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--bg); }
-    .zoom-step-btn:disabled { opacity: .4; cursor: default; }
-    #zoomLabel { flex: 1; text-align: center; font-size: 12px; font-weight: 700; color: var(--text); }
+    .text-in:focus { outline: none; border-color: var(--accent); }
 
-    /* ページナビ */
-    .page-nav {
-      display: flex; align-items: center; justify-content: center;
-      gap: 6px;
+    /* 道具レール */
+    .rail {
+      position: fixed; top: 52px; left: 0; bottom: 0; width: var(--rail-w); z-index: 99;
+      background: var(--white); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0;
+      overflow-y: auto;
     }
-    .page-nav button {
-      width: 32px; height: 32px; border-radius: var(--radius);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px; cursor: pointer; border: 1.5px solid var(--border);
-      background: var(--white); color: var(--text); flex-shrink: 0;
+    .rail-btn {
+      width: 44px; height: 44px; border-radius: 10px; border: none; background: none; cursor: pointer;
+      color: #475569; font-size: 17px; display: flex; align-items: center; justify-content: center;
+      position: relative; flex-shrink: 0;
     }
-    .page-nav button:hover { background: var(--bg); }
-    .page-nav button:disabled { opacity: .4; cursor: default; }
-    .page-nav span { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .rail-btn:hover { background: #f1f5f9; }
+    .rail-btn.active { background: var(--accent); color: #fff; }
+    .rail-btn small { position: absolute; right: 3px; bottom: 2px; font-size: 8px; opacity: .6; font-family: inherit; }
+    .rail-sep { width: 30px; border: 0; border-top: 1px solid var(--border); margin: 4px 0; flex-shrink: 0; }
+    .rail-btn.rail-stamp { color: #ea580c; background: #fff7ed; }
+    .rail-btn.rail-stamp.active { background: #ea580c; color: #fff; }
+
+    /* スタンプ・署名の吹き出し */
+    .stamp-fly {
+      position: fixed; left: calc(var(--rail-w) + 8px); bottom: 16px; width: 300px; z-index: 150;
+      background: #fff; border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.35);
+      padding: 14px; display: none; max-height: calc(100vh - 140px); overflow-y: auto;
+    }
+    .stamp-fly.open { display: block; }
+    .fly-head { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+    .fly-close { border: none; background: none; color: #94a3b8; cursor: pointer; font-size: 15px; width: 28px; height: 28px; }
+    .fly-sec + .fly-sec { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .fly-label { font-size: 11px; color: var(--muted); font-weight: 700; margin-bottom: 6px; }
+    .fly-hint { font-size: 11px; color: var(--muted); margin-top: 8px; }
+    .range-seg { display: flex; background: #f1f5f9; border-radius: 8px; padding: 3px; gap: 2px; }
+    .range-seg button {
+      flex: 1; height: 30px; border-radius: 6px; border: none; background: none; cursor: pointer;
+      font-size: 12px; color: var(--muted); white-space: nowrap; font-family: inherit;
+    }
+    .range-seg button.active { background: #fff; color: #ea580c; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+
+    /* ページ一覧（右側） */
+    .page-strip {
+      position: fixed; top: calc(52px + var(--ctx-h)); right: 0; bottom: 0; width: var(--strip-w); z-index: 97;
+      background: #1f2125; border-left: 1px solid #111; display: none; flex-direction: column;
+    }
+    body.has-pages .page-strip { display: flex; }
+    .ps-head { padding: 12px 14px 8px; color: #cbd5e1; font-size: 11px; line-height: 1.5; }
+    .ps-head b { color: #fff; font-size: 13px; display: block; }
+    .ps-list { flex: 1; overflow-y: auto; padding: 4px 14px 16px; display: flex; flex-direction: column; gap: 12px; overscroll-behavior: contain; }
+    .ps-item { position: relative; cursor: pointer; flex-shrink: 0; }
+    .ps-sheet { background: #fff; border-radius: 3px; outline: 2px solid transparent; outline-offset: 2px; min-height: 80px; display: flex; }
+    .ps-sheet canvas { display: block; width: 100%; height: auto; border-radius: 3px; }
+    .ps-item:hover .ps-sheet { outline-color: #475569; }
+    .ps-item.active .ps-sheet { outline-color: var(--accent); }
+    .ps-no { color: #94a3b8; font-size: 11px; text-align: center; margin-top: 4px; }
+    .ps-item.active .ps-no { color: #fff; font-weight: 700; }
+    .ps-badge {
+      position: absolute; top: 4px; right: 4px; background: #e53935; color: #fff; font-size: 10px; font-weight: 700;
+      border-radius: 999px; padding: 0 6px; line-height: 16px; display: none;
+    }
+    .ps-stamp {
+      position: absolute; right: 4px; bottom: 24px; width: 20px; height: 20px; border-radius: 50%;
+      background: #ea580c; color: #fff; font-size: 10px; display: none; align-items: center; justify-content: center;
+    }
+    .ps-item.has-badge .ps-badge { display: block; }
+    .ps-item.has-stamp .ps-stamp { display: flex; }
+    .ps-check {
+      position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; border-radius: 4px; background: #fff;
+      border: 2px solid #94a3b8; color: #fff; font-size: 11px; display: none; align-items: center; justify-content: center;
+    }
+    body.range-pick .ps-check { display: flex; }
+    .ps-item.picked .ps-check { background: var(--accent); border-color: var(--accent); }
+    .ps-item.picked .ps-sheet { outline-color: #ea580c; }
+
+    /* 保存メニューの押し忘れ通知 */
+    .save-dropdown-warn {
+      display: none; align-items: center; gap: 8px; padding: 10px 14px; background: #fff7ed;
+      color: #9a3412; font-size: 12px; border-top: 1px solid #fde68a;
+    }
+    .save-dropdown-warn.show { display: flex; }
+    .save-dropdown-warn button {
+      margin-left: auto; background: #ea580c; color: #fff; border: none; border-radius: 6px;
+      padding: 5px 10px; font-weight: 700; font-size: 12px; cursor: pointer; white-space: nowrap;
+    }
 
     /* ── キャンバスエリア ── */
     .canvas-area {
       position: fixed;
-      top: 52px; left: 0; right: 330px; bottom: 0;
+      top: calc(52px + var(--ctx-h)); left: var(--rail-w); right: var(--strip-w); bottom: 0;
       overflow: auto;
       overscroll-behavior: contain; /* スクロールが端に達しても親要素に連鎖しない */
       display: flex; align-items: center; justify-content: center;
@@ -305,7 +363,7 @@
 
     /* ── トースト ── */
     #toastContainer {
-      position: fixed; bottom: 20px; right: 20px; z-index: 400;
+      position: fixed; bottom: 70px; right: calc(var(--strip-w) + 16px); z-index: 400;
       display: flex; flex-direction: column; gap: 8px; pointer-events: none;
     }
     .toast {
@@ -420,74 +478,56 @@
     }
     .stamp-label-edit:focus { border-color: var(--accent); }
     .stamp-item-hint { font-size: 10px; color: var(--muted); margin-top: 3px; }
+    /* クリック配置の対象として選ばれている項目 */
+    .stamp-item.armed, .signature-drop-item.armed { border: 1.5px solid #ea580c; background: #fff7ed; }
+    .stamp-item, .signature-drop-item { cursor: pointer; }
 
     /* ══════════════════════════════════════════
        モバイル対応 (≤767px)
-       キャンバス全幅 + ツールバーを下部パネルに移動
+       道具レール → 画面下の横並び / 設定帯 → 上部で横スクロール / ページ一覧 → 非表示（上のページ送りで移動）
     ══════════════════════════════════════════ */
     @media (max-width: 767px) {
-      /* ── トップバー: コンパクト化 ── */
+      :root { --rail-w: 0px; --ctx-h: 48px; }
+      body.has-pages { --strip-w: 0px; }
       .topbar { padding: 0 8px; gap: 5px; height: 48px; }
-      .topbar-title { font-size: 12px; max-width: 70px; }
+      .topbar-title { font-size: 12px; min-width: 0; }
+      .topbar-sub { display: none; }
       .topbar-btn { padding: 5px 8px; font-size: 12px; gap: 3px; }
       #saveBtnLabel { display: none; }         /* 保存ボタンのテキスト非表示 */
-      #clearBtn .clear-label { display: none;} /* クリアテキスト非表示 */
+      .top-pagenav { font-size: 12px; }
+      .top-pagenav button { width: 26px; }
 
-      /* ── キャンバスエリア: 全幅 ── */
-      .canvas-area {
-        top: 48px;
-        right: 0;
-        bottom: 260px;
-        padding: 10px 10px 70px;
+      .ctxbar { top: 48px; padding: 0 10px; gap: 8px; }
+      .ctx-hint { display: none; }
+
+      .rail {
+        top: auto; bottom: 0; left: 0; right: 0; width: auto; height: 60px;
+        flex-direction: row; justify-content: flex-start; padding: 0 8px; gap: 2px;
+        border-right: none; border-top: 1px solid var(--border);
+        overflow-x: auto; overflow-y: hidden;
       }
+      .rail-btn small { display: none; }
+      .rail-sep { width: 1px; height: 30px; border-top: 0; border-left: 1px solid var(--border); margin: 0 4px; }
 
-      /* ── ツールバー: 下部固定パネル ── */
-      .toolbar {
-        top: auto;
-        left: 0;
-        right: 0;
-        width: 100%;
-        height: 260px;
-        border-left: none;
-        border-top: 2px solid var(--border);
-        padding: 10px 14px 16px;
-        overflow-y: auto;
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
-      }
+      .canvas-area { top: 96px; right: 0; bottom: 60px; padding: 10px 10px 70px; }
+      .page-strip { display: none !important; }
 
-      /* ── ツール・カラーボタン: コンパクト ── */
-      .tool-btn   { width: 34px; height: 34px; font-size: 14px; }
-      .tool-row   { gap: 5px; }
-      .tool-color-btn { width: 26px; height: 26px; }
-      .tool-color-row { gap: 7px; }
-      .tool-size-select { height: 44px; min-height: 44px; font-size: 15px; padding: 0 12px; }
-
-      /* ── スタンプアイテム: 縦並びを2列にしてコンパクト ── */
+      .stamp-fly { left: 8px; right: 8px; width: auto; bottom: 68px; max-height: 62vh; }
+      /* ページ一覧を出さないので「選ぶ」は使えない */
+      #rangeSeg [data-range="pick"] { display: none; }
       .stamp-palette { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 
-      /* ── ゴミ箱ゾーン: ツールバーの上に表示 ── */
-      #trashZone.visible { bottom: 268px; }
-
-      /* ── トースト: ツールバーの上に表示 ── */
-      #toastContainer { bottom: 268px; right: 12px; }
-
-      /* ── zoom/pageNavの余白調整 ── */
-      .zoom-btn { height: 32px; font-size: 12px; }
-      .zoom-step-btn { width: 26px; height: 26px; font-size: 15px; }
-      #zoomLabel { font-size: 11px; }
-      /* モバイルは下部ツールバー(260px)の上に固定表示、左右対称なので中央ずらしは不要 */
-      #pdfFloatBar { bottom: 270px; transform: translateX(-50%); }
+      #trashZone.visible { bottom: 68px; }
+      #toastContainer { bottom: 124px; right: 12px; }
+      #pdfFloatBar { bottom: 70px; right: 8px; }
     }
 
-    /* ── フローティングPDFコントロールバー ── */
+    /* ── フローティングPDFコントロールバー（右下） ── */
     /* position:fixed でビューポートに固定し、canvas-area のスクロール/ズームに追従させない */
     #pdfFloatBar {
       position: fixed;
-      bottom: 20px;
-      left: 50%;
-      /* 右側ツールバー(330px)分だけ中心をずらして、キャンバス表示領域の中央に合わせる */
-      transform: translateX(calc(-50% - 165px));
+      bottom: 16px;
+      right: calc(var(--strip-w) + 16px);
       background: rgba(28,28,28,.88);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
@@ -542,7 +582,7 @@
     /* スマホ/タブレット: 入力欄タップ時の iOS 自動ズーム防止（16px未満だとページごとズームされる）。
        #inlineTextarea はキャンバス上の文字サイズを JS で追従させているので対象外 */
     @media (max-width: 1023px), (pointer: coarse) {
-      .tool-size-select, .signature-input, .stamp-label-edit,
+      .num-in, .text-in, .signature-input, .stamp-label-edit,
       #textToolbar select.tt-font, #textToolbar .tt-size { font-size: 16px !important; }
     }
   </style>
@@ -560,17 +600,26 @@
   <button class="topbar-btn topbar-btn-back" id="backBtn">
     <i class="fa-solid fa-chevron-left"></i> 戻る
   </button>
-  <div class="topbar-title" id="topTitle">注釈編集</div>
+  <div class="topbar-title"><span id="topTitle">注釈編集</span><span class="topbar-sub" id="topSub"></span></div>
   <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+    <div class="top-pagenav">
+      <button id="prevPage" title="前のページ (PageUp)"><i class="fa-solid fa-chevron-up"></i></button>
+      <span id="pageLabel">1 / 1</span>
+      <button id="nextPage" title="次のページ (PageDown)"><i class="fa-solid fa-chevron-down"></i></button>
+    </div>
     <button class="topbar-btn topbar-btn-ghost" id="undoBtn" title="元に戻す (Ctrl+Z)">
       <i class="fa-solid fa-rotate-left"></i>
     </button>
     <button class="topbar-btn topbar-btn-ghost" id="redoBtn" title="やり直し (Ctrl+Shift+Z)" disabled>
       <i class="fa-solid fa-rotate-right"></i>
     </button>
-    <button class="topbar-btn topbar-btn-ghost" id="clearBtn">
-      <i class="fa-solid fa-eraser"></i> クリア
-    </button>
+    <div class="more-wrap">
+      <button class="topbar-btn topbar-btn-ghost" id="moreBtn" title="その他"><i class="fa-solid fa-ellipsis"></i></button>
+      <div class="more-menu" id="moreMenu">
+        <button class="more-item danger" id="clearBtn"><i class="fa-solid fa-eraser"></i> このページの注釈をすべて消す</button>
+        <button class="more-item danger" id="clearAllBtn" style="display:none;"><i class="fa-solid fa-trash-can"></i> 全ページの注釈をすべて消す</button>
+      </div>
+    </div>
     <div class="save-split-wrap" id="saveSplitWrap">
       <button class="topbar-btn topbar-btn-save save-split-main" id="saveBtn">
         <i class="fa-solid fa-floppy-disk"></i> <span id="saveBtnLabel">新バージョンとして保存</span>
@@ -593,139 +642,127 @@
             <div class="save-dropdown-desc">同じファイル名で現在のファイルに上書き保存</div>
           </div>
         </button>
+        <div class="save-dropdown-warn" id="saveWarn">
+          <i class="fa-solid fa-stamp"></i><span id="saveWarnText"></span>
+          <button id="saveWarnBtn">まとめて押す</button>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- 右サイドパネル -->
-<div class="toolbar" id="toolbar">
+<!-- 設定帯（選んでいる道具・注釈に合わせて中身が切り替わる） -->
+<div class="ctxbar" id="ctxBar">
+  <span class="ctx-label" id="ctxLabel"></span>
+  <span class="ctx-vsep"></span>
 
-  <!-- ツール選択 -->
-  <div class="tool-section-label">ツール</div>
-  <div class="tool-row">
-    <button class="tool-btn active" id="tool-text"    data-tool="text"    title="テキスト (T)"><i class="fa-solid fa-font"></i></button>
-    <button class="tool-btn"        id="tool-pen"     data-tool="pen"     title="ペン (P)"><i class="fa-solid fa-pen"></i></button>
-    <button class="tool-btn"        id="tool-line"    data-tool="line"    title="直線 (L)"><i class="fa-solid fa-minus"></i></button>
-    <button class="tool-btn"        id="tool-arrow"   data-tool="arrow"   title="矢印 (A)"><i class="fa-solid fa-arrow-right"></i></button>
-    <button class="tool-btn"        id="tool-rect"    data-tool="rect"    title="四角形 (R)"><i class="fa-regular fa-square"></i></button>
-    <button class="tool-btn"        id="tool-ellipse" data-tool="ellipse" title="楕円 (O)"><i class="fa-regular fa-circle"></i></button>
-    <button class="tool-btn"        id="tool-eraser"  data-tool="eraser"  title="消しゴム (E)"><i class="fa-solid fa-eraser"></i></button>
+  <div class="ctx-sec" data-sec="color">
+    <div class="tool-color-row">
+      <div class="tool-color-btn active" data-color="#E53935" style="background:#E53935;" title="赤"></div>
+      <div class="tool-color-btn"        data-color="#1565C0" style="background:#1565C0;" title="青"></div>
+      <div class="tool-color-btn"        data-color="#2E7D32" style="background:#2E7D32;" title="緑"></div>
+      <div class="tool-color-btn"        data-color="#F57F17" style="background:#F57F17;" title="オレンジ"></div>
+      <div class="tool-color-btn"        data-color="#FDD835" style="background:#FDD835;" title="黄"></div>
+      <div class="tool-color-btn"        data-color="#000000" style="background:#000000;" title="黒"></div>
+      <div class="tool-color-btn"        data-color="#FFFFFF" style="background:#FFFFFF;" title="白"></div>
+      <div class="tool-color-btn tool-color-custom" id="customColorBtn" title="カスタムカラー" style="display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#546E7A;background:#fff;">+</div>
+      <input type="color" id="customColorInput" style="position:absolute;left:0;top:0;width:0;height:0;opacity:0;pointer-events:none;">
+    </div>
+    <span class="ctx-vsep"></span>
   </div>
 
-  <div class="tool-sep"></div>
-
-  <!-- 色 -->
-  <div class="tool-section-label">色</div>
-  <div class="tool-color-row">
-    <div class="tool-color-btn active" data-color="#E53935" style="background:#E53935;" title="赤"></div>
-    <div class="tool-color-btn"        data-color="#1565C0" style="background:#1565C0;" title="青"></div>
-    <div class="tool-color-btn"        data-color="#2E7D32" style="background:#2E7D32;" title="緑"></div>
-    <div class="tool-color-btn"        data-color="#F57F17" style="background:#F57F17;" title="黄"></div>
-    <div class="tool-color-btn"        data-color="#000000" style="background:#000000;" title="黒"></div>
-    <div class="tool-color-btn"        data-color="#FFFFFF" style="background:#FFFFFF;border:1.5px solid #ccc;" title="白"></div>
-    <div class="tool-color-btn tool-color-custom" id="customColorBtn" title="カスタムカラー" style="display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#546E7A;border:1.5px dashed #ccc;">+</div>
-    <input type="color" id="customColorInput" style="display:none;position:absolute;">
+  <div class="ctx-sec" data-sec="width">
+    <button class="wchip" data-wpreset="0" title="細"><b style="height:2px"></b>細</button>
+    <button class="wchip" data-wpreset="1" title="中"><b style="height:4px"></b>中</button>
+    <button class="wchip" data-wpreset="2" title="太"><b style="height:8px"></b>太</button>
+    <input type="number" class="num-in" id="strokeSize" min="1" max="100" value="20" title="太さ（細かく指定）">
+    <span class="ctx-vsep"></span>
   </div>
 
-  <div class="tool-sep"></div>
-
-  <!-- 太さ・文字サイズ・塗りつぶし（コンパクト2行） -->
-  <div class="tool-compact-row">
-    <div class="tool-field">
-      <label class="tool-field-label">太さ</label>
-      <input type="number" class="tool-size-select" id="strokeSize" min="1" max="100" value="20">
-    </div>
-    <div class="tool-field">
-      <label class="tool-field-label" id="fontSizeLabel">文字サイズ</label>
-      <input type="number" class="tool-size-select" id="fontSize" min="6" max="200" value="50">
-    </div>
-  </div>
-  <div class="tool-compact-row" style="align-items:flex-end;">
-    <div class="tool-field" style="flex:1;">
-      <label class="tool-field-label">塗りつぶし（四角・楕円）</label>
-      <div class="fill-control">
-        <button class="tool-btn" id="fillToggle" title="塗りつぶし ON/OFF"><i class="fa-solid fa-fill-drip"></i></button>
-        <input type="number" class="tool-size-select" id="fillOpacityInput" min="0" max="100" value="30" title="濃さ（％）">
-        <span class="fill-pct">%</span>
-      </div>
-    </div>
-    <div style="display:flex; flex-direction:column; gap:3px; flex-shrink:0;">
-      <label class="tool-field-label">テキスト揃え</label>
-      <div style="display:flex; gap:4px;">
-        <button class="tool-btn active" data-align="left"   title="左揃え"><i class="fa-solid fa-align-left"></i></button>
-        <button class="tool-btn"        data-align="center" title="中央揃え"><i class="fa-solid fa-align-center"></i></button>
-        <button class="tool-btn"        data-align="right"  title="右揃え"><i class="fa-solid fa-align-right"></i></button>
-      </div>
-    </div>
+  <div class="ctx-sec" data-sec="fill">
+    <button class="tool-btn" id="fillToggle" title="塗りつぶし ON/OFF"><i class="fa-solid fa-fill-drip"></i></button>
+    <span class="ctx-small">濃さ</span>
+    <input type="number" class="num-in" id="fillOpacityInput" min="0" max="100" value="30" title="濃さ（％）">
+    <span class="ctx-small">%</span>
+    <span class="ctx-vsep"></span>
   </div>
 
-  <!-- スタンプ文字編集（スタンプ選択時のみ表示） -->
-  <div id="stampEditArea" style="display:none;">
-    <div class="tool-sep"></div>
-    <div class="tool-section-label">スタンプ文字</div>
-    <input type="text" class="tool-size-select" id="stampLabelInput"
-           placeholder="文字を入力" maxlength="10" style="height:36px;">
+  <div class="ctx-sec" data-sec="text">
+    <button class="wchip" data-fpreset="30">小</button>
+    <button class="wchip" data-fpreset="50">中</button>
+    <button class="wchip" data-fpreset="80">大</button>
+    <input type="number" class="num-in" id="fontSize" min="6" max="200" value="50" title="文字サイズ">
+    <span class="ctx-vsep"></span>
+    <button class="tool-btn active" data-align="left"   title="左揃え"><i class="fa-solid fa-align-left"></i></button>
+    <button class="tool-btn"        data-align="center" title="中央揃え"><i class="fa-solid fa-align-center"></i></button>
+    <button class="tool-btn"        data-align="right"  title="右揃え"><i class="fa-solid fa-align-right"></i></button>
   </div>
 
-  <!-- ズーム（PDF用） -->
-  <div id="zoomArea" style="display:none;">
-    <div class="tool-sep"></div>
-    <div class="tool-section-label">表示</div>
-    <button id="fitBtn" class="zoom-btn" title="ページ全体を1画面に収める">
-      <i class="fa-solid fa-compress"></i> 全体を収める
-    </button>
-    <button id="actualBtn" class="zoom-btn" title="幅いっぱいに拡大してスクロール">
-      <i class="fa-solid fa-expand"></i> 拡大表示
-    </button>
-    <div class="zoom-stepper">
-      <button id="zoomOutBtn" class="zoom-step-btn" title="縮小 (Ctrl+スクロール)">−</button>
-      <span id="zoomLabel">100%</span>
-      <button id="zoomInBtn"  class="zoom-step-btn" title="拡大 (Ctrl+スクロール)">＋</button>
-    </div>
-    <div style="display:flex;gap:4px;margin-top:6px;">
-      <button id="rotateCCWBtn" class="zoom-btn" style="flex:1;" title="左90°回転">
-        <i class="fa-solid fa-rotate-left"></i> 左回転
-      </button>
-      <button id="rotateCWBtn" class="zoom-btn" style="flex:1;" title="右90°回転">
-        <i class="fa-solid fa-rotate-right"></i> 右回転
-      </button>
-    </div>
+  <!-- 図面上のスタンプを選んでいるときだけ：文字の書き換え -->
+  <div class="ctx-sec" data-sec="stampSel" id="stampEditArea">
+    <span class="ctx-small">スタンプの文字</span>
+    <input type="text" class="text-in" id="stampLabelInput" placeholder="文字を入力" maxlength="10">
   </div>
 
-  <!-- ページナビ（PDF用） -->
-  <div id="pageNav" style="display:none;">
-    <div class="tool-sep"></div>
-    <div class="tool-section-label">ページ</div>
-    <div class="page-nav">
-      <button id="prevPage" title="前のページ"><i class="fa-solid fa-chevron-left"></i></button>
-      <span id="pageLabel">1 / 1</span>
-      <button id="nextPage" title="次のページ"><i class="fa-solid fa-chevron-right"></i></button>
-    </div>
+  <div class="ctx-sec" data-sec="place">
+    <span id="placeInfo" style="color:var(--text);"></span>
   </div>
 
-  <!-- 署名セクション（年月日 / 会社名 / 名前 を3行テキストとして貼り付け） -->
-  <div class="tool-sep"></div>
-  <div class="tool-section-label">署名</div>
-  <div class="signature-block">
-    <input type="text" id="sigDate"    class="signature-input" placeholder="例: 2026/05/29" maxlength="40">
-    <input type="text" id="sigCompany" class="signature-input" placeholder="会社名" maxlength="80">
-    <input type="text" id="sigName"    class="signature-input" placeholder="名前" maxlength="40">
-    <div class="signature-drop-item" id="signatureDragItem" draggable="true" title="ドラッグして貼り付け">
-      <i class="fa-solid fa-signature"></i>
-      <div class="signature-drop-info">
-        <div class="signature-drop-title">ドラッグして貼り付け</div>
-        <div class="signature-drop-hint">3行のテキストとして配置</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- スタンプパレット -->
-  <div class="tool-sep"></div>
-  <div class="tool-section-label">スタンプ</div>
-  <div class="stamp-palette" id="stampPalette"></div>
-
+  <span class="ctx-hint" id="ctxHint"></span>
 </div>
+
+<!-- 道具レール -->
+<nav class="rail" id="rail">
+  <button class="rail-btn"        data-tool="select"  title="選択 (V)"><i class="fa-solid fa-arrow-pointer"></i><small>V</small></button>
+  <button class="rail-btn active" data-tool="text"    title="文字 (T)"><i class="fa-solid fa-font"></i><small>T</small></button>
+  <button class="rail-btn"        data-tool="pen"     title="ペン (P)"><i class="fa-solid fa-pen"></i><small>P</small></button>
+  <button class="rail-btn"        data-tool="marker"  title="マーカー (H)"><i class="fa-solid fa-highlighter"></i><small>H</small></button>
+  <button class="rail-btn"        data-tool="line"    title="直線 (L)"><i class="fa-solid fa-minus"></i><small>L</small></button>
+  <button class="rail-btn"        data-tool="arrow"   title="矢印 (A)"><i class="fa-solid fa-arrow-right-long"></i><small>A</small></button>
+  <button class="rail-btn"        data-tool="rect"    title="四角 (R)"><i class="fa-regular fa-square"></i><small>R</small></button>
+  <button class="rail-btn"        data-tool="ellipse" title="丸 (O)"><i class="fa-regular fa-circle"></i><small>O</small></button>
+  <button class="rail-btn"        data-tool="eraser"  title="消しゴム (E)"><i class="fa-solid fa-eraser"></i><small>E</small></button>
+  <hr class="rail-sep">
+  <button class="rail-btn rail-stamp" data-tool="stamp" title="スタンプ・署名 (S)"><i class="fa-solid fa-stamp"></i><small>S</small></button>
+</nav>
+
+<!-- スタンプ・署名の吹き出し -->
+<div class="stamp-fly" id="stampFly">
+  <div class="fly-head">スタンプ・署名 <button class="fly-close" id="stampFlyClose" title="閉じる (Esc)"><i class="fa-solid fa-xmark"></i></button></div>
+  <div class="fly-sec">
+    <div class="stamp-palette" id="stampPalette"></div>
+  </div>
+  <div class="fly-sec">
+    <div class="fly-label">署名（3行の文字として置きます）</div>
+    <div class="signature-block">
+      <input type="text" id="sigDate"    class="signature-input" placeholder="例: 2026/05/29" maxlength="40">
+      <input type="text" id="sigCompany" class="signature-input" placeholder="会社名" maxlength="80">
+      <input type="text" id="sigName"    class="signature-input" placeholder="名前" maxlength="40">
+      <div class="signature-drop-item" id="signatureDragItem" draggable="true" title="選んでから図面をクリック（ドラッグでも置けます）">
+        <i class="fa-solid fa-signature"></i>
+        <div class="signature-drop-info">
+          <div class="signature-drop-title">署名を置く</div>
+          <div class="signature-drop-hint">選んでから図面をクリック</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="fly-sec" id="rangeSec" style="display:none;">
+    <div class="fly-label">押す範囲</div>
+    <div class="range-seg" id="rangeSeg">
+      <button data-range="one" class="active">このページだけ</button>
+      <button data-range="all" id="rangeAllBtn">全ページ</button>
+      <button data-range="pick">選ぶ</button>
+    </div>
+    <div class="fly-hint" id="rangeHint"></div>
+  </div>
+</div>
+
+<!-- ページ一覧（複数ページPDFのみ） -->
+<aside class="page-strip" id="pageStrip">
+  <div class="ps-head"><b>ページ</b><span id="psSummary"></span></div>
+  <div class="ps-list" id="psList"></div>
+</aside>
 
 <!-- キャンバスエリア -->
 <div class="canvas-area" id="canvasArea">
@@ -735,7 +772,7 @@
     <textarea id="inlineTextarea" placeholder="入力して Enter で確定…"></textarea>
   </div>
 
-  <!-- PDFフローティングコントロールバー -->
+  <!-- 表示（ズーム・回転）の操作 -->
   <div id="pdfFloatBar">
     <button class="pfb-btn" id="pfbZoomOut" title="縮小"><i class="fa-solid fa-minus"></i></button>
     <span id="pfbZoomPct">100%</span>
@@ -743,10 +780,6 @@
     <div class="pfb-sep"></div>
     <button class="pfb-btn" id="pfbFit"  title="全体を収める"><i class="fa-solid fa-compress"></i></button>
     <button class="pfb-btn" id="pfbWide" title="幅に合わせる"><i class="fa-solid fa-expand"></i></button>
-    <div class="pfb-sep" id="pfbPageSep" style="display:none;"></div>
-    <button class="pfb-btn" id="pfbPrev" title="前のページ" style="display:none;"><i class="fa-solid fa-chevron-up"></i></button>
-    <span id="pfbPageLabel" style="display:none;">1 / 1</span>
-    <button class="pfb-btn" id="pfbNext" title="次のページ" style="display:none;"><i class="fa-solid fa-chevron-down"></i></button>
     <div class="pfb-sep"></div>
     <button class="pfb-btn" id="pfbRotCCW" title="左90°回転"><i class="fa-solid fa-rotate-left"></i></button>
     <button class="pfb-btn" id="pfbRotCW"  title="右90°回転"><i class="fa-solid fa-rotate-right"></i></button>
@@ -844,7 +877,24 @@ let strokeColor = '#E53935';
 let strokeSize  = 20;
 let fontSize    = 50;
 let textAlign   = 'left';
-const TOOL_DEFAULT_SIZE = { pen: 10, line: 10, arrow: 10, rect: 5, ellipse: 5 };
+const TOOL_DEFAULT_SIZE = { pen: 10, marker: 28, line: 10, arrow: 10, rect: 5, ellipse: 5 };
+/* 設定帯の「細・中・太」に割り当てる太さ（道具ごと） */
+const WIDTH_PRESETS = {
+  pen: [4, 10, 20], marker: [16, 28, 44], line: [4, 10, 20], arrow: [4, 10, 20], rect: [3, 5, 10], ellipse: [3, 5, 10],
+};
+const MARKER_OPACITY = 0.4;   /* マーカーはペンを半透明で描いたもの（type:'pen' + opacity） */
+const TOOL_NAMES = {
+  select: ['fa-solid fa-arrow-pointer', '選択'], text: ['fa-solid fa-font', '文字'], pen: ['fa-solid fa-pen', 'ペン'],
+  marker: ['fa-solid fa-highlighter', 'マーカー'], line: ['fa-solid fa-minus', '直線'], arrow: ['fa-solid fa-arrow-right-long', '矢印'],
+  rect: ['fa-regular fa-square', '四角'], ellipse: ['fa-regular fa-circle', '丸'], eraser: ['fa-solid fa-eraser', '消しゴム'],
+  stamp: ['fa-solid fa-stamp', 'スタンプ・署名'],
+};
+const isPenTool = t => t === 'pen' || t === 'marker';
+
+/* スタンプ・署名のクリック配置 */
+let armedItem    = null;          /* { kind:'stamp', id } | { kind:'sig' } — 図面クリックで置くもの */
+let placeRange   = 'one';         /* 'one' | 'all' | 'pick' */
+const pickedPages = new Set();    /* 「選ぶ」で選ばれたページ番号 */
 
 /* ── 塗りつぶし（四角形・楕円）の既定状態 ── */
 let rectFill    = false;  /* 新規四角形・楕円を塗りつぶすか */
@@ -1003,7 +1053,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   initKeyboard();
   initCustomColor();
   initStampPalette();
+  initStampFly();
   initPdfFloatBar();
+  updateCtxBar();
 
   setLoading(true, 'ファイルを読み込み中…');
   fileData = await wnGetFile(fileId);
@@ -1051,6 +1103,13 @@ async function loadPdf() {
   const url = wnPublicViewUrl(fileId);
   pdfDoc     = await pdfjsLib.getDocument(url).promise;
   totalPages = pdfDoc.numPages;
+  /* 複数ページはページ一覧を出す（キャンバス幅が変わるので、スケール計算より先に切り替える） */
+  if (totalPages > 1) {
+    document.body.classList.add('has-pages');
+    document.getElementById('rangeSec').style.display = '';
+    document.getElementById('clearAllBtn').style.display = '';
+    document.getElementById('rangeAllBtn').textContent = `全ページ（${totalPages}）`;
+  }
 
   // 1ページ目のサイズからスケールを計算
   const firstPage  = await pdfDoc.getPage(1);
@@ -1071,26 +1130,11 @@ async function loadPdf() {
   pdfScale = fitScale;
   zoomMode = 'fit';
 
-  // ズームボタンを表示
-  document.getElementById('zoomArea').style.display = '';
   updateZoomBtns();
-
-  // フローティングバーを表示
   document.getElementById('pdfFloatBar').classList.add('visible');
-  if (totalPages > 1) {
-    ['pfbPrev','pfbNext','pfbPageLabel','pfbPageSep'].forEach(id => {
-      document.getElementById(id).style.display = '';
-    });
-    updatePfbPageLabel();
-  }
-
-  if (totalPages > 1) {
-    document.getElementById('pageNav').style.display = '';
-    document.getElementById('pageLabel').textContent = `${currentPage} / ${totalPages}`;
-    document.getElementById('prevPage').disabled = true;
-    document.getElementById('nextPage').disabled = totalPages <= 1;
-  }
+  updatePageNav();
   await renderPdfPage(currentPage);
+  if (totalPages > 1) initPageStrip();
 }
 
 async function renderPdfPage(num) {
@@ -1170,14 +1214,10 @@ function renderImagePage() {
 }
 
 function updateZoomBtns() {
-  document.getElementById('fitBtn').classList.toggle('active', zoomMode === 'fit');
-  document.getElementById('actualBtn').classList.toggle('active', zoomMode === 'normal');
   const pct = Math.round(pdfScale / normalScale * 100);
-  const pctStr = pct + '%';
-  document.getElementById('zoomLabel').textContent    = pctStr;
-  document.getElementById('pfbZoomPct').textContent   = pctStr;
-  document.getElementById('zoomOutBtn').disabled = pdfScale <= normalScale * 0.1 + 0.001;
-  document.getElementById('zoomInBtn').disabled  = pdfScale >= normalScale * 4   - 0.001;
+  document.getElementById('pfbZoomPct').textContent = pct + '%';
+  document.getElementById('pfbFit').classList.toggle('active', zoomMode === 'fit');
+  document.getElementById('pfbWide').classList.toggle('active', zoomMode === 'normal');
   document.getElementById('pfbZoomOut').disabled = pdfScale <= normalScale * 0.1 + 0.001;
   document.getElementById('pfbZoomIn').disabled  = pdfScale >= normalScale * 4   - 0.001;
 }
@@ -1195,34 +1235,6 @@ async function applyZoom(newScale) {
   updateZoomBtns();
 }
 
-document.getElementById('fitBtn').addEventListener('click', async () => {
-  if (zoomMode === 'fit') return;
-  const oldScale = pdfScale;
-  zoomMode = 'fit';
-  pdfScale = fitScale;
-  updateZoomBtns();
-  rescaleAllAnnotations(oldScale, fitScale);
-  await renderCurrentPage();
-  redrawAnnotations();
-});
-
-document.getElementById('actualBtn').addEventListener('click', async () => {
-  if (zoomMode === 'normal') return;
-  const oldScale = pdfScale;
-  zoomMode = 'normal';
-  pdfScale = normalScale;
-  updateZoomBtns();
-  rescaleAllAnnotations(oldScale, normalScale);
-  await renderCurrentPage();
-  redrawAnnotations();
-});
-
-document.getElementById('zoomInBtn').addEventListener('click', () => applyZoom(pdfScale * 1.25));
-document.getElementById('zoomOutBtn').addEventListener('click', () => applyZoom(pdfScale / 1.25));
-
-document.getElementById('rotateCCWBtn').addEventListener('click', () => applyPdfViewRotation(-90));
-document.getElementById('rotateCWBtn').addEventListener('click',  () => applyPdfViewRotation(90));
-
 /* PDF ビューア回転（全ページの注釈をリセットしてから回転） */
 async function applyPdfViewRotation(delta) {
   const hasAny = annotations.length > 0 ||
@@ -1233,10 +1245,13 @@ async function applyPdfViewRotation(delta) {
     annotations = [];
     Object.keys(pageAnnotations).forEach(k => { pageAnnotations[k] = []; });
     Object.keys(pageSizes).forEach(k => { delete pageSizes[k]; });
+    Object.keys(pageHistory).forEach(k => { delete pageHistory[k]; });
+    history = []; redoStack = []; updateUndoRedoBtns();
     redrawAnnotations();
   }
 
   pdfViewRotation = (pdfViewRotation + delta + 360) % 360;
+  resetThumbs();
 
   /* 回転後の寸法でスケールを再計算（PDF はビューポート、画像は自然サイズから） */
   let baseW, baseH;
@@ -1285,16 +1300,15 @@ function initPdfFloatBar() {
     await renderCurrentPage();
     redrawAnnotations(); updateZoomBtns();
   });
-  document.getElementById('pfbPrev').addEventListener('click', () => goToPage(currentPage - 1));
-  document.getElementById('pfbNext').addEventListener('click', () => goToPage(currentPage + 1));
   document.getElementById('pfbRotCCW').addEventListener('click', () => applyPdfViewRotation(-90));
   document.getElementById('pfbRotCW').addEventListener('click',  () => applyPdfViewRotation(90));
 }
 
-function updatePfbPageLabel() {
-  document.getElementById('pfbPageLabel').textContent = `${currentPage} / ${totalPages}`;
-  document.getElementById('pfbPrev').disabled = currentPage <= 1;
-  document.getElementById('pfbNext').disabled = currentPage >= totalPages;
+/* 上部のページ送り表示 */
+function updatePageNav() {
+  document.getElementById('pageLabel').textContent = `${currentPage} / ${totalPages}`;
+  document.getElementById('prevPage').disabled = currentPage <= 1;
+  document.getElementById('nextPage').disabled = currentPage >= totalPages;
 }
 
 /* Ctrl+マウスホイール：CSSトランスフォームで即時表示 → 300ms後に実際の再レンダリング */
@@ -1318,9 +1332,7 @@ document.getElementById('canvasArea').addEventListener('wheel', e => {
   wrap.style.transformOrigin = 'center center';
 
   /* ズーム%ラベルをリアルタイム更新 */
-  const pct = Math.round(clamped / normalScale * 100) + '%';
-  document.getElementById('zoomLabel').textContent  = pct;
-  document.getElementById('pfbZoomPct').textContent = pct;
+  document.getElementById('pfbZoomPct').textContent = Math.round(clamped / normalScale * 100) + '%';
 
   /* デバウンス：操作が止まってから再レンダリング */
   clearTimeout(_smoothZoomId);
@@ -1375,17 +1387,23 @@ function scaleAnnotation(a, r) {
 }
 
 async function goToPage(n) {
-  if (n < 1 || n > totalPages) return;
+  if (!pdfDoc || n < 1 || n > totalPages || n === currentPage) return;
+  if (inlineTA.style.display === 'block') commitInlineText();
   savePageAnnotations();
+  /* 元に戻す履歴はページごとに持つ（別ページの状態を戻してしまわないように） */
+  pageHistory[currentPage] = { h: history, r: redoStack };
   currentPage = n;
   dragging = false;
   penPath  = [];
+  selectedIdx = -1; hoverIdx = -1;
   loadPageAnnotations();
+  history   = pageHistory[n]?.h || [];
+  redoStack = pageHistory[n]?.r || [];
+  updateUndoRedoBtns();
   await renderPdfPage(currentPage);
-  document.getElementById('pageLabel').textContent = `${currentPage} / ${totalPages}`;
-  document.getElementById('prevPage').disabled = currentPage <= 1;
-  document.getElementById('nextPage').disabled = currentPage >= totalPages;
-  updatePfbPageLabel();
+  updatePageNav();
+  refreshStrip();
+  scrollStripToCurrent();
 }
 
 document.getElementById('prevPage').addEventListener('click', () => goToPage(currentPage - 1));
@@ -1394,12 +1412,183 @@ document.getElementById('nextPage').addEventListener('click', () => goToPage(cur
 /* ページ別アノテーション保管（サイズも同時保存） */
 const pageAnnotations = {};
 const pageSizes = {};
+const pageHistory = {};
 function savePageAnnotations() {
   pageAnnotations[currentPage] = [...annotations];
   pageSizes[currentPage] = { w: annotCanvas.width, h: annotCanvas.height };
 }
 function loadPageAnnotations() {
   annotations = [...(pageAnnotations[currentPage] || [])];
+}
+
+/* ────── ページ一覧（右側。複数ページPDFのみ） ────── */
+const thumbCache = {};            /* ページ番号 → { canvas: PDFだけを描いたサムネ, w1, h1: 倍率1の表示サイズ } */
+let thumbQueue = [];
+let thumbBusy  = false;
+let thumbObserver = null;
+let thumbGen = 0;                 /* 回転したら古い描画結果を捨てるための世代番号 */
+const THUMB_W = 148;
+
+/* ページの注釈（今のページは編集中の配列） */
+function pageAnnots(n) {
+  return n === currentPage ? annotations : (pageAnnotations[n] || []);
+}
+const isMark = a => a.type === 'stamp' || a.sig;
+
+function initPageStrip() {
+  const list = document.getElementById('psList');
+  list.innerHTML = '';
+  for (let n = 1; n <= totalPages; n++) {
+    const item = document.createElement('div');
+    item.className = 'ps-item';
+    item.dataset.page = n;
+    item.innerHTML =
+      `<div class="ps-sheet"><canvas></canvas></div>` +
+      `<span class="ps-badge"></span>` +
+      `<span class="ps-stamp" title="スタンプ・署名あり"><i class="fa-solid fa-stamp"></i></span>` +
+      `<span class="ps-check"><i class="fa-solid fa-check"></i></span>` +
+      `<div class="ps-no">${n}</div>`;
+    item.addEventListener('click', () => {
+      if (placeRange === 'pick') {
+        pickedPages.has(n) ? pickedPages.delete(n) : pickedPages.add(n);
+        refreshStrip();
+        updateCtxBar();
+        return;
+      }
+      goToPage(n);
+    });
+    list.appendChild(item);
+  }
+  /* 見えているサムネだけ描く（ページ数が多いPDFで一度に描かない） */
+  thumbObserver = new IntersectionObserver(entries => {
+    entries.forEach(en => { if (en.isIntersecting) queueThumb(+en.target.dataset.page); });
+  }, { root: list, rootMargin: '300px 0px' });
+  list.querySelectorAll('.ps-item').forEach(el => thumbObserver.observe(el));
+  refreshStrip();
+}
+
+function queueThumb(n) {
+  if (thumbCache[n] || thumbQueue.includes(n)) return;
+  thumbQueue.push(n);
+  pumpThumbs();
+}
+
+async function pumpThumbs() {
+  if (thumbBusy) return;
+  thumbBusy = true;
+  while (thumbQueue.length) {
+    const n = thumbQueue.shift();
+    const gen = thumbGen;
+    try {
+      const pg  = await pdfDoc.getPage(n);
+      const rot = (pg.getViewport({ scale: 1 }).rotation + pdfViewRotation) % 360;
+      const vp1 = pg.getViewport({ scale: 1, rotation: rot });
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const vp  = pg.getViewport({ scale: THUMB_W * dpr / vp1.width, rotation: rot });
+      const c = document.createElement('canvas');
+      c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+      await pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      if (gen !== thumbGen) continue;
+      thumbCache[n] = { canvas: c, w1: vp1.width, h1: vp1.height };
+      paintThumb(n);
+    } catch (e) { console.warn('[thumb]', n, e); }
+  }
+  thumbBusy = false;
+}
+
+/* サムネに注釈を重ねて描く */
+function paintThumb(n) {
+  const tc = thumbCache[n];
+  const el = document.querySelector(`#psList .ps-item[data-page="${n}"] canvas`);
+  if (!tc || !el) return;
+  el.width = tc.canvas.width; el.height = tc.canvas.height;
+  const ctx = el.getContext('2d');
+  ctx.drawImage(tc.canvas, 0, 0);
+  const annots = pageAnnots(n);
+  if (!annots.length) return;
+  const dispW = n === currentPage ? annotCanvas.width : (pageSizes[n]?.w ?? tc.w1 * pdfScale);
+  const r = el.width / dispW;
+  ctx.save();
+  ctx.scale(r, r);
+  annots.forEach(a => {
+    ctx.save();
+    ctx.strokeStyle = a.color || '#000';
+    ctx.fillStyle   = a.color || '#000';
+    ctx.lineWidth   = a.size ?? 2;
+    ctx.lineCap = ctx.lineJoin = 'round';
+    drawAnnotationToCtx(ctx, a);
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+/* バッジ・印・選択状態と見出しを更新し、指定ページのサムネを描き直す */
+function refreshStrip(pages) {
+  if (!document.body.classList.contains('has-pages')) return;
+  let withAnnot = 0, withMark = 0;
+  document.querySelectorAll('#psList .ps-item').forEach(el => {
+    const n = +el.dataset.page;
+    const annots = pageAnnots(n);
+    const cnt = annots.length;
+    if (cnt) withAnnot++;
+    const marked = annots.some(isMark);
+    if (marked) withMark++;
+    el.classList.toggle('active', n === currentPage);
+    el.classList.toggle('has-badge', cnt > 0);
+    el.classList.toggle('has-stamp', marked);
+    el.classList.toggle('picked', placeRange === 'pick' && pickedPages.has(n));
+    el.querySelector('.ps-badge').textContent = cnt;
+  });
+  document.getElementById('psSummary').textContent = `注釈 ${withAnnot}ページ・スタンプ ${withMark}ページ`;
+  document.getElementById('topSub').textContent = `${totalPages}ページ・注釈あり ${withAnnot}ページ`;
+  (pages || [currentPage]).forEach(paintThumb);
+}
+
+/* 描画のたびに呼ばれるので、今のページのサムネ更新はまとめて遅らせる */
+let _stripTimer = null;
+function scheduleStripRefresh() {
+  if (!document.body.classList.contains('has-pages')) return;
+  clearTimeout(_stripTimer);
+  _stripTimer = setTimeout(() => refreshStrip(), 350);
+}
+
+function scrollStripToCurrent() {
+  const el = document.querySelector(`#psList .ps-item[data-page="${currentPage}"]`);
+  if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+/* 回転したらサムネを作り直す */
+function resetThumbs() {
+  if (!thumbObserver) return;
+  thumbGen++;
+  thumbQueue = [];
+  Object.keys(thumbCache).forEach(k => delete thumbCache[k]);
+  document.querySelectorAll('#psList .ps-item').forEach(el => {
+    thumbObserver.unobserve(el);
+    thumbObserver.observe(el);
+  });
+}
+
+/* スタンプ・署名がないページ（どこかのページに押してあるときだけ意味がある） */
+function pagesWithoutMark() {
+  const out = [];
+  for (let n = 1; n <= totalPages; n++) if (!pageAnnots(n).some(isMark)) out.push(n);
+  return out;
+}
+function firstMark() {
+  for (let n = 1; n <= totalPages; n++) {
+    const m = pageAnnots(n).find(isMark);
+    if (m) return m;
+  }
+  return null;
+}
+
+function updateSaveWarn() {
+  const warn = document.getElementById('saveWarn');
+  const missing = pdfDoc && totalPages > 1 ? pagesWithoutMark() : [];
+  const show = missing.length > 0 && missing.length < totalPages;
+  warn.classList.toggle('show', show);
+  if (show) document.getElementById('saveWarnText').textContent = `スタンプ・署名がないページ：${pageListText(missing)}`;
 }
 
 /* ────── 画像読み込み ────── */
@@ -1446,8 +1635,7 @@ function setupImageMode(img) {
   pdfScale    = fitScale;
   zoomMode    = 'fit';
 
-  /* ズームUI・フローティングバーを表示（ページ送りは単一ページなので非表示のまま） */
-  document.getElementById('zoomArea').style.display = '';
+  /* ズーム用フローティングバーを表示（ページ送りは単一ページなので非表示のまま） */
   document.getElementById('pdfFloatBar').classList.add('visible');
 
   renderImagePage();
@@ -1464,18 +1652,112 @@ function resizeCanvases(w, h) {
 }
 
 /* ────── ツール初期化 ────── */
+/* 道具の切り替え（レール・キー操作・自動切替の共通入口） */
+function setTool(t, { keepSize = false } = {}) {
+  if (t === 'stamp' && tool === 'stamp') { setTool('select'); return; }   /* もう一度押したら閉じる */
+  tool = t;
+  document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
+  annotCanvas.style.cursor = toolCursor(tool);
+  if (!keepSize && TOOL_DEFAULT_SIZE[tool] !== undefined) setStrokeSize(TOOL_DEFAULT_SIZE[tool], false);
+  if (tool === 'stamp') {
+    selectedIdx = -1;
+    if (!armedItem) armedItem = { kind: 'stamp', id: STAMP_DEFS[0].id };
+    document.getElementById('stampFly').classList.add('open');
+  } else {
+    armedItem = null;
+    document.getElementById('stampFly').classList.remove('open');
+    setPlaceRange('one');
+  }
+  syncArmedUi();
+  hoverIdx = -1;
+  if (annotCanvas.width) redrawAnnotations();
+  updateCtxBar();
+}
+
+/* 太さを変更（設定帯の数値と、選択中の注釈にも反映） */
+function setStrokeSize(v, applyToSelection = true) {
+  strokeSize = v;
+  document.getElementById('strokeSize').value = String(v);
+  if (applyToSelection && selectedIdx >= 0 && annotations[selectedIdx]) {
+    const a = annotations[selectedIdx];
+    if (['line','arrow','rect','ellipse','pen'].includes(a.type) && a.size !== v) {
+      pushHistory();
+      a.size = v;
+      redrawAnnotations();
+    }
+  }
+  syncWidthChips();
+}
+
+/* 設定帯の「細・中・太」の見た目を今の太さに合わせる */
+function syncWidthChips() {
+  const presets = WIDTH_PRESETS[ctxTool()] || [];
+  document.querySelectorAll('[data-wpreset]').forEach(b => {
+    b.classList.toggle('active', presets[+b.dataset.wpreset] === strokeSize);
+  });
+  document.querySelectorAll('[data-fpreset]').forEach(b => {
+    b.classList.toggle('active', +b.dataset.fpreset === fontSize);
+  });
+}
+
+/* 設定帯が対象にしている道具（注釈を選んでいるときはその種類） */
+function ctxTool() {
+  if (tool === 'stamp') return 'stamp';
+  const a = selectedIdx >= 0 ? annotations[selectedIdx] : null;
+  if (a) {
+    if (a.type === 'stamp') return 'stampSel';
+    if (a.type === 'pen') return a.opacity ? 'marker' : 'pen';
+    return a.type;
+  }
+  return tool;
+}
+
+/* 設定帯の中身を切り替える（同じ状態なら DOM を触らない：マウス移動ごとに呼ばれるため） */
+let _ctxLastKey = '';
+function updateCtxBar() {
+  const t = ctxTool();
+  const key = t + '|' + (armedItem ? armedItem.kind + (armedItem.id || '') : '') + '|' + placeRange + '|' + pickedPages.size;
+  if (key === _ctxLastKey) return;
+  _ctxLastKey = key;
+  const show = {
+    color: ['text','pen','marker','line','arrow','rect','ellipse'].includes(t),
+    width: !!WIDTH_PRESETS[t],
+    fill:  t === 'rect' || t === 'ellipse',
+    text:  t === 'text',
+    stampSel: t === 'stampSel',
+    place: t === 'stamp',
+  };
+  document.querySelectorAll('#ctxBar [data-sec]').forEach(s => { s.hidden = !show[s.dataset.sec]; });
+  const nameKey = t === 'stampSel' ? 'stamp' : t;
+  const [icon, name] = TOOL_NAMES[nameKey] || TOOL_NAMES.select;
+  document.getElementById('ctxLabel').innerHTML = `<i class="${icon}"></i> ${t === 'stampSel' ? 'スタンプ' : name}`;
+  document.getElementById('ctxLabel').style.color = (t === 'stamp' || t === 'stampSel') ? '#ea580c' : '';
+  const hints = {
+    select:  'クリックで選択・ドラッグで移動。右クリックで複製・削除',
+    text:    '図面をクリックして入力。Ctrl+Enter か Esc で確定',
+    pen:     '空いている所をなぞると線が引けます',
+    marker:  '強調したい所をなぞります（半透明）',
+    eraser:  '消したい注釈をクリック（なぞると続けて消せます）',
+    stamp:   'Esc で中止',
+  };
+  document.getElementById('ctxHint').textContent = hints[t] || '';
+  if (t === 'stamp') document.getElementById('placeInfo').textContent = placeInfoText();
+  syncWidthChips();
+}
+
 function initTools() {
   document.querySelectorAll('[data-tool]').forEach(btn => {
+    btn.addEventListener('click', () => setTool(btn.dataset.tool));
+  });
+
+  document.querySelectorAll('[data-wpreset]').forEach(btn => {
     btn.addEventListener('click', () => {
-      tool = btn.dataset.tool;
-      document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      annotCanvas.style.cursor = toolCursor(tool);
-      if (TOOL_DEFAULT_SIZE[tool] !== undefined) {
-        strokeSize = TOOL_DEFAULT_SIZE[tool];
-        document.getElementById('strokeSize').value = strokeSize;
-      }
+      const v = (WIDTH_PRESETS[ctxTool()] || [])[+btn.dataset.wpreset];
+      if (v) setStrokeSize(v);
     });
+  });
+  document.querySelectorAll('[data-fpreset]').forEach(btn => {
+    btn.addEventListener('click', () => { applyTextStyle({ fontSize: +btn.dataset.fpreset }); syncWidthChips(); });
   });
 
   document.querySelectorAll('.tool-color-btn').forEach(btn => {
@@ -1490,17 +1772,7 @@ function initTools() {
 
   document.getElementById('strokeSize').addEventListener('input', e => {
     const v = parseInt(e.target.value);
-    if (v >= 1 && v <= 100) {
-      strokeSize = v;
-      /* 選択中の注釈（サイズを持つもの）に即時反映 */
-      if (selectedIdx >= 0 && annotations[selectedIdx]) {
-        const a = annotations[selectedIdx];
-        if (['line','arrow','rect','ellipse','pen'].includes(a.type)) {
-          a.size = v;
-          redrawAnnotations();
-        }
-      }
-    }
+    if (v >= 1 && v <= 100) setStrokeSize(v);
   });
 
   /* 塗りつぶし ON/OFF トグル */
@@ -1542,7 +1814,7 @@ function initTools() {
 
   document.getElementById('fontSize').addEventListener('input', e => {
     const v = parseInt(e.target.value);
-    if (v >= 6 && v <= 200) applyTextStyle({ fontSize: v });
+    if (v >= 6 && v <= 200) { applyTextStyle({ fontSize: v }); syncWidthChips(); }
   });
 
   document.querySelectorAll('[data-align]').forEach(btn => {
@@ -1588,7 +1860,7 @@ function initStampPalette() {
 
     const hint = document.createElement('div');
     hint.className = 'stamp-item-hint';
-    hint.textContent = 'ドラッグして貼り付け';
+    hint.textContent = '選んでから図面をクリック';
 
     info.appendChild(labelInput);
     info.appendChild(hint);
@@ -1603,6 +1875,11 @@ function initStampPalette() {
     item.addEventListener('dragend', () => {
       item.classList.remove('dragging-active');
       dragStampId = null;
+    });
+    /* クリックで「図面をクリックして置く」対象に選ぶ（文字欄のクリックは除く） */
+    item.addEventListener('click', e => {
+      if (e.target === labelInput) return;
+      armItem({ kind: 'stamp', id: def.id });
     });
     palette.appendChild(item);
   });
@@ -1645,13 +1922,167 @@ function initStampPalette() {
       sigDrop.classList.remove('dragging-active');
       dragSignature = false;
     });
+    sigDrop.addEventListener('click', () => armItem({ kind: 'sig' }));
   }
 }
 
+/* ────── スタンプ・署名の吹き出し（選んで図面をクリックで置く／押す範囲） ────── */
+function initStampFly() {
+  document.getElementById('stampFlyClose').addEventListener('click', () => setTool('select'));
+  document.querySelectorAll('#rangeSeg [data-range]').forEach(b => {
+    b.addEventListener('click', () => setPlaceRange(b.dataset.range));
+  });
+}
+
+function armItem(item) {
+  armedItem = item;
+  if (tool !== 'stamp') setTool('stamp');
+  syncArmedUi();
+  updateCtxBar();
+}
+
+function syncArmedUi() {
+  document.querySelectorAll('#stampPalette .stamp-item').forEach(el => {
+    el.classList.toggle('armed', armedItem?.kind === 'stamp' && armedItem.id === el.dataset.stampId);
+  });
+  document.getElementById('signatureDragItem').classList.toggle('armed', armedItem?.kind === 'sig');
+}
+
+function setPlaceRange(r) {
+  placeRange = r;
+  document.querySelectorAll('#rangeSeg [data-range]').forEach(b => b.classList.toggle('active', b.dataset.range === r));
+  document.body.classList.toggle('range-pick', r === 'pick');
+  if (r === 'pick' && !pickedPages.size) pickedPages.add(currentPage);
+  if (r !== 'pick') pickedPages.clear();
+  document.getElementById('rangeHint').textContent =
+    r === 'all'  ? 'クリックした位置と同じ場所に、全ページへ押します（同じものが押してあるページは飛ばします）'
+  : r === 'pick' ? '右のページ一覧で押すページを選んでください'
+  : '';
+  refreshStrip();
+  updateCtxBar();
+}
+
+/* 押す対象のページ番号 */
+function targetPages() {
+  if (!pdfDoc || totalPages <= 1 || placeRange === 'one') return [currentPage];
+  if (placeRange === 'all') return Array.from({ length: totalPages }, (_, i) => i + 1);
+  return [...pickedPages].sort((a, b) => a - b);
+}
+
+function armedLabel() {
+  if (!armedItem) return '';
+  if (armedItem.kind === 'sig') return '署名';
+  const def = STAMP_DEFS.find(d => d.id === armedItem.id);
+  return def ? (def.customLabel || def.label) : '';
+}
+
+function placeInfoText() {
+  if (!armedItem) return '吹き出しから押すものを選んでください';
+  const pages = targetPages();
+  const where = placeRange === 'one' || totalPages <= 1 ? '' :
+    placeRange === 'all' ? `（全${totalPages}ページの同じ場所）` :
+    pages.length ? `（${pages.length}ページ：${pageListText(pages)}）` : '（ページが選ばれていません）';
+  return `「${armedLabel()}」を選択中 ─ 図面をクリックすると押されます${where}`;
+}
+
+function pageListText(pages) {
+  return pages.length > 8 ? pages.slice(0, 8).join('・') + ` ほか${pages.length - 8}` : pages.join('・');
+}
+
+/* 置く注釈を組み立てる（座標は今のページの表示座標） */
+function buildPlaceItem(item, x, y) {
+  if (item.kind === 'stamp') {
+    const def = STAMP_DEFS.find(d => d.id === item.id);
+    return { type: 'stamp', stampId: item.id, x, y, size: 90, customLabel: def?.customLabel || null };
+  }
+  const lines = ['sigDate', 'sigCompany', 'sigName']
+    .map(id => document.getElementById(id).value.trim()).filter(s => s.length > 0);
+  if (!lines.length) return null;
+  return { type: 'text', sig: true, x, y, text: lines.join('\n'), fontSize, color: strokeColor, align: 'left' };
+}
+
+/* 同じスタンプ・署名がすでに押してあるか（「全ページ」で二重に押さないため） */
+function hasSameMark(annots, a) {
+  return (annots || []).some(b =>
+    (a.type === 'stamp' && b.type === 'stamp' && b.stampId === a.stampId) ||
+    (a.sig && b.sig && b.text === a.text));
+}
+
+/* ページの表示サイズ（注釈座標の基準）。未表示ページは今のズーム倍率から求める */
+async function pageDisplaySize(n) {
+  if (n === currentPage) return { w: annotCanvas.width, h: annotCanvas.height };
+  if (pageSizes[n]) return pageSizes[n];
+  const pg = await pdfDoc.getPage(n);
+  const rot = (pg.getViewport({ scale: 1 }).rotation + pdfViewRotation) % 360;
+  const vp = pg.getViewport({ scale: pdfScale, rotation: rot });
+  return { w: vp.width, h: vp.height };
+}
+
+/* item を (x,y) に押す。範囲が複数ページなら各ページの同じ相対位置へ */
+async function placeItemAt(item, x, y) {
+  const base = buildPlaceItem(item, x, y);
+  if (!base) { showToast('署名の項目を入力してください', 'danger'); return; }
+  const pages = targetPages();
+  if (!pages.length) { showToast('押すページを選んでください', 'danger'); return; }
+
+  const batch = 'b' + Date.now();
+  const curW = annotCanvas.width, curH = annotCanvas.height;
+  let placed = 0, skipped = 0;
+  pushHistory();
+  for (const n of pages) {
+    if (n === currentPage) {
+      if (pages.length > 1 && hasSameMark(annotations, base)) { skipped++; continue; }
+      annotations.push({ ...base, _batch: batch });
+      selectedIdx = annotations.length - 1;
+      placed++;
+      continue;
+    }
+    const list = pageAnnotations[n] || (pageAnnotations[n] = []);
+    if (hasSameMark(list, base)) { skipped++; continue; }
+    const sz = await pageDisplaySize(n);
+    const rx = sz.w / curW, ry = sz.h / curH;
+    const a = { ...base, x: x * rx, y: y * ry, _batch: batch };
+    if (a.type === 'stamp') a.size = base.size * rx;
+    else a.fontSize = base.fontSize * rx;
+    list.push(a);
+    placed++;
+  }
+
+  const label = item.kind === 'sig' ? '署名' : 'スタンプ';
+  if (!placed) {
+    history.pop(); updateUndoRedoBtns();
+    showToast(`選んだページにはすべて同じ${label}が押してあります`);
+  } else if (pages.length > 1) {
+    const msg = `${placed}ページに${label}を押しました` + (skipped ? `（押してある${skipped}ページは飛ばしました）` : '');
+    showToastWithAction(msg, '元に戻す', () => undoBatch(batch));
+  } else {
+    showToast(`${label}を押しました`, 'success');
+  }
+  /* 押したあとは位置や大きさを直せるよう、選択モードに戻す */
+  setTool('select', { keepSize: true });
+  if (pages.includes(currentPage) && annotations.length) selectedIdx = annotations.length - 1;
+  redrawAnnotations();
+  refreshStrip(pages);
+}
+
+/* 複数ページへまとめて押した分を取り消す */
+function undoBatch(batch) {
+  pushHistory();
+  annotations = annotations.filter(a => a._batch !== batch);
+  for (const k of Object.keys(pageAnnotations)) {
+    if (+k === currentPage) continue;
+    pageAnnotations[k] = pageAnnotations[k].filter(a => a._batch !== batch);
+  }
+  selectedIdx = -1;
+  redrawAnnotations();
+  refreshStrip(Object.keys(pageAnnotations).map(Number));
+  showToast('取り消しました', 'success');
+}
+
 function toolCursor(t) {
-  const map = { select: 'default', pen: 'crosshair', line: 'crosshair',
+  const map = { select: 'default', pen: 'crosshair', marker: 'crosshair', line: 'crosshair',
     arrow: 'crosshair', rect: 'crosshair', ellipse: 'crosshair',
-    text: 'text', eraser: 'cell' };
+    text: 'text', eraser: 'cell', stamp: 'copy' };
   return map[t] || 'default';
 }
 
@@ -1694,6 +2125,7 @@ function syncSidebarToAnnotation(a) {
     if (opEl && document.activeElement !== opEl) opEl.value = String(fillOpacity);
   }
   updateStampEditArea();
+  syncWidthChips();
 }
 
 /* ────── キャンバスイベント ────── */
@@ -1706,48 +2138,21 @@ function initCanvas() {
   annotCanvas.addEventListener('contextmenu', onContextMenu);
   /* ホバーカーソル */
   annotCanvas.addEventListener('mousemove', onHover);
+  annotCanvas.addEventListener('mouseleave', () => { if (tool === 'stamp') redrawAnnotations(); });
   annotCanvas.addEventListener('touchstart', e => { e.preventDefault(); onDown(touchToMouse(e)); }, { passive: false });
   annotCanvas.addEventListener('touchmove',  e => { e.preventDefault(); onMoveDoc(touchToMouse(e)); }, { passive: false });
   annotCanvas.addEventListener('touchend',   e => { e.preventDefault(); onUpDoc(touchToMouse(e)); }, { passive: false });
 
   /* スタンプ・署名のドラッグ&ドロップ（canvasArea と annotCanvas 両方で受け付ける） */
+  /* ドラッグで置いた場合もクリック配置と同じ処理（押す範囲も反映） */
   function onItemDrop(e) {
-    if (dragStampId) {
-      e.preventDefault();
-      const { x, y } = canvasXY(e);
-      const def = STAMP_DEFS.find(d => d.id === dragStampId);
-      pushHistory();
-      annotations.push({ type: 'stamp', stampId: dragStampId, x, y, size: 90, customLabel: def?.customLabel || null });
-      dragStampId = null;
-      redrawAnnotations();
-      showToast('スタンプを貼り付けました', 'success');
-      return;
-    }
-    if (dragSignature) {
-      e.preventDefault();
-      const { x, y } = canvasXY(e);
-      const date    = document.getElementById('sigDate').value.trim();
-      const company = document.getElementById('sigCompany').value.trim();
-      const name    = document.getElementById('sigName').value.trim();
-      const lines   = [date, company, name].filter(s => s.length > 0);
-      if (!lines.length) {
-        dragSignature = false;
-        showToast('署名の項目を入力してください', 'danger');
-        return;
-      }
-      pushHistory();
-      annotations.push({
-        type: 'text',
-        x, y,
-        text: lines.join('\n'),
-        fontSize: fontSize,
-        color: strokeColor,
-        align: 'left',
-      });
-      dragSignature = false;
-      redrawAnnotations();
-      showToast('署名を貼り付けました', 'success');
-    }
+    if (!dragStampId && !dragSignature) return;
+    e.preventDefault();
+    const { x, y } = canvasXY(e);
+    const item = dragStampId ? { kind: 'stamp', id: dragStampId } : { kind: 'sig' };
+    dragStampId = null;
+    dragSignature = false;
+    placeItemAt(item, x, y);
   }
   function onItemDragOver(e) {
     if (!dragStampId && !dragSignature) return;
@@ -1777,8 +2182,21 @@ function onHover(e) {
     if (hoverIdx !== -1) { hoverIdx = -1; redrawAnnotations(); }
     return;
   }
+  /* スタンプ・署名: 置く予定のものを薄く表示してカーソルに追従させる */
+  if (tool === 'stamp') {
+    redrawAnnotations();
+    const ghost = armedItem && buildPlaceItem(armedItem, x, y);
+    if (ghost) {
+      annCtx.save();
+      annCtx.globalAlpha = 0.5;
+      annCtx.strokeStyle = annCtx.fillStyle = ghost.color || '#000';
+      drawAnnotationToCtx(annCtx, ghost);
+      annCtx.restore();
+    }
+    return;
+  }
   /* ペン: 既存注釈の上ではホバーハイライトと移動カーソルを表示 */
-  if (tool === 'pen') {
+  if (isPenTool(tool)) {
     const idx = hitTest(x, y);
     if (idx !== hoverIdx) { hoverIdx = idx; redrawAnnotations(); }
     annotCanvas.style.cursor = idx >= 0 ? 'move' : 'crosshair';
@@ -1818,8 +2236,16 @@ function onDown(e) {
 
   if (tool === 'eraser') { selectedIdx = -1; eraseAt(x, y); return; }
 
+  /* スタンプ・署名: クリックした位置に置く */
+  if (tool === 'stamp') {
+    dragging = false;
+    if (!armedItem) { showToast('吹き出しから押すものを選んでください', 'danger'); return; }
+    placeItemAt(armedItem, x, y);
+    return;
+  }
+
   /* ペン: 既存注釈の上ならテキストツールと同じUXで選択・移動、空白なら描画 */
-  if (tool === 'pen') {
+  if (isPenTool(tool)) {
     const hit = hitTest(x, y);
     if (hit >= 0) {
       selectedIdx = hit;
@@ -1882,8 +2308,7 @@ function onDown(e) {
 
   if (hitOk) {
     /* 他ツールで図形クリック → selectに自動切替 */
-    tool = 'select';
-    document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === 'select'));
+    setTool('select', { keepSize: true });
     annotCanvas.style.cursor = 'move';
 
     selectedIdx = hit;
@@ -1944,7 +2369,7 @@ function onMoveDoc(e) {
   }
 
   trashZone.classList.remove('visible', 'over');
-  if (tool === 'pen') { penPath.push({ x, y }); drawPreview(x, y); return; }
+  if (isPenTool(tool)) { penPath.push({ x, y }); drawPreview(x, y); return; }
   if (tool === 'eraser') { eraseAt(x, y); return; }
   if (tool === 'text') return;   /* クリック即入力: 移動プレビューなし */
   if (tool === 'select') return;
@@ -1998,8 +2423,12 @@ function onUpDoc(e) {
   }
 
   pushHistory();
-  if (tool === 'pen') {
-    if (penPath.length > 1) annotations.push({ type: 'pen', path: [...penPath], color: strokeColor, size: strokeSize });
+  if (isPenTool(tool)) {
+    if (penPath.length > 1) {
+      const a = { type: 'pen', path: [...penPath], color: strokeColor, size: strokeSize };
+      if (tool === 'marker') a.opacity = MARKER_OPACITY;
+      annotations.push(a);
+    }
     penPath = [];
   } else if (tool === 'line' && (Math.abs(x-startX)>2||Math.abs(y-startY)>2)) {
     annotations.push({ type: 'line', x1: startX, y1: startY, x2: x, y2: y, color: strokeColor, size: strokeSize });
@@ -2021,7 +2450,8 @@ function drawPreview(curX, curY) {
   annCtx.lineWidth   = strokeSize;
   annCtx.lineCap = annCtx.lineJoin = 'round';
 
-  if (tool === 'pen') {
+  if (isPenTool(tool)) {
+    if (tool === 'marker') annCtx.globalAlpha = MARKER_OPACITY;
     annCtx.beginPath();
     penPath.forEach((p, i) => i === 0 ? annCtx.moveTo(p.x, p.y) : annCtx.lineTo(p.x, p.y));
     annCtx.stroke();
@@ -2053,21 +2483,21 @@ function updateStampEditArea() {
   const input = document.getElementById('stampLabelInput');
   if (!area || !input) return;
   const a = selectedIdx >= 0 ? annotations[selectedIdx] : null;
+  /* 表示・非表示は設定帯（updateCtxBar）が受け持つ。ここでは文字の同期だけ */
   if (a?.type === 'stamp') {
     const def = STAMP_DEFS.find(d => d.id === a.stampId);
     /* フォーカス中は上書きしない（入力中に値がリセットされるのを防ぐ） */
     if (document.activeElement !== input) {
       input.value = a.customLabel != null ? a.customLabel : (def?.label ?? '');
     }
-    area.style.display = '';
-  } else {
-    area.style.display = 'none';
   }
 }
 
 function redrawAnnotations() {
   annCtx.clearRect(0, 0, annotCanvas.width, annotCanvas.height);
   updateStampEditArea();
+  updateCtxBar();
+  scheduleStripRefresh();
   annotations.forEach((a, i) => {
     /* 編集中の注釈はtextareaで表示中なのでキャンバスには描かない */
     if (i === editingTextIdx && inlineTA.style.display === 'block') return;
@@ -2078,9 +2508,11 @@ function redrawAnnotations() {
     annCtx.lineCap = annCtx.lineJoin = 'round';
 
     if (a.type === 'pen') {
+      if (a.opacity) annCtx.globalAlpha = a.opacity;
       annCtx.beginPath();
       a.path.forEach((p, j) => j === 0 ? annCtx.moveTo(p.x, p.y) : annCtx.lineTo(p.x, p.y));
       annCtx.stroke();
+      annCtx.globalAlpha = 1;
     } else if (a.type === 'line') {
       annCtx.beginPath(); annCtx.moveTo(a.x1, a.y1); annCtx.lineTo(a.x2, a.y2); annCtx.stroke();
     } else if (a.type === 'arrow') {
@@ -2496,7 +2928,7 @@ function initTextInput() {
     /* フォーカスがツールバーに移った場合は確定しない（書式変更を継続） */
     const rt = e.relatedTarget;
     if (rt && document.getElementById('textToolbar').contains(rt)) return;
-    if (inlineTA.style.display !== 'none') commitInlineText();
+    if (inlineTA.style.display === 'block') commitInlineText();
   });
 }
 
@@ -2798,22 +3230,19 @@ function initKeyboard() {
   document.addEventListener('keydown', e => {
     const tag = document.activeElement?.tagName;
     if (tag === 'TEXTAREA' || tag === 'INPUT') return;
-    if (inlineTA.style.display !== 'none') return;
+    if (inlineTA.style.display === 'block') return;
     const ctrl = e.ctrlKey || e.metaKey;
 
-    /* ツール切替 (V P L A R O T E) */
+    /* ツール切替 (V T P H L A R O E S) */
     if (!ctrl && !e.altKey) {
-      const tmap = { v:'select', p:'pen', l:'line', a:'arrow', r:'rect', o:'ellipse', t:'text', e:'eraser' };
+      const tmap = { v:'select', p:'pen', h:'marker', l:'line', a:'arrow', r:'rect', o:'ellipse', t:'text', e:'eraser', s:'stamp' };
       const t = tmap[e.key.toLowerCase()];
-      if (t) {
-        tool = t;
-        document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
-        annotCanvas.style.cursor = toolCursor(tool);
-        const ds = TOOL_DEFAULT_SIZE[tool];
-        if (ds !== undefined) { strokeSize = ds; document.getElementById('strokeSize').value = ds; }
-        return;
-      }
+      if (t) { setTool(t); return; }
     }
+
+    /* ページ送り */
+    if (e.key === 'PageDown') { e.preventDefault(); goToPage(currentPage + 1); return; }
+    if (e.key === 'PageUp')   { e.preventDefault(); goToPage(currentPage - 1); return; }
 
     if (ctrl && !e.shiftKey && e.key.toLowerCase() === 'z') { e.preventDefault(); doUndo(); return; }
     if ((ctrl && e.shiftKey && e.key.toLowerCase() === 'z') || (ctrl && e.key.toLowerCase() === 'y')) {
@@ -2833,6 +3262,7 @@ function initKeyboard() {
       e.preventDefault(); deleteSelected(); return;
     }
     if (e.key === 'Escape') {
+      if (tool === 'stamp') { setTool('select'); return; }
       selectedIdx = -1; redrawAnnotations(); return;
     }
     if (selectedIdx >= 0 && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
@@ -2890,12 +3320,32 @@ function initTopActions() {
   document.getElementById('undoBtn').addEventListener('click', doUndo);
   document.getElementById('redoBtn').addEventListener('click', doRedo);
   updateUndoRedoBtns();
+  /* その他メニュー */
+  const moreMenu = document.getElementById('moreMenu');
+  document.getElementById('moreBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('saveDropdown').classList.remove('open');
+    moreMenu.classList.toggle('open');
+  });
+  document.addEventListener('click', () => moreMenu.classList.remove('open'));
+
   document.getElementById('clearBtn').addEventListener('click', () => {
-    if (!annotations.length) return;
-    if (!confirm('すべての注釈を削除しますか？')) return;
+    if (!annotations.length) { showToast('このページに注釈はありません'); return; }
+    if (!confirm('このページの注釈をすべて削除しますか？')) return;
     pushHistory();
     annotations = [];
+    selectedIdx = -1;
     redrawAnnotations();
+  });
+  document.getElementById('clearAllBtn').addEventListener('click', () => {
+    if (!confirm('全ページの注釈をすべて削除しますか？（元に戻せるのは今のページだけです）')) return;
+    pushHistory();
+    annotations = [];
+    selectedIdx = -1;
+    Object.keys(pageAnnotations).forEach(k => { pageAnnotations[k] = []; });
+    Object.keys(pageHistory).forEach(k => { delete pageHistory[k]; });
+    redrawAnnotations();
+    refreshStrip(Object.keys(pageAnnotations).map(Number));
   });
   // メインボタン：現在の選択モードで保存
   document.getElementById('saveBtn').addEventListener('click', () => {
@@ -2908,9 +3358,28 @@ function initTopActions() {
   const saveDropdown = document.getElementById('saveDropdown');
   saveDropBtn.addEventListener('click', (e) => {
     e.stopPropagation();
+    moreMenu.classList.remove('open');
+    if (!saveDropdown.classList.contains('open')) updateSaveWarn();
     saveDropdown.classList.toggle('open');
   });
   document.addEventListener('click', () => saveDropdown.classList.remove('open'));
+
+  /* 押し忘れ：一部のページにだけスタンプ・署名がある → 残りのページをまとめて押せるようにする */
+  document.getElementById('saveWarnBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    saveDropdown.classList.remove('open');
+    const missing = pagesWithoutMark();
+    const first = firstMark();
+    armedItem = first?.type === 'stamp' ? { kind: 'stamp', id: first.stampId } : first?.sig ? { kind: 'sig' } : null;
+    if (tool !== 'stamp') setTool('stamp');
+    syncArmedUi();
+    setPlaceRange('pick');
+    pickedPages.clear();
+    missing.forEach(n => pickedPages.add(n));
+    refreshStrip();
+    _ctxLastKey = ''; updateCtxBar();
+    showToast('押すページを選びました。図面をクリックすると、選んだページの同じ場所に押されます');
+  });
 
   // ドロップダウン項目
   document.getElementById('saveNewVerBtn').addEventListener('click', () => {
@@ -2940,7 +3409,7 @@ async function repointManualStep(newFileId) {
 /* ────── 保存（新バージョン） ────── */
 async function saveAsNewVersion() {
   /* テキスト入力中なら先に確定（blur発火タイミングの差異を吸収） */
-  if (inlineTA.style.display !== 'none') commitInlineText();
+  if (inlineTA.style.display === 'block') commitInlineText();
 
   const hasAnnotations = annotations.length > 0 || Object.values(pageAnnotations).some(p => p.length);
   if (!hasAnnotations && pdfViewRotation === 0) {
@@ -2987,7 +3456,7 @@ async function saveAsNewVersion() {
     showToast('保存エラー: ' + e.message, 'danger');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> 新バージョンとして保存';
+    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span id="saveBtnLabel">新バージョンとして保存</span>';
     setLoading(false);
   }
 }
@@ -2995,7 +3464,7 @@ async function saveAsNewVersion() {
 /* ────── 保存（上書き） ────── */
 async function saveOverwrite() {
   /* テキスト入力中なら先に確定 */
-  if (inlineTA.style.display !== 'none') commitInlineText();
+  if (inlineTA.style.display === 'block') commitInlineText();
 
   const hasAnnotations = annotations.length > 0 || Object.values(pageAnnotations).some(p => p.length);
   if (!hasAnnotations && pdfViewRotation === 0) {
@@ -3035,7 +3504,7 @@ async function saveOverwrite() {
     showToast('保存エラー: ' + e.message, 'danger');
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> そのまま保存（上書き）';
+    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span id="saveBtnLabel">そのまま保存（上書き）</span>';
     setLoading(false);
   }
 }
@@ -3113,6 +3582,7 @@ async function buildAnnotatedPdf() {
       tctx.lineWidth   = a.size ?? 2;
       tctx.lineCap = tctx.lineJoin = 'round';
       if (a.type === 'pen') {
+        if (a.opacity) tctx.globalAlpha = a.opacity;
         tctx.beginPath();
         a.path.forEach((p, i) => i === 0 ? tctx.moveTo(p.x, p.y) : tctx.lineTo(p.x, p.y));
         tctx.stroke();
@@ -3219,9 +3689,12 @@ async function buildAnnotatedImage() {
 
 function drawAnnotationToCtx(ctx, a) {
   if (a.type === 'pen') {
+    const prevAlpha = ctx.globalAlpha;
+    if (a.opacity) ctx.globalAlpha = prevAlpha * a.opacity;
     ctx.beginPath();
     a.path.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
     ctx.stroke();
+    ctx.globalAlpha = prevAlpha;
   } else if (a.type === 'line') {
     ctx.beginPath(); ctx.moveTo(a.x1, a.y1); ctx.lineTo(a.x2, a.y2); ctx.stroke();
   } else if (a.type === 'arrow') {
@@ -3265,7 +3738,8 @@ function showToastWithAction(msg, actionLabel, onAction) {
   const c = document.getElementById('toastContainer');
   const t = document.createElement('div');
   t.className = 'toast toast-success';
-  t.style.cssText = 'display:flex;align-items:center;gap:12px;min-width:240px;';
+  /* 入れ物は pointer-events:none（下の図面を触れるように）なので、ボタン付きだけ押せるようにする */
+  t.style.cssText = 'display:flex;align-items:center;gap:12px;min-width:240px;pointer-events:auto;';
   const span = document.createElement('span');
   span.textContent = msg;
   const btn = document.createElement('button');
