@@ -348,14 +348,47 @@ function wnRenderKindBar() {
   const c = wnKindCounts || {};
   const total = Object.values(c).reduce((a, b) => a + b, 0);
   const chips = WN_KINDS.filter(k => k.k === 'all' || k.k === wnKind || (c[k.k] || 0) > 0);
-  /* 種類が1つしかないなら絞り込む意味がないので出さない */
-  if (chips.length <= 2 && wnKind === 'all') { bar.innerHTML = ''; bar.style.display = 'none'; return; }
+  /* 種類が1つしかないなら絞り込む意味がないので種類チップは出さない（タグの入口だけ残す） */
+  const showKinds = !(chips.length <= 2 && wnKind === 'all');
   bar.style.display = '';
-  bar.innerHTML = chips.map(k => {
+  bar.innerHTML = (showKinds ? chips.map(k => {
     const n = k.k === 'all' ? (wnKind === 'all' ? total : '') : (c[k.k] ?? '');
     return `<button type="button" class="wn-chip${wnKind === k.k ? ' is-on' : ''}" data-wn-kind="${k.k}">
       <i class="fa-solid ${k.i}"></i>${k.l}${n !== '' ? `<small>${n}</small>` : ''}</button>`;
-  }).join('');
+  }).join('') + '<span class="wn-kind-sep"></span>' : '') + wnTagChipHtml();
+}
+
+/* タグは種類チップと見た目が似て紛らわしいので、並びの右端の「タグ ▾」1つにしまう。
+   押すと PC はこの下にパネル、スマホはボトムシート（どちらも中身は #tagFilterCard） */
+function wnTagChipHtml() {
+  const n  = (typeof selectedTags !== 'undefined' ? selectedTags.length : 0);
+  const on = n > 0 || document.body.classList.contains('tag-sheet-open');
+  return `<button type="button" class="wn-chip wn-tag-chip${on ? ' is-on' : ''}" id="wnTagChip" aria-haspopup="true">
+    <i class="fa-solid fa-tag"></i>タグ${n ? `<small>${n}件で絞り込み中</small>` : ''}<i class="fa-solid fa-chevron-down wn-tag-caret"></i></button>`;
+}
+
+function wnPlaceTagPanel() {
+  const card = document.getElementById('tagFilterCard');
+  const chip = document.getElementById('wnTagChip');
+  if (!card || !chip || window.innerWidth < 768) return;
+  const r = chip.getBoundingClientRect();
+  const w = Math.min(560, window.innerWidth - 24);
+  card.style.top  = `${r.bottom + 6}px`;
+  card.style.left = `${Math.max(12, Math.min(r.left, window.innerWidth - w - 12))}px`;
+  card.style.width = `${w}px`;
+}
+
+function wnToggleTagPanel(force) {
+  const open = typeof force === 'boolean' ? force : !document.body.classList.contains('tag-sheet-open');
+  if (open) {
+    if (typeof toggleTagSheet === 'function' && !document.body.classList.contains('tag-sheet-open')) toggleTagSheet();
+    wnPlaceTagPanel();
+  } else {
+    if (typeof closeTagSheet === 'function') closeTagSheet();
+    if (typeof setBottomActive === 'function' && document.getElementById('bnTag')?.classList.contains('active')) setBottomActive('bnHome');
+    document.getElementById('tagPopup')?.remove();
+  }
+  wnRenderKindBar();
 }
 
 function wnRenderCrumbs() {
@@ -1026,6 +1059,12 @@ async function wnPinSelected(scope) {
    ──────────────────────────────── */
 function initFolders() {
   document.addEventListener('click', e => {
+    if (e.target.closest('#wnTagChip')) { wnToggleTagPanel(); return; }
+    /* PC のタグパネルは外側を押したら閉じる（タグを押しても開いたまま＝続けて選べる） */
+    if (document.body.classList.contains('tag-sheet-open') && window.innerWidth >= 768 &&
+        !e.target.closest('#tagFilterCard, #tagPopup, #bnTag') && e.target.isConnected) {
+      wnToggleTagPanel(false);
+    }
     const kindBtn = e.target.closest('[data-wn-kind]');
     if (kindBtn) {
       wnKind = kindBtn.dataset.wnKind;

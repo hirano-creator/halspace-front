@@ -14,7 +14,7 @@
   <link rel="dns-prefetch" href="https://halspace-api-production.up.railway.app">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20261018b">
+  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20261018c">
   <style>
     /* ── 連絡先モーダル（2カラム＋タグ） ── */
     /* フォームと一覧を一度に見渡せるよう画面の広さに合わせて大きく取る。
@@ -197,6 +197,8 @@
       body.tag-sheet-open #tagFilterCard .tag-sheet-header { display: flex !important; }
       body.tag-sheet-open #tagSheetBackdrop { display: block; }
     }
+    /* パネル／シートの見出し（タグで絞り込み）と重なるので、中の「タグ」ラベルは出さない */
+    #tagFilterCard .tag-sheet-label { display: none !important; }
     #tagSheetBackdrop {
       display: none;
       position: fixed;
@@ -220,14 +222,20 @@
         display: flex;
         flex-direction: column;
       }
-      #tagFilterCard {
-        flex-shrink: 0;
-        border-left: none;
-        border-right: none;
-        border-top: none;
-        border-radius: 0;
+      /* タグは種類チップ右端の「タグ ▾」から開くパネル（常設の段は置かない） */
+      #tagFilterCard { display: none; }
+      body.tag-sheet-open #tagFilterCard {
+        display: block;
+        position: fixed;
+        z-index: 305;
         margin: 0 !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px;
+        box-shadow: 0 10px 28px rgba(0,0,0,.16);
+        overflow: visible;   /* タグ管理パネル（歯車）が切れないように。11個目以降は「その他」へ逃げるので伸びすぎない */
+        padding: 14px 16px !important;
       }
+      body.tag-sheet-open #tagFilterCard .tag-sheet-header { display: flex !important; }
       #fileListCard {
         flex: 1;
         display: flex;
@@ -372,7 +380,7 @@
           </button>
         </div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <span style="font-size:13px;font-weight:700;color:var(--primary);flex-shrink:0;">
+          <span class="tag-sheet-label" style="font-size:13px;font-weight:700;color:var(--primary);flex-shrink:0;">
             <i class="fa-solid fa-tag"></i> タグ
           </span>
           <div class="tag-list" id="tagFilterList" style="flex:1;">
@@ -1177,8 +1185,8 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=11"></script>
 <script src="../assets/js/wn-api.js?v=36"></script>
-<script src="../assets/js/pages/wn-dashboard.js?v=106"></script>
-<script src="../assets/js/pages/wn-folders.js?v=2"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=107"></script>
+<script src="../assets/js/pages/wn-folders.js?v=3"></script>
 
 <script>
 /* ── ボトムナビ ── */
@@ -1218,8 +1226,15 @@ function toggleTagSheet() {
 function closeTagSheet() {
   if (document.body.classList.contains('tag-sheet-open')) {
     document.body.classList.remove('tag-sheet-open');
+    if (typeof wnRenderKindBar === 'function') wnRenderKindBar();
   }
 }
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.body.classList.contains('tag-sheet-open')) closeTagSheet();
+});
+window.addEventListener('resize', () => {
+  if (document.body.classList.contains('tag-sheet-open') && typeof wnPlaceTagPanel === 'function') wnPlaceTagPanel();
+});
 
 function setBottomActive(id) {
   document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));

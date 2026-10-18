@@ -3159,6 +3159,7 @@ function updateTagFilterControls() {
   const andBadge = document.getElementById('tagAndBadge');
   if (clearBtn) clearBtn.style.display = n ? '' : 'none';
   if (andBadge) andBadge.style.display = n >= 2 ? '' : 'none';
+  if (typeof wnRenderKindBar === 'function') wnRenderKindBar();   // 「タグ ▾」の件数
 }
 
 /* ─── タグ グローバルドラッグ並び替え ─── */

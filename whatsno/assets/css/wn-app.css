@@ -2969,6 +2969,11 @@ body.select-mode .wn-card-hover { display: none !important; }
 .wn-chip i { font-size: 11px; }
 .wn-chip small { opacity: .6; font-size: 11px; }
 .wn-chip.is-on { background: var(--primary); border-color: var(--primary); color: #fff; }
+/* 種類（拡張子で自動）とタグ（人が付ける目印）は別物なので、区切り線で分けて右端に置く */
+.wn-kind-sep { flex-shrink: 0; width: 1px; margin: 4px 2px; background: var(--border); }
+.wn-tag-chip { border-style: dashed; }
+.wn-tag-chip.is-on { border-style: solid; background: var(--accent); border-color: var(--accent); }
+.wn-tag-chip .wn-tag-caret { font-size: 9px; opacity: .7; }
 
 /* ── パンくず（フォルダーの中） ── */
 .wn-crumbs { display: inline-flex !important; align-items: center; gap: 2px; min-width: 0; }
