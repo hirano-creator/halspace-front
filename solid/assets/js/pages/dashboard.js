@@ -100,6 +100,11 @@ if (user) {
       const data = await api.get('/projects' + params);
       if (!data) return true;   // 401はapiFetch側でログアウト済み
       allProjects = data.projects ?? [];
+      /* 発注者はチャットが無いので、一覧の未読数で通知音を鳴らす
+         （社内側・モデラーはnotify-sound.jsが/chat/unreadで見ている） */
+      if (typeof SolidSound !== 'undefined' && !canUseChat(user)) {
+        SolidSound.watch('projects', allProjects.reduce((n, p) => n + (p.unread_count || 0), 0));
+      }
       if (loadFailing) showToast('サーバーとの通信が回復しました', 'success');
       loadFailing = false;
       failStreak  = 0;

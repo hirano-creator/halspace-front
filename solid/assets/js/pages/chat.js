@@ -796,6 +796,12 @@ if (typeof startAutoRefresh === 'function') {
       const data = await api.get(`/chat/rooms/${encodeURIComponent(activeKey)}/messages`
         + (activeChannel ? `?channel=${encodeURIComponent(activeChannel)}` : ''));
       if (data && data.messages.length !== messages.length) {
+        /* 開いているルームは既読になるので未読数が増えない。他の人の新着はここで鳴らす */
+        const known = new Set(messages.map(m => m.id));
+        if (typeof SolidSound !== 'undefined'
+            && data.messages.some(m => !known.has(m.id) && Number(m.user_id) !== Number(user.id))) {
+          SolidSound.play();
+        }
         messages = data.messages;
         renderMessages();
         markRead(activeKey);
