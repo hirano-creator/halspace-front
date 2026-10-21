@@ -219,3 +219,8 @@ const MOCK = {
     { id:3, name:'株式会社テスト商会', slug:'test-co', plan:'pro',      is_active:false,users:5, projects:0 },
   ],
 };
+
+/* Pages のデプロイ切替中に出る一時エラー画面（5xx）を再試行で吸収する Service Worker（キャッシュはしない） */
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('/sw-retry.js', { scope: '/solid/' }).catch(() => {});
+}

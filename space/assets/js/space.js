@@ -685,3 +685,8 @@ function renderStore() {
     });
   });
 }
+
+/* Pages のデプロイ切替中に出る一時エラー画面（5xx）を再試行で吸収する Service Worker（キャッシュはしない） */
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('/sw-retry.js', { scope: '/space/' }).catch(() => {});
+}
