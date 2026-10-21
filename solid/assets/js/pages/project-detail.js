@@ -2231,7 +2231,7 @@ function renderChat() {
     });
     editor.addEventListener('keydown', e => {
       if (e.key === 'Escape') { e.preventDefault(); cancelEditComment(); return; }
-      // 入力欄と同じ操作感（PCはEnterで確定 / Shift+Enterで改行、スマホはEnterで改行）
+      // 入力欄と同じ操作感（Enterで改行 / Ctrl+Enterで確定）
       if (isChatSendKey(e)) { e.preventDefault(); saveEditComment(); }
     });
     box.querySelector('[data-edit-save]')?.addEventListener('click', saveEditComment);
