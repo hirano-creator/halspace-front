@@ -224,6 +224,7 @@ function renderConv(channels) {
     ? r.members.slice(0, 4).map(m => avatar(m.name))
     : [...new Set(messages.map(m => m.user_name))].slice(0, 4).map(n => avatar(n));
   $('convFaces').innerHTML = faces.join('');
+  $('btnRoomEdit').style.display = r.kind === 'group' ? 'grid' : 'none';
 
   /* 物件チャットのチャンネル切替 */
   const tabs = $('convChannels');
@@ -616,6 +617,89 @@ $('newRoomCreate').addEventListener('click', async () => {
     solidToast(data?.existing ? '既存のチャットを開きました' : 'チャットを作成しました');
   } catch (e) {
     solidToast(e.message || '作成に失敗しました', false);
+  }
+});
+
+/* ===== グループの設定（名前・メンバーの追加/削除） ===== */
+
+let editUsers = [];
+let editSelected = new Set();
+
+$('btnRoomEdit').addEventListener('click', async () => {
+  if (activeRoom?.kind !== 'group') return;
+  const members = activeRoom.members ?? [];
+  editSelected = new Set(members.map(m => m.id));
+  $('roomEditName').value = activeRoom.name ?? '';
+  $('roomEditModal').classList.remove('hidden');
+  try {
+    const data = await api.get('/chat/candidates');
+    const list = data?.users ?? [];
+    // 自分を先頭に、候補に出ない既存メンバーも外せるよう一覧に残す
+    const known = new Set(list.map(u => u.id));
+    editUsers = [
+      { id: user.id, name: user.name, company: '（自分）' },
+      ...members.filter(m => m.id !== user.id && !known.has(m.id)).map(m => ({ id: m.id, name: m.name, company: '' })),
+      ...list,
+    ];
+    renderEditUsers();
+  } catch (e) {
+    solidToast(e.message || 'ユーザー一覧の取得に失敗しました', false);
+  }
+});
+
+function renderEditUsers() {
+  // 参加中のメンバーを上にまとめる
+  const sorted = [...editUsers].sort((a, b) =>
+    (a.id === user.id ? -1 : b.id === user.id ? 1 : 0)
+    || (editSelected.has(b.id) - editSelected.has(a.id)));
+  $('roomEditUsers').innerHTML = sorted.map(u => `
+    <div class="cr-userrow ${editSelected.has(u.id) ? 'on' : ''}" data-uid="${u.id}">
+      ${avatar(u.name, 'sm')}
+      <div>
+        <div class="nm">${esc(u.name)}</div>
+        <div class="co">${esc(u.company ?? '')}</div>
+      </div>
+      <input type="checkbox" ${editSelected.has(u.id) ? 'checked' : ''}>
+    </div>`).join('');
+
+  $('roomEditUsers').querySelectorAll('[data-uid]').forEach(row =>
+    row.addEventListener('click', () => {
+      const id = Number(row.dataset.uid);
+      editSelected.has(id) ? editSelected.delete(id) : editSelected.add(id);
+      renderEditUsers();
+    }));
+
+  $('roomEditCount').textContent = `（${editSelected.size}名）`;
+}
+
+const closeRoomEdit = () => $('roomEditModal').classList.add('hidden');
+$('roomEditClose').addEventListener('click', closeRoomEdit);
+$('roomEditCancel').addEventListener('click', closeRoomEdit);
+
+$('roomEditSave').addEventListener('click', async () => {
+  const name = $('roomEditName').value.trim();
+  if (!name) { solidToast('グループ名を入力してください', false); return; }
+  if (editSelected.size < 2) { solidToast('グループには2名以上のメンバーが必要です', false); return; }
+  const leaving = !editSelected.has(user.id);
+  if (leaving && !confirm('自分がメンバーから外れるため、このグループから退出します。よろしいですか？')) return;
+
+  try {
+    await api.patch(`/chat/rooms/${encodeURIComponent(activeKey)}`, { name, member_ids: [...editSelected] });
+    closeRoomEdit();
+    if (leaving) {
+      activeKey = null;
+      activeRoom = null;
+      $('convBody').style.display = 'none';
+      $('convEmpty').style.display = '';
+      $('chatShell').classList.remove('show-conv');
+      solidToast('グループから退出しました');
+    } else {
+      await openRoom(activeKey);
+      solidToast('グループの設定を保存しました');
+    }
+    await loadRooms();
+  } catch (e) {
+    solidToast(e.message || '保存に失敗しました', false);
   }
 });
 

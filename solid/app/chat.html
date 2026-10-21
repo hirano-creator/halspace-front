@@ -99,6 +99,7 @@
               <span id="convSub"></span>
             </div>
             <div class="cr-faces" id="convFaces"></div>
+            <button class="cr-ib" id="btnRoomEdit" title="メンバー・グループ名の変更" style="display:none"><i class="fa-solid fa-user-gear"></i></button>
             <button class="cr-ib" id="btnPin" title="ピン留めを編集"><i class="fa-solid fa-thumbtack"></i></button>
             <button class="cr-ib" id="btnOpenProject" title="プロジェクト詳細を開く" style="display:none"><i class="fa-solid fa-up-right-from-square"></i></button>
           </div>
@@ -172,6 +173,33 @@
   </div>
 </div>
 
+<!-- グループの編集（名前・メンバー） -->
+<div class="modal-overlay hidden" id="roomEditModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-user-gear" style="color:var(--primary)"></i> グループの設定</span>
+      <button class="modal-close" id="roomEditClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="display:grid;gap:14px;">
+      <div>
+        <label class="form-label">グループ名</label>
+        <input type="text" class="form-input" id="roomEditName" maxlength="120">
+      </div>
+      <div>
+        <label class="form-label">メンバー<span id="roomEditCount" style="color:var(--muted);font-weight:400;"></span></label>
+        <div class="cr-userlist" id="roomEditUsers"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">
+          チェックを外すとグループから外れます。自分を外すと退出します。
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="roomEditCancel">キャンセル</button>
+      <button class="btn btn-primary" id="roomEditSave">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- ピン留めの編集 -->
 <div class="modal-overlay hidden" id="pinModal">
   <div class="modal" style="max-width:440px;">
@@ -206,6 +234,6 @@
 <script src="../assets/js/auth.js?v=9"></script>
 <script src="../assets/js/api.js"></script>
 <script src="../assets/js/chat-reply.js?v=20261021"></script>
-<script src="../assets/js/pages/chat.js?v=20261021"></script>
+<script src="../assets/js/pages/chat.js?v=20261021b"></script>
 </body>
 </html>
