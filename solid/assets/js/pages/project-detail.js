@@ -3165,6 +3165,16 @@ async function init() {
                          || updated.modeler_id !== project.modeler_id;
     const filesChanged    = reviewSig(updated.files) !== reviewSig(project.files);
     const commentsChanged = commentsSig(updated.comments) !== commentsSig(comments);
+    /* 他の人の新着コメントで通知音。社内側・モデラーの「見ていないタブ」の分は
+       notify-sound.jsの未読確認が鳴らすので、ここでは表示中のチャンネルだけ */
+    if (commentsChanged && typeof SolidSound !== 'undefined') {
+      const known = new Set(comments.map(c => c.id));
+      if ((updated.comments ?? []).some(c => !known.has(c.id)
+            && Number(c.user_id) !== Number(user.id)
+            && (c.channel === currentChannel || !canUseChat(user)))) {
+        SolidSound.play();
+      }
+    }
     const deadlineChanged = deadlineSig(updated) !== deadlineSig(project);
 
     project  = updated;
