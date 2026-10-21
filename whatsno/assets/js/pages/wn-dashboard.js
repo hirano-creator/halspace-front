@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadTags();
   await loadFiles();
+  loadSidebarStorage();
   initNav();
   initFolders();
   applyStorageModeUi();
@@ -3867,12 +3868,45 @@ async function doUpload() {
 
   closeUploadModal();
   await loadFiles();
+  loadSidebarStorage();
 
   if (failCount === 0) {
     wnShowToast('アップロードが完了しました', 'success');
   } else if (failCount > 3) {
     wnShowToast(`${failCount}件のアップロードに失敗しました`, 'danger');
   }
+}
+
+/* ── サイドバー：会社単位のデータ使用容量 ──
+   管理者画面「容量」タブと同じ /wn/storage を使う。スーパー管理者には全社分が返るので自社分だけ拾う。
+   上限（契約容量）はまだ無いので、量と種別ごとの内訳だけを出す */
+const SIDEBAR_STORAGE_CATS = [
+  { key: 'video', label: '動画', color: '#E53935' }, { key: 'pdf', label: 'PDF', color: '#1565C0' },
+  { key: 'image', label: '画像', color: '#2E7D32' }, { key: 'cad', label: 'CAD/3D', color: '#F57F17' },
+  { key: 'document', label: 'ドキュメント', color: '#6A1B9A' }, { key: 'other', label: 'その他', color: '#78909C' },
+];
+async function loadSidebarStorage() {
+  const box = document.getElementById('sidebarStorage');
+  if (!box) return;
+  try {
+    const res = await wnFetch('/wn/storage');
+    if (!res || !res.ok) return;
+    const list = (await res.json())?.data || [];
+    const c = list.find(x => x.company_id === currentUser.company_id) || (list.length === 1 ? list[0] : null);
+    if (!c) return;
+    const total = c.total_size || 0;
+    document.getElementById('sidebarStorageSize').textContent = wnFormatSize(total);
+    document.getElementById('sidebarStorageBar').innerHTML = total ? SIDEBAR_STORAGE_CATS.map(cat => {
+      const sz = c.by_category?.[cat.key] || 0;
+      return sz ? `<span style="width:${(sz / total * 100).toFixed(1)}%;background:${cat.color};"></span>` : '';
+    }).join('') : '';
+    box.title = SIDEBAR_STORAGE_CATS
+      .filter(cat => c.by_category?.[cat.key])
+      .map(cat => `${cat.label}: ${wnFormatSize(c.by_category[cat.key])}`).join('\n');
+    const sub = document.getElementById('sidebarStorageSub');
+    sub.textContent = `${c.company_name || ''} · ${(c.total_count || 0).toLocaleString()}件`;
+    box.style.display = '';
+  } catch (e) { /* 容量が取れなくても一覧の操作には影響させない */ }
 }
 
 /* ────────────────────────────────

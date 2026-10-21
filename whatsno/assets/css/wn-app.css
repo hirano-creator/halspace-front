@@ -172,6 +172,26 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   border-radius: 20px;
 }
 
+/* ── 会社のデータ使用容量（サイドバー、音声検索の上） ── */
+.sidebar-storage {
+  margin: auto 12px 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.sidebar-storage-head { font-size: 11px; font-weight: 600; color: var(--muted); }
+.sidebar-storage-head i { margin-right: 4px; }
+.sidebar-storage-size { font-size: 16px; font-weight: 700; color: var(--text); margin: 2px 0 6px; }
+.sidebar-storage-bar {
+  display: flex; height: 6px; border-radius: 20px; overflow: hidden; background: #e8edf2;
+}
+.sidebar-storage-bar span { height: 100%; }
+.sidebar-storage-sub {
+  font-size: 11px; color: var(--muted); margin-top: 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 /* ── 現場用ボイス検索エリア（サイドバー中段） ── */
 .sidebar-voice-area {
   padding: 12px 12px 8px;
