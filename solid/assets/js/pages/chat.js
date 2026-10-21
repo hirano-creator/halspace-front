@@ -661,7 +661,7 @@ input.addEventListener('input', () => {
   input.style.height = Math.min(input.scrollHeight, 140) + 'px';
 });
 input.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+  if (isChatSendKey(e)) {
     e.preventDefault();
     send();
   }
