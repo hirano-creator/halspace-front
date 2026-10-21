@@ -2231,8 +2231,8 @@ function renderChat() {
     });
     editor.addEventListener('keydown', e => {
       if (e.key === 'Escape') { e.preventDefault(); cancelEditComment(); return; }
-      // 入力欄と同じ操作感（Enterで確定 / Shift+Enterで改行）。IME変換中は無視
-      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); saveEditComment(); }
+      // 入力欄と同じ操作感（PCはEnterで確定 / Shift+Enterで改行、スマホはEnterで改行）
+      if (isChatSendKey(e)) { e.preventDefault(); saveEditComment(); }
     });
     box.querySelector('[data-edit-save]')?.addEventListener('click', saveEditComment);
     box.querySelector('[data-edit-cancel]')?.addEventListener('click', cancelEditComment);
@@ -2477,7 +2477,7 @@ document.getElementById('commentSubmit').addEventListener('click', async () => {
 });
 
 document.getElementById('commentInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) {
+  if (isChatSendKey(e)) {
     e.preventDefault();
     document.getElementById('commentSubmit').click();
   }

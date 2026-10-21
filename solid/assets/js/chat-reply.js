@@ -10,6 +10,14 @@
  *  ALLOWED_REACTIONS）と同じ6種で揃えておくこと */
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
+/** 入力欄の keydown が「送信」にあたるか。PC は Enter で送信・Shift+Enter で改行。
+ *  スマホ（タッチ主体）はキーボードに Shift が無く改行できなくなるので、Enter は常に改行にして
+ *  送信ボタンだけで送る（LINE と同じ）。IME の変換確定の Enter は送信しない */
+function isChatSendKey(e) {
+  if (e.key !== 'Enter' || e.shiftKey || e.isComposing || e.keyCode === 229) return false;
+  return !window.matchMedia('(pointer: coarse)').matches;
+}
+
 /** 絵文字ごとに集計済みのリアクション一覧（{emoji,count,mine}[]）をチップ行のHTMLにする。
  *  0件なら何も出さない */
 function reactionsHtml(reactions) {
