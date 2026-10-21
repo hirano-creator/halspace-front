@@ -2891,3 +2891,9 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
   .chat-card.is-collapsed .card-header { padding: 0 !important; }
   .chat-card.is-collapsed { padding: 12px 16px; }
 }
+
+/* スマホ: 入力欄にフォーカスしたとき iOS が画面を拡大しないよう、文字入力欄は 16px 未満にしない */
+@media (max-width: 1023px), (pointer: coarse) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),
+  textarea, select { font-size: 16px !important; }
+}
