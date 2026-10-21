@@ -3438,8 +3438,26 @@ function initDetailMenus() {
 
   /* 形式変換：変換できる形式のときだけ（initConvert がカードを出したかで判定） */
   const conv = document.getElementById('convertCard');
-  document.getElementById('fdConvertOpen').style.display =
-    conv && conv.style.display !== 'none' ? '' : 'none';
+  const canConv = !!conv && conv.style.display !== 'none';
+  document.getElementById('fdConvertOpen').style.display = canConv ? '' : 'none';
+
+  /* PDF分割：変換画面の中に埋もれて見つからないので、PDFのときは独立した項目として出す。
+     どちらから開いたかで変換画面の初期選択を切り替える */
+  const sel = document.getElementById('convertTarget');
+  const hasSplit = canConv && !!sel?.querySelector('option[value="split"]');
+  document.getElementById('fdSplitOpen').style.display = hasSplit ? '' : 'none';
+  const pick = wantSplit => {
+    if (!hasSplit) return;
+    document.getElementById('fdConvertTitle').innerHTML = wantSplit
+      ? '<i class="fa-solid fa-scissors" style="color:var(--accent);"></i> ページを分割'
+      : '<i class="fa-solid fa-rotate" style="color:var(--accent);"></i> 形式を変換';
+    const opt = [...sel.options].find(o => (o.value === 'split') === wantSplit);
+    if (!opt || sel.value === opt.value) return;
+    sel.value = opt.value;
+    sel.dispatchEvent(new Event('change'));
+  };
+  document.getElementById('fdSplitOpen').addEventListener('click', () => pick(true));
+  document.getElementById('fdConvertOpen').addEventListener('click', () => pick(false));
 }
 
 /* ─────────────────────────────────
