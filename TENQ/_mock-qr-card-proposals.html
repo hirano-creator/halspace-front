@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TENQ カード型モック5案</title>
+<style>
+:root {
+  --page-bg: #EEF1F5; --page-ink: #1B2430; --page-sub: #5B6675; --page-line: #D6DCE4;
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+
+  /* 状態の色（5案共通。色だけに頼らず、必ず文字とアイコンも併記する） */
+  --st-ok: #15803D;   --st-ok-lt: #DCFCE7;
+  --st-ng: #DC2626;   --st-ng-lt: #FEE2E2;
+  --st-doing: #2563EB; --st-doing-lt: #DBEAFE;
+  --st-late: #D97706; --st-late-lt: #FEF3C7;
+  --st-todo: #64748B; --st-todo-lt: #F1F5F9;
+  --st-stop: #475569; --st-stop-lt: #E2E8F0;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--page-bg); color: var(--page-ink); font-family: var(--font); line-height: 1.6; }
+button { font: inherit; cursor: pointer; }
+.page-head { background: #fff; border-bottom: 1px solid var(--page-line); padding: 20px 24px 0; position: sticky; top: 0; z-index: 30; }
+.page-head h1 { margin: 0; font-size: 20px; }
+.page-head p { margin: 4px 0 12px; font-size: 13px; color: var(--page-sub); }
+.tabs { display: flex; gap: 4px; overflow-x: auto; }
+.tabs button { font-size: 14px; border: 1px solid var(--page-line); border-bottom: none; background: #F6F8FA; padding: 8px 16px; border-radius: 8px 8px 0 0; white-space: nowrap; color: var(--page-sub); }
+.tabs button[aria-selected="true"] { background: var(--page-bg); color: var(--page-ink); font-weight: 700; }
+main { padding: 24px; max-width: 1480px; margin: 0 auto; }
+.concept { background: #fff; border: 1px solid var(--page-line); border-radius: 12px; padding: 18px 24px; margin-bottom: 20px; }
+.concept h2 { margin: 0 0 4px; font-size: 22px; }
+.concept .lead { margin: 0 0 10px; color: var(--page-sub); }
+.concept .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px 24px; font-size: 14px; }
+.concept h3 { font-size: 13px; margin: 0 0 2px; color: var(--page-sub); }
+.concept ul { margin: 0; padding-left: 1.2em; }
+.label { font-size: 13px; color: var(--page-sub); font-weight: 700; margin: 0 0 8px; }
+.pc { border: 1px solid #C3CBD6; border-radius: 10px; overflow: hidden; background: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+.pc .chrome { height: 28px; background: #E4E8EE; display: flex; align-items: center; gap: 6px; padding: 0 12px; font-size: 11px; color: var(--page-sub); }
+.pc .chrome i { width: 10px; height: 10px; border-radius: 50%; background: #C3CBD6; display: block; }
+.pc .chrome span { margin-left: 12px; }
+.pc-body { overflow-x: auto; }
+.pc-inner { min-width: 1200px; position: relative; }
+.flow { background: #fff; border: 1px solid var(--page-line); border-radius: 12px; padding: 18px 24px; margin-top: 24px; }
+.flow h2 { margin: 0 0 4px; font-size: 18px; }
+.flow .lead { margin: 0 0 14px; color: var(--page-sub); font-size: 14px; }
+.flow-grid { display: grid; grid-template-columns: 1fr 395px; gap: 28px; align-items: start; }
+@media (max-width: 980px) { .flow-grid { grid-template-columns: 1fr; } }
+.steps { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.steps span { font-size: 13px; background: #F1F5F9; border-radius: 999px; padding: 4px 12px; }
+.steps b { color: #1F5FD1; margin-right: 4px; }
+.labels { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+.qrlabel { border: 2px solid #1B2430; border-radius: 8px; background: #fff; padding: 10px; display: grid; grid-template-columns: 76px 1fr; gap: 10px; align-items: center; text-align: left; position: relative; transition: transform .15s, box-shadow .15s; }
+.qrlabel:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.12); }
+.qrlabel svg { width: 76px; height: 76px; display: block; }
+.qrlabel .lb-brand { font-size: 10px; font-weight: 800; letter-spacing: .1em; color: #1F5FD1; }
+.qrlabel .lb-code { font-size: 20px; font-weight: 800; line-height: 1.1; }
+.qrlabel .lb-name { font-size: 12px; line-height: 1.3; }
+.qrlabel .lb-area { font-size: 10px; color: var(--page-sub); }
+.qrlabel .lb-hint { position: absolute; right: 8px; bottom: 6px; font-size: 10px; color: #1F5FD1; font-weight: 700; }
+.note { font-size: 12px; color: var(--page-sub); margin-top: 12px; line-height: 1.7; }
+.note b { color: var(--page-ink); }
+[hidden] { display: none !important; }
+
+/* ===== スマホ ===== */
+.phone { width: 375px; max-width: 100%; height: 760px; border: 10px solid #1B2430; border-radius: 36px; overflow: hidden; background: #fff; position: relative; box-shadow: 0 8px 24px rgba(0,0,0,.14); }
+.phone .screen { height: 100%; overflow-y: auto; position: relative; font-size: 15px; background: #F5F7FA; }
+.cam { position: absolute; inset: 0; background: #1E252E; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; }
+.cam .finder { width: 230px; height: 230px; position: relative; margin: 20px 0; }
+.cam .corner { position: absolute; width: 48px; height: 48px; border: 4px solid #fff; }
+.cam .c1 { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 16px 0 0 0; }
+.cam .c2 { top: 0; right: 0; border-left: none; border-bottom: none; border-radius: 0 16px 0 0; }
+.cam .c3 { bottom: 0; left: 0; border-right: none; border-top: none; border-radius: 0 0 0 16px; }
+.cam .c4 { bottom: 0; right: 0; border-left: none; border-top: none; border-radius: 0 0 16px 0; }
+.cam .scanline { position: absolute; left: 12px; right: 12px; height: 2px; background: #4ADE80; box-shadow: 0 0 12px #4ADE80; animation: scan 1.8s ease-in-out infinite; }
+@keyframes scan { 0% { top: 12px; } 50% { top: calc(100% - 14px); } 100% { top: 12px; } }
+.cam .found { position: absolute; inset: 20px; display: grid; place-items: center; }
+.cam .found svg { width: 170px; height: 170px; background: #fff; padding: 8px; border-radius: 6px; }
+.cam .hint { font-size: 15px; opacity: .9; }
+.cam .sub { font-size: 12px; opacity: .6; margin-top: 6px; }
+.cam .pill { margin-top: 18px; font-size: 13px; background: rgba(255,255,255,.12); border-radius: 999px; padding: 6px 14px; }
+.toast { position: absolute; left: 16px; right: 16px; bottom: 28px; background: #fff; color: #1B2430; border-radius: 14px; padding: 12px 14px; font-size: 14px; display: flex; gap: 10px; align-items: center; box-shadow: 0 8px 20px rgba(0,0,0,.3); }
+.toast .t-code { font-weight: 800; }
+.ph-hdr { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #fff; border-bottom: 1px solid #E1E6EC; position: sticky; top: 0; z-index: 2; }
+.ph-hdr .who { font-size: 11px; color: #5F6B7A; text-align: right; line-height: 1.3; }
+.eqhead { background: #fff; padding: 14px 16px; border-bottom: 1px solid #E1E6EC; }
+.eqhead .ok-scan { display: inline-flex; gap: 4px; align-items: center; font-size: 12px; font-weight: 700; color: var(--st-ok); background: var(--st-ok-lt); border-radius: 999px; padding: 2px 10px; margin-bottom: 6px; }
+.eqhead .code { font-size: 12px; color: #5F6B7A; }
+.eqhead .name { font-size: 21px; font-weight: 800; margin: 2px 0; }
+.eqhead .meta { font-size: 12px; color: #5F6B7A; }
+.prog { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 13px; font-weight: 700; }
+.prog .bar { flex: 1; height: 6px; background: #E1E6EC; border-radius: 999px; overflow: hidden; }
+.prog .bar span { display: block; height: 100%; background: #1F5FD1; transition: width .2s; }
+.icard { background: #fff; border: 1px solid #E1E6EC; border-radius: 12px; margin: 10px 16px 0; padding: 12px 14px; }
+.icard .lbl { font-weight: 700; }
+.icard .req { color: var(--st-ng); font-size: 11px; font-weight: 700; margin-left: 4px; }
+.icard .crit { font-size: 12px; color: #5F6B7A; }
+.judge { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.judge.na3 { grid-template-columns: 1fr 1fr .7fr; }
+.judge button { border: 2px solid #E1E6EC; background: #fff; border-radius: 10px; padding: 11px 4px; font-weight: 700; color: #5F6B7A; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.judge button.on-ok { border-color: var(--st-ok); background: var(--st-ok-lt); color: var(--st-ok); }
+.judge button.on-ng { border-color: var(--st-ng); background: var(--st-ng-lt); color: var(--st-ng); }
+.judge button.on-na { border-color: #64748B; background: #F1F5F9; color: #334155; }
+.ngnote { margin-top: 8px; font-size: 12px; color: var(--st-ng); background: var(--st-ng-lt); border-radius: 8px; padding: 8px 10px; }
+.ph-foot { position: sticky; bottom: 0; padding: 12px 16px 18px; background: linear-gradient(to top, #F5F7FA 70%, transparent); }
+.btn-main { width: 100%; border: none; border-radius: 12px; background: #1F5FD1; color: #fff; font-weight: 700; font-size: 17px; padding: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-main:disabled { background: #B8C0CB; cursor: not-allowed; }
+.btn-ghost { width: 100%; border: 1px solid #D6DCE4; background: #fff; border-radius: 12px; padding: 12px; font-weight: 600; margin-top: 10px; }
+.ico { width: 18px; height: 18px; flex: none; }
+
+/* ===== PC 共通 ===== */
+.app { font-family: var(--font); color: #1B2430; background: #F5F7FA; min-height: 700px; }
+.topbar { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: #fff; border-bottom: 1px solid #E1E6EC; }
+.topbar .sp { flex: 1; }
+.topbar .ctx { font-size: 13px; color: #5F6B7A; }
+.topbar select { font: inherit; font-size: 14px; border: 1px solid #D6DCE4; border-radius: 8px; padding: 6px 10px; background: #fff; }
+.logo { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: .08em; font-size: 18px; }
+.logo svg { width: 26px; height: 26px; }
+.logo small { display: block; font-size: 9px; letter-spacing: .12em; font-weight: 600; opacity: .7; margin-top: -2px; }
+.summary { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 20px 4px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 2px solid transparent; border-radius: 999px; padding: 5px 12px; font-size: 14px; font-weight: 700; background: #fff; }
+.chip .n { font-size: 16px; }
+.chip.on { outline: 3px solid #1B2430; outline-offset: 1px; }
+.chip-all { border-color: #CBD5E1; }
+.st-ok    { --c: var(--st-ok);    --lt: var(--st-ok-lt); }
+.st-ng    { --c: var(--st-ng);    --lt: var(--st-ng-lt); }
+.st-doing { --c: var(--st-doing); --lt: var(--st-doing-lt); }
+.st-late  { --c: var(--st-late);  --lt: var(--st-late-lt); }
+.st-todo  { --c: var(--st-todo);  --lt: var(--st-todo-lt); }
+.st-stop  { --c: var(--st-stop);  --lt: var(--st-stop-lt); }
+.chip[class*="st-"] { border-color: var(--c); color: var(--c); background: var(--lt); }
+.stbadge { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; color: var(--c); }
+.stbadge .ico { width: 16px; height: 16px; }
+.abn { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; color: #fff; background: var(--st-ng); border-radius: 999px; padding: 1px 8px; }
+.legend { margin-left: auto; font-size: 12px; color: #5F6B7A; }
+
+/* ドロワー（カードをクリックすると開く） */
+.drawer-bg { position: absolute; inset: 0; background: rgba(15,23,42,.25); z-index: 5; }
+.drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 380px; background: #fff; z-index: 6; box-shadow: -8px 0 24px rgba(0,0,0,.15); overflow-y: auto; }
+.drawer .dh { padding: 16px 18px; border-bottom: 4px solid var(--c); background: var(--lt); }
+.drawer .dh .x { float: right; border: none; background: none; font-size: 22px; line-height: 1; color: #5F6B7A; }
+.drawer .dh .code { font-size: 13px; color: #5F6B7A; }
+.drawer .dh .name { font-size: 22px; font-weight: 800; }
+.drawer .db { padding: 14px 18px; font-size: 14px; }
+.drawer dl { display: grid; grid-template-columns: 96px 1fr; gap: 6px 10px; margin: 0 0 14px; }
+.drawer dt { color: #5F6B7A; }
+.drawer dd { margin: 0; }
+.drawer h3 { font-size: 13px; color: #5F6B7A; margin: 14px 0 6px; }
+.drawer .res { display: flex; justify-content: space-between; border-bottom: 1px solid #E1E6EC; padding: 6px 0; }
+.drawer .qrbox { display: flex; gap: 12px; align-items: center; border: 1px dashed #CBD5E1; border-radius: 10px; padding: 10px; }
+.drawer .qrbox svg { width: 72px; height: 72px; }
+.drawer .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.drawer .acts button { border: 1px solid #D6DCE4; background: #fff; border-radius: 10px; padding: 10px; font-weight: 700; font-size: 13px; }
+.drawer .acts button.pri { background: #1B2430; color: #fff; border-color: #1B2430; }
+
+/* ===== A案 信号タイル ===== */
+.pA .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; padding: 14px 20px 24px; }
+.pA .tile { border: none; border-radius: 14px; padding: 14px; text-align: left; color: #fff; background: var(--c); min-height: 150px; display: flex; flex-direction: column; position: relative; box-shadow: 0 2px 0 rgba(0,0,0,.12); }
+.pA .tile.st-todo { background: #fff; color: #1B2430; border: 2px dashed #94A3B8; }
+.pA .tile.st-stop { background: repeating-linear-gradient(135deg, #CBD5E1, #CBD5E1 10px, #E2E8F0 10px, #E2E8F0 20px); color: #334155; }
+.pA .tile .code { font-size: 30px; font-weight: 900; line-height: 1; letter-spacing: .02em; }
+.pA .tile .name { font-size: 14px; font-weight: 700; margin-top: 4px; opacity: .95; }
+.pA .tile .st { margin-top: auto; display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 900; }
+.pA .tile .tm { font-size: 12px; opacity: .9; }
+.pA .tile .abn { position: absolute; top: 10px; right: 10px; background: #fff; color: var(--st-ng); }
+.pA .tile.st-ng .abn { background: #fff; }
+
+/* ===== B案 白カード＋色帯（詳細） ===== */
+.pB .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 14px 20px 24px; }
+.pB .card { border: 1px solid #E1E6EC; border-radius: 12px; background: #fff; text-align: left; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.pB .card .band { height: 8px; background: var(--c); }
+.pB .card.st-stop .band { background: repeating-linear-gradient(135deg, #94A3B8, #94A3B8 6px, #E2E8F0 6px, #E2E8F0 12px); }
+.pB .card .in { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.pB .card .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pB .card .code { font-size: 13px; color: #5F6B7A; font-weight: 700; }
+.pB .card .name { font-size: 17px; font-weight: 800; line-height: 1.3; }
+.pB .card .pill { display: inline-flex; align-items: center; gap: 4px; background: var(--lt); color: var(--c); border-radius: 999px; padding: 3px 10px; font-size: 13px; font-weight: 800; }
+.pB .card .meta { font-size: 12px; color: #5F6B7A; display: grid; grid-template-columns: 56px 1fr; gap: 0 6px; }
+.pB .card .foot { border-top: 1px solid #EEF1F4; padding: 8px 14px; display: flex; justify-content: space-between; font-size: 12px; color: #5F6B7A; background: #FAFBFC; }
+
+/* ===== C案 エリア別（工場の配置どおり） ===== */
+.pC .floor { display: grid; grid-template-columns: 1.3fr 1.3fr 1fr; grid-template-rows: auto auto; gap: 14px; padding: 14px 20px 24px; }
+.pC .area { border: 2px solid #CBD5E1; border-radius: 14px; background: #fff; padding: 10px 12px 12px; }
+.pC .area.wide { grid-column: span 2; }
+.pC .area h4 { margin: 0 0 8px; display: flex; justify-content: space-between; align-items: center; font-size: 15px; }
+.pC .area h4 small { font-size: 12px; color: #5F6B7A; font-weight: 600; }
+.pC .area .meter { height: 6px; background: #E2E8F0; border-radius: 999px; overflow: hidden; display: flex; margin-bottom: 10px; }
+.pC .area .meter span { display: block; height: 100%; }
+.pC .area .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.pC .mc { border: none; border-left: 8px solid var(--c); background: var(--lt); border-radius: 8px; padding: 8px 10px; text-align: left; min-height: 86px; display: flex; flex-direction: column; }
+.pC .mc.st-stop { background: repeating-linear-gradient(135deg, #F1F5F9, #F1F5F9 8px, #E2E8F0 8px, #E2E8F0 16px); }
+.pC .mc .code { font-size: 18px; font-weight: 900; line-height: 1.1; }
+.pC .mc .name { font-size: 12px; }
+.pC .mc .stbadge { margin-top: auto; font-size: 13px; }
+.pC .mc .row { display: flex; justify-content: space-between; align-items: center; }
+
+/* ===== D案 状態ごとの列（カンバン） ===== */
+.pD .board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; padding: 14px 20px 24px; align-items: start; }
+.pD .col { background: #fff; border: 1px solid #E1E6EC; border-radius: 12px; overflow: hidden; }
+.pD .col .ch { padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; background: var(--c); color: #fff; font-weight: 800; }
+.pD .col.st-todo .ch { background: #64748B; }
+.pD .col .ch .n { font-size: 22px; line-height: 1; }
+.pD .col .cl { padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 120px; background: var(--lt); }
+.pD .kc { border: 1px solid #E1E6EC; border-left: 6px solid var(--c); background: #fff; border-radius: 8px; padding: 8px 10px; text-align: left; }
+.pD .kc .code { font-weight: 900; font-size: 16px; }
+.pD .kc .name { font-size: 13px; }
+.pD .kc .meta { font-size: 11px; color: #5F6B7A; display: flex; justify-content: space-between; margin-top: 4px; }
+.pD .empty { font-size: 12px; color: #94A3B8; text-align: center; padding: 16px 0; }
+
+/* ===== E案 大型モニター（アンドン） ===== */
+.pE.app { background: #fff; }
+.pE .bigbar { display: grid; grid-template-columns: 1.3fr repeat(5, 1fr); border-bottom: 4px solid #0A0A0A; }
+.pE .bigbar > div { padding: 12px 16px; border-right: 2px solid #0A0A0A; }
+.pE .bigbar > div:last-child { border-right: none; }
+.pE .bigbar .clock { font-size: 40px; font-weight: 900; line-height: 1; }
+.pE .bigbar .date { font-size: 14px; font-weight: 700; }
+.pE .bigbar .k { background: var(--lt); }
+.pE .bigbar .k .v { font-size: 46px; font-weight: 900; line-height: 1; color: var(--c); }
+.pE .bigbar .k .l { font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 6px; }
+.pE .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 12px; }
+.pE .big { border: 4px solid #0A0A0A; border-radius: 8px; padding: 0; text-align: left; background: #fff; overflow: hidden; display: flex; flex-direction: column; min-height: 168px; }
+.pE .big .top { background: var(--c); color: #fff; padding: 6px 10px; font-size: 18px; font-weight: 900; display: flex; align-items: center; gap: 6px; }
+.pE .big.st-todo .top { background: #fff; color: #0A0A0A; border-bottom: 3px solid #0A0A0A; }
+.pE .big.st-stop .top { background: repeating-linear-gradient(135deg, #475569, #475569 8px, #64748B 8px, #64748B 16px); }
+.pE .big.st-ng, .pE .big.st-late { animation: blink 1.4s steps(2, start) infinite; }
+@keyframes blink { 50% { border-color: var(--c); } }
+.pE .big .code { font-size: 44px; font-weight: 900; line-height: 1; padding: 10px 10px 0; }
+.pE .big .name { font-size: 16px; font-weight: 800; padding: 2px 10px; }
+.pE .big .tm { margin-top: auto; padding: 4px 10px 8px; font-size: 14px; font-weight: 700; color: #3D3D3D; display: flex; justify-content: space-between; }
+.pE .ticker { background: #0A0A0A; color: #FFC400; font-weight: 800; padding: 8px 16px; font-size: 16px; display: flex; gap: 24px; overflow: hidden; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <h1>TENQ カード型ダッシュボード＋QR点検 モック5案</h1>
+  <p>比較用のモックです（本番の画面ではありません・データはダミー）。下の「QRでかざす」でラベルを押すとスマホで読み取ったことになり、点検を完了するとPCのカードの色が変わります。カードを押すと設備の詳細が開きます。</p>
+  <nav class="tabs" id="tabs"></nav>
+</header>
+<main id="main"></main>
+
+<script>
+'use strict';
+
+/* ===== アイコン ===== */
+const I = {
+  ok:   '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  ng:   '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"><path d="M12 3.5L21.5 20h-19z"/><path d="M12 10v4.5M12 17.2v.3" stroke-linecap="round"/></svg>',
+  doing:'<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 4a8 8 0 1 0 8 8"/><path d="M12 8v4l3 2"/></svg>',
+  late: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  todo: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="12" cy="12" r="8"/></svg>',
+  stop: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></svg>',
+  x:    '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  qr:   '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.5" y="3.5" width="6" height="6" rx="1"/><rect x="14.5" y="3.5" width="6" height="6" rx="1"/><rect x="3.5" y="14.5" width="6" height="6" rx="1"/><path d="M14.5 14.5h2.5v2.5M20.5 14.5v6h-3.5M14.5 20.5v-1"/></svg>',
+};
+
+/* 状態の定義（色・文字・アイコンを必ずセットで使う） */
+const ST = {
+  late:  { label: '遅れ（未点検）', short: '遅れ',   ico: 'late'  },
+  ng:    { label: '異常あり',       short: '異常',   ico: 'ng'    },
+  doing: { label: '点検中',         short: '点検中', ico: 'doing' },
+  todo:  { label: '未点検',         short: '未点検', ico: 'todo'  },
+  ok:    { label: '完了・正常',     short: '正常',   ico: 'ok'    },
+  stop:  { label: '停止中',         short: '停止中', ico: 'stop'  },
+};
+const ORDER = ['late', 'ng', 'doing', 'todo', 'ok', 'stop'];
+
+/* ===== 点検項目（設備の種類ごと） ===== */
+const TPL = {
+  press: [
+    ['外観', '本体・フレームに破損や変形がないこと', 1, 0], ['異音・異臭', '運転中に普段と違う音・においがないこと', 1, 0],
+    ['油漏れ', '配管継手・床に作動油のにじみがないこと', 1, 0], ['光線式安全装置', '手をかざして停止すること', 1, 0],
+    ['非常停止ボタン', '押して停止し、復帰できること', 1, 0], ['清掃状態', '金型周辺に切りくず・油だまりがないこと', 0, 1]],
+  cut: [
+    ['外観', 'カバー・扉に破損がないこと', 1, 0], ['異音・振動', '主軸・送りに異音や振動がないこと', 1, 0],
+    ['切削油', '量が規定範囲で、漏れがないこと', 1, 0], ['扉インターロック', '扉を開けると停止すること', 1, 0],
+    ['非常停止ボタン', '押して停止し、復帰できること', 1, 0], ['切りくず清掃', 'チップコンベアが詰まっていないこと', 0, 1]],
+  weld: [
+    ['外観', 'ロボット・ポジショナに損傷がないこと', 1, 0], ['ケーブル・ホース', '被覆の傷・ガス漏れがないこと', 1, 0],
+    ['安全柵・扉', '扉を開けると停止すること', 1, 0], ['非常停止ボタン', '押して停止し、復帰できること', 1, 0],
+    ['ノズル清掃', 'スパッタが付着していないこと', 0, 1]],
+  air: [
+    ['外観', '本体・配管に損傷がないこと', 1, 0], ['異音', '運転音に異常がないこと', 1, 0],
+    ['ドレン排出', 'ドレンを排出したこと', 1, 0], ['圧力計', '0.6〜0.7MPa の範囲であること', 1, 0], ['安全弁', '錆・固着がないこと', 1, 0]],
+  lift: [
+    ['外観', 'フック・ワイヤーに損傷がないこと', 1, 0], ['巻上・巻下', '動作が正常で、ブレーキが効くこと', 1, 0],
+    ['リミットスイッチ', '上限で停止すること', 1, 0], ['ペンダント', '押しボタンが正常に戻ること', 1, 0]],
+};
+
+/* ===== 設備（ダミー）。時刻は「今 10:30」の想定 ===== */
+const AREAS = [
+  { id: 'A', name: 'A棟 プレスライン' },
+  { id: 'B', name: 'B棟 切削' },
+  { id: 'C', name: 'C棟 溶接' },
+  { id: 'U', name: '共用設備・屋外' },
+];
+const EQUIP = [
+  { code: 'P-01', name: '油圧プレス機 1号', area: 'A', tpl: 'press', st: 'ok',    tm: '08:12', by: '山本', due: '始業前', abn: 0 },
+  { code: 'P-02', name: '油圧プレス機 2号', area: 'A', tpl: 'press', st: 'ok',    tm: '08:20', by: '山本', due: '始業前', abn: 0 },
+  { code: 'P-03', name: '油圧プレス機 3号', area: 'A', tpl: 'press', st: 'doing', tm: '10:24', by: '山本', due: '始業前', abn: 0 },
+  { code: 'P-04', name: 'サーボプレス 4号', area: 'A', tpl: 'press', st: 'late',  tm: '',      by: '',     due: '始業前', abn: 0 },
+  { code: 'L-05', name: 'NC旋盤 5号',       area: 'B', tpl: 'cut',   st: 'ok',    tm: '08:35', by: '佐藤', due: '始業前', abn: 0 },
+  { code: 'L-07', name: 'NC旋盤 7号',       area: 'B', tpl: 'cut',   st: 'ng',    tm: '08:41', by: '佐藤', due: '始業前', abn: 1, abnTitle: '主軸から異音' },
+  { code: 'M-04', name: 'マシニングセンタ 4号', area: 'B', tpl: 'cut', st: 'late', tm: '',     by: '',     due: '始業前', abn: 0 },
+  { code: 'M-06', name: 'マシニングセンタ 6号', area: 'B', tpl: 'cut', st: 'ok',   tm: '08:50', by: '鈴木', due: '始業前', abn: 0 },
+  { code: 'K-02', name: '研削盤 2号',       area: 'B', tpl: 'cut',   st: 'stop',  tm: '',      by: '',     due: '—',     abn: 1, abnTitle: '安全カバー留め具破損（修理待ち）' },
+  { code: 'W-01', name: '溶接ロボット 1号', area: 'C', tpl: 'weld',  st: 'ok',    tm: '09:02', by: '田中', due: '本日中', abn: 0 },
+  { code: 'W-02', name: '溶接ロボット 2号', area: 'C', tpl: 'weld',  st: 'todo',  tm: '',      by: '',     due: '本日中', abn: 0 },
+  { code: 'W-03', name: '溶接ロボット 3号', area: 'C', tpl: 'weld',  st: 'todo',  tm: '',      by: '',     due: '本日中', abn: 0 },
+  { code: 'C-11', name: 'エアコンプレッサー', area: 'U', tpl: 'air', st: 'todo',  tm: '',      by: '',     due: '本日中', abn: 0 },
+  { code: 'CR-1', name: '天井クレーン 2.8t', area: 'U', tpl: 'lift', st: 'ok',    tm: '07:55', by: '中村', due: '始業前', abn: 0 },
+  { code: 'CR-2', name: 'チェーンブロック 1t', area: 'U', tpl: 'lift', st: 'ng',   tm: '08:05', by: '中村', due: '始業前', abn: 1, abnTitle: 'ブレーキの効きが弱い' },
+];
+const SCAN_TARGETS = ['P-03', 'P-04', 'M-04', 'W-02', 'W-03', 'C-11'];
+
+/* ===== 疑似QR（モック用の図柄。読み取りはできない） ===== */
+function qrSvg(seed) {
+  const n = 25; let s = 0;
+  for (const ch of seed) s = (s * 31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const finder = (x, y) => `<rect x="${x}" y="${y}" width="7" height="7" fill="#111"/><rect x="${x + 1}" y="${y + 1}" width="5" height="5" fill="#fff"/><rect x="${x + 2}" y="${y + 2}" width="3" height="3" fill="#111"/>`;
+  const inF = (x, y) => (x < 8 && y < 8) || (x > n - 9 && y < 8) || (x < 8 && y > n - 9);
+  let cells = '';
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (!inF(x, y) && rnd() > .52) cells += `<rect x="${x}" y="${y}" width="1" height="1"/>`;
+  return `<svg viewBox="-1 -1 ${n + 2} ${n + 2}" shape-rendering="crispEdges"><rect x="-1" y="-1" width="${n + 2}" height="${n + 2}" fill="#fff"/><g fill="#111">${cells}</g>${finder(0, 0)}${finder(n - 7, 0)}${finder(0, n - 7)}</svg>`;
+}
+
+function logo(frame = '#1F5FD1', check = '#1F5FD1', sub = true) {
+  return `<span class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="6" fill="none" stroke="${frame}" stroke-width="3"/><path d="M9.5 16.5l4.5 4.5 8.5-9.5" fill="none" stroke="${check}" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 22.5l4 4" stroke="${frame}" stroke-width="3" stroke-linecap="round"/></svg><span>TENQ${sub ? '<small>SMART INSPECTION</small>' : ''}</span></span>`;
+}
+
+/* ===== 状態 ===== */
+const ui = { tab: 'A', filter: 'all', drawer: null, phone: 'camera', scanning: null, current: null, ans: {} };
+
+const eq = code => EQUIP.find(e => e.code === code);
+const count = st => EQUIP.filter(e => e.st === st).length;
+const visible = () => ui.filter === 'all' ? EQUIP : EQUIP.filter(e => e.st === ui.filter);
+const badge = st => `<span class="stbadge st-${st}">${I[ST[st].ico]}${ST[st].short}</span>`;
+const timeText = e => e.st === 'ok' || e.st === 'ng' ? `${e.tm} ${e.by}` : e.st === 'doing' ? `${e.by} 点検中` : e.st === 'late' ? `期限 ${e.due}` : e.st === 'todo' ? `期限 ${e.due}` : '点検対象外';
+
+function chips() {
+  const total = EQUIP.length;
+  return `<div class="summary">
+    <button class="chip chip-all ${ui.filter === 'all' ? 'on' : ''}" data-filter="all">すべて <span class="n">${total}</span></button>
+    ${ORDER.map(s => `<button class="chip st-${s} ${ui.filter === s ? 'on' : ''}" data-filter="${s}">${I[ST[s].ico]}${ST[s].label} <span class="n">${count(s)}</span></button>`).join('')}
+    <span class="legend">色・アイコン・文字の3つで状態を表示</span>
+  </div>`;
+}
+
+function topbar(extra = '') {
+  return `<div class="topbar">${logo()}<select><option>第1工場</option><option>第2工場</option></select><span class="ctx">2026年10月22日（水）10:30 ・ 日常点検</span><span class="sp"></span>${extra}<span class="ctx">工場長 中村 誠</span></div>`;
+}
+
+/* ===== A案 信号タイル ===== */
+function pcA() {
+  return `<div class="app pA">${topbar()}${chips()}
+    <div class="grid">${visible().map(e => `
+      <button class="tile st-${e.st}" data-eq="${e.code}">
+        ${e.abn ? `<span class="abn">${I.ng}異常 ${e.abn}</span>` : ''}
+        <div class="code">${e.code}</div>
+        <div class="name">${e.name}</div>
+        <div class="st">${I[ST[e.st].ico]}${ST[e.st].short}</div>
+        <div class="tm">${timeText(e)}</div>
+      </button>`).join('')}</div></div>`;
+}
+
+/* ===== B案 白カード＋色帯 ===== */
+function pcB() {
+  return `<div class="app pB">${topbar('<button style="border:1px solid #D6DCE4;background:#fff;border-radius:8px;padding:6px 12px;font-size:13px">並び順: 状態が悪い順 ▾</button>')}${chips()}
+    <div class="grid">${[...visible()].sort((a, b) => ORDER.indexOf(a.st) - ORDER.indexOf(b.st)).map(e => `
+      <button class="card st-${e.st}" data-eq="${e.code}">
+        <div class="band"></div>
+        <div class="in">
+          <div class="row"><span class="code">${e.code} ・ ${AREAS.find(a => a.id === e.area).name}</span>${e.abn ? `<span class="abn">異常 ${e.abn}</span>` : ''}</div>
+          <div class="name">${e.name}</div>
+          <div><span class="pill">${I[ST[e.st].ico]}${ST[e.st].label}</span></div>
+          <div class="meta">
+            <span>今日</span><span>${timeText(e)}</span>
+            <span>期限</span><span>${e.due}</span>
+            ${e.abnTitle ? `<span>未対応</span><span style="color:var(--st-ng);font-weight:700">${e.abnTitle}</span>` : ''}
+          </div>
+        </div>
+        <div class="foot"><span>前回 10/21 正常</span><span>点検表 ›</span></div>
+      </button>`).join('')}</div></div>`;
+}
+
+/* ===== C案 エリア別 ===== */
+function pcC() {
+  const area = (a, wide) => {
+    const list = EQUIP.filter(e => e.area === a.id && (ui.filter === 'all' || e.st === ui.filter));
+    const all = EQUIP.filter(e => e.area === a.id);
+    const target = all.filter(e => e.st !== 'stop').length;
+    const done = all.filter(e => e.st === 'ok' || e.st === 'ng').length;
+    const meter = ORDER.map(s => { const c = all.filter(e => e.st === s).length; return c ? `<span style="width:${c / all.length * 100}%;background:var(--st-${s})"></span>` : ''; }).join('');
+    return `<section class="area ${wide ? 'wide' : ''}">
+      <h4>${a.name}<small>${done} / ${target} 台 完了</small></h4>
+      <div class="meter">${meter}</div>
+      <div class="cards">${list.map(e => `
+        <button class="mc st-${e.st}" data-eq="${e.code}">
+          <div class="row"><span class="code">${e.code}</span>${e.abn ? `<span class="abn">${e.abn}</span>` : ''}</div>
+          <span class="name">${e.name}</span>
+          ${badge(e.st)}
+        </button>`).join('') || '<span style="font-size:12px;color:#94A3B8">該当なし</span>'}</div>
+    </section>`;
+  };
+  return `<div class="app pC">${topbar('<button style="border:1px solid #D6DCE4;background:#fff;border-radius:8px;padding:6px 12px;font-size:13px">配置を編集</button>')}${chips()}
+    <div class="floor">${area(AREAS[0])}${area(AREAS[1])}${area(AREAS[3])}${area(AREAS[2], true)}</div></div>`;
+}
+
+/* ===== D案 カンバン ===== */
+function pcD() {
+  const cols = [['late', '遅れ'], ['todo', '未点検'], ['doing', '点検中'], ['ng', '異常あり'], ['ok', '完了・正常']];
+  return `<div class="app pD">${topbar('<span class="ctx">停止中 ' + count('stop') + '台は対象外</span>')}
+    <div class="board">${cols.map(([s, l]) => { const list = EQUIP.filter(e => e.st === s); return `
+      <div class="col st-${s}"><div class="ch"><span style="display:flex;gap:6px;align-items:center">${I[ST[s].ico]}${l}</span><span class="n">${list.length}</span></div>
+        <div class="cl">${list.map(e => `
+          <button class="kc st-${e.st}" data-eq="${e.code}">
+            <div style="display:flex;justify-content:space-between"><span class="code">${e.code}</span>${e.abn ? `<span class="abn">異常 ${e.abn}</span>` : ''}</div>
+            <div class="name">${e.name}</div>
+            <div class="meta"><span>${AREAS.find(a => a.id === e.area).name}</span><span>${timeText(e)}</span></div>
+          </button>`).join('') || '<div class="empty">なし</div>'}</div></div>`; }).join('')}</div></div>`;
+}
+
+/* ===== E案 大型モニター ===== */
+function pcE() {
+  const k = s => `<div class="k st-${s}"><div class="l">${I[ST[s].ico]}${ST[s].label}</div><div class="v">${count(s)}</div></div>`;
+  const alerts = EQUIP.filter(e => e.abnTitle).map(e => `▲ ${e.code} ${e.abnTitle}`).concat(EQUIP.filter(e => e.st === 'late').map(e => `● ${e.code} 始業前点検が未実施`));
+  return `<div class="app pE">
+    <div class="bigbar"><div><div class="clock">10:30</div><div class="date">10月22日（水） 第1工場</div></div>${k('late')}${k('ng')}${k('doing')}${k('todo')}${k('ok')}</div>
+    <div class="ticker">${alerts.map(a => `<span>${a}</span>`).join('')}</div>
+    <div class="grid">${[...EQUIP].sort((a, b) => ORDER.indexOf(a.st) - ORDER.indexOf(b.st)).map(e => `
+      <button class="big st-${e.st}" data-eq="${e.code}">
+        <div class="top">${I[ST[e.st].ico]}${ST[e.st].short}${e.abn ? `<span style="margin-left:auto;font-size:14px">異常 ${e.abn}</span>` : ''}</div>
+        <div class="code">${e.code}</div>
+        <div class="name">${e.name}</div>
+        <div class="tm"><span>${timeText(e)}</span></div>
+      </button>`).join('')}</div></div>`;
+}
+
+/* ===== ドロワー ===== */
+function drawer() {
+  const e = eq(ui.drawer); if (!e) return '';
+  const items = TPL[e.tpl];
+  const results = e.st === 'ok' || e.st === 'ng'
+    ? items.map((it, i) => { const v = e.res ? e.res[i] : (e.st === 'ng' && i === 1 ? 'ng' : (it[3] && i === items.length - 1 ? 'na' : 'ok')); return `<div class="res"><span>${it[0]}</span>${v === 'ok' ? '<span class="stbadge st-ok">正常</span>' : v === 'ng' ? '<span class="stbadge st-ng">異常</span>' : v === 'na' ? '<span style="color:#64748B">対象外</span>' : '<span style="color:#94A3B8">—</span>'}</div>`; }).join('')
+    : '<div style="color:#5F6B7A">今日の点検記録はまだありません。</div>';
+  return `<div class="drawer-bg" data-close="1"></div>
+    <aside class="drawer st-${e.st}">
+      <div class="dh"><button class="x" data-close="1" aria-label="閉じる">×</button><div class="code">${e.code} ・ ${AREAS.find(a => a.id === e.area).name}</div><div class="name">${e.name}</div>${badge(e.st)}</div>
+      <div class="db">
+        <dl><dt>今日</dt><dd>${timeText(e)}</dd><dt>点検期限</dt><dd>${e.due}</dd><dt>点検基準</dt><dd>${{ press: 'プレス機', cut: '切削機', weld: '溶接ロボット', air: 'コンプレッサー', lift: '揚重機' }[e.tpl]} 日常点検 第2版</dd><dt>管理担当</dt><dd>佐藤 美咲</dd>
+        ${e.abnTitle ? `<dt>未対応異常</dt><dd style="color:var(--st-ng);font-weight:700">${e.abnTitle}</dd>` : ''}</dl>
+        <h3>今日の点検結果</h3>${results}
+        <h3>この設備のQRラベル</h3>
+        <div class="qrbox">${qrSvg(e.code)}<div style="font-size:12px;color:#5F6B7A">設備に貼るラベル。読み取ると<b style="color:#1B2430">${e.code} の点検表</b>が開きます。<br>QR には設備を示す番号だけが入り、点検記録は含まれません。</div></div>
+        <div class="acts"><button class="pri">点検表を開く</button><button>QRラベルを印刷</button><button>点検履歴</button><button>異常を報告</button></div>
+      </div>
+    </aside>`;
+}
+
+/* ===== スマホ（QRでかざす → 点検表） ===== */
+function phone() {
+  if (ui.phone === 'camera') {
+    const sc = ui.scanning ? eq(ui.scanning) : null;
+    return `<div class="cam">
+      <div style="font-size:13px;opacity:.7">${logo('#fff', '#4ADE80', false)}</div>
+      <div class="finder"><i class="corner c1"></i><i class="corner c2"></i><i class="corner c3"></i><i class="corner c4"></i>
+        ${sc ? `<div class="found">${qrSvg(sc.code)}</div>` : '<i class="scanline"></i>'}</div>
+      <div class="hint">${sc ? '読み取りました' : '設備のQRコードにかざしてください'}</div>
+      <div class="sub">${sc ? '' : '左のラベルを押すと、かざしたことになります'}</div>
+      <div class="pill">山本 健 でログイン中</div>
+      ${sc ? `<div class="toast">${I.qr}<div><span class="t-code">${sc.code}</span> ${sc.name}<br><span style="font-size:12px;color:#5F6B7A">点検表を開いています…</span></div></div>` : ''}
+    </div>`;
+  }
+  const e = eq(ui.current);
+  const items = TPL[e.tpl];
+  if (ui.phone === 'done') {
+    const ng = Object.values(ui.ans).filter(v => v === 'ng').length;
+    return `<div class="ph-hdr">${logo('#1F5FD1', '#1F5FD1', false)}<div class="who">山本 健<br>一般社員</div></div>
+      <div style="padding:32px 20px;text-align:center">
+        <div style="width:88px;height:88px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;background:${ng ? 'var(--st-ng-lt)' : 'var(--st-ok-lt)'};color:${ng ? 'var(--st-ng)' : 'var(--st-ok)'}">${ng ? I.ng.replace('class="ico"', 'width="46" height="46"') : I.ok.replace('class="ico"', 'width="46" height="46"')}</div>
+        <div style="font-size:22px;font-weight:800">点検を記録しました</div>
+        <div style="font-size:13px;color:#5F6B7A;margin:4px 0 16px">${e.code} ${e.name}<br>2026-10-22 10:3${Math.floor(Math.random() * 9)} 山本 健</div>
+        ${ng ? `<div style="text-align:left;padding:12px 14px;border-radius:12px;background:var(--st-ng-lt);color:var(--st-ng);font-size:14px;margin-bottom:12px">異常が ${ng} 件あります。PC のカードは<b>赤（異常あり）</b>に変わりました。続けて写真付きの異常報告を作成してください。</div><button class="btn-main" style="background:var(--st-ng);margin-bottom:10px">異常を報告する</button>` :
+              `<div style="text-align:left;padding:12px 14px;border-radius:12px;background:var(--st-ok-lt);color:var(--st-ok);font-size:14px;margin-bottom:12px">PC のカードは<b>緑（完了・正常）</b>に変わりました。</div>`}
+        <button class="btn-main" data-ph="camera">${I.qr} 次の設備をかざす</button>
+      </div>`;
+  }
+  const req = items.filter(it => it[2]);
+  const answered = items.filter((_, i) => ui.ans[i]).length;
+  const left = items.filter((it, i) => it[2] && !ui.ans[i]).length;
+  return `<div class="ph-hdr"><button style="border:none;background:none;color:#1F5FD1;font-weight:700;padding:0" data-ph="camera">‹ 読み取りに戻る</button>${logo('#1F5FD1', '#1F5FD1', false)}</div>
+    <div class="eqhead">
+      <span class="ok-scan">${I.qr} QRから開きました</span>
+      <div class="code">${e.code} ・ ${AREAS.find(a => a.id === e.area).name}</div>
+      <div class="name">${e.name}</div>
+      <div class="meta">日常点検 ・ 期限 ${e.due} ・ ${{ press: 'プレス機', cut: '切削機', weld: '溶接ロボット', air: 'コンプレッサー', lift: '揚重機' }[e.tpl]} 日常点検 第2版</div>
+      <div class="prog"><div class="bar"><span style="width:${answered / items.length * 100}%"></span></div>${answered}/${items.length}</div>
+    </div>
+    ${items.map((it, i) => { const v = ui.ans[i]; return `<div class="icard">
+      <div class="lbl">${it[0]}${it[2] ? '<span class="req">必須</span>' : ''}</div><div class="crit">${it[1]}</div>
+      <div class="judge ${it[3] ? 'na3' : ''}">
+        <button class="${v === 'ok' ? 'on-ok' : ''}" data-ans="${i}" data-v="ok">${I.ok} 正常</button>
+        <button class="${v === 'ng' ? 'on-ng' : ''}" data-ans="${i}" data-v="ng">${I.x} 異常</button>
+        ${it[3] ? `<button class="${v === 'na' ? 'on-na' : ''}" data-ans="${i}" data-v="na">対象外</button>` : ''}
+      </div>${v === 'ng' ? '<div class="ngnote">完了後に写真付きの異常報告へ進みます</div>' : ''}</div>`; }).join('')}
+    <div class="ph-foot"><button class="btn-main" data-complete="1" ${left ? 'disabled' : ''}>${left ? `必須項目があと ${left} 件` : '点検を完了'}</button></div>`;
+}
+
+/* ===== 案の定義 ===== */
+const P = [
+  { id: 'A', fn: pcA, name: 'A案 信号タイル', lead: 'カード全体を状態の色で塗りつぶす。遠くからでも「赤・黄・緑」が一目で分かる、いちばん現場向きの案。',
+    good: ['離れた場所から色だけで状況がつかめる', '設備番号を大きく表示し、現場の呼び名と一致させやすい', '未点検は白の点線枠で「まだ」が分かる'],
+    care: ['1枚に載せられる情報は少なめ（詳細はカードを押して見る）', '色の面積が大きいので、事務所では少し派手に感じる'] },
+  { id: 'B', fn: pcB, name: 'B案 白カード＋色帯', lead: '白いカードの上部に状態の色帯。点検時刻・担当・未対応の異常までカード内に表示し、状態が悪い順に並べる。',
+    good: ['カードを開かなくても、点検者・時刻・異常の内容まで読める', '白基調で事務所のPCでも見やすい', '状態が悪い順に並ぶので、上から片付ければよい'],
+    care: ['色帯が細いので、遠くからの見やすさはA案・E案に劣る', '並び順が変わるので「いつもの場所」で探しにくい'] },
+  { id: 'C', fn: pcC, name: 'C案 エリア別（工場の配置どおり）', lead: '棟・ラインごとの枠に設備カードを並べる。工場の配置図に近い見た目で、「どこに行けばいいか」が分かる。',
+    good: ['実際の場所と画面の位置が一致し、見回りの順番が立てやすい', 'エリアごとの進み具合バーで、遅れているラインが分かる', '設備が増えてもエリア単位で整理できる'],
+    care: ['エリアの枠の配置を工場ごとに設定する手間がある', '設備数の偏りでエリアの大きさがばらつく'] },
+  { id: 'D', fn: pcD, name: 'D案 状態ごとの列（カンバン）', lead: '「遅れ・未点検・点検中・異常あり・完了」の列に設備カードを振り分ける。点検が進むとカードが右の列へ移っていく。',
+    good: ['各列の枚数で「あと何台」がすぐ分かる', '完了すると右へ移るので、進み具合が動きで伝わる', '朝礼で「左の列をなくそう」と目標にしやすい'],
+    care: ['設備の場所は分からない（カード内の文字で補う）', '設備が多いと完了の列が長くなる'] },
+  { id: 'E', fn: pcE, name: 'E案 大型モニター（アンドン）', lead: '工場内の大型モニターに常時表示する前提。太い枠・大きな数字・時計・異常の流れる帯。遅れと異常のカードは枠が点滅する。',
+    good: ['数メートル離れても読める文字と数字', '異常と遅れが点滅・帯表示で見落とされにくい', '操作なしで見るだけの画面（自動更新）'],
+    care: ['PCで操作する画面としては情報が粗い（操作用は別画面）', '点滅は控えめに調整が必要（気が散らない程度に）'] },
+];
+
+/* ===== 描画 ===== */
+function render() {
+  document.getElementById('tabs').innerHTML = P.map(p => `<button aria-selected="${p.id === ui.tab}" data-tab="${p.id}">${p.name}</button>`).join('');
+  const p = P.find(x => x.id === ui.tab);
+  document.getElementById('main').innerHTML = `
+    <section class="concept"><h2>${p.name}</h2><p class="lead">${p.lead}</p>
+      <div class="cols"><div><h3>よいところ</h3><ul>${p.good.map(x => `<li>${x}</li>`).join('')}</ul></div><div><h3>気をつけるところ</h3><ul>${p.care.map(x => `<li>${x}</li>`).join('')}</ul></div></div></section>
+    <p class="label">PC ・ 設備カード一覧（カードを押すと詳細）</p>
+    <div class="pc"><div class="chrome"><i></i><i></i><i></i><span>space-apps.pages.dev/TENQ/app/#/board</span></div><div class="pc-body"><div class="pc-inner" id="pcwrap">${p.fn()}${drawer()}</div></div></div>
+    <section class="flow">
+      <h2>QRでかざす → その設備の点検表が開く（5案共通）</h2>
+      <p class="lead">設備ごとに固有のQRラベルを貼ります。スマホのカメラをかざすと、その設備の点検表がすぐに開きます。点検を完了すると、上のPC画面のカードの色が変わります。</p>
+      <div class="steps"><span><b>①</b>設備にQRラベルを貼る</span><span><b>②</b>スマホをかざす</span><span><b>③</b>その設備の点検表が開く</span><span><b>④</b>完了するとPCのカードの色が変わる</span></div>
+      <div class="flow-grid">
+        <div>
+          <p class="label">設備に貼るQRラベル（押すと「かざした」ことになります）</p>
+          <div class="labels">${SCAN_TARGETS.map(c => { const e = eq(c); return `<button class="qrlabel" data-scan="${c}">${qrSvg(c)}<div><div class="lb-brand">TENQ 日常点検</div><div class="lb-code">${e.code}</div><div class="lb-name">${e.name}</div><div class="lb-area">${AREAS.find(a => a.id === e.area).name}</div></div><span class="lb-hint">かざす ›</span></button>`; }).join('')}</div>
+          <p class="note">
+            <b>QRに入るもの:</b> TENQのアドレスと、設備を示すランダムな番号だけ（パスワードや点検記録は入りません）。ラベルを汚損・紛失したら再発行でき、過去の記録はそのまま残ります。<br>
+            <b>読み取り方:</b> スマホ標準のカメラでも、TENQ画面内の「QR読み取り」でも開けます。<br>
+            <b>要確認（ログインの保持）:</b> 今の Space.app はタブを閉じるとログインが消える方式のため、標準カメラで読むたびにログインを求められます。「かざしたらすぐ点検表」にするには、TENQ だけはスマホにログインを一定期間（例: 30日）記憶する設定が必要です。このモックは記憶する前提で描いています。
+          </p>
+        </div>
+        <div><p class="label">スマホ</p><div class="phone"><div class="screen" id="phone">${phone()}</div></div></div>
+      </div>
+    </section>`;
+}
+function renderPc() { const p = P.find(x => x.id === ui.tab); document.getElementById('pcwrap').innerHTML = p.fn() + drawer(); }
+function renderPhone() { document.getElementById('phone').innerHTML = phone(); }
+
+document.addEventListener('click', ev => {
+  const t = ev.target.closest('button, [data-close]');
+  if (!t) return;
+  if (t.dataset.tab) { ui.tab = t.dataset.tab; ui.drawer = null; render(); return; }
+  if (t.dataset.filter) { ui.filter = t.dataset.filter; renderPc(); return; }
+  if (t.dataset.eq) { ui.drawer = t.dataset.eq; renderPc(); return; }
+  if (t.dataset.close) { ui.drawer = null; renderPc(); return; }
+  if (t.dataset.scan) {
+    ui.phone = 'camera'; ui.scanning = t.dataset.scan; renderPhone();
+    setTimeout(() => {
+      const e = eq(ui.scanning);
+      ui.current = e.code; ui.ans = {}; ui.scanning = null; ui.phone = 'sheet';
+      if (e.st !== 'ok' && e.st !== 'ng') { e.st = 'doing'; e.by = '山本'; e.tm = '10:30'; }
+      renderPhone(); renderPc();
+      document.getElementById('phone').scrollTop = 0;
+    }, 900);
+    return;
+  }
+  if (t.dataset.ans !== undefined) { const i = Number(t.dataset.ans); ui.ans[i] = ui.ans[i] === t.dataset.v ? undefined : t.dataset.v; renderPhone(); return; }
+  if (t.dataset.complete) {
+    const e = eq(ui.current); const items = TPL[e.tpl];
+    const ng = items.some((_, i) => ui.ans[i] === 'ng');
+    e.st = ng ? 'ng' : 'ok'; e.by = '山本'; e.tm = '10:3' + Math.floor(Math.random() * 9);
+    e.res = items.map((_, i) => ui.ans[i]);
+    if (ng) { e.abn += 1; e.abnTitle = e.abnTitle || '点検で異常を検出'; }
+    ui.phone = 'done'; renderPhone(); renderPc(); return;
+  }
+  if (t.dataset.ph) { ui.phone = t.dataset.ph; ui.scanning = null; renderPhone(); return; }
+});
+
+render();
+</script>
+</body>
+</html>

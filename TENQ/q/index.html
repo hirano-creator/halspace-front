@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>TENQ</title>
+<style>
+  body { margin: 0; font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif; color: #1B2430; background: #F5F7FA; display: grid; place-items: center; min-height: 100vh; text-align: center; padding: 16px; box-sizing: border-box; }
+  p { margin: 8px 0; }
+  a { color: #1F5FD1; font-weight: 700; }
+</style>
+</head>
+<body>
+<!--
+  QR コード専用の転送ページ（docs/architecture.md §4-3）。
+  印刷済みの QR は https://space-apps.pages.dev/TENQ/q/#<トークン> を指している。
+  このファイルの場所（TENQ/q/index.html）は今後変えないこと。アプリの場所が変わったら転送先だけ直す。
+-->
+<main>
+  <p><b>TENQ</b></p>
+  <p id="msg">点検表を開いています…</p>
+  <noscript><p>JavaScript を有効にしてください。</p></noscript>
+</main>
+<script>
+  (function () {
+    var token = location.hash.replace(/^#/, '').trim().toUpperCase();
+    if (/^[A-Z2-7]{16}$/.test(token)) {
+      location.replace('../app/#/q/' + token);
+    } else {
+      document.getElementById('msg').innerHTML = 'この QR コードは読み取れませんでした。<br><a href="../app/">TENQ を開く</a>';
+    }
+  })();
+</script>
+</body>
+</html>

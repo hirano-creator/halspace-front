@@ -1,0 +1,23 @@
+{
+  "name": "@tenq/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --env dev --port 8787",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local --env dev",
+    "db:seed:local": "wrangler d1 execute DB --local --env dev --file=seed/dev-seed.sql",
+    "db:reset:local": "node ../scripts/reset-local-db.mjs",
+    "build:dry": "wrangler deploy --dry-run --outdir dist --env production",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tenq/shared": "*",
+    "hono": "4.13.13"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.6",
+    "@cloudflare/workers-types": "5.20261022.1",
+    "vitest": "4.1.12",
+    "wrangler": "4.151.3"
+  }
+}

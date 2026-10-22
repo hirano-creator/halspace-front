@@ -1,0 +1,19 @@
+/* TENQ のデザイントークン。白基調・業務用。状態の色は docs/requirements.md F-7 と揃える */
+:root {
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  --bg: #F5F7FA;
+  --card: #FFFFFF;
+  --ink: #1B2430;
+  --sub: #5F6B7A;
+  --line: #E1E6EC;
+  --accent: #1F5FD1;
+  --accent-lt: #E8F0FD;
+  --radius: 12px;
+
+  --st-ok: #15803D;    --st-ok-lt: #DCFCE7;
+  --st-ng: #DC2626;    --st-ng-lt: #FEE2E2;
+  --st-doing: #2563EB; --st-doing-lt: #DBEAFE;
+  --st-late: #D97706;  --st-late-lt: #FEF3C7;
+  --st-todo: #64748B;  --st-todo-lt: #F1F5F9;
+  --st-stop: #475569;  --st-stop-lt: #E2E8F0;
+}
