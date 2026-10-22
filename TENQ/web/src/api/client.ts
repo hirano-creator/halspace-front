@@ -21,8 +21,8 @@ export class ApiError extends Error {
 let onUnauthorized: () => void = () => {};
 export function setUnauthorizedHandler(fn: () => void): void { onUnauthorized = fn; }
 
-function headers(json: boolean): Record<string, string> {
-  const h: Record<string, string> = { Accept: 'application/json' };
+function headers(json: boolean, extra: Record<string, string> = {}): Record<string, string> {
+  const h: Record<string, string> = { Accept: 'application/json', ...extra };
   const token = currentToken();
   if (token) h.Authorization = `Bearer ${token}`;
   if (json) h['Content-Type'] = 'application/json';
@@ -58,13 +58,13 @@ export async function apiGet<T>(path: string, retries = 2): Promise<T> {
   }
 }
 
-/** POST / PATCH / PUT / DELETE。再送はしない */
-export async function apiSend<T = unknown>(method: 'POST' | 'PATCH' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T> {
+/** POST / PATCH / PUT / DELETE。自動では再送しない（二重登録を防ぐのは冪等キーの役目） */
+export async function apiSend<T = unknown>(method: 'POST' | 'PATCH' | 'PUT' | 'DELETE', path: string, body?: unknown, extraHeaders: Record<string, string> = {}): Promise<T> {
   let res: Response;
   try {
     res = await fetch(API_BASE + path, {
       method,
-      headers: headers(body !== undefined),
+      headers: headers(body !== undefined, extraHeaders),
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });

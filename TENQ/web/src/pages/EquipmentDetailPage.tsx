@@ -3,7 +3,7 @@ import { apiGet, apiSend } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { QrCode, qrUrl } from '../components/QrCode';
 import { Alert, Button, Loading, PageHeader, ReasonDialog, useLoad } from '../components/ui';
-import { EQUIPMENT_STATUS, FREQUENCY, formatDateTime } from '../labels';
+import { EQUIPMENT_STATUS, FREQUENCY, INSPECTION_STATUS, formatDateTime } from '../labels';
 import { currentQuery, navigate } from '../router';
 
 export interface EquipmentDetail {
@@ -14,12 +14,14 @@ export interface EquipmentDetail {
   created_at: string; updated_at: string; retired_at: string | null; version: number;
 }
 interface Perms { edit: boolean; editAll: boolean; stop: boolean; retire: boolean; qr: boolean }
+interface InspectionSummary { id: string; inspection_date: string; status: string; overall_result: string | null; inspector_name: string; completed_at: string | null; current_revision: number }
 
 type DialogKind = 'stop' | 'resume' | 'retire' | 'qr' | null;
 
 export function EquipmentDetailPage({ id }: { id: string }) {
-  const { me } = useAuth();
+  const { me, can } = useAuth();
   const fromQr = currentQuery().get('from') === 'qr';
+  const history = useLoad(() => apiGet<{ items: InspectionSummary[] }>(`/inspections?equipment=${encodeURIComponent(id)}&limit=10`), [id]);
   const { data, error, loading, reload } = useLoad(() => apiGet<{ item: EquipmentDetail; permissions: Perms }>(`/equipment/${encodeURIComponent(id)}`), [id]);
   const [dialog, setDialog] = useState<DialogKind>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -40,11 +42,12 @@ export function EquipmentDetailPage({ id }: { id: string }) {
     <>
       <PageHeader title={`${e.equipment_code} ${e.name}`} sub={<>{e.factory_name}{e.area_name && ` ・ ${e.area_name}`} <span className={`badge ${st?.cls ?? ''}`}>{st?.label ?? e.status}</span></>}
         actions={<>
-          {p.edit && e.status !== 'retired' && <Button variant="primary" onClick={() => navigate(`/equipment/${e.id}/edit`)}>編集</Button>}
+          {e.status === 'active' && can('inspection.perform', { factoryId: e.factory_id }) && <Button variant="primary" onClick={() => navigate(`/inspect/${e.id}`)}>点検する</Button>}
+          {p.edit && e.status !== 'retired' && <Button onClick={() => navigate(`/equipment/${e.id}/edit`)}>編集</Button>}
           <Button onClick={() => navigate('/equipment')}>一覧へ</Button>
         </>} />
 
-      {fromQr && <Alert kind="info">QR コードから開きました。点検画面は次の段階（第4段階）で追加します。</Alert>}
+      {fromQr && <Alert kind="info">QR コードから開きました。</Alert>}
       {done && <Alert kind="success">{done}</Alert>}
       {e.status === 'stopped' && <Alert kind="warn">この設備は停止中です（点検の対象外）。理由: {e.status_reason ?? '—'}</Alert>}
       {e.status === 'retired' && <Alert kind="warn">この設備は廃止しました（{formatDateTime(e.retired_at)}）。過去の記録は残っています。</Alert>}
@@ -85,6 +88,22 @@ export function EquipmentDetailPage({ id }: { id: string }) {
               )}
             </>
           ) : <p className="muted">有効な QR コードがありません。</p>}
+        </section>
+
+        <section className="panel">
+          <h2>最近の点検</h2>
+          {history.error && <Alert kind="error">{history.error}</Alert>}
+          {history.data?.items.length === 0 && <p className="muted small">点検の記録はまだありません。</p>}
+          <ul className="history-list">
+            {history.data?.items.map((h) => (
+              <li key={h.id}>
+                <a href={`#/inspections/${h.id}`}>{h.inspection_date}</a> {h.inspector_name}
+                {' '}<span className={`badge ${INSPECTION_STATUS[h.status]?.cls ?? ''}`}>{INSPECTION_STATUS[h.status]?.label}</span>
+                {h.overall_result && <> <span className={`badge ${h.overall_result === 'ng' ? 'st-ng' : 'st-ok'}`}>{h.overall_result === 'ng' ? '異常あり' : '異常なし'}</span></>}
+                {h.current_revision > 1 && <small className="muted"> 訂正あり</small>}
+              </li>
+            ))}
+          </ul>
         </section>
 
         {(p.stop || p.retire) && e.status !== 'retired' && (

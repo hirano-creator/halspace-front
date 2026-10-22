@@ -12,7 +12,7 @@ export function QrResolvePage({ token }: { token: string }) {
 
   useEffect(() => {
     apiGet<{ equipmentId: string }>(`/qr/${encodeURIComponent(token)}`)
-      .then((r) => navigate(`/equipment/${r.equipmentId}?from=qr`, true))
+      .then((r) => navigate(`/inspect/${r.equipmentId}`, true))
       .catch((e: unknown) => setError(e instanceof ApiError ? { status: e.status, message: e.message } : { status: 0, message: 'QR コードを確認できませんでした。' }));
   }, [token]);
 

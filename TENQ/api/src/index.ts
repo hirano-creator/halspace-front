@@ -9,6 +9,8 @@ import { areaRoutes } from './routes/areas';
 import { authRoutes } from './routes/auth';
 import { equipmentRoutes } from './routes/equipment';
 import { factoryRoutes } from './routes/factories';
+import { inspectionRoutes } from './routes/inspections';
+import { templateRoutes } from './routes/templates';
 import { userRoutes } from './routes/users';
 
 const app = new Hono<AppEnv>();
@@ -42,6 +44,8 @@ api.route('/', factoryRoutes);
 api.route('/', areaRoutes);
 api.route('/', equipmentRoutes);
 api.route('/', userRoutes);
+api.route('/', templateRoutes);
+api.route('/', inspectionRoutes);
 app.route('/api', api);
 
 app.notFound((c) => c.json({ message: '見つかりません。' }, 404));

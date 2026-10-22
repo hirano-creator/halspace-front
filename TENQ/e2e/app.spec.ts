@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { devLogin, openMenuIfNeeded } from './helpers';
 
-test('未ログインで QR を開くと、ログイン後にその設備が開く（T-04）', async ({ page }) => {
-  await page.goto('./#/q/TENQDEVSEEDQRZAD');
+test('未ログインで QR を開くと、ログイン後にその設備の点検表が開く（T-04）', async ({ page }) => {
+  await page.goto('./#/q/TENQDEVSEEDQRZAN');
   await devLogin(page, '山本 健');
-  await expect(page.getByRole('heading', { name: 'P-04 サーボプレス 4号' })).toBeVisible();
-  await expect(page.getByText('QR コードから開きました')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '天井クレーン 2.8t' })).toBeVisible();
+  await expect(page.getByText(/中村 誠 さんが .* に完了しています/)).toBeVisible();
 });
 
 test('再発行済みの古い QR は案内を出す', async ({ page }) => {

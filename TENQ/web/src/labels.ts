@@ -18,3 +18,20 @@ export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 }
+
+export const JUDGMENT: Record<string, { label: string; cls: string }> = {
+  ok: { label: '正常', cls: 'st-ok' },
+  ng: { label: '異常', cls: 'st-ng' },
+  na: { label: '対象外', cls: 'st-todo' },
+};
+
+export const INSPECTION_STATUS: Record<string, { label: string; cls: string }> = {
+  in_progress: { label: '点検中', cls: 'st-doing' },
+  completed: { label: '完了', cls: 'st-ok' },
+  voided: { label: '取消', cls: 'st-todo' },
+};
+
+export function formatTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+}
