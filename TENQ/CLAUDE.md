@@ -140,4 +140,5 @@ npm run check:size          # Worker バンドルサイズ確認
 - 本番の画面が呼ぶ API は `web/.env.production`（Git 管理。秘密情報ではない）
 - 権限表を変えたら `api/test/permissions.test.ts`（総当たり）が追従する。新しい操作を足したら CASES に代表の API を足す
 - CPU 時間は `cd api && npx wrangler tail --env dev --format json` の cpuTime で測れる。無料プランの上限は 1 回 10ms
+- **D1 の読み取り行数は無料プランで 1 日 500 万行・アカウント全体（本番・開発・他アプリの DB の合計）**。インデックスのない検索は表を全件読み、読んだ行がすべて数えられる。2026-10-22 に開発用環境のカード一覧（30 秒ごと・毎回全件）と負荷計測だけで上限に達し、**本番の TENQ も日本時間 9 時まで止まった**。繰り返し呼ばれる SQL を足したら `EXPLAIN QUERY PLAN` で SCAN がないことを確かめ、`api/test/schema.test.ts` の「読み取りのインデックス」に足す。読み取り行数は `npx wrangler d1 insights tenq-db-dev --sort-by reads` で見られる。開発用の遠隔環境での負荷計測は本番と枠を取り合うので、回数を絞る
 - **無料プランで運用する**。行数に比例して重くなる処理（CSV など）は API で組み立てず、ページに分けた JSON を返して画面で組み立てる（点検記録 CSV は `GET /api/exports/inspections` ＋ `shared/src/csv.ts`）。行ごとに Intl を呼ばない（日本時間は +9 時間で計算）。工場単位の繰り返しの中で同じ計算をしない

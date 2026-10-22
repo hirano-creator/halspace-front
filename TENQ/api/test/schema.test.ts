@@ -139,3 +139,25 @@ describe('記録を書き換えさせない（T-10）', () => {
     await db().prepare(`INSERT INTO inspection_items (id, template_version_id, sort_order, label) VALUES (?, ?, 1, '追加項目')`).bind(id(), vid).run();
   });
 });
+
+/**
+ * 繰り返し呼ばれる読み取りが表を全件読まないこと（D1 無料プランの読み取り行数は 1 日 500 万行・アカウント全体）。
+ * 2026-10-22 に、カード一覧が点検記録を毎回全件読んで上限に達し、本番まで止まった（migrations/0003）。
+ */
+describe('読み取りのインデックス', () => {
+  const plan = async (sql: string, ...params: unknown[]) =>
+    (await db().prepare(`EXPLAIN QUERY PLAN ${sql}`).bind(...params).all<{ detail: string }>()).results.map((r) => r.detail).join(' / ');
+  const cases: [string, string, unknown[]][] = [
+    ['カード一覧の今日の点検', "SELECT i.id FROM inspections i JOIN users u ON u.id = i.inspector_user_id WHERE i.factory_id = ? AND i.status <> 'voided' AND i.period_key IN (?, ?, ?)", ['fac-1a', 'a', 'b', 'c']],
+    ['カード一覧の異常の件数', "SELECT equipment_id, COUNT(*) FROM abnormalities WHERE factory_id = ? AND status <> 'closed' GROUP BY equipment_id", ['fac-1a']],
+    ['点検の検索', "SELECT i.id FROM inspections i WHERE i.company_id = ? AND i.factory_id IN (?) AND i.status <> 'voided' ORDER BY i.started_at DESC, i.id DESC LIMIT 51", [1, 'fac-1a']],
+    ['帳票の期間', 'SELECT DISTINCT template_version_id FROM inspections WHERE factory_id = ? AND inspection_date BETWEEN ? AND ?', ['fac-1a', '2026-10-01', '2026-10-31']],
+  ];
+  for (const [name, sql, params] of cases) {
+    it(`${name}は全件を読まない`, async () => {
+      const p = await plan(sql, ...params);
+      expect(p).not.toMatch(/SCAN (inspections|abnormalities|i)\b/);
+      expect(p).toContain('USING INDEX');
+    });
+  }
+});
