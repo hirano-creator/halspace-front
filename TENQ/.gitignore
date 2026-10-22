@@ -1,0 +1,12 @@
+node_modules/
+.wrangler/
+.dev.vars
+.dev.vars.*
+api/dist/
+web/dist/
+*.sql.bak
+# D1 のエクスポート（個人情報を含む）。マイグレーションは api/migrations/ に置くので除外対象外
+/backups/
+tenq-db-*.sql
+test-results/
+playwright-report/

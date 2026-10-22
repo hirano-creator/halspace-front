@@ -1,0 +1,45 @@
+# tenq-api（TENQ の業務 API）。秘密情報はここに書かない（wrangler secret put / .dev.vars）。
+# database_id は `wrangler d1 create` の結果に置き換える（ID は秘密情報ではない）。
+# ローカル（--local）はこの ID に関係なく .wrangler/ 内の SQLite を使う。
+name = "tenq-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# ===== 開発（ローカル・開発用リモート） =====
+[env.dev]
+name = "tenq-api-dev"
+
+[env.dev.vars]
+APP_ENV = "dev"
+HALSPACE_API = "http://127.0.0.1:8000/api"
+ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "tenq-db-dev"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[env.dev.r2_buckets]]
+binding = "FILES"
+bucket_name = "tenq-files-dev"
+
+# ===== 本番（オーナーの承認なしにデプロイしない） =====
+[env.production]
+name = "tenq-api"
+
+[env.production.vars]
+APP_ENV = "production"
+HALSPACE_API = "https://halspace-api-production.up.railway.app/api"
+ALLOWED_ORIGINS = "https://space-apps.pages.dev"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "tenq-db"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[env.production.r2_buckets]]
+binding = "FILES"
+bucket_name = "tenq-files"

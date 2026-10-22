@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TENQ 画面モック5案</title>
+<style>
+/* ===== 比較ページ全体（モックの外枠） ===== */
+:root {
+  --page-bg: #EEF1F5;
+  --page-ink: #1B2430;
+  --page-sub: #5B6675;
+  --page-line: #D6DCE4;
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--page-bg); color: var(--page-ink); font-family: var(--font); line-height: 1.6; }
+.page-head { background: #fff; border-bottom: 1px solid var(--page-line); padding: 20px 24px 0; position: sticky; top: 0; z-index: 10; }
+.page-head h1 { margin: 0; font-size: 20px; }
+.page-head p { margin: 4px 0 12px; font-size: 13px; color: var(--page-sub); }
+.tabs { display: flex; gap: 4px; overflow-x: auto; }
+.tabs button { font: inherit; font-size: 14px; border: 1px solid var(--page-line); border-bottom: none; background: #F6F8FA; padding: 8px 16px; border-radius: 8px 8px 0 0; cursor: pointer; white-space: nowrap; color: var(--page-sub); }
+.tabs button[aria-selected="true"] { background: var(--page-bg); color: var(--page-ink); font-weight: 700; }
+main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+.concept { background: #fff; border: 1px solid var(--page-line); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; }
+.concept h2 { margin: 0 0 4px; font-size: 22px; }
+.concept .lead { margin: 0 0 12px; color: var(--page-sub); }
+.concept .pc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 24px; font-size: 14px; }
+.concept h3 { font-size: 13px; margin: 0 0 4px; color: var(--page-sub); }
+.concept ul { margin: 0; padding-left: 1.2em; }
+.frames { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.frame-wrap { display: flex; flex-direction: column; gap: 8px; }
+.frame-label { font-size: 13px; color: var(--page-sub); font-weight: 700; }
+.phone { width: 375px; max-width: calc(100vw - 48px); height: 760px; border: 10px solid #1B2430; border-radius: 36px; overflow: hidden; background: #fff; position: relative; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.phone .screen { height: 100%; overflow-y: auto; position: relative; }
+.pc { width: 100%; border: 1px solid #C3CBD6; border-radius: 10px; overflow: hidden; background: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+.pc .chrome { height: 28px; background: #E4E8EE; display: flex; align-items: center; gap: 6px; padding: 0 12px; }
+.pc .chrome i { width: 10px; height: 10px; border-radius: 50%; background: #C3CBD6; display: block; }
+.pc .pc-body { overflow-x: auto; }
+.pc .pc-inner { min-width: 1080px; }
+.compare { background: #fff; border: 1px solid var(--page-line); border-radius: 12px; padding: 20px 24px; margin-top: 32px; overflow-x: auto; }
+.compare table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 14px; }
+.compare th, .compare td { border-bottom: 1px solid var(--page-line); padding: 10px 12px; text-align: left; vertical-align: top; }
+.compare thead th { background: #F6F8FA; }
+.note { font-size: 12px; color: var(--page-sub); margin-top: 8px; }
+[hidden] { display: none !important; }
+
+/* ===== モック内の共通部品 ===== */
+.m { font-family: var(--font); color: var(--ink); background: var(--bg); min-height: 100%; font-size: 15px; }
+.m button { font: inherit; cursor: pointer; }
+.m .hdr { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--hdr-bg); color: var(--hdr-ink); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+.m .hdr .who { font-size: 12px; opacity: .8; text-align: right; line-height: 1.3; }
+.logo { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: .08em; font-size: 18px; }
+.logo svg { width: 26px; height: 26px; flex: none; }
+.logo small { display: block; font-size: 9px; letter-spacing: .12em; font-weight: 600; opacity: .7; margin-top: -2px; }
+.m .muted { color: var(--sub); }
+.m .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.m .b-ok { background: var(--ok-lt); color: var(--ok); }
+.m .b-ng { background: var(--ng-lt); color: var(--ng); }
+.m .b-wait { background: var(--wait-lt); color: var(--wait); }
+.m .b-gray { background: #EEF1F4; color: #4A5462; }
+.m .sec-title { font-size: 13px; font-weight: 700; color: var(--sub); margin: 20px 16px 8px; letter-spacing: .04em; }
+.m .scanfab { position: sticky; bottom: 0; padding: 12px 16px 20px; background: linear-gradient(to top, var(--bg) 70%, transparent); }
+.m .btn-main { width: 100%; border: none; border-radius: var(--radius); background: var(--accent); color: #fff; font-weight: 700; font-size: 17px; padding: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.m .btn-main:disabled { background: #B8C0CB; color: #fff; cursor: not-allowed; }
+.m .btn-sub { border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: var(--radius); padding: 10px 14px; font-weight: 600; }
+.m .eqhead { padding: 16px; background: var(--card); border-bottom: 1px solid var(--line); }
+.m .eqhead .code { font-size: 12px; color: var(--sub); }
+.m .eqhead .name { font-size: 20px; font-weight: 800; margin: 2px 0 4px; }
+.m .eqhead .meta { font-size: 12px; color: var(--sub); }
+.m .progress { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.m .progress > span { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.m .req { color: var(--ng); font-size: 11px; font-weight: 700; margin-left: 4px; }
+.m .crit { font-size: 12px; color: var(--sub); margin-top: 2px; }
+.ico { width: 18px; height: 18px; flex: none; }
+
+/* PC 共通 */
+.m.pcm { display: grid; grid-template-columns: 220px 1fr; min-height: 640px; }
+.m .side { background: var(--side-bg); color: var(--side-ink); padding: 16px 12px; border-right: 1px solid var(--line); }
+.m .side .logo { padding: 4px 8px 16px; }
+.m .side a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; color: inherit; text-decoration: none; font-size: 14px; opacity: .85; }
+.m .side a.on { background: var(--side-on); opacity: 1; font-weight: 700; }
+.m .content { padding: 20px 24px; }
+.m .content h1 { font-size: 20px; margin: 0; }
+.m .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin: 16px 0; }
+.m .kpi { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.m .kpi .l { font-size: 12px; color: var(--sub); }
+.m .kpi .v { font-size: 28px; font-weight: 800; line-height: 1.2; }
+.m .kpi .v small { font-size: 13px; font-weight: 600; color: var(--sub); margin-left: 2px; }
+.m .row2 { display: grid; grid-template-columns: 1.8fr 1fr; gap: 16px; }
+.m .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+.m .panel h2 { font-size: 15px; margin: 0 0 10px; }
+.m table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+.m table.t th { text-align: left; font-weight: 600; color: var(--sub); border-bottom: 1px solid var(--line); padding: 6px 8px; }
+.m table.t td { border-bottom: 1px solid var(--line); padding: 8px; white-space: nowrap; }
+.m table.t th { white-space: nowrap; }
+.m .barrow { display: grid; grid-template-columns: 110px 1fr 64px; gap: 10px; align-items: center; font-size: 13px; margin: 8px 0; }
+.m .bar { height: 10px; background: var(--line); border-radius: 999px; overflow: hidden; display: flex; }
+.m .bar .ok { background: var(--ok); }
+.m .bar .ng { background: var(--ng); }
+
+/* ===== A案: クリア・カード ===== */
+.pA { --bg:#F5F7FA; --card:#fff; --ink:#1B2430; --sub:#5F6B7A; --line:#E1E6EC; --accent:#1F5FD1; --ok:#12804A; --ok-lt:#E3F4EA; --ng:#C62828; --ng-lt:#FDECEC; --wait:#A15C00; --wait-lt:#FFF2DC; --hdr-bg:#fff; --hdr-ink:#1B2430; --side-bg:#fff; --side-ink:#1B2430; --side-on:#E8F0FD; --radius:12px; }
+.pA .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); margin: 0 16px 10px; padding: 14px; }
+.pA .item-top { display: flex; justify-content: space-between; gap: 8px; }
+.pA .item-label { font-weight: 700; }
+.pA .judge { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.pA .judge.na3 { grid-template-columns: 1fr 1fr .7fr; }
+.pA .judge button { border: 2px solid var(--line); background: #fff; border-radius: 10px; padding: 12px 6px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--sub); }
+.pA .judge button.on-ok { border-color: var(--ok); background: var(--ok-lt); color: var(--ok); }
+.pA .judge button.on-ng { border-color: var(--ng); background: var(--ng-lt); color: var(--ng); }
+.pA .judge button.on-na { border-color: #6B7684; background: #EEF1F4; color: #3B4552; }
+.pA .ngnote { margin-top: 10px; padding: 10px; border-radius: 8px; background: var(--ng-lt); color: var(--ng); font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pA .ngnote button { border: none; background: var(--ng); color: #fff; border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 700; }
+.pA .stat3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px; }
+.pA .stat3 > div { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; text-align: center; }
+.pA .stat3 .v { font-size: 26px; font-weight: 800; line-height: 1.1; }
+.pA .stat3 .l { font-size: 12px; color: var(--sub); }
+.pA .eqrow { display: flex; justify-content: space-between; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 12px; margin: 0 16px 8px; padding: 12px 14px; }
+.pA .eqrow .n { font-weight: 700; }
+.pA .eqrow .s { font-size: 12px; color: var(--sub); }
+
+/* ===== B案: ワンタップ連続 ===== */
+.pB { --bg:#fff; --card:#fff; --ink:#0F1F1E; --sub:#5A6B6A; --line:#DDE5E4; --accent:#0F766E; --ok:#0F7A43; --ok-lt:#E2F5EA; --ng:#C42B1C; --ng-lt:#FCE9E7; --wait:#9A5B00; --wait-lt:#FFF1D6; --hdr-bg:#fff; --hdr-ink:#0F1F1E; --side-bg:#0F2E2C; --side-ink:#E6F2F1; --side-on:rgba(255,255,255,.12); --radius:16px; }
+.pB .stepper { display: flex; gap: 4px; padding: 12px 16px 0; }
+.pB .stepper i { flex: 1; height: 6px; border-radius: 999px; background: var(--line); }
+.pB .stepper i.ok { background: var(--ok); }
+.pB .stepper i.ng { background: var(--ng); }
+.pB .stepper i.na { background: #8A9796; }
+.pB .stepper i.cur { background: var(--accent); }
+.pB .one { padding: 24px 20px; display: flex; flex-direction: column; min-height: 520px; }
+.pB .one .num { font-size: 14px; color: var(--sub); font-weight: 700; }
+.pB .one .q { font-size: 28px; font-weight: 800; line-height: 1.3; margin: 8px 0; }
+.pB .one .c { background: #F3F7F7; border-radius: 12px; padding: 12px 14px; font-size: 15px; }
+.pB .big { display: grid; gap: 12px; margin-top: auto; padding-top: 20px; }
+.pB .big button { border: none; border-radius: 18px; padding: 22px; font-size: 22px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.pB .big .ok { background: var(--ok); color: #fff; }
+.pB .big .ng { background: #fff; color: var(--ng); border: 3px solid var(--ng); }
+.pB .big .na { background: #F0F3F3; color: #4A5857; font-size: 16px; padding: 14px; }
+.pB .navrow { display: flex; justify-content: space-between; padding: 0 20px 16px; font-size: 14px; }
+.pB .navrow button { border: none; background: none; color: var(--accent); font-weight: 700; padding: 8px 0; }
+.pB .done { padding: 24px 20px; }
+.pB .done .ring { width: 96px; height: 96px; border-radius: 50%; background: var(--ok-lt); color: var(--ok); display: grid; place-items: center; margin: 12px auto; }
+.pB .sumrow { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.pB .homehero { margin: 16px; padding: 20px; border-radius: 20px; background: var(--accent); color: #fff; }
+.pB .homehero .v { font-size: 44px; font-weight: 800; line-height: 1; }
+.pB .homehero .bar { background: rgba(255,255,255,.25); margin-top: 12px; }
+.pB .homehero .bar span { background: #fff; display: block; }
+.pB .eqrow { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.pB .eqrow .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--wait); flex: none; }
+
+/* ===== C案: チェックシート（紙の点検表に近い） ===== */
+.pC { --bg:#FBFBF8; --card:#fff; --ink:#1A2433; --sub:#5C6675; --line:#C9D1DC; --accent:#1E3A5F; --ok:#1B6E3A; --ok-lt:#E4F2E8; --ng:#B3261E; --ng-lt:#FBE7E5; --wait:#8A5A00; --wait-lt:#FFF0D3; --hdr-bg:#1E3A5F; --hdr-ink:#fff; --side-bg:#1E3A5F; --side-ink:#E9EEF5; --side-on:rgba(255,255,255,.14); --radius:4px; }
+.pC .sheet-meta { display: grid; grid-template-columns: 72px 1fr; border: 1px solid var(--line); margin: 12px; background: #fff; font-size: 13px; }
+.pC .sheet-meta > * { padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.pC .sheet-meta > :nth-child(odd) { background: #F1F4F8; color: var(--sub); border-right: 1px solid var(--line); }
+.pC .sheet-meta > :nth-last-child(-n+2) { border-bottom: none; }
+.pC table.sheet { width: calc(100% - 24px); margin: 0 12px; border-collapse: collapse; background: #fff; font-size: 14px; }
+.pC table.sheet th, .pC table.sheet td { border: 1px solid var(--line); padding: 0; }
+.pC table.sheet thead th { background: #F1F4F8; font-size: 12px; color: var(--sub); padding: 6px 4px; font-weight: 600; }
+.pC table.sheet td.lbl { padding: 8px; }
+.pC table.sheet td.lbl b { display: block; font-size: 14px; }
+.pC table.sheet td.lbl span:not(.req) { display: block; font-size: 11px; color: var(--sub); line-height: 1.4; }
+.pC table.sheet td.mk { width: 46px; text-align: center; }
+.pC table.sheet td.mk button { width: 100%; height: 56px; border: none; background: none; font-size: 22px; font-weight: 800; color: #C3CAD3; }
+.pC table.sheet td.mk button.on-ok { background: var(--ok-lt); color: var(--ok); }
+.pC table.sheet td.mk button.on-ng { background: var(--ng-lt); color: var(--ng); }
+.pC table.sheet td.mk button.on-na { background: #EEF1F4; color: #3B4552; }
+.pC table.sheet td.mk button:disabled { background: repeating-linear-gradient(45deg,#F4F6F8,#F4F6F8 4px,#fff 4px,#fff 8px); color: transparent; cursor: not-allowed; }
+.pC .legend { margin: 8px 12px; font-size: 12px; color: var(--sub); }
+.pC .stamp { display: flex; gap: 8px; margin: 12px; }
+.pC .stamp > div { flex: 1; border: 1px solid var(--line); background: #fff; text-align: center; font-size: 11px; color: var(--sub); }
+.pC .stamp > div b { display: block; height: 40px; line-height: 40px; color: var(--ink); font-size: 13px; }
+.pC .stamp > div span { display: block; border-bottom: 1px solid var(--line); background: #F1F4F8; padding: 2px; }
+.pC table.list { width: calc(100% - 24px); margin: 0 12px; border-collapse: collapse; background: #fff; font-size: 13px; }
+.pC table.list th, .pC table.list td { border: 1px solid var(--line); padding: 8px 6px; }
+.pC table.list th { background: #F1F4F8; color: var(--sub); font-weight: 600; font-size: 12px; }
+.pC .sumline { display: grid; grid-template-columns: repeat(3,1fr); margin: 12px; border: 1px solid var(--line); background: #fff; }
+.pC .sumline > div { text-align: center; padding: 8px 4px; border-right: 1px solid var(--line); }
+.pC .sumline > div:last-child { border-right: none; }
+.pC .sumline .v { font-size: 22px; font-weight: 800; }
+.pC .sumline .l { font-size: 11px; color: var(--sub); }
+.pC .m .btn-main, .pC .btn-main { border-radius: 4px; }
+
+/* ===== D案: 一括正常（異常だけ選ぶ） ===== */
+.pD { --bg:#F6F8F6; --card:#fff; --ink:#18241B; --sub:#5B6A5F; --line:#DEE5DF; --accent:#15803D; --ok:#15803D; --ok-lt:#E3F3E8; --ng:#D9480F; --ng-lt:#FFEDE3; --wait:#9A5B00; --wait-lt:#FFF1D6; --hdr-bg:#fff; --hdr-ink:#18241B; --side-bg:#fff; --side-ink:#18241B; --side-on:#E3F3E8; --radius:14px; }
+.pD .allok { margin: 16px; padding: 16px; border-radius: 16px; background: #fff; border: 1px solid var(--line); }
+.pD .allok p { margin: 0 0 10px; font-size: 13px; color: var(--sub); }
+.pD .allok button { width: 100%; border: none; border-radius: 12px; background: var(--ok); color: #fff; font-size: 18px; font-weight: 800; padding: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.pD .allok button.undo { background: #fff; color: var(--sub); border: 1px solid var(--line); font-size: 14px; padding: 10px; font-weight: 600; }
+.pD .lst { margin: 0 16px; background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.pD .lrow { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.pD .lrow:last-child { border-bottom: none; }
+.pD .lrow .t { flex: 1; min-width: 0; }
+.pD .lrow .t b { display: block; }
+.pD .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex: none; }
+.pD .seg button { border: none; background: #fff; padding: 10px 10px; font-size: 13px; font-weight: 700; color: var(--sub); min-width: 48px; }
+.pD .seg button + button { border-left: 1px solid var(--line); }
+.pD .seg button.on-ok { background: var(--ok); color: #fff; }
+.pD .seg button.on-ng { background: var(--ng); color: #fff; }
+.pD .seg button.on-na { background: #5B6A5F; color: #fff; }
+.pD .lrow.is-ng { background: var(--ng-lt); }
+.pD .warn { margin: 12px 16px; padding: 12px 14px; border-radius: 12px; background: var(--ng-lt); color: var(--ng); font-size: 13px; font-weight: 600; }
+.pD .ring { margin: 16px; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; gap: 16px; align-items: center; }
+.pD .ring svg { width: 92px; height: 92px; flex: none; }
+.pD .chips { display: flex; gap: 6px; overflow-x: auto; padding: 0 16px; }
+.pD .chips span { white-space: nowrap; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 13px; }
+.pD .chips span.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.pD .eqrow { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); background: #fff; }
+
+/* ===== E案: 現場ハイコントラスト ===== */
+.pE { --bg:#fff; --card:#fff; --ink:#0A0A0A; --sub:#3D3D3D; --line:#0A0A0A; --accent:#0A0A0A; --ok:#0B6B2F; --ok-lt:#DFF2E5; --ng:#C40000; --ng-lt:#FFE5E5; --wait:#7A4D00; --wait-lt:#FFF0C2; --hdr-bg:#0A0A0A; --hdr-ink:#fff; --side-bg:#0A0A0A; --side-ink:#fff; --side-on:#FFC400; --radius:6px; }
+.pE { font-size: 17px; }
+.pE .hdr { border-bottom: 4px solid #FFC400; }
+.pE .side a.on { color: #0A0A0A; }
+.pE .eqhead { border-bottom: 3px solid #0A0A0A; }
+.pE .eqhead .name { font-size: 24px; }
+.pE .xi { border-bottom: 2px solid #0A0A0A; padding: 14px 16px; }
+.pE .xi .top { display: flex; gap: 12px; align-items: baseline; }
+.pE .xi .no { font-size: 28px; font-weight: 900; min-width: 36px; }
+.pE .xi .lb { font-size: 19px; font-weight: 800; }
+.pE .xi .cr { font-size: 14px; color: var(--sub); margin: 2px 0 10px 48px; }
+.pE .xj { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-left: 48px; }
+.pE .xj.na3 { grid-template-columns: 1fr 1fr 1fr; }
+.pE .xj button { border: 3px solid #0A0A0A; background: #fff; border-radius: 6px; padding: 14px 4px; font-size: 18px; font-weight: 900; color: #0A0A0A; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.pE .xj button.on-ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.pE .xj button.on-ng { background: var(--ng); border-color: var(--ng); color: #fff; }
+.pE .xj button.on-na { background: #3D3D3D; border-color: #3D3D3D; color: #fff; }
+.pE .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-bottom: 3px solid #0A0A0A; }
+.pE .tiles > div { padding: 16px; border-right: 2px solid #0A0A0A; border-bottom: 2px solid #0A0A0A; }
+.pE .tiles > div:nth-child(2n) { border-right: none; }
+.pE .tiles .v { font-size: 40px; font-weight: 900; line-height: 1; }
+.pE .tiles .l { font-size: 14px; font-weight: 700; }
+.pE .tiles .alert { background: #FFC400; }
+.pE .eqrow { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 2px solid #0A0A0A; font-weight: 700; }
+.pE .btn-main { border-radius: 6px; font-size: 19px; padding: 18px; }
+.pE .btn-main:not(:disabled) { background: #0A0A0A; box-shadow: inset 0 -4px 0 #FFC400; }
+.pE .kpi { border-width: 2px; }
+.pE .panel { border-width: 2px; }
+.pE .badge { border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <h1>TENQ 画面モック5案</h1>
+  <p>比較用のモックです（本番の画面ではありません）。スマホの点検画面は実際にタップでき、必須項目がそろうと「点検を完了」が押せるようになります。データはすべてダミーです。</p>
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+</header>
+
+<main id="main"></main>
+
+<script>
+'use strict';
+
+/* ===== ダミーデータ ===== */
+const EQ = { code: 'P-03', name: '油圧プレス機 3号', factory: '第1工場', place: 'A棟 プレスライン', freq: '毎日', tpl: 'プレス機 日常点検 第2版' };
+const ITEMS = [
+  { id: 1, group: '外観',   label: '外観',              crit: '本体・フレームに破損や変形がないこと', req: true,  na: false },
+  { id: 2, group: '異常音', label: '異音・異臭',        crit: '運転中に普段と違う音・においがないこと', req: true,  na: false },
+  { id: 3, group: '漏れ',   label: '油漏れ・水漏れ',    crit: '床・配管継手に油や水のにじみがないこと', req: true,  na: false },
+  { id: 4, group: '安全',   label: '安全カバー・安全装置', crit: 'カバーの外れがなく、光線式安全装置が作動すること', req: true,  na: false },
+  { id: 5, group: '安全',   label: '非常停止ボタン',    crit: '押して停止し、復帰できること', req: true,  na: false },
+  { id: 6, group: '配線',   label: '配線・配管',        crit: '被覆の傷・たるみ・干渉がないこと', req: true,  na: false },
+  { id: 7, group: '固定',   label: 'ボルト・固定部',    crit: '目視で緩み・脱落がないこと', req: true,  na: false },
+  { id: 8, group: '清掃',   label: '清掃状態',          crit: '金型周辺に切りくず・油だまりがないこと', req: false, na: true },
+];
+const UNCHECKED = [
+  { code: 'L-07', name: 'NC旋盤 7号', place: 'B棟', who: '担当: 佐藤' },
+  { code: 'W-02', name: '溶接ロボット 2号', place: 'C棟', who: '担当: 田中' },
+  { code: 'C-11', name: 'エアコンプレッサー', place: '屋外', who: '担当: 佐藤' },
+  { code: 'M-04', name: 'マシニングセンタ 4号', place: 'B棟', who: '担当: 鈴木' },
+];
+const OPEN_ABN = [
+  { no: 'F01-2026-0042', eq: 'L-07 NC旋盤 7号', title: '主軸から異音', sev: 'high', st: '対応中', due: '10/21', over: true, who: '鈴木' },
+  { no: 'F01-2026-0043', eq: 'P-01 油圧プレス機 1号', title: '作動油のにじみ', sev: 'medium', st: '未対応', due: '10/24', over: false, who: '佐藤' },
+  { no: 'F02-2026-0017', eq: 'K-02 研削盤 2号', title: '安全カバーの留め具破損', sev: 'high', st: '発生', due: '—', over: false, who: '未定' },
+];
+const FACT = [ { n: '第1工場', done: 18, ng: 1, total: 24 }, { n: '第2工場', done: 10, ng: 1, total: 18 } ];
+const PEOPLE = [ { n: '山本 健', c: 9 }, { n: '佐藤 美咲', c: 8 }, { n: '田中 翔', c: 6 }, { n: '鈴木 大地', c: 5 } ];
+
+const SEV = { high: ['高', 'b-ng'], medium: ['中', 'b-wait'], low: ['低', 'b-gray'] };
+
+/* ===== アイコン（線画SVG。外部ライブラリなし） ===== */
+const I = {
+  ok:   '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  ng:   '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  na:   '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 12h12"/></svg>',
+  qr:   '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.5" y="3.5" width="6" height="6" rx="1"/><rect x="14.5" y="3.5" width="6" height="6" rx="1"/><rect x="3.5" y="14.5" width="6" height="6" rx="1"/><path d="M14.5 14.5h2.5v2.5M20.5 14.5v6h-3.5M14.5 20.5v-1"/></svg>',
+  warn: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3.5L21.5 20h-19z"/><path d="M12 10v4.5M12 17.2v.3" stroke-linecap="round"/></svg>',
+  cam:  '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  back: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  home: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 11l8-6.5 8 6.5v9h-5.5v-5.5h-5V20H4z"/></svg>',
+  list: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>',
+  tool: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14.5 5.5a4 4 0 0 0 4.9 4.9L11 18.8a2.1 2.1 0 0 1-3-3l8.4-8.4a4 4 0 0 0-1.9-1.9z"/></svg>',
+  gear: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg>',
+  file: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3.5h8l4 4V20.5H6z"/><path d="M14 3.5v4h4M9 13h6M9 16.5h6"/></svg>',
+  user: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.2-3.5 3.8-5 7-5s5.8 1.5 7 5" stroke-linecap="round"/></svg>',
+};
+
+/* TENQ ロゴ: 角丸の枠＋チェック。既存の商標に似せない単純な図形 */
+function logo(frame, check, sub = true) {
+  return `<span class="logo"><svg viewBox="0 0 32 32" aria-hidden="true">
+      <rect x="3" y="3" width="26" height="26" rx="6" fill="none" stroke="${frame}" stroke-width="3"/>
+      <path d="M9.5 16.5l4.5 4.5 8.5-9.5" fill="none" stroke="${check}" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M22 22.5l4 4" stroke="${frame}" stroke-width="3" stroke-linecap="round"/>
+    </svg><span>TENQ${sub ? '<small>SMART INSPECTION</small>' : ''}</span></span>`;
+}
+
+const who = (name = '山本 健', role = '一般社員') => `<div class="who">${name}<br>${role}</div>`;
+
+/* ===== 点検の状態（案ごと） ===== */
+const state = { A: {}, B: {}, C: {}, D: {}, E: {} };
+const stepB = { cur: 0 };
+const doneFlag = { A: false, B: false, C: false, D: false, E: false };
+const allOkD = { on: false };
+
+function requiredDone(p) {
+  return ITEMS.filter(it => it.req).every(it => state[p][it.id]);
+}
+function answeredCount(p) { return ITEMS.filter(it => state[p][it.id]).length; }
+function ngCount(p) { return ITEMS.filter(it => state[p][it.id] === 'ng').length; }
+
+/* ===== 共通: 点検完了画面 ===== */
+function doneScreen(p, opt = {}) {
+  const ng = ngCount(p);
+  return `
+    <div style="padding:32px 20px;text-align:center">
+      <div style="width:88px;height:88px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;background:var(--ok-lt);color:var(--ok)">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      </div>
+      <div style="font-size:22px;font-weight:800">点検を記録しました</div>
+      <div class="muted" style="font-size:13px;margin-top:4px">${EQ.code} ${EQ.name}<br>2026-10-22 08:42　山本 健</div>
+      <div style="display:flex;justify-content:center;gap:8px;margin:16px 0">
+        <span class="badge b-ok">${I.ok} 正常 ${ITEMS.filter(it => state[p][it.id] === 'ok').length}</span>
+        <span class="badge b-ng">${I.ng} 異常 ${ng}</span>
+        <span class="badge b-gray">${I.na} 対象外 ${ITEMS.filter(it => state[p][it.id] === 'na').length}</span>
+      </div>
+      ${ng ? `<div style="text-align:left;padding:12px 14px;border-radius:var(--radius);background:var(--ng-lt);color:var(--ng);font-size:14px;margin-bottom:12px;display:flex;gap:8px">${I.warn}<span>異常が ${ng} 件あります。異常報告がまだの項目は、続けて報告してください。</span></div>
+             <button class="btn-main" style="background:var(--ng);margin-bottom:10px">${I.warn} 異常を報告する</button>` : ''}
+      <button class="btn-main">${I.qr} 次の設備をスキャン</button>
+      <button class="btn-sub" style="width:100%;margin-top:10px" data-act="reset" data-p="${p}">（モック）最初からやり直す</button>
+    </div>`;
+}
+
+/* ===== A案 ===== */
+const A = {
+  home() {
+    return `<div class="m pA">
+      <div class="hdr">${logo('#1F5FD1', '#1F5FD1')}${who()}</div>
+      <div style="padding:16px 16px 0"><div style="font-size:20px;font-weight:800">おはようございます</div><div class="muted" style="font-size:13px">10月22日（水）第1工場 ／ 今日の点検</div></div>
+      <div class="stat3">
+        <div><div class="v">24</div><div class="l">対象</div></div>
+        <div><div class="v" style="color:var(--ok)">18</div><div class="l">完了</div></div>
+        <div><div class="v" style="color:var(--wait)">6</div><div class="l">未点検</div></div>
+      </div>
+      <div style="margin:0 16px" class="progress"><span style="width:75%"></span></div>
+      <div class="sec-title">あなたの担当で未点検</div>
+      ${UNCHECKED.slice(0, 3).map(e => `<div class="eqrow"><div><div class="n">${e.code} ${e.name}</div><div class="s">${e.place}</div></div><span class="badge b-wait">未点検</span></div>`).join('')}
+      <div class="sec-title">対応が必要な異常</div>
+      ${OPEN_ABN.slice(0, 2).map(a => `<div class="eqrow"><div><div class="n">${a.title}</div><div class="s">${a.eq}${a.over ? ' ・<b style="color:var(--ng)">期限超過</b>' : ''}</div></div><span class="badge ${SEV[a.sev][1]}">危険度 ${SEV[a.sev][0]}</span></div>`).join('')}
+      <div class="scanfab"><button class="btn-main">${I.qr} QRを読み取って点検</button></div>
+    </div>`;
+  },
+  inspect() {
+    const p = 'A';
+    if (doneFlag[p]) return `<div class="m pA"><div class="hdr">${logo('#1F5FD1', '#1F5FD1')}${who()}</div>${doneScreen(p)}</div>`;
+    const n = answeredCount(p);
+    return `<div class="m pA">
+      <div class="hdr"><span style="display:flex;align-items:center;gap:6px">${I.back} 戻る</span>${logo('#1F5FD1', '#1F5FD1', false)}</div>
+      <div class="eqhead">
+        <div class="code">${EQ.code} ・ ${EQ.factory} ${EQ.place}</div>
+        <div class="name">${EQ.name}</div>
+        <div class="meta">${EQ.freq} ・ ${EQ.tpl}</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px"><div class="progress" style="flex:1"><span style="width:${n / ITEMS.length * 100}%"></span></div><span style="font-size:13px;font-weight:700">${n}/${ITEMS.length}</span></div>
+      </div>
+      <div style="height:12px"></div>
+      ${ITEMS.map(it => {
+        const v = state[p][it.id];
+        return `<div class="card">
+          <div class="item-top"><div><div class="item-label">${it.label}${it.req ? '<span class="req">必須</span>' : ''}</div><div class="crit">${it.crit}</div></div></div>
+          <div class="judge ${it.na ? 'na3' : ''}">
+            <button class="${v === 'ok' ? 'on-ok' : ''}" data-p="${p}" data-i="${it.id}" data-v="ok">${I.ok} 正常</button>
+            <button class="${v === 'ng' ? 'on-ng' : ''}" data-p="${p}" data-i="${it.id}" data-v="ng">${I.ng} 異常</button>
+            ${it.na ? `<button class="${v === 'na' ? 'on-na' : ''}" data-p="${p}" data-i="${it.id}" data-v="na">対象外</button>` : ''}
+          </div>
+          ${v === 'ng' ? `<div class="ngnote"><span>異常の内容と写真を残してください</span><button>${I.cam} 報告</button></div>` : ''}
+        </div>`;
+      }).join('')}
+      <div class="scanfab"><button class="btn-main" data-act="done" data-p="${p}" ${requiredDone(p) ? '' : 'disabled'}>${requiredDone(p) ? '点検を完了' : `必須項目があと ${ITEMS.filter(it => it.req && !state[p][it.id]).length} 件`}</button></div>
+    </div>`;
+  },
+  pc() { return pcCommon('A', '#1F5FD1', '#1F5FD1'); },
+};
+
+/* ===== B案 ===== */
+const B = {
+  home() {
+    return `<div class="m pB">
+      <div class="hdr">${logo('#0F766E', '#0F766E')}${who()}</div>
+      <div class="homehero">
+        <div style="font-size:13px;opacity:.85">10月22日（水）第1工場</div>
+        <div style="display:flex;align-items:baseline;gap:8px;margin-top:6px"><span class="v">6</span><span style="font-size:16px;font-weight:700">台が未点検</span></div>
+        <div style="font-size:13px;opacity:.85;margin-top:2px">24台中 18台 完了</div>
+        <div class="bar" style="height:8px;border-radius:999px;overflow:hidden"><span style="width:75%;height:100%"></span></div>
+      </div>
+      <div style="margin:0 16px"><button class="btn-main" style="padding:22px;font-size:19px;border-radius:18px">${I.qr} QRを読み取る</button></div>
+      <div class="sec-title">未点検（近い順）</div>
+      ${UNCHECKED.map(e => `<div class="eqrow"><span class="dot"></span><div style="flex:1"><b>${e.code} ${e.name}</b><div class="muted" style="font-size:12px">${e.place} ・ ${e.who}</div></div><span class="muted">›</span></div>`).join('')}
+      <div class="sec-title">異常</div>
+      <div class="eqrow"><span class="dot" style="background:var(--ng)"></span><div style="flex:1"><b>未対応 3件</b><div class="muted" style="font-size:12px">うち期限超過 1件</div></div><span class="muted">›</span></div>
+    </div>`;
+  },
+  inspect() {
+    const p = 'B';
+    if (doneFlag[p]) return `<div class="m pB"><div class="hdr">${logo('#0F766E', '#0F766E')}${who()}</div>${doneScreen(p)}</div>`;
+    const cur = stepB.cur;
+    const steps = ITEMS.map((it, i) => `<i class="${i === cur ? 'cur' : (state[p][it.id] || '')}"></i>`).join('');
+    if (cur >= ITEMS.length) {
+      return `<div class="m pB">
+        <div class="hdr"><span>${EQ.code} ${EQ.name}</span><span class="muted" style="font-size:13px">確認</span></div>
+        <div class="stepper">${steps}</div>
+        <div class="done">
+          <div style="font-size:22px;font-weight:800;margin-bottom:8px">内容を確認</div>
+          ${ITEMS.map((it, i) => { const v = state[p][it.id]; return `<div class="sumrow"><span>${i + 1}. ${it.label}</span><button style="border:none;background:none;padding:0" data-act="goto" data-p="B" data-i="${i}">${v ? `<span class="badge ${v === 'ok' ? 'b-ok' : v === 'ng' ? 'b-ng' : 'b-gray'}">${v === 'ok' ? '正常' : v === 'ng' ? '異常' : '対象外'}</span>` : '<span class="badge b-wait">未選択</span>'}</button></div>`; }).join('')}
+          <div style="height:16px"></div>
+          <button class="btn-main" data-act="done" data-p="B" ${requiredDone(p) ? '' : 'disabled'}>${requiredDone(p) ? '点検を完了' : '未選択の必須項目があります'}</button>
+        </div>
+      </div>`;
+    }
+    const it = ITEMS[cur];
+    return `<div class="m pB">
+      <div class="hdr"><span style="font-weight:700">${EQ.code} ${EQ.name}</span><span class="muted" style="font-size:13px">${cur + 1} / ${ITEMS.length}</span></div>
+      <div class="stepper">${steps}</div>
+      <div class="one">
+        <div class="num">${it.group}${it.req ? ' ・ 必須' : ' ・ 任意'}</div>
+        <div class="q">${it.label}</div>
+        <div class="c"><b>判定基準</b><br>${it.crit}</div>
+        <div class="big">
+          <button class="ok" data-p="B" data-i="${it.id}" data-v="ok">${I.ok} 正常</button>
+          <button class="ng" data-p="B" data-i="${it.id}" data-v="ng">${I.ng} 異常</button>
+          ${it.na ? `<button class="na" data-p="B" data-i="${it.id}" data-v="na">対象外</button>` : ''}
+        </div>
+      </div>
+      <div class="navrow"><button data-act="prev" data-p="B" ${cur === 0 ? 'style="visibility:hidden"' : ''}>‹ 前の項目</button><button data-act="next" data-p="B">${state[p][it.id] ? '次へ ›' : 'あとで ›'}</button></div>
+    </div>`;
+  },
+  pc() { return pcCommon('B', '#E6F2F1', '#5EEAD4'); },
+};
+
+/* ===== C案 ===== */
+const C = {
+  home() {
+    return `<div class="m pC">
+      <div class="hdr">${logo('#fff', '#fff')}${who()}</div>
+      <div class="sumline">
+        <div><div class="v">24</div><div class="l">本日対象</div></div>
+        <div><div class="v" style="color:var(--ok)">18</div><div class="l">点検済</div></div>
+        <div><div class="v" style="color:var(--ng)">6</div><div class="l">未点検</div></div>
+      </div>
+      <div class="sec-title" style="margin:12px">本日の点検表 ─ 第1工場</div>
+      <table class="list">
+        <thead><tr><th>設備番号</th><th>設備名</th><th>状態</th></tr></thead>
+        <tbody>
+          <tr><td>P-01</td><td>油圧プレス機 1号</td><td><span class="badge b-ok">済 山本</span></td></tr>
+          <tr><td>P-02</td><td>油圧プレス機 2号</td><td><span class="badge b-ok">済 山本</span></td></tr>
+          <tr><td>P-03</td><td>油圧プレス機 3号</td><td><span class="badge b-wait">点検中</span></td></tr>
+          ${UNCHECKED.map(e => `<tr><td>${e.code}</td><td>${e.name}</td><td><span class="badge b-ng">未</span></td></tr>`).join('')}
+          <tr><td>K-02</td><td>研削盤 2号</td><td><span class="badge b-gray">停止中</span></td></tr>
+        </tbody>
+      </table>
+      <div class="scanfab"><button class="btn-main">${I.qr} QRで点検表を開く</button></div>
+    </div>`;
+  },
+  inspect() {
+    const p = 'C';
+    if (doneFlag[p]) return `<div class="m pC"><div class="hdr">${logo('#fff', '#fff')}${who()}</div>${doneScreen(p)}</div>`;
+    return `<div class="m pC">
+      <div class="hdr">${logo('#fff', '#fff', false)}<span style="font-size:13px">日常点検表</span></div>
+      <div class="sheet-meta">
+        <span>設備</span><b>${EQ.code} ${EQ.name}</b>
+        <span>場所</span><span>${EQ.factory} ${EQ.place}</span>
+        <span>点検日</span><span>2026-10-22（水）</span>
+        <span>基準</span><span>${EQ.tpl}</span>
+      </div>
+      <table class="sheet">
+        <thead><tr><th>点検項目 ／ 判定基準</th><th>正常<br>○</th><th>異常<br>×</th><th>対象外<br>－</th></tr></thead>
+        <tbody>
+          ${ITEMS.map(it => { const v = state[p][it.id]; return `<tr>
+            <td class="lbl"><b>${it.label}${it.req ? '<span class="req">必須</span>' : ''}</b><span>${it.crit}</span></td>
+            <td class="mk"><button class="${v === 'ok' ? 'on-ok' : ''}" data-p="C" data-i="${it.id}" data-v="ok" aria-label="正常">○</button></td>
+            <td class="mk"><button class="${v === 'ng' ? 'on-ng' : ''}" data-p="C" data-i="${it.id}" data-v="ng" aria-label="異常">×</button></td>
+            <td class="mk"><button class="${v === 'na' ? 'on-na' : ''}" data-p="C" data-i="${it.id}" data-v="na" ${it.na ? '' : 'disabled'} aria-label="対象外">－</button></td>
+          </tr>`; }).join('')}
+        </tbody>
+      </table>
+      <div class="legend">斜線の欄は選べません（対象外不可の項目）。×を付けた項目は完了後に異常報告へ進みます。</div>
+      <div class="stamp"><div><span>点検者</span><b>山本</b></div><div><span>確認（設備担当）</span><b></b></div><div><span>承認（工場長）</span><b></b></div></div>
+      <div class="scanfab"><button class="btn-main" data-act="done" data-p="C" ${requiredDone(p) ? '' : 'disabled'}>${requiredDone(p) ? '点検を完了' : `必須項目 残り ${ITEMS.filter(it => it.req && !state[p][it.id]).length}`}</button></div>
+    </div>`;
+  },
+  pc() { return pcCommon('C', '#fff', '#fff', true); },
+};
+
+/* ===== D案 ===== */
+const D = {
+  home() {
+    const r = 40, c = 2 * Math.PI * r;
+    return `<div class="m pD">
+      <div class="hdr">${logo('#15803D', '#15803D')}${who()}</div>
+      <div class="ring">
+        <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="${r}" fill="none" stroke="#DEE5DF" stroke-width="12"/><circle cx="50" cy="50" r="${r}" fill="none" stroke="#15803D" stroke-width="12" stroke-dasharray="${c * .75} ${c}" transform="rotate(-90 50 50)" stroke-linecap="round"/><text x="50" y="56" text-anchor="middle" font-size="22" font-weight="800" fill="#18241B">75%</text></svg>
+        <div><div style="font-weight:800;font-size:17px">今日の点検 18 / 24台</div><div class="muted" style="font-size:13px">未点検 6台 ・ 異常 2件</div><div class="muted" style="font-size:12px;margin-top:4px">10月22日（水）第1工場</div></div>
+      </div>
+      <div class="chips"><span class="on">未点検 6</span><span>異常 2</span><span>完了 18</span><span>停止中 1</span></div>
+      <div style="margin:12px 16px 0;border:1px solid var(--line);border-radius:14px;overflow:hidden">
+        ${UNCHECKED.map(e => `<div class="eqrow"><div><b>${e.code} ${e.name}</b><div class="muted" style="font-size:12px">${e.place} ・ ${e.who}</div></div><span class="badge b-wait">未点検</span></div>`).join('')}
+      </div>
+      <div class="scanfab"><button class="btn-main">${I.qr} QRを読み取って点検</button></div>
+    </div>`;
+  },
+  inspect() {
+    const p = 'D';
+    if (doneFlag[p]) return `<div class="m pD"><div class="hdr">${logo('#15803D', '#15803D')}${who()}</div>${doneScreen(p)}</div>`;
+    const ng = ngCount(p);
+    return `<div class="m pD">
+      <div class="hdr"><span style="display:flex;align-items:center;gap:6px">${I.back}</span>${logo('#15803D', '#15803D', false)}<span style="width:18px"></span></div>
+      <div class="eqhead"><div class="code">${EQ.code} ・ ${EQ.factory} ${EQ.place}</div><div class="name">${EQ.name}</div><div class="meta">${EQ.tpl}</div></div>
+      <div class="allok">
+        ${allOkD.on
+          ? `<p>すべて「正常」にしました。異常があった項目だけ「異常」に変えてください。</p><button class="undo" data-act="allundo" data-p="D">一括正常を取り消す</button>`
+          : `<p>下の項目をすべて目で確認し、問題がなければ一括で「正常」にできます。異常があった項目だけ個別に変えてください。</p><button data-act="allok" data-p="D">${I.ok} すべて正常にする</button>`}
+      </div>
+      ${ng ? `<div class="warn">異常 ${ng} 件 ── 完了後に異常報告を作成します</div>` : ''}
+      <div class="lst">
+        ${ITEMS.map(it => { const v = state[p][it.id]; return `<div class="lrow ${v === 'ng' ? 'is-ng' : ''}">
+          <div class="t"><b>${it.label}${it.req ? '' : ' <span class="muted" style="font-size:11px;font-weight:600">任意</span>'}</b><div class="crit">${it.crit}</div></div>
+          <div class="seg">
+            <button class="${v === 'ok' ? 'on-ok' : ''}" data-p="D" data-i="${it.id}" data-v="ok">正常</button>
+            <button class="${v === 'ng' ? 'on-ng' : ''}" data-p="D" data-i="${it.id}" data-v="ng">異常</button>
+            ${it.na ? `<button class="${v === 'na' ? 'on-na' : ''}" data-p="D" data-i="${it.id}" data-v="na">外</button>` : ''}
+          </div>
+        </div>`; }).join('')}
+      </div>
+      <div class="scanfab"><button class="btn-main" data-act="done" data-p="D" ${requiredDone(p) ? '' : 'disabled'}>${requiredDone(p) ? '点検を完了' : `未選択 ${ITEMS.filter(it => it.req && !state[p][it.id]).length} 件`}</button></div>
+    </div>`;
+  },
+  pc() { return pcCommon('D', '#15803D', '#15803D'); },
+};
+
+/* ===== E案 ===== */
+const E = {
+  home() {
+    return `<div class="m pE">
+      <div class="hdr">${logo('#FFC400', '#fff')}${who()}</div>
+      <div style="padding:14px 16px;border-bottom:3px solid #0A0A0A;font-weight:800">10月22日（水）第1工場</div>
+      <div class="tiles">
+        <div><div class="v">6</div><div class="l">未点検</div></div>
+        <div><div class="v">18</div><div class="l">完了 ／ 24台</div></div>
+        <div class="alert"><div class="v">3</div><div class="l">未対応の異常</div></div>
+        <div class="alert"><div class="v">1</div><div class="l">期限超過</div></div>
+      </div>
+      <div style="padding:16px"><button class="btn-main">${I.qr} QRを読み取る</button></div>
+      <div style="padding:6px 16px;background:#0A0A0A;color:#fff;font-weight:800;font-size:15px">未点検</div>
+      ${UNCHECKED.map(e => `<div class="eqrow"><span>${e.code}　${e.name}</span><span style="font-size:14px">${e.place}</span></div>`).join('')}
+    </div>`;
+  },
+  inspect() {
+    const p = 'E';
+    if (doneFlag[p]) return `<div class="m pE"><div class="hdr">${logo('#FFC400', '#fff')}${who()}</div>${doneScreen(p)}</div>`;
+    return `<div class="m pE">
+      <div class="hdr">${logo('#FFC400', '#fff', false)}<span style="font-weight:800">${answeredCount(p)} / ${ITEMS.length}</span></div>
+      <div class="eqhead"><div class="code" style="font-weight:700;color:#0A0A0A">${EQ.code} ／ ${EQ.factory} ${EQ.place}</div><div class="name">${EQ.name}</div></div>
+      ${ITEMS.map((it, i) => { const v = state[p][it.id]; return `<div class="xi">
+        <div class="top"><span class="no">${i + 1}</span><span class="lb">${it.label}${it.req ? '<span class="req" style="font-size:13px">必須</span>' : ''}</span></div>
+        <div class="cr">${it.crit}</div>
+        <div class="xj ${it.na ? 'na3' : ''}">
+          <button class="${v === 'ok' ? 'on-ok' : ''}" data-p="E" data-i="${it.id}" data-v="ok">${I.ok} 正常</button>
+          <button class="${v === 'ng' ? 'on-ng' : ''}" data-p="E" data-i="${it.id}" data-v="ng">${I.ng} 異常</button>
+          ${it.na ? `<button class="${v === 'na' ? 'on-na' : ''}" data-p="E" data-i="${it.id}" data-v="na">対象外</button>` : ''}
+        </div>
+      </div>`; }).join('')}
+      <div class="scanfab"><button class="btn-main" data-act="done" data-p="E" ${requiredDone(p) ? '' : 'disabled'}>${requiredDone(p) ? '点検を完了' : `必須 残り ${ITEMS.filter(it => it.req && !state[p][it.id]).length}`}</button></div>
+    </div>`;
+  },
+  pc() { return pcCommon('E', '#FFC400', '#fff'); },
+};
+
+/* ===== PC ダッシュボード（各案の配色で共通の構成） ===== */
+function pcCommon(p, lf, lc, dense = false) {
+  const nav = [['home', 'ダッシュボード', true], ['list', '点検履歴・検索'], ['warn', '異常・是正処置'], ['tool', '設備台帳'], ['qr', 'QRコード発行'], ['file', 'CSV・帳票'], ['user', 'ユーザー管理'], ['gear', '点検基準・設定']];
+  const k = [['本日の対象', 42, '台'], ['点検完了', 28, '台'], ['未点検', 14, '台'], ['異常（本日）', 2, '件'], ['未対応の異常', 3, '件'], ['期限超過', 1, '件']];
+  return `<div class="m pcm p${p}">
+    <aside class="side">${logo(lf, lc)}${nav.map(n => `<a class="${n[2] ? 'on' : ''}">${I[n[0]]}${n[1]}</a>`).join('')}</aside>
+    <div class="content">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h1>ダッシュボード</h1><div class="muted" style="font-size:13px">2026-10-22（水） ・ 全工場 ▾ ・ 工場長 中村 誠</div></div>
+      <div class="kpis">${k.map((x, i) => `<div class="kpi" ${p === 'E' && i >= 4 ? 'style="background:#FFC400"' : ''}><div class="l">${x[0]}</div><div class="v" style="${i === 2 ? 'color:var(--wait)' : ''}${i >= 3 && p !== 'E' ? 'color:var(--ng)' : ''}">${x[1]}<small>${x[2]}</small></div></div>`).join('')}</div>
+      <div class="row2">
+        <div class="panel"><h2>対応が必要な異常</h2>
+          <table class="t"><thead><tr><th>報告番号</th><th>設備</th><th>内容</th><th>危険度</th><th>状態</th><th>期限</th><th>担当</th></tr></thead>
+          <tbody>${OPEN_ABN.map(a => `<tr><td>${a.no}</td><td>${a.eq}</td><td>${a.title}</td><td><span class="badge ${SEV[a.sev][1]}">${SEV[a.sev][0]}</span></td><td>${a.st}</td><td ${a.over ? 'style="color:var(--ng);font-weight:700"' : ''}>${a.due}${a.over ? ' 超過' : ''}</td><td>${a.who}</td></tr>`).join('')}</tbody></table>
+        </div>
+        <div class="panel"><h2>工場別の進み具合</h2>
+          ${FACT.map(f => `<div class="barrow"><span>${f.n}</span><div class="bar"><span class="ok" style="width:${(f.done - f.ng) / f.total * 100}%"></span><span class="ng" style="width:${f.ng / f.total * 100}%"></span></div><span style="text-align:right">${f.done}/${f.total}</span></div>`).join('')}
+          <h2 style="margin-top:16px">点検者別（本日）</h2>
+          ${PEOPLE.map(x => `<div class="barrow"><span>${x.n}</span><div class="bar"><span class="ok" style="width:${x.c / 10 * 100}%"></span></div><span style="text-align:right">${x.c}台</span></div>`).join('')}
+        </div>
+      </div>
+      <div class="panel" style="margin-top:16px"><h2>未点検の設備</h2>
+        <table class="t"><thead><tr><th>設備番号</th><th>設備名</th><th>工場・場所</th><th>分類</th><th>担当</th><th>前回点検</th></tr></thead>
+        <tbody>${UNCHECKED.map((e, i) => `<tr><td>${e.code}</td><td>${e.name}</td><td>第1工場 ${e.place}</td><td>${['旋盤', '溶接', '空圧', 'MC'][i]}</td><td>${e.who.replace('担当: ', '')}</td><td>10/21</td></tr>`).join('')}</tbody></table>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ===== 案の定義 ===== */
+const PROPOSALS = [
+  { id: 'A', r: A, name: 'A案　クリア・カード', lead: '白地にブルー1色。項目ごとのカードに大きな「正常／異常」ボタン。いちばん標準的で、誰が見ても迷わない構成。',
+    good: ['基準文と判定ボタンが同じカード内にあり、読み違いが少ない', '異常を選ぶとその場で報告ボタンが出る', '画面数が少なく、作りやすく直しやすい'],
+    care: ['項目が多い設備（20項目以上）は縦に長くなる', '強い個性はない（業務用としては利点でもある）'] },
+  { id: 'B', r: B, name: 'B案　ワンタップ連続', lead: '1画面に1項目。押すと自動で次の項目へ進む。手袋のままでも押せる特大ボタンで、片手・短時間の点検向け。',
+    good: ['ボタンが大きく押し間違いにくい（手袋・油汚れの手でも）', '1項目ずつ判定基準を読むので「見ずに押す」を防げる', '最後に確認画面があり、押し間違いを直せる'],
+    care: ['全体を見渡しにくい（確認画面で補う）', '項目数ぶん画面が切り替わり、慣れた人には遅く感じる'] },
+  { id: 'C', r: C, name: 'C案　チェックシート', lead: '今の紙の点検表に近い表形式。○×－の欄を押していく。紙からの移行で戸惑いが少なく、帳票印刷とも見た目がそろう。',
+    good: ['紙の点検表と同じ見た目で、ベテランにもなじみやすい', '1画面で全項目が見渡せる', '点検者・確認・承認の欄があり、ISO 帳票と対応づけやすい'],
+    care: ['欄が小さめで、スマホでは押し間違いが他案より起きやすい', '判定基準の文字が小さくなる'] },
+  { id: 'D', r: D, name: 'D案　一括正常（異常だけ選ぶ）', lead: '「すべて正常にする」を押してから、異常の項目だけ変える。ほとんどの日が全項目正常という現場で、手順を最短にする。',
+    good: ['正常な日は「QR → すべて正常 → 完了」の3タップ', '異常の項目が色で目立つ', 'ホームのリング表示で進み具合が一目で分かる'],
+    care: ['確認せずに一括で押す「めくら判」の危険がある（監査で指摘されやすい）', '対策として、一括ボタンは項目を最後までスクロールしてから押せる・項目ごとの確認時間を記録する、などが必要'] },
+  { id: 'E', r: E, name: 'E案　現場ハイコントラスト', lead: '白黒の太線＋安全色の黄。文字を大きく、項目番号を太く。照明の暗い場所・屋外・年配の方でも読みやすいことを最優先にした案。',
+    good: ['文字・線が太く、暗い場所や直射日光下でも読める', '色だけに頼らず、白黒でも判定が分かる', '注意が必要な数字が黄色で目立つ'],
+    care: ['見た目が硬く、事務所の PC 画面では主張が強い', '1画面に入る情報量が少なめ'] },
+];
+
+/* ===== 描画 ===== */
+const tabs = document.getElementById('tabs');
+const main = document.getElementById('main');
+let current = 'A';
+
+function renderTabs() {
+  tabs.innerHTML = PROPOSALS.map(p => `<button role="tab" aria-selected="${p.id === current}" data-tab="${p.id}">${p.name.replace('　', ' ')}</button>`).join('')
+    + `<button role="tab" aria-selected="${current === 'cmp'}" data-tab="cmp">5案の比較表</button>`;
+}
+
+function renderMain() {
+  if (current === 'cmp') { main.innerHTML = compareHtml(); return; }
+  const p = PROPOSALS.find(x => x.id === current);
+  main.innerHTML = `
+    <section class="concept">
+      <h2>${p.name}</h2>
+      <p class="lead">${p.lead}</p>
+      <div class="pc-grid">
+        <div><h3>よいところ</h3><ul>${p.good.map(g => `<li>${g}</li>`).join('')}</ul></div>
+        <div><h3>気をつけるところ</h3><ul>${p.care.map(g => `<li>${g}</li>`).join('')}</ul></div>
+      </div>
+    </section>
+    <div class="frames">
+      <div class="frame-wrap"><div class="frame-label">スマホ ・ ホーム（今日の点検状況）</div><div class="phone"><div class="screen">${p.r.home()}</div></div></div>
+      <div class="frame-wrap"><div class="frame-label">スマホ ・ 設備点検（タップできます）</div><div class="phone"><div class="screen" id="insp">${p.r.inspect()}</div></div></div>
+    </div>
+    <div class="frame-wrap" style="margin-top:24px"><div class="frame-label">PC ・ ダッシュボード</div><div class="pc"><div class="chrome"><i></i><i></i><i></i></div><div class="pc-body"><div class="pc-inner">${p.r.pc()}</div></div></div></div>
+    <div class="compare" style="margin-top:24px">${compareTable()}</div>`;
+}
+
+function compareTable() {
+  return `<table>
+    <thead><tr><th></th>${PROPOSALS.map(p => `<th>${p.id}案</th>`).join('')}</tr></thead>
+    <tbody>
+      <tr><th>一言で</th><td>標準カード</td><td>1項目ずつ特大ボタン</td><td>紙の点検表そのまま</td><td>一括正常＋異常だけ</td><td>白黒・太字・安全色</td></tr>
+      <tr><th>全項目正常の日のタップ数（8項目）</th><td>8＋完了</td><td>8＋確認＋完了</td><td>8＋完了</td><td><b>1＋完了</b></td><td>8＋完了</td></tr>
+      <tr><th>押し間違いにくさ</th><td>○</td><td><b>◎</b></td><td>△</td><td>○</td><td>◎</td></tr>
+      <tr><th>「見ずに押す」の防ぎやすさ</th><td>○</td><td><b>◎</b></td><td>○</td><td><b>△ 要対策</b></td><td>○</td></tr>
+      <tr><th>紙からの移行のしやすさ</th><td>○</td><td>○</td><td><b>◎</b></td><td>○</td><td>○</td></tr>
+      <tr><th>暗い場所・屋外での見やすさ</th><td>○</td><td>○</td><td>△</td><td>○</td><td><b>◎</b></td></tr>
+      <tr><th>項目が多い設備（20項目〜）</th><td>△ 縦に長い</td><td>△ 画面が多い</td><td><b>◎</b></td><td>○</td><td>△ 縦に長い</td></tr>
+      <tr><th>PC 画面のなじみ</th><td><b>◎</b></td><td>○</td><td>○</td><td>◎</td><td>△</td></tr>
+    </tbody>
+  </table>
+  <p class="note">組み合わせも可能です（例: 画面の骨格は A案、点検画面だけ B案と C案を切り替え式、配色は E案の太線を一部採用 など）。</p>`;
+}
+
+function compareHtml() {
+  return `<section class="concept"><h2>5案の比較</h2><p class="lead">各案のタブで実際の画面をタップして比べてください。</p></section><div class="compare">${compareTable()}</div>`;
+}
+
+function rerenderInspect() {
+  const p = PROPOSALS.find(x => x.id === current);
+  const el = document.getElementById('insp');
+  if (p && el) el.innerHTML = p.r.inspect();
+}
+
+document.addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-tab]');
+  if (tab) { current = tab.dataset.tab; renderTabs(); renderMain(); window.scrollTo({ top: 0 }); return; }
+  const b = e.target.closest('button[data-p]');
+  if (!b) return;
+  const p = b.dataset.p;
+  const act = b.dataset.act;
+  if (act === 'done') { doneFlag[p] = true; }
+  else if (act === 'reset') { state[p] = {}; doneFlag[p] = false; stepB.cur = 0; allOkD.on = false; }
+  else if (act === 'prev') { stepB.cur = Math.max(0, stepB.cur - 1); }
+  else if (act === 'next') { stepB.cur++; }
+  else if (act === 'goto') { stepB.cur = Number(b.dataset.i); }
+  else if (act === 'allok') { ITEMS.forEach(it => { state.D[it.id] = 'ok'; }); allOkD.on = true; }
+  else if (act === 'allundo') { state.D = {}; allOkD.on = false; }
+  else if (b.dataset.i) {
+    const id = Number(b.dataset.i);
+    const v = b.dataset.v;
+    state[p][id] = state[p][id] === v && p !== 'B' ? undefined : v;
+    if (p === 'B') stepB.cur++;
+  }
+  rerenderInspect();
+});
+
+renderTabs();
+renderMain();
+</script>
+</body>
+</html>

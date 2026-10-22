@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TENQ 権限モック</title>
+<style>
+:root {
+  --bg: #EEF1F5; --ink: #1B2430; --sub: #5B6675; --line: #D6DCE4; --card: #fff;
+  --accent: #1F5FD1; --accent-lt: #E8F0FD;
+  --ok: #15803D; --ok-lt: #DCFCE7; --ng: #DC2626; --ng-lt: #FEE2E2;
+  --cond: #B45309; --cond-lt: #FEF3C7; --no: #94A3B8; --no-lt: #F1F5F9;
+  --doing: #2563EB; --late: #D97706;
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.6; }
+button { font: inherit; cursor: pointer; }
+header { background: #fff; border-bottom: 1px solid var(--line); padding: 18px 24px; }
+header h1 { margin: 0; font-size: 20px; }
+header p { margin: 4px 0 0; font-size: 13px; color: var(--sub); }
+main { max-width: 1320px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+section.box { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px 24px; }
+section.box > h2 { margin: 0 0 4px; font-size: 19px; }
+section.box > .lead { margin: 0 0 16px; color: var(--sub); font-size: 14px; }
+.num { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 14px; margin-right: 8px; vertical-align: 2px; }
+
+/* 役割の切り替え */
+.roles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+@media (max-width: 900px) { .roles { grid-template-columns: 1fr 1fr; } }
+.role { border: 2px solid var(--line); background: #fff; border-radius: 12px; padding: 12px 14px; text-align: left; display: flex; gap: 12px; align-items: center; }
+.role[aria-pressed="true"] { border-color: var(--rc); background: var(--rc-lt); box-shadow: 0 0 0 3px var(--rc-lt); }
+.role .av { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--rc); font-weight: 800; font-size: 18px; flex: none; }
+.role b { display: block; font-size: 16px; }
+.role span { font-size: 12px; color: var(--sub); }
+.r-worker  { --rc: #0E7490; --rc-lt: #E0F2F7; }
+.r-staff   { --rc: #7C3AED; --rc-lt: #EFE7FD; }
+.r-manager { --rc: #C2410C; --rc-lt: #FDEBDD; }
+.r-admin   { --rc: #1E3A5F; --rc-lt: #E3EAF3; }
+
+.viewer { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; }
+@media (max-width: 1000px) { .viewer { grid-template-columns: 1fr; } }
+
+/* PC 画面のミニチュア */
+.pc { border: 1px solid #C3CBD6; border-radius: 10px; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,.07); }
+.pc .chrome { height: 26px; background: #E4E8EE; display: flex; align-items: center; gap: 6px; padding: 0 12px; }
+.pc .chrome i { width: 9px; height: 9px; border-radius: 50%; background: #C3CBD6; }
+.pc .app { display: grid; grid-template-columns: 200px 1fr; min-height: 520px; background: #F5F7FA; }
+.side { background: #fff; border-right: 1px solid var(--line); padding: 12px 10px; }
+.logo { display: flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: .08em; padding: 2px 6px 12px; }
+.logo svg { width: 24px; height: 24px; }
+.side .who { margin: 0 6px 12px; padding: 8px 10px; border-radius: 10px; background: var(--rc-lt); font-size: 12px; line-height: 1.4; }
+.side .who b { display: block; font-size: 13px; color: var(--rc); }
+.nav { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 8px; font-size: 13px; }
+.nav.on { background: var(--accent-lt); font-weight: 700; }
+.nav.lock { color: #B6BEC9; }
+.nav .lk { margin-left: auto; font-size: 11px; }
+.nav svg { width: 16px; height: 16px; flex: none; }
+.pane { padding: 14px 16px; }
+.pane h3 { margin: 0 0 8px; font-size: 15px; }
+.eqcard { background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.eqcard .eh { padding: 12px 14px; background: var(--ng-lt); border-bottom: 4px solid var(--ng); }
+.eqcard .eh .c { font-size: 12px; color: var(--sub); }
+.eqcard .eh .n { font-size: 19px; font-weight: 800; }
+.eqcard .eh .s { color: var(--ng); font-weight: 800; font-size: 13px; }
+.eqcard .eb { padding: 12px 14px; font-size: 13px; }
+.eqcard .abn { border: 1px solid #FCA5A5; background: #FFF7F7; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+.acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.act { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 9px 10px; text-align: left; font-size: 13px; font-weight: 700; display: flex; flex-direction: column; gap: 2px; }
+.act small { font-weight: 500; font-size: 11px; color: var(--sub); }
+.act.yes { border-color: var(--ok); color: var(--ink); }
+.act.yes::before { content: "できる"; font-size: 10px; color: #fff; background: var(--ok); border-radius: 4px; padding: 0 6px; align-self: flex-start; }
+.act.cond { border-color: var(--cond); }
+.act.cond::before { content: "条件付き"; font-size: 10px; color: #fff; background: var(--cond); border-radius: 4px; padding: 0 6px; align-self: flex-start; }
+.act.no { color: #A7B0BC; background: #F8FAFC; border-style: dashed; cursor: not-allowed; }
+.act.no::before { content: "できない"; font-size: 10px; color: #fff; background: var(--no); border-radius: 4px; padding: 0 6px; align-self: flex-start; }
+
+.can { display: flex; flex-direction: column; gap: 14px; }
+.can .intro { padding: 14px 16px; border-radius: 12px; background: var(--rc-lt); border-left: 6px solid var(--rc); }
+.can .intro b { font-size: 17px; }
+.can .intro p { margin: 4px 0 0; font-size: 14px; }
+.can h4 { margin: 0 0 6px; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.can ul { margin: 0; padding-left: 1.2em; font-size: 14px; }
+.can li { margin: 2px 0; }
+.can .y h4 { color: var(--ok); }
+.can .n h4 { color: #64748B; }
+
+/* 異常の流れ */
+.flow { overflow-x: auto; }
+.lanes { min-width: 980px; display: grid; grid-template-columns: 150px repeat(5, 1fr); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.lanes > div { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 10px; min-height: 76px; }
+.lanes .hd { background: #F6F8FA; font-weight: 700; font-size: 13px; text-align: center; color: var(--sub); min-height: auto; }
+.lanes .who { font-weight: 800; font-size: 14px; display: flex; flex-direction: column; justify-content: center; background: var(--rc-lt); color: var(--rc); }
+.lanes .who small { color: var(--sub); font-weight: 500; font-size: 11px; }
+.lanes .dim { opacity: .35; }
+.stepc { border-radius: 10px; padding: 8px 10px; font-size: 13px; background: #fff; border: 2px solid var(--rc); box-shadow: 0 2px 0 var(--rc-lt); }
+.stepc b { display: block; font-size: 14px; }
+.stepc .st { display: inline-block; margin-top: 4px; font-size: 11px; font-weight: 700; color: #fff; background: var(--rc); border-radius: 4px; padding: 0 6px; }
+.stepc.alt { border-style: dashed; box-shadow: none; }
+.flow-note { font-size: 13px; color: var(--sub); margin-top: 10px; }
+.flow-note b { color: var(--ink); }
+
+/* 権限表 */
+.mx-wrap { overflow-x: auto; }
+table.mx { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 14px; }
+table.mx th, table.mx td { border-bottom: 1px solid var(--line); padding: 8px 10px; vertical-align: middle; }
+table.mx thead th { position: sticky; top: 0; background: #F6F8FA; font-size: 13px; text-align: center; }
+table.mx thead th:first-child { text-align: left; }
+table.mx thead th .rh { display: inline-flex; align-items: center; gap: 6px; }
+table.mx thead th .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rc); }
+table.mx tr.grp td { background: #F6F8FA; font-weight: 800; font-size: 13px; color: var(--sub); padding: 6px 10px; }
+table.mx td.act-name { min-width: 240px; }
+table.mx td.act-name .q { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 800; color: #fff; background: var(--ng); border-radius: 4px; padding: 0 6px; vertical-align: 1px; }
+table.mx td.act-name small { display: block; color: var(--sub); font-size: 12px; }
+table.mx td.cell { text-align: center; width: 150px; }
+.cellbtn { width: 100%; border: 2px solid transparent; border-radius: 10px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 0; background: none; }
+.cellbtn .m { font-size: 20px; font-weight: 900; line-height: 1.1; }
+.cellbtn .t { font-size: 11px; line-height: 1.3; }
+.cellbtn.o { background: var(--ok-lt); color: var(--ok); }
+.cellbtn.c { background: var(--cond-lt); color: var(--cond); }
+.cellbtn.x { background: var(--no-lt); color: var(--no); }
+.cellbtn.changed { border-color: #1B2430; box-shadow: 0 0 0 2px #FDE047; }
+.cellbtn:hover { filter: brightness(.97); }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--sub); margin: 0 0 12px; align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { font-style: normal; font-weight: 900; border-radius: 6px; padding: 0 8px; }
+.changes { margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: #FAFBFC; }
+.changes h3 { margin: 0 0 6px; font-size: 15px; }
+.changes ul { margin: 0 0 10px; padding-left: 1.2em; font-size: 14px; }
+.changes .empty { font-size: 14px; color: var(--sub); margin: 0 0 10px; }
+.btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 9px 14px; font-weight: 700; font-size: 14px; }
+.btn.pri { background: var(--ink); color: #fff; border-color: var(--ink); }
+.copied { font-size: 13px; color: var(--ok); align-self: center; }
+.qs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.qcard { border: 2px solid #FCA5A5; background: #FFF7F7; border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+.qcard b { display: block; margin-bottom: 2px; }
+.qcard .rec { margin-top: 6px; font-size: 13px; color: var(--sub); }
+</style>
+</head>
+<body>
+<header>
+  <h1>TENQ 権限（だれが何をできるか）モック</h1>
+  <p>役割ごとに、使えるメニューとボタンがどう変わるかを示した検討用のモックです（本番画面ではありません・人名はダミー）。下の表の ○△× は押して変えられます。</p>
+</header>
+
+<main>
+  <section class="box">
+    <h2><span class="num">1</span>役割を切り替えて、画面の違いを見る</h2>
+    <p class="lead">役割を選ぶと、左の画面（PC）のメニューと、異常が出ている設備「L-07 NC旋盤 7号」の詳細で押せるボタンが切り替わります。</p>
+    <div class="roles" id="roles"></div>
+    <div class="viewer" id="viewer"></div>
+  </section>
+
+  <section class="box">
+    <h2><span class="num">2</span>異常が見つかってから完了するまで（だれが何をするか）</h2>
+    <p class="lead">点検で異常が見つかったときの流れです。上で選んだ役割の行が強調されます。</p>
+    <div class="flow" id="flow"></div>
+    <p class="flow-note"><b>ポイント:</b> 「再確認」は、直した本人とは別の人が行います（自分で直して自分でOKを出さないため。ISO の監査で見られやすい点です）。</p>
+  </section>
+
+  <section class="box">
+    <h2><span class="num">3</span>決めていただきたい点（4つ）</h2>
+    <p class="lead">表のうち、会社の運用で答えが変わる箇所です。表の「要確認」の行と同じです。おすすめを初期値にしています。</p>
+    <div class="qs" id="qs"></div>
+  </section>
+
+  <section class="box">
+    <h2><span class="num">4</span>権限表（押して変えられます）</h2>
+    <div class="legend">
+      <span><i style="background:var(--ok-lt);color:var(--ok)">○</i>できる</span>
+      <span><i style="background:var(--cond-lt);color:var(--cond)">△</i>条件付きでできる（条件は表の中に記載）</span>
+      <span><i style="background:var(--no-lt);color:var(--no)">×</i>できない</span>
+      <span>押すたびに ○ → △ → × と変わります。変えたマスは黄色の枠になります。</span>
+    </div>
+    <div class="mx-wrap"><table class="mx" id="mx"></table></div>
+    <div class="changes" id="changes"></div>
+  </section>
+</main>
+
+<script>
+'use strict';
+
+const ROLES = [
+  { id: 'worker',  cls: 'r-worker',  name: '一般社員',     person: '山本 健',   note: '第1工場 プレス班', av: '山',
+    intro: '毎日の点検をする人。設備のQRをかざして点検し、おかしな所があれば写真付きで報告します。',
+    yes: ['担当工場の設備を点検する', '異常を写真付きで報告する', '自分の点検記録を見る', '工場のカード一覧（どの設備が終わったか）を見る'],
+    no: ['完了した点検記録を直す（直したいときは設備担当者に頼む）', '修理の記録・承認', '設備の登録やQRラベルの発行', 'CSVの出力'] },
+  { id: 'staff',   cls: 'r-staff',   name: '設備担当者',   person: '佐藤 美咲', note: 'プレス・切削の保全担当', av: '佐',
+    intro: '設備の面倒を見る人。報告された異常を引き受けて修理し、担当設備の台帳やQRラベルを管理します。',
+    yes: ['点検・異常の報告（一般社員と同じこと）', '異常の担当者と期限を決める', '修理・是正の内容を記録する', '他の人が直した異常の再確認', '担当設備の点検記録を理由付きで直す', 'QRラベルの発行・印刷、CSV出力'] ,
+    no: ['承認して完了にする（工場長の仕事）', '自分で直した異常の再確認', '点検項目（点検基準）の変更', '利用者の役割の設定'] },
+  { id: 'manager', cls: 'r-manager', name: '工場長',       person: '中村 誠',   note: '第1工場 工場長', av: '中',
+    intro: '工場全体に責任を持つ人。点検の進み具合と異常の対応状況を見て、是正が終わった異常を承認します。',
+    yes: ['設備担当者ができることすべて', '異常を承認して完了にする', '点検記録を理由付きで直す（全設備）', '設備の登録・停止・廃止', '点検項目（点検基準）の変更', 'カード一覧のエリア配置の編集', '操作の記録（監査ログ）を見る'],
+    no: ['利用者の役割・所属工場の設定（システム管理者の仕事）', 'システム全体の設定'] },
+  { id: 'admin',   cls: 'r-admin',   name: 'システム管理者', person: '高橋 遥',   note: '本社 情報システム', av: '高',
+    intro: 'TENQ の設定をする人。利用者に役割と所属工場を割り当て、工場・設備・点検基準の初期登録やシステム設定を行います。',
+    yes: ['全工場のすべての画面を見る', '利用者の役割・所属工場の設定、利用停止', '端末のログイン記憶の取り消し（紛失時）', '工場・設備・点検基準・エリア配置の設定', 'システム設定（保存期間など）'],
+    no: ['異常の承認（おすすめ: 現場を知る工場長だけにする → 要確認①）'] },
+];
+
+/* 権限表。v = [一般社員, 設備担当者, 工場長, システム管理者] の o / c / x。t = △ のときの条件 */
+const MX = [
+  { g: '点検' },
+  { k: 'inspect',   a: '点検をする', v: ['o', 'o', 'o', 'o'], t: ['所属工場', '', '', ''] },
+  { k: 'myrec',     a: '自分の点検記録を見る', v: ['o', 'o', 'o', 'o'] },
+  { k: 'allrec',    a: '工場の全員の点検記録を見る', q: 2, v: ['c', 'o', 'o', 'o'], t: ['所属工場のみ', '所属工場', '所属工場', '全工場'] },
+  { k: 'correct',   a: '完了した点検記録を直す（訂正）', s: '元の記録は残り、理由が必須', q: 3, v: ['x', 'c', 'o', 'o'], t: ['', '担当設備のみ', '', ''] },
+  { k: 'void',      a: '間違えて始めた点検を取り消す', v: ['c', 'o', 'o', 'o'], t: ['自分の点検中のみ', '', '', ''] },
+  { g: '異常・修理' },
+  { k: 'report',    a: '異常を報告する（写真付き）', v: ['o', 'o', 'o', 'o'] },
+  { k: 'assign',    a: '担当者と期限を決める', v: ['x', 'c', 'o', 'o'], t: ['', '担当設備のみ', '', ''] },
+  { k: 'fix',       a: '修理・是正の内容を記録する', v: ['x', 'c', 'o', 'o'], t: ['', '自分が担当の異常', '', ''] },
+  { k: 'verify',    a: '再確認する（直ったか確かめる）', s: '直した本人はできない', v: ['x', 'c', 'c', 'c'], t: ['', '自分が直したもの以外', '自分が直したもの以外', '自分が直したもの以外'] },
+  { k: 'approve',   a: '承認して完了にする', q: 1, v: ['x', 'x', 'o', 'x'] },
+  { g: '設備・QR・点検項目' },
+  { k: 'eqview',    a: '設備台帳を見る', v: ['o', 'o', 'o', 'o'], t: ['所属工場', '', '', ''] },
+  { k: 'eqedit',    a: '設備を登録・編集する', v: ['x', 'c', 'o', 'o'], t: ['', '担当設備の一部の項目', '', ''] },
+  { k: 'eqstop',    a: '設備を停止・廃止にする', v: ['x', 'c', 'o', 'o'], t: ['', '停止のみ', '', ''] },
+  { k: 'qr',        a: 'QRラベルを発行・印刷する', v: ['x', 'o', 'o', 'o'] },
+  { k: 'tpl',       a: '点検項目（点検基準）を変える', s: '変えると新しい版になり、過去の記録は当時の版のまま', v: ['x', 'x', 'o', 'o'] },
+  { k: 'layout',    a: 'カード一覧のエリア配置を編集する', v: ['x', 'x', 'o', 'o'] },
+  { g: '見る・出力する' },
+  { k: 'board',     a: 'カード一覧（工場の点検状況）を見る', q: 4, v: ['o', 'o', 'o', 'o'], t: ['所属工場', '所属工場', '所属工場', '全工場'] },
+  { k: 'csv',       a: 'CSV・帳票を出力する', v: ['x', 'o', 'o', 'o'] },
+  { k: 'audit',     a: '操作の記録（監査ログ）を見る', v: ['x', 'x', 'o', 'o'] },
+  { g: '管理' },
+  { k: 'users',     a: '利用者の役割・所属工場を決める', v: ['x', 'x', 'x', 'o'] },
+  { k: 'settings',  a: 'システム設定（保存期間など）', v: ['x', 'x', 'x', 'o'] },
+  { k: 'device',    a: 'スマホのログイン記憶を取り消す', s: '紛失したとき', v: ['c', 'c', 'c', 'o'], t: ['自分の端末', '自分の端末', '自分の端末', '全員分'] },
+];
+const INIT = JSON.parse(JSON.stringify(MX));
+
+const QS = [
+  { n: 1, k: 'approve', title: '異常の「承認」はだれがする？', body: '是正が終わった異常を最終的に「完了」にする人です。', rec: 'おすすめ: 工場長だけ。システム管理者は現場の状況を知らないことが多いため外しています。工場長が不在の日の代わりが必要なら、システム管理者を ○ にしてください。' },
+  { n: 2, k: 'allrec', title: '一般社員に、他の人の点検記録を見せる？', body: '同じ工場の他の人がした点検の結果（正常・異常・コメント）を見られるかどうかです。', rec: 'おすすめ: 見せる（所属工場のみ）。前の人の記録を見て申し送りできるため。見せたくない場合は × にしてください。' },
+  { n: 3, k: 'correct', title: '完了した点検記録を、だれが直せる？', body: '押し間違いなどで記録を直すときです。元の記録は消えず、理由と直した人が残ります。', rec: 'おすすめ: 設備担当者（担当設備だけ）・工場長・システム管理者。一般社員は直さず、担当者に頼む運用です。' },
+  { n: 4, k: 'board', title: '一般社員に、工場全体のカード一覧を見せる？', body: 'PC の「エリア別カード一覧」（どの設備が終わったか・異常があるか）です。', rec: 'おすすめ: 見せる。点検の重複や漏れを、現場の全員で気づけるため。' },
+];
+
+const ICON = {
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 11l8-6.5 8 6.5v9h-5.5v-5.5h-5V20H4z"/></svg>',
+  list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>',
+  warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3.5L21.5 20h-19z"/><path d="M12 10v4.5M12 17.2v.3" stroke-linecap="round"/></svg>',
+  tool: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M14.5 5.5a4 4 0 0 0 4.9 4.9L11 18.8a2.1 2.1 0 0 1-3-3l8.4-8.4a4 4 0 0 0-1.9-1.9z"/></svg>',
+  qr:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.5" y="3.5" width="6" height="6" rx="1"/><rect x="14.5" y="3.5" width="6" height="6" rx="1"/><rect x="3.5" y="14.5" width="6" height="6" rx="1"/><path d="M14.5 14.5h2.5v2.5M20.5 14.5v6h-3.5"/></svg>',
+  file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3.5h8l4 4V20.5H6z"/><path d="M14 3.5v4h4M9 13h6M9 16.5h6"/></svg>',
+  chk:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>',
+  grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>',
+  eye:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.2-3.5 3.8-5 7-5s5.8 1.5 7 5" stroke-linecap="round"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg>',
+};
+
+let roleIdx = 0;
+const ri = id => ROLES.findIndex(r => r.id === id);
+const row = k => MX.find(m => m.k === k);
+const val = (k, i) => row(k).v[i];
+const cond = (k, i) => (row(k).t || [])[i] || '';
+
+function logo() {
+  return `<span class="logo"><svg viewBox="0 0 32 32"><rect x="3" y="3" width="26" height="26" rx="6" fill="none" stroke="#1F5FD1" stroke-width="3"/><path d="M9.5 16.5l4.5 4.5 8.5-9.5" fill="none" stroke="#1F5FD1" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 22.5l4 4" stroke="#1F5FD1" stroke-width="3" stroke-linecap="round"/></svg>TENQ</span>`;
+}
+
+function renderRoles() {
+  document.getElementById('roles').innerHTML = ROLES.map((r, i) => `
+    <button class="role ${r.cls}" aria-pressed="${i === roleIdx}" data-role="${i}">
+      <span class="av">${r.av}</span><span><b>${r.name}</b><span>${r.person}（${r.note}）</span></span>
+    </button>`).join('');
+}
+
+function renderViewer() {
+  const r = ROLES[roleIdx], i = roleIdx;
+  const navs = [
+    ['grid', 'カード一覧', 'board'], ['home', 'ホーム・点検', 'inspect'], ['list', '点検履歴・検索', 'myrec'],
+    ['warn', '異常・是正処置', 'report'], ['tool', '設備台帳', 'eqview'], ['qr', 'QRコード発行', 'qr'],
+    ['chk', '点検基準', 'tpl'], ['file', 'CSV・帳票', 'csv'], ['eye', '監査ログ', 'audit'],
+    ['user', 'ユーザー管理', 'users'], ['gear', 'システム設定', 'settings'],
+  ];
+  const act = (label, k, note) => {
+    const v = val(k, i), c = cond(k, i);
+    let cls = v === 'o' ? 'yes' : v === 'c' ? 'cond' : 'no';
+    let sub = v === 'c' ? c : v === 'x' ? 'この役割では押せません' : note || '';
+    /* L-07 の担当は佐藤（設備担当）。条件付きの判定を具体的に当てはめる */
+    if (v === 'c' && k === 'verify' && r.id === 'staff') { cls = 'no'; sub = '佐藤さん自身が直したため押せない'; }
+    if (v === 'c' && k === 'fix' && r.id === 'staff') { cls = 'yes'; sub = '佐藤さんが担当の異常'; }
+    if (v === 'c' && (k === 'assign' || k === 'correct' || k === 'eqedit') && r.id === 'staff') { cls = 'yes'; sub = 'L-07 は佐藤さんの担当設備'; }
+    if (v === 'c' && k === 'verify' && r.id !== 'staff') { cls = 'yes'; sub = '直したのは佐藤さんなので可'; }
+    return `<button class="act ${cls}" ${cls === 'no' ? 'disabled' : ''}>${label}<small>${sub}</small></button>`;
+  };
+  document.getElementById('viewer').innerHTML = `
+    <div class="pc ${r.cls}"><div class="chrome"><i></i><i></i><i></i></div>
+      <div class="app">
+        <aside class="side">${logo()}
+          <div class="who"><b>${r.person}</b>${r.name} ・ ${r.note}</div>
+          ${navs.map(([ic, l, k], n) => { const v = val(k, i); return `<div class="nav ${n === 0 ? 'on' : ''} ${v === 'x' ? 'lock' : ''}">${ICON[ic]}${l}${v === 'x' ? '<span class="lk">表示しない</span>' : ''}</div>`; }).join('')}
+        </aside>
+        <div class="pane">
+          <h3>設備の詳細（カード一覧で L-07 を押したところ）</h3>
+          <div class="eqcard">
+            <div class="eh"><div class="c">L-07 ・ B棟 切削 ・ 管理担当 佐藤 美咲</div><div class="n">NC旋盤 7号</div><div class="s">▲ 異常あり（今日 08:41 佐藤 点検）</div></div>
+            <div class="eb">
+              <div class="abn"><b>異常 F01-2026-0042「主軸から異音」</b><br>危険度 高 ・ 状態: <b>是正完了</b>（佐藤さんがベアリングを交換）→ 次は「再確認」</div>
+              <div class="acts">
+                ${act('点検表を開く', 'inspect')}
+                ${act('異常を報告する', 'report')}
+                ${act('担当・期限を決める', 'assign')}
+                ${act('修理内容を記録', 'fix')}
+                ${act('再確認する', 'verify')}
+                ${act('承認して完了', 'approve')}
+                ${act('点検記録を訂正', 'correct')}
+                ${act('QRラベルを印刷', 'qr')}
+                ${act('設備を編集', 'eqedit')}
+                ${act('点検項目を変更', 'tpl')}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="can ${r.cls}">
+      <div class="intro"><b>${r.name}</b><p>${r.intro}</p></div>
+      <div class="y"><h4>✓ できること</h4><ul>${r.yes.map(x => `<li>${x}</li>`).join('')}</ul></div>
+      <div class="n"><h4>— できないこと</h4><ul>${r.no.map(x => `<li>${x}</li>`).join('')}</ul></div>
+      <p style="margin:0;font-size:12px;color:var(--sub)">※ 下の権限表を変えると、左の画面のボタンにもすぐ反映されます。</p>
+    </div>`;
+}
+
+function renderFlow() {
+  const steps = ['① 異常を見つけて報告', '② 担当と期限を決める', '③ 修理・是正を記録', '④ 再確認（直ったか）', '⑤ 承認して完了'];
+  const cell = (rid, n) => {
+    const map = {
+      worker:  { 0: ['点検で「異常」を選び、写真付きで報告', '状態: 発生'] },
+      staff:   { 1: ['報告を見て、担当（自分）と期限を決める', '状態: 未対応'], 2: ['修理し、内容と完了日を記録', '状態: 対応中 → 是正完了'], 3: ['※ 別の設備担当者が確かめる（自分が直したものは不可）', '', true] },
+      manager: { 1: ['担当を割り振ることもできる', '', true], 3: ['直ったことを現場で確かめる', '状態: 再確認'], 4: ['内容を見て承認', '状態: 承認・完了'] },
+      admin:   {},
+    };
+    const c = map[rid][n];
+    return c ? `<div class="stepc ${c[2] ? 'alt' : ''}"><b>${c[0]}</b>${c[1] ? `<span class="st">${c[1]}</span>` : ''}</div>` : '';
+  };
+  const cur = ROLES[roleIdx].id;
+  document.getElementById('flow').innerHTML = `<div class="lanes">
+    <div class="hd">役割</div>${steps.map(s => `<div class="hd">${s}</div>`).join('')}
+    ${ROLES.map(r => `<div class="who ${r.cls} ${r.id === cur ? '' : 'dim'}">${r.name}<small>${r.person}</small></div>${steps.map((_, n) => `<div class="${r.cls} ${r.id === cur ? '' : 'dim'}">${cell(r.id, n)}</div>`).join('')}`).join('')}
+  </div>`;
+}
+
+function renderQs() {
+  document.getElementById('qs').innerHTML = QS.map(q => {
+    const r = row(q.k);
+    const now = ROLES.map((ro, i) => `${ro.name} ${r.v[i] === 'o' ? '○' : r.v[i] === 'c' ? '△' : '×'}`).join(' ・ ');
+    return `<div class="qcard"><b>要確認${'①②③④'[q.n - 1]} ${q.title}</b>${q.body}<div class="rec">${q.rec}</div><div class="rec"><b style="display:inline;color:var(--ink)">今の設定:</b> ${now}</div></div>`;
+  }).join('');
+}
+
+function renderMx() {
+  const mark = { o: '○', c: '△', x: '×' };
+  document.getElementById('mx').innerHTML = `
+    <thead><tr><th>できること</th>${ROLES.map(r => `<th class="${r.cls}"><span class="rh"><span class="dot"></span>${r.name}</span></th>`).join('')}</tr></thead>
+    <tbody>${MX.map(m => m.g ? `<tr class="grp"><td colspan="5">${m.g}</td></tr>` : `<tr>
+      <td class="act-name">${m.a}${m.q ? `<span class="q">要確認${'①②③④'[m.q - 1]}</span>` : ''}${m.s ? `<small>${m.s}</small>` : ''}</td>
+      ${m.v.map((v, i) => { const changed = v !== INIT.find(x => x.k === m.k).v[i]; const t = (m.t || [])[i]; return `<td class="cell"><button class="cellbtn ${v} ${changed ? 'changed' : ''}" data-k="${m.k}" data-i="${i}"><span class="m">${mark[v]}</span>${t && v !== 'x' ? `<span class="t">${t}</span>` : ''}</button></td>`; }).join('')}
+    </tr>`).join('')}</tbody>`;
+}
+
+function changesText() {
+  const mark = { o: '○', c: '△', x: '×' };
+  const out = [];
+  MX.forEach(m => { if (!m.k) return; const init = INIT.find(x => x.k === m.k); m.v.forEach((v, i) => { if (v !== init.v[i]) out.push(`「${m.a}」の${ROLES[i].name}: ${mark[init.v[i]]} → ${mark[v]}`); }); });
+  return out;
+}
+
+function renderChanges(msg = '') {
+  const list = changesText();
+  document.getElementById('changes').innerHTML = `<h3>変更した点</h3>
+    ${list.length ? `<ul>${list.map(x => `<li>${x}</li>`).join('')}</ul>` : '<p class="empty">まだ変更はありません（今の表は、おすすめの初期値です）。このままでよければ「この内容でよい」とお伝えください。</p>'}
+    <div class="btnrow"><button class="btn pri" data-copy="1" ${list.length ? '' : 'disabled'}>変更点をコピー</button><button class="btn" data-reset="1">おすすめの初期値に戻す</button>${msg ? `<span class="copied">${msg}</span>` : ''}</div>`;
+}
+
+function renderAll() { renderRoles(); renderViewer(); renderFlow(); renderQs(); renderMx(); renderChanges(); }
+
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest('button');
+  if (!b) return;
+  if (b.dataset.role !== undefined) { roleIdx = Number(b.dataset.role); renderRoles(); renderViewer(); renderFlow(); return; }
+  if (b.dataset.k) {
+    const r = row(b.dataset.k), i = Number(b.dataset.i);
+    r.v[i] = { o: 'c', c: 'x', x: 'o' }[r.v[i]];
+    if (r.v[i] === 'c') { r.t = r.t || ['', '', '', '']; if (!r.t[i]) r.t[i] = '条件付き（内容をお知らせください）'; }
+    renderViewer(); renderQs(); renderMx(); renderChanges(); return;
+  }
+  if (b.dataset.reset) { MX.splice(0, MX.length, ...JSON.parse(JSON.stringify(INIT))); renderAll(); return; }
+  if (b.dataset.copy) {
+    const text = 'TENQ 権限表の変更点\n' + changesText().map(x => '・' + x).join('\n');
+    try { await navigator.clipboard.writeText(text); renderChanges('コピーしました。チャットに貼り付けてください。'); }
+    catch { window.prompt('コピーして貼り付けてください', text); }
+  }
+});
+
+renderAll();
+</script>
+</body>
+</html>
