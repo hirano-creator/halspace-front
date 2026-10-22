@@ -106,6 +106,7 @@ npm run check:size          # Worker バンドルサイズ確認
 - E2E の `devLogin()` はログイン完了まで待つ。スマホはログイン記憶の登録が1回多く、待たないと次の移動が上書きされる
 - `useEffect` の中で同期的に setState しない（ESLint の react-hooks が指摘する）。読み込みは `useLoad()` を使う
 - 実際の Space.app アカウントでログインするには、Space.app 側の利用アプリに `tenq` が必要（未登録の間は 403）
+- 実機確認用のプレビューは https://tenq-dev.pages.dev/TENQ/app/（`npm run deploy:preview`）。Cloudflare の操作前に `npx wrangler whoami` で Space.app のアカウント（h.hirano@hirano50.com）か確かめる。別のアカウントにログインしていたことがある
 
 ## 第4段階で決めた実装上のルール
 

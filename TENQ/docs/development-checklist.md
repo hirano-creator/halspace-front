@@ -35,7 +35,7 @@
 - [x] `0001_init.sql`（全テーブル・索引・トリガー）とローカル適用
 - [x] ダミーデータ投入スクリプト（`api/seed/dev-seed.sql`、`npm run db:reset:local`）
 - [x] `check:size` スクリプト（Worker 1 MiB / 2 MiB 判定、画面の初回 JS gzip 200 KiB 判定）
-- [ ] 開発用 D1・R2 の作成（承認後。ローカル開発には不要）
+- [x] 開発用 D1・R2・Worker・Pages（tenq-dev）の作成（2026-10-22、Space.app と同じアカウント。docs/deployment.md §8）
 - [x] D1 の外部キー制約・トリガーが効くことをテストで確認
 - [x] QR 転送ページ `TENQ/q/index.html`
 

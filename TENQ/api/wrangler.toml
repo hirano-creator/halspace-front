@@ -13,14 +13,15 @@ name = "tenq-api-dev"
 [env.dev.vars]
 APP_ENV = "dev"
 HALSPACE_API = "http://127.0.0.1:8000/api"
-ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+# 画面: ローカルの Vite と、実機確認用のプレビュー（tenq-dev.pages.dev）
+ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,https://tenq-dev.pages.dev"
 # 開発用の簡易ログイン（"dev-<hs_user_id>"）。本番の設定には絶対に書かない
 DEV_AUTH_STUB = "1"
 
 [[env.dev.d1_databases]]
 binding = "DB"
 database_name = "tenq-db-dev"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "ce092ce0-6d38-49f1-ae57-dd50e6f91617"
 migrations_dir = "migrations"
 
 [[env.dev.r2_buckets]]
