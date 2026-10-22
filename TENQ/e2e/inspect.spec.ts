@@ -96,15 +96,16 @@ test('工場長は点検基準を変更して新しい版を公開できる', as
   test.skip(page.viewportSize()!.width <= 900, '版を増やすのは PC だけで行う');
   await page.goto('./');
   await devLogin(page, '中村 誠');
-  await page.goto('./#/templates/tpl-weld');
+  // ほかのテストで点検しない点検基準（揚重機）を使う。項目数が変わると、点検のテストの必須件数がずれるため
+  await page.goto('./#/templates/tpl-lift');
   await page.getByRole('button', { name: '項目を変更する（新しい版）' }).click();
   await page.getByRole('button', { name: '項目を追加' }).click();
-  await page.getByLabel('6. 項目名').fill('ワイヤー残量');
+  await page.getByLabel('5. 項目名').fill('ワイヤーの素線切れ');
   await page.getByRole('button', { name: '公開する（新しい版）' }).click();
-  await page.getByRole('dialog').getByRole('textbox').fill('ワイヤー残量の確認を追加');
+  await page.getByRole('dialog').getByRole('textbox').fill('ワイヤーの確認を追加');
   await page.getByRole('dialog').getByRole('button', { name: '公開する' }).click();
   await expect(page.getByText('第2版を公開しました')).toBeVisible();
-  await expect(page.getByText('変更理由: ワイヤー残量の確認を追加')).toBeVisible();
+  await expect(page.getByText('変更理由: ワイヤーの確認を追加')).toBeVisible();
 });
 
 test('QR 読み取り画面が開き、カメラが使えないときは代わりの方法を案内する', async ({ page }) => {

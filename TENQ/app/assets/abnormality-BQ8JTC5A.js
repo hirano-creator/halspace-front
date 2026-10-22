@@ -1,0 +1,1 @@
+var e=[`reported`,`assigned`,`in_progress`,`corrected`,`verified`,`closed`],t={reported:`発生`,assigned:`未対応`,in_progress:`対応中`,corrected:`是正完了`,verified:`再確認済み`,closed:`承認・完了`},n=[`low`,`medium`,`high`],r={low:{label:`低`,hint:`使用は続けられる。次の保全で直せばよい`},medium:{label:`中`,hint:`早めの対応が必要。悪化しないか様子を見る`},high:{label:`高`,hint:`けが・故障・品質不良につながるおそれがある`}};export{r as i,t as n,n as r,e as t};

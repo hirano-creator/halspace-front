@@ -8,7 +8,7 @@ export interface Me {
   user: { id: string; name: string; email: string | null; role: Role | null; roleLabel: string | null };
   factories: { id: string; code: string; name: string; timezone: string }[];
   via: 'space' | 'device' | 'dev-stub';
-  settings: { qr_base_url: string; device_login_days: number; board_refresh_seconds: number; reauth_hours: number };
+  settings: { qr_base_url: string; device_login_days: number; board_refresh_seconds: number; reauth_hours: number; photo_max_count: number; high_severity_message: string };
 }
 
 interface AuthState {

@@ -52,7 +52,7 @@ export function InspectPage({ equipmentId }: { equipmentId: string }) {
   const [message, setMessage] = useState<{ kind: 'error' | 'warn'; text: string } | null>(null);
   const [other, setOther] = useState<{ name: string; startedAt: string } | null>(null);
   const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
-  const [done, setDone] = useState<{ overall: 'ok' | 'ng'; ng: number; total: number } | null>(null);
+  const [done, setDone] = useState<{ overall: 'ok' | 'ng'; ng: number; total: number; inspectionId: string; ngItems: { id: string; label: string; note: string }[] } | null>(null);
   const [comment, setComment] = useState('');
   const [voidOpen, setVoidOpen] = useState(false);
 
@@ -108,7 +108,8 @@ export function InspectPage({ equipmentId }: { equipmentId: string }) {
       const r = await apiSend<{ overall_result: 'ok' | 'ng' }>('POST', `/inspections/${inspectionId}/complete`, { results, comment: comment || null },
         { 'Idempotency-Key': completionKey(inspectionId) });
       writeDraft(dkey, null);
-      setDone({ overall: r.overall_result, ng: results.filter((x) => x.judgment === 'ng').length, total: results.length });
+      const ngItems = items.filter((i) => answers[i.id]?.judgment === 'ng').map((i) => ({ id: i.id, label: i.label, note: answers[i.id]?.note ?? '' }));
+      setDone({ overall: r.overall_result, ng: ngItems.length, total: results.length, inspectionId, ngItems });
       window.scrollTo(0, 0);
     } catch (e) {
       // 通信できなかったときも、同じ冪等キーで押し直せば二重には記録されない
@@ -133,7 +134,17 @@ export function InspectPage({ equipmentId }: { equipmentId: string }) {
         <p className="muted">{eq.equipment_code} {eq.name}<br />{data.date} ・ {me.user.name}</p>
         <p className="done-count"><span className="badge st-ok">正常 {done.total - done.ng}</span> <span className="badge st-ng">異常 {done.ng}</span></p>
         {done.overall === 'ng' && (
-          <Alert kind="error">異常が {done.ng} 件あります。危険がある場合は設備の使用を止め、責任者に連絡してください（会社の安全管理ルールに従ってください）。写真付きの異常報告は次の段階（第5段階）で追加します。</Alert>
+          <>
+            <Alert kind="error">異常が {done.ng} 件あります。危険がある場合は設備の使用を止め、責任者に連絡してください（会社の安全管理ルールに従ってください）。続けて、写真付きで異常を報告してください。</Alert>
+            <ul className="ng-report-list">
+              {done.ngItems.map((it) => (
+                <li key={it.id}>
+                  <span><b>{it.label}</b>{it.note && <small className="block muted">{it.note}</small>}</span>
+                  <Button variant="danger" onClick={() => navigate(`/abnormalities/new?equipment=${eq.id}&inspection=${done.inspectionId}&item=${it.id}&title=${encodeURIComponent(`${it.label}の異常`)}&note=${encodeURIComponent(it.note)}`)}>異常を報告</Button>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
         <div className="done-actions">
           <Button variant="primary" className="block big" onClick={() => navigate('/scan')}>次の設備の QR を読み取る</Button>

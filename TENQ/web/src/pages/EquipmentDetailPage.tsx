@@ -43,6 +43,7 @@ export function EquipmentDetailPage({ id }: { id: string }) {
       <PageHeader title={`${e.equipment_code} ${e.name}`} sub={<>{e.factory_name}{e.area_name && ` ・ ${e.area_name}`} <span className={`badge ${st?.cls ?? ''}`}>{st?.label ?? e.status}</span></>}
         actions={<>
           {e.status === 'active' && can('inspection.perform', { factoryId: e.factory_id }) && <Button variant="primary" onClick={() => navigate(`/inspect/${e.id}`)}>点検する</Button>}
+          {e.status !== 'retired' && can('abnormality.report', { factoryId: e.factory_id }) && <Button onClick={() => navigate(`/abnormalities/new?equipment=${e.id}`)}>異常を報告</Button>}
           {p.edit && e.status !== 'retired' && <Button onClick={() => navigate(`/equipment/${e.id}/edit`)}>編集</Button>}
           <Button onClick={() => navigate('/equipment')}>一覧へ</Button>
         </>} />

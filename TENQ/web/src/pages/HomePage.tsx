@@ -24,7 +24,16 @@ export function HomePage() {
   const [factoryId, setFactoryId] = useState(me?.factories[0]?.id ?? '');
   const board = useLoad(() => (factoryId ? apiGet<Board>(`/board?factory=${encodeURIComponent(factoryId)}`) : Promise.resolve(null)), [factoryId]);
   const [showDone, setShowDone] = useState(false);
+  const abn = useLoad(() => (me?.user.role ? apiGet<Record<string, number>>('/abnormalities/summary') : Promise.resolve(null)), [me?.user.role]);
   if (!me) return null;
+  // 自分が動く必要のある異常（担当・期限超過・再確認待ち・承認待ち）
+  const todo = abn.data ? [
+    { n: abn.data.mine ?? 0, label: 'あなたが担当の異常', view: 'mine', cls: 'st-doing', show: true },
+    { n: abn.data.overdue ?? 0, label: '期限を過ぎた異常', view: 'overdue', cls: 'st-late', show: can('abnormality.assign') },
+    { n: abn.data.unhandled ?? 0, label: '担当が決まっていない・未着手の異常', view: 'unhandled', cls: 'st-ng', show: can('abnormality.assign') },
+    { n: abn.data.to_verify ?? 0, label: '再確認を待っている異常', view: 'corrected', cls: 'st-doing', show: can('abnormality.assign') },
+    { n: abn.data.to_approve ?? 0, label: '承認を待っている異常', view: 'verified', cls: 'st-ok', show: can('abnormality.approve') },
+  ].filter((x) => x.show && x.n > 0) : [];
 
   const items = [...(board.data?.items ?? [])].sort((a, b) => ORDER.indexOf(a.board_status) - ORDER.indexOf(b.board_status) || a.equipment_code.localeCompare(b.equipment_code));
   const pending = items.filter((i) => ['late', 'doing', 'todo'].includes(i.board_status));
@@ -41,6 +50,14 @@ export function HomePage() {
       {me.factories.length > 0 && (
         <>
           <Button variant="primary" className="block big scan-button" onClick={() => navigate('/scan')}>QR を読み取って点検</Button>
+
+          {todo.length > 0 && (
+            <ul className="abn-todo" aria-label="対応が必要な異常">
+              {todo.map((t) => (
+                <li key={t.view}><a href={`#/abnormalities?view=${t.view}`} className={t.cls}><b>{t.n}</b><span>{t.label}</span></a></li>
+              ))}
+            </ul>
+          )}
 
           {me.factories.length > 1 && (
             <div className="filters">

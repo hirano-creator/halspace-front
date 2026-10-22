@@ -74,3 +74,27 @@ export async function apiSend<T = unknown>(method: 'POST' | 'PATCH' | 'PUT' | 'D
   if (!res.ok) { handle401(res); throw await toError(res); }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
+
+/** 画像などを本体そのままで送る（写真のアップロード）。Content-Length はブラウザが付ける */
+export async function apiUpload<T = unknown>(path: string, blob: Blob, fileName: string): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(API_BASE + path, {
+      method: 'POST',
+      headers: headers(false, { 'Content-Type': blob.type, 'X-File-Name': encodeURIComponent(fileName.slice(0, 100)) }),
+      body: blob,
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch {
+    throw new ApiError(0, '写真を送れませんでした。電波の届く場所で、もう一度お試しください。');
+  }
+  if (!res.ok) { handle401(res); throw await toError(res); }
+  return (await res.json()) as T;
+}
+
+/** 権限が必要な画像を取得して、表示用の URL（blob:）にする */
+export async function apiBlobUrl(path: string): Promise<string> {
+  const res = await fetch(API_BASE + path, { headers: headers(false), signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) { handle401(res); throw await toError(res); }
+  return URL.createObjectURL(await res.blob());
+}
