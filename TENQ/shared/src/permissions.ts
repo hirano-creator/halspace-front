@@ -38,6 +38,7 @@ export const ACTIONS = [
   'abnormality.verify',
   'abnormality.approve',
   'equipment.view',
+  'equipment.create',
   'equipment.edit',
   'equipment.stop',
   'equipment.retire',
@@ -69,6 +70,7 @@ export const PERMISSIONS: Record<Action, Row> = {
   'abnormality.verify':     row(false, 'notFixer', 'notFixer', 'notFixer'),
   'abnormality.approve':    row(false, false, true, false),
   'equipment.view':         row(true, true, true, true),
+  'equipment.create':       row(false, false, true, true),
   'equipment.edit':         row(false, 'managedEquipment', true, true),
   'equipment.stop':         row(false, 'managedEquipment', true, true),
   'equipment.retire':       row(false, false, true, true),
@@ -122,3 +124,9 @@ export function can(actor: Actor, action: Action, target: Target = {}): boolean 
     case 'ownDevice':        return target.deviceOwnerId === actor.id;
   }
 }
+
+/**
+ * 設備担当者が担当設備で編集できる項目（権限表「担当設備の一部の項目」）。
+ * 設備番号・名称・工場・担当者・点検基準・頻度・エリアは工場長以上が変える。
+ */
+export const STAFF_EDITABLE_EQUIPMENT_FIELDS = ['location', 'maker', 'model', 'notes'] as const;

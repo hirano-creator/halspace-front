@@ -6,7 +6,7 @@ TENQ（テンク）— Smart Inspection System。QR コード式の工場設備�
 
 ## 状態
 
-第2段階（開発環境・DB・テスト環境）のローカル分が完了（2026-10-22）。画面は確認用の仮画面だけで、実画面は第3段階から。**要確認事項は `docs/requirements.md` §10**。構成（案 A）・QR の URL・権限表（`docs/requirements.md` §3-2）はすべて決定済み（2026-10-22）。
+第3段階（ログイン・権限・工場/エリア・設備台帳・QR 発行と印刷・ユーザー管理）まで完了（2026-10-22）。次は第4段階（日常点検）。**要確認事項は `docs/requirements.md` §10**。構成（案 A）・QR の URL・権限表（`docs/requirements.md` §3-2）はすべて決定済み（2026-10-22）。
 
 QR の印字 URL は `https://space-apps.pages.dev/TENQ/q/#<トークン>`。**`TENQ/q/` の場所とフォルダ名 `TENQ` は印刷済み QR が壊れるので変更禁止**（`docs/architecture.md` §4-3）。
 
@@ -96,3 +96,13 @@ npm run check:size          # Worker バンドルサイズ確認
 - ダミーデータの点検日は SQL の `strftime('%Y-%m-%d','now','+9 hours')` で「今日（日本時間）」になる。日付を固定値で書かない
 - E2E は `npx playwright test` が API（wrangler dev）と画面（Vite）を自動で起動する。Playwright は TimeCalc と同じ 1.61 に合わせ、ブラウザの追加ダウンロードをしない
 - `app/` はビルド成果物（Pages でそのまま配信する。docs/architecture.md §6 ①）。手で編集しない
+
+## 第3段階で決めた実装上のルール
+
+- 更新系 API は楽観ロック（`version`）。監査ログは `auditStatement(c, entry, updatedBy(...))` で「更新が実際に効いたときだけ」書く（同時編集で 409 になったのに監査ログだけ残る、を防ぐ）。業務の更新と監査ログは同じ `db.batch()` に入れる
+- 権限は `authorize(c, action, target)`（shared の権限表）、範囲は `scopeWhere(auth, alias)`。範囲外の ID は 404
+- 開発用の簡易ログイン（`dev-<hs_user_id>`）は `APP_ENV=dev` かつ `DEV_AUTH_STUB=1` のときだけ。画面側のボタンは `import.meta.env.DEV` で囲み、本番ビルドに入らないことを確認する（`grep 開発用ログイン app/assets/*.js`）
+- ログイン後の移動先（QR の設備へ戻る等）は `App.tsx` の1か所で決める。ログイン画面で別に navigate すると、React の描画のタイミングで上書きされる（第3段階で実際に起きた）
+- E2E の `devLogin()` はログイン完了まで待つ。スマホはログイン記憶の登録が1回多く、待たないと次の移動が上書きされる
+- `useEffect` の中で同期的に setState しない（ESLint の react-hooks が指摘する）。読み込みは `useLoad()` を使う
+- 実際の Space.app アカウントでログインするには、Space.app 側の利用アプリに `tenq` が必要（未登録の間は 403）

@@ -1,0 +1,41 @@
+/*
+ * QR ラベルの印刷（A4 縦、余白 10mm）。
+ * 画面では印刷イメージとして縮小表示し、印刷ではラベルだけを出す。
+ */
+.sheets { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+.sheet {
+  width: 210mm; height: 297mm; padding: 10mm; background: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  display: grid; gap: 0; transform-origin: top center;
+}
+.layout-standard .sheet { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(5, 1fr); }
+.layout-large .sheet { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(4, 1fr); }
+
+/* 切り取り線（点線）。ラベル内の文字は大きく、遠くからでも設備番号が読める */
+.label { border: 0.3mm dashed #B8C0CB; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3mm; overflow: hidden; color: #000; text-align: center; }
+.label .qr { width: auto; margin: 0; }
+.layout-standard .label .qr { height: 35mm; }
+.layout-large .label .qr { height: 50mm; }
+.label-text { display: flex; flex-direction: column; line-height: 1.2; margin-top: 1.5mm; }
+.label-brand { font-size: 7pt; font-weight: 800; letter-spacing: .1em; color: #1F5FD1; }
+.label-code { font-size: 16pt; font-weight: 900; letter-spacing: .02em; }
+.layout-large .label-code { font-size: 22pt; }
+.label-name { font-size: 8.5pt; font-weight: 700; }
+.label-area { font-size: 7pt; color: #444; }
+
+/* 画面上では A4 を縮小して見せる */
+@media screen {
+  .sheet { zoom: .55; }
+  @media (max-width: 899px) { .sheet { zoom: .4; } }
+}
+
+@media print {
+  @page { size: A4 portrait; margin: 0; }
+  html, body { background: #fff !important; }
+  .app-header, .side-nav, .no-print, .alert { display: none !important; }
+  .shell-body { display: block !important; }
+  .content { padding: 0 !important; max-width: none !important; }
+  .sheets { gap: 0; display: block; }
+  .sheet { zoom: 1; box-shadow: none; break-after: page; page-break-after: always; }
+  .sheet:last-child { break-after: auto; page-break-after: auto; }
+  .label { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
