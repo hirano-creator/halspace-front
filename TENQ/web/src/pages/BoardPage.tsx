@@ -35,14 +35,24 @@ export function BoardPage() {
   const [saving, setSaving] = useState(false);
   const canEdit = can('layout.edit', { factoryId });
 
-  // 自動更新（編集中は止める）。読み直しの関数は描画のたびに変わるので ref で持ち、タイマーを作り直さない
+  // 自動更新（編集中は止める）。読み直しの関数は描画のたびに変わるので ref で持ち、タイマーを作り直さない。
+  // 画面を見ていないとき（別のタブ・最小化・スリープ）は API を呼ばない。開きっぱなしの PC で
+  // Workers 無料プランの呼び出し回数（1日 10 万回）を使い切らないため。見える状態に戻ったら、間が空いていればすぐ読み直す
   const refresh = me?.settings.board_refresh_seconds ?? 30;
   const reloadRef = useRef(board.reload);
   useEffect(() => { reloadRef.current = board.reload; });
   useEffect(() => {
     if (editing) return;
-    const t = setInterval(() => reloadRef.current(), refresh * 1000);
-    return () => clearInterval(t);
+    let last = Date.now();
+    const tick = () => {
+      if (document.hidden) return;
+      last = Date.now();
+      reloadRef.current();
+    };
+    const t = setInterval(tick, refresh * 1000);
+    const onVisible = () => { if (!document.hidden && Date.now() - last >= refresh * 1000) tick(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible); };
   }, [editing, refresh]);
 
   const data = board.data;
