@@ -209,11 +209,12 @@ reportRoutes.get('/reports/audit-pack', async (c) => {
     db.prepare(`SELECT i.inspection_date, e.equipment_code, e.name AS equipment, c.to_revision, c.reason, c.diff_json, c.corrected_at, u.name AS corrected_by
                 FROM inspection_corrections c JOIN inspections i ON i.id = c.inspection_id JOIN equipment e ON e.id = i.equipment_id JOIN users u ON u.id = c.corrected_by
                 WHERE i.factory_id = ? AND i.inspection_date BETWEEN ? AND ? ORDER BY c.corrected_at`).bind(q.factory, q.from, q.to),
-    db.prepare(`SELECT DISTINCT t.name AS template, v.version_no, v.change_reason, v.published_at, u.name AS published_by,
+    // 使われた版を先に絞ってから項目数を数える（点検 1 件ごとに数えると読み取り行数が点検数 × 項目数になる）
+    db.prepare(`SELECT t.name AS template, v.version_no, v.change_reason, v.published_at, u.name AS published_by,
                        (SELECT COUNT(*) FROM inspection_items it WHERE it.template_version_id = v.id) AS items
-                FROM inspections i JOIN inspection_template_versions v ON v.id = i.template_version_id JOIN inspection_templates t ON t.id = v.template_id
-                LEFT JOIN users u ON u.id = v.published_by
-                WHERE i.factory_id = ? AND i.inspection_date BETWEEN ? AND ? ORDER BY t.name, v.version_no`).bind(q.factory, q.from, q.to),
+                FROM (SELECT DISTINCT template_version_id FROM inspections WHERE factory_id = ? AND inspection_date BETWEEN ? AND ?) x
+                JOIN inspection_template_versions v ON v.id = x.template_version_id JOIN inspection_templates t ON t.id = v.template_id
+                LEFT JOIN users u ON u.id = v.published_by ORDER BY t.name, v.version_no`).bind(q.factory, q.from, q.to),
     db.prepare(`SELECT a.report_no, e.equipment_code, a.title, a.severity, a.status, a.found_at, a.due_date, a.corrected_date,
                        s.name AS assignee, vb.name AS verifier, a.verified_at, ab.name AS approver, a.approved_at,
                        (SELECT group_concat(ca.description, ' / ') FROM corrective_actions ca WHERE ca.abnormality_id = a.id) AS actions
