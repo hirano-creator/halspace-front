@@ -105,3 +105,15 @@ Space.app のアプリ一覧に TENQ を出す変更（`space/assets/js/space.js
 | 10 | 並行運用（紙の点検表と一定期間併用）→ 紙の廃止 | 現場 | 品質管理担当者 |
 
 反映の確認は、本文の固有文字列（`curl -sL https://space-apps.pages.dev/TENQ/app/ | grep -c "TENQ — Smart Inspection System"`）と `npx wrangler pages deployment list --project-name space-apps` の Production 行、API の `/api/health` で行う。
+
+### 9-1. 実施記録（2026-10-22）
+
+| # | 結果 |
+| --- | --- |
+| 1 | 未確認。負荷計測では無料枠の 10ms を超える処理（カード一覧・検索・CSV）も成功しているため、有料プランの可能性が高い。オーナーがダッシュボードで確認する（requirements.md Q-12） |
+| 2 | D1 `tenq-db`（ebf01e12-…）・R2 `tenq-files` を作成。コミット e7c6d96 |
+| 3 | 0001・0002 を適用。22 テーブル・13 トリガー・データ 0 件 |
+| 4 | https://tenq-api.space-app.workers.dev にデプロイ。`/api/health` が production、開発用ログイン・不正トークンは 401、CORS は space-apps だけ許可 |
+| 5 | solid-api の af59979 を main に push（Railway が自動デプロイ）。Railway CLI のログインが切れていたため、デプロイの状態は CLI では確認できていない。halspace-api 本体は応答あり |
+| 6 | main に 9 コミットを cherry-pick して push（03d0522）。Pages の Production 行が 03d0522、`/TENQ/app/`・`/TENQ/q/` が 200、本番画面の API は tenq-api.space-app.workers.dev、開発用ログインは本番ビルドに含まれない |
+| 7 | 未実施（どの会社で使うかをオーナーが決める） |
