@@ -31,9 +31,11 @@ describe('API の起動', () => {
     expect(ng.headers.get('Access-Control-Allow-Origin')).toBeNull();
   });
 
-  it('存在しないパスは JSON の 404', async () => {
-    const res = await app.request('/api/nothing', {}, env);
+  it('存在しないパスは、未ログインなら 401（存在を知らせない）、ログイン済みなら JSON の 404', async () => {
+    expect((await app.request('/api/nothing', {}, env)).status).toBe(401);
+    const res = await app.request('/api/nothing', { headers: { Authorization: 'Bearer dev-900001' } }, env);
     expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({ message: '見つかりません。' });
   });
 });
 

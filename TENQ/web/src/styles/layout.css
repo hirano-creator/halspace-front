@@ -1,0 +1,111 @@
+/* ===== 外枠 ===== */
+.app-header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; min-height: 56px; }
+.brand { text-decoration: none; }
+.header-user { margin-left: auto; text-align: right; line-height: 1.25; }
+.header-name { display: block; font-weight: 700; font-size: 14px; }
+.header-role { font-size: 12px; color: var(--sub); }
+.menu-toggle { min-height: 44px; border: 1px solid var(--line-strong); background: #fff; border-radius: 10px; padding: 0 12px; font-weight: 700; }
+.shell-body { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 56px); }
+.side-nav { background: var(--card); border-right: 1px solid var(--line); padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
+.side-nav a { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; color: var(--ink); text-decoration: none; font-size: 15px; min-height: 44px; }
+.side-nav a.on { background: var(--accent-lt); color: var(--accent); font-weight: 700; }
+.side-nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; flex: none; }
+.nav-logout { margin-top: auto; min-height: 44px; border: 1px solid var(--line); background: #fff; border-radius: 10px; color: var(--sub); }
+.content { padding: 20px 24px 40px; max-width: 1200px; width: 100%; }
+@media (min-width: 900px) { .menu-toggle { display: none; } }
+@media (max-width: 899px) {
+  .shell-body { grid-template-columns: 1fr; }
+  .side-nav { display: none; position: fixed; inset: 56px 0 auto 0; z-index: 19; border-bottom: 1px solid var(--line); box-shadow: 0 8px 20px rgba(0,0,0,.12); max-height: calc(100vh - 56px); overflow: auto; }
+  .side-nav.open { display: flex; }
+  .content { padding: 16px 16px 40px; }
+  .header-user { display: none; }
+  .menu-toggle { margin-left: auto; }
+  .hide-sm { display: none; }
+}
+
+/* ===== ページ ===== */
+.page-header { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; }
+.page-title { font-size: 22px; margin: 0; }
+.page-sub { margin: 4px 0 0; color: var(--sub); font-size: 14px; }
+.page-actions, .button-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.button-row.end { justify-content: flex-end; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+.panel h2 { font-size: 16px; margin: 0 0 12px; }
+.section-title { font-size: 16px; margin: 24px 0 8px; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.filters > select, .filters > input { width: auto; flex: 1 1 180px; }
+.filters .inline { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.filters .inline select { width: auto; }
+.more { text-align: center; margin-top: 12px; }
+
+/* ===== 表 ===== */
+.table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+.panel .table-wrap { border: 0; }
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th { text-align: left; font-weight: 700; color: var(--sub); background: #F7F9FB; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.table td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.table tr:last-child td { border-bottom: 0; }
+.row-link { cursor: pointer; }
+.row-link:hover { background: #F7FAFF; }
+.row-muted td { color: var(--sub); background: #FAFAFA; }
+.row-selected td { background: var(--accent-lt); }
+.users select { min-width: 150px; }
+.chips { display: flex; flex-wrap: wrap; }
+
+/* ===== 詳細 ===== */
+.detail-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: start; }
+.detail-grid > .panel:first-child { grid-row: span 2; }
+@media (max-width: 899px) { .detail-grid { grid-template-columns: 1fr; } .detail-grid > .panel:first-child { grid-row: auto; } }
+.dl { display: grid; grid-template-columns: 110px 1fr; gap: 8px 12px; margin: 0; font-size: 15px; }
+.dl dt { color: var(--sub); }
+.dl dd { margin: 0; word-break: break-word; }
+.qr-panel { text-align: center; }
+.qr-panel .button-row { justify-content: center; }
+.qr { display: block; margin: 0 auto 8px; }
+
+/* ===== フォーム ===== */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 16px; }
+.inline-form { display: flex; gap: 8px; align-items: flex-end; margin-top: 12px; }
+.inline-form .field { margin-bottom: 0; flex: 1; }
+.inline-form.wrap { flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 12px; }
+.inline-form.wrap .field { flex: 1 1 200px; }
+.days { border: 0; padding: 0; margin: 0; }
+.days legend { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+
+/* ===== エリアのイメージ ===== */
+.area-preview { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; margin-bottom: 12px; min-height: 40px; }
+.area-box { border: 2px solid var(--line-strong); border-radius: 8px; background: #F7F9FB; padding: 10px; font-weight: 700; font-size: 13px; min-height: 56px; }
+
+/* ===== ホーム ===== */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+.tile { display: flex; flex-direction: column; gap: 4px; padding: 16px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); text-decoration: none; color: var(--ink); min-height: 96px; }
+.tile b { font-size: 17px; }
+.tile span { color: var(--sub); font-size: 13px; }
+a.tile:hover { border-color: var(--accent); }
+.tile-disabled { background: #F7F9FB; border-style: dashed; }
+
+/* ===== ログイン ===== */
+.login { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: linear-gradient(180deg, #fff 0%, var(--bg) 100%); }
+.login-card { width: 100%; max-width: 420px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 28px 24px; box-shadow: 0 8px 28px rgba(27,36,48,.08); }
+.login-brand { text-align: center; margin-bottom: 8px; }
+.login-brand .logo-text { font-size: 30px; }
+.login-brand p { margin: 2px 0 0; font-size: 12px; letter-spacing: .14em; color: var(--sub); text-transform: uppercase; }
+.login-title { font-size: 19px; margin: 16px 0 4px; text-align: center; }
+.login-lead { font-size: 14px; color: var(--sub); text-align: center; margin: 0 0 16px; }
+.code-input { letter-spacing: .5em; text-align: center; font-size: 22px !important; }
+.login-links { display: flex; flex-direction: column; align-items: center; margin-top: 8px; }
+.dev-login { margin-top: 20px; padding-top: 12px; border-top: 1px dashed var(--line-strong); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dev-login p { grid-column: 1 / -1; margin: 0; font-size: 12px; color: var(--sub); }
+
+/* ===== ダイアログ ===== */
+.dialog { border: 0; border-radius: 16px; padding: 20px; width: min(480px, calc(100vw - 32px)); box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+.dialog::backdrop { background: rgba(15,23,42,.45); }
+.dialog h2 { margin: 0 0 8px; font-size: 18px; }
+.dialog-body { font-size: 14px; margin-bottom: 12px; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ===== QR ラベル ===== */
+.check-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 12px; }
+.cards { list-style: none; padding: 0; margin: 0; }
+.center-box { max-width: 520px; margin: 48px auto; padding: 0 16px; }
+.qr-error { max-width: 560px; }

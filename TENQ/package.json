@@ -16,16 +16,23 @@
     "db:reset:local": "npm run db:reset:local -w api",
     "typecheck": "tsc -p shared --noEmit && tsc -p api --noEmit && tsc -p web --noEmit && tsc -p . --noEmit",
     "test": "npm run test -w shared && npm run test -w api",
-    "test:e2e": "playwright test",
+    "test:e2e": "npm run db:reset:local && playwright test",
     "build": "npm run build -w web",
-    "check:size": "node scripts/check-size.mjs"
+    "check:size": "node scripts/check-size.mjs",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@playwright/test": "1.61.1",
     "@types/node": "22.20.5",
-    "typescript": "5.9.3"
+    "eslint": "10.13.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.0"
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "type": "module"
 }

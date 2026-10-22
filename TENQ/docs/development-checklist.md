@@ -30,7 +30,7 @@
 ### 第2段階: 開発環境・DB・テスト環境（2026-10-22 ローカル分は完了）
 
 - [x] npm workspaces（web / api / shared）、TypeScript、Vitest、Playwright の設定
-- [ ] ESLint（第3段階の最初に導入。それまでは型チェックで代替）
+- [x] ESLint（第3段階で導入。innerHTML / dangerouslySetInnerHTML を禁止するルール付き）
 - [x] `api/wrangler.toml`（env dev / production。D1 の ID は作成後に差し替え）
 - [x] `0001_init.sql`（全テーブル・索引・トリガー）とローカル適用
 - [x] ダミーデータ投入スクリプト（`api/seed/dev-seed.sql`、`npm run db:reset:local`）
@@ -39,16 +39,19 @@
 - [x] D1 の外部キー制約・トリガーが効くことをテストで確認
 - [x] QR 転送ページ `TENQ/q/index.html`
 
-### 第3段階: ログイン・権限・設備台帳・QR
+### 第3段階: ログイン・権限・設備台帳・QR（2026-10-22 完了）
 
-- [ ] ログイン（2段階認証含む）・ログアウト・再ログイン
-- [ ] 認証ミドルウェア（/auth/me 検証・キャッシュ・TENQ ロール・利用停止）
-- [ ] 端末のログイン記憶（device_sessions の発行・照合・取り消し、QR から記憶ログインで直接点検表へ）
-- [ ] 権限表（shared）と `can()`、スコープ関数
-- [ ] 工場・設備台帳（追加・編集・停止・廃止・CSV 取込は Phase 2）
-- [ ] QR 発行・再発行・ラベル印刷（A4 面付け）・QR 解決
-- [ ] TENQ ロゴ（SVG）とヘッダー、favicon・PWA アイコン
-- [ ] T-01〜T-04、T-13 の該当分
+- [x] ログイン（2段階認証含む）・ログアウト。Space.app の実アカウントでの確認は Space.app 側に `tenq` を登録してから（下記）
+- [x] 認証ミドルウェア（/auth/me 検証・キャッシュ・TENQ ロール・利用停止・開発用の簡易ログイン）
+- [x] 端末のログイン記憶（device_sessions の発行・照合・取り消し、本人の端末一覧画面）
+- [x] 権限表（shared）と `can()`、スコープ関数
+- [x] 工場・エリア・設備台帳（追加・編集・停止・廃止。CSV 取込は Phase 2）、ユーザー管理
+- [x] QR 発行・再発行・ラベル印刷（A4 面付け 15 面 / 8 面）・QR 解決（未ログイン時はログイン後に戻る）
+- [x] TENQ ロゴ（SVG）とヘッダー、favicon
+- [ ] PWA アイコン（ホーム画面に追加したときのアイコン。192/512/apple-touch）→ 第4段階で
+- [ ] 再ログインの強制（`reauth_hours`）→ 第4段階で
+- [ ] Space.app への `tenq` の登録（solid-api の `SpaceApps::ALL`・`space.js`・`admin.html`。TENQ 外の変更なので要承認）
+- [x] T-01〜T-04、T-13、T-18 の該当分
 
 ### 第4段階: 日常点検・未点検管理
 

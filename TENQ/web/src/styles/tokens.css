@@ -17,3 +17,8 @@
   --st-todo: #64748B;  --st-todo-lt: #F1F5F9;
   --st-stop: #475569;  --st-stop-lt: #E2E8F0;
 }
+
+:root {
+  --line-strong: #C9D1DB;
+  --focus: #93B4F0;
+}

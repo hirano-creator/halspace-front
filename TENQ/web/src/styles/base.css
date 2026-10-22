@@ -3,22 +3,55 @@ html, body { margin: 0; }
 body { font-family: var(--font); color: var(--ink); background: var(--bg); line-height: 1.6; -webkit-text-size-adjust: 100%; }
 /* iOS で入力欄にフォーカスしたときの自動ズームを防ぐ（16px 未満にしない） */
 input, select, textarea, button { font: inherit; font-size: max(16px, 1em); }
-button { cursor: pointer; min-height: 44px; }
+a { color: var(--accent); }
+h1, h2, h3 { line-height: 1.35; }
+.muted { color: var(--sub); }
+.small { font-size: 13px; }
+.mono { font-family: ui-monospace, Consolas, monospace; }
+.block { display: block; }
+.pre { white-space: pre-wrap; }
+.code { font-weight: 800; letter-spacing: .02em; white-space: nowrap; }
 
+/* ===== ロゴ ===== */
 .logo { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); }
 .logo-text { color: var(--ink); font-weight: 800; letter-spacing: .08em; font-size: 18px; line-height: 1.1; }
 .logo-text small { display: block; font-size: 9px; letter-spacing: .12em; font-weight: 600; color: var(--sub); }
 
-.app-header { display: flex; align-items: center; padding: 12px 16px; background: var(--card); border-bottom: 1px solid var(--line); }
-.container { max-width: 960px; margin: 0 auto; padding: 16px; }
-.page-title { font-size: 22px; margin: 8px 0 4px; }
-.muted { color: var(--sub); }
-.error { color: var(--st-ng); font-weight: 700; }
-.panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-top: 16px; }
-.panel h2 { font-size: 15px; margin: 0 0 8px; }
+/* ===== ボタン・入力 ===== */
+.btn { min-height: 44px; border-radius: 10px; padding: 8px 16px; border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-danger { background: var(--st-ng); border-color: var(--st-ng); color: #fff; }
+.btn-ghost { background: transparent; border-color: transparent; }
+.btn.block { width: 100%; }
+.btn small { display: block; font-size: 11px; font-weight: 500; color: var(--sub); }
+.link { background: none; border: 0; color: var(--accent); text-decoration: underline; cursor: pointer; padding: 8px 0; min-height: 44px; }
+input:not([type=checkbox]):not([type=radio]), select, textarea { width: 100%; min-height: 44px; border: 1px solid var(--line-strong); border-radius: 10px; padding: 8px 12px; background: #fff; color: var(--ink); }
+input:disabled, select:disabled, textarea:disabled { background: #F1F4F7; color: var(--sub); }
+input:focus-visible, select:focus-visible, textarea:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+.field-label { font-weight: 700; font-size: 14px; }
+.field-hint { font-size: 12px; color: var(--sub); }
+.field-error { font-size: 13px; color: var(--st-ng); font-weight: 700; }
+.field.has-error input, .field.has-error select, .field.has-error textarea { border-color: var(--st-ng); }
+.req { margin-left: 6px; font-size: 11px; color: #fff; background: var(--st-ng); border-radius: 4px; padding: 0 5px; vertical-align: 2px; }
+.check { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; cursor: pointer; }
+.check small { display: block; color: var(--sub); font-size: 12px; }
+.chip-check { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; margin: 2px; font-size: 14px; background: #fff; cursor: pointer; }
+.num { max-width: 90px; }
 
-.status-list { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
-.status-chip { border: 2px solid var(--c); color: var(--c); background: var(--lt); border-radius: 999px; padding: 4px 12px; font-weight: 700; font-size: 14px; }
+/* ===== お知らせ ===== */
+.alert { border-radius: 10px; padding: 12px 14px; margin: 0 0 14px; font-size: 14px; border-left: 5px solid; }
+.alert-info { background: var(--accent-lt); border-color: var(--accent); }
+.alert-success { background: var(--st-ok-lt); border-color: var(--st-ok); }
+.alert-warn { background: var(--st-late-lt); border-color: var(--st-late); }
+.alert-error { background: var(--st-ng-lt); border-color: var(--st-ng); }
+.loading { color: var(--sub); padding: 24px 0; text-align: center; }
+.empty { color: var(--sub); text-align: center; padding: 24px 0; }
+
+/* ===== 状態の色（色だけにせず、必ず文字と一緒に使う） ===== */
+.badge { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 13px; font-weight: 700; border: 1px solid var(--c, var(--line)); color: var(--c, var(--ink)); background: var(--lt, #fff); white-space: nowrap; vertical-align: 1px; }
 .st-ok    { --c: var(--st-ok);    --lt: var(--st-ok-lt); }
 .st-ng    { --c: var(--st-ng);    --lt: var(--st-ng-lt); }
 .st-doing { --c: var(--st-doing); --lt: var(--st-doing-lt); }
