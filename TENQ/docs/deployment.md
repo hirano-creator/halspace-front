@@ -117,3 +117,9 @@ Space.app のアプリ一覧に TENQ を出す変更（`space/assets/js/space.js
 | 5 | solid-api の af59979 を main に push（Railway が自動デプロイ）。Railway CLI のログインが切れていたため、デプロイの状態は CLI では確認できていない。halspace-api 本体は応答あり |
 | 6 | main に 9 コミットを cherry-pick して push（03d0522）。Pages の Production 行が 03d0522、`/TENQ/app/`・`/TENQ/q/` が 200、本番画面の API は tenq-api.space-app.workers.dev、開発用ログインは本番ビルドに含まれない |
 | 7 | 未実施（どの会社で使うかをオーナーが決める） |
+
+### 9-2. 無料プランに収める変更の反映（2026-10-23）
+
+- 本番 API を再デプロイ（点検記録 CSV のページ分け JSON `GET /api/exports/inspections`）→ main に push（8ae78a4。CSV を画面で組み立てる・カード一覧の自動更新を画面を見ていない間は止める）
+- 確認: `/api/health` が production、開発用ログインは 401、Pages の Production 行が 8ae78a4、本番の画面に開発用ログインなし、`/TENQ/q/` 200
+- 反映の順番は **API → 画面**（新しい画面は新しい API を呼ぶため）
