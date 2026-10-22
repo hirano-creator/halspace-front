@@ -22,7 +22,10 @@ export async function call<T = any>(method: string, path: string, token?: string
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const res = await app.request(`/api${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }, { ...env, ...envOverride });
   const text = await res.text();
-  return { status: res.status, body: text ? JSON.parse(text) : null, headers: res.headers };
+  // CSV など JSON でない応答は文字列のまま返す
+  let parsed: unknown = null;
+  if (text) { try { parsed = JSON.parse(text); } catch { parsed = text; } }
+  return { status: res.status, body: parsed as T, headers: res.headers };
 }
 
 export const get = <T = any>(path: string, token?: string) => call<T>('GET', path, token);

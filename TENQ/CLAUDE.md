@@ -6,7 +6,7 @@ TENQ（テンク）— Smart Inspection System。QR コード式の工場設備�
 
 ## 状態
 
-第6段階（PC のエリア別カード一覧・配置の編集・検索・CSV・帳票・集計・監査ログ・システム設定）まで完了（2026-10-22）。次は第7段階（総合テスト・セキュリティ確認・容量確認・運用手順・本番準備）。**要確認事項は `docs/requirements.md` §10**。構成（案 A）・QR の URL・権限表（`docs/requirements.md` §3-2）はすべて決定済み（2026-10-22）。
+第7段階の本番前の作業（総合テスト・セキュリティ確認・負荷/容量の計測・バックアップ訓練・操作説明）まで完了（2026-10-22）。**本番公開は承認待ち**（`docs/deployment.md` §9 の表）。**要確認事項は `docs/requirements.md` §10**。構成（案 A）・QR の URL・権限表（`docs/requirements.md` §3-2）はすべて決定済み（2026-10-22）。
 
 QR の印字 URL は `https://space-apps.pages.dev/TENQ/q/#<トークン>`。**`TENQ/q/` の場所とフォルダ名 `TENQ` は印刷済み QR が壊れるので変更禁止**（`docs/architecture.md` §4-3）。
 
@@ -133,3 +133,10 @@ npm run check:size          # Worker バンドルサイズ確認
 - 帳票の印刷は名前付きページ（`@page doc` / `doc-landscape`）で用紙の向きを分ける。QR ラベルは余白 0 の既定ページ
 - システム設定のうち `qr_base_url` は画面・API から変えない（印刷済み QR が壊れる）
 - E2E で「他のテストが変えうるデータ」を前提にしない（訂正のテストで P-01 が異常になる等）。結果が入れ替わる画面は、古い表示が消えるのを待ってから確かめる
+
+## 第7段階で決めたこと
+
+- 画面の CSP は `web/vite.config.ts` でビルド時に meta で入れる（共有の Pages の設定は触らない）。新しい接続先を増やしたら connect-src も足す
+- 本番の画面が呼ぶ API は `web/.env.production`（Git 管理。秘密情報ではない）
+- 権限表を変えたら `api/test/permissions.test.ts`（総当たり）が追従する。新しい操作を足したら CASES に代表の API を足す
+- CPU 時間は `npx wrangler tail tenq-api-dev --format json` の cpuTime で測れる。無料プランの上限は 1 回 10ms

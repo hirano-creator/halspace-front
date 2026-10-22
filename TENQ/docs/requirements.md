@@ -294,6 +294,6 @@ Space.app のサイト権限（`role` = super_admin / admin / general）とは**
 | Q-9 | 電波の届かない場所の設備はあるか | なし（オフライン対応はスコープ外） | 工場 |
 | Q-10 | 稼働日（祝日・長期休暇） | 工場ごとの稼働曜日のみ。休日カレンダーは Phase 2 | 工場長 |
 | Q-11 | TENQ を使う Cloudflare アカウント | Space.app（space-apps）と同じアカウント | オーナー |
-| Q-12 | Workers 有料プラン（月 5 米ドル〜）の要否 | 開発は無料枠。本番前に判断（architecture.md §7） | オーナー |
+| Q-12 | Workers 有料プラン（月 5 米ドル〜）の要否 | 計測で、カード一覧・検索・CSV の CPU 時間が無料プランの上限（10ms）を超えた（test-plan §5-2）。アカウントが無料プランなら本番前に有料化が必要 | オーナー（ダッシュボードの Workers の料金プランを確認） |
 | Q-13 | 会社の初期 system_admin | Space.app で admin / super_admin の人が初回アクセス時に TENQ の system_admin になる | オーナー |
 | Q-14 | 点検中のまま放置された点検 | 当日中は保持、翌期間になったら「未完了」として残し、未点検に数える | 工場長 |
