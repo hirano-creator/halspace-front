@@ -6,7 +6,7 @@ TENQ（テンク）— Smart Inspection System。QR コード式の工場設備�
 
 ## 状態
 
-第7段階の本番前の作業（総合テスト・セキュリティ確認・負荷/容量の計測・バックアップ訓練・操作説明）まで完了（2026-10-22）。**本番公開は承認待ち**（`docs/deployment.md` §9 の表）。**要確認事項は `docs/requirements.md` §10**。構成（案 A）・QR の URL・権限表（`docs/requirements.md` §3-2）はすべて決定済み（2026-10-22）。
+第7段階まで完了し、2026-10-22 に本番公開（`docs/deployment.md` §9-1）。会社の利用有効化（手順 7）はオーナー判断待ち。**Workers は無料プランで運用する**（CPU 1 回 10ms）。**要確認事項は `docs/requirements.md` §10**。構成（案 A）・QR の URL・権限表（`docs/requirements.md` §3-2）はすべて決定済み（2026-10-22）。
 
 QR の印字 URL は `https://space-apps.pages.dev/TENQ/q/#<トークン>`。**`TENQ/q/` の場所とフォルダ名 `TENQ` は印刷済み QR が壊れるので変更禁止**（`docs/architecture.md` §4-3）。
 
@@ -139,4 +139,5 @@ npm run check:size          # Worker バンドルサイズ確認
 - 画面の CSP は `web/vite.config.ts` でビルド時に meta で入れる（共有の Pages の設定は触らない）。新しい接続先を増やしたら connect-src も足す
 - 本番の画面が呼ぶ API は `web/.env.production`（Git 管理。秘密情報ではない）
 - 権限表を変えたら `api/test/permissions.test.ts`（総当たり）が追従する。新しい操作を足したら CASES に代表の API を足す
-- CPU 時間は `npx wrangler tail tenq-api-dev --format json` の cpuTime で測れる。無料プランの上限は 1 回 10ms
+- CPU 時間は `cd api && npx wrangler tail --env dev --format json` の cpuTime で測れる。無料プランの上限は 1 回 10ms
+- **無料プランで運用する**。行数に比例して重くなる処理（CSV など）は API で組み立てず、ページに分けた JSON を返して画面で組み立てる（点検記録 CSV は `GET /api/exports/inspections` ＋ `shared/src/csv.ts`）。行ごとに Intl を呼ばない（日本時間は +9 時間で計算）。工場単位の繰り返しの中で同じ計算をしない

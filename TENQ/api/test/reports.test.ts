@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import app from '../src/index';
+import { INSPECTION_CSV_HEADER, inspectionCsvRows, toCsv, type InspectionExportPage } from '@tenq/shared';
 import { T, call, get, post } from './helpers';
 
 const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date());
@@ -45,21 +46,43 @@ describe('点検記録の検索（F-8）', () => {
 
 describe('CSV 出力（T-11）', () => {
   it('出力の権限は設備担当者以上', async () => {
-    expect((await csv('/exports/inspections.csv', T.worker)).status).toBe(403);
+    expect((await get('/exports/inspections', T.worker)).status).toBe(403);
     expect((await csv('/exports/equipment.csv', T.worker)).status).toBe(403);
   });
 
-  it('UTF-8 の BOM・CRLF・日本語のファイル名。出力は監査ログに残る', async () => {
+  it('点検記録はページに分けた JSON で返し、画面で CSV にできる。出力は最初のページで1回だけ監査ログに残る', async () => {
     const before = await auditCountOf('export.csv');
-    const r = await csv(`/exports/inspections.csv?from=${today}&to=${today}`, T.staff);
+    const pages: InspectionExportPage[] = [];
+    let cursor: string | null = null;
+    do {
+      const r: { status: number; body: InspectionExportPage } = await get(`/exports/inspections?from=${today}&to=${today}${cursor ? `&cursor=${cursor}` : ''}`, T.staff);
+      expect(r.status).toBe(200);
+      pages.push(r.body);
+      cursor = r.body.nextCursor;
+    } while (cursor);
+    const rows = inspectionCsvRows(pages);
+    expect(rows.length).toBe(pages[0]?.total);
+    const text = toCsv(INSPECTION_CSV_HEADER, rows);
+    expect(text.charCodeAt(0)).toBe(0xfeff);
+    expect(text.split('\r\n')[0]).toContain('点検日,工場,設備番号');
+    expect(text).toContain('主軸から異音');
+    expect(await auditCountOf('export.csv')).toBe(before + 1);
+  });
+
+  it('点検記録の出力は他社の記録を含まない', async () => {
+    const r = await get('/exports/inspections', T.other);
     expect(r.status).toBe(200);
+    expect(r.body.total).toBe(0);
+    expect(r.body.inspections).toHaveLength(0);
+    expect(r.body.results).toHaveLength(0);
+  });
+
+  it('設備台帳 CSV は UTF-8 の BOM・CRLF・日本語のファイル名', async () => {
+    const r = await csv('/exports/equipment.csv', T.manager);
     expect(r.type).toBe('text/csv; charset=utf-8');
     expect([...r.bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
     expect(r.text).toContain('\r\n');
-    expect(r.text.split('\r\n')[0]).toContain('点検日,工場,設備番号');
-    expect(r.disposition).toContain(encodeURIComponent('点検記録'));
-    expect(r.text).toContain('主軸から異音');
-    expect(await auditCountOf('export.csv')).toBe(before + 1);
+    expect(r.disposition).toContain(encodeURIComponent('設備台帳'));
   });
 
   it('数式として実行される値には先頭に \' を付ける', async () => {

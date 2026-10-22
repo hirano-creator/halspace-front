@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { apiDownload, apiGet } from '../api/client';
+import { apiGet } from '../api/client';
+import { downloadInspectionsCsv } from '../api/exports';
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Button, Field, Loading, PageHeader, errorMessage, useLoad } from '../components/ui';
 import { INSPECTION_STATUS, formatDateTime } from '../labels';
@@ -63,7 +64,7 @@ export function SearchPage() {
     <>
       <PageHeader title="点検履歴・検索" sub="期間・設備・点検者・結果などで点検の記録を探します。"
         actions={can('export') && <Button disabled={busy} onClick={async () => {
-          try { await apiDownload(`/exports/inspections.csv?${qs(applied)}`, 'TENQ_点検記録.csv'); } catch (e) { setError(errorMessage(e)); }
+          try { await downloadInspectionsCsv(qs(applied)); } catch (e) { setError(errorMessage(e)); }
         }}>この条件で CSV を出力</Button>} />
 
       <form className="panel search-form" onSubmit={submit}>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { apiDownload, apiGet } from '../api/client';
+import { downloadInspectionsCsv } from '../api/exports';
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Button, Field, PageHeader, errorMessage, useLoad } from '../components/ui';
 import { navigate } from '../router';
@@ -21,7 +22,7 @@ export function ReportsPage() {
 
   async function download(kind: string, path: string, name: string) {
     setBusy(kind); setMsg(null);
-    try { await apiDownload(path, name); setMsg({ kind: 'success', text: `${name} を出力しました。出力したことは操作の記録に残ります。` }); }
+    try { await (kind === 'i' ? downloadInspectionsCsv(path) : apiDownload(path, name)); setMsg({ kind: 'success', text: `${name} を出力しました。出力したことは操作の記録に残ります。` }); }
     catch (e) { setMsg({ kind: 'error', text: errorMessage(e) }); }
     finally { setBusy(null); }
   }
@@ -47,7 +48,7 @@ export function ReportsPage() {
         <section className="panel">
           <h2>点検記録 CSV</h2>
           <p className="small muted">期間内の点検を、点検項目ごとに1行で出力します（訂正がある場合は最新の内容）。</p>
-          <Button variant="primary" disabled={!!busy} onClick={() => void download('i', `/exports/inspections.csv?${range}`, 'TENQ_点検記録.csv')}>{busy === 'i' ? '出力しています…' : 'CSV を出力'}</Button>
+          <Button variant="primary" disabled={!!busy} onClick={() => void download('i', range, 'TENQ_点検記録.csv')}>{busy === 'i' ? '出力しています…' : 'CSV を出力'}</Button>
         </section>
         <section className="panel">
           <h2>異常・是正処置 CSV</h2>
