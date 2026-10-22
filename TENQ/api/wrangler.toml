@@ -40,7 +40,7 @@ ALLOWED_ORIGINS = "https://space-apps.pages.dev"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "tenq-db"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "ebf01e12-bb4d-4f30-8b53-98b0622c4e98"
 migrations_dir = "migrations"
 
 [[env.production.r2_buckets]]
