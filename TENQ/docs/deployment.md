@@ -86,3 +86,22 @@ Space.app のアプリ一覧に TENQ を出す変更（`space/assets/js/space.js
 - データはダミーのみ（`seed/dev-seed.sql`）。QR の宛先は `system_settings.qr_base_url = https://tenq-dev.pages.dev/TENQ/q/`（開発用 DB だけ）なので、プレビューで印刷した QR はプレビューを開く
 - 注意: 開発用の簡易ログイン（`dev-<番号>`）が有効で、URL を知っていればダミーの利用者で入れる。本物のデータを入れない。サイト全体に `X-Robots-Tag: noindex` を付けている。ログインは Space.app の本番 API に向いていない（`HALSPACE_API` は開発用）ので、実アカウントでのログインはプレビューでは使えない
 - 不要になったら削除できる: `wrangler pages project delete tenq-dev`、`wrangler delete --env dev`、`wrangler d1 delete tenq-db-dev`、`wrangler r2 bucket delete tenq-files-dev`（中身を空にしてから）
+
+## 9. 本番公開の手順（承認後に実施）
+
+前提: Cloudflare は Space.app と同じアカウント（h.hirano@hirano50.com）。作業前に `npx wrangler whoami` で確認する。
+
+| # | 作業 | 影響 | 承認 |
+| --- | --- | --- | --- |
+| 1 | Workers の料金プランの確認（無料なら有料プランへ。月 5 米ドル〜） | 課金 | **要** |
+| 2 | 本番の D1 `tenq-db`・R2 `tenq-files` を作成し、`api/wrangler.toml` の production に database_id を書く | 新しいリソース（無料枠） | **要** |
+| 3 | 本番 D1 にマイグレーションを適用（`npx wrangler d1 migrations apply DB --remote --env production`）。ダミーデータは入れない | 本番 DB | **要** |
+| 4 | 本番の API をデプロイ（`npx wrangler deploy --env production` → https://tenq-api.space-app.workers.dev ） | 本番 API | **要** |
+| 5 | Space.app 側の `tenq` 登録を本番に反映（solid-api のブランチ `feat/tenq-app-key`、フロントのコミット 2b8d90a） | Space.app 本番（API の再起動を伴う） | **要** |
+| 6 | TENQ のコミット一式を main に反映（worktree で cherry-pick → main へ push。`TENQ/app/` に本番用のビルド成果物を含める） | space-apps.pages.dev に /TENQ/ が公開される | **要** |
+| 7 | 会社の TENQ 利用を有効にする（Space.app 管理画面で会社・利用者の利用アプリに TENQ） | 対象会社の利用者 | **要** |
+| 8 | 初回設定（Space.app の管理者が TENQ を開くと TENQ のシステム管理者になる → 工場・エリア・利用者のロール・点検基準・設備を登録） | 本番データ | 担当者 |
+| 9 | QR ラベルの印刷と貼り付け（本番の URL `https://space-apps.pages.dev/TENQ/q/#…` で印刷されることを確認してから） | 現場 | 担当者 |
+| 10 | 並行運用（紙の点検表と一定期間併用）→ 紙の廃止 | 現場 | 品質管理担当者 |
+
+反映の確認は、本文の固有文字列（`curl -sL https://space-apps.pages.dev/TENQ/app/ | grep -c "TENQ — Smart Inspection System"`）と `npx wrangler pages deployment list --project-name space-apps` の Production 行、API の `/api/health` で行う。

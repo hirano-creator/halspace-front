@@ -12,3 +12,4 @@ test-results/
 playwright-report/
 .env
 .env.*
+!web/.env.production

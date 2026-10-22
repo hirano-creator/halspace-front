@@ -4,7 +4,7 @@ TENQ（テンク）は、QR コードを使った工場設備の日常点検シ�
 
 Space.app のアプリの1つとして提供し、ログインは Space.app のアカウントを使います。
 
-> 現在は第2段階（開発環境・データベース・テスト環境）が完了したところです。画面は確認用の仮画面だけで、実画面は第3段階から作ります。
+> 開発は第7段階（総合テスト・本番準備）まで完了しています。本番公開は承認待ちです（[docs/deployment.md](docs/deployment.md) §9）。実機確認用のプレビュー: https://tenq-dev.pages.dev/TENQ/app/ （ダミーデータ）
 
 ## 主な機能
 
@@ -38,6 +38,7 @@ Space.app のアプリの1つとして提供し、ログインは Space.app の�
 | [docs/deployment.md](docs/deployment.md) | 環境・デプロイ手順・サイズ記録 |
 | [docs/test-plan.md](docs/test-plan.md) | テスト計画 |
 | [docs/development-checklist.md](docs/development-checklist.md) | 段階ごとの完了条件・コミット前確認 |
+| [docs/user-guide.md](docs/user-guide.md) | 利用者向けの操作説明（役割ごと） |
 | [CLAUDE.md](CLAUDE.md) | 開発ルール（Claude Code 向け） |
 
 ## 開発環境の構築

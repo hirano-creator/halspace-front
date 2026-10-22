@@ -77,3 +77,20 @@
 | 年月 | Worker サイズ | エラー率 | D1 サイズ | R2 容量 | バックアップ | 確認者 |
 | --- | --- | --- | --- | --- | --- | --- |
 | （運用開始後に記入） | | | | | | |
+
+## 9. バックアップと復元の確認済み手順（2026-10-22 に開発用環境で実施）
+
+```
+cd TENQ/api
+# 1) エクスポート（本番は --env production）。個人情報を含むので、社外・個人 PC に残さない
+npx wrangler d1 export DB --remote --env dev --output <保存先>/tenq-db-YYYYMMDD.sql
+# 2) 空の DB への復元の確認（ローカルの別フォルダに作るので、本番・開発の DB には触れない）
+npx wrangler d1 execute DB --local --env dev --persist-to <空のフォルダ> --file <保存先>/tenq-db-YYYYMMDD.sql
+# 3) 件数の突き合わせ（元の DB と復元した DB で同じ SQL を実行して比べる）
+#    SELECT (SELECT COUNT(*) FROM inspections), (SELECT COUNT(*) FROM inspection_results), ...
+# 4) Time Travel の復元地点（直近の任意の時点に戻せる。無料 7 日・有料 30 日）
+npx wrangler d1 time-travel info DB --env dev
+```
+
+- 2026-10-22 の訓練: 6.2MB のエクスポートを空の DB に復元し、全テーブルの件数が一致、記録を書き換えさせないトリガーも復元されることを確認した
+- 写真（R2）は DB のエクスポートに含まれない。R2 は複数拠点に保存されており、TENQ は写真を論理削除しかしないため、誤操作で実体が消えることはない。R2 の別バケットへの複製は、運用開始後に必要性を判断する
