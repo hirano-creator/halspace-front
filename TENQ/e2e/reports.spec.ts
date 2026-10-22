@@ -28,6 +28,43 @@ test('カード一覧: エリアごとに状態の色と文字で表示し、絞
   await expect(page.getByText('直近30日の集計')).toBeVisible();
 });
 
+test('カード一覧の自動更新は、画面を見ていない間は止まり、戻ると読み直す', async ({ page }) => {
+  test.skip(!isPc(page), 'カード一覧は PC で確認する');
+  // document.hidden を切り替えられるようにする（実際のタブ切り替えの代わり）
+  await page.addInitScript(() => {
+    const w = window as unknown as { __hidden: boolean };
+    w.__hidden = false;
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => w.__hidden });
+  });
+  await page.clock.install();
+  await page.goto('./');
+  await devLogin(page, '中村 誠');
+  let calls = 0;
+  let pending = 0;
+  const isBoard = (u: string) => u.includes('/api/board?');
+  page.on('request', (r) => { if (isBoard(r.url())) { calls++; pending++; } });
+  page.on('requestfinished', (r) => { if (isBoard(r.url())) pending--; });
+  page.on('requestfailed', (r) => { if (isBoard(r.url())) pending--; });
+  await page.goto('./#/board');
+  await expect(page.getByRole('region', { name: 'A棟 プレスライン' })).toBeVisible();
+  const setHidden = (hidden: boolean) => page.evaluate((h) => {
+    (window as unknown as { __hidden: boolean }).__hidden = h;
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, hidden);
+
+  await page.clock.runFor(31_000);
+  await expect.poll(() => calls).toBeGreaterThanOrEqual(2);  // 最初の読み込み＋30秒後の更新
+  await expect.poll(() => pending).toBe(0);  // 通信中のまま時計を進めると、タイムアウト扱いの再試行が起きるので待つ
+
+  await setHidden(true);
+  const hiddenAt = calls;
+  await page.clock.runFor(95_000);
+  expect(calls).toBe(hiddenAt);  // 見ていない間は呼ばない
+
+  await setHidden(false);
+  await expect.poll(() => calls).toBe(hiddenAt + 1);  // 戻ったらすぐ1回読み直す
+});
+
 test('カード一覧の配置を編集して保存できる（設備をドラッグで別のエリアへ）', async ({ page }) => {
   test.skip(!isPc(page), '配置の編集は PC で行う');
   await page.goto('./');
