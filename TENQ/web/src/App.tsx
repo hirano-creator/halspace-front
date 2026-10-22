@@ -16,6 +16,11 @@ const QrPrintPage = lazy(() => import('./pages/QrPrintPage').then((m) => ({ defa
 const QrResolvePage = lazy(() => import('./pages/QrResolvePage').then((m) => ({ default: m.QrResolvePage })));
 const UsersPage = lazy(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })));
 const FactoriesPage = lazy(() => import('./pages/FactoriesPage').then((m) => ({ default: m.FactoriesPage })));
+const InspectPage = lazy(() => import('./pages/InspectPage').then((m) => ({ default: m.InspectPage })));
+const ScanPage = lazy(() => import('./pages/ScanPage').then((m) => ({ default: m.ScanPage })));
+const InspectionDetailPage = lazy(() => import('./pages/InspectionDetailPage').then((m) => ({ default: m.InspectionDetailPage })));
+const TemplatesPage = lazy(() => import('./pages/TemplatesPage').then((m) => ({ default: m.TemplatesPage })));
+const TemplateDetailPage = lazy(() => import('./pages/TemplatesPage').then((m) => ({ default: m.TemplateDetailPage })));
 const DevicesPage = lazy(() => import('./pages/DevicesPage').then((m) => ({ default: m.DevicesPage })));
 
 interface Route { pattern: string; action?: Action; render: (p: Record<string, string>) => ReactNode }
@@ -28,6 +33,11 @@ const ROUTES: Route[] = [
   { pattern: '/equipment/:id/edit', action: 'equipment.view', render: (p) => <EquipmentFormPage id={p.id} /> },
   { pattern: '/qr', action: 'qr.issue', render: () => <QrPrintPage /> },
   { pattern: '/q/:token', render: (p) => <QrResolvePage token={p.token ?? ''} /> },
+  { pattern: '/scan', action: 'inspection.perform', render: () => <ScanPage /> },
+  { pattern: '/inspect/:id', action: 'inspection.perform', render: (p) => <InspectPage equipmentId={p.id ?? ''} /> },
+  { pattern: '/inspections/:id', action: 'inspection.viewOwn', render: (p) => <InspectionDetailPage id={p.id ?? ''} /> },
+  { pattern: '/templates', action: 'equipment.view', render: () => <TemplatesPage /> },
+  { pattern: '/templates/:id', action: 'equipment.view', render: (p) => <TemplateDetailPage id={p.id ?? ''} /> },
   { pattern: '/admin/users', action: 'users.manage', render: () => <UsersPage /> },
   { pattern: '/admin/factories', action: 'layout.edit', render: () => <FactoriesPage /> },
   { pattern: '/devices', render: () => <DevicesPage /> },
@@ -71,7 +81,8 @@ function Routes() {
     content = r.action && !can(r.action) ? <Alert kind="error">この画面を開く権限がありません。</Alert> : r.render(params);
     break;
   }
-  return <Layout path={path}><Suspense fallback={<Loading />}>{content}</Suspense></Layout>;
+  // URL が変わったら画面を作り直す（別の設備の点検表に前の設備の状態が残らないように）
+  return <Layout path={path}><Suspense key={path} fallback={<Loading />}>{content}</Suspense></Layout>;
 }
 
 export function App() {

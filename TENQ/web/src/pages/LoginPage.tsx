@@ -15,6 +15,7 @@ const DEV_USERS = import.meta.env.DEV
   ? [
       { hs: 900001, name: '山本 健', role: '一般社員' },
       { hs: 900002, name: '佐藤 美咲', role: '設備担当者' },
+      { hs: 900003, name: '鈴木 大地', role: '設備担当者' },
       { hs: 900004, name: '中村 誠', role: '工場長' },
       { hs: 900005, name: '高橋 遥', role: 'システム管理者' },
       { hs: 900006, name: '田中 翔', role: '一般社員（第2工場）' },

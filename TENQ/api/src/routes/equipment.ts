@@ -231,6 +231,7 @@ equipmentRoutes.get('/qr-labels', async (c) => {
 /** QR を読んだときの設備の特定。ログインと工場の権限が必要（QR だけでは何も見えない） */
 equipmentRoutes.get('/qr/:token', async (c) => {
   const auth = c.get('auth');
+  if (!auth.actor.role) throw forbidden('TENQ のロールがまだ設定されていません。システム管理者に設定を依頼してください。');
   const token = c.req.param('token').toUpperCase();
   if (!QR_TOKEN_PATTERN.test(token)) throw notFound('この QR コードは TENQ に登録されていません。');
   const row = await c.env.DB.prepare(

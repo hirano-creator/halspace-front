@@ -85,15 +85,3 @@ areaRoutes.patch('/areas/:id', async (c) => {
   if (!upd?.meta.changes) throw conflict();
   return c.json({ version: version + 1 });
 });
-
-/** 点検基準の一覧（設備の登録・編集の選択肢用。編集は第4段階） */
-areaRoutes.get('/templates', async (c) => {
-  authorize(c, 'equipment.view');
-  const auth = c.get('auth');
-  const { results } = await c.env.DB.prepare(
-    `SELECT t.id, t.name, t.factory_id, v.version_no AS current_version_no
-     FROM inspection_templates t LEFT JOIN inspection_template_versions v ON v.id = t.current_version_id
-     WHERE t.company_id = ? AND t.status = 'active' ORDER BY t.name`,
-  ).bind(auth.companyId).all();
-  return c.json({ items: results });
-});

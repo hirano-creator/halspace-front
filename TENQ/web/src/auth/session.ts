@@ -9,6 +9,7 @@ const SPACE_TOKEN = 'space_token';
 const SPACE_USER = 'space_user';
 const DEVICE_TOKEN = 'tenq_device_token';
 const PENDING_QR = 'tenq_pending_qr';
+const LOGIN_AT = 'tenq_login_at';
 
 // プライベートモードなどで Storage が使えなくても落とさない
 function read(store: () => Storage, key: string): string | null {
@@ -32,6 +33,18 @@ export function currentToken(): string | null {
 export function saveSpaceSession(token: string, user: SpaceUser): void {
   write(ss, SPACE_TOKEN, token);
   write(ss, SPACE_USER, JSON.stringify(user));
+  write(ss, LOGIN_AT, String(Date.now()));
+}
+
+/**
+ * Space.app のトークンは期限がない（docs/security.md §2-2）ので、TENQ では一定時間ごとに再ログインしてもらう。
+ * Space.app から開いた場合は、TENQ で最初に確認した時刻から数える。端末記憶のログインは対象外（別に 30 日の期限がある）。
+ */
+export function spaceSessionExpired(reauthHours: number): boolean {
+  if (!read(ss, SPACE_TOKEN)) return false;
+  const at = Number(read(ss, LOGIN_AT));
+  if (!at) { write(ss, LOGIN_AT, String(Date.now())); return false; }
+  return Date.now() - at > reauthHours * 3_600_000;
 }
 
 export function saveDeviceToken(token: string): void { write(ls, DEVICE_TOKEN, token); }
@@ -40,6 +53,7 @@ export function hasDeviceToken(): boolean { return read(ls, DEVICE_TOKEN) !== nu
 export function clearSession(): void {
   write(ss, SPACE_TOKEN, null);
   write(ss, SPACE_USER, null);
+  write(ss, LOGIN_AT, null);
   write(ls, DEVICE_TOKEN, null);
 }
 

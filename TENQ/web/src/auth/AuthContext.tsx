@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { can as canFn, type Action, type Actor, type Role, type Target } from '@tenq/shared';
 import { ApiError, apiGet, apiSend, setUnauthorizedHandler } from '../api/client';
 import { navigate } from '../router';
-import { clearSession, currentToken } from './session';
+import { clearSession, currentToken, spaceSessionExpired } from './session';
 
 export interface Me {
   user: { id: string; name: string; email: string | null; role: Role | null; roleLabel: string | null };
@@ -59,6 +59,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMe(null);
     navigate('/login', true);
   }, []);
+
+  // 一定時間を過ぎた Space.app のログインは、ログインし直してもらう
+  useEffect(() => {
+    if (me?.via === 'space' && spaceSessionExpired(me.settings.reauth_hours)) {
+      clearSession();
+      navigate('/login', true);
+      window.location.reload();
+    }
+  }, [me]);
 
   const actor = useMemo<Actor | null>(() => me && { id: me.user.id, role: me.user.role, factoryIds: me.factories.map((f) => f.id) }, [me]);
   const can = useCallback((action: Action, target?: Target) => (actor ? canFn(actor, action, target) : false), [actor]);

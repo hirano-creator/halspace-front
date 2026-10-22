@@ -94,3 +94,14 @@ describe('カードの状態', () => {
     expect(boardStatus({ ...base, isDue: false, isPastDeadline: true })).toBe('stop');
   });
 });
+
+describe('QR の読み取り結果', () => {
+  it('TENQ の QR だけトークンを取り出す', async () => {
+    const { tokenFromQr } = await import('../src/qr');
+    expect(tokenFromQr('https://space-apps.pages.dev/TENQ/q/#TENQDEVSEEDQRZAA')).toBe('TENQDEVSEEDQRZAA');
+    expect(tokenFromQr('https://space-apps.pages.dev/TENQ/q/#tenqdevseedqrzaa')).toBe('TENQDEVSEEDQRZAA');
+    expect(tokenFromQr('https://example.com/?q=TENQDEVSEEDQRZAA')).toBeNull();
+    expect(tokenFromQr('https://space-apps.pages.dev/TENQ/q/#SHORT')).toBeNull();
+    expect(tokenFromQr('https://space-apps.pages.dev/TENQ/q/#TENQDEVSEEDQRZA1')).toBeNull();
+  });
+});

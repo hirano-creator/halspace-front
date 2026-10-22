@@ -13,12 +13,16 @@ const I = {
   qr: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="6" height="6" rx="1" /><rect x="14.5" y="3.5" width="6" height="6" rx="1" /><rect x="3.5" y="14.5" width="6" height="6" rx="1" /><path d="M14.5 14.5h2.5v2.5M20.5 14.5v6h-3.5" /></svg>,
   user: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.5" /><path d="M5 20c1.2-3.5 3.8-5 7-5s5.8 1.5 7 5" /></svg>,
   factory: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5V10l5 3V10l5 3V5.5h7v15z" /></svg>,
+  scan: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M4 12h16" /></svg>,
+  list: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6l1 1 2-2M4.5 12l1 1 2-2M4.5 18l1 1 2-2" /></svg>,
   device: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2" /><path d="M11 18h2" /></svg>,
 };
 
 const NAV: NavItem[] = [
   { to: '/', label: 'ホーム', icon: I.home },
+  { to: '/scan', label: 'QRを読み取る', icon: I.scan, action: 'inspection.perform' },
   { to: '/equipment', label: '設備台帳', icon: I.tool, action: 'equipment.view' },
+  { to: '/templates', label: '点検基準', icon: I.list, action: 'template.edit' },
   { to: '/qr', label: 'QRラベル印刷', icon: I.qr, action: 'qr.issue' },
   { to: '/admin/factories', label: '工場・エリア', icon: I.factory, action: 'layout.edit' },
   { to: '/admin/users', label: 'ユーザー管理', icon: I.user, action: 'users.manage' },
