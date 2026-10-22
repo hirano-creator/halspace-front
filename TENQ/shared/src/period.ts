@@ -35,6 +35,12 @@ export function localDate(at: Date, timeZone: string): string {
   return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
 }
 
+/** 工場のタイムゾーンでの日時（YYYY-MM-DD HH:MM）。CSV・帳票の表示用 */
+export function localDateTime(at: Date, timeZone: string): string {
+  const p = parts(at, timeZone);
+  return `${p.year}-${pad(p.month)}-${pad(p.day)} ${pad(p.hour)}:${pad(p.minute)}`;
+}
+
 /** ISO 8601 の週番号（月曜始まり、1月4日を含む週が第1週） */
 export function isoWeek(year: number, month: number, day: number): { year: number; week: number } {
   const d = new Date(Date.UTC(year, month - 1, day));

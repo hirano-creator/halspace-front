@@ -346,17 +346,20 @@ inspectionRoutes.get('/board', async (c) => {
   for (const i of inspections?.results as Ins[]) insMap.set(`${i.equipment_id}|${i.period_key}`, i);
   const abnMap = new Map((abnormalities?.results as { equipment_id: string; n: number }[]).map((a) => [a.equipment_id, a.n]));
 
+  // 時刻の判定は全設備で同じなので1回だけ計算する（設備ごとに計算すると CPU 時間が台数に比例して増える）
+  const pastDeadline = today.pastDeadline(settings.late_threshold);
+  const counts: Record<string, number> = {};
   const items = (equipment?.results as Eq[]).map((e) => {
     const ins = insMap.get(`${e.id}|${today.keys[e.frequency]}`) ?? null;
     const status = boardStatus({
       equipmentStatus: e.status,
       inspection: ins && { status: ins.status, overallResult: ins.overall_result },
       isDue: e.frequency !== 'daily' || today.workingDay,
-      isPastDeadline: e.frequency === 'daily' && today.pastDeadline(settings.late_threshold),
+      isPastDeadline: e.frequency === 'daily' && pastDeadline,
     });
+    counts[status] = (counts[status] ?? 0) + 1;
     return { ...e, board_status: status, inspection: ins, open_abnormalities: abnMap.get(e.id) ?? 0 };
   });
-  const counts = items.reduce<Record<string, number>>((acc, it) => ({ ...acc, [it.board_status]: (acc[it.board_status] ?? 0) + 1 }), {});
   return c.json({ factory: { id: factory.id, name: factory.name }, date: today.date, workingDay: today.workingDay, lateThreshold: settings.late_threshold, areas: areas?.results ?? [], items, counts });
 });
 

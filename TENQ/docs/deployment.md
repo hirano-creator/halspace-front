@@ -110,7 +110,7 @@ Space.app のアプリ一覧に TENQ を出す変更（`space/assets/js/space.js
 
 | # | 結果 |
 | --- | --- |
-| 1 | 未確認。負荷計測では無料枠の 10ms を超える処理（カード一覧・検索・CSV）も成功しているため、有料プランの可能性が高い。オーナーがダッシュボードで確認する（requirements.md Q-12） |
+| 1 | 無料プランで運用することになった（オーナー希望）。点検記録 CSV を画面で組み立てる方式に変えて、普段の処理を 10ms 以内に収めた（test-plan §5-3） |
 | 2 | D1 `tenq-db`（ebf01e12-…）・R2 `tenq-files` を作成。コミット e7c6d96 |
 | 3 | 0001・0002 を適用。22 テーブル・13 トリガー・データ 0 件 |
 | 4 | https://tenq-api.space-app.workers.dev にデプロイ。`/api/health` が production、開発用ログイン・不正トークンは 401、CORS は space-apps だけ許可 |

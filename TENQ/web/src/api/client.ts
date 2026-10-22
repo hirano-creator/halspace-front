@@ -105,8 +105,12 @@ export async function apiDownload(path: string, fallbackName: string): Promise<v
   if (!res.ok) { handle401(res); throw await toError(res); }
   const cd = res.headers.get('Content-Disposition') ?? '';
   const m = /filename\*=UTF-8''([^;]+)/.exec(cd);
-  const name = m?.[1] ? decodeURIComponent(m[1]) : fallbackName;
-  const url = URL.createObjectURL(await res.blob());
+  saveBlob(m?.[1] ? decodeURIComponent(m[1]) : fallbackName, await res.blob());
+}
+
+/** 端末にファイルとして保存させる */
+export function saveBlob(name: string, blob: Blob): void {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = name;

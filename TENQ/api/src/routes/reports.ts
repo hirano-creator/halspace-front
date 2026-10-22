@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { ABNORMALITY_STATUS_LABELS, SEVERITY_LABELS, isOverdue, localDate, type AbnormalityStatus, type Severity } from '@tenq/shared';
+import { ABNORMALITY_STATUS_LABELS, SEVERITY_LABELS, isOverdue, localDate, type AbnormalityStatus, type InspectionExportItem, type InspectionExportPage, type InspectionExportRow, type Severity } from '@tenq/shared';
 import type { AppEnv } from '../types';
 import { auditStatement, diff } from '../lib/audit';
 import { decodeCursor, encodeCursor } from '../lib/cursor';
@@ -18,14 +18,17 @@ import { SETTING_DEFAULTS, loadSettings } from '../lib/settings';
 export const reportRoutes = new Hono<AppEnv>();
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const JUDGE: Record<string, string> = { ok: '正常', ng: '異常', na: '対象外' };
-const INSPECTION_STATUS: Record<string, string> = { in_progress: '点検中', completed: '完了', voided: '取消' };
 const EQUIPMENT_STATUS: Record<string, string> = { active: '稼働', stopped: '停止中', retired: '廃止' };
 const FREQUENCY: Record<string, string> = { daily: '毎日', weekly: '毎週', monthly: '毎月' };
 
-const jstFormat = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-/** 日時は日本時間の「YYYY-MM-DD HH:MM」で出す（保存は UTC） */
-const jst = (iso: string | null | undefined) => (iso ? jstFormat.format(new Date(iso)) : '');
+/**
+ * 日時は日本時間の「YYYY-MM-DD HH:MM」で出す（保存は UTC）。
+ * 日本時間は夏時間がなく常に +9 時間なので、Intl を使わずに計算する（行ごとの Intl は CPU 時間がかかる）
+ */
+const jst = (iso: string | null | undefined) => {
+  const t = iso ? Date.parse(iso) : NaN;
+  return Number.isNaN(t) ? '' : new Date(t + 9 * 3_600_000).toISOString().slice(0, 16).replace('T', ' ');
+};
 const today = () => localDate(new Date(), 'Asia/Tokyo');
 
 function tooMany(): never {
@@ -34,28 +37,56 @@ function tooMany(): never {
 
 // ===== CSV =====
 
-/** 点検記録（1行 = 1点検項目の結果。訂正がある場合は最新の版） */
-reportRoutes.get('/exports/inspections.csv', async (c) => {
+/**
+ * 点検記録（CSV は画面が組み立てる。1行 = 1点検項目の結果、訂正がある場合は最新の版）。
+ * 行数が多く、Worker で CSV にすると無料プランの CPU 時間（1 回 10ms）を超えるため、点検 300 件ずつの JSON で返す。
+ * 最初のページで行数の上限を確かめ、監査ログを書く（出力の開始を記録する）。
+ */
+const EXPORT_PAGE = 300;
+reportRoutes.get('/exports/inspections', async (c) => {
   authorize(c, 'export');
+  const db = c.env.DB;
+  const q = c.req.query();
   const { where, params } = inspectionFilter(c);
-  const { results } = await c.env.DB.prepare(
-    `SELECT i.id, i.inspection_date, f.name AS factory, e.equipment_code, e.name AS equipment, t.name AS template, v.version_no, u.name AS inspector,
-            i.status, i.overall_result, i.started_at, i.completed_at, i.current_revision, i.comment,
-            it.sort_order, it.label, it.criteria, r.judgment, r.note
+  let total: number | undefined;
+  if (q.cursor) {
+    const [at, id] = decodeCursor(q.cursor, 2);
+    where.push('(i.started_at > ? OR (i.started_at = ? AND i.id > ?))');
+    params.push(at, at, id);
+  } else {
+    const n = await db.prepare(
+      `SELECT COUNT(*) AS n FROM inspections i JOIN equipment e ON e.id = i.equipment_id
+       LEFT JOIN inspection_items it ON it.template_version_id = i.template_version_id WHERE ${where.join(' AND ')}`,
+    ).bind(...params).first<{ n: number }>();
+    total = n?.n ?? 0;
+    if (total > CSV_MAX_ROWS) tooMany();
+    await db.batch([auditStatement(c, { action: 'export.csv', targetType: 'inspections', detail: { kind: 'inspections', filters: q, rows: total } })]);
+  }
+  const { results } = await db.prepare(
+    `SELECT i.id, i.inspection_date, f.name AS factory, e.equipment_code, e.name AS equipment, t.name AS template, v.version_no, i.template_version_id,
+            u.name AS inspector, i.status, i.overall_result, i.started_at, i.completed_at, i.current_revision, i.comment
      FROM inspections i JOIN equipment e ON e.id = i.equipment_id JOIN factories f ON f.id = i.factory_id JOIN users u ON u.id = i.inspector_user_id
      JOIN inspection_template_versions v ON v.id = i.template_version_id JOIN inspection_templates t ON t.id = v.template_id
-     LEFT JOIN inspection_items it ON it.template_version_id = i.template_version_id
-     LEFT JOIN inspection_results r ON r.inspection_id = i.id AND r.revision = i.current_revision AND r.item_id = it.id
-     WHERE ${where.join(' AND ')} ORDER BY i.inspection_date, e.equipment_code, i.started_at, it.sort_order LIMIT ?`,
-  ).bind(...params, CSV_MAX_ROWS + 1).all<Record<string, string | number | null>>();
-  if (results.length > CSV_MAX_ROWS) tooMany();
-  await c.env.DB.batch([auditStatement(c, { action: 'export.csv', targetType: 'inspections', detail: { kind: 'inspections', filters: c.req.query(), rows: results.length } })]);
-  return csvResponse(`TENQ_点検記録_${today()}.csv`,
-    ['点検ID', '点検日', '工場', '設備番号', '設備名', '点検基準', '版', '点検者', '状態', '総合判定', '開始', '完了', '訂正回数', '項目番号', '点検項目', '判定基準', '判定', '項目コメント', '全体コメント'],
-    results.map((r) => [r.id, r.inspection_date, r.factory, r.equipment_code, r.equipment, r.template, r.version_no, r.inspector,
-      INSPECTION_STATUS[String(r.status)] ?? r.status, r.overall_result ? (r.overall_result === 'ng' ? '異常あり' : '異常なし') : '',
-      jst(r.started_at as string), jst(r.completed_at as string), Number(r.current_revision) - 1, r.sort_order, r.label, r.criteria,
-      r.judgment ? JUDGE[String(r.judgment)] : '', r.note, r.comment]));
+     WHERE ${where.join(' AND ')} ORDER BY i.started_at, i.id LIMIT ?`,
+  ).bind(...params, EXPORT_PAGE + 1).all<InspectionExportRow>();
+  const page = results.slice(0, EXPORT_PAGE);
+  const ids = JSON.stringify(page.map((i) => i.id));
+  const versions = JSON.stringify([...new Set(page.map((i) => i.template_version_id))]);
+  // 点検 ID はスコープで絞った上の結果から取るので、ここで会社・工場を絞り直す必要はない
+  const [items, res] = await db.batch([
+    db.prepare('SELECT id, template_version_id, sort_order, label, criteria FROM inspection_items WHERE template_version_id IN (SELECT value FROM json_each(?))').bind(versions),
+    db.prepare(`SELECT r.inspection_id, r.item_id, r.judgment, r.note FROM inspection_results r JOIN inspections i ON i.id = r.inspection_id AND r.revision = i.current_revision
+                WHERE r.inspection_id IN (SELECT value FROM json_each(?))`).bind(ids),
+  ]);
+  const last = page[page.length - 1];
+  const body: InspectionExportPage = {
+    total,
+    inspections: page,
+    items: (items?.results ?? []) as InspectionExportItem[],
+    results: ((res?.results ?? []) as { inspection_id: string; item_id: string; judgment: string | null; note: string | null }[]).map((r) => [r.inspection_id, r.item_id, r.judgment, r.note]),
+    nextCursor: results.length > EXPORT_PAGE && last ? encodeCursor([last.started_at, last.id]) : null,
+  };
+  return c.json(body);
 });
 
 /** 設備台帳 */

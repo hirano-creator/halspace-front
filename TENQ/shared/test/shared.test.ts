@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { can, PERMISSIONS, ROLES, type Actor } from '../src/permissions';
 import { isoWeek, isPastLocalTime, isWorkingDay, localDate, periodKey } from '../src/period';
 import { boardStatus } from '../src/status';
+import { INSPECTION_CSV_HEADER, inspectionCsvRows, toCsv } from '../src/csv';
 
 const TZ = 'Asia/Tokyo';
 const actor = (role: Actor['role'], id = 'u1', factoryIds = ['f1']): Actor => ({ id, role, factoryIds });
@@ -124,5 +125,26 @@ describe('異常の状態遷移', () => {
     expect(isOverdue('assigned', '2026-10-21', '2026-10-22')).toBe(true);
     expect(isOverdue('assigned', '2026-10-22', '2026-10-22')).toBe(false);
     expect(isOverdue('corrected', '2026-10-01', '2026-10-22')).toBe(false);
+  });
+});
+
+describe('点検記録の CSV（画面で組み立てる）', () => {
+  const ins = (id: string, date: string, code: string, started: string) => ({
+    id, inspection_date: date, factory: '第1工場', equipment_code: code, equipment: '=SUM(A1)', template: '日常', version_no: 1, template_version_id: 'v1',
+    inspector: '点検 太郎', status: 'completed', overall_result: 'ok' as const, started_at: started, completed_at: started, current_revision: 1, comment: null,
+  });
+  it('点検日・設備番号の順に、項目ごとに1行。数式は無害化、BOM と CRLF', () => {
+    const rows = inspectionCsvRows([
+      { total: 4, inspections: [ins('b', '2026-10-02', 'P-01', '2026-10-01T23:00:00Z')], items: [{ id: 'i2', template_version_id: 'v1', sort_order: 2, label: '油量', criteria: null }], results: [['b', 'i2', 'ng', '少ない']], nextCursor: 'x' },
+      { inspections: [ins('a', '2026-10-01', 'P-02', '2026-10-01T00:00:00Z')], items: [{ id: 'i1', template_version_id: 'v1', sort_order: 1, label: '異音', criteria: 'なし' }, { id: 'i2', template_version_id: 'v1', sort_order: 2, label: '油量', criteria: null }], results: [['a', 'i1', 'ok', null]], nextCursor: null },
+    ]);
+    expect(rows.map((r) => `${r[0]}-${r[13]}`)).toEqual(['a-1', 'a-2', 'b-1', 'b-2']);
+    expect(rows[0]?.[10]).toBe('2026-10-01 09:00');
+    expect(rows[2]?.[16]).toBe('');
+    expect(rows[3]?.[16]).toBe('異常');
+    const text = toCsv(INSPECTION_CSV_HEADER, rows);
+    expect(text.charCodeAt(0)).toBe(0xfeff);
+    expect(text).toContain("'=SUM(A1)");
+    expect(text.endsWith('\r\n')).toBe(true);
   });
 });
