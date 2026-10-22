@@ -26,6 +26,8 @@ authRoutes.get('/me', async (c) => {
       device_login_days: settings.device_login_days,
       board_refresh_seconds: settings.board_refresh_seconds,
       reauth_hours: settings.reauth_hours,
+      photo_max_count: settings.photo_max_count,
+      high_severity_message: settings.high_severity_message,
     },
   });
 });

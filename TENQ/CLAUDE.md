@@ -6,7 +6,7 @@ TENQ（テンク）— Smart Inspection System。QR コード式の工場設備�
 
 ## 状態
 
-第4段階（日常点検・点検基準の版・訂正・QR 読み取り・ホームの未点検一覧）まで完了（2026-10-22）。次は第5段階（異常報告・是正処置）。**要確認事項は `docs/requirements.md` §10**。構成（案 A）・QR の URL・権限表（`docs/requirements.md` §3-2）はすべて決定済み（2026-10-22）。
+第5段階（異常報告・写真・是正処置の追跡）まで完了（2026-10-22）。次は第6段階（PC のエリア別カード一覧・検索・CSV・帳票・監査ログ）。**要確認事項は `docs/requirements.md` §10**。構成（案 A）・QR の URL・権限表（`docs/requirements.md` §3-2）はすべて決定済み（2026-10-22）。
 
 QR の印字 URL は `https://space-apps.pages.dev/TENQ/q/#<トークン>`。**`TENQ/q/` の場所とフォルダ名 `TENQ` は印刷済み QR が壊れるので変更禁止**（`docs/architecture.md` §4-3）。
 
@@ -115,3 +115,11 @@ npm run check:size          # Worker バンドルサイズ確認
 - 画面のルートは `key={path}` で作り直す。同じ画面部品のまま別の設備に移ると、前の設備の状態（完了など）が残るため
 - E2E は PC とスマホで2回走る。データを変えるテストは端末ごとに別の設備を使うか、PC だけで行う（`test.skip`）
 - Space.app 側の `tenq` 登録はフロント・API とも**本番未反映**。本番で TENQ を開けるようにするには、両方を main に反映する承認が要る
+
+## 第5段階で決めた実装上のルール
+
+- 異常の状態遷移は shared の `ABNORMALITY_TRANSITIONS` / `nextStatus()` だけを正とする。遷移ごとに権限表を確認し、`abnormality_events` に必ず残す
+- 写真は `POST /api/attachments?owner_type=…&owner_id=…` に画像そのものを送る（multipart にしない）。Content-Type とマジックナンバーの両方を確認。表示は `AuthImage`（権限付きで取得して blob: URL）。`<img src>` に API の URL を直接書かない（ログイン情報が付かない）
+- 画面の読み込みは、後から届いた古い結果で入力中の内容・新しい結果を上書きしない（`alive` フラグ、または最新の要求番号で判定）。第5段階で編集画面と一覧検索で実際に起きた
+- 全体の `input { width:100% }` は詳細度が高い。隠したファイル選択などは `input[type="file"]` まで指定して上書きする（ページが横にはみ出した前例）
+- E2E は PC とスマホが同時に走る。同じデータを同時に変えると楽観ロックの 409 になるので、データを変えるテストは端末ごとに別のデータを使う

@@ -5,7 +5,9 @@ import { APP_NAME } from '@tenq/shared';
 import type { AppEnv } from './types';
 import { HttpError } from './lib/http';
 import { requireAuth } from './middleware/auth';
+import { abnormalityRoutes } from './routes/abnormalities';
 import { areaRoutes } from './routes/areas';
+import { attachmentRoutes } from './routes/attachments';
 import { authRoutes } from './routes/auth';
 import { equipmentRoutes } from './routes/equipment';
 import { factoryRoutes } from './routes/factories';
@@ -20,7 +22,7 @@ app.use('*', secureHeaders({ xFrameOptions: 'DENY', referrerPolicy: 'same-origin
 // Bearer トークンのみで Cookie を使わないので credentials は許可しない（CSRF の対象外にする）
 app.use('/api/*', (c, next) => cors({
   origin: (origin) => (c.env.ALLOWED_ORIGINS.split(',').includes(origin) ? origin : null),
-  allowHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key'],
+  allowHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-File-Name'],
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   maxAge: 600,
 })(c, next));
@@ -46,6 +48,8 @@ api.route('/', equipmentRoutes);
 api.route('/', userRoutes);
 api.route('/', templateRoutes);
 api.route('/', inspectionRoutes);
+api.route('/', abnormalityRoutes);
+api.route('/', attachmentRoutes);
 app.route('/api', api);
 
 app.notFound((c) => c.json({ message: '見つかりません。' }, 404));

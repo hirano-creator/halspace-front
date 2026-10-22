@@ -31,10 +31,13 @@ export function EquipmentFormPage({ id }: { id?: string }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // 編集: 現在の値を読む
+  // 読み込みが2回走っても（React の開発モード・通信の遅れ）、後から届いた結果で入力中の内容を上書きしない
   useEffect(() => {
     if (!id) return;
+    let alive = true;
     apiGet<{ item: EquipmentDetail; permissions: { edit: boolean; editAll: boolean } }>(`/equipment/${encodeURIComponent(id)}`)
       .then(({ item, permissions }) => {
+        if (!alive) return;
         if (!permissions.edit) { setError('この設備を編集する権限がありません。'); return; }
         setOriginal(item);
         setFull(permissions.editAll);
@@ -44,8 +47,9 @@ export function EquipmentFormPage({ id }: { id?: string }) {
           frequency: item.frequency, template_id: item.template_id ?? '', notes: item.notes ?? '',
         });
       })
-      .catch((e: unknown) => setError(errorMessage(e)))
-      .finally(() => setLoading(false));
+      .catch((e: unknown) => { if (alive) setError(errorMessage(e)); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
   }, [id]);
 
   // 選択肢（担当者・点検基準は会社単位、エリアは工場単位）

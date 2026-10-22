@@ -35,3 +35,5 @@ export function formatTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 }
+
+export const CORRECTIVE_KIND: Record<string, string> = { temporary: '応急処置', permanent: '恒久対策', other: 'その他' };

@@ -105,3 +105,24 @@ describe('QR の読み取り結果', () => {
     expect(tokenFromQr('https://space-apps.pages.dev/TENQ/q/#TENQDEVSEEDQRZA1')).toBeNull();
   });
 });
+
+describe('異常の状態遷移', () => {
+  it('決められた遷移だけ通る', async () => {
+    const { nextStatus, isOverdue } = await import('../src/abnormality');
+    expect(nextStatus('assign', 'reported')).toBe('assigned');
+    expect(nextStatus('start', 'assigned')).toBe('in_progress');
+    expect(nextStatus('correct', 'in_progress')).toBe('corrected');
+    expect(nextStatus('verify', 'corrected')).toBe('verified');
+    expect(nextStatus('reject', 'corrected')).toBe('in_progress');
+    expect(nextStatus('approve', 'verified')).toBe('closed');
+    // 飛ばし・逆戻りはできない
+    expect(nextStatus('approve', 'corrected')).toBeNull();
+    expect(nextStatus('correct', 'reported')).toBeNull();
+    expect(nextStatus('assign', 'closed')).toBeNull();
+    // 対応中に担当を付け直しても、対応中のまま
+    expect(nextStatus('assign', 'in_progress')).toBe('in_progress');
+    expect(isOverdue('assigned', '2026-10-21', '2026-10-22')).toBe(true);
+    expect(isOverdue('assigned', '2026-10-22', '2026-10-22')).toBe(false);
+    expect(isOverdue('corrected', '2026-10-01', '2026-10-22')).toBe(false);
+  });
+});

@@ -277,6 +277,7 @@ PC のエリア別カード一覧（requirements F-7・F-12）の枠。運用開
 | factory_id | TEXT | NOT NULL FK | |
 | equipment_id | TEXT | NOT NULL FK | |
 | inspection_id | TEXT | FK NULL | 点検から報告した場合 |
+| inspection_item_id | TEXT | FK inspection_items.id NULL | 点検のどの項目で見つかったか（0002 で追加。点検結果は追記専用のため異常側に持つ） |
 | report_no | TEXT | NOT NULL | 表示用の通し番号（例: `F01-2026-0042`） |
 | title | TEXT | NOT NULL | 異常内容（要約） |
 | description | TEXT | | 詳細 |
@@ -293,7 +294,7 @@ PC のエリア別カード一覧（requirements F-7・F-12）の枠。運用開
 | approved_by / approved_at | TEXT | | 承認者 |
 | created_at / updated_at / updated_by / version | | | 共通 |
 
-索引: `UNIQUE (company_id, report_no)`、`(company_id, factory_id, status)`、`(status, due_date)`（期限超過）、`(equipment_id, found_at)`、`(assignee_user_id, status)`
+索引: `UNIQUE (company_id, report_no)`、`(inspection_id, inspection_item_id)`、`(company_id, factory_id, status)`、`(status, due_date)`（期限超過）、`(equipment_id, found_at)`、`(assignee_user_id, status)`
 
 ### 3-13. corrective_actions（是正処置）
 

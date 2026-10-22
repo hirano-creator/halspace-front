@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiGet } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Button, Loading, PageHeader, errorMessage } from '../components/ui';
@@ -20,6 +20,8 @@ export function EquipmentListPage() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // 検索を続けて打ったとき、遅れて届いた古い結果で新しい結果を上書きしない
+  const latest = useRef(0);
 
   const params = (c?: string | null) => {
     const p = new URLSearchParams({ limit: '50' });
@@ -31,16 +33,18 @@ export function EquipmentListPage() {
   };
 
   async function load(more = false) {
+    const mine = ++latest.current;
     setLoading(true);
     try {
       const r = await apiGet<{ items: Row[]; nextCursor: string | null }>(`/equipment?${params(more ? cursor : null)}`);
+      if (mine !== latest.current) return;
       setItems((prev) => (more ? [...prev, ...r.items] : r.items));
       setCursor(r.nextCursor);
       setError(null);
     } catch (e) {
-      setError(errorMessage(e));
+      if (mine === latest.current) setError(errorMessage(e));
     } finally {
-      setLoading(false);
+      if (mine === latest.current) setLoading(false);
     }
   }
 

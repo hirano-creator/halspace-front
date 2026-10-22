@@ -21,6 +21,9 @@ const ScanPage = lazy(() => import('./pages/ScanPage').then((m) => ({ default: m
 const InspectionDetailPage = lazy(() => import('./pages/InspectionDetailPage').then((m) => ({ default: m.InspectionDetailPage })));
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage').then((m) => ({ default: m.TemplatesPage })));
 const TemplateDetailPage = lazy(() => import('./pages/TemplatesPage').then((m) => ({ default: m.TemplateDetailPage })));
+const AbnormalitiesPage = lazy(() => import('./pages/AbnormalitiesPage').then((m) => ({ default: m.AbnormalitiesPage })));
+const AbnormalityNewPage = lazy(() => import('./pages/AbnormalityNewPage').then((m) => ({ default: m.AbnormalityNewPage })));
+const AbnormalityDetailPage = lazy(() => import('./pages/AbnormalityDetailPage').then((m) => ({ default: m.AbnormalityDetailPage })));
 const DevicesPage = lazy(() => import('./pages/DevicesPage').then((m) => ({ default: m.DevicesPage })));
 
 interface Route { pattern: string; action?: Action; render: (p: Record<string, string>) => ReactNode }
@@ -36,6 +39,9 @@ const ROUTES: Route[] = [
   { pattern: '/scan', action: 'inspection.perform', render: () => <ScanPage /> },
   { pattern: '/inspect/:id', action: 'inspection.perform', render: (p) => <InspectPage equipmentId={p.id ?? ''} /> },
   { pattern: '/inspections/:id', action: 'inspection.viewOwn', render: (p) => <InspectionDetailPage id={p.id ?? ''} /> },
+  { pattern: '/abnormalities', action: 'abnormality.report', render: () => <AbnormalitiesPage /> },
+  { pattern: '/abnormalities/new', action: 'abnormality.report', render: () => <AbnormalityNewPage /> },
+  { pattern: '/abnormalities/:id', action: 'abnormality.report', render: (p) => <AbnormalityDetailPage id={p.id ?? ''} /> },
   { pattern: '/templates', action: 'equipment.view', render: () => <TemplatesPage /> },
   { pattern: '/templates/:id', action: 'equipment.view', render: (p) => <TemplateDetailPage id={p.id ?? ''} /> },
   { pattern: '/admin/users', action: 'users.manage', render: () => <UsersPage /> },

@@ -31,9 +31,11 @@ test('一般社員には登録・QR印刷・管理の入口が出ない', async 
 });
 
 test('設備担当者は担当設備の一部の項目だけ編集できる', async ({ page }) => {
-  await page.goto('./#/equipment/eq-p02/edit');
+  // PC とスマホが同時に走るので、同じ設備を同時に編集しないよう端末ごとに別の担当設備を使う
+  const id = page.viewportSize()!.width > 900 ? 'eq-p02' : 'eq-l05';
+  await page.goto('./');
   await devLogin(page, '佐藤 美咲');
-  await page.goto('./#/equipment/eq-p02/edit');
+  await page.goto(`./#/equipment/${id}/edit`);
   await expect(page.getByText('設備担当者が変更できるのは')).toBeVisible();
   await expect(page.getByLabel('設備名')).toBeDisabled();
   const loc = page.getByLabel('設置場所');
