@@ -314,6 +314,7 @@
   .app-chip-solid   { background: rgba(99,91,255,.1); color: var(--accent); }
   .app-chip-whatsno { background: rgba(59,130,246,.1); color: var(--blue); }
   .app-chip-meetlog { background: rgba(18,183,106,.1); color: var(--green); }
+  .app-chip-tenq    { background: rgba(31,95,209,.1); color: #1f5fd1; }
 
   /* ── アクションメニュー ── */
   .action-menu { position: relative; display: inline-block; }
@@ -1271,7 +1272,7 @@
 <!-- トースト -->
 <div class="toast-wrap" id="toastWrap"></div>
 
-<script src="assets/js/space.js?v=20261021a"></script>
+<script src="assets/js/space.js?v=20261022a"></script>
 <script>
 'use strict';
 
@@ -1771,6 +1772,7 @@ const APP_ICON_COLORS = {
   solid:   { bg: 'var(--accent-lt)', color: 'var(--accent)' },
   whatsno: { bg: 'var(--blue-lt)',   color: 'var(--blue)' },
   meetlog: { bg: 'var(--green-lt)',  color: 'var(--green)' },
+  tenq:    { bg: 'var(--blue-lt)',   color: 'var(--blue)' },
 };
 
 function renderAppConfigModal(company) {
@@ -2437,8 +2439,8 @@ function appBadge(app) {
   return `<span class="badge ${cls}">${lbl}</span>`;
 }
 function appChip(app) {
-  const map = { solid: 'app-chip-solid', whatsno: 'app-chip-whatsno', meetlog: 'app-chip-meetlog' };
-  const lbl = { solid: 'SOLID', whatsno: "What'sNo", meetlog: 'MeetLog' };
+  const map = { solid: 'app-chip-solid', whatsno: 'app-chip-whatsno', meetlog: 'app-chip-meetlog', tenq: 'app-chip-tenq' };
+  const lbl = { solid: 'SOLID', whatsno: "What'sNo", meetlog: 'MeetLog', tenq: 'TENQ' };
   return `<span class="app-chip ${map[app] ?? ''}">${lbl[app] ?? app}</span>`;
 }
 function roleLabel(role) {
