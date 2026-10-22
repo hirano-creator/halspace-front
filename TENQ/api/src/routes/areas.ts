@@ -85,3 +85,54 @@ areaRoutes.patch('/areas/:id', async (c) => {
   if (!upd?.meta.changes) throw conflict();
   return c.json({ version: version + 1 });
 });
+
+/**
+ * カード一覧の配置をまとめて保存（エリアの位置・幅・並び、設備の置き場所・並び）。
+ * 配置は見た目の情報で記録の内容には関わらないため、楽観ロックはせず後から保存した内容を正とする（監査ログには残す）。
+ */
+areaRoutes.put('/areas/layout', async (c) => {
+  const auth = c.get('auth');
+  const body = await readJson(c.req.raw);
+  const v = new Validator(body);
+  const factoryId = v.str('factory_id', { required: true, max: 64, label: '工場' });
+  v.done();
+  authorize(c, 'layout.edit', { factoryId });
+  const areas = Array.isArray(body.areas) ? body.areas as Record<string, unknown>[] : [];
+  const equipment = Array.isArray(body.equipment) ? body.equipment as Record<string, unknown>[] : [];
+  if (areas.length > 100 || equipment.length > 2000) throw new HttpError(422, '配置の件数が多すぎます。');
+  const int = (x: unknown, min: number, max: number) => typeof x === 'number' && Number.isInteger(x) && x >= min && x <= max;
+  for (const a of areas) {
+    if (typeof a.id !== 'string' || !int(a.grid_row, 0, 50) || !int(a.grid_col, 0, 11) || !int(a.col_span, 2, 12) || !int(a.sort_order, 0, 9999)) {
+      throw new HttpError(422, 'エリアの配置の値が正しくありません。');
+    }
+    if ((a.grid_col as number) + (a.col_span as number) > 12) throw new HttpError(422, 'エリアが横にはみ出しています（列＋横幅は12まで）。');
+  }
+  for (const e of equipment) {
+    if (typeof e.id !== 'string' || !(e.area_id === null || typeof e.area_id === 'string') || !int(e.board_order, 0, 99999)) {
+      throw new HttpError(422, '設備の配置の値が正しくありません。');
+    }
+  }
+  const db = c.env.DB;
+  // すべてこの工場のものか（他工場・他社の ID が混ざっていたら拒否）
+  const ids = (xs: Record<string, unknown>[]) => JSON.stringify(xs.map((x) => x.id));
+  const areaIds = new Set([...areas.map((a) => a.id as string), ...equipment.map((e) => e.area_id).filter((x): x is string => typeof x === 'string')]);
+  const [aOk, eOk] = await db.batch([
+    db.prepare('SELECT COUNT(*) AS n FROM areas WHERE factory_id = ? AND company_id = ? AND id IN (SELECT value FROM json_each(?))').bind(factoryId, auth.companyId, JSON.stringify([...areaIds])),
+    db.prepare('SELECT COUNT(*) AS n FROM equipment WHERE factory_id = ? AND company_id = ? AND id IN (SELECT value FROM json_each(?))').bind(factoryId, auth.companyId, ids(equipment)),
+  ]);
+  if ((aOk?.results[0] as { n: number }).n !== areaIds.size || (eOk?.results[0] as { n: number }).n !== equipment.length) throw new HttpError(422, 'この工場のものではないエリア・設備が含まれています。');
+
+  const now = nowIso();
+  await db.batch([
+    db.prepare(`UPDATE areas SET grid_row = j.grid_row, grid_col = j.grid_col, col_span = j.col_span, sort_order = j.sort_order, updated_at = ?, updated_by = ?, version = version + 1
+                FROM (SELECT json_extract(value, '$.id') AS id, json_extract(value, '$.grid_row') AS grid_row, json_extract(value, '$.grid_col') AS grid_col,
+                             json_extract(value, '$.col_span') AS col_span, json_extract(value, '$.sort_order') AS sort_order FROM json_each(?)) AS j
+                WHERE areas.id = j.id AND areas.factory_id = ?`).bind(now, auth.user.id, JSON.stringify(areas), factoryId),
+    db.prepare(`UPDATE equipment SET area_id = j.area_id, board_order = j.board_order, updated_at = ?, updated_by = ?, version = version + 1
+                FROM (SELECT json_extract(value, '$.id') AS id, json_extract(value, '$.area_id') AS area_id, json_extract(value, '$.board_order') AS board_order FROM json_each(?)) AS j
+                WHERE equipment.id = j.id AND equipment.factory_id = ? AND (equipment.area_id IS NOT j.area_id OR equipment.board_order <> j.board_order)`)
+      .bind(now, auth.user.id, JSON.stringify(equipment), factoryId),
+    auditStatement(c, { action: 'layout.update', targetType: 'factory', targetId: factoryId, factoryId, detail: { areas: areas.length, equipment: equipment.length } }),
+  ]);
+  return c.json({ ok: true });
+});

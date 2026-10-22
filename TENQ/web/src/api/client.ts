@@ -98,3 +98,20 @@ export async function apiBlobUrl(path: string): Promise<string> {
   if (!res.ok) { handle401(res); throw await toError(res); }
   return URL.createObjectURL(await res.blob());
 }
+
+/** CSV などのファイルを権限付きで取得して保存させる（ファイル名はサーバーの Content-Disposition に従う） */
+export async function apiDownload(path: string, fallbackName: string): Promise<void> {
+  const res = await fetch(API_BASE + path, { headers: headers(false), signal: AbortSignal.timeout(60_000) });
+  if (!res.ok) { handle401(res); throw await toError(res); }
+  const cd = res.headers.get('Content-Disposition') ?? '';
+  const m = /filename\*=UTF-8''([^;]+)/.exec(cd);
+  const name = m?.[1] ? decodeURIComponent(m[1]) : fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}

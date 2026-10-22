@@ -6,6 +6,7 @@ import { QR_TOKEN_PATTERN, newId, newQrToken, nowIso } from '../lib/crypto';
 import { authorize } from '../lib/guard';
 import { HttpError, Validator, conflict, forbidden, notFound, readJson } from '../lib/http';
 import { inFactoryScope, scopeWhere } from '../lib/scope';
+import { decodeCursor, encodeCursor } from '../lib/cursor';
 
 export const equipmentRoutes = new Hono<AppEnv>();
 
@@ -60,7 +61,7 @@ equipmentRoutes.get('/equipment', async (c) => {
     params.push(kw, kw, kw);
   }
   if (q.cursor) {
-    const [code, id] = decodeCursor(q.cursor);
+    const [code, id] = decodeCursor(q.cursor, 2);
     where.push('(e.equipment_code > ? OR (e.equipment_code = ? AND e.id > ?))');
     params.push(code, code, id);
   }
@@ -73,7 +74,7 @@ equipmentRoutes.get('/equipment', async (c) => {
   ).bind(...params, limit + 1).all<{ id: string; equipment_code: string }>();
   const items = results.slice(0, limit);
   const last = items[items.length - 1];
-  return c.json({ items, nextCursor: results.length > limit && last ? encodeCursor(last.equipment_code, last.id) : null });
+  return c.json({ items, nextCursor: results.length > limit && last ? encodeCursor([last.equipment_code, last.id]) : null });
 });
 
 equipmentRoutes.get('/equipment/:id', async (c) => {
@@ -278,17 +279,4 @@ async function checkReferences(c: Context<AppEnv>, v: Validator, factoryId: stri
   if (f.manager_user_id && !await db.prepare("SELECT 1 FROM users WHERE id = ? AND company_id = ? AND status = 'active'").bind(f.manager_user_id, companyId).first()) v.fail('manager_user_id', '管理担当者が見つかりません。');
   if (f.area_id && !await db.prepare("SELECT 1 FROM areas WHERE id = ? AND factory_id = ? AND status = 'active'").bind(f.area_id, factoryId).first()) v.fail('area_id', 'この工場のエリアではありません。');
   if (f.template_id && !await db.prepare("SELECT 1 FROM inspection_templates WHERE id = ? AND company_id = ? AND status = 'active'").bind(f.template_id, companyId).first()) v.fail('template_id', '点検基準が見つかりません。');
-}
-
-function encodeCursor(code: string, id: string): string {
-  const bytes = new TextEncoder().encode(JSON.stringify([code, id]));
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-function decodeCursor(cursor: string): [string, string] {
-  try {
-    const bin = atob(cursor.replace(/-/g, '+').replace(/_/g, '/'));
-    const v: unknown = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (ch) => ch.charCodeAt(0))));
-    if (Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'string')) return v as [string, string];
-  } catch { /* 下で 400 */ }
-  throw new HttpError(400, 'ページの指定が正しくありません。');
 }

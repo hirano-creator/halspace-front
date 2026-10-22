@@ -1,0 +1,1 @@
+var e=[`late`,`ng`,`doing`,`todo`,`ok`,`stop`],t={late:{label:`遅れ（未点検）`,short:`遅れ`},ng:{label:`異常あり`,short:`異常`},doing:{label:`点検中`,short:`点検中`},todo:{label:`未点検`,short:`未点検`},ok:{label:`完了・正常`,short:`正常`},stop:{label:`停止中`,short:`停止中`}};export{t as n,e as t};

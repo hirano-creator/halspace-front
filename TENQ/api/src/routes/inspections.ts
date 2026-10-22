@@ -8,6 +8,8 @@ import { HttpError, Validator, conflict, notFound, readJson } from '../lib/http'
 import { todayFor } from '../lib/period';
 import { scopeWhere } from '../lib/scope';
 import { loadSettings } from '../lib/settings';
+import { decodeCursor, encodeCursor } from '../lib/cursor';
+import { inspectionFilter } from '../lib/filters';
 
 /**
  * 日常点検（requirements F-5、architecture §9-2・§9-3）。
@@ -290,23 +292,24 @@ inspectionRoutes.post('/inspections/:id/corrections', async (c) => {
 /** 点検の履歴（設備ごと・新しい順。本格的な検索は第6段階） */
 inspectionRoutes.get('/inspections', async (c) => {
   authorize(c, 'inspection.viewOwn');
-  const auth = c.get('auth');
   const q = c.req.query();
   const limit = Math.min(Math.max(Number(q.limit) || 20, 1), 100);
-  const s = scopeWhere(auth, 'i');
-  const where = [s.sql];
-  const params: unknown[] = [...s.params];
-  if (q.equipment) { where.push('i.equipment_id = ?'); params.push(q.equipment); }
-  if (q.mine === '1' || !can(auth.actor, 'inspection.viewFactory')) { where.push('i.inspector_user_id = ?'); params.push(auth.user.id); }
-  if (q.before) { where.push('i.started_at < ?'); params.push(q.before); }
+  const { where, params } = inspectionFilter(c);
+  if (q.cursor) {
+    const [at, id] = decodeCursor(q.cursor, 2);
+    where.push('(i.started_at < ? OR (i.started_at = ? AND i.id < ?))');
+    params.push(at, at, id);
+  }
   const { results } = await c.env.DB.prepare(
-    `SELECT i.id, i.equipment_id, e.equipment_code, e.name AS equipment_name, i.inspection_date, i.period_key, i.status, i.overall_result,
-            i.started_at, i.completed_at, i.current_revision, u.name AS inspector_name
-     FROM inspections i JOIN equipment e ON e.id = i.equipment_id JOIN users u ON u.id = i.inspector_user_id
-     WHERE ${where.join(' AND ')} ORDER BY i.started_at DESC LIMIT ?`,
-  ).bind(...params, limit + 1).all<{ started_at: string }>();
+    `SELECT i.id, i.equipment_id, e.equipment_code, e.name AS equipment_name, e.category, f.name AS factory_name, i.inspection_date, i.period_key,
+            i.status, i.overall_result, i.started_at, i.completed_at, i.current_revision, u.name AS inspector_name,
+            (SELECT COUNT(*) FROM abnormalities a WHERE a.inspection_id = i.id) AS abnormality_count
+     FROM inspections i JOIN equipment e ON e.id = i.equipment_id JOIN factories f ON f.id = i.factory_id JOIN users u ON u.id = i.inspector_user_id
+     WHERE ${where.join(' AND ')} ORDER BY i.started_at DESC, i.id DESC LIMIT ?`,
+  ).bind(...params, limit + 1).all<{ id: string; started_at: string }>();
   const items = results.slice(0, limit);
-  return c.json({ items, nextBefore: results.length > limit ? items[items.length - 1]?.started_at ?? null : null });
+  const last = items[items.length - 1];
+  return c.json({ items, nextCursor: results.length > limit && last ? encodeCursor([last.started_at, last.id]) : null });
 });
 
 /**
