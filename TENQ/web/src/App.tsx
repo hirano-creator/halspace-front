@@ -24,6 +24,13 @@ const TemplateDetailPage = lazy(() => import('./pages/TemplatesPage').then((m) =
 const AbnormalitiesPage = lazy(() => import('./pages/AbnormalitiesPage').then((m) => ({ default: m.AbnormalitiesPage })));
 const AbnormalityNewPage = lazy(() => import('./pages/AbnormalityNewPage').then((m) => ({ default: m.AbnormalityNewPage })));
 const AbnormalityDetailPage = lazy(() => import('./pages/AbnormalityDetailPage').then((m) => ({ default: m.AbnormalityDetailPage })));
+const BoardPage = lazy(() => import('./pages/BoardPage').then((m) => ({ default: m.BoardPage })));
+const SearchPage = lazy(() => import('./pages/SearchPage').then((m) => ({ default: m.SearchPage })));
+const ReportsPage = lazy(() => import('./pages/ReportsPage').then((m) => ({ default: m.ReportsPage })));
+const MonthlySheetPage = lazy(() => import('./pages/PrintPages').then((m) => ({ default: m.MonthlySheetPage })));
+const AuditPackPage = lazy(() => import('./pages/PrintPages').then((m) => ({ default: m.AuditPackPage })));
+const AuditLogPage = lazy(() => import('./pages/AdminPages').then((m) => ({ default: m.AuditLogPage })));
+const SettingsPage = lazy(() => import('./pages/AdminPages').then((m) => ({ default: m.SettingsPage })));
 const DevicesPage = lazy(() => import('./pages/DevicesPage').then((m) => ({ default: m.DevicesPage })));
 
 interface Route { pattern: string; action?: Action; render: (p: Record<string, string>) => ReactNode }
@@ -36,6 +43,13 @@ const ROUTES: Route[] = [
   { pattern: '/equipment/:id/edit', action: 'equipment.view', render: (p) => <EquipmentFormPage id={p.id} /> },
   { pattern: '/qr', action: 'qr.issue', render: () => <QrPrintPage /> },
   { pattern: '/q/:token', render: (p) => <QrResolvePage token={p.token ?? ''} /> },
+  { pattern: '/board', action: 'board.view', render: () => <BoardPage /> },
+  { pattern: '/inspections', action: 'inspection.viewOwn', render: () => <SearchPage /> },
+  { pattern: '/reports', action: 'export', render: () => <ReportsPage /> },
+  { pattern: '/print/monthly', action: 'inspection.viewFactory', render: () => <MonthlySheetPage /> },
+  { pattern: '/print/audit', action: 'export', render: () => <AuditPackPage /> },
+  { pattern: '/admin/audit', action: 'audit.view', render: () => <AuditLogPage /> },
+  { pattern: '/admin/settings', action: 'settings.manage', render: () => <SettingsPage /> },
   { pattern: '/scan', action: 'inspection.perform', render: () => <ScanPage /> },
   { pattern: '/inspect/:id', action: 'inspection.perform', render: (p) => <InspectPage equipmentId={p.id ?? ''} /> },
   { pattern: '/inspections/:id', action: 'inspection.viewOwn', render: (p) => <InspectionDetailPage id={p.id ?? ''} /> },

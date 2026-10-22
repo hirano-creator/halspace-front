@@ -12,6 +12,7 @@ import { authRoutes } from './routes/auth';
 import { equipmentRoutes } from './routes/equipment';
 import { factoryRoutes } from './routes/factories';
 import { inspectionRoutes } from './routes/inspections';
+import { reportRoutes } from './routes/reports';
 import { templateRoutes } from './routes/templates';
 import { userRoutes } from './routes/users';
 
@@ -50,6 +51,7 @@ api.route('/', templateRoutes);
 api.route('/', inspectionRoutes);
 api.route('/', abnormalityRoutes);
 api.route('/', attachmentRoutes);
+api.route('/', reportRoutes);
 app.route('/api', api);
 
 app.notFound((c) => c.json({ message: '見つかりません。' }, 404));

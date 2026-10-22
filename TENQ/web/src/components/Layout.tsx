@@ -16,18 +16,28 @@ const I = {
   scan: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M4 12h16" /></svg>,
   list: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6l1 1 2-2M4.5 12l1 1 2-2M4.5 18l1 1 2-2" /></svg>,
   warn: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5L21.5 20h-19z" /><path d="M12 10v4.5M12 17.2v.3" /></svg>,
+  grid: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1" /><rect x="13" y="4" width="7" height="7" rx="1" /><rect x="4" y="13" width="7" height="7" rx="1" /><rect x="13" y="13" width="7" height="7" rx="1" /></svg>,
+  search: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.5-4.5" /></svg>,
+  file: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8l4 4V20.5H6z" /><path d="M14 3.5v4h4M9 13h6M9 16.5h6" /></svg>,
+  eye: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></svg>,
+  gear: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" /></svg>,
   device: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2" /><path d="M11 18h2" /></svg>,
 };
 
 const NAV: NavItem[] = [
   { to: '/', label: 'ホーム', icon: I.home },
+  { to: '/board', label: 'カード一覧', icon: I.grid, action: 'board.view' },
   { to: '/scan', label: 'QRを読み取る', icon: I.scan, action: 'inspection.perform' },
   { to: '/abnormalities', label: '異常・是正処置', icon: I.warn, action: 'abnormality.report' },
   { to: '/equipment', label: '設備台帳', icon: I.tool, action: 'equipment.view' },
+  { to: '/inspections', label: '点検履歴・検索', icon: I.search, action: 'inspection.viewOwn' },
+  { to: '/reports', label: 'CSV・帳票', icon: I.file, action: 'export' },
   { to: '/templates', label: '点検基準', icon: I.list, action: 'template.edit' },
   { to: '/qr', label: 'QRラベル印刷', icon: I.qr, action: 'qr.issue' },
   { to: '/admin/factories', label: '工場・エリア', icon: I.factory, action: 'layout.edit' },
   { to: '/admin/users', label: 'ユーザー管理', icon: I.user, action: 'users.manage' },
+  { to: '/admin/audit', label: '操作の記録', icon: I.eye, action: 'audit.view' },
+  { to: '/admin/settings', label: 'システム設定', icon: I.gear, action: 'settings.manage' },
   { to: '/devices', label: 'ログインした端末', icon: I.device },
 ];
 

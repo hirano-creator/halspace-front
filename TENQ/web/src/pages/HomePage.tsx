@@ -95,6 +95,8 @@ export function HomePage() {
       )}
 
       <div className="tiles">
+        {can('board.view') && <a className="tile" href="#/board"><b>カード一覧</b><span>エリアごとに今日の点検状況を色で表示（PC 向け）</span></a>}
+        {can('export') && <a className="tile" href="#/reports"><b>CSV・帳票</b><span>点検記録・異常・設備台帳の出力、月間点検表、ISO 監査向けの一覧</span></a>}
         {can('equipment.view') && <a className="tile" href="#/equipment"><b>設備台帳</b><span>設備の一覧・詳細・点検の履歴</span></a>}
         {can('template.edit') && <a className="tile" href="#/templates"><b>点検基準</b><span>点検項目と判定基準（版の管理）</span></a>}
         {can('qr.issue') && <a className="tile" href="#/qr"><b>QRラベル印刷</b><span>A4 に面付けして印刷</span></a>}
