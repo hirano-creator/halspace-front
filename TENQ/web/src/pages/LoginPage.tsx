@@ -10,8 +10,12 @@ import { Alert, Button, Field, errorMessage } from '../components/ui';
 /** スマホ（指で操作する端末）では既定でログインを記憶する。PC は既定で記憶しない（共用 PC 対策） */
 const isTouch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
 
-/** 開発用の簡易ログイン（vite の開発サーバーでだけ表示。本番ビルドには含まれない） */
-const DEV_USERS = import.meta.env.DEV
+/**
+ * 開発用の簡易ログイン。vite の開発サーバーと、実機確認用のプレビュー（VITE_DEV_LOGIN=1 でビルド）でだけ表示する。
+ * 本番ビルドでは条件が false に置き換わり、コードごと含まれない（npm run check:size で確認）。
+ */
+const DEV_LOGIN = import.meta.env.DEV || import.meta.env.VITE_DEV_LOGIN === '1';
+const DEV_USERS = DEV_LOGIN
   ? [
       { hs: 900001, name: '山本 健', role: '一般社員' },
       { hs: 900002, name: '佐藤 美咲', role: '設備担当者' },
@@ -74,7 +78,7 @@ export function LoginPage() {
   }
 
   async function devLogin(hs: number, name: string) {
-    if (!import.meta.env.DEV) return;
+    if (!DEV_LOGIN) return;
     saveSpaceSession(`dev-${hs}`, { id: hs, name, email: '', role: 'general', company: null, company_id: null, apps: ['tenq'], token: `dev-${hs}` });
     setBusy(true);
     try { await afterLogin(); } catch (err) { setError(errorMessage(err)); } finally { setBusy(false); }
@@ -124,7 +128,7 @@ export function LoginPage() {
           </div>
         )}
 
-        {import.meta.env.DEV && (
+        {DEV_LOGIN && (
           <div className="dev-login">
             <p>開発用ログイン（ローカルのダミーデータ）</p>
             {DEV_USERS.map((u) => (

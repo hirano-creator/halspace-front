@@ -19,7 +19,8 @@
     "test:e2e": "npm run db:reset:local && playwright test",
     "build": "npm run build -w web",
     "check:size": "node scripts/check-size.mjs",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "deploy:preview": "node scripts/deploy-preview.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

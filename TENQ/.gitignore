@@ -10,3 +10,5 @@ web/dist/
 tenq-db-*.sql
 test-results/
 playwright-report/
+.env
+.env.*

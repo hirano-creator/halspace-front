@@ -8,7 +8,7 @@
 | 環境 | 画面 | API | D1 | R2 |
 | --- | --- | --- | --- | --- |
 | ローカル | Vite 開発サーバー（`http://localhost:5173/TENQ/app/`） | `wrangler dev`（`http://localhost:8787`） | ローカル D1（`.wrangler/` 内） | ローカル R2 |
-| 開発（リモート） | Pages プレビュー（main 以外のブランチ） | `tenq-api-dev` | `tenq-db-dev` | `tenq-files-dev` |
+| 開発（リモート・実機確認用） | https://tenq-dev.pages.dev/TENQ/app/（Pages プロジェクト `tenq-dev`。space-apps とは別） | https://tenq-api-dev.space-app.workers.dev | `tenq-db-dev`（ce092ce0-…） | `tenq-files-dev` |
 | 本番 | `https://space-apps.pages.dev/TENQ/app/`（main のみ） | `tenq-api` | `tenq-db` | `tenq-files` |
 
 ログイン API の向き先: localhost で開いたときはローカルの halspace-api（`http://127.0.0.1:8000/api`）、それ以外は本番 halspace-api（既存アプリと同じ切替規則）。開発（リモート）環境のログインをどこに向けるかは第2段階で決める。
@@ -74,3 +74,14 @@ Space.app のアプリ一覧に TENQ を出す変更（`space/assets/js/space.js
 - API: `npx wrangler deployments list` → `npx wrangler rollback <deployment-id>`
 - DB: マイグレーションは戻さず、修正のマイグレーションを追加する。データが壊れた場合は operations.md §4
 - 画面: main を前のコミットに戻すコミットを push（承認後）
+
+## 8. 開発用リモート環境（実機確認用、2026-10-22 作成）
+
+- Cloudflare アカウント: Space.app（space-apps）と同じアカウント（h.hirano@hirano50.com）。wrangler のログイン先がこのアカウントであることを `npx wrangler whoami` で確かめてから操作する
+- 作成したもの（すべて無料枠）: D1 `tenq-db-dev`、R2 `tenq-files-dev`、Worker `tenq-api-dev`、Pages `tenq-dev`
+- 画面の更新: `npm run deploy:preview`（開発用 API に向け、開発用の簡易ログインを有効にしてビルドし、tenq-dev に送る。TENQ/app/ と space-apps には触れない）
+- API の更新: `cd api && npx wrangler deploy --env dev`
+- DB の変更: `cd api && npx wrangler d1 migrations apply DB --remote --env dev`
+- データはダミーのみ（`seed/dev-seed.sql`）。QR の宛先は `system_settings.qr_base_url = https://tenq-dev.pages.dev/TENQ/q/`（開発用 DB だけ）なので、プレビューで印刷した QR はプレビューを開く
+- 注意: 開発用の簡易ログイン（`dev-<番号>`）が有効で、URL を知っていればダミーの利用者で入れる。本物のデータを入れない。サイト全体に `X-Robots-Tag: noindex` を付けている。ログインは Space.app の本番 API に向いていない（`HALSPACE_API` は開発用）ので、実アカウントでのログインはプレビューでは使えない
+- 不要になったら削除できる: `wrangler pages project delete tenq-dev`、`wrangler delete --env dev`、`wrangler d1 delete tenq-db-dev`、`wrangler r2 bucket delete tenq-files-dev`（中身を空にしてから）
