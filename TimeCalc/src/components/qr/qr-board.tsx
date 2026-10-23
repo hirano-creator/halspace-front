@@ -173,7 +173,7 @@ export function QrBoard({
   const canShowStandard = primary?.kind === "attend" && !!qrs.standard;
 
   const [manual, setManual] = useState<Selection | null>(null);
-  const selection: Selection = manual ?? (canSwapOuting && board.outingExpanded ? "outing" : "main");
+  const selection: Selection = manual ?? "main";
 
   const mainTone: Tone = board.phase === "evening" || board.phase === "afterWork" ? "violet" : "emerald";
   const mainWord = board.primaryHeading.replace(/の打刻$/, "");
