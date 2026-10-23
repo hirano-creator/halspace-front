@@ -144,6 +144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initRelations();
   initEmailModal();
   initAaPostModal();
+  initOfficeEditBack();
   initDetailMenus();   /* 各ボタンの表示条件が決まった後に呼ぶ（変換可否などを見るため） */
 });
 
@@ -3394,6 +3395,93 @@ function jsq(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/* ─────────────────────────────────
+   手元のアプリで編集して戻す（Excel・Word・PowerPoint）
+   ブラウザでは書き換えられないので、ダウンロード → 手元で編集 → 戻すと新しいバージョンになる。
+   API は「同じフォルダーの同じ名前」を新しいバージョンとして扱うので、
+   戻したファイルの名前を元にそろえ、元の folder_id を付けて送るだけでよい（所有者・公開範囲も引き継がれる）。
+   ───────────────────────────────── */
+function initOfficeEditBack() {
+  if (!wnIsOfficeFile(fileData?.file_name)) return;
+  const ext = fileData.file_name.split('.').pop().toLowerCase();
+  const app = ext.startsWith('xl') ? 'Excel' : ext.startsWith('doc') ? 'Word' : 'PowerPoint';
+  const modal = document.getElementById('fdOfficeEditModal');
+  const drop  = document.getElementById('officeEditDrop');
+  const input = document.getElementById('officeEditInput');
+
+  /* 個人保管モードの API は自分の持ち物の中でしか同名を探さないので、
+     持ち主以外が戻すと新しいバージョンにならず別ファイルになってしまう */
+  const canReturn = !(wnIsPersonalMode() && fileData.can_edit === false);
+
+  document.getElementById('officeEditLabel').textContent = `${app} で編集`;
+  document.getElementById('officeEditApp').textContent = app;
+  document.getElementById('officeEditExt').textContent = '.' + ext;
+  document.getElementById('officeEditNextVer').textContent = `新しいバージョン（v${(fileData.version ?? 1) + 1}）`;
+  document.getElementById('officeEditOwnerNote').style.display = canReturn ? 'none' : '';
+  drop.style.display = canReturn ? '' : 'none';
+  input.accept = '.' + ext;
+
+  const editBtn   = document.getElementById('officeEditBtn');
+  const returnBtn = document.getElementById('officeReturnBtn');
+  editBtn.style.display = '';
+  returnBtn.style.display = canReturn ? '' : 'none';
+  const open = () => modal.classList.remove('hidden');
+  editBtn.addEventListener('click', () => { wnDownload(fileId); open(); });
+  returnBtn.addEventListener('click', open);
+  document.getElementById('officeEditDownload').addEventListener('click', () => wnDownload(fileId));
+
+  input.addEventListener('change', () => {
+    const f = input.files?.[0];
+    input.value = '';
+    if (f) uploadEditedVersion(f);
+  });
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.classList.remove('dragover');
+    const f = e.dataTransfer?.files?.[0];
+    if (f) uploadEditedVersion(f);
+  });
+}
+
+async function uploadEditedVersion(file) {
+  const ext = fileData.file_name.split('.').pop().toLowerCase();
+  if (file.name.split('.').pop().toLowerCase() !== ext) {
+    wnShowToast(`元と同じ形式（.${ext}）で保存したファイルを選んでください`, 'danger');
+    return;
+  }
+
+  /* 編集しているあいだに誰かが新しい版を上げていたら、黙って積まずに確認する */
+  const versions = await wnGetVersions(fileId).catch(() => []);
+  const latest = versions.reduce((m, v) => Math.max(m, v.version || 0), fileData.version ?? 1);
+  if (latest > (fileData.version ?? 1) && !confirm(
+    `このファイルは編集中に v${latest} が上がっています。\n` +
+    `v${latest} の内容は含まれていませんが、v${latest + 1} として保存しますか？`
+  )) return;
+
+  const drop = document.getElementById('officeEditDrop');
+  const prog = document.getElementById('officeEditProgress');
+  drop.classList.add('is-busy');
+  prog.style.display = '';
+  prog.textContent = '保存しています… 0%';
+  try {
+    const renamed = new File([file], fileData.file_name, { type: file.type || fileData.mime_type || '' });
+    const res = await wnUploadFile(renamed, {
+      folderId: fileData.folder_id ?? null,
+      onProgress: p => { prog.textContent = `保存しています… ${p}%`; },
+    });
+    if (!res?.data?.id) throw new Error('保存に失敗しました');
+    wnShowToast(`v${res.data.version ?? latest + 1} として保存しました`, 'success');
+    setTimeout(() => { location.href = `file-detail.html?id=${res.data.id}`; }, 600);
+  } catch (e) {
+    console.error('office edit back error:', e);
+    wnShowToast('保存エラー: ' + e.message, 'danger');
+    drop.classList.remove('is-busy');
+    prog.style.display = 'none';
+  }
 }
 
 /* ─────────────────────────────────

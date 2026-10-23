@@ -3243,3 +3243,11 @@ body.select-mode .wn-card-hover { display: none !important; }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   @media (max-width: 767px) { .bottom-nav-inner { background: rgba(255,255,255,.96); } }
 }
+
+/* ファイル詳細「手元のアプリで編集」：手順と戻し先 */
+.office-edit-steps { margin: 4px 0 14px; padding-left: 20px; font-size: 13.5px; line-height: 1.7; color: var(--text); }
+.office-edit-steps li + li { margin-top: 6px; }
+.office-edit-steps small { color: var(--muted); }
+.office-edit-note { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; background: #f5f7fb; font-size: 13px; color: var(--text); }
+#officeEditDrop { display: block; }
+#officeEditDrop.is-busy { pointer-events: none; opacity: .5; }
