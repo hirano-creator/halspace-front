@@ -3493,10 +3493,12 @@ async function uploadEditedVersion(file) {
 /* ─────────────────────────────────
    注釈モード
    「注釈を書き込む」で、図面と右パネルの場所に注釈編集画面（annotate.html?embed=1）を重ねる。
-   描画・保存は annotate.html 側のまま。ヘッダーのボタンは annotate.html の window.wnEmbedApi を呼び、
-   annotate.html からは window.wnAnnotHost で状態（元に戻せるか・ページ）と保存・終了を知らせてもらう
+   注釈編集画面は図面をここと同じ位置・大きさで描くので、見た目に変わるのは右パネル（注釈メニュー）だけ。
+   操作（元に戻す・ページ送り・保存・やめる）は注釈メニューの中にあり、描画・保存は annotate.html 側のまま。
+   annotate.html からは window.wnAnnotHost で 準備完了・保存・終了 を知らせてもらう
    ───────────────────────────────── */
 let fdAnnotLeaving = false;   /* 保存後の移動では「保存していない書き込み」の確認を出さない */
+let fdAnnotTimer = null;
 
 function fdAnnotApi() {
   try { return document.getElementById('fdAnnotFrame').contentWindow.wnEmbedApi || null; } catch { return null; }
@@ -3504,54 +3506,54 @@ function fdAnnotApi() {
 
 function fdOpenAnnotMode() {
   if (document.body.classList.contains('fd-annot')) return;
+  /* 準備中の表示を右カラムのカードと同じ位置に置く */
+  const body  = document.querySelector('.detail-body').getBoundingClientRect();
+  const right = document.querySelector('.detail-right');
+  const r = right.getBoundingClientRect(), cs = getComputedStyle(right);
+  const wait = document.getElementById('fdAnnotWait');
+  wait.style.left  = (r.left - body.left + parseFloat(cs.paddingLeft)) + 'px';
+  wait.style.right = (body.right - r.right + parseFloat(cs.paddingRight)) + 'px';
+
   const frame = document.getElementById('fdAnnotFrame');
-  fdAnnotSync({ canUndo: false, canRedo: false, page: 1, total: 1 });
   frame.src = `annotate.html?id=${encodeURIComponent(fileId)}&from=file-detail.html&embed=1`;
   frame.hidden = false;
   document.body.classList.add('fd-annot');
+  /* 図面の読み込みに失敗して知らせが来ないときの保険 */
+  clearTimeout(fdAnnotTimer);
+  fdAnnotTimer = setTimeout(() => {
+    if (document.body.classList.contains('fd-annot-ready')) return;
+    fdCloseAnnotMode();
+    wnShowToast('注釈メニューを開けませんでした。もう一度お試しください', 'danger');
+  }, 30000);
 }
 
-function fdCloseAnnotMode({ force = false } = {}) {
-  if (!document.body.classList.contains('fd-annot')) return;
-  if (!force && fdAnnotApi()?.hasUnsavedWork()
-      && !confirm('保存していない書き込みがあります。保存せずにやめますか？')) return;
+function fdCloseAnnotMode() {
+  clearTimeout(fdAnnotTimer);
   const frame = document.getElementById('fdAnnotFrame');
   frame.hidden = true;
   frame.src = 'about:blank';
-  document.body.classList.remove('fd-annot');
-}
-
-function fdAnnotSync(s) {
-  document.getElementById('fdAnnotUndo').disabled = !s.canUndo;
-  document.getElementById('fdAnnotRedo').disabled = !s.canRedo;
-  const multi = s.total > 1;
-  document.getElementById('fdAnnotPager').hidden = !multi;
-  document.getElementById('fdAnnotClearAll').hidden = !multi;
-  document.getElementById('fdAnnotPage').textContent = `${s.page} / ${s.total}`;
-  document.getElementById('fdAnnotPrev').disabled = s.page <= 1;
-  document.getElementById('fdAnnotNext').disabled = s.page >= s.total;
+  document.body.classList.remove('fd-annot', 'fd-annot-ready');
 }
 
 window.wnAnnotHost = {
-  ready() { document.getElementById('fdAnnotFrame').focus(); },
-  sync: fdAnnotSync,
+  ready() {
+    clearTimeout(fdAnnotTimer);
+    document.body.classList.add('fd-annot-ready');
+    document.getElementById('fdAnnotFrame').focus();
+  },
   /* 保存できたら、注釈が焼き込まれたファイル（新バージョンなら新しいID）で開き直す */
   saved(newId) {
     fdAnnotLeaving = true;
     location.replace(`file-detail.html?id=${encodeURIComponent(newId)}&annotated=1`);
   },
-  close() { fdCloseAnnotMode({ force: true }); },
+  close() {
+    const failed = !document.body.classList.contains('fd-annot-ready');
+    fdCloseAnnotMode();
+    if (failed) wnShowToast('注釈メニューを開けませんでした', 'danger');
+  },
 };
 
 function initAnnotMode() {
-  const api = fn => () => fdAnnotApi()?.[fn]();
-  document.getElementById('fdAnnotUndo').addEventListener('click', api('undo'));
-  document.getElementById('fdAnnotRedo').addEventListener('click', api('redo'));
-  document.getElementById('fdAnnotPrev').addEventListener('click', api('prevPage'));
-  document.getElementById('fdAnnotNext').addEventListener('click', api('nextPage'));
-  document.getElementById('fdAnnotClear').addEventListener('click', api('clearPage'));
-  document.getElementById('fdAnnotClearAll').addEventListener('click', api('clearAll'));
-  document.getElementById('fdAnnotQuit').addEventListener('click', () => fdCloseAnnotMode());
   /* 「一覧」やタブを閉じるときも、書きかけがあれば止める */
   window.addEventListener('beforeunload', e => {
     if (fdAnnotLeaving || !document.body.classList.contains('fd-annot')) return;
