@@ -149,40 +149,25 @@
     }
 
     /* ── 注釈モード（加工・出力 →「注釈を書き込む」） ──
-       図面と右パネルの場所に注釈編集画面を重ね、ヘッダーは目的別ボタンの代わりに注釈の操作を出す */
-    .fd-annot-bar { display: none; align-items: center; gap: 8px; flex-shrink: 0; }
-    body.fd-annot .fd-intent, body.fd-annot .fd-util { display: none; }
-    body.fd-annot .fd-annot-bar { display: flex; }
+       図面と右パネルの場所に注釈編集画面（annotate.html?embed=1）を重ねる。図面は同じ位置・同じ大きさで描かれるので、
+       見た目に変わるのは右パネルだけ。重ねるのは図面の準備ができてから（それまでは右パネルに「準備中」を出す） */
     body.fd-annot .detail-topbar-title { pointer-events: none; }
-    /* 下の図面・右パネルを隠す（プレビューの回転・ページ送りのボタンが注釈画面の上に透けて出るため） */
-    body.fd-annot .detail-left, body.fd-annot .detail-right { visibility: hidden; }
-    .fd-annot-badge {
-      display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
-      background: #fff1f2; color: var(--red); font-size: 12px; font-weight: 700;
-      padding: 6px 12px; border-radius: 999px;
+    body.fd-annot-ready .detail-left, body.fd-annot-ready .detail-right { visibility: hidden; }
+    .fd-annot-frame {
+      position: absolute; inset: 0; width: 100%; height: 100%; border: none; background: transparent; z-index: 5;
+      visibility: hidden;
     }
-    .fd-annot-badge::before {
-      content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--red);
-      animation: fdAnnotBlink 1.4s infinite;
-    }
-    @keyframes fdAnnotBlink { 50% { opacity: .3; } }
-    .fd-annot-ib {
-      width: 40px; height: 40px; border: 1px solid var(--border); border-radius: 10px; background: var(--white);
-      display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text);
-    }
-    .fd-annot-ib:hover:not(:disabled), .fd-dd.open > .fd-annot-ib { border-color: var(--accent); background: rgba(99,91,255,.06); }
-    .fd-annot-ib:disabled { opacity: .4; cursor: default; }
-    .fd-annot-pager { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
-    .fd-annot-pager[hidden] { display: none; }
-    .fd-annot-menu { left: auto; right: 0; min-width: 260px; }
-    .fd-annot-quit {
-      display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px;
-      border: 1px solid var(--border); border-radius: 10px; background: var(--white);
-      font-family: inherit; font-size: 13px; font-weight: 700; color: var(--text); cursor: pointer; white-space: nowrap;
-    }
-    .fd-annot-quit:hover { border-color: var(--red); color: var(--red); }
-    .fd-annot-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: none; background: var(--bg); z-index: 5; }
+    body.fd-annot-ready .fd-annot-frame { visibility: visible; }
     .fd-annot-frame[hidden] { display: none; }
+    .fd-annot-wait {
+      /* 左右の位置は右カラムのカードに合わせて JS が入れる（fdOpenAnnotMode） */
+      display: none; position: absolute; top: 16px; right: 16px; bottom: 16px; z-index: 4;
+      background: var(--white); border: 2px solid var(--accent); border-radius: 14px;
+      flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+      color: var(--muted); font-size: 13px;
+    }
+    .fd-annot-wait i { font-size: 22px; color: var(--accent); }
+    body.fd-annot:not(.fd-annot-ready) .fd-annot-wait { display: flex; }
 
     /* 左：プレビュー */
     .detail-left {
@@ -720,25 +705,6 @@
         </div>
       </div>
     </div>
-    <!-- 注釈を書き込み中だけ、目的別ボタン・いいね・その他の代わりに出す（wn-file-detail.js の注釈モード） -->
-    <div class="fd-annot-bar" id="fdAnnotBar">
-      <span class="fd-annot-badge">注釈を書き込み中</span>
-      <button type="button" class="fd-annot-ib" id="fdAnnotUndo" title="元に戻す (Ctrl+Z)" disabled><i class="fa-solid fa-rotate-left"></i></button>
-      <button type="button" class="fd-annot-ib" id="fdAnnotRedo" title="やり直し (Ctrl+Shift+Z)" disabled><i class="fa-solid fa-rotate-right"></i></button>
-      <span class="fd-annot-pager" id="fdAnnotPager" hidden>
-        <button type="button" class="fd-annot-ib" id="fdAnnotPrev" title="前のページ (PageUp)"><i class="fa-solid fa-chevron-up"></i></button>
-        <span id="fdAnnotPage">1 / 1</span>
-        <button type="button" class="fd-annot-ib" id="fdAnnotNext" title="次のページ (PageDown)"><i class="fa-solid fa-chevron-down"></i></button>
-      </span>
-      <div class="fd-dd">
-        <button type="button" class="fd-annot-ib" data-fd-menu title="その他"><i class="fa-solid fa-ellipsis"></i></button>
-        <div class="fd-menu fd-annot-menu">
-          <button type="button" class="fd-mi fd-danger" id="fdAnnotClear"><i class="fa-solid fa-eraser"></i><span><b>このページの注釈をすべて消す</b></span></button>
-          <button type="button" class="fd-mi fd-danger" id="fdAnnotClearAll" hidden><i class="fa-solid fa-trash-can"></i><span><b>全ページの注釈をすべて消す</b></span></button>
-        </div>
-      </div>
-      <button type="button" class="fd-annot-quit" id="fdAnnotQuit"><i class="fa-solid fa-xmark"></i> やめる</button>
-    </div>
     <!-- 旧レイアウトの「QR 発行・表示」ボタン。initQrModal が参照するので非表示で残す -->
     <button type="button" id="qrBtn2" hidden></button>
   </header>
@@ -902,6 +868,7 @@
     </aside>
 
     <!-- 注釈モード：注釈編集画面（annotate.html?embed=1）を図面・右パネルの場所に重ねる -->
+    <div class="fd-annot-wait" id="fdAnnotWait"><i class="fa-solid fa-spinner fa-spin"></i>注釈メニューを準備しています…</div>
     <iframe class="fd-annot-frame" id="fdAnnotFrame" title="注釈の書き込み" hidden></iframe>
 
   </div><!-- /detail-body -->
@@ -1374,7 +1341,7 @@
 <script src="../assets/js/wn-api.js?v=36"></script>
 <script src="../assets/js/wn-preview-cache.js?v=1"></script>
 <script src="../assets/js/wn-sheeteye.js?v=1"></script>
-<script src="../assets/js/pages/wn-file-detail.js?v=56"></script>
+<script src="../assets/js/pages/wn-file-detail.js?v=57"></script>
 <script src="../assets/js/pwa.js?v=5"></script>
 </body>
 </html>

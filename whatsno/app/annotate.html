@@ -603,24 +603,30 @@
     html.embed body.has-pages { --strip-w: 120px; }
     html.embed .topbar, html.embed .rail, html.embed .ctxbar, html.embed .stamp-fly { display: none !important; }
 
+    /* 図面はファイル詳細画面のプレビューと同じ見た目にする（位置・余白12px・背景・角丸）。
+       注釈を始めても変わるのは右パネルだけ、に見せるため。スクロールバーも出さない（角丸に被るため。ホイールでは動く） */
     html.embed .canvas-area {
       top: 16px; bottom: 16px; left: calc(16px + var(--strip-w)); right: var(--panel-w);
-      background: #525659; border-radius: 14px; padding: 20px 20px 76px;
-      box-shadow: inset 0 0 0 3px var(--e-red);
+      background: #2a2a2a; border-radius: 14px; padding: 12px;
+      scrollbar-width: none;
     }
-    /* ページ一覧と図面を1枚の枠に見せる（境目に赤線を引かない） */
+    html.embed .canvas-area::-webkit-scrollbar { display: none; }
+    html.embed body.is-pdf .canvas-area { background: #525659; }
+    /* 画像はファイル詳細画面では余白なしで表示している */
+    html.embed body:not(.is-pdf) .canvas-area { padding: 0; }
+    /* ページ一覧と図面を1枚の枠に見せる */
     html.embed body.has-pages .canvas-area {
       border-radius: 0 14px 14px 0;
-      box-shadow: inset 0 3px 0 var(--e-red), inset -3px 0 0 var(--e-red), inset 0 -3px 0 var(--e-red);
     }
     html.embed .page-strip {
       top: 16px; bottom: 16px; left: 16px; right: auto; border: none; border-radius: 14px 0 0 14px;
-      background: #3c3f44; box-shadow: inset 3px 0 0 var(--e-red), inset 0 3px 0 var(--e-red), inset 0 -3px 0 var(--e-red);
+      background: #3c3f44;
     }
     html.embed .ps-head { padding: 12px 10px 6px; }
     html.embed .ps-head span { display: none; }
     html.embed .ps-list { padding: 4px 12px 16px; }
-    html.embed #pdfFloatBar { right: calc(var(--panel-w) + 16px); bottom: 32px; }
+    /* 拡大縮小・回転はファイル詳細画面の回転ボタンと同じ左上に置く（図面の下端に被らない） */
+    html.embed #pdfFloatBar { top: 28px; left: calc(28px + var(--strip-w)); right: auto; bottom: auto; }
     html.embed #toastContainer { right: calc(var(--panel-w) + 16px); bottom: 84px; }
     html.embed #loadingOverlay { background: rgba(10,37,64,.45); }
 
@@ -637,6 +643,23 @@
       border-bottom: 1px solid var(--e-border); font-size: 13px; font-weight: 700;
     }
     .ep-head i { color: var(--e-accent); }
+    .ep-card { animation: epIn .22s ease-out; }
+    @keyframes epIn { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+    .ep-quit {
+      margin-left: auto; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+      border: 1px solid var(--e-border); border-radius: 8px; background: #fff;
+      font: inherit; font-size: 12px; font-weight: 700; color: var(--e-text); cursor: pointer;
+    }
+    .ep-quit:hover { border-color: var(--e-red); color: var(--e-red); }
+    .ep-bar { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--e-border); }
+    .ep-bar .topbar-btn-ghost, .ep-bar .top-pagenav button {
+      width: 34px; height: 34px; padding: 0; justify-content: center; border-radius: 8px;
+      border: 1px solid var(--e-border); background: #fff; color: var(--e-text);
+    }
+    .ep-bar .topbar-btn-ghost:hover, .ep-bar .top-pagenav button:hover:not(:disabled) { background: #f6f9fc; opacity: 1; }
+    .ep-bar .top-pagenav { gap: 4px; margin-left: 4px; color: var(--e-muted); font-size: 12px; font-weight: 400; }
+    .ep-bar .more-wrap { margin-left: auto; }
+    .ep-bar .more-menu { right: 0; }
     .ep-scroll { flex: 1; overflow-y: auto; padding: 14px; overscroll-behavior: contain; }
     .ep-sec { margin-bottom: 18px; }
     .ep-sec[hidden] { display: none; }
@@ -927,7 +950,11 @@
      部品ごと移すので、id とイベント処理はそのまま効く。data-sec の出し分けは updateCtxBar が受け持つ -->
 <aside class="epanel" id="ePanel">
   <div class="ep-card">
-    <div class="ep-head"><i class="fa-solid fa-pen-to-square"></i>注釈メニュー</div>
+    <div class="ep-head"><i class="fa-solid fa-pen-to-square"></i>注釈メニュー
+      <button type="button" class="ep-quit" id="epQuit" title="注釈の書き込みをやめる"><i class="fa-solid fa-xmark"></i>やめる</button>
+    </div>
+    <!-- 元に戻す・やり直し・ページ送り・その他（単独画面の上のバーから移す） -->
+    <div class="ep-bar" data-slot="bar"></div>
     <div class="ep-scroll">
       <section class="ep-sec">
         <div class="ep-lbl">道具<span class="ep-now" data-slot="label"></span></div>
@@ -1107,39 +1134,25 @@ function selfUrl(newFileId, saved) {
 }
 
 /* ── 埋め込み表示（ファイル詳細画面の中で開かれたとき） ──
-   ファイル詳細画面（同一オリジンの親）の window.wnAnnotHost に状態を知らせ、
-   親のヘッダーのボタンからは window.wnEmbedApi を呼んでもらう */
+   操作はすべて右パネルの中で完結させ、ファイル詳細画面（同一オリジンの親）の window.wnAnnotHost には
+   準備完了・保存・終了だけを知らせる。親からは window.wnEmbedApi で書きかけの有無を見てもらう */
 const EMBED = document.documentElement.classList.contains('embed');
 function embedHost() {
   try { return EMBED ? window.parent.wnAnnotHost || null : null; } catch { return null; }
-}
-/* 親のヘッダー（元に戻す・やり直し・ページ送り）の表示を合わせる */
-function embedSync() {
-  embedHost()?.sync({
-    canUndo: history.length > 0, canRedo: redoStack.length > 0,
-    page: currentPage, total: totalPages,
-  });
 }
 /* 保存していない書き込みがあるか（やめるときの確認用） */
 function hasUnsavedWork() {
   if (inlineTA.style.display === 'block' && inlineTA.value.trim()) return true;
   return annotations.length > 0 || Object.values(pageAnnotations).some(p => p.length) || pdfViewRotation !== 0;
 }
-/* 戻る：埋め込みなら親に閉じてもらう、単独なら呼び出し元へ */
+/* 戻る：埋め込みなら親に閉じてもらう（書きかけがあれば確認）、単独なら呼び出し元へ */
 function leaveEditor() {
   const host = embedHost();
-  if (host) host.close();
-  else location.href = backUrl();
+  if (!host) { location.href = backUrl(); return; }
+  if (hasUnsavedWork() && !confirm('保存していない書き込みがあります。保存せずにやめますか？')) return;
+  host.close();
 }
-window.wnEmbedApi = {
-  undo:     () => doUndo(),
-  redo:     () => doRedo(),
-  prevPage: () => goToPage(currentPage - 1),
-  nextPage: () => goToPage(currentPage + 1),
-  clearPage: () => document.getElementById('clearBtn').click(),
-  clearAll:  () => document.getElementById('clearAllBtn').click(),
-  hasUnsavedWork: () => hasUnsavedWork(),
-};
+window.wnEmbedApi = { hasUnsavedWork: () => hasUnsavedWork() };
 
 /* 設定帯・スタンプの吹き出し・保存ボタンの部品を右パネルへ移す（init* より前に呼ぶ） */
 function buildEmbedPanel() {
@@ -1161,6 +1174,9 @@ function buildEmbedPanel() {
     slot(name).append(mk('−', -step), input, mk('＋', step));
   };
 
+  move('bar', document.getElementById('undoBtn'), document.getElementById('redoBtn'),
+       document.querySelector('.topbar .top-pagenav'), document.querySelector('.topbar .more-wrap'));
+  document.getElementById('epQuit').addEventListener('click', leaveEditor);
   move('label', document.getElementById('ctxLabel'));
   move('color', document.querySelector('#ctxBar .tool-color-row'));
   move('fpreset', ...document.querySelectorAll('#ctxBar [data-fpreset]'));
@@ -1441,7 +1457,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setLoading(false);
   initCanvas();
-  embedSync();
   embedHost()?.ready();
   /* 保存後リロード時のトースト */
   if (params.get('saved')) {
@@ -1465,6 +1480,7 @@ async function loadPdf() {
   const url = wnPublicViewUrl(fileId);
   pdfDoc     = await pdfjsLib.getDocument(url).promise;
   totalPages = pdfDoc.numPages;
+  document.body.classList.add('is-pdf');
   /* 複数ページはページ一覧を出す（キャンバス幅が変わるので、スケール計算より先に切り替える） */
   if (totalPages > 1) {
     document.body.classList.add('has-pages');
@@ -1671,7 +1687,6 @@ function updatePageNav() {
   document.getElementById('pageLabel').textContent = `${currentPage} / ${totalPages}`;
   document.getElementById('prevPage').disabled = currentPage <= 1;
   document.getElementById('nextPage').disabled = currentPage >= totalPages;
-  embedSync();
 }
 
 /* Ctrl+マウスホイール：CSSトランスフォームで即時表示 → 300ms後に実際の再レンダリング */
@@ -3515,7 +3530,6 @@ function updateUndoRedoBtns() {
   const r = document.getElementById('redoBtn');
   if (u) u.disabled = history.length === 0;
   if (r) r.disabled = redoStack.length === 0;
-  embedSync();
 }
 
 function deleteSelected() {
