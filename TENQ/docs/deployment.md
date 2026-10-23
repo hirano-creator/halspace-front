@@ -123,3 +123,8 @@ Space.app のアプリ一覧に TENQ を出す変更（`space/assets/js/space.js
 - 本番 API を再デプロイ（点検記録 CSV のページ分け JSON `GET /api/exports/inspections`）→ main に push（8ae78a4。CSV を画面で組み立てる・カード一覧の自動更新を画面を見ていない間は止める）
 - 確認: `/api/health` が production、開発用ログインは 401、Pages の Production 行が 8ae78a4、本番の画面に開発用ログインなし、`/TENQ/q/` 200
 - 反映の順番は **API → 画面**（新しい画面は新しい API を呼ぶため）
+
+### 9-3. D1 読み取りの対策とメニュー下部の反映（2026-10-23）
+
+- 本番 D1 に `0003_factory_read_indexes.sql` を適用（インデックス 4 つ。データは変わらない）→ 本番 API を再デプロイ（ISO 監査一覧の SQL）→ main に push（a124171。メニュー下部を Space.app のアプリ共通の形に）
+- 確認: インデックス 4 つが本番 DB にある、`/api/health` が production、開発用ログインは 401、Pages の Production 行が a124171、本番の画面に「アプリ選択に戻る」があり開発用ログインはない
