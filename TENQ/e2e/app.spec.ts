@@ -101,3 +101,27 @@ test('入力欄・ボタンの文字は 16px 以上（iOS の自動ズーム対�
   const sizes = await page.$$eval('input, button', (els) => els.map((el) => parseFloat(getComputedStyle(el).fontSize)));
   expect(Math.min(...sizes)).toBeGreaterThanOrEqual(16);
 });
+
+test('メニューの下に利用者と「アプリ選択に戻る」（Space.app のアプリ共通）。ログアウトは出さない', async ({ page }) => {
+  await page.goto('./');
+  await devLogin(page, '山本 健');
+  await openMenuIfNeeded(page);
+  const nav = page.getByRole('navigation', { name: 'メニュー' });
+  await expect(nav.locator('.sidebar-user-name')).toHaveText('山本 健');
+  await expect(nav.getByRole('link', { name: 'アプリ選択に戻る' })).toHaveAttribute('href', '../../space/apps.html');
+  await expect(nav.getByText('ログアウト')).toHaveCount(0);
+});
+
+test('TENQ のログイン画面から直接入ったタブは「ログアウト」になる', async ({ page }) => {
+  await page.goto('./');
+  await devLogin(page, '山本 健');
+  await page.evaluate(() => sessionStorage.setItem('tenq_standalone', '1'));
+  await page.reload();
+  await expect(page.getByRole('heading', { name: '山本 健 さん' })).toBeVisible();  // 読み込みが終わってからメニューを開く
+  await openMenuIfNeeded(page);
+  const nav = page.getByRole('navigation', { name: 'メニュー' });
+  await expect(nav.getByRole('button', { name: 'ログアウト' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'アプリ選択に戻る' })).toHaveCount(0);
+  await nav.getByRole('button', { name: 'ログアウト' }).click();
+  await expect(page).toHaveURL(/#\/login/);
+});

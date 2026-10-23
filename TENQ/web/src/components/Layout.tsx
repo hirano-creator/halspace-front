@@ -1,7 +1,7 @@
-import { spaceAppUrl } from '../auth/session';
 import { useState, type ReactNode } from 'react';
 import type { Action } from '@tenq/shared';
 import { useAuth } from '../auth/AuthContext';
+import { SPACE_APPS_URL, isStandalone } from '../auth/session';
 import { Logo } from './Logo';
 
 /** ログイン後の外枠。PC は左のメニュー、スマホは上のメニュー（開閉） */
@@ -22,6 +22,8 @@ const I = {
   file: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8l4 4V20.5H6z" /><path d="M14 3.5v4h4M9 13h6M9 16.5h6" /></svg>,
   eye: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></svg>,
   gear: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" /></svg>,
+  back: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>,
+  logout: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H15M10 16l4-4-4-4M14 12H4" /></svg>,
   device: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2" /><path d="M11 18h2" /></svg>,
 };
 
@@ -46,8 +48,9 @@ export function Layout({ path, children }: { path: string; children: ReactNode }
   const { me, can, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const items = NAV.filter((n) => !n.action || can(n.action));
-  // Space.app から入ったときは、アプリの一覧へ戻る道も出す（ログインは保ったまま）
-  const spaceApps = me?.via === 'space' ? spaceAppUrl('apps.html') : null;
+  // Space.app のアプリ共通のメニュー下部（SOLID・What'sNo と同じ。スキル space-app-shell）:
+  // 利用者の名前とロール → 「アプリ選択に戻る」。TENQ のログイン画面・端末記憶で直接入ったタブだけ「ログアウト」
+  const standalone = isStandalone();
   const active = (to: string) => (to === '/' ? path === '/' : path === to || path.startsWith(to + '/'));
 
   return (
@@ -69,8 +72,18 @@ export function Layout({ path, children }: { path: string; children: ReactNode }
               {n.icon}<span>{n.label}</span>
             </a>
           ))}
-          {spaceApps && <a href={spaceApps} className="nav-space">Space.app に戻る</a>}
-          <button type="button" className="nav-logout" onClick={() => void logout()}>ログアウト</button>
+          <div className="sidebar-bottom">
+            <div className="sidebar-user">
+              <span className="sidebar-avatar" aria-hidden="true">{me?.user.name.charAt(0)}</span>
+              <span className="sidebar-user-info">
+                <span className="sidebar-user-name">{me?.user.name}</span>
+                <span className="sidebar-user-role">{me?.user.roleLabel ?? 'ロール未設定'}</span>
+              </span>
+            </div>
+            {standalone
+              ? <button type="button" className="btn-sidebar-back" onClick={() => void logout()}>{I.logout}<span>ログアウト</span></button>
+              : <a href={SPACE_APPS_URL} className="btn-sidebar-back">{I.back}<span>アプリ選択に戻る</span></a>}
+          </div>
         </nav>
         <main className="content">{children}</main>
       </div>
