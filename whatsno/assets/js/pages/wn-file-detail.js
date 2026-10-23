@@ -144,6 +144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initRelations();
   initEmailModal();
   initAaPostModal();
+  initAnnotMode();
   initDetailMenus();   /* 各ボタンの表示条件が決まった後に呼ぶ（変換可否などを見るため） */
 });
 
@@ -2452,7 +2453,12 @@ function initActions() {
   });
 
   document.getElementById('annotateBtn')?.addEventListener('click', () => {
-    location.href = `annotate.html?id=${fileId}&from=file-detail.html`;
+    /* スマホ幅は右パネルを置く場所がないので、これまで通り注釈編集画面へ移る */
+    if (window.matchMedia('(max-width: 860px)').matches) {
+      location.href = `annotate.html?id=${fileId}&from=file-detail.html`;
+      return;
+    }
+    fdOpenAnnotMode();
   });
 
   /* ── 可視範囲の切り替え ──
@@ -3394,6 +3400,83 @@ function jsq(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/* ─────────────────────────────────
+   注釈モード
+   「注釈を書き込む」で、図面と右パネルの場所に注釈編集画面（annotate.html?embed=1）を重ねる。
+   描画・保存は annotate.html 側のまま。ヘッダーのボタンは annotate.html の window.wnEmbedApi を呼び、
+   annotate.html からは window.wnAnnotHost で状態（元に戻せるか・ページ）と保存・終了を知らせてもらう
+   ───────────────────────────────── */
+let fdAnnotLeaving = false;   /* 保存後の移動では「保存していない書き込み」の確認を出さない */
+
+function fdAnnotApi() {
+  try { return document.getElementById('fdAnnotFrame').contentWindow.wnEmbedApi || null; } catch { return null; }
+}
+
+function fdOpenAnnotMode() {
+  if (document.body.classList.contains('fd-annot')) return;
+  const frame = document.getElementById('fdAnnotFrame');
+  fdAnnotSync({ canUndo: false, canRedo: false, page: 1, total: 1 });
+  frame.src = `annotate.html?id=${encodeURIComponent(fileId)}&from=file-detail.html&embed=1`;
+  frame.hidden = false;
+  document.body.classList.add('fd-annot');
+}
+
+function fdCloseAnnotMode({ force = false } = {}) {
+  if (!document.body.classList.contains('fd-annot')) return;
+  if (!force && fdAnnotApi()?.hasUnsavedWork()
+      && !confirm('保存していない書き込みがあります。保存せずにやめますか？')) return;
+  const frame = document.getElementById('fdAnnotFrame');
+  frame.hidden = true;
+  frame.src = 'about:blank';
+  document.body.classList.remove('fd-annot');
+}
+
+function fdAnnotSync(s) {
+  document.getElementById('fdAnnotUndo').disabled = !s.canUndo;
+  document.getElementById('fdAnnotRedo').disabled = !s.canRedo;
+  const multi = s.total > 1;
+  document.getElementById('fdAnnotPager').hidden = !multi;
+  document.getElementById('fdAnnotClearAll').hidden = !multi;
+  document.getElementById('fdAnnotPage').textContent = `${s.page} / ${s.total}`;
+  document.getElementById('fdAnnotPrev').disabled = s.page <= 1;
+  document.getElementById('fdAnnotNext').disabled = s.page >= s.total;
+}
+
+window.wnAnnotHost = {
+  ready() { document.getElementById('fdAnnotFrame').focus(); },
+  sync: fdAnnotSync,
+  /* 保存できたら、注釈が焼き込まれたファイル（新バージョンなら新しいID）で開き直す */
+  saved(newId) {
+    fdAnnotLeaving = true;
+    location.replace(`file-detail.html?id=${encodeURIComponent(newId)}&annotated=1`);
+  },
+  close() { fdCloseAnnotMode({ force: true }); },
+};
+
+function initAnnotMode() {
+  const api = fn => () => fdAnnotApi()?.[fn]();
+  document.getElementById('fdAnnotUndo').addEventListener('click', api('undo'));
+  document.getElementById('fdAnnotRedo').addEventListener('click', api('redo'));
+  document.getElementById('fdAnnotPrev').addEventListener('click', api('prevPage'));
+  document.getElementById('fdAnnotNext').addEventListener('click', api('nextPage'));
+  document.getElementById('fdAnnotClear').addEventListener('click', api('clearPage'));
+  document.getElementById('fdAnnotClearAll').addEventListener('click', api('clearAll'));
+  document.getElementById('fdAnnotQuit').addEventListener('click', () => fdCloseAnnotMode());
+  /* 「一覧」やタブを閉じるときも、書きかけがあれば止める */
+  window.addEventListener('beforeunload', e => {
+    if (fdAnnotLeaving || !document.body.classList.contains('fd-annot')) return;
+    if (fdAnnotApi()?.hasUnsavedWork()) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  /* 保存して開き直したとき */
+  const params = new URLSearchParams(location.search);
+  if (params.get('annotated')) {
+    wnShowToast('注釈を保存しました', 'success');
+    params.delete('annotated');
+    history.replaceState(null, '', `${location.pathname}?${params}`);
+  }
 }
 
 /* ─────────────────────────────────
