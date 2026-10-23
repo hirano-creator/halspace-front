@@ -11,6 +11,8 @@
 .side-nav a.on { background: var(--accent-lt); color: var(--accent); font-weight: 700; }
 .side-nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; flex: none; }
 .nav-logout { margin-top: auto; min-height: 44px; border: 1px solid var(--line); background: #fff; border-radius: 10px; color: var(--sub); }
+.nav-space { margin-top: auto; }
+.nav-space + .nav-logout { margin-top: 8px; }
 .content { padding: 20px 24px 40px; max-width: 1200px; width: 100%; }
 @media (min-width: 900px) { .menu-toggle { display: none; } }
 @media (max-width: 899px) {

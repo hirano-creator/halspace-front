@@ -1,3 +1,4 @@
+import { spaceAppUrl } from '../auth/session';
 import { useState, type ReactNode } from 'react';
 import type { Action } from '@tenq/shared';
 import { useAuth } from '../auth/AuthContext';
@@ -45,6 +46,8 @@ export function Layout({ path, children }: { path: string; children: ReactNode }
   const { me, can, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const items = NAV.filter((n) => !n.action || can(n.action));
+  // Space.app から入ったときは、アプリの一覧へ戻る道も出す（ログインは保ったまま）
+  const spaceApps = me?.via === 'space' ? spaceAppUrl('apps.html') : null;
   const active = (to: string) => (to === '/' ? path === '/' : path === to || path.startsWith(to + '/'));
 
   return (
@@ -66,6 +69,7 @@ export function Layout({ path, children }: { path: string; children: ReactNode }
               {n.icon}<span>{n.label}</span>
             </a>
           ))}
+          {spaceApps && <a href={spaceApps} className="nav-space">Space.app に戻る</a>}
           <button type="button" className="nav-logout" onClick={() => void logout()}>ログアウト</button>
         </nav>
         <main className="content">{children}</main>

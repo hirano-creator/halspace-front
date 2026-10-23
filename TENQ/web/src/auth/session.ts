@@ -64,3 +64,11 @@ export function takePendingQr(): string | null {
   write(ss, PENDING_QR, null);
   return t;
 }
+
+/**
+ * Space.app の画面の URL（TENQ が Space.app と同じオリジンで配信されているときだけ）。
+ * ローカル開発・開発用プレビュー（tenq-dev）には Space.app の画面がないので null。
+ */
+export function spaceAppUrl(page: 'login.html' | 'apps.html'): string | null {
+  return location.hostname === 'space-apps.pages.dev' ? `/space/${page}` : null;
+}
