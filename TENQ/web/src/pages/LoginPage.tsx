@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { APP_TAGLINE } from '@tenq/shared';
 import { apiSend } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { saveDeviceToken, saveSpaceSession } from '../auth/session';
+import { markStandalone, saveDeviceToken, saveSpaceSession } from '../auth/session';
 import { SpaceLoginError, spaceLogin, spaceResend, spaceVerify, type SpaceLoginResult } from '../auth/spaceLogin';
 import { Logo } from '../components/Logo';
 import { Alert, Button, Field, errorMessage } from '../components/ui';
@@ -46,6 +46,8 @@ export function LoginPage() {
       id: u.id, name: u.name, email: u.email, role: u.role, company: u.company_name, company_id: u.company_id,
       apps: u.apps_enabled ?? [], token: data.token,
     });
+    // TENQ のログイン画面から入ったタブは、メニューに「アプリ選択に戻る」ではなく「ログアウト」を出す
+    markStandalone();
     await afterLogin();
   }
 

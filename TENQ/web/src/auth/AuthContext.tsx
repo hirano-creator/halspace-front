@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { can as canFn, type Action, type Actor, type Role, type Target } from '@tenq/shared';
 import { ApiError, apiGet, apiSend, setUnauthorizedHandler } from '../api/client';
 import { navigate } from '../router';
-import { clearSession, currentToken, spaceSessionExpired, spaceAppUrl } from './session';
+import { clearSession, currentToken, spaceSessionExpired } from './session';
 
 export interface Me {
   user: { id: string; name: string; email: string | null; role: Role | null; roleLabel: string | null };
@@ -55,14 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     // 端末記憶で入っている場合はサーバー側でも取り消す（失敗してもこの端末からは消す）
     try { await apiSend('DELETE', '/auth/device'); } catch { /* 何もしない */ }
-    // Space.app から入った人は Space.app のログイン画面へ戻す（SOLID・What'sNo と同じ）。
-    // QR から TENQ に直接ログインした人（端末記憶など）は TENQ のログイン画面のまま
-    const toSpace = me?.via === 'space' ? spaceAppUrl('login.html') : null;
     clearSession();
-    if (toSpace) { window.location.href = toSpace; return; }
     setMe(null);
     navigate('/login', true);
-  }, [me]);
+  }, []);
 
   // 一定時間を過ぎた Space.app のログインは、ログインし直してもらう
   useEffect(() => {

@@ -10,6 +10,7 @@ const SPACE_USER = 'space_user';
 const DEVICE_TOKEN = 'tenq_device_token';
 const PENDING_QR = 'tenq_pending_qr';
 const LOGIN_AT = 'tenq_login_at';
+const STANDALONE = 'tenq_standalone';
 
 // プライベートモードなどで Storage が使えなくても落とさない
 function read(store: () => Storage, key: string): string | null {
@@ -54,6 +55,7 @@ export function clearSession(): void {
   write(ss, SPACE_TOKEN, null);
   write(ss, SPACE_USER, null);
   write(ss, LOGIN_AT, null);
+  write(ss, STANDALONE, null);
   write(ls, DEVICE_TOKEN, null);
 }
 
@@ -66,9 +68,13 @@ export function takePendingQr(): string | null {
 }
 
 /**
- * Space.app の画面の URL（TENQ が Space.app と同じオリジンで配信されているときだけ）。
- * ローカル開発・開発用プレビュー（tenq-dev）には Space.app の画面がないので null。
+ * Space.app のアプリ選択画面（Space.app のアプリ共通の「アプリ選択に戻る」の行き先。ログインは保ったまま）。
+ * TENQ は /TENQ/app/ で配信するので、Space.app の画面は 2 つ上の space/。
  */
-export function spaceAppUrl(page: 'login.html' | 'apps.html'): string | null {
-  return location.hostname === 'space-apps.pages.dev' ? `/space/${page}` : null;
+export const SPACE_APPS_URL = '../../space/apps.html';
+
+/** TENQ のログイン画面から入ったタブ（SOLID の solid_standalone と同じ考え方）。端末記憶で入った場合も同じ扱い */
+export function markStandalone(): void { write(ss, STANDALONE, '1'); }
+export function isStandalone(): boolean {
+  return read(ss, STANDALONE) === '1' || (!read(ss, SPACE_TOKEN) && read(ls, DEVICE_TOKEN) !== null);
 }
