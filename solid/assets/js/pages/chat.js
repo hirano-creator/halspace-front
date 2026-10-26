@@ -168,8 +168,8 @@ function renderRooms() {
   const dms = shown.filter(r => r.kind === 'dm');
   const archived = shown.filter(r => r.archived);
 
-  const html = sec('物件チャット（着信順）', 'fa-cube', projects)
-    + sec('スペース・グループ', 'fa-users', spaces)
+  const html = sec('スペース・グループ', 'fa-users', spaces)
+    + sec('物件チャット（着信順）', 'fa-cube', projects)
     + sec('ダイレクトメッセージ', 'fa-user', dms)
     + sec('アーカイブ', 'fa-box-archive', archived);
 
