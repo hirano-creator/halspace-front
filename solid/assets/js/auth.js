@@ -228,18 +228,19 @@ function renderSidebarUser(user) {
   applyQualityNav(user);
 }
 
-/* サイドバーの「不具合対策書」を出し入れする（メニューがあるSOLIDページだけで動く）。
+/* サイドバーの「不具合対策書」「外部リンク」を出し入れする（メニューがあるSOLIDページだけで動く）。
+   どちらも同じ2社専用なので判定は1回で兼ねる（外部リンクのAPIも solid.quality で守っている）。
    2社の判定はAPI（solid.quality ミドルウェア）が正。is_operator は HaLSpace しか表せず、
    solid_type=id_modeler は他社のモデラー個人にも付くため、候補になりうる人だけ
    /access に問い合わせ、200 なら表示・件数バッジ（自分の番）を出す。403 なら出さない。
    api/wnFetch には依存しない（このファイルは What'sNo からも読み込まれるため）。 */
 function applyQualityNav(user) {
-  const link = document.getElementById('navQuality');
-  if (!link) return;
-  if (!isOperator(user) && !isModeler(user)) { link.style.display = 'none'; return; }
+  const links = ['navQuality', 'navLinks'].map(id => document.getElementById(id)).filter(Boolean);
+  if (!links.length) return;
+  const show = allowed => links.forEach(l => { l.style.display = allowed ? 'flex' : 'none'; });
+  if (!isOperator(user) && !isModeler(user)) { show(false); return; }
 
   const cacheKey = 'solid_qr_access_' + user.id;
-  const show = allowed => { link.style.display = allowed ? 'flex' : 'none'; };
   const cached = sessionStorage.getItem(cacheKey);
   if (cached !== null) show(cached === '1');   // 前回の結果で先に出してちらつきを防ぐ
 

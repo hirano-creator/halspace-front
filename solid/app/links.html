@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="../icon-180.png">
+  <link rel="manifest" href="../manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#FF6B35">
+  <title>外部リンク | SOLID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/app.css?v=20261021b">
+  <link rel="stylesheet" href="../assets/css/links.css?v=1">
+</head>
+<body class="el-body">
+<div class="app-layout">
+
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-title">SOLID</span>
+      <span class="sidebar-logo-sub">by HaLSpace</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+      <a href="dashboard.html">
+        <i class="fa-solid fa-gauge"></i> ダッシュボード
+      </a>
+      <a href="chat.html" id="navChat" style="display:none">
+        <i class="fa-solid fa-comments"></i> チャット
+        <span class="nav-badge" id="navChatBadge" style="display:none"></span>
+      </a>
+      <a href="calendar.html">
+        <i class="fa-solid fa-calendar-days"></i> 進捗・納期カレンダー
+      </a>
+      <a href="project-new.html">
+        <i class="fa-solid fa-plus-circle"></i> 新規発注
+      </a>
+      <a href="quality-reports.html" id="navQuality" style="display:none">
+        <i class="fa-solid fa-file-shield"></i> 不具合対策書
+        <span class="nav-badge" id="navQualityBadge" style="display:none"></span>
+      </a>
+      <a href="links.html" id="navLinks" class="active" style="display:none">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> 外部リンク
+      </a>
+      <a href="admin.html" id="adminLink" style="display:none">
+        <i class="fa-solid fa-gear"></i> 管理者画面
+      </a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div id="sidebarUser"></div>
+      <button class="btn-sidebar-copylink" type="button" onclick="copyStandaloneUrl()" title="Space.appを経由せず直接ログインできるURLをコピー">
+        <i class="fa-solid fa-link"></i> 独立URLをコピー
+      </button>
+      <button class="btn-sidebar-logout" id="btnBackToApps" onclick="solidLogout()">
+        <i class="fa-solid fa-arrow-left"></i> アプリ選択に戻る
+      </button>
+      <button class="btn-sidebar-logout" id="btnStandaloneLogout" onclick="spaceLogout()" style="display:none">
+        <i class="fa-solid fa-right-from-bracket"></i> ログアウト
+      </button>
+    </div>
+  </aside>
+
+  <!-- メインコンテンツ -->
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <span class="top-bar-title">外部リンク</span>
+        <span class="el-scope"><i class="fa-solid fa-lock"></i><span>HaLSpace・HILANO のみ閲覧</span></span>
+      </div>
+      <div class="top-bar-right">
+        <button class="btn btn-outline btn-sm" id="btnCats" style="display:none">
+          <i class="fa-solid fa-folder-plus"></i><span class="btn-label"> カテゴリ</span>
+        </button>
+        <button class="btn btn-primary btn-sm" id="btnAdd" style="display:none">
+          <i class="fa-solid fa-plus"></i><span class="btn-label"> リンクを追加</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body el-page">
+      <div class="el-denied" id="elDenied" style="display:none">
+        <i class="fa-solid fa-lock"></i>
+        <p>この機能は HaLSpace と PT.HILANO LCZ INDONESIA の方のみご利用いただけます。</p>
+        <a href="dashboard.html" class="btn btn-outline btn-sm">ダッシュボードへ</a>
+      </div>
+
+      <section id="elMain" style="display:none">
+        <label class="el-search"><i class="fa-solid fa-magnifying-glass"></i><input id="elQ" placeholder="タイトル・URL・メモ・登録者で検索"></label>
+        <div class="el-grid">
+          <div id="elShelves"><div class="el-empty"><i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…</div></div>
+          <aside class="el-feed">
+            <h3><i class="fa-solid fa-clock-rotate-left"></i> 最近の追加</h3>
+            <div id="elFeed"></div>
+          </aside>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- リンクの追加・編集 -->
+<div class="el-modal-bg" id="linkModal">
+  <div class="el-modal">
+    <div class="el-modal-h"><b id="lmTitle">リンクを追加</b><button class="el-x" data-close title="閉じる"><i class="fa-solid fa-xmark"></i></button></div>
+    <form class="el-modal-b" id="lmForm" autocomplete="off">
+      <div class="el-fld">
+        <label>URL <span class="req">*</span></label>
+        <div class="el-url-row">
+          <input class="form-input" name="url" id="lmUrl" required placeholder="https://… を貼り付け" inputmode="url">
+          <button type="button" class="btn btn-outline btn-sm" id="lmFetch" title="タイトルとサムネイルを取り直す"><i class="fa-solid fa-rotate"></i></button>
+        </div>
+      </div>
+      <div class="el-prev" id="lmPrev">
+        <div class="el-th" id="lmThumb"></div>
+        <div class="el-prev-b">
+          <div class="el-prev-st" id="lmStatus">URL を貼ると、タイトルとサムネイルを自動で取得します</div>
+          <div class="el-prev-acts">
+            <label class="btn btn-outline btn-sm"><i class="fa-regular fa-image"></i> 画像を選ぶ<input type="file" accept="image/*" id="lmFile" hidden></label>
+            <button type="button" class="btn btn-ghost btn-sm" id="lmNoThumb" style="display:none"><i class="fa-solid fa-xmark"></i> 画像なし</button>
+          </div>
+        </div>
+      </div>
+      <div class="el-fld"><label>タイトル <span class="req">*</span></label><input class="form-input" name="title" id="lmName" maxlength="200" required></div>
+      <div class="el-fld"><label>カテゴリ</label>
+        <div class="el-url-row">
+          <select class="form-select" name="category_id" id="lmCat"></select>
+          <button type="button" class="btn btn-outline btn-sm" id="lmNewCat" title="新しいカテゴリ"><i class="fa-solid fa-plus"></i></button>
+        </div>
+      </div>
+      <div class="el-fld"><label>メモ</label><input class="form-input" name="description" id="lmDesc" maxlength="500" placeholder="例: 寸法公差で迷ったらここ"></div>
+      <label class="el-check"><input type="checkbox" id="lmPin"> <i class="fa-solid fa-thumbtack"></i> ピン留め（一番上の棚に出す）</label>
+      <p class="el-note" id="lmWho"></p>
+    </form>
+    <div class="el-modal-f">
+      <button class="btn btn-ghost btn-sm el-del" id="lmDelete" style="display:none"><i class="fa-solid fa-trash"></i> 削除</button>
+      <span style="flex:1"></span>
+      <button class="btn btn-outline btn-sm" data-close>キャンセル</button>
+      <button class="btn btn-primary btn-sm" id="lmSave"><i class="fa-solid fa-check"></i> 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- カテゴリの管理 -->
+<div class="el-modal-bg" id="catModal">
+  <div class="el-modal el-modal-sm">
+    <div class="el-modal-h"><b>カテゴリ</b><button class="el-x" data-close title="閉じる"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="el-modal-b">
+      <div id="cmList"></div>
+      <form class="el-url-row" id="cmForm">
+        <input class="form-input" id="cmName" maxlength="50" placeholder="新しいカテゴリの名前" required>
+        <button class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i> 追加</button>
+      </form>
+      <p class="el-note" id="cmNote"></p>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+<script src="../assets/js/auth.js?v=12"></script>
+<script src="../assets/js/api.js?v=20261021a"></script>
+<script src="../assets/js/pages/links.js?v=1"></script>
+</body>
+</html>
