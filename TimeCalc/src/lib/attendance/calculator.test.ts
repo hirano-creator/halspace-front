@@ -438,7 +438,7 @@ describe("calcDaily 週単位モード（日単位では残業を判定しない
       weeklyRules,
     );
     expect(late.lateMinutes).toBe(12);
-    expect(late.totalMinutes).toBe(5 * 60 + 48);
+    expect(late.totalMinutes).toBe(5 * 60 + 30); // 出勤9:12は9:30に切り上げ（遅刻の判定は実打刻のまま）
   });
 });
 
@@ -506,7 +506,7 @@ describe("calcWeekly（36H超44H以内 / 44H超の区分）", () => {
       day("2026-09-18", "09:00", "16:00"),
       day("2026-09-19", "09:00", "16:00"),
       day("2026-09-21", "09:00", "16:00"),
-      day("2026-09-22", "09:12", "16:00"), // 遅刻12分 → 5:48
+      day("2026-09-22", "09:12", "16:00"), // 遅刻12分 → 9:30に切り上げて 5:30
       day("2026-09-23", "09:00", "16:00"),
       day("2026-09-24", "09:00", "16:00"), // 木曜（定休日）に出勤
     ];
@@ -514,7 +514,7 @@ describe("calcWeekly（36H超44H以内 / 44H超の区分）", () => {
     expect(week.labelEnd).toBe("2026-09-24");
     expect(week.closedDayWorkDates).toEqual(["2026-09-24"]);
     expect(week.workDays).toBe(6);
-    expect(week.totalMinutes).toBe(35 * 60 + 48);
+    expect(week.totalMinutes).toBe(35 * 60 + 30);
   });
 
   it("勤務のない週も区間として残り、すべて0になる", () => {
@@ -579,7 +579,7 @@ describe("summarizeWeeks / calcWeeklyPay（2026年9月度の通し計算）", ()
     day("2026-09-18", "09:00", "16:00"),
     day("2026-09-19", "09:00", "16:00"),
     day("2026-09-21", "09:00", "16:00"),
-    day("2026-09-22", "09:12", "16:00"), // 遅刻12分 → 5:48
+    day("2026-09-22", "09:12", "16:00"), // 遅刻12分 → 9:30に切り上げて 5:30
     day("2026-09-23", "09:00", "16:00"),
     day("2026-09-24", "09:00", "16:00"), // 定休日出勤
     day("2026-09-25", "09:00", "16:00"),
@@ -594,16 +594,16 @@ describe("summarizeWeeks / calcWeeklyPay（2026年9月度の通し計算）", ()
       35 * 60 + 30,
       44 * 60,
       54 * 60,
-      35 * 60 + 48,
+      35 * 60 + 30,
       6 * 60,
     ]);
     expect(weeks.map((w) => w.workDays)).toEqual([1, 6, 6, 6, 6, 1]);
   });
 
-  it("月度合計は 26日 / 181:18、内訳は 所定内155:18・36-44H 16:00・44H超 10:00", () => {
+  it("月度合計は 26日 / 181:00、内訳は 所定内155:00・36-44H 16:00・44H超 10:00", () => {
     expect(weeks.reduce((sum, w) => sum + w.workDays, 0)).toBe(26);
-    expect(totals.totalMinutes).toBe(181 * 60 + 18);
-    expect(totals.standardMinutes).toBe(155 * 60 + 18);
+    expect(totals.totalMinutes).toBe(181 * 60);
+    expect(totals.standardMinutes).toBe(155 * 60);
     expect(totals.withinLegalOvertimeMinutes).toBe(16 * 60);
     expect(totals.overLegalOvertimeMinutes).toBe(10 * 60);
     expect(totals.closedDayWorkCount).toBe(1);
@@ -628,7 +628,7 @@ describe("summarizeWeeks / calcWeeklyPay（2026年9月度の通し計算）", ()
     const basePay = days.reduce((sum, d) => sum + calcDailyPay(d.calc, 1200, weeklyRules).basePay, 0);
     const premium = calcWeeklyPay(totals, 1200, weeklyRules).premiumPay;
     // 基本給は総労働時間ぶん、割増は44H超に対する上乗せぶんのみ
-    expect(basePay).toBe(Math.round((181 * 60 + 18) * (1200 / 60)));
+    expect(basePay).toBe(Math.round((181 * 60) * (1200 / 60)));
     expect(basePay + premium).toBe(basePay + 3000);
   });
 });
@@ -810,9 +810,10 @@ describe("calcDeductionMinutes（控除時間＝実外出＋遅刻＋早退。�
 });
 
 describe("roundClockTimes（calcDaily と同じ丸めを外部から再現する）", () => {
-  it("出勤は始業より前のときだけ切り上げ、始業以降（遅刻）はそのまま", () => {
+  it("出勤は始業前も始業以降（遅刻）も丸め単位で切り上げ", () => {
     expect(roundClockTimes("08:19", "18:00", rules)?.roundedClockIn).toBe("08:30"); // 始業前 → 丸め単位で切り上げ
-    expect(roundClockTimes("09:12", "18:00", rules)?.roundedClockIn).toBe("09:12"); // 遅刻はそのまま
+    expect(roundClockTimes("09:12", "18:00", rules)?.roundedClockIn).toBe("09:30"); // 遅刻も切り上げ
+    expect(roundClockTimes("09:55", "18:00", rules)?.roundedClockIn).toBe("10:00");
   });
 
   it("退勤は常に切り捨て", () => {
@@ -891,10 +892,23 @@ describe("出勤の段階丸め（clockInSteps・ヒラノ: 〜6:50→7:00 / 〜
     expect(r.earlyMinutes).toBe(early);
   });
 
-  it("始業以降（遅刻）は丸めずそのまま", () => {
+  it("始業以降（遅刻）は段階丸め表を使わず丸め単位で切り上げ、遅刻は実打刻で判定する", () => {
     const r = inAt("08:05");
-    expect(r.roundedClockIn).toBe("08:05");
+    expect(r.roundedClockIn).toBe("08:30");
     expect(r.lateMinutes).toBe(5);
+    expect(inAt("08:00").roundedClockIn).toBe("08:00"); // 始業ちょうどは遅刻でも丸めでもない
+  });
+
+  it("遅刻で実働が8時間を数分超える日でも残業が出ない（木内さん10/23の例: 9:55〜19:09）", () => {
+    const r = calcDaily(
+      { date: "2026-10-23", clockIn: "09:55", clockOut: "19:09", breakMinutes: 60 },
+      hiranoRules,
+    );
+    expect(r.roundedClockIn).toBe("10:00");
+    expect(r.roundedClockOut).toBe("19:00");
+    expect(r.totalMinutes).toBe(8 * 60);
+    expect(r.overtimeMinutes).toBe(0);
+    expect(r.lateMinutes).toBe(115);
   });
 
   it("roundClockTimes も同じ段階丸めになる", () => {
