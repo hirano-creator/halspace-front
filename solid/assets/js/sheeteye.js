@@ -1029,6 +1029,7 @@ function nearestPointOnInfiniteLine(px, py, x1, y1, x2, y2) {
 //  Annotation drag — get text position / update from mouse
 // ============================================================
 function getAnnotationTextPos(ann) {
+  if (ann.type === 'chamfer') return { x: ann.tx, y: ann.ty };
   if (ann.type === 'linear') {
     if (ann._dir === 'horizontal') {
       const p1 = ann._origP1, p2 = ann._origP2;
@@ -1126,6 +1127,7 @@ function updateAnnDeleteBtn() {
 }
 
 function updateAnnotationForDrag(ann, mouseW) {
+  if (ann.type === 'chamfer') { ann.tx = mouseW.x; ann.ty = mouseW.y; return; }
   if (ann.type === 'linear') {
     if (ann._dir === 'horizontal') {
       ann.offset = mouseW.y - ann._origP1.y;
@@ -1573,7 +1575,85 @@ function drawDimResult(dim) {
     drawBetweenDimAnnotation(dim);
   } else if (dim.type === 'angle') {
     drawAngleDimAnnotation(dim);
+  } else if (dim.type === 'chamfer') {
+    drawChamferDimAnnotation(dim);
   }
+}
+
+// Chamfer: "C5" for an equal-leg (45°) chamfer, "5×3" otherwise
+function chamferLabel(dim) {
+  if (Math.abs(dim.a - dim.b) <= Math.max(dim.a, dim.b) * 0.02) return 'C' + formatDist((dim.a + dim.b) / 2);
+  return formatDist(dim.a) + '×' + formatDist(dim.b);
+}
+
+// Leader from the chamfer's midpoint to the value
+function drawChamferDimAnnotation(dim) {
+  const sm = worldToScreen(dim.mx, dim.my), st = worldToScreen(dim.tx, dim.ty);
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(sm.x, sm.y); ctx.lineTo(st.x, st.y);
+  ctx.stroke();
+  drawDimArrow(sm.x, sm.y, Math.atan2(st.y - sm.y, st.x - sm.x));
+  drawDimText(st.x, st.y, chamferLabel(dim));
+}
+
+// If the line is a chamfer (both ends join straight edges that meet at a corner of 60–120°),
+// return its legs a/b measured from that virtual corner. Otherwise null.
+function detectChamfer(line) {
+  const len = Math.hypot(line.x2 - line.x1, line.y2 - line.y1);
+  if (len < 1e-6) return null;
+  const tol = Math.max(len * 0.01, 1e-4);
+  const ends = [{ x: line.x1, y: line.y1 }, { x: line.x2, y: line.y2 }];
+  const segs = [];
+  for (const e of entities) {
+    if (e._isDimension) continue;
+    if (e.type === 'LINE') segs.push([e.x1, e.y1, e.x2, e.y2]);
+    else if (e.type === 'LWPOLYLINE') {
+      const v = e.vertices, n = e.closed ? v.length : v.length - 1;
+      for (let j = 0; j < n; j++) {
+        const a = v[j], b = v[(j + 1) % v.length];
+        if (Math.abs(a.bulge || 0) <= 0.001) segs.push([a.x, a.y, b.x, b.y]);
+      }
+    }
+  }
+  const isSelf = s => (Math.hypot(s[0] - line.x1, s[1] - line.y1) < tol && Math.hypot(s[2] - line.x2, s[3] - line.y2) < tol) ||
+                      (Math.hypot(s[0] - line.x2, s[1] - line.y2) < tol && Math.hypot(s[2] - line.x1, s[3] - line.y1) < tol);
+  const ux = (line.x2 - line.x1) / len, uy = (line.y2 - line.y1) / len;
+  // Adjacent edge at each end: direction pointing away from the joint, not collinear with the chamfer
+  const adj = ends.map(p => {
+    let best = null;
+    for (const s of segs) {
+      if (isSelf(s)) continue;
+      let far;
+      if (Math.hypot(s[0] - p.x, s[1] - p.y) < tol) far = { x: s[2], y: s[3] };
+      else if (Math.hypot(s[2] - p.x, s[3] - p.y) < tol) far = { x: s[0], y: s[1] };
+      else continue;
+      const l = Math.hypot(far.x - p.x, far.y - p.y);
+      if (l < tol) continue;
+      const dx = (far.x - p.x) / l, dy = (far.y - p.y) / l;
+      if (Math.abs(dx * uy - dy * ux) < 0.05) continue; // collinear with the chamfer
+      if (!best || l > best.l) best = { dx, dy, l };
+    }
+    return best;
+  });
+  if (!adj[0] || !adj[1]) return null;
+  // The two edges must form a corner of roughly 60–120°
+  const cosC = Math.abs(adj[0].dx * adj[1].dx + adj[0].dy * adj[1].dy);
+  if (cosC > 0.5) return null;
+  // Virtual corner = where the edges extended backwards meet
+  const corner = lineLineIntersection(
+    { x1: ends[0].x, y1: ends[0].y, x2: ends[0].x - adj[0].dx, y2: ends[0].y - adj[0].dy },
+    { x1: ends[1].x, y1: ends[1].y, x2: ends[1].x - adj[1].dx, y2: ends[1].y - adj[1].dy });
+  if (!corner) return null;
+  // Corner must lie behind both edges (outside the material side)
+  const t0 = (corner.x - ends[0].x) * adj[0].dx + (corner.y - ends[0].y) * adj[0].dy;
+  const t1 = (corner.x - ends[1].x) * adj[1].dx + (corner.y - ends[1].y) * adj[1].dy;
+  if (t0 >= 0 || t1 >= 0) return null;
+  const a = -t0, b = -t1;
+  // A chamfer is smaller than the edges it cuts, with legs of similar size
+  if (a >= adj[0].l || b >= adj[1].l) return null;
+  if (Math.max(a, b) > Math.min(a, b) * 4) return null;
+  return { a, b };
 }
 
 function drawAngleDimAnnotation(dim) {
@@ -1820,6 +1900,27 @@ function getAllSnapPoints() {
     }
   }
   return pts;
+}
+
+// Nearest straight edge (LINE / straight polyline segment) under the cursor, as a 'line' selection
+function straightSegmentAt(wx, wy) {
+  let best = null, bestD = 10 / cam.zoom;
+  const consider = (x1, y1, x2, y2) => {
+    const d = distToSegment(wx, wy, x1, y1, x2, y2);
+    if (d < bestD) { bestD = d; best = { kind: 'line', x1, y1, x2, y2 }; }
+  };
+  for (const e of entities) {
+    if (e._isDimension) continue;
+    if (e.type === 'LINE') consider(e.x1, e.y1, e.x2, e.y2);
+    else if (e.type === 'LWPOLYLINE') {
+      const v = e.vertices, n = e.closed ? v.length : v.length - 1;
+      for (let j = 0; j < n; j++) {
+        const a = v[j], b = v[(j + 1) % v.length];
+        if (Math.abs(a.bulge || 0) <= 0.001) consider(a.x, a.y, b.x, b.y);
+      }
+    }
+  }
+  return best;
 }
 
 // Detect what user clicked: point, line, or circle
@@ -2094,6 +2195,11 @@ function computeSmartDim(sel1, sel2, mouseW) {
       // Arcs (bend R / corner R) → radius, full circles → diameter. Shift swaps.
       const asRadius = !!sel1.isArc !== !!smartDimState.shiftKey;
       return { type: asRadius ? 'radius' : 'diameter', cx: sel1.cx, cy: sel1.cy, r: sel1.r, angle, leaderDist: dist };
+    }
+    if (sel1.kind === 'line' && sel1.chamfer && !smartDimState.shiftKey) {
+      // Chamfer → "C5" with a leader to the mouse. Shift = plain length instead.
+      return { type: 'chamfer', a: sel1.chamfer.a, b: sel1.chamfer.b,
+               mx: (sel1.x1 + sel1.x2) / 2, my: (sel1.y1 + sel1.y2) / 2, tx: mouseW.x, ty: mouseW.y };
     }
     if (sel1.kind === 'line') {
       const dx = sel1.x2 - sel1.x1, dy = sel1.y2 - sel1.y1;
@@ -2797,7 +2903,7 @@ function setDrawMode(mode) {
       text: '文字入力: 配置する位置をクリック',
       printRange: '印刷範囲: 対角2点をクリックで指定',
       boxDelete: '範囲削除: 対角2点をクリックして範囲を指定 — 範囲内のエンティティを削除',
-      smartDim: 'スマート寸法: 点/エッジ/円をクリック (円弧はR・円はΦ、Shiftで切替)'
+      smartDim: 'スマート寸法: 点/エッジ/円をクリック (円弧はR・円はΦ・面取りはC、Shiftで切替)'
     };
     indicator.textContent = (labels[mode] || mode) + '  (右クリックでキャンセル)';
     indicator.style.display = 'block';
@@ -3089,6 +3195,14 @@ function drawAnnotationPrintImpl(octx, ann, w2o, pxPerUnit) {
     return;
   }
 
+  if (ann.type === 'chamfer') {
+    const m = w2o(ann.mx, ann.my), t = w2o(ann.tx, ann.ty);
+    octx.beginPath(); octx.moveTo(m.x, m.y); octx.lineTo(t.x, t.y); octx.stroke();
+    arrow(m.x, m.y, Math.atan2(t.y - m.y, t.x - m.x));
+    text(t.x, t.y, chamferLabel(ann), 0);
+    return;
+  }
+
   if (ann.type === 'angle') {
     const sc = w2o(ann.cx, ann.cy);
     const rPix = ann.r * pxPerUnit;
@@ -3209,7 +3323,14 @@ function handleSmartDimClick(w, shiftKey) {
   const indicator = document.getElementById('drawMode');
 
   if (smartDimState.phase === 'pick1') {
-    const det = detectEntityAtPoint(w.x, w.y);
+    let det = detectEntityAtPoint(w.x, w.y);
+    // A short chamfer is surrounded by snap points (its midpoint, the virtual corner...).
+    // If the cursor is closer to the chamfer edge than to that point, take the edge.
+    if (det && det.kind === 'point') {
+      const ln = straightSegmentAt(w.x, w.y);
+      if (ln && distToSegment(w.x, w.y, ln.x1, ln.y1, ln.x2, ln.y2) < Math.hypot(w.x - det.x, w.y - det.y) &&
+          detectChamfer(ln)) det = ln;
+    }
     if (!det) return;
     smartDimState.sel1 = det;
     smartDimState.shiftKey = shiftKey;
@@ -3223,6 +3344,10 @@ function handleSmartDimClick(w, shiftKey) {
       // Arc (bend R / corner R): go straight to placing the R dimension
       smartDimState.phase = 'place';
       indicator.textContent = 'スマート寸法: R寸法の位置をクリック (Shift=直径)  (右クリックでキャンセル)';
+    } else if (det.kind === 'line' && (det.chamfer = detectChamfer(det))) {
+      // Chamfer edge: go straight to placing the C dimension
+      smartDimState.phase = 'place';
+      indicator.textContent = 'スマート寸法: Cの位置をクリック (Shift=長さ)  (右クリックでキャンセル)';
     } else {
       // Line or circle - can go to pick2 for a second entity, or place directly
       smartDimState.phase = 'pick2';
@@ -3273,7 +3398,7 @@ function handleSmartDimClick(w, shiftKey) {
     }
     // Reset for next dimension (stay in smartDim mode)
     smartDimState = { phase: 'pick1', sel1: null, sel2: null, hoverEntity: null };
-    indicator.textContent = 'スマート寸法: 点/エッジ/円をクリック (円弧はR・円はΦ、Shiftで切替)  (右クリックでキャンセル)';
+    indicator.textContent = 'スマート寸法: 点/エッジ/円をクリック (円弧はR・円はΦ・面取りはC、Shiftで切替)  (右クリックでキャンセル)';
     render();
   }
 }
