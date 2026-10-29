@@ -1438,19 +1438,37 @@ function drawEntity(e, sel) {
   }
 }
 
-// Draw bulge arc between two vertices
-function drawBulgeArc(v1, v2, bulge) {
+// Center/radius of a bulge segment, with its CCW angle range in degrees (null if straight)
+function bulgeArc(v1, v2, bulge) {
+  if (Math.abs(bulge || 0) <= 0.001) return null;
   const dx = v2.x - v1.x, dy = v2.y - v1.y;
   const chordLen = Math.sqrt(dx * dx + dy * dy);
-  if (chordLen < 0.0001) return;
+  if (chordLen < 0.0001) return null;
   const sagitta = Math.abs(bulge) * chordLen / 2;
   const r = (chordLen * chordLen / 4 + sagitta * sagitta) / (2 * sagitta);
-  const midX = (v1.x + v2.x) / 2, midY = (v1.y + v2.y) / 2;
-  const d = Math.sqrt(Math.max(0, r * r - (chordLen / 2) ** 2));
+  // Signed center offset from the chord midpoint: r - sagitta is negative when the arc exceeds 180°
+  const d = r - sagitta;
   const sign = bulge > 0 ? 1 : -1;
   const nx = -dy / chordLen, ny = dx / chordLen;
-  const cx = midX + nx * d * sign;
-  const cy = midY + ny * d * sign;
+  const cx = (v1.x + v2.x) / 2 + nx * d * sign;
+  const cy = (v1.y + v2.y) / 2 + ny * d * sign;
+  const a1 = Math.atan2(v1.y - cy, v1.x - cx) * 180 / Math.PI;
+  const a2 = Math.atan2(v2.y - cy, v2.x - cx) * 180 / Math.PI;
+  return { cx, cy, r, startAngle: bulge > 0 ? a1 : a2, endAngle: bulge > 0 ? a2 : a1 };
+}
+
+// Is angle a (deg) on the CCW sweep from sa to ea?
+function angleInArc(a, sa, ea) {
+  const n = x => ((x % 360) + 360) % 360;
+  const sweep = n(ea - sa) || 360;
+  return n(a - sa) <= sweep;
+}
+
+// Draw bulge arc between two vertices
+function drawBulgeArc(v1, v2, bulge) {
+  const ba = bulgeArc(v1, v2, bulge);
+  if (!ba) return;
+  const { cx, cy, r } = ba;
 
   const sc = worldToScreen(cx, cy);
   // Y is flipped in screen coords
@@ -1802,15 +1820,24 @@ function detectEntityAtPoint(wx, wy) {
     }
   }
 
-  // 2. Check circles/arcs
+  // 2. Check circles/arcs (isArc: arcs and polyline corner R are measured as radius by default)
   let bestCircle = null, bestCircleDist = tEdge;
+  const tryCircle = (cx, cy, r, isArc, sa, ea) => {
+    if (isArc && !angleInArc(Math.atan2(wy - cy, wx - cx) * 180 / Math.PI, sa, ea)) return;
+    const d = Math.abs(Math.sqrt((wx - cx) ** 2 + (wy - cy) ** 2) - r);
+    if (d < bestCircleDist) { bestCircleDist = d; bestCircle = { kind: 'circle', cx, cy, r, isArc }; }
+  };
   for (const e of entities) {
     if (e._isDimension) continue;
-    if (e.type === 'CIRCLE' || e.type === 'ARC') {
-      const d = Math.abs(Math.sqrt((wx - e.cx) ** 2 + (wy - e.cy) ** 2) - e.r);
-      if (d < bestCircleDist) {
-        bestCircleDist = d;
-        bestCircle = { kind: 'circle', cx: e.cx, cy: e.cy, r: e.r };
+    if (e.type === 'CIRCLE') tryCircle(e.cx, e.cy, e.r, false);
+    else if (e.type === 'ARC') tryCircle(e.cx, e.cy, e.r, true, e.startAngle, e.endAngle);
+    else if (e.type === 'LWPOLYLINE') {
+      const verts = e.vertices;
+      const count = e.closed ? verts.length : verts.length - 1;
+      for (let j = 0; j < count; j++) {
+        const v1 = verts[j], v2 = verts[(j + 1) % verts.length];
+        const ba = bulgeArc(v1, v2, v1.bulge || 0);
+        if (ba) tryCircle(ba.cx, ba.cy, ba.r, true, ba.startAngle, ba.endAngle);
       }
     }
   }
@@ -2011,7 +2038,9 @@ function computeSmartDim(sel1, sel2, mouseW) {
     if (sel1.kind === 'circle') {
       const angle = Math.atan2(mouseW.y - sel1.cy, mouseW.x - sel1.cx);
       const dist = Math.sqrt((mouseW.x - sel1.cx) ** 2 + (mouseW.y - sel1.cy) ** 2);
-      return { type: 'diameter', cx: sel1.cx, cy: sel1.cy, r: sel1.r, angle, leaderDist: dist };
+      // Arcs (bend R / corner R) → radius, full circles → diameter. Shift swaps.
+      const asRadius = !!sel1.isArc !== !!smartDimState.shiftKey;
+      return { type: asRadius ? 'radius' : 'diameter', cx: sel1.cx, cy: sel1.cy, r: sel1.r, angle, leaderDist: dist };
     }
     if (sel1.kind === 'line') {
       const dx = sel1.x2 - sel1.x1, dy = sel1.y2 - sel1.y1;
@@ -2711,7 +2740,7 @@ function setDrawMode(mode) {
       text: '文字入力: 配置する位置をクリック',
       printRange: '印刷範囲: 対角2点をクリックで指定',
       boxDelete: '範囲削除: 対角2点をクリックして範囲を指定 — 範囲内のエンティティを削除',
-      smartDim: 'スマート寸法: 点/エッジ/円をクリック (Shift=半径)'
+      smartDim: 'スマート寸法: 点/エッジ/円をクリック (円弧はR・円はΦ、Shiftで切替)'
     };
     indicator.textContent = (labels[mode] || mode) + '  (右クリックでキャンセル)';
     indicator.style.display = 'block';
@@ -3133,10 +3162,16 @@ function handleSmartDimClick(w, shiftKey) {
       // Point selected - must pick a second point/entity
       smartDimState.phase = 'pick2';
       indicator.textContent = 'スマート寸法: 2つ目の点/エッジ/円をクリック  (右クリックでキャンセル)';
+    } else if (det.kind === 'circle' && det.isArc) {
+      // Arc (bend R / corner R): go straight to placing the R dimension
+      smartDimState.phase = 'place';
+      indicator.textContent = 'スマート寸法: R寸法の位置をクリック (Shift=直径)  (右クリックでキャンセル)';
     } else {
       // Line or circle - can go to pick2 for a second entity, or place directly
       smartDimState.phase = 'pick2';
-      indicator.textContent = 'スマート寸法: 2つ目をクリック or 空白クリックで配置へ (Shift=半径)  (右クリックでキャンセル)';
+      indicator.textContent = det.kind === 'circle'
+        ? 'スマート寸法: 空白クリックで直径の配置へ (Shift=半径) / 2つ目の円で中心間距離  (右クリックでキャンセル)'
+        : 'スマート寸法: 2つ目をクリック or 空白クリックで配置へ  (右クリックでキャンセル)';
     }
     render();
     return;
@@ -3172,18 +3207,16 @@ function handleSmartDimClick(w, shiftKey) {
   }
 
   if (smartDimState.phase === 'place') {
+    if (shiftKey) smartDimState.shiftKey = true;
     const dim = computeSmartDim(smartDimState.sel1, smartDimState.sel2, w);
     if (dim) {
-      if (dim.type === 'diameter' && (shiftKey || smartDimState.shiftKey)) {
-        dim.type = 'radius';
-      }
       saveUndoState();
       annotations.push(dim);
       saveAnnotations();
     }
     // Reset for next dimension (stay in smartDim mode)
     smartDimState = { phase: 'pick1', sel1: null, sel2: null, hoverEntity: null };
-    indicator.textContent = 'スマート寸法: 点/エッジ/円をクリック (Shift=半径)  (右クリックでキャンセル)';
+    indicator.textContent = 'スマート寸法: 点/エッジ/円をクリック (円弧はR・円はΦ、Shiftで切替)  (右クリックでキャンセル)';
     render();
   }
 }
