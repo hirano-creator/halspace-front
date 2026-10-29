@@ -11,6 +11,7 @@ const wrap = document.getElementById('canvasWrap');
 let entities = [];
 let blocks = {};           // Block name → array of entities
 let textStyles = {};       // Style name → { font, widthFactor, oblique, isShx }
+let dxfLayers = {};        // Layer name → { color, hidden }
 let annotations = [];      // User-created dimension annotations (persist across renders)
 let selectedEntity = -1;
 let showGrid = true;
@@ -201,6 +202,26 @@ function parseDXF(text) {
     }
   }
 
+  // --- Parse LAYER table (BYLAYER color + off/frozen) ---
+  // group 62 < 0 = layer off, group 70 bit 1 = frozen
+  dxfLayers = {};
+  for (let li = 0; li < pairs.length; li++) {
+    if (pairs[li].code === 2 && pairs[li].val === 'BLOCKS') break;
+    if (pairs[li].code === 0 && pairs[li].val === 'LAYER') {
+      li++;
+      let name = '', lc = 7, lf = 0;
+      while (li < pairs.length && pairs[li].code !== 0) {
+        const c = pairs[li].code, v = pairs[li].val;
+        if (c === 2) name = v;
+        else if (c === 62) lc = parseInt(v, 10) || 7;
+        else if (c === 70) lf = parseInt(v, 10) || 0;
+        li++;
+      }
+      if (name) dxfLayers[name] = { color: Math.abs(lc), hidden: lc < 0 || (lf & 1) === 1 };
+      li--;
+    }
+  }
+
   // --- Parse BLOCKS section ---
   blocks = {};
   let bi = 0;
@@ -289,7 +310,14 @@ function parseDXF(text) {
   }
 
   // --- Flatten: resolve INSERT references ---
-  const flat = flattenInserts(ents, 0);
+  // Resolve BYLAYER/BYBLOCK colors and drop entities on hidden (off/frozen) layers
+  const flat = flattenInserts(ents, 0).filter(e => {
+    const ly = dxfLayers[e.layer];
+    if (ly && ly.hidden) return false;
+    if (e.color === 256) e.color = ly ? ly.color : 7;
+    else if (e.color === 0) e.color = 7;
+    return true;
+  });
 
   // --- Apply viewport transforms (multi-viewport support) ---
   // Model-space entities (no _paperSpace flag) are mapped to the viewport whose
@@ -302,7 +330,10 @@ function parseDXF(text) {
       return applyViewportTransform(e, vp, vp.cos, vp.sin);
     });
   }
-  return flat;
+  // No model viewport on the layout: paper-space entities (layout title frame etc.)
+  // would be drawn on top of model space at the wrong scale, so show model space only.
+  const modelOnly = flat.filter(e => !e._paperSpace);
+  return modelOnly.length > 0 ? modelOnly : flat;
 }
 
 // Read one entity from pairs at position i, push result into arr, return new i
@@ -315,7 +346,7 @@ function readOneEntity(pairs, i, arr) {
     i++;
     const hd = {};
     while (i < pairs.length && pairs[i].code !== 0) { hd[pairs[i].code] = pairs[i].val; i++; }
-    const layer = hd[8] || '0', color = parseInt(hd[62]) || 7;
+    const layer = hd[8] || '0', color = aciOf(hd[62]);
     const closed = (parseInt(hd[70]) & 1) === 1;
     const vertices = [];
     while (i < pairs.length) {
@@ -334,7 +365,11 @@ function readOneEntity(pairs, i, arr) {
         vertices.push({ x: vx, y: vy, bulge: vb });
       } else break;
     }
-    if (vertices.length >= 2) arr.push({ type: 'LWPOLYLINE', layer, color, vertices, closed });
+    if (vertices.length >= 2 && String(hd[60]).trim() !== '1') {
+      const pl = { type: 'LWPOLYLINE', layer, color, vertices, closed };
+      if (hd[67] === '1') pl._paperSpace = true;
+      arr.push(pl);
+    }
     return i;
   }
 
@@ -346,16 +381,22 @@ function readOneEntity(pairs, i, arr) {
   // Generic entity
   i++;
   const data = {};
+  const seq = []; // pairs in file order (LWPOLYLINE needs it: group 42 is not present for every vertex)
   while (i < pairs.length && pairs[i].code !== 0) {
     const c = pairs[i].code, v = pairs[i].val;
+    seq.push(pairs[i]);
     if (data[c] !== undefined) {
       if (!Array.isArray(data[c])) data[c] = [data[c]];
       data[c].push(v);
     } else data[c] = v;
     i++;
   }
-  const ent = parseEntity(etype, data);
-  if (ent) {
+  data._seq = seq;
+  // group 60 = 1: invisible entity (e.g. marker texts/points inside title blocks)
+  if (String(data[60]).trim() === '1') return i;
+  const parsed = parseEntity(etype, data);
+  const list = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
+  for (const ent of list) {
     if (data[67] === '1') ent._paperSpace = true; // paper space entity
     arr.push(ent);
   }
@@ -387,7 +428,9 @@ function flattenInserts(ents, depth) {
       const cosR = Math.cos(rot), sinR = Math.sin(rot);
 
       for (const be of blk.entities) {
-        const transformed = transformEntity(be, e.x, e.y, bx, by, sx, sy, cosR, sinR, e.color);
+        // Non-constant ATTDEFs are templates: their values come from the ATTRIBs after the INSERT
+        if (be._attdef && !be._constAttr) continue;
+        const transformed = transformEntity(be, e.x, e.y, bx, by, sx, sy, cosR, sinR, e.color, e.layer);
         if (transformed) {
           if (e._isDimension) transformed._isDimension = true;
           if (e._paperSpace) transformed._paperSpace = true;
@@ -402,7 +445,7 @@ function flattenInserts(ents, depth) {
       const bx = blk.baseX || 0, by = blk.baseY || 0;
       for (const be of blk.entities) {
         // Dimension blocks are defined in world coordinates, base point is usually 0,0
-        const transformed = transformEntity(be, 0, 0, bx, by, 1, 1, 1, 0, e.color);
+        const transformed = transformEntity(be, 0, 0, bx, by, 1, 1, 1, 0, e.color, e.layer);
         if (transformed) {
           // Replace <> placeholder in text with actual measurement value
           if (transformed.type === 'TEXT' && transformed.text) {
@@ -427,13 +470,26 @@ function flattenInserts(ents, depth) {
 }
 
 // Transform an entity from block-local coords to world coords
-function transformEntity(e, ix, iy, bx, by, sx, sy, cosR, sinR, insertColor) {
+function transformEntity(e, ix, iy, bx, by, sx, sy, cosR, sinR, insertColor, insertLayer) {
+  const out = transformEntityGeom(e, ix, iy, bx, by, sx, sy, cosR, sinR);
+  if (!out) return null;
+  // Entities on layer "0" inside a block take the INSERT's layer.
+  // BYBLOCK (0) takes the INSERT's color; BYLAYER (256) is resolved after flattening.
+  if (e.layer === '0' && insertLayer) out.layer = insertLayer;
+  if (e._rgb) out._rgb = e._rgb;
+  if (e.color === 0) {
+    out.color = (insertColor === 0 || insertColor === 256 || insertColor === undefined)
+      ? ((dxfLayers[insertLayer || '0'] || {}).color || 7) : insertColor;
+  }
+  return out;
+}
+
+function transformEntityGeom(e, ix, iy, bx, by, sx, sy, cosR, sinR) {
   function tx(x, y) {
     const lx = (x - bx) * sx, ly = (y - by) * sy;
     return { x: ix + lx * cosR - ly * sinR, y: iy + lx * sinR + ly * cosR };
   }
-  // Inherit color: 0 means BYBLOCK (use insert's color)
-  const color = (e.color === 0 || e.color === 256) ? (insertColor || 7) : e.color;
+  const color = e.color;
 
   switch (e.type) {
     case 'LINE': {
@@ -447,8 +503,12 @@ function transformEntity(e, ix, iy, bx, by, sx, sy, cosR, sinR, insertColor) {
     case 'ARC': {
       const c = tx(e.cx, e.cy);
       const rotDeg = Math.atan2(sinR, cosR) * 180 / Math.PI;
-      let sa = e.startAngle + rotDeg, ea = e.endAngle + rotDeg;
-      if (sx * sy < 0) { const tmp = sa; sa = 180 - ea; ea = 180 - tmp; } // mirror
+      // Mirror in block-local coords first, then rotate
+      let sa = e.startAngle, ea = e.endAngle;
+      if (sx < 0 && sy > 0) { const tmp = sa; sa = 180 - ea; ea = 180 - tmp; }
+      else if (sx > 0 && sy < 0) { const tmp = sa; sa = -ea; ea = -tmp; }
+      else if (sx < 0 && sy < 0) { sa += 180; ea += 180; }
+      sa += rotDeg; ea += rotDeg;
       return { type: 'ARC', layer: e.layer, color, cx: c.x, cy: c.y, r: e.r * Math.abs(sx), startAngle: sa, endAngle: ea };
     }
     case 'POINT': {
@@ -610,9 +670,16 @@ function cleanMText(s) {
   return s.trim();
 }
 
+// Group 62 → ACI. Missing = BYLAYER (256), 0 = BYBLOCK. Resolved later in parseDXF.
+function aciOf(v) {
+  if (v === undefined || v === null || v === '') return 256;
+  const n = parseInt(Array.isArray(v) ? v[0] : v, 10);
+  return isNaN(n) ? 256 : Math.abs(n);
+}
+
 function parseEntity(type, d) {
   const layer = d[8] || '0';
-  const color = parseInt(d[62]) || 7;
+  const color = aciOf(d[62]);
   switch (type) {
     case 'LINE':
       return { type: 'LINE', layer, color, x1: pf(d[10]), y1: pf(d[20]), x2: pf(d[11]), y2: pf(d[21]) };
@@ -692,7 +759,11 @@ function parseEntity(type, d) {
       const wf2 = pf(d[41]);
       const txt = cleanMText(d[1] || '');
       if (!txt) return null; // skip empty attributes (prompts only)
+      // group 70: bit 1 = invisible, bit 2 = constant (ATTDEF shown as-is; no ATTRIB is created)
+      const aflags = parseInt(d[70]) || 0;
+      if (aflags & 1) return null;
       return { type: 'TEXT', layer, color,
+               _attdef: type === 'ATTDEF', _constAttr: (aflags & 2) === 2,
                x: useAlign2 ? pf(d[11]) : pf(d[10]),
                y: useAlign2 ? pf(d[21]) : pf(d[20]),
                height: pf(d[40]) || 2.5, text: txt,
@@ -701,6 +772,9 @@ function parseEntity(type, d) {
                _widthFactor: (wf2 && wf2 > 0) ? wf2 : 1.0,
                _style: d[7] || 'Standard' };
     }
+    case 'ACAD_PROXY_ENTITY':
+      // e.g. AutoCAD Mechanical welding / surface texture symbols and leader notes
+      return parseProxyGraphics(d, layer, color);
     case 'HATCH':
     case 'VIEWPORT':
       return null;
@@ -710,15 +784,128 @@ function parseEntity(type, d) {
 }
 
 function parseLWPolyline(d, layer, color) {
-  const xs = Array.isArray(d[10]) ? d[10].map(pf) : [pf(d[10])];
-  const ys = Array.isArray(d[20]) ? d[20].map(pf) : [pf(d[20])];
-  const bulges = Array.isArray(d[42]) ? d[42].map(pf) : d[42] !== undefined ? [pf(d[42])] : [];
-  const closed = (parseInt(d[70]) & 1) === 1;
+  // Walk pairs in file order: group 42 (bulge) is written only for vertices that have one,
+  // so indexing bulges separately attaches them to the wrong vertex (huge stray arcs).
   const vertices = [];
-  for (let i = 0; i < xs.length; i++) {
-    vertices.push({ x: xs[i], y: ys[i] || 0, bulge: bulges[i] || 0 });
+  for (const pr of d._seq || []) {
+    if (pr.code === 10) vertices.push({ x: pf(pr.val), y: 0, bulge: 0 });
+    else if (!vertices.length) continue;
+    else if (pr.code === 20) vertices[vertices.length - 1].y = pf(pr.val);
+    else if (pr.code === 42) vertices[vertices.length - 1].bulge = pf(pr.val);
   }
+  const closed = (parseInt(d[70]) & 1) === 1;
   return { type: 'LWPOLYLINE', layer, color, vertices, closed };
+}
+
+// ACAD_PROXY_ENTITY: decode the proxy graphics (group 92 = byte size, 310 = hex chunks).
+// Binary stream: int32 total size, int32 command count, then commands of
+// [int32 size, int32 type, data]. Only the 2D drawing commands are handled.
+function parseProxyGraphics(d, layer, color) {
+  const hex = Array.isArray(d[310]) ? d[310].join('') : (d[310] || '');
+  if (!hex) return null;
+  const size = Math.min(parseInt(d[92]) || hex.length / 2, Math.floor(hex.length / 2));
+  if (size < 8) return null;
+  const bytes = new Uint8Array(size);
+  for (let i = 0; i < size; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  const dv = new DataView(bytes.buffer);
+  const i32 = o => dv.getInt32(o, true);
+  const f64 = o => dv.getFloat64(o, true);
+  const mats = [];
+  let M = null; // 4x4 row-major, translation in [12..14]
+  const pt = o => {
+    const x = f64(o), y = f64(o + 8), z = f64(o + 16);
+    if (!M) return { x, y };
+    return { x: x * M[0] + y * M[4] + z * M[8] + M[12], y: x * M[1] + y * M[5] + z * M[9] + M[13] };
+  };
+  const vec = o => ({ x: f64(o), y: f64(o + 8), z: f64(o + 16) });
+  // Null-terminated string padded to 4 bytes → [text, next offset]
+  const str8 = (o, end) => {
+    let e = o; while (e < end && bytes[e] !== 0) e++;
+    return [decodeProxyBytes(bytes.subarray(o, e)), o + Math.ceil((e - o + 1) / 4) * 4];
+  };
+  const str16 = (o, end) => {
+    let s = '', e = o;
+    while (e + 1 < end) { const c = dv.getUint16(e, true); e += 2; if (!c) break; s += String.fromCharCode(c); }
+    return [s, o + Math.ceil((e - o) / 4) * 4];
+  };
+
+  const out = [];
+  let curColor = color, curRgb = null;
+  const push = ent => { ent.layer = layer; ent.color = curColor; if (curRgb) ent._rgb = curRgb; out.push(ent); };
+  const count = i32(4);
+  let o = 8;
+  for (let k = 0; k < count && o + 8 <= size; k++) {
+    const sz = i32(o), ty = i32(o + 4), b = o + 8, end = o + sz;
+    if (sz < 8 || end > size) break;
+    try {
+      switch (ty) {
+        case 2: { // circle: center, radius, normal
+          const c = pt(b);
+          push({ type: 'CIRCLE', cx: c.x, cy: c.y, r: f64(b + 24) });
+          break;
+        }
+        case 4: { // arc: center, radius, normal, start vector, sweep (rad), arc type
+          const c = pt(b), r = f64(b + 24), n = vec(b + 32), sv = vec(b + 56), sweep = f64(b + 80) * 180 / Math.PI;
+          let sa = Math.atan2(sv.y, sv.x) * 180 / Math.PI;
+          if (n.z < 0) sa -= sweep; // normal -Z: clockwise from the start vector
+          push({ type: 'ARC', cx: c.x, cy: c.y, r, startAngle: sa, endAngle: sa + sweep });
+          break;
+        }
+        case 6: case 7: { // polyline / polygon: int32 count, points
+          const n = i32(b), vertices = [];
+          for (let q = 0; q < n && b + 4 + q * 24 + 24 <= end; q++) {
+            const p = pt(b + 4 + q * 24); vertices.push({ x: p.x, y: p.y, bulge: 0 });
+          }
+          if (vertices.length >= 2) push({ type: 'LWPOLYLINE', vertices, closed: ty === 7 });
+          break;
+        }
+        case 10: case 11: case 36: case 38: { // text / text2 / unicode text / unicode text2
+          const p = pt(b), dir = vec(b + 48);
+          let txt, next, height;
+          if (ty === 10) { height = f64(b + 72); [txt] = str8(b + 96, end); }
+          else {
+            [txt, next] = (ty === 11 ? str8 : str16)(b + 72, end);
+            height = f64(next + 8); // skip ignore-length + raw flags
+          }
+          txt = cleanMText(txt);
+          if (txt && height > 0) {
+            push({ type: 'TEXT', x: p.x, y: p.y, height, text: txt,
+                   rotation: Math.atan2(dir.y, dir.x) * 180 / Math.PI,
+                   halign: 0, valign: 0, _widthFactor: 1.0, _style: 'Standard' });
+          }
+          break;
+        }
+        case 14: { // ACI color
+          const v = i32(b); curColor = (v === 256 || v === 0) ? color : v; curRgb = null;
+          break;
+        }
+        case 22: { // true color: high byte C0=ByLayer C1=ByBlock C2=RGB C3=ACI
+          const v = dv.getUint32(b, true), m = v >>> 24;
+          curRgb = null;
+          if (m === 0xC3) curColor = v & 0xFF;
+          else if (m === 0xC2) curRgb = '#' + (v & 0xFFFFFF).toString(16).padStart(6, '0');
+          else curColor = color;
+          break;
+        }
+        case 29: { // push model transform
+          mats.push(M);
+          const m = []; for (let q = 0; q < 16; q++) m.push(f64(b + q * 8));
+          M = m;
+          break;
+        }
+        case 31: M = mats.length ? mats.pop() : null; break; // pop model transform
+      }
+    } catch (err) { /* broken command: skip it */ }
+    o = end;
+  }
+  return out.length ? out : null;
+}
+
+// Proxy text is raw bytes in the drawing code page: try UTF-8, then Shift_JIS
+function decodeProxyBytes(u8) {
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(u8); } catch (e) {}
+  try { return new TextDecoder('shift_jis').decode(u8); } catch (e) {}
+  return String.fromCharCode.apply(null, u8);
 }
 
 function parseDimension(d, layer, color) {
@@ -984,7 +1171,33 @@ const DXF_COLORS = {
   254: '#c8c8c8', 255: '#ffffff', 256: '#cdd6f4'
 };
 
-function dxfColor(c) { return DXF_COLORS[c] || '#cdd6f4'; }
+// ACI 10-249: hue = (tens-1)*15°, even = vivid / odd = pale, pairs step down in brightness
+function aciColor(c) {
+  if (c < 10 || c > 249) return null;
+  const hue = (Math.floor(c / 10) - 1) * 15, sub = c % 10;
+  const v = [1, 1, 0.8, 0.8, 0.6, 0.6, 0.5, 0.5, 0.3, 0.3][sub], s = (sub % 2) ? 0.5 : 1;
+  const f = n => { const k = (n + hue / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+  const h2 = x => Math.round(x * 255).toString(16).padStart(2, '0');
+  return '#' + h2(f(5)) + h2(f(3)) + h2(f(1));
+}
+
+// The canvas background is near-black, so lift too-dark colors (blue 5, dark grays...)
+// toward white until they stay readable, keeping their hue.
+const _liftedColors = {};
+function liftDark(hex) {
+  if (_liftedColors[hex]) return _liftedColors[hex];
+  let r = parseInt(hex.substr(1, 2), 16), g = parseInt(hex.substr(3, 2), 16), b = parseInt(hex.substr(5, 2), 16);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  let out = hex;
+  if (lum < 0.4) {
+    const t = (0.4 - lum) / (1 - lum);
+    const h2 = x => Math.round(x + (255 - x) * t).toString(16).padStart(2, '0');
+    out = '#' + h2(r) + h2(g) + h2(b);
+  }
+  return (_liftedColors[hex] = out);
+}
+
+function dxfColor(c) { return liftDark(DXF_COLORS[c] || aciColor(c) || '#cdd6f4'); }
 
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -999,7 +1212,7 @@ function render() {
     // Skip DXF dimension entities if hidden
     if (!showDxfDimensions && e._isDimension) continue;
     const sel = i === selectedEntity;
-    const baseColor = sel ? '#f9e2af' : (e._isConstruction ? '#94e2d5' : dxfColor(e.color));
+    const baseColor = sel ? '#f9e2af' : (e._isConstruction ? '#94e2d5' : (e._rgb ? liftDark(e._rgb) : dxfColor(e.color)));
     ctx.strokeStyle = baseColor;
     ctx.lineWidth = sel ? 2.5 : 1.2;
     ctx.fillStyle = baseColor;
@@ -1236,8 +1449,9 @@ function drawBulgeArc(v1, v2, bulge) {
   // Y is flipped in screen coords
   const screenStartA = Math.atan2(-(v1.y - cy), (v1.x - cx));
   const screenEndA = Math.atan2(-(v2.y - cy), (v2.x - cx));
-  // In screen coords Y is inverted, so counterclockwise flips
-  const ccw = bulge < 0;
+  // bulge > 0 = counterclockwise in world. Canvas Y points down, so the canvas angle
+  // decreases along that path → anticlockwise = true.
+  const ccw = bulge > 0;
 
   // Move to start point first to avoid stray connecting line
   const sp = worldToScreen(v1.x, v1.y);
