@@ -29,10 +29,10 @@ const DIM_STYLE_DEFAULTS = {
   textColor: '#f9e2af',
   lineColor: '#f9e2af',
   bgAlpha: 0.85,
-  sizeMultiplier: 0.5,
+  sizeMultiplier: 1.0,  // relative to the drawing's own text height (see getDimScale)
   showUnit: false,
 };
-const DIM_STYLE_VERSION = 10; // bump when defaults change to reset saved settings
+const DIM_STYLE_VERSION = 11; // bump when defaults change to reset saved settings
 let dimStyle = { ...DIM_STYLE_DEFAULTS };
 try {
   const saved = localStorage.getItem('cad_dim_style');
@@ -45,8 +45,23 @@ try {
   }
 } catch (e) {}
 
+// Text height (world units) of the drawing's own dimensions, set on each DXF load.
+// Measured dimensions are drawn at this height so they match the drawing at any scale.
+let dimRefHeight = 0;
+
+function computeDimRefHeight(ents) {
+  const median = a => { a.sort((x, y) => x - y); return a[Math.floor(a.length / 2)]; };
+  const dimH = ents.filter(e => e.type === 'TEXT' && e._isDimension && e.height > 0).map(e => e.height);
+  if (dimH.length >= 3) return median(dimH);
+  const allH = ents.filter(e => e.type === 'TEXT' && e.height > 0).map(e => e.height);
+  return allH.length ? median(allH) : 0;
+}
+
 function getDimScale() {
-  return (dimStyle.sizeMultiplier || 1) * cam.zoom;
+  const mult = dimStyle.sizeMultiplier || 1;
+  // At the default font size (20) the text height equals dimRefHeight
+  if (dimRefHeight > 0) return mult * dimRefHeight / DIM_STYLE_DEFAULTS.fontSize * cam.zoom;
+  return mult * 0.5 * cam.zoom; // no drawing loaded: previous fixed size
 }
 function saveDimStyle() {
   try { localStorage.setItem('cad_dim_style', JSON.stringify({ ...dimStyle, _v: DIM_STYLE_VERSION })); } catch (e) {}
@@ -1063,14 +1078,51 @@ function getAnnotationTextPos(ann) {
 }
 
 function hitTestAnnotation(wx, wy) {
-  const threshold = 12 / cam.zoom;
+  if (!showAnnotations) return -1;
+  // Hit area follows the text size (wide labels like "R20.00" are clickable anywhere on them)
+  const fsW = Math.max(4, dimStyle.fontSize * getDimScale()) / cam.zoom;
+  const hx = Math.max(12 / cam.zoom, fsW * 2.2), hy = Math.max(12 / cam.zoom, fsW * 0.8);
   for (let i = annotations.length - 1; i >= 0; i--) {
     const p = getAnnotationTextPos(annotations[i]);
     if (!p) continue;
-    const d = Math.sqrt((wx - p.x) ** 2 + (wy - p.y) ** 2);
-    if (d < threshold) return i;
+    if (Math.abs(wx - p.x) < hx && Math.abs(wy - p.y) < hy) return i;
   }
   return -1;
+}
+
+function deleteSelectedAnnotation() {
+  if (selectedAnnotation < 0 || !annotations[selectedAnnotation]) return;
+  saveUndoState();
+  annotations.splice(selectedAnnotation, 1);
+  saveAnnotations();
+  selectedAnnotation = -1;
+  render();
+}
+
+// Floating "削除" button next to the selected measured dimension
+let annDeleteBtn = null;
+function updateAnnDeleteBtn() {
+  const ann = (selectedAnnotation >= 0 && showAnnotations) ? annotations[selectedAnnotation] : null;
+  const p = ann ? getAnnotationTextPos(ann) : null;
+  if (!p) { if (annDeleteBtn) annDeleteBtn.style.display = 'none'; return; }
+  if (!annDeleteBtn) {
+    annDeleteBtn = document.createElement('button');
+    annDeleteBtn.type = 'button';
+    annDeleteBtn.textContent = '✕ 削除';
+    annDeleteBtn.title = '選択中の計測寸法を削除（Deleteキーでも削除できます）';
+    annDeleteBtn.style.cssText = 'position:fixed;z-index:50;padding:4px 10px;font-size:13px;' +
+      'border:1px solid #f38ba8;border-radius:6px;background:#1e1e2e;color:#f38ba8;cursor:pointer;' +
+      'box-shadow:0 2px 8px rgba(0,0,0,.4)';
+    annDeleteBtn.addEventListener('mousedown', ev => ev.stopPropagation());
+    annDeleteBtn.addEventListener('click', ev => { ev.stopPropagation(); deleteSelectedAnnotation(); });
+    document.body.appendChild(annDeleteBtn);
+  }
+  const rect = canvas.getBoundingClientRect();
+  const sp = worldToScreen(p.x, p.y);
+  const fs = Math.max(4, dimStyle.fontSize * getDimScale());
+  annDeleteBtn.style.left = Math.round(rect.left + sp.x - 30) + 'px';
+  annDeleteBtn.style.top = Math.round(rect.top + sp.y + fs * 0.7 + 6) + 'px';
+  annDeleteBtn.style.display = 'block';
 }
 
 function updateAnnotationForDrag(ann, mouseW) {
@@ -1232,6 +1284,7 @@ function render() {
   if (showAnnotations) {
     for (let ai = 0; ai < annotations.length; ai++) drawAnnotation(annotations[ai], ai === selectedAnnotation);
   }
+  updateAnnDeleteBtn();
 
   // Draw in-progress drawing
   drawPreview();
@@ -2383,7 +2436,8 @@ function deleteInBox(minX, minY, maxX, maxY) {
   function annInBox(a) {
     if (a.type === 'linear') return inBox(a.x1, a.y1) && inBox(a.x2, a.y2);
     if (a.type === 'diameter' || a.type === 'radius') return inBox(a.cx, a.cy);
-    return false;
+    const p = getAnnotationTextPos(a); // angle / between etc.: by the value's position
+    return !!p && inBox(p.x, p.y);
   }
   const toRemoveE = entities.filter(entityInBox).length;
   const toRemoveA = annotations.filter(annInBox).length;
@@ -2558,7 +2612,10 @@ canvas.addEventListener('mousedown', e => {
     zoomBoxState = { active: true, sx: e.offsetX, sy: e.offsetY, ex: e.offsetX, ey: e.offsetY };
     return;
   }
-  if (e.button === 0 && drawState.mode) {
+  // In smart-dimension mode, clicking an existing measured value selects it (to move/delete)
+  const onExistingAnn = e.button === 0 && drawState.mode === 'smartDim' && smartDimState.phase === 'pick1' &&
+    hitTestAnnotation(screenToWorld(e.offsetX, e.offsetY).x, screenToWorld(e.offsetX, e.offsetY).y) >= 0;
+  if (e.button === 0 && drawState.mode && !onExistingAnn) {
     const w = screenToWorld(e.offsetX, e.offsetY);
     const snapped = snapToNearest(w.x, w.y);
     if (drawState.mode === 'smartDim') {
@@ -3300,6 +3357,7 @@ async function loadDXFFile(file) {
   }
 
   entities = parseDXF(text);
+  dimRefHeight = computeDimRefHeight(entities);
   // Switch annotation scope to this file (annotations are stored per filename)
   currentFileKey = file.name || '__default__';
   loadAnnotationsForCurrentFile();
@@ -3471,11 +3529,7 @@ document.addEventListener('keydown', e => {
       break;
     case 'delete': case 'backspace':
       if (selectedAnnotation >= 0) {
-        saveUndoState();
-        annotations.splice(selectedAnnotation, 1);
-        saveAnnotations();
-        selectedAnnotation = -1;
-        render();
+        deleteSelectedAnnotation();
       } else if (selectedEntity >= 0) {
         saveUndoState();
         entities.splice(selectedEntity, 1);
@@ -3513,6 +3567,7 @@ function sheetEyeInit() {
 function sheetEyeLoadText(text, fileName) {
   fileName = fileName || 'file.dxf';
   entities = parseDXF(text);
+  dimRefHeight = computeDimRefHeight(entities);
   currentFileKey = fileName;
   loadAnnotationsForCurrentFile();
   undoStack = []; redoStack = [];
