@@ -37,3 +37,18 @@ export function boardStatus(x: BoardInput): BoardStatus {
   if (!x.isDue) return 'stop';
   return x.isPastDeadline ? 'late' : 'todo';
 }
+
+/**
+ * 画面で使う 3 色（2026-10-31 簡単化。requirements §10 Q-15）。
+ * ✕ 異常（赤）= 直っていない異常がある（直すまで次の日以降も赤のまま）
+ * ○ 正常（緑）= 今日の点検が済んで異常がない（異常を直した場合も緑）
+ * まだ（白・点線）= 今日の点検がまだ（点検中・遅れも含む）
+ * 停止・対象外の日は色を付けず「停止中」「対象外」と文字で出す
+ */
+export type SimpleStatus = 'ng' | 'ok' | 'todo' | 'stop';
+export function simpleStatus(board: BoardStatus, openAbnormalities: number): SimpleStatus {
+  if (openAbnormalities > 0) return 'ng';
+  if (board === 'ok' || board === 'ng') return 'ok';
+  if (board === 'stop') return 'stop';
+  return 'todo';
+}

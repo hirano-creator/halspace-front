@@ -27,8 +27,8 @@ async function ownerAbnormality(c: Context<AppEnv>, ownerType: string, ownerId: 
   const s = scopeWhere(c.get('auth'), 'a');
   const sql = ownerType === 'abnormality'
     ? `SELECT a.id, a.factory_id, a.status, a.report_no FROM abnormalities a WHERE a.id = ? AND ${s.sql}`
-    : `SELECT a.id, a.factory_id, a.status, a.report_no FROM corrective_actions ca JOIN abnormalities a ON a.id = ca.abnormality_id WHERE ca.id = ? AND ${s.sql}`;
-  const row = await c.env.DB.prepare(sql).bind(ownerId, ...s.params).first<{ id: string; factory_id: string; status: string; report_no: string }>();
+    : `SELECT a.id, a.factory_id, a.status, a.report_no, ca.created_by AS ca_by, ca.created_at AS ca_at FROM corrective_actions ca JOIN abnormalities a ON a.id = ca.abnormality_id WHERE ca.id = ? AND ${s.sql}`;
+  const row = await c.env.DB.prepare(sql).bind(ownerId, ...s.params).first<{ id: string; factory_id: string; status: string; report_no: string; ca_by?: string; ca_at?: string }>();
   if (!row) throw notFound();
   return row;
 }
@@ -41,7 +41,10 @@ attachmentRoutes.post('/attachments', async (c) => {
   if (!['abnormality', 'corrective_action'].includes(ownerType) || !ownerId) throw new HttpError(400, '写真を付ける先を指定してください。');
   const owner = await ownerAbnormality(c, ownerType, ownerId);
   authorize(c, 'abnormality.report', { factoryId: owner.factory_id });
-  if (owner.status === 'closed') throw new HttpError(409, '完了した異常には写真を追加できません。');
+  // 完了した異常には足せない。ただし「直した」を押した本人が、その是正処置に 30 分以内に付ける写真は受け付ける
+  // （「直した」で完了になってから写真を送る順番のため。requirements §10 Q-5）
+  const justFixed = ownerType === 'corrective_action' && owner.ca_by === auth.user.id && !!owner.ca_at && Date.now() - Date.parse(owner.ca_at) < 30 * 60 * 1000;
+  if (owner.status === 'closed' && !justFixed) throw new HttpError(409, '完了した異常には写真を追加できません。');
 
   const type = (c.req.header('Content-Type') ?? '').split(';')[0]!.trim().toLowerCase();
   const spec = TYPES[type];

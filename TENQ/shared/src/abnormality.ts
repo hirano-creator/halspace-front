@@ -4,6 +4,9 @@ import type { Action } from './permissions';
  * 異常の状態と遷移（docs/requirements.md F-6）。
  * 発生 → 未対応（担当・期限が決まった）→ 対応中 → 是正完了 → 再確認 → 承認・完了
  * 再確認で直っていなければ対応中に差し戻す。ここに書いた遷移以外は API が拒否する。
+ *
+ * 2026-10-31 に画面を簡単にし、ふだんは「異常あり → 直した（resolve）」の 1 ステップだけを使う（requirements §10 Q-5）。
+ * 直した人と別の人による確認はしない（オーナー決定）。上の 6 段階の遷移は過去の記録と互換のために残す。
  */
 
 export const ABNORMALITY_STATUSES = ['reported', 'assigned', 'in_progress', 'corrected', 'verified', 'closed'] as const;
@@ -26,7 +29,7 @@ export const SEVERITY_LABELS: Record<Severity, { label: string; hint: string }> 
   high: { label: '高', hint: 'けが・故障・品質不良につながるおそれがある' },
 };
 
-export const ABNORMALITY_ACTIONS = ['assign', 'start', 'correct', 'verify', 'reject', 'approve'] as const;
+export const ABNORMALITY_ACTIONS = ['assign', 'start', 'correct', 'verify', 'reject', 'approve', 'resolve'] as const;
 export type AbnormalityAction = (typeof ABNORMALITY_ACTIONS)[number];
 
 export const ABNORMALITY_TRANSITIONS: Record<AbnormalityAction, { from: readonly AbnormalityStatus[]; to: AbnormalityStatus; permission: Action; label: string }> = {
@@ -36,6 +39,7 @@ export const ABNORMALITY_TRANSITIONS: Record<AbnormalityAction, { from: readonly
   verify:  { from: ['corrected'], to: 'verified', permission: 'abnormality.verify', label: '再確認した（直っている）' },
   reject:  { from: ['corrected'], to: 'in_progress', permission: 'abnormality.verify', label: '差し戻す（直っていない）' },
   approve: { from: ['verified'], to: 'closed', permission: 'abnormality.approve', label: '承認して完了' },
+  resolve: { from: ['reported', 'assigned', 'in_progress', 'corrected', 'verified'], to: 'closed', permission: 'abnormality.resolve', label: '直した' },
 };
 
 /** 担当を付け直したとき、対応中のものは対応中のまま（assign の to は「未対応」だが、進行中を戻さない） */

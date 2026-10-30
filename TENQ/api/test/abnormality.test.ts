@@ -49,6 +49,42 @@ describe('異常の報告', () => {
   });
 });
 
+describe('「直した」（2026-10-31 簡単化。requirements §10 Q-5）', () => {
+  it('一般社員は押せない。設備担当者・工場長は一言を書いて押すと完了になり、是正処置と履歴が残る', async () => {
+    const { body: { id } } = await report(T.worker, { equipment_id: 'eq-w01', title: 'トーチの先が曲がっている' });
+    expect((await act(id, T.worker, { action: 'resolve', description: '交換した' })).status).toBe(403);
+    expect((await act(id, T.staff2, { action: 'resolve' })).status).toBe(422);
+    const r = await act(id, T.staff2, { action: 'resolve', description: 'トーチを交換した' });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ status: 'closed' });
+    const d = await get(`/abnormalities/${id}`, T.manager);
+    expect(d.body.abnormality.status).toBe('closed');
+    expect(d.body.actions[0]).toMatchObject({ description: 'トーチを交換した', performed_by_name: '鈴木 大地' });
+    expect(d.body.events.map((e: { to_status: string }) => e.to_status)).toEqual(['reported', 'closed']);
+    expect(await auditCount('abnormality.resolve', id)).toBe(1);
+    // 完了したものはもう押せない
+    expect((await act(id, T.manager, { action: 'resolve', description: 'x' })).status).toBe(409);
+  });
+
+  it('直した本人は、その是正処置に完了の直後でも写真を付けられる（ほかの人・異常の本体には付けられない）', async () => {
+    const { body: { id } } = await report(T.worker, { equipment_id: 'eq-w01', title: 'カバーの割れ' });
+    const r = await act(id, T.manager, { action: 'resolve', description: 'カバーを交換' });
+    const send = (token: string, type: string, owner: string) => app.request(`/api/attachments?owner_type=${type}&owner_id=${owner}`, {
+      method: 'POST', body: JPEG, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg', 'Content-Length': String(JPEG.byteLength) },
+    }, env);
+    expect((await send(T.manager, 'corrective_action', r.body.correctiveActionId)).status).toBe(201);
+    expect((await send(T.admin, 'corrective_action', r.body.correctiveActionId)).status).toBe(409);
+    expect((await send(T.manager, 'abnormality', id)).status).toBe(409);
+  });
+
+  it('止めていた設備は、直したときに動かせる', async () => {
+    const { body } = await report(T.staff, { equipment_id: 'eq-p02', title: '異音', severity: 'high', equipment_stopped: true });
+    expect(body.equipmentStatusChanged).toBe(true);
+    await act(body.id, T.staff, { action: 'resolve', description: 'ベアリング交換', resume_equipment: true });
+    expect((await get('/equipment/eq-p02', T.staff)).body.item.status).toBe('active');
+  });
+});
+
 describe('是正処置の流れ（T-09）', () => {
   it('発生 → 担当・期限 → 対応中 → 是正完了 → 再確認 → 承認。すべて履歴に残る', async () => {
     const { body: { id } } = await report(T.worker, { equipment_id: 'eq-p02', title: '油圧ホースのにじみ' });

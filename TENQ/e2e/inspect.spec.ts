@@ -23,30 +23,30 @@ test('必須項目をすべて選ぶまで完了できず、選ぶと点検が�
   await devLogin(page, '山本 健');
   await page.goto(`./#/inspect/${t.id}`);
   await expect(page.getByRole('heading', { name: t.name })).toBeVisible();
-  const done = page.getByRole('button', { name: /必須項目があと|点検を完了/ });
-  await expect(done).toHaveText(`必須項目があと ${t.required} 件`);
+  const done = page.getByRole('button', { name: /^あと \d+ 項目$|^送る$/ });
+  await expect(done).toHaveText(`あと ${t.required} 項目`);
   await expect(done).toBeDisabled();
 
   // 1項目だけでは完了できない
   await page.getByRole('group', { name: / の判定$/ }).first().getByRole('button', { name: '正常' }).click();
-  await expect(done).toHaveText(`必須項目があと ${t.required - 1} 件`);
+  await expect(done).toHaveText(`あと ${t.required - 1} 項目`);
 
   // 読み込み直しても入力途中の内容は消えない
   await page.reload();
-  await expect(page.getByRole('button', { name: `必須項目があと ${t.required - 1} 件` })).toBeVisible();
+  await expect(page.getByRole('button', { name: `あと ${t.required - 1} 項目` })).toBeVisible();
 
   await tapAll(page, '正常');
-  await page.getByRole('button', { name: '点検を完了' }).click();
-  await expect(page.getByRole('heading', { name: '点検を記録しました' })).toBeVisible();
+  await page.getByRole('button', { name: '送る', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '送りました' })).toBeVisible();
 
   // もう一度開くと「完了しています」になり、二重には点検できない（同じ URL への移動は画面が変わらないので一度ホームへ）
   await page.goto('./#/');
-  await expect(page.getByRole('heading', { name: /まだ終わっていない点検/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /QR を読む/ })).toBeVisible();
   await page.goto(`./#/inspect/${t.id}`);
   await expect(page.getByText(/さんが .* に完了しています/)).toBeVisible();
 });
 
-test('異常を選ぶと内容の入力欄が出て、完了画面で注意が出る', async ({ page }) => {
+test('✕ を選ぶと一言の入力欄と写真のボタンが出て、送ったあとに注意が出る', async ({ page }) => {
   const id = page.viewportSize()!.width > 900 ? 'eq-m04' : 'eq-c11';
   await page.goto('./');
   await devLogin(page, '鈴木 大地');
@@ -54,10 +54,11 @@ test('異常を選ぶと内容の入力欄が出て、完了画面で注意が�
   await tapAll(page, '正常');
   const first = page.getByRole('group', { name: / の判定$/ }).first();
   await first.getByRole('button', { name: '異常' }).click();
-  await page.getByPlaceholder('例: 右側の安全カバーの留め具が外れている').fill('カバーに亀裂');
-  await page.getByRole('button', { name: '点検を完了' }).click();
-  await expect(page.getByRole('heading', { name: '点検を記録しました' })).toBeVisible();
-  await expect(page.getByText('異常が 1 件あります')).toBeVisible();
+  await page.getByPlaceholder('どこが・どうなっているか（一言）').fill('カバーに亀裂');
+  await expect(page.getByText('＋ 写真')).toBeVisible();
+  await page.getByRole('button', { name: '送る', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '送りました' })).toBeVisible();
+  await expect(page.getByText('✕ が 1 件あります')).toBeVisible();
 });
 
 test('ほかの人が点検中の設備では、その人の名前を出して引き継ぎを選ばせる', async ({ page }) => {
@@ -68,12 +69,15 @@ test('ほかの人が点検中の設備では、その人の名前を出して�
   await expect(page.getByRole('button', { name: '引き継いで点検する' })).toBeVisible();
 });
 
-test('ホームに今日のまだ終わっていない点検が並ぶ', async ({ page }) => {
+test('一般社員のホームは「QR を読む」と「あと N 台」だけ', async ({ page }) => {
   await page.goto('./');
   await devLogin(page, '山本 健');
-  await expect(page.getByRole('button', { name: 'QR を読み取って点検' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /まだ終わっていない点検/ })).toBeVisible();
-  await expect(page.locator('.today-row').filter({ hasText: 'P-03' })).toContainText('点検中');
+  await expect(page.getByRole('button', { name: /QR を読む/ })).toBeVisible();
+  await expect(page.getByText(/今日の点検 あと\s*\d+\s*台/)).toBeVisible();
+  await page.getByRole('button', { name: 'まだの設備を見る' }).click();
+  await expect(page.locator('.left-list')).toContainText('P-03');
+  await page.getByRole('button', { name: /QR を読む/ }).click();
+  await expect(page.getByRole('heading', { name: 'QR を読み取る' })).toBeVisible();
 });
 
 test('完了した点検記録を、理由をつけて訂正できる（元の記録は履歴に残る）', async ({ page }) => {

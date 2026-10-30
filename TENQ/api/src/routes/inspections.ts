@@ -1,5 +1,5 @@
 import { Hono, type Context } from 'hono';
-import { boardStatus, can, type Frequency } from '@tenq/shared';
+import { boardStatus, can, localDate, type Frequency } from '@tenq/shared';
 import type { AppEnv } from '../types';
 import { auditStatement } from '../lib/audit';
 import { newId, nowIso } from '../lib/crypto';
@@ -155,7 +155,9 @@ inspectionRoutes.post('/inspections/:id/complete', async (c) => {
   authorize(c, 'inspection.perform', { factoryId: ins.factory_id });
 
   // 同じキーの再送は、前回の結果をそのまま返す
-  if (ins.completion_key === key) return c.json({ inspectionId: ins.id, overall_result: ins.overall_result, repeated: true });
+  if (ins.completion_key === key) {
+    return c.json({ inspectionId: ins.id, overall_result: ins.overall_result, repeated: true, abnormalities: await abnormalitiesOf(c.env.DB, ins.id, ins.current_revision) });
+  }
   if (ins.status === 'completed') throw new HttpError(409, 'この点検はすでに完了しています。', { code: 'completed' });
   if (ins.status !== 'in_progress') throw new HttpError(409, 'この点検は取り消されています。');
   if (ins.inspector_user_id !== auth.user.id) throw new HttpError(409, 'この点検はほかの人に引き継がれました。', { code: 'taken_over' });
@@ -169,27 +171,81 @@ inspectionRoutes.post('/inspections/:id/complete', async (c) => {
   v.done();
 
   const overall = [...answers.values()].some((a) => a.judgment === 'ng') ? 'ng' : 'ok';
-  const now = nowIso();
-  const rows = [...answers.entries()].map(([item_id, a]) => ({ id: newId(), item_id, judgment: a.judgment, note: a.note }));
   const db = c.env.DB;
-  const guard = { sql: 'SELECT 1 FROM inspections WHERE id = ? AND completion_key = ?', params: [ins.id, key] };
-  let upd: D1Result | undefined;
-  try {
-    [upd] = await db.batch([
+  const labels = new Map(items.map((i) => [i.id, i.label]));
+
+  // ✕ の項目は、そのまま異常として登録する（作業者が別の画面で報告し直さなくてよいように。requirements §10 Q-15）。
+  // 同じ設備・同じ項目の異常がまだ直っていなければ、新しく作らずにそれに結び付ける（直すまで 1 件のまま赤く出す）
+  const ngIds = [...answers.entries()].filter(([, a]) => a.judgment === 'ng').map(([id]) => id);
+  const meta = ngIds.length ? await db.prepare(
+    `SELECT f.code AS factory_code, f.timezone, e.equipment_code FROM factories f JOIN equipment e ON e.id = ? WHERE f.id = ?`,
+  ).bind(ins.equipment_id, ins.factory_id).first<{ factory_code: string; timezone: string; equipment_code: string }>() : null;
+  const open = ngIds.length ? (await db.prepare(
+    `SELECT id, inspection_item_id FROM abnormalities WHERE equipment_id = ? AND status <> 'closed' AND inspection_item_id IS NOT NULL`,
+  ).bind(ins.equipment_id).all<{ id: string; inspection_item_id: string }>()).results : [];
+  const openByItem = new Map(open.map((o) => [o.inspection_item_id, o.id]));
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const now = nowIso();
+    const created: { id: string; event_id: string; item_id: string; report_no: string; title: string; description: string | null }[] = [];
+    if (meta && ngIds.some((id) => !openByItem.has(id))) {
+      const prefix = `${meta.factory_code}-${localDate(new Date(), meta.timezone).slice(0, 4)}-`;
+      const last = await db.prepare('SELECT report_no FROM abnormalities WHERE company_id = ? AND report_no LIKE ? ORDER BY report_no DESC LIMIT 1')
+        .bind(ins.company_id, `${prefix}%`).first<{ report_no: string }>();
+      let n = Number(last?.report_no.slice(prefix.length)) || 0;
+      for (const itemId of ngIds) {
+        if (openByItem.has(itemId)) continue;
+        created.push({ id: newId(), event_id: newId(), item_id: itemId, report_no: `${prefix}${String(++n).padStart(4, '0')}`,
+          title: (labels.get(itemId) ?? '点検項目').slice(0, 100), description: answers.get(itemId)?.note ?? null });
+      }
+    }
+    const abnOf = new Map([...openByItem, ...created.map((x) => [x.item_id, x.id] as const)]);
+    const rows = [...answers.entries()].map(([item_id, a]) => ({ id: newId(), item_id, judgment: a.judgment, note: a.note, abnormality_id: a.judgment === 'ng' ? abnOf.get(item_id) ?? null : null }));
+    const guard = { sql: 'SELECT 1 FROM inspections WHERE id = ? AND completion_key = ?', params: [ins.id, key] };
+    const statements: D1PreparedStatement[] = [
       db.prepare(`UPDATE inspections SET status = 'completed', completed_at = ?, overall_result = ?, comment = ?, completion_key = ?, updated_at = ?, version = version + 1
                   WHERE id = ? AND status = 'in_progress' AND inspector_user_id = ?`)
         .bind(now, overall, comment, key, now, ins.id, auth.user.id),
+    ];
+    if (created.length) {
+      // 件数によらず 2 文で入れる（D1 の 1 回あたりのクエリ数を増やさない）
+      statements.push(
+        db.prepare(`INSERT INTO abnormalities (id, company_id, factory_id, equipment_id, inspection_id, inspection_item_id, report_no, title, description, found_at,
+              reported_by, severity, status, created_at, updated_at, updated_by)
+            SELECT json_extract(j.value, '$.id'), ?, ?, ?, ?, json_extract(j.value, '$.item_id'), json_extract(j.value, '$.report_no'), json_extract(j.value, '$.title'),
+              json_extract(j.value, '$.description'), ?, ?, 'medium', 'reported', ?, ?, ?
+            FROM json_each(?) j WHERE EXISTS (${guard.sql})`)
+          .bind(ins.company_id, ins.factory_id, ins.equipment_id, ins.id, now, auth.user.id, now, now, auth.user.id, JSON.stringify(created), ...guard.params),
+        db.prepare(`INSERT INTO abnormality_events (id, abnormality_id, from_status, to_status, comment, actor_user_id, created_at)
+            SELECT json_extract(j.value, '$.event_id'), json_extract(j.value, '$.id'), NULL, 'reported', '点検で ✕', ?, ? FROM json_each(?) j WHERE EXISTS (${guard.sql})`)
+          .bind(auth.user.id, now, JSON.stringify(created), ...guard.params),
+      );
+    }
+    statements.push(
       insertResults(db, ins.id, 1, rows, now, auth.user.id, guard),
       auditStatement(c, { action: 'inspection.complete', targetType: 'inspection', targetId: ins.id, factoryId: ins.factory_id,
-        detail: { overall, answered: rows.length, ng: rows.filter((r) => r.judgment === 'ng').length } }, guard),
-    ]);
-  } catch (e) {
-    if (String(e).includes('UNIQUE')) throw new HttpError(409, '同じ完了操作が別の点検に使われています。画面を読み込み直してください。');
-    throw e;
+        detail: { overall, answered: rows.length, ng: ngIds.length, abnormalities: created.map((x) => x.report_no) } }, guard),
+    );
+    let upd: D1Result | undefined;
+    try {
+      [upd] = await db.batch(statements);
+    } catch (e) {
+      if (String(e).includes('report_no')) continue; // 同時に異常が登録されて番号が重なった。採番し直す
+      if (String(e).includes('UNIQUE')) throw new HttpError(409, '同じ完了操作が別の点検に使われています。画面を読み込み直してください。');
+      throw e;
+    }
+    if (!upd?.meta.changes) throw conflict('この点検はほかの操作で変更されました。画面を読み込み直してください。');
+    return c.json({ inspectionId: ins.id, overall_result: overall, ngItems: ngIds,
+      abnormalities: rows.filter((r) => r.abnormality_id).map((r) => ({ item_id: r.item_id, id: r.abnormality_id })) });
   }
-  if (!upd?.meta.changes) throw conflict('この点検はほかの操作で変更されました。画面を読み込み直してください。');
-  return c.json({ inspectionId: ins.id, overall_result: overall, ngItems: rows.filter((r) => r.judgment === 'ng').map((r) => r.item_id) });
+  throw conflict('異常の番号を決められませんでした。もう一度「送る」を押してください（二重には記録されません）。');
 });
+
+/** 点検の ✕ の項目と、結び付いた異常 */
+async function abnormalitiesOf(db: D1Database, inspectionId: string, revision: number) {
+  return (await db.prepare('SELECT item_id, abnormality_id AS id FROM inspection_results WHERE inspection_id = ? AND revision = ? AND abnormality_id IS NOT NULL')
+    .bind(inspectionId, revision).all<{ item_id: string; id: string }>()).results;
+}
 
 /** 取消（誤って開始した・別の設備だった等）。記録は消さず voided として残す */
 inspectionRoutes.post('/inspections/:id/void', async (c) => {
@@ -337,14 +393,17 @@ inspectionRoutes.get('/board', async (c) => {
     db.prepare(`SELECT i.id, i.equipment_id, i.period_key, i.status, i.overall_result, i.started_at, i.completed_at, u.name AS inspector_name
                 FROM inspections i JOIN users u ON u.id = i.inspector_user_id
                 WHERE i.factory_id = ? AND i.status <> 'voided' AND i.period_key IN (?, ?, ?)`).bind(factoryId, ...keys),
-    db.prepare(`SELECT equipment_id, COUNT(*) AS n FROM abnormalities WHERE factory_id = ? AND status <> 'closed' GROUP BY equipment_id`).bind(factoryId),
+    // 直っていない異常（見取り図で赤く出し、「2日前から」などを出す）。直っていないものだけなので件数は少ない
+    db.prepare(`SELECT id, equipment_id, title, description, found_at FROM abnormalities WHERE factory_id = ? AND status <> 'closed' ORDER BY found_at`).bind(factoryId),
   ]);
 
   type Eq = { id: string; equipment_code: string; name: string; status: 'active' | 'stopped' | 'retired'; frequency: Frequency; area_id: string | null; board_order: number; manager_name: string | null };
   type Ins = { id: string; equipment_id: string; period_key: string; status: 'in_progress' | 'completed'; overall_result: 'ok' | 'ng' | null; started_at: string; completed_at: string | null; inspector_name: string };
   const insMap = new Map<string, Ins>();
   for (const i of inspections?.results as Ins[]) insMap.set(`${i.equipment_id}|${i.period_key}`, i);
-  const abnMap = new Map((abnormalities?.results as { equipment_id: string; n: number }[]).map((a) => [a.equipment_id, a.n]));
+  type Abn = { id: string; equipment_id: string; title: string; description: string | null; found_at: string };
+  const abnMap = new Map<string, Omit<Abn, 'equipment_id'>[]>();
+  for (const { equipment_id, ...a } of abnormalities?.results as Abn[]) abnMap.set(equipment_id, [...(abnMap.get(equipment_id) ?? []), a]);
 
   // 時刻の判定は全設備で同じなので1回だけ計算する（設備ごとに計算すると CPU 時間が台数に比例して増える）
   const pastDeadline = today.pastDeadline(settings.late_threshold);
@@ -358,7 +417,8 @@ inspectionRoutes.get('/board', async (c) => {
       isPastDeadline: e.frequency === 'daily' && pastDeadline,
     });
     counts[status] = (counts[status] ?? 0) + 1;
-    return { ...e, board_status: status, inspection: ins, open_abnormalities: abnMap.get(e.id) ?? 0 };
+    const open = abnMap.get(e.id) ?? [];
+    return { ...e, board_status: status, inspection: ins, open_abnormalities: open.length, abnormalities: open };
   });
   return c.json({ factory: { id: factory.id, name: factory.name }, date: today.date, workingDay: today.workingDay, lateThreshold: settings.late_threshold, areas: areas?.results ?? [], items, counts });
 });

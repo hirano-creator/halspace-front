@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ApiError, apiGet, apiSend } from '../api/client';
+import { ApiError, apiGet, apiSend, apiUpload } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { shrinkPhoto } from '../components/Photo';
 import { Alert, Button, Loading, ReasonDialog, errorMessage, useLoad } from '../components/ui';
 import { JUDGMENT, formatTime } from '../labels';
 import { navigate } from '../router';
 
 /**
  * 設備点検（S-03）と点検完了（S-04）。QR を読むとここに来る。
+ * 2026-10-31 簡単化（requirements §10 Q-15）: 項目ごとに ○ / ✕ を押し、✕ なら一言と写真（任意）、最後に「送る」。
+ * ✕ の項目は API がそのまま異常として登録する（別の画面で報告し直さない）。写真は送ったあと、その異常に付ける。
  * 点検の開始は最初の項目を選んだとき（開いただけでは「点検中」を作らない）。
- * 入力途中は sessionStorage に置き、読み込み直しても消えないようにする。
+ * 入力途中は sessionStorage に置き、読み込み直しても消えないようにする（写真は残らない）。
  */
 
 type Judgment = 'ok' | 'ng' | 'na';
@@ -21,6 +24,7 @@ interface Today {
   results: { item_id: string; judgment: Judgment; note: string | null }[];
 }
 interface Answer { judgment: Judgment; note: string }
+interface Linked { item_id: string; id: string }
 
 const draftKey = (eqId: string, period: string) => `tenq_draft_${eqId}_${period}`;
 const idemKey = (inspectionId: string) => `tenq_complete_${inspectionId}`;
@@ -52,8 +56,9 @@ export function InspectPage({ equipmentId }: { equipmentId: string }) {
   const [message, setMessage] = useState<{ kind: 'error' | 'warn'; text: string } | null>(null);
   const [other, setOther] = useState<{ name: string; startedAt: string } | null>(null);
   const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
-  const [done, setDone] = useState<{ overall: 'ok' | 'ng'; ng: number; total: number; inspectionId: string; ngItems: { id: string; label: string; note: string }[] } | null>(null);
-  const [comment, setComment] = useState('');
+  const [done, setDone] = useState<{ overall: 'ok' | 'ng'; ng: number; abnormalities: Linked[] } | null>(null);
+  const [photos, setPhotos] = useState<Record<string, File[]>>({});
+  const [upload, setUpload] = useState<{ state: 'sending' | 'done' | 'failed'; failed: number } | null>(null);
   const [voidOpen, setVoidOpen] = useState(false);
 
   const dkey = data ? draftKey(data.equipment.id, data.periodKey) : null;
@@ -68,7 +73,6 @@ export function InspectPage({ equipmentId }: { equipmentId: string }) {
   useEffect(() => { if (dkey && loadedKey === dkey) writeDraft(dkey, answers); }, [answers, dkey, loadedKey]);
 
   const items = useMemo(() => data?.items ?? [], [data]);
-  const answered = items.filter((i) => answers[i.id]).length;
   const remaining = items.filter((i) => i.required && !answers[i.id]).length;
 
   async function ensureStarted(takeover = false): Promise<string | null> {
@@ -104,20 +108,36 @@ export function InspectPage({ equipmentId }: { equipmentId: string }) {
     if (!inspectionId || !dkey) return;
     setBusy(true); setMessage(null);
     try {
-      const results = items.filter((i) => answers[i.id]).map((i) => ({ item_id: i.id, judgment: answers[i.id]!.judgment, note: answers[i.id]!.note || null }));
-      const r = await apiSend<{ overall_result: 'ok' | 'ng' }>('POST', `/inspections/${inspectionId}/complete`, { results, comment: comment || null },
+      const results = items.filter((i) => answers[i.id]).map((i) => ({ item_id: i.id, judgment: answers[i.id]!.judgment, note: answers[i.id]!.note.trim() || null }));
+      const r = await apiSend<{ overall_result: 'ok' | 'ng'; abnormalities?: Linked[] }>('POST', `/inspections/${inspectionId}/complete`, { results },
         { 'Idempotency-Key': completionKey(inspectionId) });
       writeDraft(dkey, null);
-      const ngItems = items.filter((i) => answers[i.id]?.judgment === 'ng').map((i) => ({ id: i.id, label: i.label, note: answers[i.id]?.note ?? '' }));
-      setDone({ overall: r.overall_result, ng: ngItems.length, total: results.length, inspectionId, ngItems });
+      const abnormalities = r.abnormalities ?? [];
+      setDone({ overall: r.overall_result, ng: results.filter((x) => x.judgment === 'ng').length, abnormalities });
       window.scrollTo(0, 0);
+      void sendPhotos(abnormalities, photos);
     } catch (e) {
       // 通信できなかったときも、同じ冪等キーで押し直せば二重には記録されない
-      setMessage({ kind: 'error', text: e instanceof ApiError && e.status === 0 ? '通信できませんでした。電波の届く場所で、もう一度「点検を完了」を押してください（二重には記録されません）。' : errorMessage(e) });
+      setMessage({ kind: 'error', text: e instanceof ApiError && e.status === 0 ? '通信できませんでした。電波の届く場所で、もう一度「送る」を押してください（二重には記録されません）。' : errorMessage(e) });
       if (e instanceof ApiError) setItemErrors(e.errors);
     } finally {
       setBusy(false);
     }
+  }
+
+  /** ✕ の項目の写真を、登録された異常に付ける。送れなかったものは残して、押し直せるようにする */
+  async function sendPhotos(abnormalities: Linked[], pending: Record<string, File[]>) {
+    const jobs = abnormalities.flatMap((a) => (pending[a.item_id] ?? []).map((f) => ({ ...a, f })));
+    if (!jobs.length) return;
+    setUpload({ state: 'sending', failed: 0 });
+    const left: Record<string, File[]> = {};
+    for (const j of jobs) {
+      try { await apiUpload(`/attachments?owner_type=abnormality&owner_id=${encodeURIComponent(j.id)}`, await shrinkPhoto(j.f), j.f.name); }
+      catch { left[j.item_id] = [...(left[j.item_id] ?? []), j.f]; }
+    }
+    const failed = Object.values(left).flat().length;
+    setPhotos(left);
+    setUpload({ state: failed ? 'failed' : 'done', failed });
   }
 
   if (loading && !data) return <Loading label="点検表を開いています…" />;
@@ -125,29 +145,26 @@ export function InspectPage({ equipmentId }: { equipmentId: string }) {
   if (!data || !me) return null;
   const eq = data.equipment;
 
-  // ===== 完了画面（S-04） =====
+  // ===== 送ったあと（S-04） =====
   if (done) {
     return (
       <div className="done">
-        <div className={`done-mark ${done.overall === 'ng' ? 'is-ng' : ''}`} aria-hidden="true">{done.overall === 'ng' ? '!' : '✓'}</div>
-        <h1>点検を記録しました</h1>
+        <div className={`done-mark ${done.overall === 'ng' ? 'is-ng' : ''}`} aria-hidden="true">{done.overall === 'ng' ? '!' : '○'}</div>
+        <h1>送りました</h1>
         <p className="muted">{eq.equipment_code} {eq.name}<br />{data.date} ・ {me.user.name}</p>
-        <p className="done-count"><span className="badge st-ok">正常 {done.total - done.ng}</span> <span className="badge st-ng">異常 {done.ng}</span></p>
         {done.overall === 'ng' && (
-          <>
-            <Alert kind="error">異常が {done.ng} 件あります。危険がある場合は設備の使用を止め、責任者に連絡してください（会社の安全管理ルールに従ってください）。続けて、写真付きで異常を報告してください。</Alert>
-            <ul className="ng-report-list">
-              {done.ngItems.map((it) => (
-                <li key={it.id}>
-                  <span><b>{it.label}</b>{it.note && <small className="block muted">{it.note}</small>}</span>
-                  <Button variant="danger" onClick={() => navigate(`/abnormalities/new?equipment=${eq.id}&inspection=${done.inspectionId}&item=${it.id}&title=${encodeURIComponent(`${it.label}の異常`)}&note=${encodeURIComponent(it.note)}`)}>異常を報告</Button>
-                </li>
-              ))}
-            </ul>
-          </>
+          <Alert kind="error">✕ が {done.ng} 件あります。管理者の画面に赤く出ています。危ないときは設備を止めて、責任者に連絡してください。</Alert>
+        )}
+        {upload?.state === 'sending' && <Alert kind="info">写真を送っています…</Alert>}
+        {upload?.state === 'done' && <Alert kind="success">写真も送りました。</Alert>}
+        {upload?.state === 'failed' && (
+          <Alert kind="warn">
+            写真 {upload.failed} 枚を送れませんでした。電波の届く場所で、もう一度送ってください。
+            <div className="button-row" style={{ marginTop: 8 }}><Button onClick={() => void sendPhotos(done.abnormalities, photos)}>写真をもう一度送る</Button></div>
+          </Alert>
         )}
         <div className="done-actions">
-          <Button variant="primary" className="block big" onClick={() => navigate('/scan')}>次の設備の QR を読み取る</Button>
+          <Button variant="primary" className="block big" onClick={() => navigate('/scan')}>次の設備の QR を読む</Button>
           <Button className="block" onClick={() => navigate('/')}>ホームへ</Button>
         </div>
       </div>
@@ -158,36 +175,35 @@ export function InspectPage({ equipmentId }: { equipmentId: string }) {
     <div className="inspect-head">
       <div className="muted small">{eq.equipment_code} ・ {data.date}</div>
       <h1>{eq.name}</h1>
-      {data.inspection?.status !== 'completed' && items.length > 0 && (
-        <div className="progress" aria-label={`${answered} / ${items.length} 項目`}>
-          <div className="progress-bar"><span style={{ width: `${(answered / items.length) * 100}%` }} /></div>
-          <span>{answered} / {items.length}</span>
-        </div>
-      )}
     </div>
   );
 
-  if (eq.status !== 'active') return <>{header}<Alert kind="warn">この設備は{eq.status === 'stopped' ? '停止中' : '廃止'}のため、点検の対象外です。</Alert><Button onClick={() => navigate(`/equipment/${eq.id}`)}>設備の詳細を見る</Button></>;
+  if (eq.status !== 'active') return <>{header}<Alert kind="warn">この設備は{eq.status === 'stopped' ? '停止中' : '廃止'}のため、点検の対象外です。</Alert><Button onClick={() => navigate('/')}>ホームへ</Button></>;
   if (!items.length) return <>{header}<Alert kind="warn">この設備には点検基準が設定されていません。設備担当者または工場長に設定を依頼してください。</Alert></>;
 
-  // ===== 今日の点検が完了済み =====
+  // ===== 今日の点検が済んでいる =====
   if (data.inspection?.status === 'completed') {
     const byItem = new Map(data.results.map((r) => [r.item_id, r]));
     return (
       <>
         {header}
         <Alert kind={data.inspection.overall_result === 'ng' ? 'error' : 'success'}>
-          今回の点検は {data.inspection.inspector_name} さんが {formatTime(data.inspection.completed_at)} に完了しています（{data.inspection.overall_result === 'ng' ? '異常あり' : '異常なし'}）。
+          今回の点検は {data.inspection.inspector_name} さんが {formatTime(data.inspection.completed_at)} に完了しています（{data.inspection.overall_result === 'ng' ? '✕ あり' : 'ぜんぶ ○'}）。
         </Alert>
         <ul className="result-list">
-          {items.map((i) => { const r = byItem.get(i.id); const j = r ? JUDGMENT[r.judgment] : null; return (
-            <li key={i.id}><span>{i.label}</span>{j ? <span className={`badge ${j.cls}`}>{j.label}</span> : <span className="muted">—</span>}{r?.note && <small className="block muted">{r.note}</small>}</li>
-          ); })}
+          {items.map((i) => {
+            const r = byItem.get(i.id);
+            const j = r ? JUDGMENT[r.judgment] : null;
+            return (
+              <li key={i.id}>
+                <span>{i.label}</span>
+                {r && j ? <span className={`badge ${j.cls}`}>{r.judgment === 'ok' ? '○ ' : r.judgment === 'ng' ? '✕ ' : ''}{j.label}</span> : <span className="muted">—</span>}
+                {r?.note && <small className="block muted">{r.note}</small>}
+              </li>
+            );
+          })}
         </ul>
-        <div className="button-row">
-          <Button onClick={() => navigate(`/inspections/${data.inspection!.id}`)}>点検記録を開く</Button>
-          <Button variant="primary" onClick={() => navigate('/scan')}>次の設備の QR を読み取る</Button>
-        </div>
+        <Button variant="primary" className="block big" onClick={() => navigate('/scan')}>次の設備の QR を読む</Button>
       </>
     );
   }
@@ -212,36 +228,35 @@ export function InspectPage({ equipmentId }: { equipmentId: string }) {
 
       {!other && (
         <>
-          <ol className="items">
+          <ol className="ox-list">
             {items.map((it) => {
               const a = answers[it.id];
               const err = itemErrors[`item.${it.id}`];
+              const pics = photos[it.id] ?? [];
               return (
-                <li key={it.id} className={`item-card ${a ? `ans-${a.judgment}` : ''} ${err ? 'has-error' : ''}`}>
-                  <div className="item-head">
-                    <span className="item-label">{it.label}{it.required ? <span className="req">必須</span> : <span className="opt">任意</span>}</span>
-                    {it.group_label && <span className="item-group">{it.group_label}</span>}
+                <li key={it.id} className={`ox-item ${a ? `ans-${a.judgment}` : ''} ${err ? 'has-error' : ''}`}>
+                  <div className="ox-row">
+                    <span className="ox-label">{it.label}{!it.required && <span className="opt">任意</span>}{it.criteria && <small>{it.criteria}</small>}</span>
+                    <span className="ox" role="group" aria-label={`${it.label} の判定`}>
+                      <button type="button" className={`o ${a?.judgment === 'ok' ? 'on' : ''}`} aria-pressed={a?.judgment === 'ok'} disabled={busy} onClick={() => void choose(it, 'ok')} aria-label="○ 正常">○</button>
+                      <button type="button" className={`x ${a?.judgment === 'ng' ? 'on' : ''}`} aria-pressed={a?.judgment === 'ng'} disabled={busy} onClick={() => void choose(it, 'ng')} aria-label="✕ 異常">✕</button>
+                    </span>
                   </div>
-                  {it.criteria && <p className="item-criteria">{it.criteria}</p>}
-                  <div className={`judge ${it.allow_na ? 'three' : ''}`} role="group" aria-label={`${it.label} の判定`}>
-                    <button type="button" className={`j-ok ${a?.judgment === 'ok' ? 'on' : ''}`} aria-pressed={a?.judgment === 'ok'} disabled={busy} onClick={() => void choose(it, 'ok')}>
-                      <span aria-hidden="true">✓</span>正常
+                  {!!it.allow_na && (
+                    <button type="button" className={`na ${a?.judgment === 'na' ? 'on' : ''}`} aria-pressed={a?.judgment === 'na'} disabled={busy} onClick={() => void choose(it, 'na')}>
+                      {a?.judgment === 'na' ? '対象外にしました' : '今日は対象外'}
                     </button>
-                    <button type="button" className={`j-ng ${a?.judgment === 'ng' ? 'on' : ''}`} aria-pressed={a?.judgment === 'ng'} disabled={busy} onClick={() => void choose(it, 'ng')}>
-                      <span aria-hidden="true">✕</span>異常
-                    </button>
-                    {!!it.allow_na && (
-                      <button type="button" className={`j-na ${a?.judgment === 'na' ? 'on' : ''}`} aria-pressed={a?.judgment === 'na'} disabled={busy} onClick={() => void choose(it, 'na')}>
-                        対象外
-                      </button>
-                    )}
-                  </div>
+                  )}
                   {a?.judgment === 'ng' && (
-                    <label className="ng-note">
-                      <span>異常の内容（どこが・どうなっているか）</span>
-                      <textarea rows={2} maxLength={500} value={a.note} placeholder="例: 右側の安全カバーの留め具が外れている"
+                    <div className="memo">
+                      <input type="text" maxLength={200} value={a.note} aria-label={`${it.label} の異常の内容`} placeholder="どこが・どうなっているか（一言）"
                         onChange={(e) => setAnswers((x) => ({ ...x, [it.id]: { judgment: 'ng', note: e.target.value } }))} />
-                    </label>
+                      <label className="memo-photo">
+                        {pics.length ? `写真 ${pics.length}` : '＋ 写真'}
+                        <input type="file" accept="image/*" capture="environment" multiple
+                          onChange={(e) => { const fs = [...(e.target.files ?? [])]; e.target.value = ''; setPhotos((p) => ({ ...p, [it.id]: [...(p[it.id] ?? []), ...fs].slice(0, 5) })); }} />
+                      </label>
+                    </div>
                   )}
                   {err && <p className="field-error">{err}</p>}
                 </li>
@@ -249,16 +264,11 @@ export function InspectPage({ equipmentId }: { equipmentId: string }) {
             })}
           </ol>
 
-          <label className="field">
-            <span className="field-label">全体のコメント（任意）</span>
-            <textarea rows={2} maxLength={1000} value={comment} onChange={(e) => setComment(e.target.value)} />
-          </label>
-
           {inspectionId && <button type="button" className="link" onClick={() => setVoidOpen(true)}>この点検をやめる（取り消す）</button>}
 
           <div className="sticky-action">
             <Button variant="primary" className="block big" disabled={busy || remaining > 0 || !inspectionId} onClick={() => void complete()}>
-              {busy ? '記録しています…' : remaining > 0 ? `必須項目があと ${remaining} 件` : '点検を完了'}
+              {busy ? '送っています…' : remaining > 0 ? `あと ${remaining} 項目` : '送る'}
             </Button>
           </div>
         </>
@@ -270,7 +280,7 @@ export function InspectPage({ equipmentId }: { equipmentId: string }) {
           if (!inspectionId || !dkey) return;
           await apiSend('POST', `/inspections/${inspectionId}/void`, { reason });
           writeDraft(dkey, null);
-          setAnswers({}); setInspectionId(null); setLoadedKey(null); reload();
+          setAnswers({}); setPhotos({}); setInspectionId(null); setLoadedKey(null); reload();
         }} />
     </div>
   );

@@ -4,28 +4,25 @@ import { devLogin } from './helpers';
 
 const isPc = (page: Page) => page.viewportSize()!.width > 900;
 
-test('カード一覧: エリアごとに状態の色と文字で表示し、絞り込みと詳細が使える', async ({ page }) => {
+test('見取り図: 建屋ごとに設備を 3 色（✕ 異常・○ 正常・まだ）で出し、異常は右の欄にも並ぶ', async ({ page }) => {
   await page.goto('./');
   await devLogin(page, '中村 誠');
-  await page.goto('./#/board');
+  // 工場長のホームが見取り図
   const press = page.getByRole('region', { name: 'A棟 プレスライン' });
   await expect(press).toBeVisible();
-  const l07 = page.getByRole('button', { name: /^L-07 NC旋盤 7号 異常あり/ });
+  const l07 = page.getByRole('button', { name: /^L-07 NC旋盤 7号 ✕/ });
   await expect(l07).toBeVisible();
-  await expect(l07).toContainText('異常');
-  await expect(page.getByRole('button', { name: /^K-02 研削盤 2号 停止中/ })).toBeVisible();
-
-  // 「異常あり」で絞り込むと、それ以外は薄くなる
-  await page.getByRole('button', { name: /異常あり/ }).first().click();
-  // 停止中の K-02 は「異常あり」ではないので薄くなる（P-01 などは別のテストで異常に訂正されることがある）
-  await expect(page.getByRole('button', { name: /^K-02 / })).toHaveClass(/dim/);
-  await expect(l07).not.toHaveClass(/dim/);
+  await expect(l07).toHaveClass(/eq-ng/);
+  // 直っていない異常は前の日からでも赤のまま（CR-2 は 3 日前に見つかった）
+  await expect(page.getByRole('button', { name: /^CR-2 チェーンブロック 1t ✕ 3日前から/ })).toBeVisible();
+  // 止めている設備でも、直っていない異常があれば赤のまま
+  await expect(page.getByRole('button', { name: /^K-02 研削盤 2号 ✕/ })).toBeVisible();
+  await expect(page.getByRole('complementary', { name: '直っていない異常' })).toContainText('CR-2');
 
   await l07.click();
-  const drawer = page.getByRole('dialog', { name: 'L-07 NC旋盤 7号' });
-  await expect(drawer).toBeVisible();
-  await expect(drawer.getByRole('button', { name: '今日の点検記録' })).toBeVisible();
-  await expect(page.getByText('直近30日の集計')).toBeVisible();
+  const side = page.getByRole('complementary', { name: 'L-07 の詳細' });
+  await expect(side).toBeVisible();
+  await expect(side.getByRole('link', { name: 'この設備の記録・台帳を見る' })).toBeVisible();
 });
 
 test('カード一覧の自動更新は、画面を見ていない間は止まり、戻ると読み直す', async ({ page }) => {
@@ -39,21 +36,21 @@ test('カード一覧の自動更新は、画面を見ていない間は止ま�
   await page.clock.install();
   await page.goto('./');
   await devLogin(page, '中村 誠');
+  // 工場長のホームは見取り図。最初の読み込みが終わってから数え始める
+  await expect(page.getByRole('region', { name: 'A棟 プレスライン' })).toBeVisible();
   let calls = 0;
   let pending = 0;
   const isBoard = (u: string) => u.includes('/api/board?');
   page.on('request', (r) => { if (isBoard(r.url())) { calls++; pending++; } });
   page.on('requestfinished', (r) => { if (isBoard(r.url())) pending--; });
   page.on('requestfailed', (r) => { if (isBoard(r.url())) pending--; });
-  await page.goto('./#/board');
-  await expect(page.getByRole('region', { name: 'A棟 プレスライン' })).toBeVisible();
   const setHidden = (hidden: boolean) => page.evaluate((h) => {
     (window as unknown as { __hidden: boolean }).__hidden = h;
     document.dispatchEvent(new Event('visibilitychange'));
   }, hidden);
 
   await page.clock.runFor(31_000);
-  await expect.poll(() => calls).toBeGreaterThanOrEqual(2);  // 最初の読み込み＋30秒後の更新
+  await expect.poll(() => calls).toBeGreaterThanOrEqual(1);  // 30秒後の更新
   await expect.poll(() => pending).toBe(0);  // 通信中のまま時計を進めると、タイムアウト扱いの再試行が起きるので待つ
 
   await setHidden(true);
@@ -135,12 +132,12 @@ test('操作の記録に CSV の出力が残り、システム設定を変更で
   await expect(page.locator('tbody')).toContainText('設定の変更');
 });
 
-test('一般社員には CSV・帳票と管理の入口がなく、カード一覧は見られる', async ({ page }) => {
+test('一般社員には CSV・帳票と管理の入口がなく、見取り図は見られる（配置の編集はできない）', async ({ page }) => {
   await page.goto('./');
   await devLogin(page, '山本 健');
   await page.goto('./#/reports');
   await expect(page.getByText('この画面を開く権限がありません')).toBeVisible();
   await page.goto('./#/board');
-  await expect(page.getByRole('heading', { name: /カード一覧/ })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'A棟 プレスライン' })).toBeVisible();
   await expect(page.getByRole('button', { name: '配置を編集' })).toHaveCount(0);
 });

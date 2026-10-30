@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { SPACE_APPS_URL, isStandalone } from '../auth/session';
 import { Logo } from './Logo';
 
-/** ログイン後の外枠。PC は左のメニュー、スマホは上のメニュー（開閉） */
+/** ログイン後の外枠。上の帯と、右から出るメニュー（PC・スマホ共通。常設のメニューは置かない） */
 
 interface NavItem { to: string; label: string; icon: ReactNode; action?: Action }
 
@@ -27,17 +27,20 @@ const I = {
   device: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2" /><path d="M11 18h2" /></svg>,
 };
 
+/**
+ * メニューの中身（2026-10-31 簡単化。requirements §10 Q-15）。ふだん使う画面はホームだけで、
+ * それ以外（設定・記録）は「メニュー」の中に入れる。一般社員は点検に使うものだけ。
+ */
 const NAV: NavItem[] = [
   { to: '/', label: 'ホーム', icon: I.home },
-  { to: '/board', label: 'カード一覧', icon: I.grid, action: 'board.view' },
-  { to: '/scan', label: 'QRを読み取る', icon: I.scan, action: 'inspection.perform' },
-  { to: '/abnormalities', label: '異常・是正処置', icon: I.warn, action: 'abnormality.report' },
-  { to: '/equipment', label: '設備台帳', icon: I.tool, action: 'equipment.view' },
-  { to: '/inspections', label: '点検履歴・検索', icon: I.search, action: 'inspection.viewOwn' },
+  { to: '/scan', label: 'QR を読む', icon: I.scan, action: 'inspection.perform' },
+  { to: '/inspections', label: '点検の記録', icon: I.search, action: 'inspection.viewOwn' },
+  { to: '/abnormalities', label: '異常の記録', icon: I.warn, action: 'abnormality.resolve' },
   { to: '/reports', label: 'CSV・帳票', icon: I.file, action: 'export' },
+  { to: '/equipment', label: '設備台帳', icon: I.tool, action: 'qr.issue' },
   { to: '/templates', label: '点検基準', icon: I.list, action: 'template.edit' },
   { to: '/qr', label: 'QRラベル印刷', icon: I.qr, action: 'qr.issue' },
-  { to: '/admin/factories', label: '工場・エリア', icon: I.factory, action: 'layout.edit' },
+  { to: '/admin/factories', label: '工場・建屋', icon: I.factory, action: 'layout.edit' },
   { to: '/admin/users', label: 'ユーザー管理', icon: I.user, action: 'users.manage' },
   { to: '/admin/audit', label: '操作の記録', icon: I.eye, action: 'audit.view' },
   { to: '/admin/settings', label: 'システム設定', icon: I.gear, action: 'settings.manage' },
@@ -62,31 +65,31 @@ export function Layout({ path, children }: { path: string; children: ReactNode }
           <span className="header-role">{me?.user.roleLabel ?? 'ロール未設定'}</span>
         </div>
         <button type="button" className="menu-toggle" aria-expanded={open} aria-controls="nav" onClick={() => setOpen((o) => !o)}>
-          {open ? '閉じる' : 'メニュー'}
+          <span aria-hidden="true">≡</span> メニュー
         </button>
       </header>
-      <div className="shell-body">
-        <nav id="nav" className={`side-nav ${open ? 'open' : ''}`} aria-label="メニュー">
-          {items.map((n) => (
-            <a key={n.to} href={`#${n.to}`} className={active(n.to) ? 'on' : ''} aria-current={active(n.to) ? 'page' : undefined} onClick={() => setOpen(false)}>
-              {n.icon}<span>{n.label}</span>
-            </a>
-          ))}
-          <div className="sidebar-bottom">
-            <div className="sidebar-user">
-              <span className="sidebar-avatar" aria-hidden="true">{me?.user.name.charAt(0)}</span>
-              <span className="sidebar-user-info">
-                <span className="sidebar-user-name">{me?.user.name}</span>
-                <span className="sidebar-user-role">{me?.user.roleLabel ?? 'ロール未設定'}</span>
-              </span>
-            </div>
-            {standalone
-              ? <button type="button" className="btn-sidebar-back" onClick={() => void logout()}>{I.logout}<span>ログアウト</span></button>
-              : <a href={SPACE_APPS_URL} className="btn-sidebar-back">{I.back}<span>アプリ選択に戻る</span></a>}
+      {open && <div className="nav-bg" onClick={() => setOpen(false)} aria-hidden="true" />}
+      <nav id="nav" className={`side-nav ${open ? 'open' : ''}`} aria-label="メニュー">
+        <button type="button" className="nav-close" onClick={() => setOpen(false)}>閉じる</button>
+        {items.map((n) => (
+          <a key={n.to} href={`#${n.to}`} className={active(n.to) ? 'on' : ''} aria-current={active(n.to) ? 'page' : undefined} onClick={() => setOpen(false)}>
+            {n.icon}<span>{n.label}</span>
+          </a>
+        ))}
+        <div className="sidebar-bottom">
+          <div className="sidebar-user">
+            <span className="sidebar-avatar" aria-hidden="true">{me?.user.name.charAt(0)}</span>
+            <span className="sidebar-user-info">
+              <span className="sidebar-user-name">{me?.user.name}</span>
+              <span className="sidebar-user-role">{me?.user.roleLabel ?? 'ロール未設定'}</span>
+            </span>
           </div>
-        </nav>
-        <main className="content">{children}</main>
-      </div>
+          {standalone
+            ? <button type="button" className="btn-sidebar-back" onClick={() => void logout()}>{I.logout}<span>ログアウト</span></button>
+            : <a href={SPACE_APPS_URL} className="btn-sidebar-back">{I.back}<span>アプリ選択に戻る</span></a>}
+        </div>
+      </nav>
+      <main className={`content ${path === '/' || path === '/board' ? 'wide' : ''}`}>{children}</main>
     </div>
   );
 }

@@ -1,127 +1,67 @@
-import { useState } from 'react';
-import { BOARD_STATUS_LABELS, type BoardStatus } from '@tenq/shared';
+import { lazy, Suspense, useState } from 'react';
+import { simpleStatus, type BoardStatus } from '@tenq/shared';
 import { apiGet } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, Button, Loading, PageHeader, useLoad } from '../components/ui';
-import { formatTime } from '../labels';
+import { Alert, Loading, useLoad } from '../components/ui';
 import { navigate } from '../router';
 
-interface BoardItem {
-  id: string; equipment_code: string; name: string; board_status: BoardStatus; manager_name: string | null; open_abnormalities: number;
-  inspection: null | { id: string; inspector_name: string; completed_at: string | null; started_at: string };
-}
-interface Board { factory: { id: string; name: string }; date: string; workingDay: boolean; lateThreshold: string; items: BoardItem[]; counts: Partial<Record<BoardStatus, number>> }
+const BoardPage = lazy(() => import('./BoardPage').then((m) => ({ default: m.BoardPage })));
 
-/** 先に片付けるものから並べる */
-const ORDER: BoardStatus[] = ['late', 'doing', 'todo', 'ng', 'ok', 'stop'];
+interface BoardItem { id: string; equipment_code: string; name: string; board_status: BoardStatus; open_abnormalities: number }
+interface Board { factory: { id: string; name: string }; date: string; workingDay: boolean; items: BoardItem[] }
 
 /**
- * ホーム（S-02）。スマホでは「QR を読む」と今日の未点検の一覧。
- * PC のエリア別カード一覧は第6段階で追加する。
+ * ホーム（2026-10-31 簡単化。requirements §10 Q-15）。
+ * 一般社員 = 「QR を読む」の大きなボタンと「あと N 台」だけ。それ以外のロール = 工場の見取り図（BoardPage）。
  */
 export function HomePage() {
-  const { me, can } = useAuth();
-  const [factoryId, setFactoryId] = useState(me?.factories[0]?.id ?? '');
-  const board = useLoad(() => (factoryId ? apiGet<Board>(`/board?factory=${encodeURIComponent(factoryId)}`) : Promise.resolve(null)), [factoryId]);
-  const [showDone, setShowDone] = useState(false);
-  const abn = useLoad(() => (me?.user.role ? apiGet<Record<string, number>>('/abnormalities/summary') : Promise.resolve(null)), [me?.user.role]);
+  const { me } = useAuth();
   if (!me) return null;
-  // 自分が動く必要のある異常（担当・期限超過・再確認待ち・承認待ち）
-  const todo = abn.data ? [
-    { n: abn.data.mine ?? 0, label: 'あなたが担当の異常', view: 'mine', cls: 'st-doing', show: true },
-    { n: abn.data.overdue ?? 0, label: '期限を過ぎた異常', view: 'overdue', cls: 'st-late', show: can('abnormality.assign') },
-    { n: abn.data.unhandled ?? 0, label: '担当が決まっていない・未着手の異常', view: 'unhandled', cls: 'st-ng', show: can('abnormality.assign') },
-    { n: abn.data.to_verify ?? 0, label: '再確認を待っている異常', view: 'corrected', cls: 'st-doing', show: can('abnormality.assign') },
-    { n: abn.data.to_approve ?? 0, label: '承認を待っている異常', view: 'verified', cls: 'st-ok', show: can('abnormality.approve') },
-  ].filter((x) => x.show && x.n > 0) : [];
-
-  const items = [...(board.data?.items ?? [])].sort((a, b) => ORDER.indexOf(a.board_status) - ORDER.indexOf(b.board_status) || a.equipment_code.localeCompare(b.equipment_code));
-  const pending = items.filter((i) => ['late', 'doing', 'todo'].includes(i.board_status));
-  const finished = items.filter((i) => ['ok', 'ng'].includes(i.board_status));
-  const c = board.data?.counts ?? {};
-  const target = items.filter((i) => i.board_status !== 'stop').length;
-
-  return (
-    <>
-      <PageHeader title={`${me.user.name} さん`} sub={`${me.user.roleLabel ?? 'ロール未設定'}${board.data ? ` ・ ${board.data.factory.name} ・ ${board.data.date}` : ''}`} />
-      {!me.user.role && <Alert kind="warn">TENQ のロール（一般社員・設備担当者など）がまだ設定されていません。システム管理者に設定を依頼してください。</Alert>}
-      {me.user.role && me.factories.length === 0 && <Alert kind="warn">所属工場が設定されていません。システム管理者に設定を依頼してください。</Alert>}
-
-      {me.factories.length > 0 && (
-        <>
-          <Button variant="primary" className="block big scan-button" onClick={() => navigate('/scan')}>QR を読み取って点検</Button>
-
-          {todo.length > 0 && (
-            <ul className="abn-todo" aria-label="対応が必要な異常">
-              {todo.map((t) => (
-                <li key={t.view}><a href={`#/abnormalities?view=${t.view}`} className={t.cls}><b>{t.n}</b><span>{t.label}</span></a></li>
-              ))}
-            </ul>
-          )}
-
-          {me.factories.length > 1 && (
-            <div className="filters">
-              <select aria-label="工場" value={factoryId} onChange={(e) => setFactoryId(e.target.value)}>
-                {me.factories.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
-            </div>
-          )}
-
-          {board.error && <Alert kind="error">{board.error}</Alert>}
-          {board.loading && !board.data ? <Loading /> : board.data && (
-            <>
-              <div className="today-stats" aria-label="今日の点検状況">
-                <div><b>{target}</b><span>対象</span></div>
-                <div className="st-ok"><b>{(c.ok ?? 0) + (c.ng ?? 0)}</b><span>完了</span></div>
-                <div className="st-late"><b>{(c.late ?? 0) + (c.todo ?? 0) + (c.doing ?? 0)}</b><span>未点検</span></div>
-                <div className="st-ng"><b>{c.ng ?? 0}</b><span>異常あり</span></div>
-              </div>
-              {!board.data.workingDay && <Alert kind="info">今日は稼働日ではありません（毎日点検の設備は対象外です）。</Alert>}
-
-              <h2 className="section-title">まだ終わっていない点検（{pending.length}）</h2>
-              {pending.length === 0 ? <p className="empty">今日の点検はすべて終わりました。</p> : (
-                <ul className="today-list">
-                  {pending.map((i) => <TodayRow key={i.id} item={i} />)}
-                </ul>
-              )}
-
-              <button type="button" className="link" onClick={() => setShowDone((s) => !s)} aria-expanded={showDone}>
-                {showDone ? '完了した点検を隠す' : `完了した点検を見る（${finished.length}）`}
-              </button>
-              {showDone && <ul className="today-list">{finished.map((i) => <TodayRow key={i.id} item={i} />)}</ul>}
-            </>
-          )}
-        </>
-      )}
-
-      <div className="tiles">
-        {can('board.view') && <a className="tile" href="#/board"><b>カード一覧</b><span>エリアごとに今日の点検状況を色で表示（PC 向け）</span></a>}
-        {can('export') && <a className="tile" href="#/reports"><b>CSV・帳票</b><span>点検記録・異常・設備台帳の出力、月間点検表、ISO 監査向けの一覧</span></a>}
-        {can('equipment.view') && <a className="tile" href="#/equipment"><b>設備台帳</b><span>設備の一覧・詳細・点検の履歴</span></a>}
-        {can('template.edit') && <a className="tile" href="#/templates"><b>点検基準</b><span>点検項目と判定基準（版の管理）</span></a>}
-        {can('qr.issue') && <a className="tile" href="#/qr"><b>QRラベル印刷</b><span>A4 に面付けして印刷</span></a>}
-      </div>
-    </>
-  );
+  if (!me.user.role) return <Alert kind="warn">TENQ のロール（一般社員・設備担当者など）がまだ設定されていません。システム管理者に設定を依頼してください。</Alert>;
+  if (me.factories.length === 0) return <Alert kind="warn">所属工場が設定されていません。システム管理者に設定を依頼してください。</Alert>;
+  if (me.user.role !== 'worker') return <Suspense fallback={<Loading />}><BoardPage /></Suspense>;
+  return <WorkerHome />;
 }
 
-function TodayRow({ item }: { item: BoardItem }) {
-  const st = BOARD_STATUS_LABELS[item.board_status];
-  const done = item.board_status === 'ok' || item.board_status === 'ng';
-  const href = done && item.inspection ? `#/inspections/${item.inspection.id}` : `#/inspect/${item.id}`;
+function WorkerHome() {
+  const { me } = useAuth();
+  const [factoryId, setFactoryId] = useState(me?.factories[0]?.id ?? '');
+  const board = useLoad(() => apiGet<Board>(`/board?factory=${encodeURIComponent(factoryId)}`), [factoryId]);
+  const [showLeft, setShowLeft] = useState(false);
+  if (!me) return null;
+  const left = (board.data?.items ?? []).filter((i) => simpleStatus(i.board_status, i.open_abnormalities) === 'todo')
+    .sort((a, b) => a.equipment_code.localeCompare(b.equipment_code));
+
   return (
-    <li>
-      <a href={href} className={`today-row st-${item.board_status}`}>
-        <span className="today-code">{item.equipment_code}</span>
-        <span className="today-name">{item.name}
-          <small>
-            {item.inspection && (done ? `${formatTime(item.inspection.completed_at)} ${item.inspection.inspector_name}` : `${item.inspection.inspector_name} さんが点検中`)}
-            {!item.inspection && item.manager_name && `担当: ${item.manager_name}`}
-            {item.open_abnormalities > 0 && <span className="abn-flag">未対応の異常 {item.open_abnormalities}</span>}
-          </small>
-        </span>
-        <span className={`badge st-${item.board_status}`}>{st.short}</span>
-      </a>
-    </li>
+    <div className="worker-home">
+      <p className="worker-hello">{me.user.name} さん{board.data && <> ・ {board.data.factory.name} ・ {board.data.date}</>}</p>
+      {me.factories.length > 1 && (
+        <select aria-label="工場" value={factoryId} onChange={(e) => setFactoryId(e.target.value)}>
+          {me.factories.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+        </select>
+      )}
+      <button type="button" className="scan-big" onClick={() => navigate('/scan')}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M4 12h16" /></svg>
+        <span>QR を読む</span>
+        <small>設備に貼ってある QR にカメラを向けます</small>
+      </button>
+
+      {board.error && <Alert kind="error">{board.error}</Alert>}
+      {board.data && (
+        <div className="worker-left">
+          {left.length === 0 ? <p>{board.data.workingDay ? <><b className="all-done">○</b>今日の点検はぜんぶ終わりました</> : '今日は稼働日ではありません'}</p> : (
+            <>
+              <p>今日の点検 あと<b>{left.length}</b>台</p>
+              <button type="button" className="link" aria-expanded={showLeft} onClick={() => setShowLeft((s) => !s)}>{showLeft ? '閉じる' : 'まだの設備を見る'}</button>
+              {showLeft && (
+                <ul className="left-list">
+                  {left.map((i) => <li key={i.id}><a href={`#/inspect/${i.id}`}><b>{i.equipment_code}</b> {i.name}</a></li>)}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
