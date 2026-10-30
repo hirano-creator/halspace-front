@@ -146,6 +146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initAaPostModal();
   initOfficeEditBack();
   initAnnotMode();
+  initPhotoSave();     /* ダウンロードをメニュー化するので initDetailMenus より前 */
   initDetailMenus();   /* 各ボタンの表示条件が決まった後に呼ぶ（変換可否などを見るため） */
 });
 
@@ -2389,7 +2390,11 @@ function initActions() {
     else wnShowToast('プレビューを開けませんでした', 'danger');
   });
 
-  document.getElementById('downloadBtn').addEventListener('click', () => wnDownload(fileId));
+  /* 写真に保存できるとき（initPhotoSave）は、ダウンロードはメニューを開くだけ */
+  document.getElementById('downloadBtn').addEventListener('click', e => {
+    if (e.currentTarget.hasAttribute('data-fd-menu')) return;
+    wnDownload(fileId);
+  });
 
   document.getElementById('emailShareBtn')?.addEventListener('click', () => {
     openEmailModal(fileId, fileData?.file_name ?? '');
@@ -3488,6 +3493,72 @@ async function uploadEditedVersion(file) {
     drop.classList.remove('is-busy');
     prog.style.display = 'none';
   }
+}
+
+/* ─────────────────────────────────
+   写真に保存（iPhone・iPad）
+   ブラウザから写真アプリへ直接は書けないので、共有シート（Web Share API）にファイルを渡し、
+   利用者に「画像を保存」「ビデオを保存」を押してもらう。
+   iOS は「押した直後」でないと共有シートを開かせないため、ダウンロードのメニューを開いた時点で
+   ファイルを読み込んでおき、「写真に保存」を押したら待たずに共有シートを開く。
+   大きな動画はブラウザのメモリに乗り切らないので上限を設ける（超えたら従来のダウンロードのみ）
+   ───────────────────────────────── */
+const PHOTO_SAVE_MAX_BYTES = 100 * 1024 * 1024;
+const PHOTO_SAVE_TYPES = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
+  heic: 'image/heic', heif: 'image/heif', mp4: 'video/mp4', m4v: 'video/x-m4v', mov: 'video/quicktime',
+};
+
+function wnIsIosDevice() {
+  return /iPhone|iPad|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);   /* iPadOS は Mac を名乗る */
+}
+
+function initPhotoSave() {
+  const ext  = (fileData?.file_name || '').split('.').pop().toLowerCase();
+  const type = PHOTO_SAVE_TYPES[ext];
+  if (!type || !wnIsIosDevice() || typeof navigator.canShare !== 'function') return;
+  if ((fileData.file_size ?? 0) > PHOTO_SAVE_MAX_BYTES) return;
+  if (!navigator.canShare({ files: [new File([''], 'x.' + ext, { type })] })) return;
+
+  const isVideo = type.startsWith('video/');
+  const dlBtn = document.getElementById('downloadBtn');
+  const btn   = document.getElementById('savePhotoBtn');
+  const desc  = document.getElementById('savePhotoDesc');
+  const readyText = `次の画面で「${isVideo ? 'ビデオを保存' : '画像を保存'}」を押してください`;
+  dlBtn.setAttribute('data-fd-menu', '');   /* initDetailMenus がメニューの開閉を受け持つ */
+  dlBtn.dataset.tip = '写真アプリ・ファイルに保存';
+
+  let file = null;
+  let loading = false;
+  const prepare = async () => {
+    if (file || loading) return;
+    loading = true;
+    btn.disabled = true;
+    desc.textContent = '準備しています…';
+    const buf = await wnFetchFileBuffer(fileId, {
+      timeoutMs: 300000,
+      onProgress: p => { desc.textContent = `準備しています… ${p}%`; },
+    });
+    loading = false;
+    if (!buf) { desc.textContent = '準備できませんでした。もう一度メニューを開くか「ファイルに保存」をお使いください'; return; }
+    file = new File([buf], fileData.file_name, { type });
+    btn.disabled = false;
+    desc.textContent = readyText;
+  };
+  dlBtn.addEventListener('click', prepare);
+
+  btn.addEventListener('click', async () => {
+    if (!file) return;
+    try {
+      await navigator.share({ files: [file] });
+    } catch (e) {
+      if (e?.name === 'AbortError') return;   /* 共有シートを閉じただけ */
+      console.error('photo save share error:', e);
+      wnShowToast('写真アプリに保存できませんでした。「ファイルに保存」をお使いください', 'danger');
+    }
+  });
+  document.getElementById('saveFileBtn').addEventListener('click', () => wnDownload(fileId));
 }
 
 /* ─────────────────────────────────
