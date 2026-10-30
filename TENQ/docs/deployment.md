@@ -64,6 +64,7 @@ Space.app のアプリ一覧に TENQ を出す変更（`space/assets/js/space.js
 
 | 日付 | コミット | Worker 非圧縮 | gzip（参考） | 画面 初回 JS gzip | 備考 |
 | --- | --- | --- | --- | --- | --- |
+| 2026-10-31 | 63151af | 217.98 KiB | 50.84 KiB | 76.13 KiB | 画面のかんたん化（見取り図・○✕ の点検表）。依存の追加なし |
 | 2026-10-22 | 第6段階 | 212.07 KiB | 49.18 KiB | 75.87 KiB | 帳票・集計・CSV は画面ごとに分割 |
 | 2026-10-22 | 第5段階 | 181.49 KiB | 42.41 KiB | 75.01 KiB | 写真は Worker で変換せず、そのまま R2 へ（縮小は端末側） |
 | 2026-10-22 | 第4段階 | 155.20 KiB | 36.55 KiB | 74.54 KiB | jsQR（QR 読み取り）は読み取り画面でブラウザに機能がないときだけ読み込む |
@@ -128,3 +129,11 @@ Space.app のアプリ一覧に TENQ を出す変更（`space/assets/js/space.js
 
 - 本番 D1 に `0003_factory_read_indexes.sql` を適用（インデックス 4 つ。データは変わらない）→ 本番 API を再デプロイ（ISO 監査一覧の SQL）→ main に push（a124171。メニュー下部を Space.app のアプリ共通の形に）
 - 確認: インデックス 4 つが本番 DB にある、`/api/health` が production、開発用ログインは 401、Pages の Production 行が a124171、本番の画面に「アプリ選択に戻る」があり開発用ログインはない
+
+### 9-4. 画面のかんたん化の反映（2026-10-31）
+
+- 内容: 作業者は「QR → ○✕ → 送る」、管理者のホームは工場の見取り図（PC 画面 A 案）、異常は「異常あり → 直した」の 1 ステップ（requirements §10 Q-5・Q-15）。マイグレーションなし
+- wrangler のログイン先が別のアカウント（wsk6611…）になっていた。ブラウザのダッシュボードを切り替えてから `wrangler logout` → `wrangler login` で h.hirano@hirano50.com（7636dc0b…）に戻した。**`whoami` の確認を省かない**
+- 本番 DB の復元地点（念のため）: bookmark `00000012-00000000-00005114-d4614fbcfe936d4212071aef00a65587`
+- 本番 API を再デプロイ（Version ddf61284）→ main に cherry-pick して push（dbc93f8。前回の記録 c81ae65 も同時に main へ）
+- 確認: `/api/health` が production、開発用ログインは 401、Pages の本番の画面が今回のビルド（index-CAxSgdH6.js）、Production 行が dbc93f8
