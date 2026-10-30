@@ -200,7 +200,7 @@ abnormalityRoutes.get('/abnormalities/:id', async (c) => {
   });
 });
 
-/** 状態の遷移。担当・期限、着手、是正の記録、再確認、差し戻し、承認 */
+/** 状態の遷移。直した（ふだんはこれだけ）、担当・期限、着手、是正の記録、再確認、差し戻し、承認 */
 abnormalityRoutes.post('/abnormalities/:id/transition', async (c) => {
   const auth = c.get('auth');
   const a = await loadScoped(c, c.req.param('id'));
@@ -227,6 +227,7 @@ abnormalityRoutes.post('/abnormalities/:id/transition', async (c) => {
   const vals: unknown[] = [to];
   const extra: D1PreparedStatement[] = [];
   let comment: string | null;
+  let correctiveId: string | null = null;
   const detail: Record<string, unknown> = { action, from: a.status, to };
 
   if (action === 'assign') {
@@ -267,19 +268,21 @@ abnormalityRoutes.post('/abnormalities/:id/transition', async (c) => {
     const resume = body.resume_equipment === true;
     v.done();
     sets.push('approved_by = ?', 'approved_at = ?'); vals.push(auth.user.id, now);
-    // 異常で止めていた設備を、承認と同時に稼働へ戻す（停止の権限がある人だけ）
-    if (resume) {
-      const eq = await db.prepare('SELECT status, manager_user_id FROM equipment WHERE id = ?').bind(a.equipment_id).first<{ status: string; manager_user_id: string | null }>();
-      if (eq?.status === 'stopped' && can(auth.actor, 'equipment.stop', { factoryId: a.factory_id, equipmentManagerId: eq.manager_user_id })) {
-        extra.push(
-          db.prepare(`UPDATE equipment SET status = 'active', status_reason = NULL, updated_at = ?, updated_by = ?, version = version + 1
-                      WHERE id = ? AND status = 'stopped' AND EXISTS (SELECT 1 FROM abnormalities WHERE id = ? AND version = ?)`).bind(now, auth.user.id, a.equipment_id, a.id, version + 1),
-          auditStatement(c, { action: 'equipment.resume', targetType: 'equipment', targetId: a.equipment_id, factoryId: a.factory_id, detail: { reason: `異常 ${a.report_no} の完了` } },
-            { sql: 'SELECT 1 FROM abnormalities WHERE id = ? AND version = ?', params: [a.id, version + 1] }),
-        );
-        detail.resumed = true;
-      }
-    }
+    if (resume) extra.push(...await resumeEquipment(c, a, version, now, detail));
+  } else if (action === 'resolve') {
+    // 「直した」: 何をして直したかを是正処置として残し、そのまま完了にする（別の人の確認はしない。requirements §10 Q-5）
+    const description = v.str('description', { required: true, max: 500, label: '何をして直したか' });
+    const resume = body.resume_equipment === true;
+    v.done();
+    const done = localDate(new Date(), a.timezone);
+    sets.push('corrected_date = ?'); vals.push(done);
+    correctiveId = newId();
+    extra.push(db.prepare(`INSERT INTO corrective_actions (id, abnormality_id, kind, cause, description, performed_by, performed_at, created_at, created_by, updated_at)
+                           SELECT ?, ?, 'permanent', NULL, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM abnormalities WHERE id = ? AND version = ?)`)
+      .bind(correctiveId, a.id, description, auth.user.id, done, now, auth.user.id, now, a.id, version + 1));
+    if (resume) extra.push(...await resumeEquipment(c, a, version, now, detail));
+    comment = description!.slice(0, 200);
+    Object.assign(detail, { description });
   } else {
     comment = v.str('comment', { max: 500, label: 'コメント' }) ?? null;
     v.done();
@@ -295,5 +298,20 @@ abnormalityRoutes.post('/abnormalities/:id/transition', async (c) => {
     auditStatement(c, { action: `abnormality.${action}`, targetType: 'abnormality', targetId: a.id, factoryId: a.factory_id, detail: { report_no: a.report_no, ...detail, comment } }, guard),
   ]);
   if (!upd?.meta.changes) throw conflict();
-  return c.json({ status: to, version: version + 1 });
+  return c.json({ status: to, version: version + 1, correctiveActionId: correctiveId });
 });
+
+/** 異常で止めていた設備を、完了と同時に稼働へ戻す文（停止の権限がある人だけ。異常の更新が効いたときだけ実行される） */
+async function resumeEquipment(c: Context<AppEnv>, a: AbnormalityRow, version: number, now: string, detail: Record<string, unknown>): Promise<D1PreparedStatement[]> {
+  const auth = c.get('auth');
+  const db = c.env.DB;
+  const eq = await db.prepare('SELECT status, manager_user_id FROM equipment WHERE id = ?').bind(a.equipment_id).first<{ status: string; manager_user_id: string | null }>();
+  if (eq?.status !== 'stopped' || !can(auth.actor, 'equipment.stop', { factoryId: a.factory_id, equipmentManagerId: eq.manager_user_id })) return [];
+  detail.resumed = true;
+  return [
+    db.prepare(`UPDATE equipment SET status = 'active', status_reason = NULL, updated_at = ?, updated_by = ?, version = version + 1
+                WHERE id = ? AND status = 'stopped' AND EXISTS (SELECT 1 FROM abnormalities WHERE id = ? AND version = ?)`).bind(now, auth.user.id, a.equipment_id, a.id, version + 1),
+    auditStatement(c, { action: 'equipment.resume', targetType: 'equipment', targetId: a.equipment_id, factoryId: a.factory_id, detail: { reason: `異常 ${a.report_no} の完了` } },
+      { sql: 'SELECT 1 FROM abnormalities WHERE id = ? AND version = ?', params: [a.id, version + 1] }),
+  ];
+}

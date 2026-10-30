@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TENQ かんたん化 3案</title>
+<style>
+:root {
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  --bg: #EEF1F5; --card: #fff; --ink: #1B2430; --sub: #5F6B7A; --line: #E1E6EC; --line-strong: #C9D1DB;
+  --accent: #1F5FD1; --accent-lt: #E8F0FD;
+  --st-ok: #15803D;   --st-ok-lt: #DCFCE7;
+  --st-ng: #DC2626;   --st-ng-lt: #FEE2E2;
+  --st-doing: #2563EB; --st-doing-lt: #DBEAFE;
+  --st-late: #D97706; --st-late-lt: #FEF3C7;
+  --st-todo: #64748B; --st-todo-lt: #F1F5F9;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.6; }
+button { font: inherit; cursor: pointer; }
+
+/* ===== ページの枠 ===== */
+.top { position: sticky; top: 0; z-index: 30; background: #fff; border-bottom: 1px solid var(--line); padding: 16px 24px 0; }
+.top h1 { margin: 0; font-size: 20px; }
+.top p { margin: 2px 0 10px; font-size: 13px; color: var(--sub); }
+.tabs { display: flex; gap: 4px; overflow-x: auto; }
+.tabs button { border: 1px solid var(--line); border-bottom: 0; background: #F6F8FA; color: var(--sub); padding: 8px 16px; border-radius: 8px 8px 0 0; white-space: nowrap; font-size: 14px; }
+.tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 80px; }
+section.view { display: none; }
+section.view.on { display: block; }
+h2.h { font-size: 22px; margin: 0 0 4px; }
+.lead { color: var(--sub); margin: 0 0 20px; }
+h3.h { font-size: 17px; margin: 28px 0 10px; }
+.box { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; }
+.box h4 { margin: 0 0 6px; font-size: 15px; }
+.box p, .box li { font-size: 14px; }
+.box ul { margin: 6px 0 0; padding-left: 20px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.tag { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 1px 9px; margin-right: 4px; vertical-align: 1px; }
+.t-ng { background: var(--st-ng-lt); color: var(--st-ng); }
+.t-late { background: var(--st-late-lt); color: #9A5300; }
+.t-ok { background: var(--st-ok-lt); color: var(--st-ok); }
+.t-doing { background: var(--st-doing-lt); color: var(--st-doing); }
+.t-todo { background: var(--st-todo-lt); color: var(--st-todo); }
+table.cmp { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 14px; }
+table.cmp th, table.cmp td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+table.cmp th { background: #F7F9FB; color: var(--sub); white-space: nowrap; }
+table.cmp tr:last-child td { border-bottom: 0; }
+.shot { width: 100%; max-width: 300px; border: 1px solid var(--line); border-radius: 8px; display: block; }
+.concept { background: var(--accent-lt); border: 0; }
+.concept b { color: var(--accent); }
+.note { font-size: 13px; color: var(--sub); }
+.warn-box { background: #FFFBEB; border-color: #F5D58A; }
+
+/* ===== モック: スマホ ===== */
+.stage { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; justify-content: center; margin: 12px 0 8px; }
+.mock-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.mock-cap { font-size: 13px; font-weight: 700; color: var(--sub); text-align: center; max-width: 340px; }
+.phone { width: 340px; height: 680px; border: 10px solid #1B2430; border-radius: 36px; background: #F5F7FA; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 12px 30px rgba(15,23,42,.18); position: relative; }
+.ph-top { background: #fff; border-bottom: 1px solid var(--line); padding: 10px 14px; display: flex; align-items: center; gap: 8px; min-height: 52px; }
+.ph-top .logo { font-weight: 900; letter-spacing: .08em; color: var(--accent); }
+.ph-top .sub { margin-left: auto; font-size: 12px; color: var(--sub); text-align: right; line-height: 1.3; }
+.ph-top .back { border: 0; background: none; font-size: 20px; width: 36px; height: 36px; padding: 0; color: var(--sub); }
+.ph-body { flex: 1; overflow-y: auto; padding: 14px; }
+.ph-tabbar { display: grid; grid-template-columns: repeat(4, 1fr); background: #fff; border-top: 1px solid var(--line); padding: 4px 4px 10px; align-items: end; }
+.ph-tabbar button { border: 0; background: none; color: var(--sub); font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 48px; justify-content: center; }
+.ph-tabbar button.on { color: var(--accent); font-weight: 700; }
+.ph-tabbar .ico { font-size: 20px; line-height: 1; }
+.ph-tabbar .qr { background: var(--accent); color: #fff; border-radius: 18px; margin: -18px 4px 0; min-height: 62px; font-weight: 700; box-shadow: 0 6px 14px rgba(31,95,209,.35); }
+.ph-tabbar .qr .ico { font-size: 24px; }
+.ph-tabbar.three { grid-template-columns: repeat(3, 1fr); }
+
+.hello { font-size: 13px; color: var(--sub); margin: 0 0 2px; }
+.big-title { font-size: 21px; font-weight: 800; margin: 0 0 12px; line-height: 1.3; }
+.sec { font-size: 13px; font-weight: 700; color: var(--sub); margin: 16px 0 6px; display: flex; justify-content: space-between; }
+
+/* やること（A案） */
+.todo { background: #fff; border: 1px solid var(--line); border-left: 6px solid var(--c, var(--line-strong)); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; }
+.todo .kind { font-size: 11px; font-weight: 800; color: var(--c); }
+.todo b { font-size: 15px; line-height: 1.35; }
+.todo small { grid-column: 1; font-size: 12px; color: var(--sub); }
+.todo .go { grid-row: 1 / span 3; grid-column: 2; border: 0; background: var(--c); color: #fff; border-radius: 10px; padding: 0 12px; min-height: 44px; font-weight: 700; font-size: 14px; }
+.todo.done { opacity: .55; border-left-color: var(--st-ok); }
+.todo.done .go { background: #fff; color: var(--st-ok); border: 1px solid var(--st-ok-lt); }
+.c-ng { --c: var(--st-ng); } .c-late { --c: var(--st-late); } .c-todo { --c: #475569; } .c-doing { --c: var(--st-doing); } .c-ok { --c: var(--st-ok); }
+.ring-row { display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.ring { width: 64px; height: 64px; border-radius: 50%; background: conic-gradient(var(--st-ok) 0 var(--p), #E2E8F0 var(--p) 100%); display: grid; place-items: center; flex: none; }
+.ring span { width: 48px; height: 48px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-weight: 800; font-size: 15px; }
+.ring-row p { margin: 0; font-size: 13px; color: var(--sub); line-height: 1.5; }
+.ring-row p b { color: var(--ink); font-size: 16px; }
+
+/* 異常の3ステップ */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 8px 0 12px; }
+.steps div { text-align: center; font-size: 12px; font-weight: 700; padding: 6px 2px; border-radius: 8px; background: #E2E8F0; color: var(--sub); }
+.steps div.done { background: var(--st-ok-lt); color: var(--st-ok); }
+.steps div.now { background: var(--st-doing); color: #fff; }
+.card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; font-size: 14px; }
+.card h5 { margin: 0 0 4px; font-size: 13px; color: var(--sub); }
+.photo { height: 92px; border-radius: 8px; background: linear-gradient(135deg, #CBD5E1, #94A3B8); display: grid; place-items: center; color: #fff; font-size: 12px; }
+.btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 52px; border-radius: 12px; border: 1px solid var(--line-strong); background: #fff; font-weight: 700; font-size: 16px; color: var(--ink); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.green { background: var(--st-ok); border-color: var(--st-ok); color: #fff; }
+.btn.red { background: var(--st-ng); border-color: var(--st-ng); color: #fff; }
+.btn + .btn { margin-top: 8px; }
+.textlink { display: block; text-align: center; color: var(--sub); font-size: 13px; margin-top: 10px; text-decoration: underline; }
+
+/* 点検（A案: 1 画面のリスト型を詰めたもの） */
+.chk { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+.chk.ok { border-color: #86EFAC; background: #F6FEF9; }
+.chk.ng { border-color: #FCA5A5; background: #FFF7F7; }
+.chk-h { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.chk-h b { font-size: 15px; }
+.chk-h small { color: var(--sub); font-size: 12px; }
+.chk p { margin: 0 0 8px; font-size: 13px; color: var(--sub); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.seg button { min-height: 44px; border-radius: 10px; border: 1px solid var(--line-strong); background: #fff; font-weight: 700; font-size: 15px; color: var(--ink); }
+.seg button.ok.on { background: var(--st-ok); border-color: var(--st-ok); color: #fff; }
+.seg button.ng.on { background: var(--st-ng); border-color: var(--st-ng); color: #fff; }
+.sticky-done { position: sticky; bottom: -14px; background: linear-gradient(transparent, #F5F7FA 30%); padding: 18px 0 14px; margin: 0 0 -14px; }
+
+/* B案: 1 項目ずつ */
+.one { display: flex; flex-direction: column; height: 100%; }
+.one-prog { display: flex; gap: 4px; margin-bottom: 12px; }
+.one-prog i { flex: 1; height: 6px; border-radius: 999px; background: #E2E8F0; }
+.one-prog i.ok { background: var(--st-ok); } .one-prog i.ng { background: var(--st-ng); } .one-prog i.cur { background: var(--accent); }
+.one-n { font-size: 13px; color: var(--sub); font-weight: 700; }
+.one-q { font-size: 26px; font-weight: 800; margin: 2px 0 6px; line-height: 1.3; }
+.one-c { font-size: 15px; color: var(--sub); margin: 0 0 12px; }
+.one-btns { margin-top: auto; display: grid; grid-template-rows: 1fr 1fr; gap: 10px; min-height: 280px; }
+.one-btns button { border: 0; border-radius: 18px; font-size: 26px; font-weight: 800; color: #fff; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.one-btns .ok { background: var(--st-ok); }
+.one-btns .ng { background: var(--st-ng); }
+.one-btns .ico { font-size: 34px; }
+.one-sub { display: flex; justify-content: space-between; margin-top: 10px; }
+.one-sub button { border: 0; background: none; color: var(--sub); font-size: 14px; min-height: 44px; text-decoration: underline; }
+.ng-input { border: 2px solid var(--st-ng); border-radius: 12px; background: #fff; padding: 10px; font-size: 16px; color: var(--sub); min-height: 80px; margin-bottom: 8px; }
+.cam { display: flex; gap: 8px; margin-bottom: 10px; }
+.cam span { flex: 1; min-height: 56px; border: 2px dashed var(--line-strong); border-radius: 12px; display: grid; place-items: center; font-size: 13px; color: var(--sub); font-weight: 700; }
+.sum li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.sum { list-style: none; padding: 0; margin: 0 0 14px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 4px 12px; }
+.sum li:last-child { border-bottom: 0; }
+
+.scan-hero { background: var(--accent); color: #fff; border-radius: 22px; min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 0; width: 100%; box-shadow: 0 10px 24px rgba(31,95,209,.3); }
+.scan-hero .ico { font-size: 64px; line-height: 1; }
+.scan-hero b { font-size: 24px; }
+.scan-hero small { font-size: 13px; opacity: .85; }
+.mini { display: flex; justify-content: space-between; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; margin-bottom: 6px; font-size: 14px; min-height: 44px; }
+.mini code { font-family: inherit; font-weight: 800; margin-right: 6px; }
+
+/* C案: 設備中心 */
+.search { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line-strong); border-radius: 12px; padding: 0 12px; min-height: 46px; color: var(--sub); font-size: 16px; margin-bottom: 8px; }
+.pills { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 10px; }
+.pills span { white-space: nowrap; font-size: 13px; font-weight: 700; border: 1px solid var(--line-strong); background: #fff; border-radius: 999px; padding: 5px 12px; }
+.pills span.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.eqrow { display: grid; grid-template-columns: 8px 1fr auto; gap: 10px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px 10px 0; margin-bottom: 6px; overflow: hidden; min-height: 56px; }
+.eqrow::before { content: ""; align-self: stretch; background: var(--c); border-radius: 0 4px 4px 0; margin: -10px 0; }
+.eqrow b { font-size: 15px; display: block; line-height: 1.3; }
+.eqrow small { font-size: 12px; color: var(--sub); }
+.eq-hero { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+.eq-hero .code { font-size: 13px; color: var(--sub); font-weight: 700; }
+.eq-hero h4 { margin: 0 0 8px; font-size: 21px; }
+.status-line { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; padding: 8px 10px; border-radius: 10px; background: var(--lt); color: var(--c); margin-bottom: 10px; }
+.listcard { background: #fff; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; }
+.listcard h5 { margin: 0; padding: 10px 12px 4px; font-size: 13px; color: var(--sub); display: flex; justify-content: space-between; }
+.listcard a { display: flex; justify-content: space-between; gap: 8px; padding: 9px 12px; border-top: 1px solid var(--line); font-size: 14px; color: var(--ink); text-decoration: none; min-height: 44px; align-items: center; }
+
+/* ===== モック: PC ===== */
+.pc { width: 100%; max-width: 1080px; border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden; background: #F5F7FA; box-shadow: 0 12px 30px rgba(15,23,42,.12); }
+.pc-bar { background: #E2E8F0; height: 26px; display: flex; align-items: center; gap: 6px; padding: 0 10px; }
+.pc-bar i { width: 10px; height: 10px; border-radius: 50%; background: #CBD5E1; }
+.pc-in { display: grid; grid-template-columns: 200px 1fr; min-height: 560px; }
+.pc-side { background: #fff; border-right: 1px solid var(--line); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; }
+.pc-side .logo { font-weight: 900; letter-spacing: .08em; color: var(--accent); padding: 0 8px 12px; }
+.pc-side a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; color: var(--ink); text-decoration: none; font-size: 14px; min-height: 42px; }
+.pc-side a.on { background: var(--accent-lt); color: var(--accent); font-weight: 700; }
+.pc-side a .n { margin-left: auto; background: var(--st-ng); color: #fff; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 0 7px; }
+.pc-side .bottom { margin-top: auto; border-top: 1px solid var(--line); padding-top: 10px; font-size: 13px; }
+.pc-side .user { display: flex; align-items: center; gap: 8px; padding: 0 4px 6px; }
+.pc-side .av { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 12px; }
+.pc-side .user small { display: block; color: var(--sub); font-size: 11px; line-height: 1.2; }
+.pc-side .backlink { color: var(--sub); padding: 8px 6px; display: block; }
+.pc-main { padding: 18px 22px; min-width: 0; }
+.pc-main h4 { margin: 0 0 2px; font-size: 20px; }
+.pc-main .sub { color: var(--sub); font-size: 13px; margin: 0 0 14px; }
+.pc-cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; align-items: start; }
+.panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.panel h5 { margin: 0 0 8px; font-size: 14px; display: flex; justify-content: space-between; }
+.arow { display: grid; grid-template-columns: 110px 1fr 70px; gap: 10px; align-items: center; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.arow:last-child { border-bottom: 0; }
+.bar { height: 10px; border-radius: 999px; background: #E2E8F0; overflow: hidden; display: flex; }
+.bar span { height: 100%; }
+.legend { display: flex; gap: 12px; font-size: 12px; color: var(--sub); margin-top: 8px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.mcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.mc { border-left: 7px solid var(--c); background: var(--lt); border-radius: 8px; padding: 8px 10px; font-size: 13px; min-height: 84px; display: flex; flex-direction: column; }
+.mc b { font-size: 17px; line-height: 1.1; }
+.mc .st { margin-top: auto; font-weight: 800; color: var(--c); }
+.l-ng { --c: var(--st-ng); --lt: var(--st-ng-lt); } .l-late { --c: var(--st-late); --lt: var(--st-late-lt); } .l-doing { --c: var(--st-doing); --lt: var(--st-doing-lt); } .l-ok { --c: var(--st-ok); --lt: var(--st-ok-lt); } .l-todo { --c: #64748B; --lt: #fff; }
+.mc.l-todo { border: 2px dashed #94A3B8; border-left: 7px solid #94A3B8; }
+.collapse { margin-top: 12px; border: 1px dashed var(--line-strong); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--sub); display: flex; justify-content: space-between; }
+.two-pane { display: grid; grid-template-columns: 300px 1fr; gap: 14px; align-items: start; }
+
+@media (max-width: 700px) {
+  .top { padding: 12px 16px 0; }
+  .pc-in { grid-template-columns: 1fr; }
+  .pc-side { display: none; }
+  .pc-cols, .two-pane { grid-template-columns: 1fr; }
+  .phone { width: 100%; max-width: 340px; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>TENQ かんたん化 — 調査・企画とモック3案</h1>
+  <p>2026-10-31 ・ 検討用のモック（本番画面ではありません）。データはダミーです。</p>
+  <nav class="tabs" role="tablist">
+    <button class="on" data-v="research">1. 調査（今の問題）</button>
+    <button data-v="plan">2. 企画（共通の方針）</button>
+    <button data-v="a">A案 やること一本</button>
+    <button data-v="b">B案 点検まっしぐら</button>
+    <button data-v="c">C案 設備ページ集約</button>
+    <button data-v="cmp">3. 比較とおすすめ</button>
+  </nav>
+</header>
+
+<main>
+<!-- ================= 1. 調査 ================= -->
+<section class="view on" id="research">
+  <h2 class="h">今の画面で「使いにくい」原因</h2>
+  <p class="lead">ローカルのダミーデータで、一般社員（山本）と工場長（中村）の画面を PC・スマホで撮って確かめました。「機能が足りない」ではなく、<b>入口と情報が多すぎて、何をすればいいかが一目で分からない</b>のが主な原因です。</p>
+
+  <div class="grid2">
+    <div class="box">
+      <h4>① メニューが長い（工場長 13 項目・一般社員 7 項目）</h4>
+      <ul>
+        <li>毎日使うのは「点検する」「異常を見る」「状況を見る」の 2〜3 個だけ。残りは月に数回の設定・出力</li>
+        <li>毎日のものと設定（点検基準・QR 印刷・工場・ユーザー・操作の記録・システム設定）が同じ並びに混ざっている</li>
+        <li>スマホは右上の「メニュー」から上に開く。片手の親指では届きにくい</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h4>② 同じ入口が 3 か所にある</h4>
+      <ul>
+        <li>カード一覧・設備台帳・CSV・点検基準・QR 印刷が、<b>左メニュー</b>と<b>ホームのタイル</b>の両方にある</li>
+        <li>QR の読み取りも、メニュー・ホームの大ボタン・点検完了後のボタンの 3 か所</li>
+        <li>PC では名前とロールが右上とメニュー下部に 2 回出ている</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h4>③ ホームに箱が多く、どこから見ればいいか分からない</h4>
+      <ul>
+        <li>工場長のホームは上から: QR ボタン → 色の帯 3 本（期限切れ・未着手・再確認待ち）→ 数字 4 つ → お知らせ → 未点検の一覧 → 完了を見る → タイル 5 枚</li>
+        <li>数字（対象・完了・未点検・異常あり）は「見るだけ」で、押しても何も起きない</li>
+        <li>異常の画面にも別の数字が 5 つ（未対応・期限超過・自分が担当・再確認待ち・承認待ち）</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h4>④ 点検画面が縦に長い</h4>
+      <ul>
+        <li>5 項目でスマホ約 3 画面分。1 項目のカードに「名前・必須・分類・基準・ボタン 2〜3 個」</li>
+        <li>分類名（「外観」など）が項目名と重なって 2 回出る項目がある</li>
+        <li>下に固定した完了ボタンが項目に重なり、最後の項目のボタンが隠れる</li>
+        <li>「全体のコメント」の入力欄がいつも出ている（ほとんど使わない）</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h4>⑤ 言葉が現場の言葉ではない</h4>
+      <ul>
+        <li>「カード一覧」「是正処置」「点検基準」「操作の記録」「ログインした端末」「再確認」「承認」</li>
+        <li>異常の状態が 6 段階（発生・未対応・対応中・是正完了・再確認・承認完了）。「発生」と「未対応」の違いが分かりにくい</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h4>⑥ カード一覧で見るべきものが埋もれる</h4>
+      <ul>
+        <li>停止中・完了の設備も、遅れ・異常と同じ大きさで並ぶ。台数が増えるほど探しにくい</li>
+        <li>絞り込みのボタンが 7 個。下に 30 日の集計表もあり、画面が長い</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 class="h">利用者ごとに「毎日やること」</h3>
+  <table class="cmp">
+    <tr><th>ロール</th><th>毎日やること</th><th>ときどきやること</th><th>今の画面で困る点</th></tr>
+    <tr><td>一般社員</td><td>QR → 点検 → 完了。異常があれば写真付きで知らせる</td><td>自分の点検の確認</td><td>点検が長い。ホームに関係の薄いもの（カード一覧・設備台帳）がある</td></tr>
+    <tr><td>設備担当者</td><td>自分の担当の異常を直して「直した」と入れる</td><td>設備の登録・QR 印刷・点検表の変更</td><td>担当の異常が「異常・是正処置」の中の 1 つの数字でしか分からない</td></tr>
+    <tr><td>工場長</td><td>今日の進み具合と遅れの確認、異常の承認</td><td>帳票・CSV の出力、点検表の承認</td><td>判断が必要なものと、見るだけのものが混ざっている</td></tr>
+    <tr><td>システム管理者</td><td>（ほぼなし）</td><td>ユーザー・工場・設定</td><td>設定が毎日のメニューに並んでいて邪魔</td></tr>
+  </table>
+</section>
+
+<!-- ================= 2. 企画 ================= -->
+<section class="view" id="plan">
+  <h2 class="h">3 案に共通する方針</h2>
+  <p class="lead">どの案を選んでも、次の 6 つは同じです。違うのは「最初の画面に何を置くか」と「点検の進め方」です。</p>
+  <div class="grid2">
+    <div class="box concept"><h4><b>1.</b> 1 画面 1 目的。押すボタンは 1 つだけ目立たせる</h4><p>「次に何を押せばいいか」が迷わず分かる。見るだけの数字は減らし、数字は押せばその一覧へ行く。</p></div>
+    <div class="box concept"><h4><b>2.</b> メニューは 4 つまで。設定は「管理」に 1 つにまとめる</h4><p>点検基準・QR 印刷・工場・ユーザー・操作の記録・システム設定・ログインした端末は「管理」の中へ。権限のない人には「管理」自体を出さない。</p></div>
+    <div class="box concept"><h4><b>3.</b> スマホは下のタブ（親指で届く）。真ん中に QR</h4><p>上の「メニュー」ボタンをやめる。Space.app 共通の「名前・ロール」「アプリ選択に戻る」は「その他」タブの一番下へ（スキル space-app-shell の決まりは保つ）。</p></div>
+    <div class="box concept"><h4><b>4.</b> 現場の言葉に言い換える</h4>
+      <ul>
+        <li>カード一覧 → <b>今日の状況</b></li>
+        <li>異常・是正処置 → <b>異常</b></li>
+        <li>点検基準 → <b>点検表</b></li>
+        <li>点検履歴・検索 → <b>記録</b></li>
+        <li>操作の記録 → <b>操作履歴</b>（管理の中）</li>
+      </ul></div>
+    <div class="box concept"><h4><b>5.</b> 異常の 6 段階は残し、画面では 3 つに見せる</h4><p><b>知らせた → 直している → 確認・承認</b> の 3 つで見せ、細かい段階は小さく添える。記録（状態の履歴・監査ログ）は今と同じ 6 段階のまま。</p></div>
+    <div class="box concept"><h4><b>6.</b> 変えないもの</h4><p>QR の URL・記録を書き換えない仕組み・権限表・二重登録防止・色と文字の併記・タップ領域 44px・入力欄 16px。画面の作り直しだけで、API と DB はほぼそのまま使える。</p></div>
+  </div>
+  <div class="box warn-box">
+    <h4>確認が必要な点（仮定）</h4>
+    <ul>
+      <li>B 案の「残りをすべて正常にする」は手数が減る反面、<b>見ずに押す点検</b>を招きます。ISO 監査で問題にならないか、品質管理担当者の確認が必要です（入れない、または全項目を一度表示してからだけ出す、のどちらか）。</li>
+      <li>異常を「3 つに見せる」案は、表示だけの変更です。6 段階の運用そのものを変えるかは決めていません。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= A 案 ================= -->
+<section class="view" id="a">
+  <h2 class="h">A案「やること一本」</h2>
+  <p class="lead">ホームを<b>「あなたのやること」1 本のリスト</b>にします。点検も異常も、自分が動くべきものが期限順に並び、それぞれに「点検する」「対応する」のボタンが 1 つだけ付きます。数字の箱・色の帯・タイルはなくします。</p>
+  <div class="box"><h4>向いている人</h4><p>全員（とくに設備担当者・工場長）。「今日、自分は何をすればいいか」がホームを開くだけで分かる。メールの受信箱や ToDo アプリに近い感覚。</p></div>
+
+  <div class="stage">
+    <div class="mock-wrap">
+      <div class="phone">
+        <div class="ph-top"><span class="logo">TENQ</span><span class="sub">第1工場<br>10/31（金）</span></div>
+        <div class="ph-body">
+          <p class="hello">おはようございます、山本さん</p>
+          <div class="ring-row"><div class="ring" style="--p:38%"><span>3/8</span></div><p><b>今日の点検 あと 5 台</b><br>8:30 までに終わらせる設備が 2 台あります</p></div>
+          <div class="sec"><span>やること（5）</span><span>期限の早い順</span></div>
+          <div class="todo c-late"><span class="kind">⏱ 点検・遅れ</span><b>P-01 油圧プレス機 1号</b><small>8:30 まで（過ぎています）</small><button class="go">点検する</button></div>
+          <div class="todo c-ng"><span class="kind">⚠ 異常・あなたが担当</span><b>W-03 ケーブル損傷</b><small>期限 11/1 ・ 写真 1 枚</small><button class="go">対応する</button></div>
+          <div class="todo c-todo"><span class="kind">○ 点検</span><b>W-02 溶接ロボット 2号</b><small>今日中</small><button class="go">点検する</button></div>
+          <div class="todo c-todo"><span class="kind">○ 点検</span><b>L-05 NC旋盤 5号</b><small>今日中</small><button class="go">点検する</button></div>
+          <div class="sec"><span>終わったもの（3）</span><span>▼</span></div>
+          <div class="todo done"><span class="kind" style="color:var(--st-ok)">✓ 点検・正常</span><b>C-11 エアコンプレッサー</b><small>7:42 完了</small><button class="go">見る</button></div>
+        </div>
+        <div class="ph-tabbar"><button class="on"><span class="ico">☑</span>やること</button><button class="qr"><span class="ico">⌗</span>QR</button><button><span class="ico">⚠</span>異常</button><button><span class="ico">≡</span>その他</button></div>
+      </div>
+      <div class="mock-cap">スマホのホーム（一般社員）。やることを上から順に片付ける</div>
+    </div>
+
+    <div class="mock-wrap">
+      <div class="phone">
+        <div class="ph-top"><button class="back">←</button><b style="font-size:15px">W-02 溶接ロボット 2号</b><span class="sub">2 / 5</span></div>
+        <div class="ph-body" id="a-inspect">
+          <div class="one-prog"><i class="ok"></i><i class="cur"></i><i></i><i></i><i></i></div>
+          <div class="chk ok"><div class="chk-h"><b>外観</b><small>必須</small></div><p>ロボット・ポジショナに損傷がない</p><div class="seg"><button class="ok on">✓ 正常</button><button class="ng">✕ 異常</button></div></div>
+          <div class="chk"><div class="chk-h"><b>ケーブル・ホース</b><small>必須</small></div><p>被覆の傷・ガス漏れがない</p><div class="seg"><button class="ok">✓ 正常</button><button class="ng">✕ 異常</button></div></div>
+          <div class="chk"><div class="chk-h"><b>安全柵・扉</b><small>必須</small></div><p>扉を開けると停止する</p><div class="seg"><button class="ok">✓ 正常</button><button class="ng">✕ 異常</button></div></div>
+          <div class="chk"><div class="chk-h"><b>非常停止ボタン</b><small>必須</small></div><p>押して停止し、復帰できる</p><div class="seg"><button class="ok">✓ 正常</button><button class="ng">✕ 異常</button></div></div>
+          <div class="chk"><div class="chk-h"><b>ノズル清掃</b><small>任意</small></div><p>スパッタが付いていない</p><div class="seg"><button class="ok">✓ 正常</button><button class="ng">✕ 異常</button></div></div>
+          <a class="textlink">コメントを書く ・ 対象外にする項目を選ぶ</a>
+          <div class="sticky-done"><button class="btn primary" id="a-done">あと 3 項目</button></div>
+        </div>
+      </div>
+      <div class="mock-cap">点検（今の 1 画面リストを詰めた形）。カードを低くして 5 項目が 1.5 画面に収まる。完了ボタンは最後の項目に重ならない</div>
+    </div>
+
+    <div class="mock-wrap">
+      <div class="phone">
+        <div class="ph-top"><button class="back">←</button><b style="font-size:15px">異常 F01-0003</b><span class="sub"><span class="tag t-ng">危険度 高</span></span></div>
+        <div class="ph-body">
+          <div class="big-title" style="margin-bottom:4px">ケーブルの被覆が破れている</div>
+          <p class="note" style="margin:0">W-03 溶接ロボット 3号 ・ 10/23 山本 健</p>
+          <div class="steps"><div class="done">✓ 知らせた</div><div class="now">● 直している</div><div>確認・承認</div></div>
+          <div class="card"><h5>写真</h5><div class="photo">写真 1 枚</div></div>
+          <div class="card"><h5>あなたがすること</h5>直したら、内容を書いて「直した」を押してください。<br><span class="note">期限 11/1（あと 1 日）</span></div>
+          <button class="btn green">✓ 直した</button>
+          <a class="textlink">担当を代わる ・ 対応の記録を見る</a>
+        </div>
+        <div class="ph-tabbar"><button><span class="ico">☑</span>やること</button><button class="qr"><span class="ico">⌗</span>QR</button><button class="on"><span class="ico">⚠</span>異常</button><button><span class="ico">≡</span>その他</button></div>
+      </div>
+      <div class="mock-cap">異常（設備担当者）。状態は 3 つで見せ、押すボタンは「直した」1 つだけ</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="mock-wrap" style="width:100%">
+      <div class="pc">
+        <div class="pc-bar"><i></i><i></i><i></i></div>
+        <div class="pc-in">
+          <nav class="pc-side">
+            <div class="logo">TENQ</div>
+            <a class="on">☑ やること <span class="n">4</span></a>
+            <a>▦ 今日の状況</a>
+            <a>⚠ 異常</a>
+            <a>☰ 記録</a>
+            <a>⚙ 管理</a>
+            <div class="bottom"><div class="user"><span class="av">中</span><span>中村 誠<small>工場長</small></span></div><a class="backlink">← アプリ選択に戻る</a></div>
+          </nav>
+          <div class="pc-main">
+            <h4>やること</h4>
+            <p class="sub">第1工場 ・ 10/31（金） ・ あなたの判断が必要なものだけを並べています</p>
+            <div class="pc-cols">
+              <div>
+                <div class="todo c-ng"><span class="kind">⚠ 承認待ち</span><b>L-07 主軸から異音 — 再確認が終わりました</b><small>佐藤 美咲が直し、鈴木 大地が確認 ・ 10/30</small><button class="go">承認する</button></div>
+                <div class="todo c-late"><span class="kind">⏱ 期限切れの異常</span><b>CR-2 ブレーキの効きが弱い</b><small>担当 鈴木 大地 ・ 期限 10/22（9 日過ぎ）</small><button class="go">確認する</button></div>
+                <div class="todo c-ng"><span class="kind">⚠ 担当が決まっていない</span><b>W-03 ケーブル・ホースの異常</b><small>10/23 山本 健が報告 ・ 危険度 高</small><button class="go">担当を決める</button></div>
+                <div class="todo c-late"><span class="kind">⏱ 点検の遅れ</span><b>P-01・P-03 の 2 台が 8:30 を過ぎて未点検</b><small>A棟 プレスライン</small><button class="go">見る</button></div>
+              </div>
+              <div class="panel">
+                <h5><span>今日の点検</span><span>12 / 18 台</span></h5>
+                <div class="arow"><span>A棟 プレス</span><div class="bar"><span style="width:50%;background:var(--st-ok)"></span><span style="width:50%;background:var(--st-late)"></span></div><span>2 / 4</span></div>
+                <div class="arow"><span>B棟 切削</span><div class="bar"><span style="width:70%;background:var(--st-ok)"></span><span style="width:10%;background:var(--st-ng)"></span><span style="width:10%;background:var(--st-doing)"></span></div><span>7 / 9</span></div>
+                <div class="arow"><span>C棟 溶接</span><div class="bar"><span style="width:66%;background:var(--st-ok)"></span></div><span>2 / 3</span></div>
+                <div class="arow"><span>共用・屋外</span><div class="bar"><span style="width:50%;background:var(--st-ok)"></span></div><span>1 / 2</span></div>
+                <div class="legend"><span><i style="background:var(--st-ok)"></i>完了</span><span><i style="background:var(--st-ng)"></i>異常あり</span><span><i style="background:var(--st-doing)"></i>点検中</span><span><i style="background:var(--st-late)"></i>遅れ</span></div>
+                <button class="btn" style="margin-top:12px;min-height:44px;font-size:14px">今日の状況（エリア別のカード）を開く</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mock-cap">PC（工場長）。左は 5 項目だけ。やることのリストと、今日の進み具合（エリアごとのバー）の 2 つだけ</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="box"><h4>良い点</h4><ul><li>開いた瞬間に「次にやること」が分かる。ロールの違いを意識させない</li><li>数字の箱・色の帯・タイルがなくなり、ホームが 1 列になる</li><li>今の API（今日の点検・異常の集計）をそのまま使える</li></ul></div>
+    <div class="box"><h4>気になる点</h4><ul><li>点検画面は今の形を詰めるだけなので、点検そのものの速さは B 案ほど上がらない</li><li>「やること」に何を入れるか（ロールごとの条件）を決める必要がある</li><li>変更量: 中（ホーム・メニュー・異常詳細の作り直し）</li></ul></div>
+  </div>
+</section>
+
+<!-- ================= B 案 ================= -->
+<section class="view" id="b">
+  <h2 class="h">B案「点検まっしぐら」</h2>
+  <p class="lead">一番回数の多い<b>点検を最短にする</b>案です。スマホは開くと大きな QR ボタンだけ。点検は<b>1 項目ずつ全画面</b>で、画面の半分ずつが「正常」「異常」のボタン。押すと次の項目へ自動で進みます。軍手のままでも押せる大きさです。</p>
+  <div class="box"><h4>向いている人</h4><p>一般社員（点検する人）。手袋・片手・立ったままの現場。点検の台数が多い工場。</p></div>
+
+  <div class="stage">
+    <div class="mock-wrap">
+      <div class="phone">
+        <div class="ph-top"><span class="logo">TENQ</span><span class="sub">山本 健<br>第1工場</span></div>
+        <div class="ph-body">
+          <button class="scan-hero"><span class="ico">⌗</span><b>QR を読む</b><small>設備に貼ってあるラベルにかざす</small></button>
+          <div class="sec"><span>今日まだの設備（5）</span><span>3 / 8 完了</span></div>
+          <div class="mini"><span><code>P-01</code>油圧プレス機 1号</span><span class="tag t-late">⏱ 遅れ</span></div>
+          <div class="mini"><span><code>W-02</code>溶接ロボット 2号</span><span class="tag t-todo">○ まだ</span></div>
+          <div class="mini"><span><code>L-05</code>NC旋盤 5号</span><span class="tag t-todo">○ まだ</span></div>
+          <div class="mini" style="justify-content:center;color:var(--sub)">あと 2 台を見る</div>
+        </div>
+        <div class="ph-tabbar three"><button class="on"><span class="ico">⌗</span>点検</button><button><span class="ico">⚠</span>異常を知らせる</button><button><span class="ico">≡</span>その他</button></div>
+      </div>
+      <div class="mock-cap">スマホのホーム。QR ボタンが画面の半分。下は「まだの設備」だけ</div>
+    </div>
+
+    <div class="mock-wrap">
+      <div class="phone">
+        <div class="ph-top"><button class="back">✕</button><b style="font-size:15px">W-02 溶接ロボット 2号</b></div>
+        <div class="ph-body"><div class="one" id="b-one"></div></div>
+      </div>
+      <div class="mock-cap">点検（1 項目ずつ）。<b>押してみてください。</b>「異常」を押すとその場で内容と写真を入れる画面になる</div>
+    </div>
+
+    <div class="mock-wrap">
+      <div class="phone">
+        <div class="ph-top"><button class="back">←</button><b style="font-size:15px">最後に確かめる</b></div>
+        <div class="ph-body">
+          <div class="big-title">W-02 溶接ロボット 2号</div>
+          <ul class="sum">
+            <li><span>外観</span><span class="tag t-ok">✓ 正常</span></li>
+            <li><span>ケーブル・ホース</span><span class="tag t-ng">✕ 異常</span></li>
+            <li><span>安全柵・扉</span><span class="tag t-ok">✓ 正常</span></li>
+            <li><span>非常停止ボタン</span><span class="tag t-ok">✓ 正常</span></li>
+            <li><span>ノズル清掃</span><span class="tag t-todo">− 対象外</span></li>
+          </ul>
+          <div class="card" style="border-color:#FCA5A5;background:#FFF7F7"><b style="color:var(--st-ng)">✕ 異常が 1 件あります</b><br><span class="note">記録すると、担当者に知らせます（写真 1 枚）</span></div>
+          <button class="btn primary">記録する</button>
+          <a class="textlink">項目を押すと直せます ・ コメントを書く</a>
+        </div>
+      </div>
+      <div class="mock-cap">完了前の確認。異常の報告は点検と一緒に送る（今は完了後に別の画面で報告）</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="mock-wrap" style="width:100%">
+      <div class="pc">
+        <div class="pc-bar"><i></i><i></i><i></i></div>
+        <div class="pc-in">
+          <nav class="pc-side">
+            <div class="logo">TENQ</div>
+            <a class="on">▦ 今日の状況</a>
+            <a>⚠ 異常 <span class="n">3</span></a>
+            <a>☰ 記録</a>
+            <a>⚙ 管理</a>
+            <div class="bottom"><div class="user"><span class="av">中</span><span>中村 誠<small>工場長</small></span></div><a class="backlink">← アプリ選択に戻る</a></div>
+          </nav>
+          <div class="pc-main">
+            <h4>今日の状況 <span style="font-size:14px;color:var(--sub);font-weight:600">12 / 18 台 完了</span></h4>
+            <p class="sub">第1工場 ・ 10/31（金） ・ 見てほしい設備を上に出しています</p>
+            <div class="panel" style="margin-bottom:12px">
+              <h5><span>見てほしい設備（5）</span><span class="note">遅れ・異常・点検中</span></h5>
+              <div class="mcards">
+                <div class="mc l-late"><b>P-01</b>油圧プレス機 1号<span class="st">⏱ 遅れ</span></div>
+                <div class="mc l-late"><b>P-03</b>油圧プレス機 3号<span class="st">⏱ 遅れ</span></div>
+                <div class="mc l-ng"><b>L-07</b>NC旋盤 7号<span class="st">⚠ 異常あり</span></div>
+                <div class="mc l-ng"><b>W-03</b>溶接ロボット 3号<span class="st">⚠ 異常あり</span></div>
+                <div class="mc l-doing"><b>M-04</b>マシニングセンタ 4号<span class="st">◔ 点検中・佐藤</span></div>
+              </div>
+            </div>
+            <div class="panel">
+              <h5><span>まだの設備（1）</span></h5>
+              <div class="mcards"><div class="mc l-todo"><b>D-01</b>ボール盤<span class="st">○ まだ</span></div></div>
+              <div class="collapse"><span>✓ 完了・正常 10 台 ・ 停止中 2 台</span><span>表示する ▼</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mock-cap">PC（工場長）。カード一覧は残すが、エリアより「見てほしいもの」を先に並べる。完了・停止中はたたむ</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="box"><h4>良い点</h4><ul><li>点検の手数が最少（1 項目 1 タップ、迷う場所がない）</li><li>ボタンが大きく、手袋・片手でも押し間違えにくい</li><li>異常の報告を点検の流れの中で済ませられる</li></ul></div>
+    <div class="box"><h4>気になる点</h4><ul><li>項目の全体が見えにくい（前の項目へ戻る操作が必要）。項目が 20 を超える点検表では長く感じる</li><li>点検と異常報告を 1 回で送る形にすると、API の追加が必要</li><li>設備担当者・工場長の使いやすさは A 案ほど変わらない</li><li>変更量: 中（点検画面の作り直しが中心）</li></ul></div>
+  </div>
+</section>
+
+<!-- ================= C 案 ================= -->
+<section class="view" id="c">
+  <h2 class="h">C案「設備ページ集約」</h2>
+  <p class="lead">すべてを<b>設備</b>にぶら下げます。QR を読んでも、一覧から押しても、同じ「設備のページ」が開き、そこに<b>今日の点検・未対応の異常・最近の記録・QR ラベル</b>がまとまっています。画面の種類が減り、覚えることが「設備を開く」だけになります。</p>
+  <div class="box"><h4>向いている人</h4><p>設備担当者（設備ごとに面倒を見る人）。紙の「設備カルテ」に慣れている工場。設備が数百台ある工場。</p></div>
+
+  <div class="stage">
+    <div class="mock-wrap">
+      <div class="phone">
+        <div class="ph-top"><span class="logo">TENQ</span><span class="sub">第1工場<br>12 / 18 完了</span></div>
+        <div class="ph-body">
+          <div class="search">🔍 設備の名前・番号で探す</div>
+          <div class="pills"><span class="on">すべて</span><span>⏱ 遅れ 2</span><span>⚠ 異常 2</span><span>○ まだ 1</span><span>A棟</span><span>B棟</span></div>
+          <div class="sec"><span>A棟 プレスライン</span><span>2 / 4</span></div>
+          <div class="eqrow l-late"><span><b>P-01 油圧プレス機 1号</b><small>8:30 を過ぎて未点検</small></span><span class="tag t-late">⏱ 遅れ</span></div>
+          <div class="eqrow l-ok"><span><b>P-02 油圧プレス機 2号</b><small>7:50 田中 翔</small></span><span class="tag t-ok">✓ 正常</span></div>
+          <div class="sec"><span>B棟 切削</span><span>7 / 9</span></div>
+          <div class="eqrow l-ng"><span><b>L-07 NC旋盤 7号</b><small>異常 1 件 ・ 承認待ち</small></span><span class="tag t-ng">⚠ 異常</span></div>
+          <div class="eqrow l-doing"><span><b>M-04 マシニングセンタ 4号</b><small>佐藤 美咲が点検中</small></span><span class="tag t-doing">◔ 点検中</span></div>
+          <div class="eqrow l-ok"><span><b>L-05 NC旋盤 5号</b><small>8:05 山本 健</small></span><span class="tag t-ok">✓ 正常</span></div>
+        </div>
+        <div class="ph-tabbar"><button class="on"><span class="ico">▦</span>設備</button><button class="qr"><span class="ico">⌗</span>QR</button><button><span class="ico">⚠</span>異常</button><button><span class="ico">≡</span>その他</button></div>
+      </div>
+      <div class="mock-cap">スマホのホーム＝設備の一覧（エリアごと・状態の色と文字）。探す・絞るが上にある</div>
+    </div>
+
+    <div class="mock-wrap">
+      <div class="phone">
+        <div class="ph-top"><button class="back">←</button><span class="sub" style="margin-left:0;text-align:left">B棟 切削</span></div>
+        <div class="ph-body">
+          <div class="eq-hero">
+            <div class="code">L-07</div>
+            <h4>NC旋盤 7号</h4>
+            <div class="status-line l-ok" style="--lt:var(--st-todo-lt);--c:#334155">○ 今日の点検はまだです</div>
+            <button class="btn primary">今日の点検をする</button>
+          </div>
+          <div class="listcard"><h5><span>⚠ 対応中の異常（1）</span></h5><a><span>主軸から異音<br><small class="note">確認・承認を待っています</small></span><span class="tag t-doing">確認待ち</span></a></div>
+          <div class="listcard"><h5><span>最近の点検</span><span>すべて ›</span></h5>
+            <a><span>10/30 佐藤 美咲</span><span class="tag t-ok">✓ 正常</span></a>
+            <a><span>10/29 山本 健</span><span class="tag t-ng">✕ 異常 1</span></a>
+          </div>
+          <div class="listcard"><h5><span>この設備</span></h5><a><span>点検表（毎日・6 項目）</span><span>›</span></a><a><span>QR ラベル・設備の情報</span><span>›</span></a></div>
+          <button class="btn" style="color:var(--st-ng);border-color:#FCA5A5">⚠ 異常を知らせる</button>
+        </div>
+      </div>
+      <div class="mock-cap">設備のページ。QR を読むとここが開く。点検・異常・記録・QR がこの 1 ページに</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="mock-wrap" style="width:100%">
+      <div class="pc">
+        <div class="pc-bar"><i></i><i></i><i></i></div>
+        <div class="pc-in">
+          <nav class="pc-side">
+            <div class="logo">TENQ</div>
+            <a class="on">▦ 設備</a>
+            <a>⚠ 異常 <span class="n">3</span></a>
+            <a>☰ 記録・出力</a>
+            <a>⚙ 管理</a>
+            <div class="bottom"><div class="user"><span class="av">鈴</span><span>鈴木 大地<small>設備担当者</small></span></div><a class="backlink">← アプリ選択に戻る</a></div>
+          </nav>
+          <div class="pc-main">
+            <div class="two-pane">
+              <div>
+                <div class="search" style="font-size:14px">🔍 設備を探す</div>
+                <div class="pills"><span class="on">すべて</span><span>⏱ 2</span><span>⚠ 2</span><span>自分の担当</span></div>
+                <div class="eqrow l-late"><span><b>P-01 油圧プレス機 1号</b><small>A棟 ・ 未点検</small></span><span class="tag t-late">⏱</span></div>
+                <div class="eqrow l-ng" style="outline:2px solid var(--accent)"><span><b>L-07 NC旋盤 7号</b><small>B棟 ・ 異常 1</small></span><span class="tag t-ng">⚠</span></div>
+                <div class="eqrow l-ng"><span><b>W-03 溶接ロボット 3号</b><small>C棟 ・ 異常 1</small></span><span class="tag t-ng">⚠</span></div>
+                <div class="eqrow l-doing"><span><b>M-04 マシニングセンタ 4号</b><small>B棟 ・ 点検中</small></span><span class="tag t-doing">◔</span></div>
+                <div class="eqrow l-ok"><span><b>P-02 油圧プレス機 2号</b><small>A棟 ・ 7:50</small></span><span class="tag t-ok">✓</span></div>
+              </div>
+              <div>
+                <div class="eq-hero"><div class="code">L-07 ・ B棟 切削 ・ 担当 鈴木 大地</div><h4>NC旋盤 7号</h4>
+                  <div class="status-line" style="--lt:var(--st-ng-lt);--c:var(--st-ng)">⚠ 異常 1 件（確認・承認待ち） ・ 今日の点検はまだ</div></div>
+                <div class="pc-cols" style="grid-template-columns:1fr 1fr">
+                  <div class="listcard"><h5><span>⚠ 異常</span></h5><a><span>主軸から異音</span><span class="tag t-doing">確認待ち</span></a><a><span style="color:var(--sub)">完了した異常 4 件</span><span>›</span></a></div>
+                  <div class="listcard"><h5><span>最近の点検</span><span>月間点検表 ›</span></h5><a><span>10/30 佐藤</span><span class="tag t-ok">✓</span></a><a><span>10/29 山本</span><span class="tag t-ng">✕ 1</span></a><a><span>10/28 山本</span><span class="tag t-ok">✓</span></a></div>
+                  <div class="listcard"><h5><span>点検表</span></h5><a><span>毎日 ・ 6 項目 ・ 第 2 版</span><span>編集 ›</span></a></div>
+                  <div class="listcard"><h5><span>QR ラベル</span></h5><a><span>発行済み 2026-10-22</span><span>印刷 ›</span></a></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mock-cap">PC（設備担当者）。左に設備、右にその設備のすべて（メールソフトのような 2 列）</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="box"><h4>良い点</h4><ul><li>覚える画面が「設備の一覧」と「設備のページ」の 2 つだけ</li><li>QR からでも一覧からでも同じ画面。現場と事務所で話が通じやすい</li><li>設備台帳・点検表・QR 印刷・月間点検表への入口が設備ごとにまとまる</li></ul></div>
+    <div class="box"><h4>気になる点</h4><ul><li>「今日、自分は何をすればいいか」は A 案ほどすぐには分からない</li><li>画面の組み替えが一番大きい（設備詳細・カード一覧・台帳を 1 つに統合）</li><li>変更量: 大</li></ul></div>
+  </div>
+</section>
+
+<!-- ================= 比較 ================= -->
+<section class="view" id="cmp">
+  <h2 class="h">比較とおすすめ</h2>
+  <table class="cmp">
+    <tr><th></th><th>A案 やること一本</th><th>B案 点検まっしぐら</th><th>C案 設備ページ集約</th></tr>
+    <tr><th>考え方</th><td>自分のやることを 1 本のリストに</td><td>点検の手数を最少に</td><td>すべてを設備にまとめる</td></tr>
+    <tr><th>一番うれしい人</th><td>全員（とくに工場長・設備担当者）</td><td>一般社員（点検する人）</td><td>設備担当者</td></tr>
+    <tr><th>スマホのホーム</th><td>やることのリスト</td><td>大きな QR ボタン</td><td>設備の一覧</td></tr>
+    <tr><th>点検 5 項目の手数</th><td>5 タップ＋完了（今より縦が短い）</td><td>5 タップ＋記録（1 項目ずつ全画面）</td><td>今と同じ（点検画面は A 案と同じ形）</td></tr>
+    <tr><th>PC のメニュー</th><td>5 個</td><td>4 個</td><td>4 個</td></tr>
+    <tr><th>変更の大きさ</th><td>中</td><td>中</td><td>大</td></tr>
+    <tr><th>API・DB の変更</th><td>ほぼなし（今の集計を並べ替え）</td><td>点検と異常報告をまとめて送るなら追加</td><td>設備ページ用の取得を 1 本追加</td></tr>
+    <tr><th>気になる点</th><td>「やること」に入れる条件を決める必要</td><td>項目が多い点検表では長く感じる。一括「正常」は監査面の確認が必要</td><td>「今日やること」が見えにくい。作り直しが大きい</td></tr>
+  </table>
+
+  <div class="box concept" style="margin-top:20px">
+    <h4><b>おすすめ: A案をもとに、B案の点検画面を取り入れる</b></h4>
+    <p>ホームとメニューは A 案（やること 1 本・メニュー 5 個・スマホは下のタブ）にし、点検画面だけ B 案（1 項目ずつ大きなボタン）にします。毎日いちばん回数が多い「点検」と、いちばん迷いやすい「次に何をするか」の両方が楽になります。C 案の「設備のページ」の考え方は、今の設備詳細を整理するときに一部使えます。</p>
+    <p class="note">進め方の案: ① メニューと言葉の整理（すぐできる・効果大）→ ② ホームを「やること」に → ③ 点検画面の作り直し → ④ 異常の表示を 3 段階に。段階ごとに開発環境で確認し、承認を得てから本番に出します。</p>
+  </div>
+</section>
+</main>
+
+<script>
+// タブ切り替え
+document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));
+  document.querySelectorAll('section.view').forEach((s) => s.classList.toggle('on', s.id === b.dataset.v));
+  window.scrollTo(0, 0);
+}));
+
+// A案: 正常・異常の切り替えと、残り件数
+const aRoot = document.getElementById('a-inspect');
+function aCount() {
+  const cards = [...aRoot.querySelectorAll('.chk')];
+  const left = cards.slice(0, 4).filter((c) => !c.classList.contains('ok') && !c.classList.contains('ng')).length;
+  const done = document.getElementById('a-done');
+  done.textContent = left ? `あと ${left} 項目` : '点検を完了';
+  done.style.opacity = left ? '.5' : '1';
+  const bars = aRoot.querySelectorAll('.one-prog i');
+  cards.forEach((c, i) => { bars[i].className = c.classList.contains('ok') ? 'ok' : c.classList.contains('ng') ? 'ng' : ''; });
+}
+aRoot.querySelectorAll('.chk').forEach((card) => card.querySelectorAll('.seg button').forEach((btn) => btn.addEventListener('click', () => {
+  const ok = btn.classList.contains('ok');
+  card.classList.toggle('ok', ok); card.classList.toggle('ng', !ok);
+  card.querySelectorAll('.seg button').forEach((x) => x.classList.toggle('on', x === btn));
+  aCount();
+})));
+aCount();
+
+// B案: 1 項目ずつ
+const ITEMS = [
+  ['外観', 'ロボット・ポジショナに損傷がないこと'],
+  ['ケーブル・ホース', '被覆の傷・ガス漏れがないこと'],
+  ['安全柵・扉', '扉を開けると停止すること'],
+  ['非常停止ボタン', '押して停止し、復帰できること'],
+  ['ノズル清掃', 'スパッタが付着していないこと'],
+];
+const res = [];
+let cur = 0, ngMode = false;
+const one = document.getElementById('b-one');
+function bRender() {
+  const prog = ITEMS.map((_, i) => `<i class="${res[i] === 'ok' ? 'ok' : res[i] === 'ng' ? 'ng' : i === cur ? 'cur' : ''}"></i>`).join('');
+  if (cur >= ITEMS.length) {
+    const ng = res.filter((r) => r === 'ng').length;
+    one.innerHTML = `<div class="one-prog">${prog}</div><div class="one-q">すべての項目を見ました</div>
+      <p class="one-c">${ng ? `✕ 異常 ${ng} 件・✓ 正常 ${ITEMS.length - ng} 件` : `✓ すべて正常（${ITEMS.length} 件）`}</p>
+      <div style="margin-top:auto"><button class="btn primary" id="b-reset">記録する（もう一度試す）</button></div>`;
+    document.getElementById('b-reset').onclick = () => { res.length = 0; cur = 0; bRender(); };
+    return;
+  }
+  const [q, c] = ITEMS[cur];
+  if (ngMode) {
+    one.innerHTML = `<div class="one-prog">${prog}</div><div class="one-n">${cur + 1} / ${ITEMS.length} ・ 異常</div><div class="one-q" style="color:var(--st-ng)">✕ ${q}</div>
+      <div class="ng-input">どこが・どうなっているか（声で入力もできます）</div>
+      <div class="cam"><span>📷 写真を撮る</span><span>🖼 写真を選ぶ</span></div>
+      <div style="margin-top:auto"><button class="btn red" id="b-ngnext">異常として次へ</button><button class="btn" id="b-ngback">正常に戻す</button></div>`;
+    document.getElementById('b-ngnext').onclick = () => { res[cur] = 'ng'; cur++; ngMode = false; bRender(); };
+    document.getElementById('b-ngback').onclick = () => { ngMode = false; bRender(); };
+    return;
+  }
+  one.innerHTML = `<div class="one-prog">${prog}</div><div class="one-n">${cur + 1} / ${ITEMS.length}</div><div class="one-q">${q}</div><p class="one-c">${c}</p>
+    <div class="one-btns"><button class="ok" id="b-ok"><span class="ico">✓</span>正常</button><button class="ng" id="b-ng"><span class="ico">✕</span>異常</button></div>
+    <div class="one-sub"><button id="b-prev" ${cur ? '' : 'style="visibility:hidden"'}>← 前の項目</button><button id="b-na">対象外</button></div>`;
+  document.getElementById('b-ok').onclick = () => { res[cur] = 'ok'; cur++; bRender(); };
+  document.getElementById('b-ng').onclick = () => { ngMode = true; bRender(); };
+  document.getElementById('b-na').onclick = () => { res[cur] = 'na'; cur++; bRender(); };
+  document.getElementById('b-prev').onclick = () => { cur = Math.max(0, cur - 1); bRender(); };
+}
+bRender();
+</script>
+</body>
+</html>

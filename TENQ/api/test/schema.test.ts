@@ -149,7 +149,8 @@ describe('読み取りのインデックス', () => {
     (await db().prepare(`EXPLAIN QUERY PLAN ${sql}`).bind(...params).all<{ detail: string }>()).results.map((r) => r.detail).join(' / ');
   const cases: [string, string, unknown[]][] = [
     ['カード一覧の今日の点検', "SELECT i.id FROM inspections i JOIN users u ON u.id = i.inspector_user_id WHERE i.factory_id = ? AND i.status <> 'voided' AND i.period_key IN (?, ?, ?)", ['fac-1a', 'a', 'b', 'c']],
-    ['カード一覧の異常の件数', "SELECT equipment_id, COUNT(*) FROM abnormalities WHERE factory_id = ? AND status <> 'closed' GROUP BY equipment_id", ['fac-1a']],
+    ['見取り図の直っていない異常', "SELECT id, equipment_id, title, description, found_at FROM abnormalities WHERE factory_id = ? AND status <> 'closed' ORDER BY found_at", ['fac-1a']],
+    ['点検の完了で同じ項目の直っていない異常', "SELECT id, inspection_item_id FROM abnormalities WHERE equipment_id = ? AND status <> 'closed' AND inspection_item_id IS NOT NULL", ['eq-p01']],
     ['点検の検索', "SELECT i.id FROM inspections i WHERE i.company_id = ? AND i.factory_id IN (?) AND i.status <> 'voided' ORDER BY i.started_at DESC, i.id DESC LIMIT 51", [1, 'fac-1a']],
     ['帳票の期間', 'SELECT DISTINCT template_version_id FROM inspections WHERE factory_id = ? AND inspection_date BETWEEN ? AND ?', ['fac-1a', '2026-10-01', '2026-10-31']],
   ];

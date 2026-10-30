@@ -73,9 +73,16 @@ describe('点検の完了（T-05 / T-06）', () => {
     expect(done.status).toBe(200);
     expect(done.body.overall_result).toBe('ng');
     expect(done.body.ngItems).toEqual([rows[1].item_id]);
+    // ✕ の項目はそのまま異常として登録され、点検結果と結び付く（requirements §10 Q-15）
+    expect(done.body.abnormalities).toHaveLength(1);
+    const abn = await get(`/abnormalities/${done.body.abnormalities[0].id}`, T.staff2);
+    expect(abn.body.abnormality).toMatchObject({ status: 'reported', inspection_id: s.body.inspectionId, inspection_item_id: rows[1].item_id, description: '主軸の振動が大きい' });
 
     const again = await completeWithKey(s.body.inspectionId, T.staff2, { results: rows }, key);
     expect(again.body.repeated).toBe(true);
+    expect(again.body.abnormalities).toEqual(done.body.abnormalities);
+    const abnCount = await env.DB.prepare('SELECT COUNT(*) AS n FROM abnormalities WHERE inspection_id = ?').bind(s.body.inspectionId).first<{ n: number }>();
+    expect(abnCount?.n).toBe(1);
     const otherKey = await completeWithKey(s.body.inspectionId, T.staff2, { results: rows }, crypto.randomUUID());
     expect(otherKey.status).toBe(409);
 
@@ -91,6 +98,19 @@ describe('点検の完了（T-05 / T-06）', () => {
     const restart = await post('/equipment/eq-m04/inspections', T.worker, {});
     expect(restart.status).toBe(409);
     expect(restart.body.code).toBe('completed');
+  });
+
+  it('同じ項目の異常が直っていなければ、新しく作らずにそれに結び付ける（直すまで 1 件）', async () => {
+    const rows = await allOk('eq-w03', T.staff2);
+    const itemId = rows[0].item_id;
+    await env.DB.prepare(`INSERT INTO abnormalities (id, company_id, factory_id, equipment_id, inspection_item_id, report_no, title, found_at, reported_by, severity, status, created_at, updated_at)
+      VALUES ('abn-open-w03', 1, 'fac-1a', 'eq-w03', ?, 'F01-TEST-0001', '前日の異常', '2026-01-01T00:00:00Z', 'usr-suzuki', 'medium', 'reported', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`).bind(itemId).run();
+    const s = await post('/equipment/eq-w03/inspections', T.staff2, {});
+    rows[0] = { ...rows[0], judgment: 'ng', note: 'まだ直っていない' };
+    const done = await completeWithKey(s.body.inspectionId, T.staff2, { results: rows }, crypto.randomUUID());
+    expect(done.body.abnormalities).toEqual([{ item_id: itemId, id: 'abn-open-w03' }]);
+    const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM abnormalities WHERE equipment_id = 'eq-w03'").first<{ n: number }>();
+    expect(n?.n).toBe(1);
   });
 
   it('Idempotency-Key がないと 400', async () => {
@@ -183,7 +203,8 @@ describe('今日の点検状況（board）', () => {
     expect(by('K-02').board_status).toBe('stop');
     expect(by('P-01').board_status).toBe('ok');
     expect(by('L-07').open_abnormalities).toBe(1);
-    expect(['todo', 'late', 'stop']).toContain(by('W-03').board_status);
+    expect(by('P-03').board_status).toBe('doing');
+    expect(by('CR-2').abnormalities[0]).toMatchObject({ id: 'ab-2', title: 'ブレーキの効きが弱い' });
     expect(r.body.areas.length).toBeGreaterThanOrEqual(4);
     expect((await get('/board?factory=fac-1a', T.other)).status).toBe(403);
     expect((await get('/board?factory=fac-2a', T.worker)).status).toBe(403);

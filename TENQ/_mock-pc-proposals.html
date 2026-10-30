@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TENQ PC画面案</title>
+<!-- 検討用のモック（本番画面ではない）。管理者が PC で毎朝見る画面の 3 案。色は 3 つだけ（✕異常=赤・○正常=緑・まだ=白点線） -->
+<style>
+:root {
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  --bg: #EEF1F5; --ink: #1B2430; --sub: #5F6B7A; --line: #E1E6EC; --line-strong: #C9D1DB; --accent: #1F5FD1;
+  --ok: #15803D; --ok-lt: #DCFCE7;
+  --ng: #DC2626; --ng-lt: #FEE2E2;
+  --todo: #64748B;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.6; }
+button { font-family: inherit; cursor: pointer; }
+.top { position: sticky; top: 0; z-index: 30; background: #fff; border-bottom: 1px solid var(--line); padding: 14px 24px 0; }
+.top h1 { margin: 0; font-size: 20px; }
+.top p { margin: 2px 0 10px; font-size: 13px; color: var(--sub); }
+.tabs { display: flex; gap: 4px; overflow-x: auto; }
+.tabs button { border: 1px solid var(--line); border-bottom: 0; background: #F6F8FA; color: var(--sub); padding: 8px 18px; border-radius: 8px 8px 0 0; white-space: nowrap; font-size: 14px; }
+.tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+main { padding: 22px 24px 60px; max-width: 1500px; margin: 0 auto; }
+section { display: none; } section.on { display: block; }
+h2 { margin: 0 0 4px; font-size: 22px; }
+.lead { color: var(--sub); margin: 0 0 14px; }
+.pts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.pts div { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 14px; }
+.pts b { display: block; font-size: 13px; color: var(--sub); }
+
+/* PC の画面枠 */
+.screen { background: #F5F7FA; border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden; box-shadow: 0 12px 30px rgba(15,23,42,.12); min-width: 1100px; }
+.wrap { overflow-x: auto; padding-bottom: 6px; }
+.s-head { background: #fff; border-bottom: 1px solid var(--line); padding: 10px 20px; display: flex; align-items: center; gap: 18px; }
+.s-head .logo { font-weight: 900; letter-spacing: .08em; color: var(--accent); font-size: 18px; }
+.s-head .fac { font-weight: 700; }
+.s-head .date { color: var(--sub); font-size: 14px; }
+.sum { display: flex; gap: 8px; margin-left: auto; }
+.sum span { border-radius: 10px; padding: 4px 14px; font-weight: 800; font-size: 15px; border: 2px solid transparent; }
+.sum b { font-size: 22px; margin-left: 4px; }
+.sum .n-ng { background: var(--ng); color: #fff; }
+.sum .n-todo { background: #fff; border: 2px dashed var(--todo); color: var(--ink); }
+.sum .n-ok { background: var(--ok-lt); color: var(--ok); }
+.gear { border: 1px solid var(--line-strong); background: #fff; border-radius: 10px; height: 44px; padding: 0 14px; font-size: 15px; color: var(--sub); }
+
+/* 設備のタイル（3 色） */
+.tile { border-radius: 10px; border: 2px solid var(--line-strong); background: #fff; padding: 6px 8px; text-align: left; min-height: 56px; display: flex; flex-direction: column; justify-content: center; font-size: 13px; color: var(--ink); }
+.tile b { font-size: 14px; }
+.tile small { font-size: 12px; font-weight: 700; }
+.tile.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.tile.ng { background: var(--ng); border-color: var(--ng); color: #fff; box-shadow: 0 0 0 3px var(--ng-lt); }
+.tile.todo { border: 2px dashed var(--todo); color: var(--ink); }
+.tile.todo small { color: var(--sub); }
+.tile.sel { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* 詳細（右の欄・引き出し共通） */
+.det h3 { margin: 0; font-size: 20px; }
+.det .where { color: var(--sub); font-size: 13px; margin: 0 0 10px; }
+.det .st { display: inline-block; border-radius: 8px; padding: 2px 12px; font-weight: 800; margin-bottom: 10px; }
+.det .st.ng { background: var(--ng); color: #fff; } .det .st.ok { background: var(--ok); color: #fff; } .det .st.todo { border: 2px dashed var(--todo); }
+.det dl { margin: 0 0 12px; display: grid; grid-template-columns: 84px 1fr; gap: 4px 8px; font-size: 14px; }
+.det dt { color: var(--sub); }
+.det dd { margin: 0; }
+.det .ph { width: 100%; height: 110px; border-radius: 10px; background: repeating-linear-gradient(45deg,#E5E7EB 0 10px,#F3F4F6 10px 20px); display: grid; place-items: center; color: var(--sub); font-size: 13px; margin-bottom: 12px; }
+.det .go { width: 100%; min-height: 52px; border: 0; border-radius: 12px; background: var(--ok); color: #fff; font-size: 17px; font-weight: 800; }
+.det .ghost { width: 100%; min-height: 44px; border: 1px solid var(--line-strong); border-radius: 12px; background: #fff; font-size: 15px; margin-top: 8px; }
+.det .stop { display: block; margin-top: 10px; font-size: 13px; color: var(--ng); text-align: center; background: none; border: 0; text-decoration: underline; width: 100%; }
+.det textarea { width: 100%; font: inherit; font-size: 16px; border: 2px solid var(--line-strong); border-radius: 10px; padding: 8px; min-height: 64px; margin-bottom: 8px; }
+.det .empty { color: var(--sub); font-size: 14px; }
+.det .hist { font-size: 13px; color: var(--sub); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 12px; }
+
+/* A案: 見取り図＋右の欄 */
+.a-body { display: grid; grid-template-columns: 1fr 340px; min-height: 620px; }
+.map { position: relative; margin: 16px; background: #E9EDF2; border-radius: 14px; min-height: 590px; }
+.road { position: absolute; left: 0; right: 0; top: 50%; height: 26px; background: #D5DBE3; color: var(--sub); font-size: 12px; text-align: center; line-height: 26px; }
+.bld { position: absolute; background: #fff; border: 2px solid var(--line-strong); border-radius: 12px; padding: 8px 10px 10px; }
+.bld.has-ng { border-color: var(--ng); }
+.bld h4 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 8px; align-items: baseline; }
+.bld h4 small { font-weight: 700; font-size: 12px; color: var(--sub); }
+.bld h4 small.r { color: var(--ng); }
+.bld .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+.side { background: #fff; border-left: 1px solid var(--line); padding: 16px; }
+.side h4 { margin: 0 0 8px; font-size: 15px; }
+.nglist button { width: 100%; text-align: left; border: 2px solid var(--ng); background: var(--ng-lt); border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; font-size: 14px; color: var(--ink); }
+.nglist button b { color: var(--ng); }
+.nglist button small { display: block; color: var(--sub); font-size: 12px; }
+
+/* B案: 建屋の列 */
+.b-body { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 16px; min-height: 620px; }
+.col { background: #fff; border: 2px solid var(--line-strong); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.col.has-ng { border-color: var(--ng); }
+.col h4 { margin: 0; font-size: 17px; }
+.col .cnt { display: flex; gap: 6px; font-size: 12px; font-weight: 800; margin-bottom: 4px; }
+.col .cnt span { border-radius: 6px; padding: 0 8px; }
+.col .bar3 { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: #fff; border: 1px dashed var(--todo); margin-bottom: 6px; }
+.col .bar3 i { display: block; }
+.col .tile { min-height: 52px; flex-direction: row; align-items: center; gap: 10px; }
+.col .tile .ic { font-size: 22px; font-weight: 900; width: 26px; text-align: center; }
+.col .tile .tx { display: flex; flex-direction: column; line-height: 1.3; }
+.drawer-bg { position: absolute; inset: 0; background: rgba(15,23,42,.25); display: none; }
+.drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 380px; background: #fff; box-shadow: -10px 0 30px rgba(15,23,42,.18); padding: 18px; display: none; overflow-y: auto; }
+.drawer .x { position: absolute; right: 10px; top: 10px; width: 44px; height: 44px; border: 0; background: none; font-size: 22px; color: var(--sub); }
+.open .drawer-bg, .open .drawer { display: block; }
+
+/* C案: 表 */
+.c-body { display: grid; grid-template-columns: 200px 1fr 340px; min-height: 620px; }
+.c-left { background: #fff; border-right: 1px solid var(--line); padding: 14px 10px; }
+.c-left button { width: 100%; min-height: 44px; border: 0; background: none; border-radius: 10px; text-align: left; padding: 6px 12px; font-size: 15px; display: flex; justify-content: space-between; align-items: center; color: var(--ink); }
+.c-left button.on { background: #E8EFFC; font-weight: 800; color: var(--accent); }
+.c-left button em { font-style: normal; background: var(--ng); color: #fff; border-radius: 999px; font-size: 12px; font-weight: 800; padding: 0 8px; }
+.c-left hr { border: 0; border-top: 1px solid var(--line); margin: 10px 4px; }
+.c-left label { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; font-size: 15px; }
+.c-left input { width: 20px; height: 20px; }
+.c-main { padding: 16px; }
+table { width: 100%; border-collapse: separate; border-spacing: 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 14px; }
+th { text-align: left; background: #F6F8FA; color: var(--sub); font-weight: 700; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+td { padding: 0 12px; height: 48px; border-bottom: 1px solid var(--line); }
+tr.row { cursor: pointer; } tr.row:hover td { background: #F8FAFC; }
+tr.row.sel td { background: #E8EFFC; }
+tr.grp td { background: #F1F4F8; font-weight: 800; height: 36px; font-size: 13px; color: var(--sub); }
+.pill { display: inline-flex; align-items: center; gap: 4px; border-radius: 8px; padding: 2px 12px; font-weight: 800; font-size: 13px; min-width: 76px; justify-content: center; }
+.pill.ng { background: var(--ng); color: #fff; } .pill.ok { background: var(--ok); color: #fff; } .pill.todo { border: 2px dashed var(--todo); }
+td.memo { color: var(--ng); font-weight: 700; }
+.c-side { background: #fff; border-left: 1px solid var(--line); padding: 16px; }
+
+.cmp { width: 100%; background: #fff; }
+.cmp td, .cmp th { height: auto; padding: 10px 12px; vertical-align: top; }
+.rec { background: #fff; border: 2px solid var(--accent); border-radius: 12px; padding: 14px 18px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>TENQ PC画面（管理者）— 3 案</h1>
+  <p>管理者が毎朝 PC で「どの建屋のどの設備が、点検済みか・異常か」を見る画面。色は 3 つだけ（✕異常=赤・○正常=緑・まだ=白点線）。設備を押すと詳細と「直した」が出ます（どの案でも実際に押せます）。</p>
+  <div class="tabs">
+    <button data-tab="a" class="on">A案 見取り図＋異常の欄</button>
+    <button data-tab="b">B案 建屋の列</button>
+    <button data-tab="c">C案 建屋別の表</button>
+    <button data-tab="cmp">比較</button>
+  </div>
+</div>
+<main>
+  <section id="a" class="on">
+    <h2>A案　見取り図＋異常の欄</h2>
+    <p class="lead">工場の配置どおりに建屋を並べ、右に「直っていない異常」を常に出す。場所で覚えている人向け。</p>
+    <div class="pts">
+      <div><b>良いところ</b>建屋の位置がそのまま分かる。異常は右の欄にも並ぶので見落とさない</div>
+      <div><b>気になるところ</b>建屋の配置を管理画面で一度作る必要がある。設備が 1 建屋 30 台を超えると窮屈</div>
+      <div><b>向いている工場</b>建屋が数棟・設備が全部で 100 台くらいまで</div>
+    </div>
+    <div class="wrap"><div class="screen" data-mock="a"></div></div>
+  </section>
+  <section id="b">
+    <h2>B案　建屋の列</h2>
+    <p class="lead">建屋ごとに縦の列。列の中は「異常 → まだ → 正常」の順に自動で並ぶので、上を見るだけで済む。配置の設定はいらない。</p>
+    <div class="pts">
+      <div><b>良いところ</b>配置を作らなくてすぐ使える。異常が必ず列の一番上。壁のモニターに映しても読める</div>
+      <div><b>気になるところ</b>建屋の実際の位置関係は分からない。建屋が 6 つを超えると列が細くなる</div>
+      <div><b>向いている工場</b>建屋が 2〜5 つ。まず手間なく始めたい</div>
+    </div>
+    <div class="wrap"><div class="screen" data-mock="b" style="position:relative"></div></div>
+  </section>
+  <section id="c">
+    <h2>C案　建屋別の表</h2>
+    <p class="lead">左で建屋を選び、真ん中は 1 台 1 行の表。「異常だけ」「まだだけ」で絞れる。誰がいつ点検したかも同じ行で見える。</p>
+    <div class="pts">
+      <div><b>良いところ</b>設備が何百台あっても崩れない。点検した人・時刻・異常の内容が一目で並ぶ</div>
+      <div><b>気になるところ</b>「工場全体がぱっと見て何色か」は A・B より伝わりにくい</div>
+      <div><b>向いている工場</b>設備が多い。記録を細かく見たい</div>
+    </div>
+    <div class="wrap"><div class="screen" data-mock="c"></div></div>
+  </section>
+  <section id="cmp">
+    <h2>比較</h2>
+    <table class="cmp">
+      <tr><th></th><th>A案 見取り図＋異常の欄</th><th>B案 建屋の列</th><th>C案 建屋別の表</th></tr>
+      <tr><th>どの建屋か</th><td>◎ 実際の配置で分かる</td><td>○ 列の見出しで分かる</td><td>○ 左の選択・行の見出しで分かる</td></tr>
+      <tr><th>異常の見つけやすさ</th><td>◎ 赤タイル＋右の欄</td><td>◎ 列の一番上に赤</td><td>○ 「異常だけ」で絞る</td></tr>
+      <tr><th>ぱっと見の全体像</th><td>◎</td><td>◎</td><td>△</td></tr>
+      <tr><th>設備が多いとき</th><td>△ 〜100 台</td><td>○ 〜200 台</td><td>◎ 何台でも</td></tr>
+      <tr><th>始めるまでの手間</th><td>△ 配置を作る</td><td>◎ なし</td><td>◎ なし</td></tr>
+      <tr><th>誰がいつ点検したか</th><td>押すと出る</td><td>押すと出る</td><td>◎ 表に出ている</td></tr>
+    </table>
+    <div class="rec"><b>おすすめ: B案で始めて、A案の見取り図はあとから足す</b><br>
+    B案は配置の設定なしでその日から使え、異常が必ず上に来ます。建屋の配置を作ったら A案に切り替えられるようにすれば（同じデータで表示だけ変える）、両方の良いところが取れます。C案の表は、⚙ の「点検記録」（検索・CSV）の画面として使えます。</div>
+  </section>
+</main>
+
+<script>
+// 建屋と設備。[コード, 名前, 状態, 点検した人・時刻]
+const B = [
+  { name: 'A棟', note: 'プレス', pos: [2, 3, 46, 44], eq: [
+    ['P-01', 'プレス機 1号', 'ok', '山本 7:42'], ['P-02', 'プレス機 2号', 'ok', '山本 7:45'], ['P-03', 'プレス機 3号', 'ng', '山本 7:51'],
+    ['P-04', 'プレス機 4号', 'todo', ''], ['P-05', 'プレス機 5号', 'ok', '佐藤 7:58'], ['CR-1', '天井クレーン', 'ng', '佐藤 8:02'] ] },
+  { name: 'B棟', note: '溶接', pos: [51, 3, 47, 44], eq: [
+    ['W-01', '溶接ロボ 1号', 'ok', '中村 7:40'], ['W-02', '溶接ロボ 2号', 'ok', '中村 7:44'], ['W-03', '溶接ロボ 3号', 'ng', '中村 7:49'],
+    ['W-04', '溶接ロボ 4号', 'todo', ''], ['W-05', '集じん機', 'todo', ''] ] },
+  { name: 'C棟', note: '切断・塗装', pos: [2, 56, 60, 42], eq: [
+    ['L-01', 'レーザー 1号', 'ok', '高橋 7:35'], ['L-02', 'レーザー 2号', 'ok', '高橋 7:39'], ['S-01', 'シャーリング', 'ok', '高橋 7:50'],
+    ['T-01', '塗装ブース', 'todo', ''], ['T-02', '乾燥炉', 'ok', '伊藤 8:05'] ] },
+  { name: '倉庫', note: '', pos: [65, 56, 33, 42], eq: [
+    ['F-01', 'フォークリフト 1', 'ok', '伊藤 7:30'], ['F-02', 'フォークリフト 2', 'todo', ''], ['C-01', 'コンプレッサー', 'ok', '伊藤 7:33'] ] },
+];
+// 直っていない異常
+const NG = {
+  'P-03': { what: '油が漏れている（床に跡）', who: '山本', when: '今日 7:51', since: '' },
+  'CR-1': { what: 'ブレーキの効きが弱い', who: '佐藤', when: '10/29 8:10', since: '2日前から' },
+  'W-03': { what: 'トーチの先が曲がっている', who: '中村', when: '今日 7:49', since: '' },
+};
+const FIXED = {};
+const label = { ng: '✕ 異常', ok: '○ 正常', todo: 'まだ' };
+const all = () => B.flatMap((b) => b.eq.map((e) => ({ b, e })));
+const find = (code) => all().find((x) => x.e[0] === code);
+const order = { ng: 0, todo: 1, ok: 2 };
+const sel = { a: null, b: null, c: null };
+let cBld = 'all', cOnly = '';
+
+function tileText(e) {
+  const [code, name, st, by] = e;
+  const n = NG[code];
+  const small = st === 'ng' ? (n?.since || '✕ 異常') : st === 'ok' ? (FIXED[code] ? '○ 直した' : '○ ' + by.split(' ')[1]) : 'まだ';
+  return { code, name, st, small };
+}
+function tile(e, mock) {
+  const t = tileText(e);
+  return `<button class="tile ${t.st}${sel[mock] === t.code ? ' sel' : ''}" data-code="${t.code}"><b>${t.code} ${t.name}</b><small>${t.small}</small></button>`;
+}
+function counts(list) {
+  const c = { ng: 0, todo: 0, ok: 0 };
+  list.forEach((e) => c[e[2]]++);
+  return c;
+}
+function head() {
+  const c = counts(all().map((x) => x.e));
+  return `<div class="s-head"><span class="logo">TENQ</span><span class="fac">第1工場</span><span class="date">10月31日（金）8:15</span>
+    <div class="sum"><span class="n-ng">✕ 異常<b>${c.ng}</b></span><span class="n-todo">まだ<b>${c.todo}</b></span><span class="n-ok">○ 正常<b>${c.ok}</b></span></div>
+    <button class="gear">⚙ 設定・記録</button></div>`;
+}
+
+// 詳細（3 案で共通）
+function detail(code, form) {
+  if (!code) return '<p class="det empty">設備を押すと、ここに詳細が出ます。</p>';
+  const { b, e } = find(code);
+  const [, name, st, by] = e;
+  const n = NG[code];
+  let h = `<div class="det"><h3>${code} ${name}</h3><p class="where">${b.name}${b.note ? '（' + b.note + '）' : ''}</p>
+    <span class="st ${st}">${FIXED[code] ? '○ 直した' : label[st]}</span>`;
+  if (st === 'ng' && n) {
+    h += `<dl><dt>異常の内容</dt><dd><b>${n.what}</b></dd><dt>見つけた人</dt><dd>${n.who}（${n.when}）</dd>${n.since ? `<dt>経過</dt><dd style="color:var(--ng);font-weight:700">${n.since}</dd>` : ''}</dl>
+      <div class="ph">写真（作業者が撮ったもの）</div>`;
+    h += form
+      ? `<textarea placeholder="何をして直したか（一言）">パッキン交換</textarea><div class="ph" style="height:56px">＋ 写真（任意）</div>
+         <button class="go" data-act="save">記録する</button><button class="ghost" data-act="cancel">やめる</button>`
+      : `<button class="go" data-act="fix">○ 直した</button><button class="stop" data-act="stop">危ないので設備を止める</button>`;
+  } else if (FIXED[code]) {
+    h += `<dl><dt>直した内容</dt><dd>${FIXED[code]}</dd><dt>直した人</dt><dd>工場長 平野（今）</dd></dl>`;
+  } else if (st === 'ok') {
+    h += `<dl><dt>点検した人</dt><dd>${by}</dd><dt>結果</dt><dd>全項目 ○</dd></dl>`;
+  } else {
+    h += `<p class="empty">今日はまだ点検されていません。</p>`;
+  }
+  h += `<div class="hist">この設備の点検記録を見る →</div></div>`;
+  return h;
+}
+
+function renderA(form) {
+  const el = document.querySelector('[data-mock="a"]');
+  const ngs = all().filter((x) => x.e[2] === 'ng');
+  el.innerHTML = head() + `<div class="a-body"><div class="map"><div class="road">構内通路</div>${B.map((b) => {
+    const c = counts(b.eq);
+    const [l, t, w, hh] = b.pos;
+    return `<div class="bld${c.ng ? ' has-ng' : ''}" style="left:${l}%;top:${t}%;width:${w}%;height:${hh}%">
+      <h4>${b.name}<small>${b.note}</small>${c.ng ? `<small class="r">✕ ${c.ng}</small>` : ''}<small>まだ ${c.todo}</small></h4>
+      <div class="tiles">${b.eq.map((e) => tile(e, 'a')).join('')}</div></div>`;
+  }).join('')}</div>
+  <div class="side">${sel.a ? detail(sel.a, form) : `<h4>直っていない異常（${ngs.length}）</h4><div class="nglist">${ngs.map(({ b, e }) =>
+    `<button data-code="${e[0]}"><b>✕ ${e[0]} ${e[1]}</b><small>${b.name}・${NG[e[0]].what}${NG[e[0]].since ? '・' + NG[e[0]].since : ''}</small></button>`).join('') || '<p class="det empty">ありません</p>'}</div>
+    <p class="det empty" style="margin-top:14px">設備を押すと、ここに詳細が出ます。</p>`}
+    ${sel.a ? '<button class="ghost" data-act="back" style="width:100%;min-height:44px;border:1px solid var(--line-strong);border-radius:12px;background:#fff;margin-top:10px">← 異常の一覧に戻る</button>' : ''}</div></div>`;
+}
+
+function renderB(form) {
+  const el = document.querySelector('[data-mock="b"]');
+  el.innerHTML = head() + `<div class="b-body">${B.map((b) => {
+    const c = counts(b.eq), n = b.eq.length;
+    const eq = [...b.eq].sort((x, y) => order[x[2]] - order[y[2]]);
+    return `<div class="col${c.ng ? ' has-ng' : ''}"><h4>${b.name}<span style="font-size:13px;color:var(--sub);font-weight:400"> ${b.note}</span></h4>
+      <div class="cnt">${c.ng ? `<span style="background:var(--ng);color:#fff">✕ ${c.ng}</span>` : ''}<span style="border:1px dashed var(--todo)">まだ ${c.todo}</span><span style="background:var(--ok-lt);color:var(--ok)">○ ${c.ok}</span></div>
+      <div class="bar3"><i style="width:${c.ng / n * 100}%;background:var(--ng)"></i><i style="width:${c.ok / n * 100}%;background:var(--ok)"></i></div>
+      ${eq.map((e) => { const t = tileText(e); return `<button class="tile ${t.st}${sel.b === t.code ? ' sel' : ''}" data-code="${t.code}"><span class="ic">${t.st === 'ng' ? '✕' : t.st === 'ok' ? '○' : '…'}</span><span class="tx"><b>${t.code} ${t.name}</b><small>${t.small}</small></span></button>`; }).join('')}
+    </div>`;
+  }).join('')}</div><div class="drawer-bg" data-act="close"></div><div class="drawer"><button class="x" data-act="close" aria-label="閉じる">✕</button>${sel.b ? detail(sel.b, form) : ''}</div>`;
+  el.classList.toggle('open', !!sel.b);
+}
+
+function renderC(form) {
+  const el = document.querySelector('[data-mock="c"]');
+  const bl = B.filter((b) => cBld === 'all' || b.name === cBld);
+  let rows = '';
+  bl.forEach((b) => {
+    const eq = [...b.eq].sort((x, y) => order[x[2]] - order[y[2]]).filter((e) => !cOnly || e[2] === cOnly);
+    if (!eq.length) return;
+    rows += `<tr class="grp"><td colspan="5">${b.name}　${b.note}</td></tr>` + eq.map((e) => {
+      const t = tileText(e), n = NG[e[0]];
+      return `<tr class="row${sel.c === e[0] ? ' sel' : ''}" data-code="${e[0]}"><td><b>${e[0]}</b> ${e[1]}</td><td><span class="pill ${e[2]}">${FIXED[e[0]] ? '○ 直した' : label[e[2]]}</span></td>
+        <td>${e[3] || '—'}</td><td class="memo">${e[2] === 'ng' && n ? n.what : ''}</td><td style="color:var(--ng);font-weight:700">${e[2] === 'ng' && n ? n.since : ''}</td></tr>`;
+    }).join('');
+  });
+  el.innerHTML = head() + `<div class="c-body"><div class="c-left">
+    <button data-bld="all" class="${cBld === 'all' ? 'on' : ''}">すべての建屋 ${counts(all().map((x) => x.e)).ng ? `<em>${counts(all().map((x) => x.e)).ng}</em>` : ''}</button>
+    ${B.map((b) => { const c = counts(b.eq); return `<button data-bld="${b.name}" class="${cBld === b.name ? 'on' : ''}">${b.name}${c.ng ? `<em>${c.ng}</em>` : ''}</button>`; }).join('')}
+    <hr><label><input type="radio" name="only" value="" ${!cOnly ? 'checked' : ''}> ぜんぶ</label>
+    <label><input type="radio" name="only" value="ng" ${cOnly === 'ng' ? 'checked' : ''}> ✕ 異常だけ</label>
+    <label><input type="radio" name="only" value="todo" ${cOnly === 'todo' ? 'checked' : ''}> まだだけ</label></div>
+    <div class="c-main"><table><tr><th style="width:30%">設備</th><th>今日</th><th>点検した人</th><th>異常の内容</th><th></th></tr>${rows || '<tr><td colspan="5">該当なし</td></tr>'}</table></div>
+    <div class="c-side">${detail(sel.c, form)}</div></div>`;
+}
+
+const R = { a: renderA, b: renderB, c: renderC };
+function renderAll() { Object.keys(R).forEach((k) => R[k](false)); }
+
+document.querySelectorAll('[data-mock]').forEach((el) => {
+  const m = el.dataset.mock;
+  el.addEventListener('click', (ev) => {
+    const t = ev.target.closest('[data-code],[data-act],[data-bld]');
+    if (!t) return;
+    if (t.dataset.bld) { cBld = t.dataset.bld; return R.c(false); }
+    if (t.dataset.code) { sel[m] = t.dataset.code; return R[m](false); }
+    const act = t.dataset.act;
+    if (act === 'fix') return R[m](true);
+    if (act === 'cancel') return R[m](false);
+    if (act === 'stop') { alert('（モック）設備を「停止中」にして、作業者の点検画面で使えないことを知らせます'); return; }
+    if (act === 'save') {
+      const code = sel[m];
+      FIXED[code] = el.querySelector('textarea').value || '直した';
+      find(code).e[2] = 'ok';
+      delete NG[code];
+      return renderAll();
+    }
+    if (act === 'close' || act === 'back') { sel[m] = null; return R[m](false); }
+  });
+  el.addEventListener('change', (ev) => { if (ev.target.name === 'only') { cOnly = ev.target.value; R.c(false); } });
+});
+document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('.tabs button, section').forEach((x) => x.classList.remove('on'));
+  b.classList.add('on');
+  document.getElementById(b.dataset.tab).classList.add('on');
+}));
+renderAll();
+</script>
+</body>
+</html>

@@ -17,7 +17,7 @@ test('利用者が入力した HTML は実行されず、文字として表示�
   await page.getByLabel('キーワード').fill('onerror');
   await expect(page.getByRole('link', { name })).toBeVisible();
   await page.goto('./#/board');
-  await expect(page.locator('.mc-name', { hasText: 'onerror' })).toBeVisible();
+  await expect(page.locator('.eq', { hasText: 'onerror' })).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { __xss?: number }).__xss)).toBeUndefined();
   expect(await page.locator('img[src="x"]').count()).toBe(0);
 });

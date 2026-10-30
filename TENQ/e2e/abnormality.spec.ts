@@ -12,7 +12,7 @@ async function switchUser(page: Page, name: string) {
   await devLogin(page, name);
 }
 
-test('点検で異常を選ぶと、完了画面からそのまま写真付きで報告できる', async ({ page }) => {
+test('点検で ✕ と一言・写真を送ると異常になり、見取り図で赤く出て、「直した」で緑に戻る', async ({ page }) => {
   test.skip(!isPc(page), '同じ設備の点検を2回しないよう PC だけで行う');
   await page.goto('./');
   await devLogin(page, '山本 健');
@@ -21,67 +21,48 @@ test('点検で異常を選ぶと、完了画面からそのまま写真付き�
   await groups.first().waitFor();
   for (let i = 0; i < await groups.count(); i++) await groups.nth(i).getByRole('button', { name: '正常' }).click();
   await groups.nth(1).getByRole('button', { name: '異常' }).click();
-  await page.getByPlaceholder(/右側の安全カバー/).fill('ガスホースに亀裂');
-  await page.getByRole('button', { name: '点検を完了' }).click();
+  await page.getByPlaceholder('どこが・どうなっているか（一言）').fill('ガスホースに亀裂');
+  await page.locator('.memo-photo input[type=file]').setInputFiles({ name: 'hose.png', mimeType: 'image/png', buffer: PNG });
+  await expect(page.getByText('写真 1')).toBeVisible();
+  await page.getByRole('button', { name: '送る', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '送りました' })).toBeVisible();
+  await expect(page.getByText('写真も送りました。')).toBeVisible();
 
-  await page.getByRole('button', { name: '異常を報告' }).click();
-  await expect(page.getByLabel('異常の内容（ひとことで）')).toHaveValue('ケーブル・ホースの異常');
-  await expect(page.getByLabel('詳しい内容')).toHaveValue('ガスホースに亀裂');
-  await page.getByText('けが・故障・品質不良につながるおそれがある').click();
-  await expect(page.getByRole('alert').filter({ hasText: '設備の使用を止め' })).toBeVisible();
-  await page.locator('input[type=file]').setInputFiles({ name: 'hose.png', mimeType: 'image/png', buffer: PNG });
-  await expect(page.getByRole('img', { name: '選んだ写真 1' })).toBeVisible();
-  await page.getByRole('button', { name: '報告する' }).click();
-
-  await expect(page.getByText('報告しました。')).toBeVisible();
-  await expect(page.getByRole('heading', { name: '写真（1）' })).toBeVisible();
-  await expect(page.locator('.photo-grid img')).toHaveCount(1);
-  await expect(page.getByRole('link', { name: /の点検/ })).toBeVisible();
+  // 工場長のホーム（見取り図）で赤く出る。押すと内容と写真、「直した」
+  await switchUser(page, '中村 誠');
+  const tile = page.getByRole('button', { name: /^W-03 溶接ロボット 3号 ✕ 今日/ });
+  await expect(tile).toBeVisible();
+  await expect(page.locator('.ng-list')).toContainText('W-03');
+  await tile.click();
+  const side = page.getByRole('complementary', { name: 'W-03 の詳細' });
+  await expect(side).toContainText('ケーブル・ホース');
+  await expect(side).toContainText('ガスホースに亀裂');
+  await expect(side.locator('.abn-photos img')).toHaveCount(1);
+  await side.getByRole('button', { name: '○ 直した' }).click();
+  await side.getByLabel('何をして直したか（一言）').fill('ホースを交換した');
+  await side.getByRole('button', { name: '記録する' }).click();
+  await expect(page.getByRole('button', { name: /^W-03 溶接ロボット 3号 ○ 直した/ })).toBeVisible();
 });
 
-test('担当決め → 着手 → 是正 → 再確認（別の人）→ 承認 まで追跡できる（T-09）', async ({ page }) => {
+test('異常の詳細画面から「直した」を記録でき、履歴に残る（一般社員には出ない）', async ({ page }) => {
   test.skip(!isPc(page), '利用者を切り替えて1件を最後まで進めるので PC だけで行う');
   await page.goto('./');
   await devLogin(page, '山本 健');
-  await page.goto('./#/equipment/eq-p02');
-  await page.getByRole('button', { name: '異常を報告' }).click();
+  await page.goto('./#/abnormalities/new?equipment=eq-p02');
   await page.getByLabel('異常の内容（ひとことで）').fill('E2E 作動油のにじみ');
   await page.getByText('早めの対応が必要').click();
   await page.getByRole('button', { name: '報告する' }).click();
   await expect(page.getByText('報告しました。')).toBeVisible();
   const url = page.url();
-  // 一般社員には対応の操作が出ない
-  await expect(page.getByRole('heading', { name: '対応する' })).toHaveCount(0);
-
-  await switchUser(page, '中村 誠');
-  await page.goto(url);
-  await page.getByLabel('対応担当者').selectOption({ label: '鈴木 大地' });
-  const due = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date(Date.now() + 3 * 86_400_000));
-  await page.getByLabel('対応期限').fill(due);
-  await page.getByRole('button', { name: '決める' }).click();
-  await expect(page.getByText('担当と期限を決めました。')).toBeVisible();
+  await expect(page.getByRole('heading', { name: '直した' })).toHaveCount(0);
 
   await switchUser(page, '鈴木 大地');
-  await expect(page.getByRole('link', { name: /あなたが担当の異常/ })).toBeVisible();
   await page.goto(url);
-  await page.getByRole('button', { name: '対応を始める' }).click();
-  await expect(page.getByText('対応中にしました。')).toBeVisible();
-  await page.getByLabel('修理・是正の内容').fill('継手のパッキンを交換');
-  await page.getByLabel('原因').fill('パッキンの劣化');
-  await page.getByRole('button', { name: '是正完了にする' }).click();
-  await expect(page.getByText('是正を記録しました。')).toBeVisible();
-  // 自分で直したものは自分で再確認できない（ボタンが出ない）
-  await expect(page.getByRole('button', { name: /直っている/ })).toHaveCount(0);
-
-  await switchUser(page, '中村 誠');
-  await page.goto(url);
-  await page.getByRole('button', { name: '直っている（再確認済み）' }).click();
-  await expect(page.getByText('再確認しました。')).toBeVisible();
-  await page.getByRole('button', { name: '承認して完了' }).click();
-  await expect(page.getByText('承認して完了にしました。')).toBeVisible();
-
+  await page.getByLabel('何をして直したか（一言）').fill('継手のパッキンを交換');
+  await page.getByRole('button', { name: '○ 直した' }).click();
+  await expect(page.getByText('「直した」を記録しました。')).toBeVisible();
   const timeline = page.locator('.timeline');
-  for (const s of ['発生', '未対応', '対応中', '是正完了', '再確認済み', '承認・完了']) await expect(timeline).toContainText(s);
+  for (const s of ['✕ 異常あり', '○ 直した']) await expect(timeline).toContainText(s);
   await expect(page.locator('.action-item')).toContainText('継手のパッキンを交換');
 });
 

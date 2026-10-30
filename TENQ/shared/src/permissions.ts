@@ -37,6 +37,7 @@ export const ACTIONS = [
   'abnormality.fix',
   'abnormality.verify',
   'abnormality.approve',
+  'abnormality.resolve',
   'equipment.view',
   'equipment.create',
   'equipment.edit',
@@ -69,6 +70,8 @@ export const PERMISSIONS: Record<Action, Row> = {
   'abnormality.fix':        row(false, 'assignedToMe', true, true),
   'abnormality.verify':     row(false, 'notFixer', 'notFixer', 'notFixer'),
   'abnormality.approve':    row(false, false, true, false),
+  // 「直した」（2026-10-31 簡単化。異常あり → 直した の 1 ステップ。requirements §10 Q-5）
+  'abnormality.resolve':    row(false, true, true, true),
   'equipment.view':         row(true, true, true, true),
   'equipment.create':       row(false, false, true, true),
   'equipment.edit':         row(false, 'managedEquipment', true, true),

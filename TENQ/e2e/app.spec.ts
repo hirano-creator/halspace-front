@@ -18,10 +18,11 @@ test('再発行済みの古い QR は案内を出す', async ({ page }) => {
 test('一般社員には登録・QR印刷・管理の入口が出ない', async ({ page }) => {
   await page.goto('./');
   await devLogin(page, '山本 健');
-  await expect(page.getByRole('heading', { name: '山本 健 さん' })).toBeVisible();
+  await expect(page.getByText('山本 健 さん')).toBeVisible();
   await openMenuIfNeeded(page);
   const nav = page.getByRole('navigation', { name: 'メニュー' });
-  await expect(nav.getByRole('link', { name: '設備台帳' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: '点検の記録' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: '設備台帳' })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: 'QRラベル印刷' })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: 'ユーザー管理' })).toHaveCount(0);
   await page.goto('./#/equipment');
@@ -117,7 +118,7 @@ test('TENQ のログイン画面から直接入ったタブは「ログアウト
   await devLogin(page, '山本 健');
   await page.evaluate(() => sessionStorage.setItem('tenq_standalone', '1'));
   await page.reload();
-  await expect(page.getByRole('heading', { name: '山本 健 さん' })).toBeVisible();  // 読み込みが終わってからメニューを開く
+  await expect(page.getByText('山本 健 さん')).toBeVisible();  // 読み込みが終わってからメニューを開く
   await openMenuIfNeeded(page);
   const nav = page.getByRole('navigation', { name: 'メニュー' });
   await expect(nav.getByRole('button', { name: 'ログアウト' })).toBeVisible();

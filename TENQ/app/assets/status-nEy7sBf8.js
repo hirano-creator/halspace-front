@@ -1,0 +1,1 @@
+function e(e,t){return t>0?`ng`:e===`ok`||e===`ng`?`ok`:e===`stop`?`stop`:`todo`}export{e as t};
