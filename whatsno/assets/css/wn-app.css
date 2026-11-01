@@ -1172,6 +1172,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
 .wn-page-count-badge { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 3px; }
 .wn-page-count-badge i { font-size: 12px; }
 .wn-page-count-badge .cnt { font-weight: 600; }
+.wn-page-count-badge[hidden] { display: none; }
 .file-row-meta .like-btn { font-size: 14px; padding: 0; background: transparent; border: 0; color: var(--primary); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
 .file-row-meta .like-btn span { font-size: 12px; color: var(--text); }
 .file-row-meta .like-btn.liked i { color: var(--red); }
@@ -2904,18 +2905,35 @@ body.select-mode .ig-post { cursor: pointer; user-select: none; }
 .wn-card .file-card-thumb { border-radius: 11px 11px 0 0; }
 .wn-card .file-card-name { white-space: normal; line-height: 1.45; min-height: 2.9em; margin-bottom: 0; }
 .wn-clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
-.wn-card-ext {
+/* 種類とページ数（左下）。登録者・日付（右下）、個人・承認（左上）と合わせて、
+   名前の下に行を作らずサムネイルの四隅に載せる */
+.wn-card-kind {
   position: absolute; left: 8px; bottom: 8px; z-index: 2;
-  font-size: 10px; font-weight: 700; letter-spacing: .03em; color: #fff;
-  padding: 1px 6px; border-radius: 4px; transition: opacity .15s;
+  display: inline-flex; border-radius: 4px; overflow: hidden; transition: opacity .15s;
 }
+.wn-card-ext { font-size: 10px; font-weight: 700; letter-spacing: .03em; color: #fff; padding: 1px 6px; }
+.wn-card-kind .wn-card-pages {
+  font-size: 10px; font-weight: 700; color: #374151; gap: 0;
+  background: rgba(255,255,255,.95); padding: 1px 6px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+}
+.wn-card-kind .wn-card-pages i { display: none; }
+.wn-card-kind .wn-card-pages .cnt::after { content: '枚'; font-weight: 400; }
 .wn-card-ver {
   position: absolute; right: 8px; top: 8px; z-index: 2;
   font-size: 10px; font-weight: 700; color: var(--accent);
   background: rgba(255,255,255,.94); padding: 1px 6px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.15);
 }
-.wn-card-new {
+.wn-card-who {
   position: absolute; right: 8px; bottom: 8px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 4px; transition: opacity .15s;
+}
+.wn-card-who .wn-card-date {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10.5px; font-weight: 700; color: #374151;
+  background: rgba(255,255,255,.95); padding: 2px 7px 2px 3px; border-radius: 999px; box-shadow: 0 1px 4px rgba(0,0,0,.18);
+}
+.wn-card-who .wn-avatar { width: 16px; height: 16px; font-size: 8px; }
+.wn-card-new {
   font-size: 10px; font-weight: 700; color: #fff; background: #ef4444; padding: 1px 7px; border-radius: 999px;
 }
 .wn-card-pin {
@@ -2943,26 +2961,33 @@ body.select-mode .ig-post { cursor: pointer; user-select: none; }
 @media (hover: hover) and (pointer: fine) {
   .wn-card-hover { display: flex; }
   .wn-card:hover .wn-card-hover, .wn-folder-card:hover .wn-card-hover { opacity: 1; }
-  .wn-card:hover .wn-card-ext, .wn-card:hover .wn-card-new { opacity: 0; }
+  .wn-card:hover .wn-card-kind, .wn-card:hover .wn-card-who, .wn-card:hover .wn-card-badges { opacity: 0; }
   .wn-card .wn-card-more, .wn-folder-card .wn-card-more { display: none; }
   .wn-card:hover .wn-select-check { display: flex; }
 }
 body.select-mode .wn-card-hover { display: none !important; }
 
-.wn-card-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.wn-card-badges {
+  position: absolute; left: 8px; top: 8px; right: 40px; z-index: 2;
+  display: flex; gap: 4px; flex-wrap: wrap; transition: opacity .15s;
+}
+.wn-card-badges > span { box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+body.select-mode .wn-card-badges { display: none; }
+/* 名前の右端にいいね（スマホは「その他」も） */
+.wn-card .file-card-body { display: flex; align-items: flex-start; gap: 4px; padding: 8px 8px 10px 12px; }
+.wn-card .file-card-body .file-card-name { flex: 1; min-width: 0; }
 .wn-card-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
-.wn-card-meta { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 11px; color: var(--muted); min-width: 0; }
+.wn-card-meta { display: flex; flex-direction: column; align-items: flex-end; font-size: 11px; color: var(--muted); flex-shrink: 0; }
 .wn-avatar {
   width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 9px; font-weight: 700; color: #fff;
 }
 .wn-card-date { white-space: nowrap; }
-.wn-card-stats { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+.wn-card-stats { display: inline-flex; align-items: center; gap: 6px; }
 .wn-stat-hot { color: var(--accent); font-weight: 700; display: inline-flex; align-items: center; gap: 3px; }
 .wn-card-meta .like-btn { padding: 2px 2px; font-size: 11px; gap: 3px; }
 .wn-card-meta .like-btn span:empty { display: none; }
-.wn-card-meta .wn-page-count-badge { font-size: 11px; }
 .wn-card-more { width: 26px; height: 26px; padding: 0; border-radius: 8px; color: var(--muted); flex-shrink: 0; }
 
 /* ── 日付の見出し（今日 / 昨日 / 今週 / 9月 …） ── */
@@ -3155,7 +3180,6 @@ body.select-mode .wn-card-hover { display: none !important; }
   .wn-card, .wn-folder-card, .wn-pin { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .wn-card:hover, .wn-folder-card:hover { transform: none; }
   .wn-card .file-card-name { font-size: 12px; }
-  .wn-card .wn-card-meta { gap: 4px; }
   .wn-card-stats { gap: 5px; }
 
   /* フォルダーは1行ずつのリストにして縦の長さを節約する */

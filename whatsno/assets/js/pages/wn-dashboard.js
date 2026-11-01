@@ -2902,10 +2902,19 @@ function fileCardHtml(f) {
     <div class="file-card-thumb">
       <span class="wn-select-check" data-check-id="${f.id}"><i class="fa-regular fa-circle"></i></span>
       ${thumbHtml}
-      ${ext ? `<span class="wn-card-ext" style="background:${wnKindColor(ext)}">${h(ext.toUpperCase())}</span>` : ''}
+      ${(visBadgeHtml || apBadgeHtml) ? `<div class="wn-card-badges">${visBadgeHtml}${apBadgeHtml}</div>` : ''}
+      <span class="wn-card-kind">
+        ${ext ? `<span class="wn-card-ext" style="background:${wnKindColor(ext)}">${h(ext.toUpperCase())}</span>` : ''}
+        ${pageCountBadgeHtml(f, 'wn-card-pages')}
+      </span>
       ${f.version > 1 ? `<span class="wn-card-ver">v${f.version}</span>` : ''}
       <span class="wn-card-pin${pin ? (pin.scope === 'all' ? ' is-all' : ' is-me') : ''}" data-pin-mark="f:${f.id}" title="${pin ? (pin.scope === 'all' ? '全員にピン留め' : 'ピン留め中') : ''}"><i class="fa-solid ${pin?.scope === 'all' ? 'fa-bullhorn' : 'fa-thumbtack'}"></i></span>
-      ${isNew ? '<span class="wn-card-new">NEW</span>' : ''}
+      <span class="wn-card-who">
+        ${isNew ? '<span class="wn-card-new">NEW</span>' : ''}
+        <span class="wn-card-date" title="${h(uname ? uname + ' · ' : '')}${h(wnFormatDate(f.created_at))} · ${h(wnFormatSize(f.file_size))}">
+          ${uname ? `<span class="wn-avatar" style="background:${wnAvatarColor(uname)}">${h(uname.slice(0, 1))}</span>` : ''}${h(wnRelativeDate(f.created_at))}
+        </span>
+      </span>
       <div class="wn-card-hover">
         <button class="file-action-btn" data-wn-act="pin" data-key="f:${f.id}" title="ピン留め"><i class="fa-solid fa-thumbtack"></i></button>
         <button class="file-action-btn" data-wn-act="download" data-id="${f.id}" title="ダウンロード"><i class="fa-solid fa-download"></i></button>
@@ -2915,11 +2924,7 @@ function fileCardHtml(f) {
     </div>
     <div class="file-card-body">
       <div class="file-card-name wn-clamp2" title="${h(f.file_name)}">${h(f.file_name)}</div>
-      ${(visBadgeHtml || apBadgeHtml) ? `<div class="wn-card-badges">${visBadgeHtml}${apBadgeHtml}</div>` : ''}
       <div class="wn-card-meta">
-        ${uname ? `<span class="wn-avatar" style="background:${wnAvatarColor(uname)}" title="${h(uname)}">${h(uname.slice(0, 1))}</span>` : ''}
-        <span class="wn-card-date" title="${h(wnFormatDate(f.created_at))} · ${h(wnFormatSize(f.file_size))}">${h(wnRelativeDate(f.created_at))}</span>
-        ${pageCountBadgeHtml(f)}
         <span class="wn-card-stats">
           ${(f.comment_count ?? 0) > 0 ? `<span class="wn-stat-hot" title="コメント"><i class="fa-solid fa-comment"></i>${f.comment_count}</span>` : ''}
           <button class="file-action-btn like-btn${f.liked ? ' liked' : ''}" data-id="${f.id}" title="いいね">
