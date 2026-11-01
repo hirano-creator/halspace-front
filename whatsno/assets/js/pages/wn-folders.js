@@ -120,10 +120,11 @@ function wnFolderViewActive() {
 function wnSearching() { return !!document.getElementById('searchInput')?.value.trim(); }
 
 function wnSetNavActive(view) {
+  if (typeof wnHideHandoffView === 'function') wnHideHandoffView();
   const ids = { mine: 'navMine', company: 'navCompany', recent: 'navRecent', liked: 'navLiked' };
   Object.values(ids).forEach(id => document.getElementById(id)?.classList.remove('active'));
   document.getElementById(ids[view])?.classList.add('active');
-  const bn = { mine: 'bnHome', company: 'bnCompany', liked: 'bnLiked' }[view];
+  const bn = { mine: 'bnHome', company: 'bnCompany' }[view];
   if (bn && typeof setBottomActive === 'function') setBottomActive(bn);
   const labels = { mine: 'マイファイル', company: '社内共有', recent: '最近のファイル', liked: 'いいね済み' };
   const t = document.getElementById('topBarTitle');
@@ -133,6 +134,7 @@ function wnSetNavActive(view) {
 function wnOpenFolder(folder, { push = true } = {}) {
   if (!folder) return;
   if (selectMode) toggleSelectMode();
+  if (typeof wnLeaveHandoffViewToFiles === 'function') wnLeaveHandoffViewToFiles();
   wnCurrentFolder = { ...folder };
   wnKind = 'all';
   const si = document.getElementById('searchInput');

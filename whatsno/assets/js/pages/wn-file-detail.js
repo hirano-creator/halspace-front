@@ -2408,6 +2408,17 @@ function initActions() {
     openAaPostModal(fileId, fileData?.file_name ?? '');
   });
 
+  /* 人に渡す（手渡し）。渡せるのは自分が変更できるファイルだけ（共有リンクの発行と同じ条件） */
+  const handoffBtn = document.getElementById('handoffBtn');
+  if (handoffBtn && fileData?.can_edit !== false) {
+    handoffBtn.style.display = '';
+    handoffBtn.addEventListener('click', () => {
+      wnOpenHandoffModal([{ id: fileData.id, name: fileData.file_name }], {
+        onFallbackEmail: () => openEmailModal(fileId, fileData?.file_name ?? ''),
+      });
+    });
+  }
+
   /* 名刺の写真・PDFから連絡先を登録する。
      読み取りと連絡先フォームはダッシュボード側に一式あるので、
      ここでは対象ファイルを渡して開くだけにする（画面を二重に持たない） */

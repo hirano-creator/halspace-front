@@ -79,6 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initBulkTag();
   initTagShare();
   initScrollTopButton();
+  initHandoffNav();
 
   /* 初期化完了の目印。E2Eが「まだリスナーが付いていない状態」で操作して
      falseネガティブを出すのを防ぐ（初期化は一覧の取得待ちで数秒かかる） */
@@ -3426,6 +3427,7 @@ function initNav() {
   Object.entries(navMap).forEach(([id, view]) => {
     document.getElementById(id)?.addEventListener('click', e => {
       e.preventDefault();
+      wnHideHandoffView();
       navView = view;
       Object.keys(navMap).forEach(k => document.getElementById(k)?.classList.remove('active'));
       document.getElementById(id)?.classList.add('active');
@@ -3447,6 +3449,22 @@ function initNav() {
     }
   } else if (titleEl) {
     titleEl.textContent = 'すべてのファイル';
+  }
+}
+
+/* 手渡しの受け取り箱・渡したもの（中身は wn-handoff.js）。
+   届いたことを知らせるメールのリンクは ?view=inbox で開く */
+function initHandoffNav() {
+  document.getElementById('navInbox')?.addEventListener('click', e => { e.preventDefault(); wnShowHandoffView('inbox'); });
+  document.getElementById('navSent')?.addEventListener('click',  e => { e.preventDefault(); wnShowHandoffView('sent'); });
+
+  // URL の view はフォルダーの初期化（wnFolderUrl）が先に書き換えるので、読み込み時点の控えを見る。
+  // 書き換えで URL からは消えるため、再読み込みで受け取り箱に戻され続けることもない
+  const v = WN_HO_START_VIEW;
+  if (v === 'inbox' || v === 'sent') {
+    wnShowHandoffView(v);
+  } else {
+    wnHandoffRefreshBadge();
   }
 }
 
@@ -3489,6 +3507,7 @@ function initSearch() {
   let timer;
   document.getElementById('searchInput').addEventListener('input', () => {
     if (selectedIds.length > 0) return; // ファイル選択中はスキル入力モード（検索しない）
+    wnLeaveHandoffViewToFiles();
     clearTimeout(timer);
     timer = setTimeout(loadFiles, 400);
   });
@@ -4244,18 +4263,36 @@ async function refreshNotifications() {
 
   list.innerHTML = res.data.map(n => notifItemHtml(n)).join('');
 
-  // クリックで既読 & ファイル詳細へ（将来的にfile-detail.htmlへ）
+  // 手渡しが新しく届いていたら受け取り箱のバッジを更新する（毎回は問い合わせない）
+  const newestHandoff = res.data.find(n => n.type === 'handoff')?.id ?? 0;
+  if (newestHandoff > notifLastHandoffId) {
+    if (notifLastHandoffId !== -1) wnHandoffRefreshBadge();
+    notifLastHandoffId = newestHandoff;
+  } else if (notifLastHandoffId === -1) {
+    notifLastHandoffId = newestHandoff;
+  }
+
+  // クリックで既読にして該当画面へ。手渡しは受け取り箱へ（ファイルは送り主のものなので詳細画面は開かない）
   list.querySelectorAll('.notif-item').forEach(el => {
     el.addEventListener('click', async () => {
       const id = Number(el.dataset.id);
-      const fileId = Number(el.dataset.fileId);
-      if (!el.classList.contains('unread')) return;
-      await wnReadNotification(id);
-      el.classList.remove('unread');
-      await refreshNotifications();
+      if (el.classList.contains('unread')) {
+        await wnReadNotification(id);
+        el.classList.remove('unread');
+      }
+      if (el.dataset.type === 'handoff') {
+        document.getElementById('notifDropdown')?.classList.remove('open');
+        wnShowHandoffView('inbox');
+        refreshNotifications();
+        return;
+      }
+      if (el.dataset.notifFile) location.href = `file-detail.html?id=${encodeURIComponent(el.dataset.notifFile)}`;
     });
   });
 }
+
+/* 最後に見た手渡し通知の ID（-1 = まだ一度も取得していない） */
+let notifLastHandoffId = -1;
 
 function notifItemHtml(n) {
   const iconMap = {
@@ -4264,6 +4301,7 @@ function notifItemHtml(n) {
     approved: { cls: 'notif-icon-approved', icon: 'fa-circle-check' },
     rejected: { cls: 'notif-icon-rejected', icon: 'fa-circle-xmark' },
     submit:   { cls: 'notif-icon-submit',   icon: 'fa-paper-plane' },
+    handoff:  { cls: 'notif-icon-submit',   icon: 'fa-hand-holding' },
   };
   const { cls, icon } = iconMap[n.type] ?? { cls: 'notif-icon-comment', icon: 'fa-bell' };
 
@@ -4273,13 +4311,16 @@ function notifItemHtml(n) {
     approved: `<strong>${h(n.actor_name)}</strong> が承認しました`,
     rejected: `<strong>${h(n.actor_name)}</strong> が差し戻しました`,
     submit:   `<strong>${h(n.actor_name)}</strong> が承認を申請しました`,
+    handoff:  `<strong>${h(n.actor_name)}</strong> さんからファイルが届きました`,
   };
   const text = textMap[n.type] ?? '通知があります';
 
   const timeAgo = notifTimeAgo(n.created_at);
   const unreadCls = n.read_at ? '' : ' unread';
 
-  return `<div class="notif-item${unreadCls}" data-id="${n.id}" data-file-id="${n.file_id}">
+  // data-file-id は使わない。一覧カード用のクリック処理が [data-file-id] を全部拾うため、
+  // 通知まで「そのファイルの詳細へ」飛ばされてしまう（手渡しは他社のファイルなので開けない）
+  return `<div class="notif-item${unreadCls}" data-id="${n.id}" data-notif-file="${n.file_id}" data-type="${h(n.type)}">
     <div class="notif-icon ${cls}"><i class="fa-solid ${icon}"></i></div>
     <div class="notif-body">
       <div class="notif-body-text">${text}</div>
@@ -5177,6 +5218,10 @@ function initMergeSelect() {
   document.getElementById('mergeModalClose')?.addEventListener('click', closeMergeModal);
   document.getElementById('mergeModalCancelBtn')?.addEventListener('click', closeMergeModal);
   document.getElementById('mergeExecBtn')?.addEventListener('click', executeMerge);
+  document.getElementById('handoffSelBtn')?.addEventListener('click', () => {
+    const files = wnSelectedFilesForShare();
+    if (files.length > 0) wnOpenHandoffModal(files, { onFallbackEmail: email => openEmailModal(files, email || null) });
+  });
   document.getElementById('emailSelBtn')?.addEventListener('click', () => {
     const files = wnSelectedFilesForShare();
     if (files.length > 0) openEmailModal(files);
@@ -5304,6 +5349,14 @@ function updateMergeActionBar() {
   // 可視範囲の一括切替。自分が変更できるファイルだけを対象にする
   // （can_edit はサーバーが返す表示用の判定。強制は必ずサーバー側で行う）
   const editable = sel.filter(f => f.can_edit !== false);
+  // 人に渡せるのは自分が変更できるファイルだけ（共有リンクの発行と同じ条件）
+  const handoffBtn = document.getElementById('handoffSelBtn');
+  if (handoffBtn) {
+    const ok = sel.length > 0 && editable.length === sel.length;
+    handoffBtn.disabled = !ok;
+    handoffBtn.title = ok ? `${sel.length}件を特定の人に渡します`
+      : (sel.length ? '他の人のファイルは渡せません（持ち主に頼んでください）' : '選択中のファイルを特定の人に渡します');
+  }
   const shareBtn   = document.getElementById('shareSelBtn');
   const unshareBtn = document.getElementById('unshareSelBtn');
   if (shareBtn) {

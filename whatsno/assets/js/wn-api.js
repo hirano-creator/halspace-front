@@ -957,6 +957,47 @@ async function wnReadNotification(id) {
   await wnFetch(`/wn/notifications/${id}/read`, { method: 'POST' });
 }
 
+/* ── 手渡し（特定の人へ期限付きでファイルを渡す） ──
+   失敗時は { ok:false, message } を返す。画面は message をそのまま出せばよい。 */
+async function wnHandoffCall(path, options = {}) {
+  const res = await wnFetch(path, options);
+  if (!res) return { ok: false, message: 'ログインが切れました' };
+  let json = {};
+  try { json = await res.json(); } catch {}
+  if (!res.ok) return { ok: false, status: res.status, message: json.message || '通信に失敗しました' };
+  return { ok: true, ...json };
+}
+
+async function wnHandoffSend({ fileIds, recipientIds = [], recipientEmails = [], message = '', expiresDays = 7 }) {
+  return wnHandoffCall('/wn/handoffs', {
+    method: 'POST',
+    body: JSON.stringify({
+      file_ids: fileIds, recipient_ids: recipientIds, recipient_emails: recipientEmails,
+      message, expires_days: expiresDays,
+    }),
+  });
+}
+async function wnHandoffInbox()      { return wnHandoffCall('/wn/handoffs/inbox'); }
+async function wnHandoffSent()       { return wnHandoffCall('/wn/handoffs/sent'); }
+async function wnHandoffSummary()    { return wnHandoffCall('/wn/handoffs/summary'); }
+async function wnHandoffRecipients() { return wnHandoffCall('/wn/handoffs/recipients'); }
+async function wnHandoffResolve(email) {
+  return wnHandoffCall('/wn/handoffs/resolve-recipient', { method: 'POST', body: JSON.stringify({ email }) });
+}
+async function wnHandoffOpen(id)    { return wnHandoffCall(`/wn/handoffs/${id}/open`, { method: 'POST' }); }
+async function wnHandoffSave(id)    { return wnHandoffCall(`/wn/handoffs/${id}/save`, { method: 'POST' }); }
+async function wnHandoffDismiss(id) { return wnHandoffCall(`/wn/handoffs/${id}/dismiss`, { method: 'POST' }); }
+async function wnHandoffRevoke(id)  { return wnHandoffCall(`/wn/handoffs/${id}`, { method: 'DELETE' }); }
+async function wnHandoffSetMail(on) {
+  return wnHandoffCall('/wn/handoffs/settings', { method: 'PATCH', body: JSON.stringify({ handoff_mail: !!on }) });
+}
+
+/* 手渡しで届いたファイルの実体URL（<img>・<a> から直接読むので token をクエリで渡す。既存の download と同じ方式） */
+function wnHandoffFileUrl(kind, fileId, handoffId) {
+  const token = sessionStorage.getItem('space_token') || '';
+  return `${WN_API_BASE}/wn/files/${fileId}/${kind}?handoff=${encodeURIComponent(handoffId)}&token=${encodeURIComponent(token)}`;
+}
+
 /* ファイルをメールで送信 */
 async function wnSendFileByEmail(fileId, emails, message) {
   const res = await wnFetch(`/wn/files/${fileId}/send-email`, {

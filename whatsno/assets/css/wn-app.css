@@ -3275,3 +3275,167 @@ body.select-mode .wn-card-badges { display: none; }
 .office-edit-note { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; background: #f5f7fb; font-size: 13px; color: var(--text); }
 #officeEditDrop { display: block; }
 #officeEditDrop.is-busy { pointer-events: none; opacity: .5; }
+
+/* =====================================================================
+   手渡し（特定の人へ期限付きでファイルを渡す・受け取り箱）。JS は pages/wn-handoff.js
+   ===================================================================== */
+/* 受け取り箱・渡したもの表示中は、ファイル一覧まわりを隠す */
+body.wn-ho-mode #tagFilterCard,
+body.wn-ho-mode #fileListCard,
+body.wn-ho-mode #mergeActionBar { display: none !important; }
+
+/* ナビの未開封バッジ */
+.wn-ho-badge {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--red); color: #fff; font-size: 11px; font-weight: 700; font-style: normal;
+  display: inline-flex; align-items: center; justify-content: center; line-height: 1;
+}
+.sidebar-nav a .wn-ho-badge { margin-left: auto; }
+.bottom-nav-item { position: relative; }
+.bottom-nav-item .wn-ho-badge {
+  position: absolute; top: 6px; left: calc(50% + 6px);
+  min-width: 16px; height: 16px; font-size: 10px; padding: 0 4px;
+}
+
+/* ── 渡すモーダル ── */
+.wn-ho-modal { max-width: 500px; }
+.wn-ho-files {
+  font-size: 13px; color: var(--text); background: var(--bg); border-radius: var(--radius);
+  padding: 8px 12px; margin-bottom: 14px; line-height: 1.8; word-break: break-all;
+}
+.wn-ho-files i { color: var(--muted); width: 16px; }
+.wn-ho-more { color: var(--muted); font-size: 12px; }
+.wn-ho-label { display: block; font-size: 13px; font-weight: 700; color: var(--primary); margin: 14px 0 6px; }
+.wn-ho-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; min-height: 28px; align-items: center; }
+.wn-ho-empty { font-size: 12px; color: var(--muted); }
+.wn-ho-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 16px;
+  background: #eef2ff; color: var(--accent); font-size: 13px; font-weight: 600;
+}
+.wn-ho-chip.other { background: #fff4e5; color: #b45f06; }
+.wn-ho-chip small { font-weight: 500; opacity: .8; }
+.wn-ho-chip button {
+  width: 22px; height: 22px; border-radius: 50%; border: none; background: transparent; color: inherit; cursor: pointer;
+}
+.wn-ho-chip button:hover { background: rgba(0,0,0,.08); }
+.wn-ho-pick { position: relative; }
+.wn-ho-suggest {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20;
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md); max-height: 220px; overflow-y: auto; padding: 4px;
+}
+.wn-ho-sg-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: none; background: none;
+  padding: 9px 10px; border-radius: var(--radius); font-size: 14px; color: var(--text); cursor: pointer;
+}
+.wn-ho-sg-item i { color: var(--muted); }
+.wn-ho-sg-item:hover, .wn-ho-sg-item:focus { background: #eef2ff; outline: none; }
+.wn-ho-sg-none { padding: 10px; font-size: 13px; color: var(--muted); }
+.wn-ho-other { margin-top: 10px; }
+.wn-ho-other summary { font-size: 13px; color: var(--accent); cursor: pointer; font-weight: 600; padding: 4px 0; }
+.wn-ho-email-row { display: flex; gap: 6px; margin-top: 6px; }
+.wn-ho-email-row .form-input { flex: 1; min-width: 0; }
+.wn-ho-note { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.6; }
+.wn-ho-note.error { color: var(--red); }
+.wn-ho-note.ok { color: var(--green); }
+.wn-ho-linkbtn { border: none; background: none; color: var(--accent); text-decoration: underline; cursor: pointer; font-size: 12px; padding: 0; }
+.wn-ho-msg { width: 100%; resize: vertical; }
+.wn-ho-seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.wn-ho-seg button {
+  border: none; background: var(--white); padding: 7px 16px; font-size: 13px; color: var(--muted); cursor: pointer;
+}
+.wn-ho-seg button + button { border-left: 1px solid var(--border); }
+.wn-ho-seg button.active { background: var(--accent); color: #fff; font-weight: 700; }
+
+/* ── プレビュー ── */
+.wn-ho-preview { max-width: 960px; width: 100%; }
+.wn-ho-preview-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; margin-right: 12px; }
+.wn-ho-preview-body {
+  background: #f1f4f8; border-radius: var(--radius-lg); min-height: 240px; height: 65vh;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.wn-ho-preview-body img, .wn-ho-preview-body video { max-width: 100%; max-height: 100%; object-fit: contain; }
+.wn-ho-preview-body video { background: #000; width: 100%; height: 100%; }
+.wn-ho-preview-body iframe { width: 100%; height: 100%; border: none; background: #fff; }
+.wn-ho-noprev { text-align: center; color: var(--muted); padding: 24px; line-height: 1.8; }
+.wn-ho-noprev i { font-size: 40px; opacity: .5; margin-bottom: 10px; display: block; }
+
+/* ── 受け取り箱・渡したもの ── */
+#handoffPanel { padding: 0; overflow: hidden; }
+.wn-ho-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+}
+.wn-ho-tabs { display: inline-flex; background: var(--bg); border-radius: 10px; padding: 3px; }
+.wn-ho-tabs button {
+  border: none; background: none; padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  color: var(--muted); cursor: pointer; white-space: nowrap;
+}
+.wn-ho-tabs button.active { background: var(--white); color: var(--accent); box-shadow: var(--shadow-sm); }
+.wn-ho-mail-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); cursor: pointer; }
+.wn-ho-list { padding: 8px 16px 16px; }
+.wn-ho-loading { padding: 40px; text-align: center; color: var(--muted); }
+.wn-ho-empty-box { padding: 48px 16px; text-align: center; color: var(--muted); }
+.wn-ho-empty-box i { font-size: 40px; opacity: .3; display: block; margin-bottom: 12px; }
+.wn-ho-empty-box p { font-size: 14px; }
+.wn-ho-empty-box small { font-size: 12.5px; }
+
+.wn-ho-batch { padding: 14px 0; border-bottom: 1px solid var(--border); }
+.wn-ho-batch:last-child { border-bottom: none; }
+.wn-ho-batch-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.wn-ho-batch-who { min-width: 0; font-size: 13.5px; line-height: 1.5; }
+.wn-ho-batch-who small { color: var(--muted); font-size: 12px; }
+.wn-ho-company {
+  display: inline-block; font-size: 11px; font-weight: 700; color: #b45f06; background: #fff4e5;
+  border-radius: 10px; padding: 1px 8px; margin-left: 4px; vertical-align: 1px;
+}
+.wn-ho-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
+  background: #eef2ff; color: var(--accent); font-weight: 700; font-size: 14px;
+}
+.wn-ho-avatar.sm { width: 28px; height: 28px; font-size: 12px; }
+.wn-ho-bubble {
+  margin: 0 0 10px 44px; padding: 8px 12px; background: var(--bg); border-radius: 4px 12px 12px 12px;
+  font-size: 13.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; max-width: 560px;
+}
+.wn-ho-bubble.mine { margin-left: 0; background: #eef2ff; }
+.wn-ho-items { display: flex; flex-direction: column; gap: 6px; }
+.wn-ho-item, .wn-ho-to {
+  display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius-lg); background: var(--white);
+}
+.wn-ho-to { border: none; padding: 6px 4px; }
+.wn-ho-item.unopened { border-color: #c7c3ff; background: #f7f6ff; }
+.wn-ho-item.inactive { opacity: .6; }
+.wn-ho-thumb {
+  position: relative; width: 52px; height: 52px; flex-shrink: 0; border-radius: var(--radius);
+  background: var(--bg); display: grid; place-items: center; overflow: hidden; color: var(--muted); font-size: 22px;
+}
+.wn-ho-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .2s; }
+.wn-ho-thumb img.loaded { opacity: 1; }
+.wn-ho-main { flex: 1; min-width: 0; }
+.wn-ho-name { font-size: 14px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wn-ho-sub { font-size: 12px; color: var(--muted); }
+.wn-ho-st.new { color: var(--accent); font-weight: 700; }
+.wn-ho-st.ok { color: var(--green); font-weight: 600; }
+.wn-ho-st.muted { color: var(--muted); }
+.wn-ho-acts { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.wn-ho-x {
+  width: 30px; height: 30px; border-radius: 50%; border: none; background: none; color: var(--muted); cursor: pointer;
+}
+.wn-ho-x:hover { background: var(--bg); color: var(--red); }
+.wn-ho-sent-files { display: flex; flex-wrap: wrap; gap: 4px 12px; font-weight: 600; word-break: break-all; }
+.wn-ho-sent-files i { color: var(--muted); }
+
+@media (max-width: 640px) {
+  .wn-ho-list { padding: 4px 12px 12px; }
+  .wn-ho-head { padding: 10px 12px; }
+  .wn-ho-bubble { margin-left: 0; }
+  /* スマホではボタンを2段目に回して、ファイル名を読めるようにする */
+  .wn-ho-item { flex-wrap: wrap; }
+  .wn-ho-item .wn-ho-main { flex: 1 1 calc(100% - 64px); }
+  .wn-ho-item .wn-ho-acts { width: 100%; justify-content: flex-end; }
+  .wn-ho-preview-body { height: 60vh; }
+  .wn-ho-modal .wn-ho-seg { display: flex; }
+  .wn-ho-modal .wn-ho-seg button { flex: 1; padding: 9px 0; }
+}

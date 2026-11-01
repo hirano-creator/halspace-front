@@ -14,7 +14,7 @@
   <link rel="dns-prefetch" href="https://halspace-api-production.up.railway.app">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20261101a">
+  <link rel="stylesheet" href="../assets/css/wn-app.css?v=20261101b">
   <style>
     /* ── 連絡先モーダル（2カラム＋タグ） ── */
     /* フォームと一覧を一度に見渡せるよう画面の広さに合わせて大きく取る。
@@ -274,6 +274,8 @@
       <div class="sidebar-nav-label">メニュー</div>
       <a href="#" class="active" id="navMine"><i class="fa-solid fa-user"></i> マイファイル</a>
       <a href="#" id="navCompany"><i class="fa-solid fa-users"></i> 社内共有</a>
+      <a href="#" id="navInbox"><i class="fa-solid fa-inbox"></i> 受け取り箱 <b class="wn-ho-badge" id="navInboxBadge" style="display:none;"></b></a>
+      <a href="#" id="navSent"><i class="fa-solid fa-paper-plane"></i> 渡したもの</a>
       <a href="#" id="navRecent"><i class="fa-solid fa-clock-rotate-left"></i> 最近のファイル</a>
       <a href="#" id="navLiked"><i class="fa-solid fa-heart"></i> いいね済み</a>
       <a href="manuals.html" id="navManuals"><i class="fa-solid fa-book"></i> マニュアル</a>
@@ -430,6 +432,9 @@
 
     <div class="page-body">
 
+      <!-- 手渡しの受け取り箱・渡したもの（wn-handoff.js が中身を描く） -->
+      <div class="card hidden" id="handoffPanel"></div>
+
       <!-- ファイル一覧 -->
       <div class="card" id="fileListCard" style="padding:0;overflow:hidden;">
         <div class="card-header" style="padding:12px 16px 8px;border-bottom:1px solid var(--border);flex-wrap:nowrap;">
@@ -509,6 +514,10 @@
         <button class="btn btn-outline btn-sm" id="bulkTagBtn" disabled title="選択中のファイルにタグを付ける">
           <i class="fa-solid fa-tag"></i>
           <span class="mab-t">タグ</span><span class="mab-t-sm">タグ</span>
+        </button>
+        <button class="btn btn-outline btn-sm" id="handoffSelBtn" disabled title="選択中のファイルを特定の人に渡します">
+          <i class="fa-solid fa-hand-holding"></i>
+          <span class="mab-t">人に渡す</span><span class="mab-t-sm">渡す</span>
         </button>
         <button class="btn btn-outline btn-sm" id="emailSelBtn" disabled>
           <i class="fa-solid fa-envelope"></i>
@@ -674,8 +683,8 @@
     <div class="bottom-nav-item" id="bnCompany">
       <i class="fa-solid fa-users"></i><span>社内共有</span>
     </div>
-    <div class="bottom-nav-item" id="bnLiked">
-      <i class="fa-solid fa-heart"></i><span>いいね</span>
+    <div class="bottom-nav-item" id="bnInbox">
+      <i class="fa-solid fa-inbox"></i><span>受け取り</span><b class="wn-ho-badge" id="bnInboxBadge" style="display:none;"></b>
     </div>
     <div class="bottom-nav-item" id="bnTag">
       <i class="fa-solid fa-tag"></i><span>タグ</span>
@@ -1191,9 +1200,10 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="../../solid/assets/js/auth.js?v=12"></script>
-<script src="../assets/js/wn-api.js?v=36"></script>
-<script src="../assets/js/pages/wn-dashboard.js?v=109"></script>
-<script src="../assets/js/pages/wn-folders.js?v=3"></script>
+<script src="../assets/js/wn-api.js?v=37"></script>
+<script src="../assets/js/pages/wn-dashboard.js?v=110"></script>
+<script src="../assets/js/pages/wn-handoff.js?v=1"></script>
+<script src="../assets/js/pages/wn-folders.js?v=4"></script>
 
 <script>
 /* ── ボトムナビ ── */
@@ -1208,9 +1218,9 @@ document.addEventListener('DOMContentLoaded', () => {
     setBottomActive('bnCompany');
     closeTagSheet();
   });
-  document.getElementById('bnLiked').addEventListener('click', () => {
-    document.getElementById('navLiked').click();
-    setBottomActive('bnLiked');
+  document.getElementById('bnInbox').addEventListener('click', () => {
+    wnShowHandoffView('inbox');
+    setBottomActive('bnInbox');
     closeTagSheet();
   });
   document.getElementById('bnTag').addEventListener('click', () => {

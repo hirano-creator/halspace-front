@@ -27,6 +27,7 @@ node mobile-input-zoom-e2e.js # スマホ入力欄の自動ズーム対策（全
 node space-pw-email-e2e.js  # Space: 全ロール共通のパスワード変更モーダル（apps.html）と管理画面ユーザー編集でメールがPATCHに載ること
 node password-change-sidebar-e2e.js  # SOLID/What'sNo共通: auth.jsがサイドバーに挿入するパスワード変更（standaloneログイン等apps.htmlを経由しない利用者向け）
 node tiff-html-preview-e2e.js  # TIFF(Deflate/LZW/G4/複数ページ)とHTML(Shift_JIS/UTF-8・sandboxでスクリプト無効)のプレビュー、ダッシュボード/並べるのTIFFサムネ（fixtures/ を使用）
+node handoff-e2e.js         # 手渡し（人に渡す・受け取り箱・渡したもの・通知から受け取り箱・スマホ下部ナビ・ファイル詳細のメニュー）
 # ↓ これだけは実API（ローカル solid-api を 8010 で起動）が必要。手順はファイル冒頭
 WN_TOKEN='1|xxxx' node folders-pins-e2e.js  # 一覧A案: フォルダー作成・ドラッグ移動・フォルダーごとアップロード・パンくず/戻る・ピン留め・種類チップ・スマホの長押しシートと下部ナビ
 ```
