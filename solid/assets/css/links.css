@@ -33,9 +33,9 @@
 .el-more { position:absolute; top:4px; right:2px; width:26px; height:28px; border:none; background:none; color:#a0a6ac; border-radius:6px; cursor:pointer; }
 .el-more:hover { background:#f0f2f5; color:var(--text); }
 
-/* サムネイル（OGP 画像は 1.91:1。アイコンは中央に小さく置く） */
+/* サムネイル（画像は切らずに全体を収める。アイコンは中央に小さく置く） */
 .el-th { width:84px; height:50px; flex-shrink:0; border-radius:7px; overflow:hidden; background:#f0f2f5; display:flex; align-items:center; justify-content:center; color:#b2bec3; }
-.el-th img { width:100%; height:100%; object-fit:cover; display:block; }
+.el-th img { width:100%; height:100%; object-fit:contain; display:block; }
 .el-th.is-icon { background:#f4f6f8; }
 .el-th.is-icon img { width:auto; height:auto; max-width:60%; max-height:70%; object-fit:contain; }
 .el-fb { width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Poppins',sans-serif; font-weight:800; font-size:20px; }
