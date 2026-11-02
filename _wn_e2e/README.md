@@ -27,6 +27,7 @@ node mobile-input-zoom-e2e.js # スマホ入力欄の自動ズーム対策（全
 node space-pw-email-e2e.js  # Space: 全ロール共通のパスワード変更モーダル（apps.html）と管理画面ユーザー編集でメールがPATCHに載ること
 node password-change-sidebar-e2e.js  # SOLID/What'sNo共通: auth.jsがサイドバーに挿入するパスワード変更（standaloneログイン等apps.htmlを経由しない利用者向け）
 node tiff-html-preview-e2e.js  # TIFF(Deflate/LZW/G4/複数ページ)とHTML(Shift_JIS/UTF-8・sandboxでスクリプト無効)のプレビュー、ダッシュボード/並べるのTIFFサムネ（fixtures/ を使用）
+node excel-print-unit.js     # ファイル詳細の「印刷」でExcelを印刷用HTMLにする処理（印刷範囲・非表示シート・結合セル・用紙幅に収まるか。SHOT=1でshots/excel-print.*）
 ```
 
 ## 重要な教訓（レスポンシブ 2026-08-27）
