@@ -1137,20 +1137,39 @@ async function downloadSelectedPdfPages() {
   }
 }
 
-/* 選択ページのみ印刷（ブラウザの印刷ダイアログを開く、元ファイルは変更しない） */
-async function printSelectedPdfPages() {
-  const printBtn = document.getElementById('gridSelPrint');
-  const orig     = printBtn?.innerHTML;
-  if (printBtn) { printBtn.disabled = true; printBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
-  try {
-    const blob = await buildSelectedPagesPdfBlob();
-    const url  = URL.createObjectURL(blob);
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
-    iframe.src = url;
-    document.body.appendChild(iframe);
-    iframe.onload = () => {
-      const cleanup = () => { iframe.remove(); URL.revokeObjectURL(url); };
+/* PDF の Blob を見えない iframe に読み込んで印刷ダイアログを開く */
+function printPdfBlob(blob) {
+  const url  = URL.createObjectURL(blob);
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  iframe.src = url;
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
+    const cleanup = () => { iframe.remove(); URL.revokeObjectURL(url); };
+    try {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } catch (e) {
+      console.error('print iframe error:', e);
+      wnShowToast('印刷ダイアログを開けませんでした', 'danger');
+      cleanup();
+      return;
+    }
+    iframe.contentWindow.addEventListener('afterprint', cleanup, { once: true });
+    setTimeout(cleanup, 60_000);
+  };
+}
+
+/* HTML 文書を見えない iframe に描画して印刷ダイアログを開く */
+function printHtmlDoc(html) {
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  iframe.srcdoc = html;
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
+    const cleanup = () => iframe.remove();
+    /* 画像の読み込みを待つため少し置く */
+    setTimeout(() => {
       try {
         iframe.contentWindow.focus();
         iframe.contentWindow.print();
@@ -1162,7 +1181,125 @@ async function printSelectedPdfPages() {
       }
       iframe.contentWindow.addEventListener('afterprint', cleanup, { once: true });
       setTimeout(cleanup, 60_000);
-    };
+    }, 300);
+  };
+}
+
+/* Excel を印刷用 HTML にする（サーバーを使わずブラウザ内で完結）。
+   - 印刷範囲が設定されていればその範囲だけ、非表示シートは除外
+   - 列幅・行の高さ・文字の大きさは用紙の幅に対する比率で指定し、
+     Excel の「横1ページに合わせる」と同じく紙の幅いっぱいに収める */
+function buildExcelPrintHtml(arrayBuffer) {
+  const wb    = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array', cellStyles: true });
+  const names = wb.Workbook?.Names || [];
+  const sheets = [];
+  wb.SheetNames.forEach((name, idx) => {
+    const ws = wb.Sheets[name];
+    if (!ws || !ws['!ref'] || wb.Workbook?.Sheets?.[idx]?.Hidden) return;
+
+    let ref = ws['!ref'];
+    const pa = names.find(n => n.Name === '_xlnm.Print_Area' && n.Sheet === idx);
+    if (pa?.Ref) {
+      const r = pa.Ref.split(',')[0].replace(/^.*!/, '').replace(/\$/g, '');
+      if (/^[A-Z]+\d+:[A-Z]+\d+$/i.test(r)) ref = r;
+    }
+    const range = XLSX.utils.decode_range(ref);
+
+    const cols = ws['!cols'] || [];
+    const widths = [];
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const col = cols[c] || {};
+      widths.push(col.hidden ? 0 : (col.wpx || ((col.width ?? col.wch ?? 8.43) * 7 + 5)));
+    }
+    const total = widths.reduce((a, b) => a + b, 0) || 1;
+    /* 1px（Excel 上）が用紙幅の何 cqw にあたるか */
+    const k = 100 / total;
+
+    let html = XLSX.utils.sheet_to_html({ ...ws, '!ref': ref }, { editable: false, header: '', footer: '' });
+    html = html.replace(/^[\s\S]*?<body[^>]*>/i, '').replace(/<\/body>[\s\S]*$/i, '');
+    const doc   = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+    const table = doc.querySelector('table');
+    if (!table) return;
+
+    const colgroup = doc.createElement('colgroup');
+    widths.forEach(w => {
+      const col = doc.createElement('col');
+      col.style.width = (w / total * 100) + '%';
+      colgroup.appendChild(col);
+    });
+    table.prepend(colgroup);
+
+    const rows = ws['!rows'] || [];
+    Array.from(table.rows).forEach((tr, i) => {
+      const info = rows[range.s.r + i] || {};
+      const hpx  = info.hidden ? 0 : (info.hpx || (info.hpt ? info.hpt * 4 / 3 : 20));
+      tr.style.height = `calc(${hpx * k}cqw)`;
+    });
+
+    /* 横位置: セルの書式が読めればそれに従い、無ければ中央（帳票は中央揃えが多い） */
+    table.querySelectorAll('td').forEach(td => {
+      const addr = (td.id || '').replace(/^sjs-/, '');
+      const h    = ws[addr]?.s?.alignment?.horizontal;
+      td.style.textAlign = ['left', 'right', 'center'].includes(h) ? h : 'center';
+      td.removeAttribute('id');
+    });
+
+    /* 小さい表は紙いっぱいに拡大せず、Excel 上の大きさで止める */
+    sheets.push(`<section class="sheet" style="--k:${k};max-width:${Math.round(total)}px">${table.outerHTML}</section>`);
+  });
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(fileData.file_name)}</title>
+<style>
+@page{margin:10mm}
+html,body{margin:0;background:#fff;color:#000;}
+body{font-family:"Yu Gothic","游ゴシック","YuGothic","MS PGothic","Hiragino Sans","Meiryo",sans-serif;}
+.sheet{container-type:inline-size;width:100%;}
+.sheet + .sheet{break-before:page;}
+table{border-collapse:collapse;table-layout:fixed;width:100%;font-size:calc(var(--k) * 14cqw);}
+td{border:1px solid #000;padding:0 1px;overflow:hidden;vertical-align:middle;white-space:pre-wrap;word-break:break-all;line-height:1.2;}
+tr{break-inside:avoid;}
+</style></head><body>${sheets.join('') || '<p>印刷できる内容がありません</p>'}</body></html>`;
+}
+
+/* Office ファイルを印刷する。サーバー側の変換は使わない（費用をかけない）。
+   - Excel: SheetJS で印刷用 HTML を作る
+   - Word (.docx): mammoth.js で HTML 化
+   - PowerPoint: プレビュー用にサーバーが作った PDF（キャッシュ済み）を流用 */
+async function printOfficeFile(ext) {
+  wnShowToast('印刷の準備をしています…');
+  try {
+    if (['pptx','ppt','pptm'].includes(ext)) {
+      const buf = await wnFetchPptxPdfBuffer(fileId);
+      printPdfBlob(new Blob([buf], { type: 'application/pdf' }));
+      return;
+    }
+    if (ext === 'doc') throw new Error('旧形式の .doc は印刷に対応していません');
+    const buffer = await wnFetchFileBuffer(fileId);
+    if (!buffer) throw new Error('ファイルを取得できませんでした');
+    if (['xlsx','xls','xlsm'].includes(ext)) {
+      if (typeof XLSX === 'undefined') throw new Error('SheetJS未読み込み');
+      printHtmlDoc(buildExcelPrintHtml(buffer));
+    } else {
+      if (typeof mammoth === 'undefined') throw new Error('mammoth.js未読み込み');
+      const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
+      printHtmlDoc(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(fileData.file_name)}</title>
+<style>@page{margin:20mm}body{margin:0;font-family:"Yu Mincho","游明朝","MS PMincho","Hiragino Mincho ProN",serif;line-height:1.7;color:#000;}
+img{max-width:100%;}table{border-collapse:collapse;}td,th{border:1px solid #000;padding:2px 6px;}</style>
+</head><body>${result.value}</body></html>`);
+    }
+  } catch (e) {
+    console.error('office print error:', e);
+    wnShowToast('印刷できませんでした（' + e.message + '）。ダウンロードして Excel / Word から印刷してください', 'danger');
+  }
+}
+
+/* 選択ページのみ印刷（ブラウザの印刷ダイアログを開く、元ファイルは変更しない） */
+async function printSelectedPdfPages() {
+  const printBtn = document.getElementById('gridSelPrint');
+  const orig     = printBtn?.innerHTML;
+  if (printBtn) { printBtn.disabled = true; printBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+  try {
+    printPdfBlob(await buildSelectedPagesPdfBlob());
   } catch (e) {
     console.error('pdf print selected pages error:', e);
     wnShowToast('印刷エラー: ' + e.message, 'danger');
@@ -2451,6 +2588,13 @@ function initActions() {
   }
 
   document.getElementById('printBtn')?.addEventListener('click', async () => {
+    const ext = (fileData.file_name || '').split('.').pop().toLowerCase();
+    /* Excel / Word / PowerPoint は画像として開けないので専用の印刷処理へ
+       （本番の Excel プレビューは Office Online の別オリジン iframe なので、そこからは印刷できない） */
+    if (['xlsx','xls','xlsm','docx','docm','doc','pptx','ppt','pptm'].includes(ext)) {
+      await printOfficeFile(ext);
+      return;
+    }
     const url = await wnGetViewUrl(fileId);
     if (!url) { wnShowToast('ファイルを取得できませんでした', 'danger'); return; }
     const win = window.open('', '_blank');
