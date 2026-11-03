@@ -4,7 +4,7 @@ import { apiGet, apiSend } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { Alert, Button, Field, Loading, PageHeader, errorMessage, fieldErrors } from '../components/ui';
 import { FREQUENCY } from '../labels';
-import { navigate } from '../router';
+import { currentQuery, navigate } from '../router';
 import type { EquipmentDetail } from './EquipmentDetailPage';
 
 type Form = {
@@ -19,7 +19,11 @@ interface Option { id: string; name: string }
 export function EquipmentFormPage({ id }: { id?: string }) {
   const { me } = useAuth();
   const editing = Boolean(id);
-  const [form, setForm] = useState<Form>({ ...EMPTY, factory_id: me?.factories[0]?.id ?? '' });
+  // 見取り図の建屋の小窓「この建屋に設備を足す」からは、工場と建屋を選んだ状態で開く（#/equipment/new?factory=…&area=…）
+  const [form, setForm] = useState<Form>(() => {
+    const q = currentQuery();
+    return { ...EMPTY, factory_id: q.get('factory') ?? me?.factories[0]?.id ?? '', area_id: editing ? '' : q.get('area') ?? '' };
+  });
   const [original, setOriginal] = useState<EquipmentDetail | null>(null);
   const [full, setFull] = useState(!editing);
   const [areas, setAreas] = useState<Option[]>([]);

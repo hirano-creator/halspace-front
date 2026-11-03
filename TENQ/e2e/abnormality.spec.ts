@@ -34,7 +34,7 @@ test('点検で ✕ と一言・写真を送ると異常になり、見取り図
   await expect(tile).toBeVisible();
   await expect(page.locator('.ng-list')).toContainText('W-03');
   await tile.click();
-  const side = page.getByRole('complementary', { name: 'W-03 の詳細' });
+  const side = page.getByRole('dialog', { name: 'W-03 の詳細' });
   await expect(side).toContainText('ケーブル・ホース');
   await expect(side).toContainText('ガスホースに亀裂');
   await expect(side.locator('.abn-photos img')).toHaveCount(1);

@@ -9,7 +9,7 @@ export async function devLogin(page: Page, name: string): Promise<void> {
   await expect(page.locator('.app-header')).toBeVisible();
 }
 
-export async function openMenuIfNeeded(page: Page): Promise<void> {
-  const toggle = page.getByRole('button', { name: 'メニュー' });
-  if (await toggle.isVisible()) await toggle.click();
+/** 上の帯の ⚙（設定とアカウント）を開く。利用者名・「アプリ選択に戻る」もこの中 */
+export async function openAccountMenu(page: Page): Promise<void> {
+  await page.getByRole('button', { name: '設定とアカウント' }).click();
 }

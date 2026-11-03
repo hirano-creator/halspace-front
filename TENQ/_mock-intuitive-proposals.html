@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TENQ 直観操作案</title>
+<!-- 検討用のモック（本番画面ではない）。「説明なしで使える」ことを目標にした 3 案。各案とも スマホ（作業者）と PC（管理者）の両方を載せる -->
+<style>
+:root {
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  --bg: #EEF1F5; --ink: #1B2430; --sub: #5F6B7A; --line: #E1E6EC; --line-strong: #C9D1DB; --accent: #1F5FD1;
+  --ok: #15803D; --ok-lt: #DCFCE7; --ng: #DC2626; --ng-lt: #FEE2E2; --todo: #64748B; --warn: #CA8A04; --warn-lt: #FEF9C3;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.6; }
+button { font-family: inherit; cursor: pointer; }
+.top { position: sticky; top: 0; z-index: 30; background: #fff; border-bottom: 1px solid var(--line); padding: 14px 24px 0; }
+.top h1 { margin: 0; font-size: 20px; }
+.top p { margin: 2px 0 10px; font-size: 13px; color: var(--sub); }
+.tabs { display: flex; gap: 4px; overflow-x: auto; }
+.tabs button { border: 1px solid var(--line); border-bottom: 0; background: #F6F8FA; color: var(--sub); padding: 8px 18px; border-radius: 8px 8px 0 0; white-space: nowrap; font-size: 14px; }
+.tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+main { padding: 22px 24px 60px; max-width: 1500px; margin: 0 auto; }
+.plan { display: none; }
+.plan.on { display: block; }
+.idea { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; margin-bottom: 18px; }
+.idea h2 { margin: 0 0 4px; font-size: 22px; }
+.idea .catch { font-size: 16px; font-weight: 700; color: var(--accent); margin: 0 0 8px; }
+.idea ul { margin: 0; padding-left: 1.3em; font-size: 14px; }
+h3.sec { font-size: 16px; margin: 22px 0 10px; }
+h3.sec small { color: var(--sub); font-weight: 400; margin-left: 8px; }
+
+/* スマホの流れ */
+.flow { display: flex; gap: 10px; align-items: flex-start; overflow-x: auto; padding-bottom: 8px; }
+.arrow { align-self: center; font-size: 26px; color: var(--sub); flex: 0 0 auto; }
+.phone { flex: 0 0 250px; height: 500px; background: #fff; border: 8px solid #1F2937; border-radius: 30px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.phone .cap { position: absolute; top: -1px; left: 0; right: 0; text-align: center; font-size: 11px; color: #fff; background: #1F2937; padding-bottom: 3px; }
+.scr { flex: 1; padding: 22px 14px 14px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+.step-no { font-size: 12px; color: var(--sub); text-align: center; margin: 4px 0 0; }
+.big { border: 0; border-radius: 16px; font-size: 20px; font-weight: 800; padding: 18px 10px; color: #fff; background: var(--accent); width: 100%; }
+.big small { display: block; font-size: 13px; font-weight: 600; opacity: .9; }
+.big.ok { background: var(--ok); }
+.big.ng { background: var(--ng); }
+.big.ghost { background: #fff; color: var(--ink); border: 2px solid var(--line-strong); font-size: 16px; padding: 12px; }
+.hello { font-size: 18px; font-weight: 800; margin: 0; }
+.muted { color: var(--sub); font-size: 13px; margin: 0; }
+.cam { flex: 1; background: #111827; border-radius: 14px; display: flex; align-items: center; justify-content: center; position: relative; color: #fff; font-size: 13px; text-align: center; }
+.cam::before { content: ""; position: absolute; width: 120px; height: 120px; border: 4px solid #fff; border-radius: 14px; }
+.cam span { position: absolute; bottom: 12px; left: 8px; right: 8px; }
+.q { flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: center; gap: 6px; }
+.q .eqn { font-size: 13px; color: var(--sub); }
+.q .ask { font-size: 24px; font-weight: 800; line-height: 1.35; }
+.q .hint { font-size: 12px; color: var(--sub); background: #F6F8FA; border-radius: 8px; padding: 6px; }
+.pic { height: 90px; border-radius: 10px; background: linear-gradient(135deg, #CBD5E1, #E2E8F0); display: flex; align-items: center; justify-content: center; color: var(--sub); font-size: 12px; }
+.bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.yn { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.yn .big { font-size: 26px; padding: 16px 4px; }
+.done { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; }
+.done .mark { width: 90px; height: 90px; border-radius: 50%; background: var(--ok); color: #fff; font-size: 52px; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+.done .mark.ng { background: var(--ng); }
+.camera-btn { border: 3px dashed var(--ng); background: var(--ng-lt); border-radius: 16px; padding: 22px 10px; text-align: center; font-weight: 800; color: var(--ng); font-size: 17px; }
+.say { border: 2px solid var(--line-strong); border-radius: 12px; padding: 10px; font-size: 14px; color: var(--sub); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { border: 1px solid var(--line-strong); border-radius: 999px; padding: 4px 10px; font-size: 13px; background: #fff; }
+
+/* B 案: 紙の表 */
+.sheet { width: 100%; border-collapse: collapse; font-size: 13px; }
+.sheet th, .sheet td { border: 1px solid var(--line-strong); padding: 6px 4px; text-align: center; }
+.sheet th { background: #F6F8FA; font-weight: 700; }
+.sheet td.l { text-align: left; }
+.sheet td.o { color: var(--ok); font-weight: 800; font-size: 16px; }
+.sheet td.x { color: #fff; background: var(--ng); font-weight: 800; font-size: 16px; }
+.sheet td.e { background: #fff; color: var(--line-strong); }
+.sheet td.tap { background: #EFF6FF; outline: 2px solid var(--accent); outline-offset: -2px; }
+.ox2 { display: inline-flex; gap: 4px; }
+.ox2 b { width: 40px; height: 40px; border-radius: 8px; border: 2px solid var(--line-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 18px; background: #fff; }
+.ox2 b.o { border-color: var(--ok); background: var(--ok); color: #fff; }
+.ox2 b.x { border-color: var(--ng); background: var(--ng); color: #fff; }
+.list { display: flex; flex-direction: column; gap: 6px; }
+.row { display: flex; align-items: center; gap: 8px; border: 2px solid var(--line-strong); border-radius: 12px; padding: 8px 10px; min-height: 52px; background: #fff; }
+.row .st { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; flex: 0 0 auto; }
+.row .st.o { background: var(--ok); color: #fff; }
+.row .st.x { background: var(--ng); color: #fff; }
+.row .st.t { border: 2px dashed var(--todo); }
+.row div { flex: 1; line-height: 1.3; }
+.row small { color: var(--sub); display: block; font-size: 12px; }
+.row.next { border-color: var(--accent); background: #EFF6FF; }
+
+/* C 案: 信号 */
+.signal { border-radius: 20px; padding: 16px; text-align: center; color: #fff; }
+.signal.red { background: var(--ng); }
+.signal.yel { background: var(--warn); }
+.signal.grn { background: var(--ok); }
+.signal .lamp { font-size: 40px; line-height: 1; }
+.signal b { display: block; font-size: 22px; }
+.next-box { border: 3px solid var(--accent); border-radius: 16px; padding: 12px; background: #EFF6FF; }
+.next-box .lbl { font-size: 12px; font-weight: 800; color: var(--accent); }
+.next-box p { margin: 2px 0 8px; font-size: 17px; font-weight: 800; }
+.balloon { position: relative; background: #1F2937; color: #fff; border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+.balloon::after { content: ""; position: absolute; left: 50%; bottom: -8px; margin-left: -8px; border: 8px solid transparent; border-bottom: 0; border-top-color: #1F2937; }
+.balloon.up::after { bottom: auto; top: -8px; border-top: 0; border-bottom: 8px solid #1F2937; }
+
+/* PC */
+.pc { background: #fff; border: 8px solid #1F2937; border-radius: 14px; overflow: hidden; }
+.pc .hd { display: flex; align-items: center; gap: 12px; background: #fff; border-bottom: 1px solid var(--line); padding: 10px 16px; font-weight: 800; }
+.pc .hd small { color: var(--sub); font-weight: 400; }
+.pc .bd { padding: 16px; background: #F7F9FB; }
+.todo-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.tcard { background: #fff; border: 3px solid var(--ng); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.tcard .who { font-size: 12px; color: var(--sub); }
+.tcard h4 { margin: 0; font-size: 18px; }
+.tcard .pic { height: 80px; }
+.tcard .big { font-size: 17px; padding: 12px; }
+.tcard.todo { border: 3px dashed var(--todo); }
+.prog { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; }
+.prog .bar { flex: 1; height: 14px; border-radius: 7px; }
+.prog .bar i { background: var(--ok); }
+.pc-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.bld { background: #fff; border: 2px solid var(--line-strong); border-radius: 14px; padding: 10px; }
+.bld h5 { margin: 0 0 8px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.bld .dot { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; }
+.bld.red { border-color: var(--ng); }
+.bld.yel { border-color: var(--warn); }
+.bld.grn { border-color: var(--ok); }
+.bld .msg { font-size: 13px; }
+.flex2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; }
+
+/* 比較表 */
+.cmp { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; border-radius: 12px; overflow: hidden; }
+.cmp th, .cmp td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+.cmp th { background: #F6F8FA; }
+.rec { background: #EFF6FF; border: 2px solid var(--accent); border-radius: 14px; padding: 14px 18px; margin-top: 16px; }
+.rec h3 { margin: 0 0 6px; }
+.common { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 20px; margin-top: 16px; font-size: 14px; }
+.common h3 { margin: 0 0 6px; font-size: 16px; }
+
+@media (max-width: 899px) {
+  main { padding: 16px; }
+  .pc-grid, .flex2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>TENQ 直観操作案（2026-11-03）</h1>
+  <p>検討用モック。目標は「説明を読まなくても、画面を見れば次に何をすればいいか分かる」こと。各案にスマホ（作業者）と PC（管理者）を載せています。</p>
+  <div class="tabs" role="tablist">
+    <button class="on" data-p="a">A案 ひとつずつ聞く</button>
+    <button data-p="b">B案 紙の点検表そのまま</button>
+    <button data-p="c">C案 信号と「次にやること」</button>
+    <button data-p="cmp">くらべる</button>
+  </div>
+</div>
+<main>
+
+<!-- ===================== A 案 ===================== -->
+<section class="plan on" id="p-a">
+  <div class="idea">
+    <h2>A案 ひとつずつ聞く</h2>
+    <p class="catch">画面に出るのは「質問 1 つ」と「大きなボタン 2 つ」だけ。</p>
+    <ul>
+      <li>点検項目を一覧で見せず、<b>1 画面に 1 問</b>（「油もれはない？」→ はい／いいえ）。答えると自動で次の問いへ進む</li>
+      <li>「✕」ではなく<b>ふだんの言葉</b>で答える（はい 大丈夫／いいえ おかしい）。どこを見るかは写真で示す</li>
+      <li>おかしいときは、<b>写真を撮るだけ</b>で報告できる（文字は任意。よく使う言葉をボタンで選べる）</li>
+      <li>PC は見取り図をやめ、<b>「対応が必要なもの」だけをカードで並べる</b>。カードに「直した」ボタンが付いている</li>
+    </ul>
+  </div>
+
+  <h3 class="sec">スマホ（作業者）<small>朝 QR を読んで点検する流れ</small></h3>
+  <div class="flow">
+    <div class="phone"><div class="cap">① 開いたところ</div><div class="scr">
+      <p class="hello">おはようございます</p>
+      <p class="muted">今日の点検はあと <b style="color:var(--ink);font-size:18px">3 台</b></p>
+      <div style="flex:1"></div>
+      <button class="big" style="padding:30px 10px;font-size:24px">📷 点検をはじめる<small>設備の QR を読みます</small></button>
+      <p class="muted" style="text-align:center">ボタンはこれ 1 つだけ</p>
+    </div></div>
+    <div class="arrow">→</div>
+    <div class="phone"><div class="cap">② QR を読む</div><div class="scr">
+      <div class="cam"><span>設備に貼ってある<br>QR を四角に入れてください</span></div>
+      <button class="big ghost">やめる</button>
+    </div></div>
+    <div class="arrow">→</div>
+    <div class="phone"><div class="cap">③ 1 問ずつ答える</div><div class="scr">
+      <div class="bar"><i style="width:40%"></i></div>
+      <p class="step-no">プレス機 P-01 ・ 2 / 5 問</p>
+      <div class="q">
+        <div class="pic">（見る場所の写真）</div>
+        <div class="ask">油もれは<br>ない？</div>
+        <div class="hint">シリンダーの下の床を見てください</div>
+      </div>
+      <div class="yn">
+        <button class="big ok">○<small>はい 大丈夫</small></button>
+        <button class="big ng">✕<small>いいえ おかしい</small></button>
+      </div>
+    </div></div>
+    <div class="arrow">→</div>
+    <div class="phone"><div class="cap">④「おかしい」を押したとき</div><div class="scr">
+      <p class="hello" style="color:var(--ng)">どうなっていますか？</p>
+      <div class="camera-btn">📷<br>写真を撮る<br><small style="font-weight:600">これだけで報告になります</small></div>
+      <p class="muted">ひとこと（なくても OK）</p>
+      <div class="chips"><span>もれている</span><span>音がする</span><span>こわれている</span><span>汚れ</span></div>
+      <div style="flex:1"></div>
+      <button class="big">次の問いへ</button>
+    </div></div>
+    <div class="arrow">→</div>
+    <div class="phone"><div class="cap">⑤ 終わり</div><div class="scr">
+      <div class="done">
+        <div class="mark">○</div>
+        <p class="hello">P-01 は終わりです</p>
+        <p class="muted">おかしい所 1 件を工場長に伝えました</p>
+        <p class="muted">今日はあと <b>2 台</b></p>
+      </div>
+      <button class="big">📷 次の設備の QR を読む</button>
+    </div></div>
+  </div>
+
+  <h3 class="sec">PC（工場長・設備担当）<small>朝、開いたところ</small></h3>
+  <div class="pc">
+    <div class="hd">TENQ　第一工場 <small>11/3（火）</small></div>
+    <div class="bd">
+      <div class="prog"><b>今日の点検</b><div class="bar"><i style="width:80%"></i></div><b>12 / 15 台 済み</b><span class="muted">まだ: P-03・K-02・W-04</span></div>
+      <h4 style="margin:0 0 8px;font-size:17px">対応が必要なもの（2 件）</h4>
+      <div class="todo-cards">
+        <div class="tcard">
+          <span class="who">✕ 今日 8:12 山田さん ・ A 棟</span>
+          <h4>プレス機 P-01　油もれ</h4>
+          <div class="pic">（撮った写真）</div>
+          <button class="big ok">○ 直した</button>
+        </div>
+        <div class="tcard">
+          <span class="who">✕ 3 日前から ・ B 棟</span>
+          <h4>クレーン CR-2　異音</h4>
+          <div class="pic">（撮った写真）</div>
+          <button class="big ok">○ 直した</button>
+        </div>
+        <div class="tcard todo">
+          <span class="who">まだ点検していない ・ 3 台</span>
+          <h4>P-03・K-02・W-04</h4>
+          <p class="muted" style="margin:0">担当者に声をかけてください</p>
+        </div>
+      </div>
+      <p class="muted" style="margin-top:12px">何もなければ「今日は全部正常です」と 1 行だけ出る。設備台帳・記録などは右上のメニューの中へ</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== B 案 ===================== -->
+<section class="plan" id="p-b">
+  <div class="idea">
+    <h2>B案 紙の点検表そのまま</h2>
+    <p class="catch">今まで使っていた紙の点検表と同じ形。「見たことがある」から迷わない。</p>
+    <ul>
+      <li>スマホの点検画面は、<b>紙の点検表と同じ表</b>（項目が縦・○✕を書く欄が横）。マスを押すと ○ → ✕ と切り替わる</li>
+      <li>ホームは<b>今日回る設備の順番リスト</b>。次にやる設備が青くなっている</li>
+      <li>PC は<b>壁に貼っていた月間の点検表</b>と同じ見た目（設備 × 日付）。✕ のマスが赤くなり、押すと中身と「直した」が出る</li>
+      <li>紙からの移行が楽な代わりに、マスが小さくなりやすい（スマホは項目 6 個くらいまでが見やすい）</li>
+    </ul>
+  </div>
+
+  <h3 class="sec">スマホ（作業者）</h3>
+  <div class="flow">
+    <div class="phone"><div class="cap">① 今日回る順番</div><div class="scr">
+      <p class="hello">今日の点検　1 / 4 済み</p>
+      <div class="list">
+        <div class="row"><span class="st o">○</span><div>K-01 コンプレッサー<small>8:05 済み</small></div></div>
+        <div class="row next"><span class="st t"></span><div><b>P-01 プレス機</b><small>次はこれ ・ A 棟 入口</small></div></div>
+        <div class="row"><span class="st t"></span><div>P-03 プレス機<small>A 棟 奥</small></div></div>
+        <div class="row"><span class="st t"></span><div>W-04 溶接機<small>B 棟</small></div></div>
+      </div>
+      <div style="flex:1"></div>
+      <button class="big">📷 QR を読む</button>
+    </div></div>
+    <div class="arrow">→</div>
+    <div class="phone"><div class="cap">② 紙と同じ表に ○ を付ける</div><div class="scr">
+      <p class="hello" style="font-size:16px">P-01 プレス機　11/3</p>
+      <table class="sheet">
+        <tr><th style="width:60%">点検項目</th><th>結果</th></tr>
+        <tr><td class="l">油もれ</td><td><span class="ox2"><b class="o">○</b><b>✕</b></span></td></tr>
+        <tr><td class="l">異音</td><td><span class="ox2"><b class="o">○</b><b>✕</b></span></td></tr>
+        <tr><td class="l">安全カバー</td><td><span class="ox2"><b>○</b><b class="x">✕</b></span></td></tr>
+        <tr><td class="l">非常停止</td><td><span class="ox2"><b>○</b><b>✕</b></span></td></tr>
+        <tr><td class="l">ボルトのゆるみ</td><td><span class="ox2"><b>○</b><b>✕</b></span></td></tr>
+      </table>
+      <p class="muted">✕ の行は写真ボタンが出る</p>
+      <div style="flex:1"></div>
+      <button class="big" disabled style="opacity:.5">あと 2 つ</button>
+    </div></div>
+    <div class="arrow">→</div>
+    <div class="phone"><div class="cap">③ 全部うまると「出す」</div><div class="scr">
+      <div class="done">
+        <div class="mark">○</div>
+        <p class="hello">P-01 を出しました</p>
+        <p class="muted">✕ が 1 つあったので工場長に伝えました</p>
+      </div>
+      <div class="list"><div class="row next"><span class="st t"></span><div><b>次: P-03 プレス機</b><small>A 棟 奥</small></div></div></div>
+      <button class="big">📷 QR を読む</button>
+    </div></div>
+  </div>
+
+  <h3 class="sec">PC（工場長・設備担当）<small>壁に貼っていた月間表と同じ形</small></h3>
+  <div class="pc">
+    <div class="hd">TENQ　第一工場　11 月の点検表 <small>赤いマスを押すと中身が見られます</small></div>
+    <div class="bd">
+      <div class="flex2">
+        <table class="sheet" style="background:#fff">
+          <tr><th>設備</th><th>10/28</th><th>29</th><th>30</th><th>31</th><th>11/1</th><th>2</th><th style="background:#DBEAFE">今日 3</th></tr>
+          <tr><td class="l">K-01 コンプレッサー</td><td class="o">○</td><td class="o">○</td><td class="o">○</td><td class="o">○</td><td>休</td><td>休</td><td class="o">○</td></tr>
+          <tr><td class="l">P-01 プレス機</td><td class="o">○</td><td class="o">○</td><td class="o">○</td><td class="o">○</td><td>休</td><td>休</td><td class="x tap">✕</td></tr>
+          <tr><td class="l">P-03 プレス機</td><td class="o">○</td><td class="o">○</td><td class="o">○</td><td class="o">○</td><td>休</td><td>休</td><td class="e">まだ</td></tr>
+          <tr><td class="l">CR-2 クレーン</td><td class="o">○</td><td class="x">✕</td><td class="x">✕</td><td class="x">✕</td><td>休</td><td>休</td><td class="x">✕</td></tr>
+          <tr><td class="l">W-04 溶接機</td><td class="o">○</td><td class="o">○</td><td class="o">○</td><td class="o">○</td><td>休</td><td>休</td><td class="e">まだ</td></tr>
+        </table>
+        <div class="tcard">
+          <span class="who">11/3 8:12 山田さん</span>
+          <h4>P-01 プレス機　安全カバー ✕</h4>
+          <div class="pic">（撮った写真）</div>
+          <p class="muted" style="margin:0">「カバーのねじが 1 本ない」</p>
+          <button class="big ok">○ 直した</button>
+        </div>
+      </div>
+      <p class="muted" style="margin-top:12px">印刷すると、そのまま ISO 監査用の月間点検表になる</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== C 案 ===================== -->
+<section class="plan" id="p-c">
+  <div class="idea">
+    <h2>C案 信号と「次にやること」</h2>
+    <p class="catch">どの画面にも「次にやること」が 1 行で出ていて、そのボタンを押すだけで進む。</p>
+    <ul>
+      <li>ホームの一番上は<b>信号</b>（赤＝おかしい所がある／黄＝まだ点検していない／青＝今日は全部 OK）</li>
+      <li>その下に<b>「次にやること」の箱</b>。中の文とボタンが状況に合わせて変わる（例: 「P-01 の点検をしてください」→「QR を読む」）</li>
+      <li>初めての人には<b>吹き出しの案内</b>が出る（「ここを押します」）。2 回目からは出ない</li>
+      <li>PC も同じ考え方。<b>建物ごとに信号</b>が付き、上に「次にやること」が並ぶ</li>
+      <li>点検画面そのものは今の ○✕ のまま（変える量が少ない）</li>
+    </ul>
+  </div>
+
+  <h3 class="sec">スマホ（作業者）</h3>
+  <div class="flow">
+    <div class="phone"><div class="cap">① 初めて開いたとき</div><div class="scr">
+      <div class="signal yel"><div class="lamp">●</div><b>まだ 3 台</b>今日の点検が残っています</div>
+      <div class="next-box">
+        <div class="lbl">次にやること</div>
+        <p>設備の QR を読んで<br>点検してください</p>
+        <button class="big">📷 QR を読む</button>
+      </div>
+      <div class="balloon up">👆 はじめての方へ: 設備に貼ってある QR を、このボタンで読みます</div>
+    </div></div>
+    <div class="arrow">→</div>
+    <div class="phone"><div class="cap">② 点検（今と同じ ○✕）</div><div class="scr">
+      <div class="next-box" style="padding:8px 10px"><div class="lbl">次にやること</div><p style="margin:0;font-size:15px">全部の項目に ○ か ✕ を付ける（あと 3 つ）</p></div>
+      <div class="list">
+        <div class="row"><div>油もれ</div><span class="ox2"><b class="o">○</b><b>✕</b></span></div>
+        <div class="row"><div>異音</div><span class="ox2"><b class="o">○</b><b>✕</b></span></div>
+        <div class="row next"><div><b>安全カバー</b></div><span class="ox2"><b>○</b><b>✕</b></span></div>
+        <div class="row"><div>非常停止</div><span class="ox2"><b>○</b><b>✕</b></span></div>
+        <div class="row"><div>ボルト</div><span class="ox2"><b>○</b><b>✕</b></span></div>
+      </div>
+      <div class="balloon">今やる項目が青くなります</div>
+    </div></div>
+    <div class="arrow">→</div>
+    <div class="phone"><div class="cap">③ 全部終わった日</div><div class="scr">
+      <div class="signal grn"><div class="lamp">●</div><b>今日は全部 OK</b>点検 4 / 4 台 済み</div>
+      <div class="next-box" style="border-color:var(--ok);background:var(--ok-lt)">
+        <div class="lbl" style="color:var(--ok)">次にやること</div>
+        <p>ありません。おつかれさまでした</p>
+      </div>
+      <div style="flex:1"></div>
+      <button class="big ghost">📷 ほかの設備の QR を読む</button>
+    </div></div>
+  </div>
+
+  <h3 class="sec">PC（工場長・設備担当）</h3>
+  <div class="pc">
+    <div class="hd">TENQ　第一工場 <small>11/3（火）</small></div>
+    <div class="bd">
+      <div class="signal red" style="display:flex;align-items:center;gap:16px;text-align:left;margin-bottom:12px">
+        <div class="lamp">●</div><div><b>おかしい所が 2 件あります</b>点検は 12 / 15 台 済み</div>
+      </div>
+      <div class="next-box" style="margin-bottom:14px">
+        <div class="lbl">次にやること（上から順に）</div>
+        <div class="list">
+          <div class="row"><span class="st x">✕</span><div><b>P-01 プレス機 の「安全カバー」を直す</b><small>今日 8:12 山田さん ・ A 棟</small></div><button class="big ok" style="width:auto;font-size:15px;padding:8px 16px">見て直す</button></div>
+          <div class="row"><span class="st x">✕</span><div><b>CR-2 クレーン の「異音」を直す</b><small>3 日前から ・ B 棟</small></div><button class="big ok" style="width:auto;font-size:15px;padding:8px 16px">見て直す</button></div>
+          <div class="row"><span class="st t"></span><div><b>まだの 3 台を点検してもらう</b><small>P-03・K-02・W-04</small></div></div>
+        </div>
+      </div>
+      <div class="pc-grid">
+        <div class="bld red"><h5><span class="dot" style="background:var(--ng)">✕</span>A 棟</h5><div class="msg">おかしい 1 ・ まだ 1 ・ OK 4</div></div>
+        <div class="bld red"><h5><span class="dot" style="background:var(--ng)">✕</span>B 棟</h5><div class="msg">おかしい 1 ・ まだ 2 ・ OK 3</div></div>
+        <div class="bld grn"><h5><span class="dot" style="background:var(--ok)">○</span>倉庫</h5><div class="msg">全部 OK（3 台）</div></div>
+      </div>
+      <p class="muted" style="margin-top:12px">建物を押すと、今の見取り図（設備のタイル）がその建物だけ開く</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 比較 ===================== -->
+<section class="plan" id="p-cmp">
+  <table class="cmp">
+    <tr><th></th><th>A案 ひとつずつ聞く</th><th>B案 紙の点検表そのまま</th><th>C案 信号と「次にやること」</th></tr>
+    <tr><th>いちばん効く人</th><td>スマホに慣れていない人・初めての人</td><td>紙の点検表に慣れている人</td><td>全員（作業者も管理者も同じ考え方）</td></tr>
+    <tr><th>迷わない理由</th><td>押せるボタンが常に 2 つだけ</td><td>見慣れた形</td><td>次にやることが常に文で書いてある</td></tr>
+    <tr><th>点検の速さ</th><td>1 問ずつなので少し遅い（項目 10 個で 10 画面）</td><td>速い（1 画面で全部）</td><td>今と同じ</td></tr>
+    <tr><th>PC で分かること</th><td>直すものだけ（全体は見えにくい）</td><td>過去の日も一目で分かる・そのまま印刷できる</td><td>工場の状態と、やる順番</td></tr>
+    <tr><th>作り直す量</th><td>点検画面と PC のホーム</td><td>点検画面・作業者ホーム・PC のホーム</td><td>小さい（ホームの上部と案内を足す）</td></tr>
+  </table>
+  <div class="rec">
+    <h3>おすすめ: C案をベースに、作業者の点検画面だけ A案の「1 問ずつ」を選べるようにする</h3>
+    <p style="margin:0">「次にやること」の箱があると、作業者も管理者も、どの画面にいても次の一手が分かります。点検画面は、慣れた人は今の一覧、初めての人は 1 問ずつ、と切り替えられるようにすると両方に合います。B案の月間表は、PC の「記録」画面に後から足せます（ISO 監査の印刷にも使えます）。</p>
+  </div>
+  <div class="common">
+    <h3>どの案でも直したいこと（今の画面で分かりにくい点）</h3>
+    <ul style="margin:0;padding-left:1.3em">
+      <li>画面の言葉を、ふだんの言葉にそろえる（「異常」→「おかしい所」、「稼働」→「動いている」など）</li>
+      <li>メニューを開かなくても仕事が済むようにする（毎日使う操作はホームに出す）</li>
+      <li>初めて開いた人に、最初の 1 回だけ案内を出す</li>
+    </ul>
+  </div>
+</section>
+</main>
+<script>
+document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.plan').forEach((p) => p.classList.toggle('on', p.id === 'p-' + b.dataset.p));
+  window.scrollTo(0, 0);
+}));
+</script>
+</body>
+</html>

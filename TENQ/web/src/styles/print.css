@@ -31,7 +31,7 @@
 @media print {
   @page { size: A4 portrait; margin: 0; }
   html, body { background: #fff !important; }
-  .app-header, .side-nav, .no-print, .alert { display: none !important; }
+  .app-header, .no-print, .alert { display: none !important; }
   .shell-body { display: block !important; }
   .content { padding: 0 !important; max-width: none !important; }
   .sheets { gap: 0; display: block; }

@@ -10,17 +10,43 @@
 .map-sum .n-todo { background: #fff; border: 2px dashed var(--st-todo); }
 .map-sum .n-ok { background: var(--st-ok-lt); color: var(--st-ok); }
 .map-actions { display: flex; gap: 8px; }
-.map-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+.map-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; position: relative; }
+.map-main { min-width: 0; }
 .floor { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; align-items: start; background: #E9EDF2; border-radius: 16px; padding: 12px; }
-.bld { border: 2px solid var(--line-strong); border-radius: 14px; background: var(--card); padding: 8px 10px 10px; min-width: 0; }
+.bld { border: 2px solid var(--line-strong); border-radius: 14px; background: var(--card); padding: 8px 10px 10px; min-width: 0; position: relative; }
 .bld.has-ng { border-color: var(--st-ng); }
 .bld.editing { border-style: dashed; border-color: var(--accent); background: #FAFCFF; }
-.bld.unplaced { background: #FAFBFC; }
 .bld h2 { margin: 0 0 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 16px; }
 .bld h2 small { font-size: 12px; color: var(--sub); font-weight: 700; display: flex; gap: 8px; }
 .bld h2 small .r { color: var(--st-ng); }
-.area-ctl { display: flex; gap: 4px; flex-wrap: wrap; }
-.area-ctl button { min-height: 32px; min-width: 32px; border: 1px solid var(--line-strong); background: #fff; border-radius: 6px; font-size: 13px; padding: 0 6px; }
+/* 建屋の名前（押すと建屋の小窓） */
+.bld-name { border: 0; background: none; padding: 0; font: inherit; font-weight: 700; color: var(--ink); min-height: 32px; cursor: pointer; text-align: left; }
+.bld-name:hover { color: var(--accent); text-decoration: underline; }
+.bld-title { display: inline-flex; align-items: center; gap: 6px; }
+/* 配置を動かしている間: 帯をつかんで動かす・右下の ◢ で幅を変える */
+.floor.editing { background-color: #E3E9F1; background-image: radial-gradient(circle, #B7C3D3 1.2px, transparent 1.3px); background-size: calc(100% / 12) 24px; }
+.bld-grab { cursor: grab; touch-action: none; user-select: none; background: var(--accent-lt); margin: -8px -10px 6px !important; padding: 6px 10px; border-radius: 12px 12px 0 0; }
+.bld-grab:active { cursor: grabbing; }
+.bld-grip { color: var(--accent); font-size: 18px; line-height: 1; }
+.bld.dragging { box-shadow: 0 12px 28px rgba(15,23,42,.25); z-index: 2; }
+.bld-rz { position: absolute; right: 0; bottom: 0; width: 28px; height: 28px; cursor: ew-resize; touch-action: none; background: linear-gradient(135deg, transparent 50%, var(--accent) 50%); border-bottom-right-radius: 12px; }
+.map-edit-hint { background: #FEF9C3; border: 1px solid #EAB308; border-radius: 10px; padding: 8px 14px; font-size: 14px; margin-bottom: 12px; }
+/* まだ置いていない設備（見取り図の下） */
+.map-tray { margin-top: 12px; border: 2px dashed var(--line-strong); border-radius: 14px; background: #FAFBFC; padding: 8px 10px 10px; }
+.map-tray.editing { border-color: var(--accent); }
+.map-tray h2 { margin: 0 0 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 16px; }
+.map-tray h2 small { font-size: 12px; color: var(--sub); font-weight: 600; }
+.map-tray .tray-add { margin-left: auto; }
+.tray-form { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.tray-form input { flex: 1 1 220px; width: auto; }
+/* 設備・建屋の小窓（押したもののそばに出す） */
+.map-pop { position: absolute; z-index: 30; width: 340px; max-height: 80vh; overflow-y: auto; background: var(--card); border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: 0 14px 36px rgba(15,23,42,.22); padding: 14px; }
+.pop-acts { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.pop-acts button { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 10px; min-height: 44px; padding: 0 12px; font-size: 16px; color: var(--ink); }
+.pop-acts button:hover { background: var(--accent-lt); }
+/* 「元に戻す」の帯 */
+.map-toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 50; background: #1F2937; color: #fff; border-radius: 12px; padding: 8px 10px 8px 16px; display: flex; align-items: center; gap: 12px; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.25); max-width: calc(100vw - 32px); }
+.map-toast button { border: 0; background: #fff; color: var(--ink); border-radius: 8px; min-height: 40px; padding: 0 14px; font-weight: 800; font-size: 16px; }
 .eqs { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; min-height: 40px; }
 /* 設備は 3 色だけ。色に頼らず ✕ ○ と文字も必ず出す */
 .eq { border-radius: 10px; border: 2px solid var(--line-strong); background: #fff; padding: 6px 8px; text-align: left; min-height: 60px; display: flex; flex-direction: column; justify-content: center; gap: 2px; font-size: 13px; color: var(--ink); cursor: pointer; line-height: 1.3; }
@@ -69,12 +95,14 @@
   .map-layout { grid-template-columns: 1fr; }
   .map-side { order: -1; position: static; max-height: none; }
   /* 設備を選んだときは右から出す */
-  .map-side.has-sel { position: fixed; top: 0; right: 0; bottom: 0; width: min(400px, 92vw); z-index: 41; border-radius: 0; max-height: none; box-shadow: -8px 0 24px rgba(0,0,0,.15); }
+  .map-pop { position: fixed; left: auto !important; top: 0 !important; right: 0; bottom: 0; width: min(400px, 92vw); z-index: 41; border-radius: 0; max-height: none; box-shadow: -8px 0 24px rgba(0,0,0,.15); }
   .side-bg { display: block; position: fixed; inset: 0; background: rgba(15,23,42,.3); z-index: 40; }
 }
 @media (max-width: 899px) {
   .floor { grid-template-columns: 1fr; padding: 8px; }
   .floor .bld { grid-column: 1 / -1 !important; grid-row: auto !important; }
+  /* 狭い画面では建屋が縦 1 列になるので、配置は PC で動かす */
+  .map-lock { display: none; }
   .map-sum { margin-left: 0; width: 100%; }
   .map-sum span { flex: 1; text-align: center; padding: 4px 6px; }
 }

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { devLogin, openMenuIfNeeded } from './helpers';
+import { devLogin, openAccountMenu } from './helpers';
 
 test('未ログインで QR を開くと、ログイン後にその設備の点検表が開く（T-04）', async ({ page }) => {
   await page.goto('./#/q/TENQDEVSEEDQRZAN');
@@ -19,16 +19,36 @@ test('一般社員には登録・QR印刷・管理の入口が出ない', async 
   await page.goto('./');
   await devLogin(page, '山本 健');
   await expect(page.getByText('山本 健 さん')).toBeVisible();
-  await openMenuIfNeeded(page);
   const nav = page.getByRole('navigation', { name: 'メニュー' });
-  await expect(nav.getByRole('link', { name: '点検の記録' })).toBeVisible();
-  await expect(nav.getByRole('link', { name: '設備台帳' })).toHaveCount(0);
+  // 一般社員の記録は「点検の記録」だけなので、押すとそのまま開く
+  await expect(nav.getByRole('link', { name: '記録' })).toHaveAttribute('href', '#/inspections');
+  await openAccountMenu(page);
+  await expect(nav.getByRole('link', { name: 'ログインした端末' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: '設備の一覧（台帳）' })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: 'QRラベル印刷' })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: 'ユーザー管理' })).toHaveCount(0);
   await page.goto('./#/equipment');
   await expect(page.getByRole('button', { name: '設備を登録' })).toHaveCount(0);
   await page.goto('./#/admin/users');
   await expect(page.getByText('この画面を開く権限がありません')).toBeVisible();
+});
+
+test('上のメニューは「工場」「記録」「⚙」の 3 つだけ。記録と設定は押すと中身が出る', async ({ page }) => {
+  await page.goto('./');
+  await devLogin(page, '中村 誠');
+  const nav = page.getByRole('navigation', { name: 'メニュー' });
+  await expect(nav.getByRole('link', { name: '工場' })).toHaveAttribute('aria-current', 'page');
+  await nav.getByRole('button', { name: '記録' }).click();
+  await expect(nav.getByRole('link', { name: '異常の記録' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'CSV・帳票' })).toBeVisible();
+  await nav.getByRole('link', { name: '点検の記録' }).click();
+  await expect(page).toHaveURL(/#\/inspections$/);
+  await expect(nav.getByRole('link', { name: '異常の記録' })).toHaveCount(0);  // 移ったら閉じる
+  await openAccountMenu(page);
+  await expect(nav.getByRole('link', { name: '設備の一覧（台帳）' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: '工場・建屋' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(nav.getByRole('link', { name: '工場・建屋' })).toHaveCount(0);
 });
 
 test('設備担当者は担当設備の一部の項目だけ編集できる', async ({ page }) => {
@@ -106,7 +126,7 @@ test('入力欄・ボタンの文字は 16px 以上（iOS の自動ズーム対�
 test('メニューの下に利用者と「アプリ選択に戻る」（Space.app のアプリ共通）。ログアウトは出さない', async ({ page }) => {
   await page.goto('./');
   await devLogin(page, '山本 健');
-  await openMenuIfNeeded(page);
+  await openAccountMenu(page);
   const nav = page.getByRole('navigation', { name: 'メニュー' });
   await expect(nav.locator('.sidebar-user-name')).toHaveText('山本 健');
   await expect(nav.getByRole('link', { name: 'アプリ選択に戻る' })).toHaveAttribute('href', '../../space/apps.html');
@@ -119,7 +139,7 @@ test('TENQ のログイン画面から直接入ったタブは「ログアウト
   await page.evaluate(() => sessionStorage.setItem('tenq_standalone', '1'));
   await page.reload();
   await expect(page.getByText('山本 健 さん')).toBeVisible();  // 読み込みが終わってからメニューを開く
-  await openMenuIfNeeded(page);
+  await openAccountMenu(page);
   const nav = page.getByRole('navigation', { name: 'メニュー' });
   await expect(nav.getByRole('button', { name: 'ログアウト' })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'アプリ選択に戻る' })).toHaveCount(0);
