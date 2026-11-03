@@ -65,6 +65,7 @@ Space.app のアプリ一覧に TENQ を出す変更（`space/assets/js/space.js
 | 日付 | コミット | Worker 非圧縮 | gzip（参考） | 画面 初回 JS gzip | 備考 |
 | --- | --- | --- | --- | --- | --- |
 | 2026-10-31 | 63151af | 217.98 KiB | 50.84 KiB | 76.13 KiB | 画面のかんたん化（見取り図・○✕ の点検表）。依存の追加なし |
+| 2026-11-03 | 73de804 | 218.00 KiB | 50.85 KiB | 76.43 KiB | 見取り図からすべて操作（小窓・配置のドラッグ・メニュー 3 つ）。依存の追加なし |
 | 2026-10-22 | 第6段階 | 212.07 KiB | 49.18 KiB | 75.87 KiB | 帳票・集計・CSV は画面ごとに分割 |
 | 2026-10-22 | 第5段階 | 181.49 KiB | 42.41 KiB | 75.01 KiB | 写真は Worker で変換せず、そのまま R2 へ（縮小は端末側） |
 | 2026-10-22 | 第4段階 | 155.20 KiB | 36.55 KiB | 74.54 KiB | jsQR（QR 読み取り）は読み取り画面でブラウザに機能がないときだけ読み込む |
@@ -137,3 +138,11 @@ Space.app のアプリ一覧に TENQ を出す変更（`space/assets/js/space.js
 - 本番 DB の復元地点（念のため）: bookmark `00000012-00000000-00005114-d4614fbcfe936d4212071aef00a65587`
 - 本番 API を再デプロイ（Version ddf61284）→ main に cherry-pick して push（dbc93f8。前回の記録 c81ae65 も同時に main へ）
 - 確認: `/api/health` が production、開発用ログインは 401、Pages の本番の画面が今回のビルド（index-CAxSgdH6.js）、Production 行が dbc93f8
+
+### 9-5. 見取り図からすべて操作の反映（2026-11-03）
+
+- 内容: 上のメニューを「工場」「記録」「⚙」の 3 つに、設備・建屋を押すと小窓、「配置を動かす」の間だけ建屋・設備をドラッグ（すぐ保存・元に戻す）。requirements §10 Q-15。見取り図の API に建屋の version・設備の template_id を追加。マイグレーションなし
+- wrangler のログイン先がまた別のアカウント（wsk6611…）になっていた。ブラウザがそのアカウントのままだと `wrangler login` しても戻らない。**`npx wrangler login --browser=false` で出た URL をシークレットウィンドウで開き、h.hirano@hirano50.com で許可する**と確実
+- 本番 DB の復元地点（念のため）: bookmark `00000017-00000000-00005118-779af73f1f6f36b607fe6ae8142f0dcb`
+- 本番 API を再デプロイ（Version f7cda772）→ main に cherry-pick して push（4e476be）
+- 確認: `/api/health` が production、開発用ログインは 401、Pages の Production 行が 4e476be、本番の画面が今回のビルド（index-BjWWLOUr.js。見取り図に「配置を動かす」、メニューに「設定とアカウント」、開発用ログインなし）、`/TENQ/q/` 200
