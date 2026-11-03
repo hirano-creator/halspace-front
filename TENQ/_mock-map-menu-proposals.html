@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TENQ 配置とメニュー案</title>
+<!-- 検討用のモック（本番画面ではない）。工場の見取り図（建屋と設備の配置）は今のまま残し、
+     「つかんで動かせる」「メニューを減らす」の 2 点を 3 通りに作った。各案とも実際にドラッグできる -->
+<style>
+:root {
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  --bg: #EEF1F5; --ink: #1B2430; --sub: #5F6B7A; --line: #E1E6EC; --line-strong: #C9D1DB; --accent: #1F5FD1; --accent-lt: #EFF6FF;
+  --ok: #15803D; --ok-lt: #DCFCE7; --ng: #DC2626; --ng-lt: #FEE2E2; --todo: #64748B; --warn-lt: #FEF9C3;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.6; }
+button { font-family: inherit; cursor: pointer; }
+input { font-family: inherit; font-size: 16px; }
+.top { position: sticky; top: 0; z-index: 60; background: #fff; border-bottom: 1px solid var(--line); padding: 14px 24px 0; }
+.top h1 { margin: 0; font-size: 20px; }
+.top p { margin: 2px 0 10px; font-size: 13px; color: var(--sub); }
+.tabs { display: flex; gap: 4px; overflow-x: auto; }
+.tabs button { border: 1px solid var(--line); border-bottom: 0; background: #F6F8FA; color: var(--sub); padding: 8px 18px; border-radius: 8px 8px 0 0; white-space: nowrap; font-size: 14px; }
+.tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+main { padding: 22px 24px 60px; max-width: 1500px; margin: 0 auto; }
+.plan { display: none; }
+.plan.on { display: block; }
+.idea { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; margin-bottom: 16px; }
+.idea h2 { margin: 0 0 4px; font-size: 22px; }
+.idea .catch { font-size: 16px; font-weight: 700; color: var(--accent); margin: 0 0 8px; }
+.idea ul { margin: 0; padding-left: 1.3em; font-size: 14px; }
+.try { display: inline-block; background: var(--warn-lt); border: 1px solid #EAB308; border-radius: 8px; padding: 4px 12px; font-size: 14px; font-weight: 700; margin-top: 10px; }
+.muted { color: var(--sub); font-size: 13px; }
+
+/* PC の枠 */
+.pc { background: #F7F9FB; border: 8px solid #1F2937; border-radius: 14px; overflow: hidden; position: relative; }
+.appbar { display: flex; align-items: center; gap: 6px; background: #fff; border-bottom: 1px solid var(--line); padding: 0 14px; min-height: 56px; position: relative; z-index: 20; }
+.logo { font-weight: 900; font-size: 18px; color: var(--accent); margin-right: 14px; letter-spacing: .04em; }
+.nv { border: 0; background: none; padding: 0 14px; min-height: 56px; font-size: 15px; font-weight: 700; color: var(--sub); border-bottom: 3px solid transparent; position: relative; }
+.nv.on { color: var(--ink); border-bottom-color: var(--accent); }
+.nv .ic { margin-right: 4px; }
+.spacer { flex: 1; }
+.who { font-size: 13px; color: var(--sub); }
+.dd { display: none; position: absolute; top: 52px; background: #fff; border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 10px 30px rgba(15,23,42,.15); padding: 6px; min-width: 230px; z-index: 30; }
+.dd.open { display: block; }
+.dd a { display: block; padding: 8px 12px; border-radius: 8px; color: var(--ink); text-decoration: none; font-size: 14px; }
+.dd a:hover { background: var(--accent-lt); }
+.dd a small { display: block; color: var(--sub); font-size: 12px; }
+.dd hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.subtabs { display: flex; gap: 6px; background: #fff; border-bottom: 1px solid var(--line); padding: 8px 14px; }
+.subtabs span { border: 1px solid var(--line-strong); border-radius: 999px; padding: 3px 14px; font-size: 13px; }
+.subtabs span.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.body { padding: 14px; }
+.head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 10px; }
+.head h3 { margin: 0; font-size: 21px; }
+.head h3 small { font-size: 13px; color: var(--sub); font-weight: 600; margin-left: 8px; }
+.sum { display: flex; gap: 6px; margin-left: auto; }
+.sum span { border-radius: 10px; padding: 2px 12px; font-weight: 800; font-size: 14px; white-space: nowrap; }
+.sum b { font-size: 20px; margin-left: 3px; }
+.sum .n-ng { background: var(--ng); color: #fff; }
+.sum .n-todo { background: #fff; border: 2px dashed var(--todo); }
+.sum .n-ok { background: var(--ok-lt); color: var(--ok); }
+.btn { border: 2px solid var(--line-strong); background: #fff; border-radius: 10px; min-height: 44px; padding: 0 16px; font-size: 15px; font-weight: 700; color: var(--ink); }
+.btn.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.btn.on { background: var(--warn-lt); border-color: #EAB308; }
+.hint { background: var(--accent-lt); border: 1px solid #BFDBFE; border-radius: 10px; padding: 6px 12px; font-size: 13px; margin-bottom: 10px; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: start; }
+
+/* 見取り図（今の画面と同じ見た目。12 列のマス目に建屋を置く） */
+.map { position: relative; background: #E9EDF2; border-radius: 16px; min-height: 200px; transition: background .2s; }
+.map.ed { background-color: #E3E9F1; background-image: radial-gradient(circle, #B7C3D3 1.2px, transparent 1.3px); background-size: calc(100% / 12) 46px; }
+.b { position: absolute; border: 2px solid var(--line-strong); border-radius: 14px; background: #fff; padding: 0 8px 8px; display: flex; flex-direction: column; overflow: hidden; }
+.b.has-ng { border-color: var(--ng); }
+.b.over { outline: 3px solid var(--accent); outline-offset: 2px; background: var(--accent-lt); }
+.b.lift { z-index: 10; box-shadow: 0 12px 28px rgba(15,23,42,.25); opacity: .92; }
+.map.ed .b { border-style: dashed; border-color: var(--accent); }
+.map.ed .b.has-ng { border-color: var(--ng); }
+.bh { margin: 0; padding: 6px 0 4px; display: flex; align-items: center; gap: 6px; font-size: 15px; user-select: none; }
+.bh small { margin-left: auto; font-size: 12px; color: var(--sub); display: flex; gap: 6px; font-weight: 700; }
+.bh small em { color: var(--ng); font-style: normal; }
+.map.ed .bh { cursor: grab; touch-action: none; }
+.map.ed .bh:active { cursor: grabbing; }
+.grip { color: var(--accent); font-size: 16px; line-height: 1; }
+.bn-click { cursor: pointer; }
+.bn-click:hover { text-decoration: underline; }
+.eqs { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 5px; overflow: auto; flex: 1; align-content: start; }
+.empty { color: var(--sub); font-size: 12px; padding: 8px 2px; grid-column: 1 / -1; }
+.rz { position: absolute; right: 0; bottom: 0; width: 26px; height: 26px; cursor: nwse-resize; touch-action: none; background: linear-gradient(135deg, transparent 50%, var(--accent) 50%); border-bottom-right-radius: 12px; }
+.ghost { position: absolute; border: 3px dashed var(--accent); border-radius: 14px; background: rgba(31,95,209,.08); pointer-events: none; z-index: 5; }
+.ghost.bad { border-color: var(--ng); background: rgba(220,38,38,.1); }
+/* 設備は 3 色。色だけに頼らず ✕ ○ と文字を出す */
+.eq { border-radius: 10px; border: 2px solid var(--line-strong); background: #fff; padding: 4px 7px; text-align: left; min-height: 54px; display: flex; flex-direction: column; justify-content: center; font-size: 12px; color: var(--ink); line-height: 1.25; user-select: none; }
+.eq b { font-size: 13px; }
+.eq small { font-size: 11px; font-weight: 700; }
+.eq-ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.eq-ng { background: var(--ng); border-color: var(--ng); color: #fff; box-shadow: 0 0 0 3px var(--ng-lt); }
+.eq-todo { border: 2px dashed var(--todo); }
+.eq-todo small { color: var(--sub); }
+.eq-stop { background: repeating-linear-gradient(135deg, #F1F5F9, #F1F5F9 8px, #E2E8F0 8px, #E2E8F0 16px); color: var(--sub); }
+.eq.sel { outline: 3px solid var(--accent); outline-offset: 2px; }
+.map.ed .eq, .tray.ed .eq { cursor: grab; touch-action: none; }
+.eq.moving { opacity: .3; }
+.eq.flying { position: fixed; z-index: 100; pointer-events: none; transform: rotate(-3deg); box-shadow: 0 12px 24px rgba(15,23,42,.3); }
+.tray { margin-top: 12px; border: 2px dashed var(--line-strong); border-radius: 14px; background: #FAFBFC; padding: 8px 10px; }
+.tray.over { outline: 3px solid var(--accent); background: var(--accent-lt); }
+.tray h4 { margin: 0 0 6px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.tray h4 .btn { margin-left: auto; min-height: 36px; font-size: 14px; }
+
+/* 右の欄 */
+.side { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; position: relative; }
+.side h4 { margin: 0 0 8px; font-size: 16px; }
+.ng-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.ng-list button { width: 100%; text-align: left; border: 2px solid var(--ng); background: var(--ng-lt); border-radius: 10px; padding: 6px 10px; font-size: 14px; min-height: 44px; }
+.ng-list b { color: var(--ng); display: block; }
+.ng-list small { color: var(--sub); font-size: 12px; }
+.x { position: absolute; right: 4px; top: 2px; width: 40px; height: 40px; border: 0; background: none; font-size: 24px; color: var(--sub); }
+.st { display: inline-block; border-radius: 8px; padding: 1px 12px; font-weight: 800; margin: 2px 0 8px; }
+.st-ng { background: var(--ng); color: #fff; }
+.st-ok { background: var(--ok); color: #fff; }
+.st-todo { border: 2px dashed var(--todo); }
+.st-stop { background: #E2E8F0; }
+.pic { height: 80px; border-radius: 10px; background: linear-gradient(135deg, #CBD5E1, #E2E8F0); display: flex; align-items: center; justify-content: center; color: var(--sub); font-size: 12px; margin: 6px 0; }
+.fix input { width: 100%; border: 2px solid var(--line-strong); border-radius: 10px; padding: 8px 10px; margin: 4px 0 8px; }
+.fix .btn { width: 100%; }
+.links { display: flex; flex-direction: column; border-top: 1px solid var(--line); margin-top: 10px; padding-top: 6px; }
+.links a { color: var(--accent); font-size: 14px; padding: 6px 0; text-decoration: none; }
+.links a::before { content: "› "; }
+
+/* B 案: 保存の帯 */
+.savebar { display: none; position: sticky; bottom: 0; z-index: 15; background: #1F2937; color: #fff; padding: 10px 16px; align-items: center; gap: 12px; }
+.savebar.open { display: flex; }
+.savebar .btn { min-height: 40px; }
+.savebar span { flex: 1; font-weight: 700; }
+.banner { display: none; background: var(--warn-lt); border: 1px solid #EAB308; border-radius: 10px; padding: 6px 12px; font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+.banner.open { display: block; }
+
+/* C 案: 設備・建屋を押すと出る小窓 */
+.pop { position: absolute; z-index: 40; width: 270px; background: #fff; border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: 0 14px 36px rgba(15,23,42,.22); padding: 12px; }
+.pop h4 { margin: 0 34px 0 0; font-size: 16px; }
+.pop .acts { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.pop .acts button { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 10px; min-height: 40px; padding: 0 12px; font-size: 14px; }
+.pop .acts button:hover { background: var(--accent-lt); }
+.lock { position: absolute; right: 10px; top: 10px; z-index: 12; }
+.lock .btn { box-shadow: 0 2px 6px rgba(15,23,42,.15); }
+
+/* トースト（元に戻す） */
+.toast { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); background: #1F2937; color: #fff; border-radius: 12px; padding: 8px 10px 8px 16px; display: none; align-items: center; gap: 12px; z-index: 50; font-size: 14px; white-space: nowrap; }
+.toast.open { display: flex; }
+.toast button { border: 0; background: #fff; color: var(--ink); border-radius: 8px; min-height: 36px; padding: 0 12px; font-weight: 800; }
+
+/* メニューの整理表 */
+.menu-map { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; margin-top: 16px; }
+.menu-map th, .menu-map td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+.menu-map th { background: #F6F8FA; white-space: nowrap; }
+.menu-map td.now { color: var(--sub); }
+h3.sec { font-size: 16px; margin: 22px 0 0; }
+.cmp { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; }
+.cmp th, .cmp td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+.cmp th { background: #F6F8FA; }
+.rec { background: var(--accent-lt); border: 2px solid var(--accent); border-radius: 14px; padding: 14px 18px; margin-top: 16px; }
+.rec h3 { margin: 0 0 6px; }
+@media (max-width: 1099px) { .layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>TENQ 配置とメニューの案（2026-11-03）</h1>
+  <p>検討用モック。<b>工場の見取り図（建屋と設備の配置）は今のまま</b>です。変えたのは「配置をつかんで動かせること」と「メニューの数」の 2 点です。どの案も実際にドラッグして試せます。</p>
+  <div class="tabs">
+    <button class="on" data-p="a">A案 いつでもつかんで動かす</button>
+    <button data-p="b">B案「配置を変える」ボタンで切り替え</button>
+    <button data-p="c">C案 見取り図からすべて操作</button>
+    <button data-p="cmp">くらべる</button>
+  </div>
+</div>
+<main>
+
+<!-- ===================== A 案 ===================== -->
+<section class="plan on" id="p-a">
+  <div class="idea">
+    <h2>A案 いつでもつかんで動かす</h2>
+    <p class="catch">「編集」ボタンなし。見取り図の建屋も設備も、そのままマウスでつかんで動かせる。</p>
+    <ul>
+      <li>建屋は<b>名前の帯（⠿）をつかんで</b>動かす。右下の<b>◢ を引っぱると大きさ</b>が変わる。置ける場所は青い点線で、重なる場所は赤で出る</li>
+      <li>設備はタイルをつかんで、別の建屋や下の「まだ置いていない設備」へ動かす。<b>押すだけ</b>なら今までどおり右に詳しい内容が出る</li>
+      <li>動かすとすぐ保存され、下に<b>「元に戻す」</b>が出る（保存ボタンを押し忘れることがない）</li>
+      <li>メニューは<b>上に 4 つだけ</b>（見取り図／記録／設備／⚙）。同じ仲間の画面は、開いた先のタブで切り替える</li>
+    </ul>
+    <span class="try">試す: 「A 棟 プレス」の帯をつかんで動かす／P-03 を B 棟へドラッグ／ボール盤 N-01 を建屋に置く</span>
+  </div>
+  <div class="pc">
+    <div class="appbar">
+      <span class="logo">TENQ</span>
+      <button class="nv on"><span class="ic">🏭</span>見取り図</button>
+      <button class="nv" data-dd>📋 記録 ▾</button>
+      <div class="dd"><a>点検の記録<small>いつ・だれが・どう答えたか</small></a><a>おかしい所の記録<small>直したものも含めて</small></a><a>CSV・帳票の出力<small>ISO 監査用の印刷</small></a></div>
+      <button class="nv" data-dd>🔧 設備 ▾</button>
+      <div class="dd"><a>設備の一覧<small>設備台帳</small></a><a>点検する項目<small>点検基準</small></a><a>QR ラベルを印刷</a></div>
+      <span class="spacer"></span>
+      <button class="nv" data-dd>⚙</button>
+      <div class="dd" style="right:8px"><a>使う人と権限<small>ユーザー管理</small></a><a>工場の設定<small>システム設定</small></a><a>操作の記録</a><a>ログインした端末</a><hr><a>アプリ選択に戻る</a></div>
+      <span class="who">平野（工場長）</span>
+    </div>
+    <div class="body">
+      <div class="head">
+        <h3>第一工場 ▾<small>11/3（火）の点検</small></h3>
+        <div class="sum" data-sum></div>
+      </div>
+      <div class="hint">建屋は <b>⠿ の帯をつかんで</b>動かせます。右下の <b>◢</b> で大きさ、設備のタイルもつかんで動かせます。動かすとすぐ保存されます。</div>
+      <div class="layout">
+        <div>
+          <div class="map" data-map></div>
+          <div class="tray ed" data-tray><h4>まだ置いていない設備 <span class="muted">（ここから建屋へドラッグ）</span><button class="btn" data-add>＋ 建屋を足す</button></h4><div class="eqs"></div></div>
+        </div>
+        <aside class="side" data-side></aside>
+      </div>
+    </div>
+    <div class="toast" data-toast><span></span><button>元に戻す</button></div>
+  </div>
+  <table class="menu-map">
+    <tr><th>A案のメニュー</th><th>中に入るもの（今のメニュー名）</th></tr>
+    <tr><td>🏭 見取り図</td><td>ホーム、工場・建屋（建屋の追加・位置・大きさは見取り図の上でできる）</td></tr>
+    <tr><td>📋 記録</td><td>点検の記録、異常の記録、CSV・帳票</td></tr>
+    <tr><td>🔧 設備</td><td>設備台帳、点検基準、QR ラベル印刷</td></tr>
+    <tr><td>⚙（右上）</td><td>ユーザー管理、システム設定、操作の記録、ログインした端末、アプリ選択に戻る</td></tr>
+    <tr><td class="now">なくす</td><td class="now">「QR を読む」は PC では使わないのでスマホだけに出す</td></tr>
+  </table>
+</section>
+
+<!-- ===================== B 案 ===================== -->
+<section class="plan" id="p-b">
+  <div class="idea">
+    <h2>B案「配置を変える」ボタンで切り替え</h2>
+    <p class="catch">ふだんは見るだけ。「✏ 配置を変える」を押した間だけ、つかんで動かせる。</p>
+    <ul>
+      <li>ふだんは<b>うっかり動かない</b>。押すと地面にマス目が出て、建屋と設備がつかめる状態になる</li>
+      <li>建屋の動かし方・大きさの変え方は A案と同じ（⠿ の帯をつかむ／右下の ◢）</li>
+      <li>右の欄が<b>部品箱</b>に変わり、まだ置いていない設備と「＋ 建屋を足す」が入っている</li>
+      <li>下の黒い帯に<b>「変更 3 件 ［やめる］［保存する］」</b>。保存するまで本番には反映されない</li>
+      <li>メニューは<b>使う場面で 3 つ</b>に分ける（今日／記録をさがす／準備する）。中は小さなタブで切り替え</li>
+    </ul>
+    <span class="try">試す: 「✏ 配置を変える」を押す → 建屋や設備を動かす → 「保存する」か「やめる」</span>
+  </div>
+  <div class="pc">
+    <div class="appbar">
+      <span class="logo">TENQ</span>
+      <button class="nv on" data-sub="today">☀ 今日</button>
+      <button class="nv" data-sub="find">🔍 記録をさがす</button>
+      <button class="nv" data-sub="prep">🧰 準備する</button>
+      <span class="spacer"></span>
+      <button class="nv" data-dd>平野（工場長） ▾</button>
+      <div class="dd" style="right:8px"><a>使う人と権限</a><a>工場の設定</a><a>操作の記録</a><a>ログインした端末</a><hr><a>アプリ選択に戻る</a></div>
+    </div>
+    <div class="subtabs" data-subtabs></div>
+    <div class="body">
+      <div class="head">
+        <h3>第一工場 ▾<small>11/3（火）の点検</small></h3>
+        <div class="sum" data-sum></div>
+        <button class="btn" data-edit>✏ 配置を変える</button>
+      </div>
+      <div class="banner" data-banner>配置を変えています。建屋は ⠿ の帯、設備はタイルをつかんで動かしてください。終わったら下の「保存する」を押します。</div>
+      <div class="layout">
+        <div class="map" data-map></div>
+        <aside class="side" data-side></aside>
+      </div>
+    </div>
+    <div class="savebar" data-savebar><span>変更 0 件</span><button class="btn" data-undo style="background:transparent;color:#fff;border-color:#64748B">↶ ひとつ戻す</button><button class="btn" data-cancel>やめる</button><button class="btn pri" data-save>保存する</button></div>
+    <div class="toast" data-toast><span></span><button style="display:none"></button></div>
+  </div>
+  <table class="menu-map">
+    <tr><th>B案のメニュー</th><th>中に入るもの（今のメニュー名）</th></tr>
+    <tr><td>☀ 今日</td><td>ホーム（見取り図）、直っていない異常</td></tr>
+    <tr><td>🔍 記録をさがす</td><td>点検の記録、異常の記録、CSV・帳票</td></tr>
+    <tr><td>🧰 準備する</td><td>設備台帳、点検基準、QR ラベル印刷、工場・建屋</td></tr>
+    <tr><td>名前 ▾（右上）</td><td>ユーザー管理、システム設定、操作の記録、ログインした端末、アプリ選択に戻る</td></tr>
+  </table>
+</section>
+
+<!-- ===================== C 案 ===================== -->
+<section class="plan" id="p-c">
+  <div class="idea">
+    <h2>C案 見取り図からすべて操作</h2>
+    <p class="catch">メニューは 2 つだけ。設備のこと・建屋のことは、見取り図の上でその場所を押して選ぶ。</p>
+    <ul>
+      <li>設備を押すと、そのそばに<b>小窓</b>が出る（「直した」・点検の記録・点検する項目・QR を印刷・設備の情報）。設備の画面を探しに行かなくていい</li>
+      <li>建屋の名前を押すと、建屋の小窓（名前を変える・設備を足す・この建屋の QR をまとめて印刷）</li>
+      <li>見取り図の右上に<b>🔒 固定 ／ 🔓 動かせる</b>の切り替え。🔓 の間はつかんで動かせて、すぐ保存（「元に戻す」付き）</li>
+      <li>上のメニューは<b>「工場」「記録」と ⚙ だけ</b></li>
+    </ul>
+    <span class="try">試す: 設備や建屋の名前を押す → 小窓 ／ 右上の 🔒 を押して 🔓 にしてから動かす</span>
+  </div>
+  <div class="pc">
+    <div class="appbar">
+      <span class="logo">TENQ</span>
+      <button class="nv on">🏭 工場</button>
+      <button class="nv" data-dd>📋 記録 ▾</button>
+      <div class="dd"><a>点検の記録</a><a>おかしい所の記録</a><a>CSV・帳票の出力</a></div>
+      <span class="spacer"></span>
+      <button class="nv" data-dd>⚙</button>
+      <div class="dd" style="right:8px"><a>使う人と権限</a><a>工場の設定</a><a>点検する項目のひな形</a><a>操作の記録</a><a>ログインした端末</a><hr><a>アプリ選択に戻る</a></div>
+      <span class="who">平野（工場長）</span>
+    </div>
+    <div class="body">
+      <div class="head">
+        <h3>第一工場 ▾<small>11/3（火）の点検</small></h3>
+        <div class="sum" data-sum></div>
+        <button class="btn" data-addeq>＋ 設備を足す</button>
+        <button class="btn" data-lock>🔒 固定</button>
+      </div>
+      <div class="layout">
+        <div>
+          <div class="map" data-map></div>
+          <div class="tray" data-tray><h4>まだ置いていない設備 <span class="muted" data-traynote></span><button class="btn" data-add>＋ 建屋を足す</button></h4><div class="eqs"></div></div>
+        </div>
+        <aside class="side" data-side></aside>
+      </div>
+    </div>
+    <div class="toast" data-toast><span></span><button>元に戻す</button></div>
+  </div>
+  <table class="menu-map">
+    <tr><th>C案のメニュー</th><th>中に入るもの（今のメニュー名）</th></tr>
+    <tr><td>🏭 工場</td><td>ホーム、工場・建屋。設備台帳・点検基準・QR ラベル印刷は<b>設備・建屋の小窓</b>から</td></tr>
+    <tr><td>📋 記録</td><td>点検の記録、異常の記録、CSV・帳票</td></tr>
+    <tr><td>⚙（右上）</td><td>ユーザー管理、システム設定、点検基準のひな形、操作の記録、ログインした端末、アプリ選択に戻る</td></tr>
+  </table>
+</section>
+
+<!-- ===================== 比較 ===================== -->
+<section class="plan" id="p-cmp">
+  <table class="cmp">
+    <tr><th></th><th>A案 いつでもつかんで動かす</th><th>B案 ボタンで切り替え</th><th>C案 見取り図からすべて操作</th></tr>
+    <tr><th>上のメニュー</th><td>4 つ（見取り図・記録・設備・⚙）</td><td>3 つ（今日・記録をさがす・準備する）＋名前</td><td>2 つ（工場・記録）＋⚙</td></tr>
+    <tr><th>配置の動かし方</th><td>いつでもつかめる。すぐ保存・元に戻す</td><td>「配置を変える」の間だけ。最後に保存</td><td>🔓 の間だけ。すぐ保存・元に戻す</td></tr>
+    <tr><th>うっかり動かす心配</th><td>ある（「元に戻す」で取り消す）</td><td>ない</td><td>ほぼない</td></tr>
+    <tr><th>迷いにくさ</th><td>手順がいちばん少ない</td><td>「今は編集中」がはっきり分かる</td><td>「設備のことは設備を押す」で覚えることが少ない</td></tr>
+    <tr><th>作業者（スマホ）</th><td colspan="3">どの案も今のまま（QR を読む → ○✕ → 送る）。配置を動かせるのは工場長以上だけ</td></tr>
+    <tr><th>作り直す量</th><td>見取り図の操作・メニュー</td><td>見取り図の操作・メニュー（いちばん少ない）</td><td>見取り図の操作・メニュー・小窓（いちばん多い）</td></tr>
+  </table>
+  <div class="rec">
+    <h3>おすすめ: C案（メニュー 2 つ＋見取り図の小窓）</h3>
+    <p style="margin:0">「メニューが多くて分かりづらい」には、メニューを探さなくても目の前の設備を押せば済む C案がいちばん効きます。配置は 🔒/🔓 で切り替えるので、見ているだけの人がうっかり動かすこともありません。小窓まで作る手間を減らしたい場合は、メニューと動かし方を A案にするのが次点です。</p>
+  </div>
+</section>
+</main>
+
+<script>
+const U = 46;      // 見取り図の 1 段の高さ（px）
+const GAP = 10;    // 建屋どうしのすき間
+const BASE = {
+  areas: [
+    { id: 'a1', name: 'A 棟 プレス', c: 0, r: 0, w: 5, h: 4 },
+    { id: 'a2', name: 'B 棟 溶接', c: 5, r: 0, w: 4, h: 4 },
+    { id: 'a3', name: '倉庫', c: 9, r: 0, w: 3, h: 3 },
+    { id: 'a4', name: 'コンプレッサー室', c: 0, r: 4, w: 3, h: 3 },
+    { id: 'a5', name: 'C 棟 組立', c: 3, r: 4, w: 6, h: 3 },
+  ],
+  eq: [
+    { id: 'P-01', name: 'プレス機', st: 'ng', sub: '✕ 今日', area: 'a1', abn: '油もれ（シリンダーの下）' },
+    { id: 'P-02', name: 'プレス機', st: 'ok', sub: '○ 8:10', area: 'a1' },
+    { id: 'P-03', name: 'プレス機', st: 'todo', sub: 'まだ', area: 'a1' },
+    { id: 'P-04', name: 'プレス機', st: 'ok', sub: '○ 8:14', area: 'a1' },
+    { id: 'S-01', name: 'シャー', st: 'ok', sub: '○ 8:20', area: 'a1' },
+    { id: 'W-01', name: '溶接機', st: 'ok', sub: '○ 8:05', area: 'a2' },
+    { id: 'W-02', name: '溶接機', st: 'todo', sub: 'まだ', area: 'a2' },
+    { id: 'W-03', name: '溶接機', st: 'ok', sub: '○ 8:07', area: 'a2' },
+    { id: 'CR-2', name: 'クレーン', st: 'ng', sub: '✕ 3日前から', area: 'a2', abn: '巻き上げのとき異音' },
+    { id: 'F-01', name: 'フォークリフト', st: 'ok', sub: '○ 7:55', area: 'a3' },
+    { id: 'F-02', name: 'フォークリフト', st: 'stop', sub: '停止中', area: 'a3' },
+    { id: 'K-01', name: 'コンプレッサー', st: 'ok', sub: '○ 7:50', area: 'a4' },
+    { id: 'K-02', name: 'コンプレッサー', st: 'todo', sub: 'まだ', area: 'a4' },
+    { id: 'A-01', name: '組立台', st: 'ok', sub: '○ 8:30', area: 'a5' },
+    { id: 'A-02', name: '組立台', st: 'ok', sub: '○ 8:31', area: 'a5' },
+    { id: 'T-01', name: 'トルク機', st: 'todo', sub: 'まだ', area: 'a5' },
+    { id: 'L-01', name: 'リフター', st: 'ok', sub: '○ 8:33', area: 'a5' },
+    { id: 'N-01', name: 'ボール盤（新規）', st: 'todo', sub: 'まだ置いていない', area: null },
+  ],
+};
+const ST_LABEL = { ng: '✕ おかしい所あり', ok: '○ 点検済み', todo: 'まだ点検していない', stop: '停止中' };
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+function place(el, a, cw) {
+  el.style.left = a.c * cw + 'px'; el.style.top = a.r * U + 'px';
+  el.style.width = a.w * cw - GAP + 'px'; el.style.height = a.h * U - GAP + 'px';
+}
+
+/** 見取り図 1 枚。cfg.editable() が true の間だけ、建屋と設備をつかんで動かせる */
+function createMap(plan, cfg) {
+  const root = plan.querySelector('[data-map]');
+  const m = { state: clone(BASE), hist: [] };
+  const areaName = (id) => (id ? (m.state.areas.find((a) => a.id === id) || {}).name : 'まだ置いていない設備');
+
+  m.render = () => {
+    const ed = cfg.editable();
+    root.classList.toggle('ed', ed);
+    root.innerHTML = '';
+    const cw = root.clientWidth / 12;
+    const rows = Math.max(...m.state.areas.map((a) => a.r + a.h)) + (ed ? 2 : 0);
+    root.style.height = rows * U + 'px';
+    for (const a of m.state.areas) {
+      const list = m.state.eq.filter((e) => e.area === a.id);
+      const ng = list.filter((e) => e.st === 'ng').length, todo = list.filter((e) => e.st === 'todo').length;
+      const el = document.createElement('section');
+      el.className = 'b' + (ng ? ' has-ng' : '');
+      el.dataset.drop = a.id;
+      place(el, a, cw);
+      el.innerHTML = `<h4 class="bh">${ed ? '<span class="grip" title="つかんで動かす">⠿</span>' : ''}<span class="${cfg.onArea && !ed ? 'bn-click' : ''}">${esc(a.name)}</span><small>${ng ? `<em>✕ ${ng}</em>` : ''}${todo ? `まだ ${todo}` : ''}</small></h4><div class="eqs"></div>${ed ? '<span class="rz" title="引っぱって大きさを変える"></span>' : ''}`;
+      const box = el.querySelector('.eqs');
+      list.forEach((e) => box.appendChild(tile(e)));
+      if (!list.length) box.innerHTML = '<span class="empty">ここに設備をドラッグ</span>';
+      root.appendChild(el);
+      const bh = el.querySelector('.bh');
+      bh.addEventListener('pointerdown', (ev) => { if (cfg.editable()) dragArea(ev, a, el, cw, 'move'); });
+      bh.addEventListener('click', (ev) => { if (!cfg.editable() && cfg.onArea) cfg.onArea(a, bh, ev); });
+      const rz = el.querySelector('.rz');
+      if (rz) rz.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); dragArea(ev, a, el, cw, 'size'); });
+    }
+    const tray = cfg.tray && cfg.tray();
+    if (tray) {
+      tray.dataset.drop = '';
+      tray.classList.toggle('ed', ed);
+      const box = tray.querySelector('.eqs');
+      box.innerHTML = '';
+      const un = m.state.eq.filter((e) => !e.area);
+      un.forEach((e) => box.appendChild(tile(e)));
+      if (!un.length) box.innerHTML = '<span class="empty">全部の設備が建屋に入っています。ここへドラッグすると外せます</span>';
+    }
+    plan.querySelectorAll('[data-sum]').forEach((s) => {
+      const c = (k) => m.state.eq.filter((e) => e.st === k).length;
+      s.innerHTML = `<span class="n-ng">✕ おかしい<b>${c('ng')}</b></span><span class="n-todo">まだ<b>${c('todo')}</b></span><span class="n-ok">○ 済み<b>${c('ok')}</b></span>`;
+    });
+    if (cfg.onRender) cfg.onRender(m);
+  };
+
+  function tile(e) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `eq eq-${e.st}${cfg.selected && cfg.selected() === e.id ? ' sel' : ''}`;
+    b.dataset.id = e.id;
+    b.innerHTML = `<b>${esc(e.id)}</b><span>${esc(e.name)}</span><small>${esc(e.sub)}</small>`;
+    b.addEventListener('pointerdown', (ev) => dragTile(ev, e, b));
+    return b;
+  }
+
+  const overlap = (n) => m.state.areas.some((x) => x.id !== n.id && n.c < x.c + x.w && x.c < n.c + n.w && n.r < x.r + x.h && x.r < n.r + n.h);
+
+  function dragArea(ev, a, el, cw, mode) {
+    ev.preventDefault();
+    const sx = ev.clientX, sy = ev.clientY, o = { ...a }, n = { ...a };
+    const ghost = document.createElement('div');
+    ghost.className = 'ghost';
+    root.appendChild(ghost);
+    place(ghost, n, cw);
+    el.classList.add('lift');
+    const mv = (e) => {
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      if (mode === 'move') {
+        n.c = clamp(Math.round(o.c + dx / cw), 0, 12 - o.w); n.r = Math.max(0, Math.round(o.r + dy / U));
+        el.style.left = o.c * cw + dx + 'px'; el.style.top = o.r * U + dy + 'px';
+      } else {
+        n.w = clamp(Math.round(o.w + dx / cw), 2, 12 - o.c); n.h = Math.max(2, Math.round(o.h + dy / U));
+        el.style.width = Math.max(2 * cw - GAP, o.w * cw + dx - GAP) + 'px'; el.style.height = Math.max(2 * U - GAP, o.h * U + dy - GAP) + 'px';
+      }
+      place(ghost, n, cw);
+      ghost.classList.toggle('bad', overlap(n));
+      root.style.height = Math.max(parseFloat(root.style.height), (n.r + n.h + 1) * U) + 'px';
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', mv);
+      if (n.c === o.c && n.r === o.r && n.w === o.w && n.h === o.h) { m.render(); return; }
+      if (overlap(n)) { cfg.toast('ほかの建屋と重なるので、そこには置けません', false); m.render(); return; }
+      m.commit((s) => Object.assign(s.areas.find((x) => x.id === a.id), { c: n.c, r: n.r, w: n.w, h: n.h }),
+        mode === 'move' ? `「${a.name}」を動かしました` : `「${a.name}」の大きさを変えました`);
+    };
+    window.addEventListener('pointermove', mv);
+    window.addEventListener('pointerup', up, { once: true });
+  }
+
+  function dragTile(ev, e, b) {
+    const sx = ev.clientX, sy = ev.clientY;
+    if (cfg.editable()) ev.preventDefault();
+    let fly = null, over = null;
+    const mv = (p) => {
+      if (!fly) {
+        if (!cfg.editable() || Math.hypot(p.clientX - sx, p.clientY - sy) < 6) return;
+        fly = b.cloneNode(true);
+        fly.classList.add('flying');
+        fly.style.width = b.offsetWidth + 'px';
+        document.body.appendChild(fly);
+        b.classList.add('moving');
+      }
+      fly.style.left = p.clientX - 24 + 'px'; fly.style.top = p.clientY - 20 + 'px';
+      // 画面の上下の端に近づいたらスクロール（下の「まだ置いていない設備」から上の建屋へ運べるように）
+      if (p.clientY > innerHeight - 50) scrollBy(0, 16); else if (p.clientY < 120) scrollBy(0, -16);
+      const t = document.elementFromPoint(p.clientX, p.clientY);
+      const d = t && t.closest('[data-drop]');
+      const ok = d && plan.contains(d) ? d : null;
+      if (over !== ok) { if (over) over.classList.remove('over'); over = ok; if (ok) ok.classList.add('over'); }
+    };
+    const up = (p) => {
+      window.removeEventListener('pointermove', mv);
+      if (!fly) { if (cfg.onTile) cfg.onTile(e, b); return; }
+      fly.remove();
+      if (over) over.classList.remove('over');
+      if (!over) { m.render(); return; }
+      const target = over.dataset.drop || null;
+      const t = document.elementFromPoint(p.clientX, p.clientY);
+      const bef = t && t.closest('.eq');
+      const beforeId = bef && bef.dataset.id !== e.id ? bef.dataset.id : null;
+      m.commit((s) => {
+        const [it] = s.eq.splice(s.eq.findIndex((x) => x.id === e.id), 1);
+        it.area = target;
+        const j = beforeId ? s.eq.findIndex((x) => x.id === beforeId) : s.eq.length;
+        s.eq.splice(j, 0, it);
+      }, `${e.id} を「${areaName(target)}」へ動かしました`);
+    };
+    window.addEventListener('pointermove', mv);
+    window.addEventListener('pointerup', up, { once: true });
+  }
+
+  m.commit = (fn, label) => { m.hist.push(clone(m.state)); fn(m.state); m.render(); if (cfg.onChange) cfg.onChange(label); };
+  m.undo = () => { if (m.hist.length) { m.state = m.hist.pop(); m.render(); } };
+  m.addArea = () => {
+    const r = Math.max(...m.state.areas.map((a) => a.r + a.h));
+    m.commit((s) => s.areas.push({ id: 'n' + Date.now(), name: '新しい建屋', c: 0, r, w: 4, h: 3 }), '「新しい建屋」を足しました。つかんで好きな場所へ動かせます');
+  };
+  m.fix = (id) => m.commit((s) => { const x = s.eq.find((q) => q.id === id); x.st = 'ok'; x.sub = '○ 直した'; delete x.abn; }, `${id} を「直した」にしました`);
+  window.addEventListener('resize', () => { if (plan.classList.contains('on')) m.render(); });
+  return m;
+}
+
+function toaster(plan, getMap) {
+  const t = plan.querySelector('[data-toast]');
+  let timer;
+  t.querySelector('button').addEventListener('click', () => { getMap().undo(); t.classList.remove('open'); });
+  return (msg, undo = true) => {
+    t.querySelector('span').textContent = msg;
+    t.querySelector('button').style.display = undo ? '' : 'none';
+    t.classList.add('open');
+    clearTimeout(timer);
+    timer = setTimeout(() => t.classList.remove('open'), 5000);
+  };
+}
+
+/** 右の欄: 何も選んでいなければ「直っていない異常」、選んだら設備の詳しい内容 */
+function sidePanel(side, m, sel, onPick) {
+  const e = sel.id && m.state.eq.find((x) => x.id === sel.id);
+  if (!e) {
+    const ng = m.state.eq.filter((x) => x.st === 'ng');
+    side.innerHTML = `<h4>直っていない異常（${ng.length}）</h4>` + (ng.length
+      ? `<ul class="ng-list">${ng.map((x) => `<li><button data-id="${x.id}"><b>✕ ${esc(x.id)} ${esc(x.name)}</b>${esc(x.abn)}<small>${esc(m.state.areas.find((a) => a.id === x.area)?.name ?? '')} ・ ${esc(x.sub)}</small></button></li>`).join('')}</ul>`
+      : '<p class="muted">ありません。今日は全部 OK です。</p>') + '<p class="muted">設備を押すと、ここに詳しい内容が出ます。</p>';
+    side.querySelectorAll('[data-id]').forEach((b) => b.addEventListener('click', () => { if (onPick) onPick(b.dataset.id); else { sel.id = b.dataset.id; m.render(); } }));
+    return;
+  }
+  side.innerHTML = `<button class="x" aria-label="閉じる">×</button><h4>${esc(e.id)} ${esc(e.name)}</h4>
+    <div class="muted">${esc(m.state.areas.find((a) => a.id === e.area)?.name ?? 'まだ置いていない')}</div>
+    <span class="st st-${e.st}">${ST_LABEL[e.st]}</span>
+    ${e.st === 'ng' ? `<div><b>${esc(e.abn)}</b><div class="pic">（撮った写真）</div><div class="fix">何をして直したか（一言）<input placeholder="例: パッキンを交換した"><button class="btn ok" data-fix>○ 直した</button></div></div>` : ''}
+    <div class="links"><a href="javascript:void 0">この設備の点検の記録</a><a href="javascript:void 0">点検する項目</a><a href="javascript:void 0">QR ラベルを印刷</a></div>`;
+  side.querySelector('.x').addEventListener('click', () => { sel.id = null; m.render(); });
+  const f = side.querySelector('[data-fix]');
+  if (f) f.addEventListener('click', () => m.fix(e.id));
+}
+
+/* ---------- A 案 ---------- */
+(() => {
+  const plan = document.getElementById('p-a');
+  const sel = { id: null };
+  let m;
+  const toast = toaster(plan, () => m);
+  m = createMap(plan, {
+    editable: () => true,
+    tray: () => plan.querySelector('[data-tray]'),
+    selected: () => sel.id,
+    onTile: (e) => { sel.id = e.id; m.render(); },
+    onChange: (label) => toast(label + '（保存しました）'),
+    toast,
+    onRender: () => sidePanel(plan.querySelector('[data-side]'), m, sel),
+  });
+  plan.querySelector('[data-add]').addEventListener('click', () => m.addArea());
+  plan.map = m;
+})();
+
+/* ---------- B 案 ---------- */
+(() => {
+  const plan = document.getElementById('p-b');
+  const sel = { id: null };
+  let editing = false, snap = null, changes = 0, m;
+  const bar = plan.querySelector('[data-savebar]');
+  const toast = toaster(plan, () => m);
+  const SUBS = { today: ['見取り図', '直っていない異常'], find: ['点検の記録', 'おかしい所の記録', 'CSV・帳票'], prep: ['設備の一覧', '点検する項目', 'QR ラベル印刷', '工場・建屋'] };
+  const subtabs = plan.querySelector('[data-subtabs]');
+  const showSub = (k) => { subtabs.innerHTML = SUBS[k].map((s, i) => `<span class="${i === 0 ? 'on' : ''}">${s}</span>`).join(''); };
+  plan.querySelectorAll('[data-sub]').forEach((b) => b.addEventListener('click', () => {
+    plan.querySelectorAll('[data-sub]').forEach((x) => x.classList.toggle('on', x === b));
+    showSub(b.dataset.sub);
+  }));
+  showSub('today');
+  const setEditing = (on) => {
+    editing = on;
+    plan.querySelector('[data-edit]').classList.toggle('on', on);
+    plan.querySelector('[data-edit]').textContent = on ? '✏ 配置を変えています' : '✏ 配置を変える';
+    plan.querySelector('[data-banner]').classList.toggle('open', on);
+    bar.classList.toggle('open', on);
+    if (on) { snap = clone(m.state); m.hist = []; changes = 0; sel.id = null; }
+    updateBar();
+    m.render();
+  };
+  const updateBar = () => { bar.querySelector('span').textContent = `変更 ${changes} 件（まだ保存していません）`; };
+  m = createMap(plan, {
+    editable: () => editing,
+    tray: () => (editing ? plan.querySelector('[data-tray]') : null),
+    selected: () => sel.id,
+    onTile: (e) => { sel.id = e.id; m.render(); },
+    onChange: () => { if (editing) { changes++; updateBar(); } else toast('記録しました', false); },
+    toast,
+    onRender: () => {
+      const side = plan.querySelector('[data-side]');
+      if (editing) {
+        if (!side.querySelector('[data-tray]')) {
+          side.innerHTML = '<h4>部品箱</h4><div class="tray" data-tray style="margin-top:0"><h4>まだ置いていない設備</h4><div class="eqs"></div></div><button class="btn" data-add style="width:100%;margin-top:10px">＋ 建屋を足す</button><p class="muted">設備をここへドラッグすると、建屋から外せます。</p>';
+          side.querySelector('[data-add]').addEventListener('click', () => m.addArea());
+          m.render();
+        }
+      } else sidePanel(side, m, sel);
+    },
+  });
+  plan.querySelector('[data-edit]').addEventListener('click', () => setEditing(!editing));
+  plan.querySelector('[data-cancel]').addEventListener('click', () => { m.state = snap; setEditing(false); toast('変更をやめました', false); });
+  plan.querySelector('[data-save]').addEventListener('click', () => { setEditing(false); toast('配置を保存しました', false); });
+  plan.querySelector('[data-undo]').addEventListener('click', () => { if (m.hist.length) { m.undo(); changes = Math.max(0, changes - 1); updateBar(); } });
+  plan.map = m;
+})();
+
+/* ---------- C 案 ---------- */
+(() => {
+  const plan = document.getElementById('p-c');
+  const sel = { id: null };
+  let unlocked = false, m, pop = null;
+  const toast = toaster(plan, () => m);
+  const closePop = () => { if (pop) { pop.remove(); pop = null; } };
+  const openPop = (anchor, html) => {
+    closePop();
+    const pc = plan.querySelector('.pc');
+    const r = anchor.getBoundingClientRect(), pr = pc.getBoundingClientRect();
+    pop = document.createElement('div');
+    pop.className = 'pop';
+    pop.innerHTML = '<button class="x" aria-label="閉じる">×</button>' + html;
+    pc.appendChild(pop);
+    let left = r.right - pr.left + 8;
+    if (left + 280 > pr.width) left = r.left - pr.left - 278;
+    pop.style.left = Math.max(8, left) + 'px';
+    pop.style.top = Math.max(8, r.top - pr.top - 10) + 'px';
+    pop.querySelector('.x').addEventListener('click', () => { closePop(); sel.id = null; m.render(); });
+    pop.addEventListener('pointerdown', (e) => e.stopPropagation());
+    return pop;
+  };
+  const say = (msg) => () => { closePop(); toast(msg + '（モックでは開きません）', false); };
+  const onTile = (e) => {
+      sel.id = e.id;
+      m.render();
+      const tileEl = plan.querySelector(`.eq[data-id="${e.id}"]`);
+      const p = openPop(tileEl, `<h4>${esc(e.id)} ${esc(e.name)}</h4><span class="st st-${e.st}">${ST_LABEL[e.st]}</span>
+        ${e.st === 'ng' ? `<div><b>${esc(e.abn)}</b><div class="pic">（撮った写真）</div><div class="fix">何をして直したか（一言）<input placeholder="例: パッキンを交換した"><button class="btn ok" data-fix>○ 直した</button></div></div>` : ''}
+        <div class="acts"><button data-a="点検の記録">📋 この設備の点検の記録</button><button data-a="点検する項目">✅ 点検する項目を変える</button><button data-a="QR ラベル">🏷 QR ラベルを印刷</button><button data-a="設備の情報">🔧 設備の情報（台帳）</button></div>`);
+      p.querySelectorAll('[data-a]').forEach((x) => x.addEventListener('click', say(`「${x.dataset.a}」を開きます`)));
+      const f = p.querySelector('[data-fix]');
+      if (f) f.addEventListener('click', () => { closePop(); sel.id = null; m.fix(e.id); });
+  };
+  m = createMap(plan, {
+    editable: () => unlocked,
+    tray: () => plan.querySelector('[data-tray]'),
+    selected: () => sel.id,
+    onTile,
+    onArea: (a, anchor) => {
+      const p = openPop(anchor, `<h4>${esc(a.name)}</h4><div class="muted">設備 ${m.state.eq.filter((e) => e.area === a.id).length} 台</div>
+        <div class="acts"><button data-a="名前を変える">✏ 名前を変える</button><button data-a="設備を足す">＋ この建屋に設備を足す</button><button data-a="QR ラベル（まとめて）">🏷 この建屋の QR をまとめて印刷</button><button data-move>↔ 場所・大きさを変える</button></div>`);
+      p.querySelectorAll('[data-a]').forEach((x) => x.addEventListener('click', say(`「${x.dataset.a}」を開きます`)));
+      p.querySelector('[data-move]').addEventListener('click', () => { closePop(); setLock(true); });
+    },
+    onChange: (label) => toast(label + '（保存しました）'),
+    toast,
+    onRender: () => {
+      const side = plan.querySelector('[data-side]');
+      // 右の欄の異常を押したときも、タイルを押したのと同じ小窓を出す
+      sidePanel(side, m, { id: null }, (id) => onTile(m.state.eq.find((x) => x.id === id)));
+      const un = m.state.eq.filter((e) => !e.area).length;
+      plan.querySelector('[data-traynote]').textContent = unlocked ? '（ここから建屋へドラッグ）' : un ? `（${un} 台。🔓 にすると建屋へ置けます）` : '';
+    },
+  });
+  const lockBtn = plan.querySelector('[data-lock]');
+  const setLock = (open) => {
+    unlocked = open;
+    closePop();
+    lockBtn.textContent = open ? '🔓 動かせる（押すと固定）' : '🔒 固定';
+    lockBtn.classList.toggle('on', open);
+    if (open) toast('つかんで動かせます。動かすとすぐ保存されます', false);
+    m.render();
+  };
+  lockBtn.addEventListener('click', () => setLock(!unlocked));
+  plan.querySelector('[data-add]').addEventListener('click', () => m.addArea());
+  plan.querySelector('[data-addeq]').addEventListener('click', () => toast('設備の名前と置く建屋を聞く小窓が出ます（モック）', false));
+  document.addEventListener('pointerdown', (e) => { if (pop && !pop.contains(e.target) && !e.target.closest('.eq') && !e.target.closest('.bh')) closePop(); });
+  plan.map = m;
+})();
+
+/* ---------- タブとメニューの開閉 ---------- */
+const showPlan = (k) => {
+  document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x.dataset.p === k));
+  document.querySelectorAll('.plan').forEach((p) => p.classList.toggle('on', p.id === 'p-' + k));
+  const p = document.getElementById('p-' + k);
+  if (p.map) p.map.render();
+};
+document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => { showPlan(b.dataset.p); window.scrollTo(0, 0); }));
+document.querySelectorAll('[data-dd]').forEach((b) => b.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const dd = b.nextElementSibling;
+  const was = dd.classList.contains('open');
+  document.querySelectorAll('.dd.open').forEach((x) => x.classList.remove('open'));
+  if (!was) { dd.classList.add('open'); if (!dd.style.right) dd.style.left = b.offsetLeft + 'px'; }
+}));
+document.addEventListener('click', () => document.querySelectorAll('.dd.open').forEach((x) => x.classList.remove('open')));
+showPlan('a');
+</script>
+</body>
+</html>

@@ -19,10 +19,26 @@ test('見取り図: 建屋ごとに設備を 3 色（✕ 異常・○ 正常・�
   await expect(page.getByRole('button', { name: /^K-02 研削盤 2号 ✕/ })).toBeVisible();
   await expect(page.getByRole('complementary', { name: '直っていない異常' })).toContainText('CR-2');
 
+  // 設備を押すと、そのそばに小窓。この設備でできることもここから
   await l07.click();
-  const side = page.getByRole('complementary', { name: 'L-07 の詳細' });
-  await expect(side).toBeVisible();
-  await expect(side.getByRole('link', { name: 'この設備の記録・台帳を見る' })).toBeVisible();
+  const pop = page.getByRole('dialog', { name: 'L-07 の詳細' });
+  await expect(pop).toBeVisible();
+  await expect(pop.getByRole('link', { name: 'この設備の記録・台帳を見る' })).toBeVisible();
+  await expect(pop.getByRole('link', { name: 'QR ラベルを印刷' })).toHaveAttribute('href', /#\/qr\?factory=fac-1a&ids=/);
+  await page.keyboard.press('Escape');
+  await expect(pop).toHaveCount(0);
+
+  // 右の欄の異常を押しても同じ小窓
+  await page.getByRole('complementary', { name: '直っていない異常' }).getByRole('button', { name: /CR-2/ }).click();
+  await expect(page.getByRole('dialog', { name: 'CR-2 の詳細' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // 建屋の名前を押すと建屋の小窓
+  await page.getByRole('button', { name: 'A棟 プレスライン', exact: true }).click();
+  const areaPop = page.getByRole('dialog', { name: 'A棟 プレスライン の操作' });
+  await expect(areaPop.getByRole('button', { name: '✏ 名前を変える' })).toBeVisible();
+  await areaPop.getByRole('button', { name: '🏷 この建屋の QR ラベルをまとめて印刷' }).click();
+  await expect(page).toHaveURL(/#\/qr\?factory=fac-1a&ids=/);
 });
 
 test('カード一覧の自動更新は、画面を見ていない間は止まり、戻ると読み直す', async ({ page }) => {
@@ -62,20 +78,48 @@ test('カード一覧の自動更新は、画面を見ていない間は止ま�
   await expect.poll(() => calls).toBe(hiddenAt + 1);  // 戻ったらすぐ1回読み直す
 });
 
-test('カード一覧の配置を編集して保存できる（設備をドラッグで別のエリアへ）', async ({ page }) => {
-  test.skip(!isPc(page), '配置の編集は PC で行う');
+test('「配置を動かす」の間だけ、設備と建屋をつかんで動かせる。すぐ保存され、元に戻せる', async ({ page }) => {
+  test.skip(!isPc(page), '配置は PC で動かす');
   await page.goto('./');
   await devLogin(page, '中村 誠');
   await page.goto('./#/board');
-  await page.getByRole('button', { name: '配置を編集' }).click();
+  await page.getByRole('button', { name: '🔓 配置を動かす' }).click();
   const card = page.getByRole('button', { name: /^D-01 / });
-  const target = page.getByRole('region', { name: 'C棟 溶接' });
-  await card.dragTo(target);
-  await expect(target.getByRole('button', { name: /^D-01 / })).toBeVisible();
-  await page.getByRole('button', { name: '配置を保存' }).click();
-  await expect(page.getByText('配置を保存しました。')).toBeVisible();
+  const tray = page.getByRole('region', { name: 'まだ置いていない設備' });
+  const weld = page.getByRole('region', { name: 'C棟 溶接' });
+
+  // 設備をつかんで建屋へ → すぐ保存。「元に戻す」で戻る
+  await card.dragTo(weld);
+  await expect(page.getByText('D-01 を「C棟 溶接」へ動かしました（保存しました）')).toBeVisible();
+  await expect(weld.getByRole('button', { name: /^D-01 / })).toBeVisible();
+  await page.getByRole('button', { name: '元に戻す' }).click();
+  await expect(tray.getByRole('button', { name: /^D-01 / })).toBeVisible();
+  await card.dragTo(weld);
+  await expect(weld.getByRole('button', { name: /^D-01 / })).toBeVisible();
+
+  // 建屋の右下 ◢ を左へ引っぱると幅が狭くなり、帯をつかんで右へ動かせる（12 列のマス目に吸い付く）
+  const floor = await page.locator('.floor').boundingBox();
+  const col = floor!.width / 12;
+  const rz = await weld.locator('.bld-rz').boundingBox();
+  await page.mouse.move(rz!.x + rz!.width / 2, rz!.y + rz!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(rz!.x - col * 2, rz!.y + rz!.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await expect(page.getByText('「C棟 溶接」の幅を変えました（保存しました）')).toBeVisible();
+  const bar = await weld.locator('h2').boundingBox();
+  await page.mouse.move(bar!.x + 60, bar!.y + bar!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bar!.x + 60 + col * 2, bar!.y + bar!.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await expect(page.getByText('「C棟 溶接」を動かしました（保存しました）')).toBeVisible();
+  const gridColumn = (l: typeof weld) => l.evaluate((el) => (el as HTMLElement).style.gridColumn);
+  await expect.poll(() => gridColumn(weld)).toBe('3 / span 7');
+
+  await page.getByRole('button', { name: '🔒 固定する' }).click();
   await page.reload();
-  await expect(page.getByRole('region', { name: 'C棟 溶接' }).getByRole('button', { name: /^D-01 / })).toBeVisible();
+  const weld2 = page.getByRole('region', { name: 'C棟 溶接' });
+  await expect(weld2.getByRole('button', { name: /^D-01 / })).toBeVisible();
+  await expect.poll(() => gridColumn(weld2)).toBe('3 / span 7');
 });
 
 test('点検履歴を絞り込み、その条件で CSV を出力できる（BOM 付き UTF-8）', async ({ page }) => {
@@ -139,5 +183,5 @@ test('一般社員には CSV・帳票と管理の入口がなく、見取り図�
   await expect(page.getByText('この画面を開く権限がありません')).toBeVisible();
   await page.goto('./#/board');
   await expect(page.getByRole('region', { name: 'A棟 プレスライン' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '配置を編集' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '🔓 配置を動かす' })).toHaveCount(0);
 });

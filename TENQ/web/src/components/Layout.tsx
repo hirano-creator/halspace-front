@@ -1,10 +1,10 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { Action } from '@tenq/shared';
 import { useAuth } from '../auth/AuthContext';
 import { SPACE_APPS_URL, isStandalone } from '../auth/session';
 import { Logo } from './Logo';
 
-/** ログイン後の外枠。上の帯と、右から出るメニュー（PC・スマホ共通。常設のメニューは置かない） */
+/** ログイン後の外枠。上の帯にメニューを 3 つだけ置く（PC・スマホ共通） */
 
 interface NavItem { to: string; label: string; icon: ReactNode; action?: Action }
 
@@ -28,17 +28,18 @@ const I = {
 };
 
 /**
- * メニューの中身（2026-10-31 簡単化。requirements §10 Q-15）。ふだん使う画面はホームだけで、
- * それ以外（設定・記録）は「メニュー」の中に入れる。一般社員は点検に使うものだけ。
+ * メニューの中身（2026-11-03 見直し。requirements §10 Q-15）。上の帯に「工場（ホーム）」「記録」「⚙」の 3 つだけ。
+ * 設備・建屋のことは見取り図の上で設備・建屋を押して出る小窓からする。⚙ には設定と、どこからも行けない画面を入れる。
+ * 一般社員は点検に使うものだけ（記録は「点検の記録」だけなので、押すとそのまま開く）。
  */
-const NAV: NavItem[] = [
-  { to: '/', label: 'ホーム', icon: I.home },
-  { to: '/scan', label: 'QR を読む', icon: I.scan, action: 'inspection.perform' },
+const RECORDS: NavItem[] = [
   { to: '/inspections', label: '点検の記録', icon: I.search, action: 'inspection.viewOwn' },
   { to: '/abnormalities', label: '異常の記録', icon: I.warn, action: 'abnormality.resolve' },
   { to: '/reports', label: 'CSV・帳票', icon: I.file, action: 'export' },
-  { to: '/equipment', label: '設備台帳', icon: I.tool, action: 'qr.issue' },
-  { to: '/templates', label: '点検基準', icon: I.list, action: 'template.edit' },
+];
+const SETTINGS: NavItem[] = [
+  { to: '/equipment', label: '設備の一覧（台帳）', icon: I.tool, action: 'qr.issue' },
+  { to: '/templates', label: '点検する項目（点検基準）', icon: I.list, action: 'template.edit' },
   { to: '/qr', label: 'QRラベル印刷', icon: I.qr, action: 'qr.issue' },
   { to: '/admin/factories', label: '工場・建屋', icon: I.factory, action: 'layout.edit' },
   { to: '/admin/users', label: 'ユーザー管理', icon: I.user, action: 'users.manage' },
@@ -49,47 +50,75 @@ const NAV: NavItem[] = [
 
 export function Layout({ path, children }: { path: string; children: ReactNode }) {
   const { me, can, logout } = useAuth();
-  const [open, setOpen] = useState(false);
-  const items = NAV.filter((n) => !n.action || can(n.action));
+  // 開いているメニューは、開いたときの画面と組で持つ（画面が変わったら自然に閉じる）
+  const [openAt, setOpenAt] = useState<{ key: 'records' | 'settings'; path: string } | null>(null);
+  const open = openAt?.path === path ? openAt.key : null;
+  const setOpen = (f: (o: typeof open) => typeof open) => setOpenAt(() => { const k = f(open); return k ? { key: k, path } : null; });
+  const records = RECORDS.filter((n) => !n.action || can(n.action));
+  const settings = SETTINGS.filter((n) => !n.action || can(n.action));
   // Space.app のアプリ共通のメニュー下部（SOLID・What'sNo と同じ。スキル space-app-shell）:
   // 利用者の名前とロール → 「アプリ選択に戻る」。TENQ のログイン画面・端末記憶で直接入ったタブだけ「ログアウト」
   const standalone = isStandalone();
-  const active = (to: string) => (to === '/' ? path === '/' : path === to || path.startsWith(to + '/'));
+  const active = (to: string) => path === to || path.startsWith(to + '/');
+  const isHome = path === '/' || path === '/board';
+  const homeLabel = me?.user.role && me.user.role !== 'worker' ? '工場' : 'ホーム';
+
+  // 外を押したとき・Esc で閉じる
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => { if (!(e.target as Element).closest('.nav-drop-wrap')) setOpenAt(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpenAt(null); };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('pointerdown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
+  const link = (n: NavItem) => (
+    <a key={n.to} href={`#${n.to}`} className={active(n.to) ? 'on' : ''} aria-current={active(n.to) ? 'page' : undefined}>
+      {n.icon}<span>{n.label}</span>
+    </a>
+  );
 
   return (
     <div className="shell">
       <header className="app-header">
         <a href="#/" className="brand" aria-label="TENQ ホーム"><Logo /></a>
-        <div className="header-user">
-          <span className="header-name">{me?.user.name}</span>
-          <span className="header-role">{me?.user.roleLabel ?? 'ロール未設定'}</span>
-        </div>
-        <button type="button" className="menu-toggle" aria-expanded={open} aria-controls="nav" onClick={() => setOpen((o) => !o)}>
-          <span aria-hidden="true">≡</span> メニュー
-        </button>
-      </header>
-      {open && <div className="nav-bg" onClick={() => setOpen(false)} aria-hidden="true" />}
-      <nav id="nav" className={`side-nav ${open ? 'open' : ''}`} aria-label="メニュー">
-        <button type="button" className="nav-close" onClick={() => setOpen(false)}>閉じる</button>
-        {items.map((n) => (
-          <a key={n.to} href={`#${n.to}`} className={active(n.to) ? 'on' : ''} aria-current={active(n.to) ? 'page' : undefined} onClick={() => setOpen(false)}>
-            {n.icon}<span>{n.label}</span>
-          </a>
-        ))}
-        <div className="sidebar-bottom">
-          <div className="sidebar-user">
-            <span className="sidebar-avatar" aria-hidden="true">{me?.user.name.charAt(0)}</span>
-            <span className="sidebar-user-info">
-              <span className="sidebar-user-name">{me?.user.name}</span>
-              <span className="sidebar-user-role">{me?.user.roleLabel ?? 'ロール未設定'}</span>
-            </span>
+        <nav className="top-nav" aria-label="メニュー">
+          <a href="#/" className={`top-tab ${isHome ? 'on' : ''}`} aria-current={isHome ? 'page' : undefined}>{I.factory}<span>{homeLabel}</span></a>
+          {records.length === 1 && <a href={`#${records[0]!.to}`} className={`top-tab ${active(records[0]!.to) ? 'on' : ''}`}>{I.search}<span>記録</span></a>}
+          {records.length > 1 && (
+            <div className="nav-drop-wrap">
+              <button type="button" className={`top-tab ${records.some((n) => active(n.to)) ? 'on' : ''}`} aria-expanded={open === 'records'} aria-controls="nav-records"
+                onClick={() => setOpen((o) => (o === 'records' ? null : 'records'))}>{I.search}<span>記録</span><i aria-hidden="true">▾</i></button>
+              {open === 'records' && <div id="nav-records" className="nav-drop">{records.map(link)}</div>}
+            </div>
+          )}
+          <div className="nav-drop-wrap right">
+            <button type="button" className={`top-tab ${settings.some((n) => active(n.to)) ? 'on' : ''}`} aria-label="設定とアカウント" aria-expanded={open === 'settings'} aria-controls="nav-settings"
+              onClick={() => setOpen((o) => (o === 'settings' ? null : 'settings'))}>
+              {I.gear}<span className="hide-sm">{me?.user.name}</span><i aria-hidden="true">▾</i>
+            </button>
+            {open === 'settings' && (
+              <div id="nav-settings" className="nav-drop">
+                {settings.map(link)}
+                <div className="sidebar-bottom">
+                  <div className="sidebar-user">
+                    <span className="sidebar-avatar" aria-hidden="true">{me?.user.name.charAt(0)}</span>
+                    <span className="sidebar-user-info">
+                      <span className="sidebar-user-name">{me?.user.name}</span>
+                      <span className="sidebar-user-role">{me?.user.roleLabel ?? 'ロール未設定'}</span>
+                    </span>
+                  </div>
+                  {standalone
+                    ? <button type="button" className="btn-sidebar-back" onClick={() => void logout()}>{I.logout}<span>ログアウト</span></button>
+                    : <a href={SPACE_APPS_URL} className="btn-sidebar-back">{I.back}<span>アプリ選択に戻る</span></a>}
+                </div>
+              </div>
+            )}
           </div>
-          {standalone
-            ? <button type="button" className="btn-sidebar-back" onClick={() => void logout()}>{I.logout}<span>ログアウト</span></button>
-            : <a href={SPACE_APPS_URL} className="btn-sidebar-back">{I.back}<span>アプリ選択に戻る</span></a>}
-        </div>
-      </nav>
-      <main className={`content ${path === '/' || path === '/board' ? 'wide' : ''}`}>{children}</main>
+        </nav>
+      </header>
+      <main className={`content ${isHome ? 'wide' : ''}`}>{children}</main>
     </div>
   );
 }
