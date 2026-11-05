@@ -1,0 +1,9 @@
+node_modules/
+.wrangler/
+api/.dev.vars
+dist/
+test-results/
+playwright-report/
+# 実データ（お客様の注文 CSV）はコミットしない
+*.csv
+!**/fixtures/*.csv
