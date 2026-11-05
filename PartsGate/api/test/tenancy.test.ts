@@ -24,6 +24,9 @@ const COVERED = new Set<string>([
   // 照合は scans.test.ts の「照合のテナント分離」で確かめている
   'POST /api/work-sessions', 'POST /api/work-sessions/:id/end', 'POST /api/scans', 'GET /api/scans/today',
   'GET /api/scan-board/dates', 'GET /api/scan-board',
+  // 履歴・注文・分析は reports.test.ts の「履歴・分析のテナント分離」で確かめている
+  'GET /api/scan-logs', 'POST /api/scan-logs/:id/corrections', 'GET /api/orders/items', 'GET /api/orders/items/:id', 'POST /api/orders/items/:id/resolve',
+  'GET /api/dashboard', 'GET /api/analytics/scans', 'GET /api/analytics/orders', 'GET /api/analytics/customers/:code',
   'GET /api/audit-logs',
   'GET /api/admin/companies', 'PUT /api/admin/companies/:id',
 ]);
