@@ -35,6 +35,21 @@ describe('ログイン確認', () => {
     expect(r.body.message).toContain('停止');
   });
 
+  it('CORS: 画面のオリジンには、取込で使うヘッダーも許可する', async () => {
+    const { env } = await import('cloudflare:workers');
+    const app = (await import('../src/index')).default;
+    const res = await app.request('/api/imports', {
+      method: 'OPTIONS',
+      headers: { Origin: 'http://localhost:5174', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'authorization,content-type,x-file-name,x-file-sha256,x-encoding' },
+    }, env);
+    const allowed = (res.headers.get('Access-Control-Allow-Headers') ?? '').toLowerCase();
+    for (const h of ['authorization', 'x-file-name', 'x-file-sha256', 'x-encoding']) expect(allowed).toContain(h);
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:5174');
+    // 許可していないオリジンには返さない
+    const other = await app.request('/api/me', { method: 'OPTIONS', headers: { Origin: 'https://evil.example', 'Access-Control-Request-Method': 'GET' } }, env);
+    expect(other.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
+
   it('health はログインなしで DB の状態を返す', async () => {
     const r = await get('/health');
     expect(r.status).toBe(200);

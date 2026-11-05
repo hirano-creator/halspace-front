@@ -137,7 +137,7 @@ erDiagram
 | company_id / batch_id | INTEGER NOT NULL | |
 | line_no | INTEGER NOT NULL | CSV の行番号 |
 | global_no | TEXT | |
-| kind | TEXT NOT NULL | `new` / `updated` / `error` / `review`（「変更なし」は件数だけ残し、行は保存しない） |
+| kind | TEXT NOT NULL | `new` / `updated` / `unchanged` / `error` / `review`。「変更なし」も保存する（確定時に件数をここから数え直し、再送で二重に数えないため。migrations/0002） |
 | message | TEXT | 理由（例: 置場 0057 が未登録） |
 | diff_json | TEXT | 更新時の変更前後 |
 

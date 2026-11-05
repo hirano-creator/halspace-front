@@ -14,6 +14,10 @@ interface NavGroup { label?: string; items: NavItem[] }
 
 const NAV: NavGroup[] = [
   { items: [{ to: '/', label: 'ホーム', icon: '⌂' }] },
+  { label: '業務', items: [
+    { to: '/imports/new', label: 'CSV 取込', icon: '⇪', action: 'import' },
+    { to: '/imports', label: '取込履歴', icon: '↺', action: 'import' },
+  ] },
   { label: 'マスター', items: [
     { to: '/staff', label: '担当者', icon: '◉', action: 'master.view' },
     { to: '/locations', label: '置場', icon: '▦', action: 'master.view' },
@@ -33,7 +37,11 @@ export function Layout({ path, children }: { path: string; children: ReactNode }
   const [openAt, setOpenAt] = useState<string | null>(null);
   const open = openAt === path;
   const standalone = isStandalone();
-  const active = (to: string) => (to === '/' ? path === '/' : path === to || path.startsWith(to + '/'));
+  const active = (to: string) => {
+    if (to === '/') return path === '/';
+    if (to === '/imports') return path === '/imports' || (path.startsWith('/imports/') && path !== '/imports/new');
+    return path === to || path.startsWith(to + '/');
+  };
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter((n) => !n.action || can(n.action)) })).filter((g) => g.items.length);
 
   const nav = (

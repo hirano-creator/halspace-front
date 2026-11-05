@@ -90,8 +90,16 @@ destinationBase.post('/destinations/bulk', async (c) => {
        VALUES (?1, ?2, ?3, ?4, 'active', ?5, ?5) ON CONFLICT (company_id, customer_code, code) DO NOTHING`,
       r.customer_code, r.code, r.name, now,
     )),
+    // 取り込み済みで納品先が空の明細に、登録した納品先を結び付ける（CSV 取込で「あとで登録」した場合）
+    db.stmt(
+      `UPDATE order_items SET destination_id = (
+          SELECT d.id FROM destinations d WHERE d.company_id = order_items.company_id AND d.customer_code = order_items.customer_code AND d.code = order_items.destination_code)
+        WHERE company_id = ?1 AND destination_id IS NULL
+          AND (customer_code, destination_code) IN (SELECT json_extract(value, '$[0]'), json_extract(value, '$[1]') FROM json_each(?2))`,
+      JSON.stringify(rows.map((r) => [r.customer_code, r.code])),
+    ),
   ]);
-  const created = results.reduce((n, r) => n + (r.meta.changes ?? 0), 0);
+  const created = results.slice(0, rows.length).reduce((n, r) => n + (r.meta.changes ?? 0), 0);
   await auditStatement(c, { action: 'destinations.bulk_create', targetType: 'destinations', detail: { requested: rows.length, created } }).run();
   return c.json({ created, skipped: rows.length - created });
 });

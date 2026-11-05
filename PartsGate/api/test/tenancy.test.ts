@@ -18,6 +18,9 @@ const COVERED = new Set<string>([
   'GET /api/staff', 'POST /api/staff', 'PUT /api/staff/:id',
   'GET /api/locations', 'POST /api/locations', 'PUT /api/locations/:id',
   'GET /api/destinations', 'POST /api/destinations', 'PUT /api/destinations/:id', 'POST /api/destinations/bulk',
+  // 取込は imports.test.ts の「取込のテナント分離」で確かめている
+  'POST /api/imports/lookup', 'POST /api/imports', 'POST /api/imports/:id/rows', 'POST /api/imports/:id/commit', 'POST /api/imports/:id/abort',
+  'GET /api/imports', 'GET /api/imports/:id', 'GET /api/imports/:id/rows', 'GET /api/imports/:id/file',
   'GET /api/audit-logs',
   'GET /api/admin/companies', 'PUT /api/admin/companies/:id',
 ]);
