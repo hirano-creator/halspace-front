@@ -11,6 +11,10 @@ workers_dev = true
 [env.dev]
 name = "partsgate-api-dev"
 
+# 毎日のバックアップ（日本時間 3 時 = UTC 18 時）。ローカルでは `wrangler dev --test-scheduled` で試せる
+[env.dev.triggers]
+crons = ["0 18 * * *"]
+
 [env.dev.vars]
 APP_ENV = "dev"
 HALSPACE_API = "http://127.0.0.1:8000/api"

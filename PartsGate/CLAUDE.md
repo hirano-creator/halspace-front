@@ -4,7 +4,7 @@
 
 ## 状態
 
-STEP 7（履歴・分析）までローカルで完了（2026-11-05）。次は STEP 8（セキュリティ・性能・バックアップ）。実機の USB リーダーでの確認（Q-1）が残り。設計書は `docs/`、未確定事項は `docs/requirements.md` §6、画面の方向性は `_mock-c-compact.html`（読み取り）・`_mock-import-analytics.html`（取込・分析）。起動・テストは README。
+STEP 8（セキュリティ・性能・バックアップ）までローカルで完了（2026-11-05）。次は STEP 9（本番公開）。実機の USB リーダーでの確認（Q-1）と専用 Cloudflare アカウント（Q-4）待ち。設計書は `docs/`、未確定事項は `docs/requirements.md` §6、画面の方向性は `_mock-c-compact.html`（読み取り）・`_mock-import-analytics.html`（取込・分析）。起動・テストは README。
 
 ## 実装の決まり
 
@@ -12,6 +12,9 @@ STEP 7（履歴・分析）までローカルで完了（2026-11-05）。次は 
 - API を足したら `api/test/tenancy.test.ts` の `COVERED` にも足す（足し忘れるとテストが失敗する）
 - マスターは `api/src/lib/master.ts` の `masterRoutes()`、画面は `web/src/pages/MasterPage.tsx` の設定で作る
 - `npm run db:reset:local` は開発サーバーを止めてから（動いたままだとサーバーが DB を見失う）
+- 明細・読み取り履歴を読む SQL を足したら `api/test/schema.test.ts` の索引のテストにも足す。「会社だけ」で索引を引く計画（`(company_id=?)`）は会社の全件を読むのと同じなので失敗にしてある（0004 の事故: ORDER BY に引っ張られて全件を読んでいた）
+- トリガー・表を変えたら、差分バックアップ（`scripts/lib/backup-tables.mjs`）で拾えるか確かめる（更新日時を変えない更新は差分に入らない。0003 の事故）。バックアップ・復元は Worker・スクリプト・テストで同じ `backup-tables.mjs` を使う
+- バックアップ（`api/src/lib/backup.ts`）だけは会社をまたいで DB 全体を読む（scoped() の例外。API からは呼ばない）
 
 ## 必ず守ること
 

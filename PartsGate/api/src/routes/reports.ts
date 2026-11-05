@@ -191,8 +191,9 @@ reportRoutes.post('/orders/items/:id/resolve', async (c) => {
   const [res] = await db.batch([
     db.stmt(`UPDATE order_items SET status = ?3, matched_at = CASE WHEN ?3 = 'matched' THEN ?4 ELSE matched_at END, updated_at = ?4
               WHERE company_id = ?1 AND id = ?2 AND status = ?5`, id, to, now, item.status),
-    db.stmt(`UPDATE orders SET matched_count = (SELECT COUNT(*) FROM order_items x WHERE x.company_id = orders.company_id AND x.order_id = orders.id AND x.status = 'matched')
-              WHERE company_id = ?1 AND id = (SELECT order_id FROM order_items WHERE company_id = ?1 AND id = ?2)`, id),
+    db.stmt(`UPDATE orders SET matched_count = (SELECT COUNT(*) FROM order_items x WHERE x.company_id = orders.company_id AND x.order_id = orders.id AND x.status = 'matched'),
+                updated_at = ?3
+              WHERE company_id = ?1 AND id = (SELECT order_id FROM order_items WHERE company_id = ?1 AND id = ?2)`, id, now),
     auditStatement(c, { action: `order_item.${action}`, targetType: 'order_item', targetId: id, detail: { from: item.status, to, reason } }),
   ]);
   if (!res?.meta.changes) throw conflict();

@@ -104,6 +104,10 @@ describe('索引（全件走査をしない）', () => {
   it.each([
     ["SELECT id FROM order_items WHERE company_id = 1 AND barcode_global_no = 'x'"],
     ["SELECT id FROM order_items WHERE company_id = 1 AND vrd = '2026-11-06' AND location_id = 3"],
+    // 置場別チェックの一覧（読み取りのたびに読む）。並べ替えの索引に引っ張られて会社の全件を読んでいた（migrations/0004）
+    ["SELECT oi.id FROM order_items oi WHERE oi.company_id = 1 AND oi.vrd = '2026-11-06' AND oi.location_id = 3 AND oi.status <> 'cancelled' ORDER BY oi.global_no LIMIT 2000"],
+    ["SELECT id FROM order_items WHERE company_id = 1 AND vrd BETWEEN '2026-10-01' AND '2026-10-31' ORDER BY vrd, id LIMIT 101"],
+    ["SELECT id FROM scan_logs WHERE company_id = 1 AND day BETWEEN '2026-10-01' AND '2026-10-31' ORDER BY day DESC, id DESC LIMIT 101"],
     ["SELECT id FROM order_items WHERE company_id = 1 AND status = 'pending' AND ssd <= '2026-11-05'"],
     ["SELECT id FROM scan_logs WHERE company_id = 1 AND day = '2026-11-05' ORDER BY id"],
     ["SELECT id FROM staff WHERE company_id = 1 ORDER BY sort_order, code, id"],
@@ -111,5 +115,8 @@ describe('索引（全件走査をしない）', () => {
     const plan = await sql<{ detail: string }>(`EXPLAIN QUERY PLAN ${q}`);
     const scans = plan.filter((p) => /^SCAN /.test(p.detail) && !/USING (COVERING )?INDEX/.test(p.detail));
     expect(scans, plan.map((p) => p.detail).join(' / ')).toEqual([]);
+    // 件数が増え続ける表（明細・読み取り履歴）を「会社だけ」で索引から引くのは、会社の全件を読むのと同じ（SCAN と表示されないので別に調べる）
+    const companyOnly = plan.filter((p) => /^SEARCH (order_items|scan_logs|oi|s) /.test(p.detail) && /\((?:\w+\.)?company_id=\?\)/.test(p.detail));
+    expect(companyOnly, plan.map((p) => p.detail).join(' / ')).toEqual([]);
   });
 });

@@ -14,8 +14,9 @@ import { reportRoutes } from './routes/reports';
 import { meRoutes } from './routes/me';
 import { settingsRoutes } from './routes/settings';
 import { userRoutes } from './routes/users';
+import { scheduled } from './lib/backup';
 
-const app = new Hono<AppEnv>();
+export const app = new Hono<AppEnv>();
 
 app.use('*', secureHeaders({ xFrameOptions: 'DENY', referrerPolicy: 'same-origin' }));
 
@@ -71,4 +72,8 @@ app.onError((err, c) => {
   return c.json({ message: 'サーバーでエラーが発生しました。' }, 500);
 });
 
-export default app;
+// Worker の入口: API（fetch）と、毎日のバックアップ（Cron の scheduled）
+export default {
+  fetch: (req: Request, env: AppEnv['Bindings'], ctx: ExecutionContext) => app.fetch(req, env, ctx),
+  scheduled,
+};

@@ -238,9 +238,10 @@ importRoutes.post('/imports/:id/rows', async (c) => {
     statements.push(db.stmt(
       `UPDATE orders SET
           item_count = (SELECT COUNT(*) FROM order_items x WHERE x.company_id = orders.company_id AND x.order_id = orders.id),
-          matched_count = (SELECT COUNT(*) FROM order_items x WHERE x.company_id = orders.company_id AND x.order_id = orders.id AND x.status = 'matched')
+          matched_count = (SELECT COUNT(*) FROM order_items x WHERE x.company_id = orders.company_id AND x.order_id = orders.id AND x.status = 'matched'),
+          updated_at = ?3
         WHERE company_id = ?1 AND slip_no IN (SELECT value FROM json_each(?2))`,
-      JSON.stringify([...new Set([...slips.keys(), ...oldSlips])]),
+      JSON.stringify([...new Set([...slips.keys(), ...oldSlips])]), now,
     ));
   }
   // 行ごとの記録。再送された行は最初の記録を残す（件数を二重に数えない）
