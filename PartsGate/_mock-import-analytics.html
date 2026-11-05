@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PARTS GATE 取込と分析</title>
+<style>
+:root{
+  --ink:#1f2937; --sub:#6b7280; --mute:#9ca3af; --line:#e5e7eb; --bg:#eef0f3; --dark:#111827; --accent:#334155; --surface:#fcfcfb;
+  --ok:#15803d; --ok-bg:#dcfce7; --ok-row:#d7efdf; --warn:#a16207; --warn-bg:#fef3c7; --ng:#b91c1c; --ng-bg:#fee2e2; --info:#1d4ed8; --info-bg:#dbeafe;
+  /* グラフ: 系列 1 色（量）と状態色（正常・読み取り済み・要確認・未登録） */
+  --series-1:#2a78d6; --st-good:#1f9a3a; --st-warn:#e3a600; --st-serious:#d0501a; --st-critical:#9b1c1c; /* validate_palette.js で検証済み（light） */
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif;font-size:14px}
+header.top{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+header.top h1{font-size:16px;margin:0}
+.tabs{display:flex;gap:6px}
+.tabs button,.demo button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 14px;font:inherit;font-size:13px;cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--dark);color:#fff;border-color:var(--dark)}
+.demo{display:flex;gap:6px;align-items:center;margin-left:auto;flex-wrap:wrap}
+.demo span{font-size:12px;color:var(--sub)}
+.demo button.on{outline:2px solid var(--dark)}
+main{padding:18px 20px}
+.view{display:none}.view.show{display:block}
+.note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 18px;margin-bottom:16px;line-height:1.7}
+.note h2{font-size:17px;margin:0 0 2px}
+.note ul{margin:0;padding-left:18px}
+.stage{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.cap{font-size:12px;color:var(--sub);margin:0 0 6px}
+.pc{width:1140px;height:780px;background:#fff;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08);display:flex;flex-direction:column}
+.chrome{height:28px;background:#e5e7eb;display:flex;align-items:center;gap:6px;padding:0 10px;font-size:11px;color:#6b7280;flex:none}
+.chrome i{width:10px;height:10px;border-radius:50%;background:#cbd5e1;display:inline-block}
+.screen{flex:1;display:flex;min-height:0}
+.rail{width:56px;background:#1f2937;color:#9ca3af;display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:12px;flex:none}
+.rail .logo{color:#fff;font-weight:800;font-size:13px;margin-bottom:10px}
+.rail a{width:42px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.rail a.cur{background:#374151;color:#fff}
+.content{flex:1;display:flex;flex-direction:column;min-width:0;background:#f9fafb;overflow:hidden}
+.ph{display:flex;align-items:center;gap:12px;padding:12px 20px;background:#fff;border-bottom:1px solid var(--line);flex:none}
+.ph h3{margin:0;font-size:18px}
+.btn{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:7px 14px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn.pri{background:var(--dark);color:#fff;border-color:var(--dark);font-weight:700}
+.btn.pri[disabled]{background:#9ca3af;border-color:#9ca3af;cursor:not-allowed}
+.btn.sm{padding:4px 10px;font-size:12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.mono{font-family:Consolas,"BIZ UDGothic",monospace}
+.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+.p-ok{background:var(--ok-bg);color:var(--ok)}.p-warn{background:var(--warn-bg);color:var(--warn)}.p-ng{background:var(--ng-bg);color:var(--ng)}.p-gray{background:#f3f4f6;color:#4b5563}.p-info{background:var(--info-bg);color:var(--info)}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th{text-align:left;color:var(--sub);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap;background:#f9fafb;position:sticky;top:0}
+table.t td{padding:6px 8px;border-bottom:1px solid #f1f5f9;white-space:nowrap}
+table.t td.n{text-align:right;font-variant-numeric:tabular-nums}
+
+/* ===== 取込: 手順 ===== */
+.steps{display:flex;gap:0;padding:12px 20px;background:#fff;border-bottom:1px solid var(--line);flex:none}
+.step{display:flex;align-items:center;gap:8px;color:var(--mute);font-weight:700;font-size:13px;flex:1}
+.step i{font-style:normal;width:24px;height:24px;border-radius:50%;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none}
+.step::after{content:"";flex:1;height:2px;background:var(--line);margin:0 10px}
+.step:last-child::after{display:none}
+.step.done{color:var(--ok)}.step.done i{background:var(--ok);color:#fff;border-color:var(--ok)}
+.step.cur{color:var(--ink)}.step.cur i{background:var(--dark);color:#fff;border-color:var(--dark)}
+.drop{border:2px dashed #94a3b8;border-radius:14px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:40px;text-align:center;cursor:pointer}
+.drop:hover{background:#f8fafc;border-color:var(--accent)}
+.drop .big{font-size:44px;line-height:1}
+.kinds{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.kind{border:2px solid var(--line);border-radius:12px;background:#fff;padding:10px 12px;text-align:left;font:inherit;cursor:pointer}
+.kind .l{font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}
+.kind .v{font-size:28px;font-weight:800;line-height:1.2}
+.kind .d{font-size:11px;color:var(--sub)}
+.kind.on{border-color:var(--dark);box-shadow:0 0 0 1px var(--dark)}
+.kind.k-new .l{color:var(--info)}.kind.k-upd .l{color:#7c3aed}.kind.k-same .l{color:var(--sub)}.kind.k-rv .l{color:var(--warn)}.kind.k-err .l{color:var(--ng)}
+.diff del{color:var(--ng);text-decoration:line-through}
+.diff ins{color:var(--ok);text-decoration:none;font-weight:700}
+.prog{height:14px;background:#e5e7eb;border-radius:7px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--ok);transition:width .25s}
+
+/* ===== 分析 ===== */
+.filters{display:flex;gap:8px;align-items:center;padding:10px 20px;background:#fff;border-bottom:1px solid var(--line);flex:none;flex-wrap:wrap}
+.seg{display:flex;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden}
+.seg button{border:0;border-left:1px solid #e5e7eb;background:#fff;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--dark);color:#fff}
+.dd{border:1px solid #cbd5e1;border-radius:8px;padding:6px 10px;font-size:13px;background:#fff;white-space:nowrap}
+.dash{flex:1;overflow:auto;padding:14px 20px;display:grid;grid-template-columns:repeat(12,1fr);gap:12px;align-content:start}
+.tile{grid-column:span 2;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.tile .l{font-size:12px;color:var(--sub)}
+.tile .v{font-size:26px;font-weight:800;line-height:1.25;font-variant-numeric:tabular-nums}
+.tile .d{font-size:11px;color:var(--sub)}
+.tile .d b{font-weight:700}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0;position:relative}
+.panel h4{margin:0;font-size:14px}
+.panel .sub{font-size:11px;color:var(--sub);margin:1px 0 6px}
+.panel .acts{position:absolute;top:10px;right:12px;display:flex;gap:4px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#52514e;margin-bottom:4px}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+svg text{font-family:inherit}
+.vt{display:flex;border:1px solid #cbd5e1;border-radius:9px;overflow:hidden;margin-left:14px}
+.vt button{border:0;border-left:1px solid #e5e7eb;background:#fff;padding:7px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.vt button:first-child{border-left:0}
+.vt button.on{background:var(--dark);color:#fff}
+table.t.sort th{cursor:pointer}
+table.t.sort th.on{color:var(--ink)}
+table.t tr.pick td{background:#eff6ff}
+table.t tr.cr{cursor:pointer}
+table.t tr.cr:hover td{background:#f8fafc}
+.spark{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;min-width:0}
+.spark .nm{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spark .vv{font-size:18px;font-weight:800}
+.spark .sd{font-size:11px;color:var(--sub)}
+.hbar{display:grid;grid-template-columns:110px 1fr 70px;gap:6px 8px;align-items:center;font-size:12.5px}
+.hbar .track{height:14px;position:relative;cursor:default}
+.hbar .track i{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0;background:var(--series-1)}
+.hbar .track em{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0;background:#dbe5f3}
+.hbar .v{text-align:right;color:#0b0b0b;font-variant-numeric:tabular-nums}
+.hbar .k{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#52514e}
+#tip{position:fixed;pointer-events:none;background:#111827;color:#fff;font-size:12px;line-height:1.5;border-radius:8px;padding:7px 10px;z-index:99;display:none;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+#tip b{font-size:13px}
+#tip i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:5px}
+
+/* スマホ */
+.phone{width:360px;height:780px;background:#fff;border:10px solid #1f2937;border-radius:36px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.12);display:flex;flex-direction:column}
+.notch{height:22px;flex:none;display:flex;justify-content:space-between;padding:4px 18px 0;font-size:11px;font-weight:600}
+.ph-h{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex:none}
+.ph-h b{font-size:16px}
+.pbody{flex:1;overflow:auto;background:#f9fafb;padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+.tab-bottom{display:flex;border-top:1px solid var(--line);flex:none;background:#fff}
+.tab-bottom div{flex:1;text-align:center;padding:7px 0 9px;font-size:10px;color:var(--sub)}
+.tab-bottom div b{display:block;font-size:17px;font-weight:400;line-height:1.3}
+.tab-bottom div.cur{color:var(--ink);font-weight:700}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>PARTS GATE｜CSV 取込・データ分析 モック</h1>
+  <div class="tabs" role="tablist">
+    <button data-v="imp" aria-selected="true">CSV 取込</button>
+    <button data-v="ana">データ分析</button>
+  </div>
+  <div class="demo" id="impDemo">
+    <span>手順：</span>
+    <button data-step="1" class="on">① ファイル選択</button>
+    <button data-step="2">② 内容の確認</button>
+    <button data-step="3">③ 登録</button>
+  </div>
+</header>
+<main>
+
+<!-- ======================= CSV 取込 ======================= -->
+<section class="view show" id="v-imp">
+  <div class="note">
+    <h2>CSV 取込：「選ぶ → 確かめる → 登録」の 3 段階</h2>
+    <ul>
+      <li>ファイルを選ぶと、文字コード（Shift-JIS / UTF-8）を自動で判定し、<b>登録する前に</b>中身を「新規・更新・変更なし・要確認・エラー」に分けて見せます。この時点ではまだ何も登録されません</li>
+      <li>要確認（未登録の置場・納品先）は、その場で「置場を登録」「まとめて登録」でき、「もう一度確認」で数え直します</li>
+      <li>更新の行は、何がどう変わるかを赤（変更前）と緑（変更後）で表示します。読み取りの記録は、取り込み直しても変わりません</li>
+      <li>同じファイルをもう一度選ぶと「取込済みのファイルです」と知らせます（二重登録はされません）</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <div><p class="cap">PC：CSV 取込（管理者）</p>
+      <div class="pc"><div class="chrome"><i></i><i></i><i></i>&nbsp; space-apps.pages.dev/PartsGate/app/#/imports/new</div>
+        <div class="screen">
+          <nav class="rail"><div class="logo">PG</div><a>▣</a><a>☰</a><a class="cur">⇪</a><a>↺</a><a>▤</a><a>⚙</a></nav>
+          <div class="content">
+            <div class="ph"><h3>CSV 取込</h3><span style="color:var(--sub);font-size:13px">ミスミの出荷指示 CSV を取り込みます</span><span style="margin-left:auto"></span><button class="btn">取込履歴</button></div>
+            <div class="steps"><div class="step" id="s1"><i>1</i>ファイルを選ぶ</div><div class="step" id="s2"><i>2</i>内容を確かめる</div><div class="step" id="s3"><i>3</i>登録</div></div>
+            <div id="impBody" style="flex:1;overflow:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div><p class="cap">スマホ：取込履歴（確認用）</p>
+      <div class="phone"><div class="notch"><span>9:41</span><span>●●●</span></div>
+        <div class="ph-h"><b>CSV 取込履歴</b><span style="font-size:12px;color:var(--sub)">取込は PC で</span></div>
+        <div class="pbody" id="phImp"></div>
+        <div class="tab-bottom"><div><b>▣</b>置場別</div><div><b>☰</b>注文</div><div class="cur"><b>⇪</b>取込</div><div><b>▤</b>分析</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 分析 ======================= -->
+<section class="view" id="v-ana">
+  <div class="note">
+    <h2>データ分析：上に条件、その下に数字 → グラフ → 表</h2>
+    <ul>
+      <li>期間（今日・今週・今月・3か月・1年）と置場・担当者の絞り込みを一番上の 1 行にまとめ、下のすべてのグラフに効きます</li>
+      <li>最初に大きな数字（照合率・未確認・エラー）、次にグラフ、最後に「未確認の一覧」と「エラーの一覧」。各グラフは右上から CSV で出力できます</li>
+      <li>グラフにマウスを乗せると、その日・その人の件数が出ます。結果の色は「正常＝緑・読み取り済み＝黄・要確認＝橙・未登録＝赤」で、凡例と文字でも示します</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <div><p class="cap">PC：データ分析（管理者）</p>
+      <div class="pc"><div class="chrome"><i></i><i></i><i></i>&nbsp; space-apps.pages.dev/PartsGate/app/#/analytics</div>
+        <div class="screen">
+          <nav class="rail"><div class="logo">PG</div><a>▣</a><a>☰</a><a>⇪</a><a>↺</a><a class="cur">▤</a><a>⚙</a></nav>
+          <div class="content">
+            <div class="ph"><h3>データ分析</h3><div class="vt" id="anaView"><button data-a="all" class="on">全体</button><button data-a="cust">得意先</button></div><span style="margin-left:auto"></span><button class="btn">まとめて CSV 出力</button></div>
+            <div class="filters">
+              <div class="seg" id="period"><button>今日</button><button>今週</button><button class="on">今月</button><button>3か月</button><button>1年</button></div>
+              <span class="dd">2026/11/01 〜 11/05 ▾</span>
+              <span class="dd">置場：すべて ▾</span>
+              <span class="dd" id="ddStaff">担当者：すべて ▾</span><span class="dd" id="ddCust" style="display:none">得意先：🔍 名前・コードで探す</span>
+              <span style="margin-left:auto;font-size:12px;color:var(--sub)">集計は 11/05 11:15 時点</span>
+            </div>
+            <div class="dash" id="dash"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div><p class="cap">スマホ：分析（要点だけ）</p>
+      <div class="phone"><div class="notch"><span>9:41</span><span>●●●</span></div>
+        <div class="ph-h"><b>分析</b><div class="vt" id="phView" style="margin-left:0"><button data-a="all" class="on" style="padding:4px 12px">全体</button><button data-a="cust" style="padding:4px 12px">得意先</button></div><span class="pill p-gray">今月 ▾</span></div>
+        <div class="pbody" id="phAna"></div>
+        <div class="tab-bottom"><div><b>▣</b>置場別</div><div><b>☰</b>注文</div><div><b>⇪</b>取込</div><div class="cur"><b>▤</b>分析</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+<div id="tip"></div>
+
+<script>
+// ================= 共通 =================
+const $ = id => document.getElementById(id);
+const tip = $('tip');
+function showTip(e, html) { tip.innerHTML = html; tip.style.display = 'block'; tip.style.left = Math.min(e.clientX + 14, innerWidth - 220) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; }
+function hideTip() { tip.style.display = 'none'; }
+document.addEventListener('mouseover', e => { const t = e.target.closest('[data-tip]'); if (t) showTip(e, t.dataset.tip); });
+document.addEventListener('mousemove', e => { const t = e.target.closest('[data-tip]'); if (t) showTip(e, t.dataset.tip); else hideTip(); });
+
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('show', v.id === 'v-' + b.dataset.v));
+  $('impDemo').style.visibility = b.dataset.v === 'imp' ? 'visible' : 'hidden';
+});
+
+// ================= CSV 取込 =================
+let step = 1, kind = 'rv', locFixed = false, destFixed = false, progress = 0, timer = null;
+const KINDS = [
+  { k: 'new', l: '＋ 新規', d: '新しく登録する', cls: 'k-new' },
+  { k: 'upd', l: '✎ 更新', d: '内容が変わった', cls: 'k-upd' },
+  { k: 'same', l: '＝ 変更なし', d: '登録済みと同じ', cls: 'k-same' },
+  { k: 'rv', l: '⚠ 要確認', d: '登録の前に確認', cls: 'k-rv' },
+  { k: 'err', l: '✖ エラー', d: '取り込めない', cls: 'k-err' },
+];
+function counts() {
+  const rvLoc = locFixed ? 0 : 2, rvDest = destFixed ? 0 : 3;
+  return { new: 82 + (locFixed ? 2 : 0), upd: 1, same: 3, rv: rvLoc + rvDest, err: 1, rvLoc, rvDest };
+}
+function setStep(s) {
+  step = s; clearInterval(timer);
+  document.querySelectorAll('#impDemo button').forEach(b => b.classList.toggle('on', +b.dataset.step === s));
+  ['s1', 's2', 's3'].forEach((id, i) => { $(id).className = 'step' + (i + 1 < s ? ' done' : i + 1 === s ? ' cur' : ''); });
+  if (s === 3 && progress < 100) { progress = 0; timer = setInterval(() => { progress = Math.min(100, progress + 12); renderImp(); if (progress >= 100) { clearInterval(timer); $('s3').className = 'step done'; } }, 220); }
+  if (s !== 3) progress = 0;
+  renderImp();
+}
+function renderImp() {
+  const b = $('impBody'), c = counts();
+  if (step === 1) {
+    b.innerHTML = `
+      <div class="drop" id="drop"><div class="big">⇪</div><b style="font-size:18px">ここに CSV ファイルをドラッグ</b><span style="color:var(--sub)">または <button class="btn" style="margin:0 4px">ファイルを選ぶ</button>（.csv・10MB まで・Shift-JIS / UTF-8）</span></div>
+      <div class="card"><b>最近の取込</b>
+        <table class="t" style="margin-top:6px"><tr><th>取込日時</th><th>ファイル名</th><th>担当</th><th>新規</th><th>更新</th><th>要確認</th><th>エラー</th><th></th></tr>
+          <tr><td>11/04 10:20</td><td class="mono">shippinfinst_MJP6993_20261104101909.csv</td><td>田中</td><td class="n">89</td><td class="n">0</td><td class="n">0</td><td class="n">0</td><td><span class="pill p-ok">完了</span></td></tr>
+          <tr><td>11/03 10:12</td><td class="mono">shippinfinst_MJP6993_20261103100544.csv</td><td>田中</td><td class="n">76</td><td class="n">2</td><td class="n">1</td><td class="n">0</td><td><span class="pill p-ok">完了</span></td></tr>
+          <tr><td>11/02 10:31</td><td class="mono">shippinfinst_MJP6993_20261102102233.csv</td><td>佐藤</td><td class="n">104</td><td class="n">0</td><td class="n">0</td><td class="n">1</td><td><span class="pill p-ok">完了</span></td></tr>
+        </table></div>`;
+    $('drop').onclick = () => setStep(2);
+    return;
+  }
+  if (step === 2) {
+    const head = `
+      <div class="card" style="display:flex;gap:22px;align-items:center;padding:10px 16px;flex-wrap:wrap">
+        <div><div style="font-size:11px;color:var(--sub)">ファイル</div><b class="mono">shippinfinst_MJP6993_20261105101530.csv</b></div>
+        <div><div style="font-size:11px;color:var(--sub)">文字コード</div><b>Shift-JIS（自動判定）</b></div>
+        <div><div style="font-size:11px;color:var(--sub)">行数</div><b>${c.new + c.upd + c.same + c.rv + c.err} 行・81 列</b></div>
+        <div><div style="font-size:11px;color:var(--sub)">ミスミ納期</div><b>2026/11/06</b></div>
+        <button class="btn sm" style="margin-left:auto" onclick="setStep(1)">別のファイルを選ぶ</button>
+      </div>
+      <div class="kinds">${KINDS.map(k => `<button class="kind ${k.cls} ${kind === k.k ? 'on' : ''}" data-k="${k.k}"><div class="l">${k.l}</div><div class="v">${c[k.k]}</div><div class="d">${k.d}</div></button>`).join('')}</div>`;
+    let detail = '';
+    if (kind === 'rv') {
+      detail = (c.rv === 0) ? `<div class="card" style="text-align:center;color:var(--ok);padding:30px"><b style="font-size:16px">✔ 要確認はありません</b></div>` : `
+        ${c.rvLoc ? `<div class="card" style="border-color:#ca8a04">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><b style="color:var(--warn)">⚠ 置場 0057 が置場マスターにありません（2 行）</b><span style="font-size:12px;color:var(--sub)">登録するまで、この 2 行は取り込みません</span><button class="btn sm pri" style="margin-left:auto" id="fixLoc">置場 0057 を登録する</button></div>
+          <table class="t"><tr><th>行</th><th>グローバル番号</th><th>商品コード</th><th>数量</th><th>得意先</th><th>置場</th></tr>
+          <tr><td>45</td><td class="mono">5P000000201101</td><td class="mono">MVSHM-PN02000-4PW-XXXXX</td><td class="n">1</td><td>サンプル精機（株）</td><td><span class="pill p-warn">0057</span></td></tr>
+          <tr><td>46</td><td class="mono">5P000000201102</td><td class="mono">MVSHM-PN03250-4PS-XXXXX</td><td class="n">2</td><td>サンプル精機（株）</td><td><span class="pill p-warn">0057</span></td></tr></table></div>` : ''}
+        ${c.rvDest ? `<div class="card" style="border-color:#ca8a04">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><b style="color:var(--warn)">⚠ 納品先マスターにない納品先（3 件）</b><span style="font-size:12px;color:var(--sub)">このまま取り込めます。あとで登録もできます</span><button class="btn sm" style="margin-left:auto" id="fixDest">3 件をまとめて登録</button></div>
+          <table class="t"><tr><th>得意先コード</th><th>得意先</th><th>直送先コード</th><th>直送先名</th><th>行数</th></tr>
+          <tr><td class="mono">100001</td><td>テスト工業（株）</td><td class="mono">S00001</td><td>テスト工業（株）第1工場</td><td class="n">4</td></tr>
+          <tr><td class="mono">100002</td><td>見本電機（株）</td><td class="mono">S00001</td><td>見本電機（株）本社</td><td class="n">2</td></tr>
+          <tr><td class="mono">100003</td><td>サンプル大学</td><td class="mono">000218</td><td>サンプル大学 研究棟</td><td class="n">1</td></tr></table></div>` : ''}
+        ${(locFixed || destFixed) ? `<div style="text-align:right"><button class="btn sm" id="recheck">↻ もう一度確認する</button></div>` : ''}`;
+    } else if (kind === 'upd') {
+      detail = `<div class="card"><b>更新される行（1 行）</b><span style="font-size:12px;color:var(--sub);margin-left:8px">まだチェックしていない明細なので、上書きします</span>
+        <table class="t diff" style="margin-top:6px"><tr><th>行</th><th>グローバル番号</th><th>項目</th><th>変更前 → 変更後</th></tr>
+        <tr><td>12</td><td class="mono">5P000000107205</td><td>数量</td><td><del>2</del> → <ins>4</ins></td></tr>
+        <tr><td></td><td></td><td>商品重量</td><td><del>352</del> → <ins>704</ins></td></tr></table>
+        <div style="margin-top:8px;font-size:12px;color:var(--sub)">※ すでにチェック済みの明細の内容が変わった場合は、上書きせず「要確認」に入れます</div></div>`;
+    } else if (kind === 'err') {
+      detail = `<div class="card" style="border-color:var(--ng)"><b style="color:var(--ng)">✖ 取り込めない行（1 行）</b>
+        <table class="t" style="margin-top:6px"><tr><th>行</th><th>グローバル番号</th><th>理由</th><th>次にすること</th></tr>
+        <tr><td>77</td><td class="mono">5P000000203310</td><td>数量が空欄です</td><td>ミスミに確認し、直した CSV をもう一度取り込んでください</td></tr></table></div>`;
+    } else if (kind === 'same') {
+      detail = `<div class="card"><b>変更なし（3 行）</b><span style="font-size:12px;color:var(--sub);margin-left:8px">登録済みの内容と同じなので、何もしません</span>
+        <table class="t" style="margin-top:6px"><tr><th>行</th><th>グローバル番号</th><th>商品コード</th><th>状態</th></tr>
+        <tr><td>3</td><td class="mono">5P000000106001</td><td class="mono">MVSHM-PN01250-4PR-XXXXX</td><td><span class="pill p-ok">チェック済み</span></td></tr>
+        <tr><td>4</td><td class="mono">5P000000106002</td><td class="mono">MVSHM-PN01250-4PR-XXXXX</td><td><span class="pill p-gray">未チェック</span></td></tr>
+        <tr><td>5</td><td class="mono">5P000000106003</td><td class="mono">MVSWD-PN06050-4PM-XXXXX</td><td><span class="pill p-gray">未チェック</span></td></tr></table></div>`;
+    } else {
+      detail = `<div class="card"><b>新規に登録する行（${c.new} 行）</b>
+        <table class="t" style="margin-top:6px"><tr><th>行</th><th>グローバル番号</th><th>商品コード</th><th>数量</th><th>置場</th><th>得意先</th><th>ミスミ納期</th></tr>
+        ${[1, 2, 6, 7, 8].map((r, i) => `<tr><td>${r}</td><td class="mono">5P0000002000${10 + i}</td><td class="mono">MVSHM-PN0${['2000', '3250', '1250', '6050', '4552'][i]}-4PW-XXXXX</td><td class="n">${[1, 2, 1, 4, 1][i]}</td><td>${['0055', '0055', '0053', '0053', '0056'][i]}</td><td>${['サンプル精機（株）', 'テスト工業（株）', '見本電機（株）', 'サンプル大学', 'テスト工業（株）'][i]}</td><td>11/06</td></tr>`).join('')}
+        <tr><td colspan="7" style="color:var(--sub)">…ほか ${c.new - 5} 行</td></tr></table></div>`;
+    }
+    const foot = `
+      <div class="card" style="display:flex;align-items:center;gap:14px;position:sticky;bottom:0;box-shadow:0 -4px 12px rgba(0,0,0,.05)">
+        <div style="font-size:13px;line-height:1.6">登録すると：<b>新規 ${c.new} 行を登録</b>・<b>${c.upd} 行を更新</b>。${c.rvLoc ? `置場未登録の <b style="color:var(--warn)">${c.rvLoc} 行</b>と` : ''}エラーの <b style="color:var(--ng)">${c.err} 行</b>は取り込みません。<br><span style="color:var(--sub);font-size:12px">読み取りの記録は変わりません。元のファイルは保存されます。</span></div>
+        <button class="btn" style="margin-left:auto" onclick="setStep(1)">やめる</button>
+        <button class="btn pri" onclick="setStep(3)">${c.new + c.upd} 行を登録する</button>
+      </div>`;
+    b.innerHTML = head + detail + foot;
+    b.querySelectorAll('.kind').forEach(x => x.onclick = () => { kind = x.dataset.k; renderImp(); });
+    if ($('fixLoc')) $('fixLoc').onclick = () => { locFixed = true; renderImp(); };
+    if ($('fixDest')) $('fixDest').onclick = () => { destFixed = true; renderImp(); };
+    if ($('recheck')) $('recheck').onclick = () => renderImp();
+    return;
+  }
+  // step 3
+  const c3 = counts(), doneAll = progress >= 100;
+  b.innerHTML = `
+    <div class="card" style="padding:28px 32px;display:flex;flex-direction:column;gap:14px;align-items:stretch">
+      <div style="display:flex;align-items:center;gap:14px">
+        <span style="font-size:40px;color:${doneAll ? 'var(--ok)' : 'var(--accent)'}">${doneAll ? '✔' : '⟳'}</span>
+        <div><b style="font-size:22px">${doneAll ? '取込が終わりました' : '登録しています…'}</b><div style="color:var(--sub)">${doneAll ? '11/05 10:16　担当：田中' : '画面を閉じずにお待ちください（通信が切れたら、続きから送り直します）'}</div></div>
+      </div>
+      <div class="prog"><i style="width:${progress}%"></i></div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;text-align:center">
+        <div class="card"><div style="font-size:12px;color:var(--info);font-weight:700">新規</div><div style="font-size:26px;font-weight:800">${Math.round(c3.new * progress / 100)}</div></div>
+        <div class="card"><div style="font-size:12px;color:#7c3aed;font-weight:700">更新</div><div style="font-size:26px;font-weight:800">${progress > 60 ? c3.upd : 0}</div></div>
+        <div class="card"><div style="font-size:12px;color:var(--sub);font-weight:700">変更なし</div><div style="font-size:26px;font-weight:800">${c3.same}</div></div>
+        <div class="card"><div style="font-size:12px;color:var(--warn);font-weight:700">取り込まず（要確認）</div><div style="font-size:26px;font-weight:800">${c3.rvLoc}</div></div>
+        <div class="card"><div style="font-size:12px;color:var(--ng);font-weight:700">取り込まず（エラー）</div><div style="font-size:26px;font-weight:800">${c3.err}</div></div>
+      </div>
+      ${doneAll ? `<div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn">エラーの行を CSV で保存</button><button class="btn">取込履歴を見る</button><button class="btn pri">置場別チェックを開く →</button></div>` : ''}
+    </div>`;
+}
+document.querySelectorAll('#impDemo button').forEach(b => b.onclick = () => setStep(+b.dataset.step));
+$('phImp').innerHTML = [
+  ['11/05 10:16', '田中', 84, 1, 1, '完了'], ['11/04 10:20', '田中', 89, 0, 0, '完了'], ['11/03 10:12', '田中', 76, 2, 0, '完了'], ['11/02 10:31', '佐藤', 104, 0, 1, '完了'], ['10/31 10:05', '田中', 91, 0, 0, '完了'],
+].map(r => `<div class="card" style="padding:10px 12px"><div style="display:flex;justify-content:space-between"><b>${r[0]}</b><span class="pill p-ok">${r[5]}</span></div>
+  <div style="font-size:12px;color:var(--sub);margin:2px 0 6px">担当 ${r[1]}</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill p-info">新規 ${r[2]}</span><span class="pill" style="background:#ede9fe;color:#6d28d9">更新 ${r[3]}</span>${r[4] ? `<span class="pill p-ng">エラー ${r[4]}</span>` : ''}</div></div>`).join('');
+setStep(1);
+
+// ================= 分析 =================
+const days = ['11/01', '11/02', '11/03', '11/04', '11/05'];
+const daily = [ // [正常, 読み取り済み, 要確認, 未登録]
+  [0, 0, 0, 0], [98, 4, 1, 1], [77, 3, 2, 0], [88, 6, 0, 2], [72, 5, 1, 2],
+];
+const RES = [['正常', 'var(--st-good)'], ['読み取り済み', 'var(--st-warn)'], ['要確認', 'var(--st-serious)'], ['未登録', 'var(--st-critical)']];
+function stackedBars(w, h) {
+  const pad = { l: 34, r: 8, t: 8, b: 22 }, iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+  const max = 120, bw = Math.min(46, iw / days.length * .55), gap = iw / days.length;
+  let s = `<svg width="${w}" height="${h}" role="img" aria-label="日別の読み取り件数">`;
+  for (const v of [0, 40, 80, 120]) { const y = pad.t + ih - v / max * ih; s += `<line x1="${pad.l}" x2="${w - pad.r}" y1="${y}" y2="${y}" stroke="#e8e7e2"/><text x="${pad.l - 6}" y="${y + 4}" font-size="10" fill="#8a8984" text-anchor="end">${v}</text>`; }
+  days.forEach((d, i) => {
+    const x = pad.l + gap * i + (gap - bw) / 2; let y0 = pad.t + ih; const tot = daily[i].reduce((a, b) => a + b, 0);
+    const tipHtml = `<b>${d}</b>　計 ${tot} 件<br>` + RES.map((r, k) => `<i style="background:${r[1]}"></i>${r[0]} ${daily[i][k]}`).join('<br>');
+    daily[i].forEach((v, k) => { if (!v) return; const hh = v / max * ih; const top = k === daily[i].findLastIndex(x => x > 0);
+      s += top ? `<path d="M${x},${y0} V${y0 - hh + 4} q0,-4 4,-4 h${bw - 8} q4,0 4,4 V${y0} Z" fill="${RES[k][1]}"/>` : `<rect x="${x}" y="${y0 - hh}" width="${bw}" height="${Math.max(hh - 2, 1)}" fill="${RES[k][1]}"/>`;
+      y0 -= hh; });
+    s += `<rect x="${x - 8}" y="${pad.t}" width="${bw + 16}" height="${ih}" fill="transparent" data-tip="${tipHtml.replace(/"/g, '&quot;')}"/>`;
+    s += `<text x="${x + bw / 2}" y="${h - 6}" font-size="11" fill="#52514e" text-anchor="middle">${d}</text>`;
+    if (tot) s += `<text x="${x + bw / 2}" y="${y0 - 5}" font-size="11" fill="#0b0b0b" text-anchor="middle">${tot}</text>`;
+  });
+  return s + '</svg>';
+}
+function monthLine(w, h) {
+  // 途中の月を線に入れると急に減ったように見えるので、締まった月だけを描く
+  const m = ['6月', '7月', '8月', '9月', '10月'], v = [2810, 3020, 2655, 3105, 3240];
+  const pad = { l: 40, r: 20, t: 16, b: 22 }, iw = w - pad.l - pad.r, ih = h - pad.t - pad.b, max = 3600;
+  const X = i => pad.l + iw * i / (m.length - 1), Y = x => pad.t + ih - x / max * ih;
+  let s = `<svg width="${w}" height="${h}" role="img" aria-label="月別の読み取り件数">`;
+  for (const t of [0, 1200, 2400, 3600]) s += `<line x1="${pad.l}" x2="${w - pad.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="#e8e7e2"/><text x="${pad.l - 6}" y="${Y(t) + 4}" font-size="10" fill="#8a8984" text-anchor="end">${t.toLocaleString()}</text>`;
+  s += `<polyline points="${v.map((x, i) => X(i) + ',' + Y(x)).join(' ')}" fill="none" stroke="var(--series-1)" stroke-width="2"/>`;
+  v.forEach((x, i) => { s += `<circle cx="${X(i)}" cy="${Y(x)}" r="4.5" fill="var(--series-1)" stroke="#fcfcfb" stroke-width="2"/><circle cx="${X(i)}" cy="${Y(x)}" r="14" fill="transparent" data-tip="<b>${m[i]}</b>　${x.toLocaleString()} 件"/>`;
+    s += `<text x="${X(i)}" y="${h - 6}" font-size="11" fill="#52514e" text-anchor="middle">${m[i]}</text>`; });
+  s += `<text x="${X(4)}" y="${Y(v[4]) - 9}" font-size="11" fill="#0b0b0b" text-anchor="end">3,240</text>`;
+  return s + '</svg>';
+}
+const hbars = (items, unit) => { const max = Math.max(...items.map(x => x[1])); return `<div class="hbar">${items.map(([k, v, t]) => `<span class="k" title="${k}">${k}</span><span class="track" data-tip="<b>${k}</b>　${v.toLocaleString()} ${unit}${t ? ` / ${t}` : ''}">${t ? `<em style="width:${100}%"></em><i style="width:${v / t * 100}%"></i>` : `<i style="width:${v / max * 100}%"></i>`}</span><span class="v">${v.toLocaleString()}${t ? ` / ${t}` : ''}</span>`).join('')}</div>`; };
+function renderAna() {
+  const tiles = [
+    ['注文（明細）', '412', '件', '伝票 251'],
+    ['照合済み', '395', '件', '照合率 <b>95.9%</b>'],
+    ['未確認', '17', '件', '<span style="color:var(--warn)">⚠ うち納期今日 7</span>'],
+    ['読み取り', '461', '回', '1日平均 115'],
+    ['読み取り済み（重複）', '18', '回', '全体の 3.9%'],
+    ['未登録・エラー', '9', '回', '<span style="color:var(--ng)">✖ 前月比 −4</span>'],
+  ];
+  $('dash').innerHTML = tiles.map(t => `<div class="tile"><div class="l">${t[0]}</div><div class="v">${t[1]}<span style="font-size:13px;font-weight:600;color:var(--sub);margin-left:3px">${t[2]}</span></div><div class="d">${t[3]}</div></div>`).join('') + `
+    <div class="panel" style="grid-column:span 7"><h4>日別の読み取り件数（結果別）</h4><div class="sub">1 日の読み取りを結果ごとに積み上げ</div><div class="acts"><button class="btn sm">表</button><button class="btn sm">CSV</button></div>
+      <div class="legend">${RES.map(r => `<span><i style="background:${r[1]}"></i>${r[0]}</span>`).join('')}</div>${stackedBars(600, 190)}</div>
+    <div class="panel" style="grid-column:span 5"><h4>置場別の照合状況</h4><div class="sub">注文数のうち照合済み（濃い色）</div><div class="acts"><button class="btn sm">CSV</button></div>
+      <div style="margin-top:12px">${hbars([['0053 東日本', 171, 178], ['0055 中日本', 205, 214], ['0056 西日本第二', 19, 20], ['0052 西日本', 0, 0]].filter(x => x[2]), '件')}</div>
+      <div style="font-size:12px;color:var(--sub);margin-top:12px">0052 西日本：この期間の注文なし</div></div>
+    <div class="panel" style="grid-column:span 4"><h4>担当者別の作業量</h4><div class="sub">正常に照合した件数</div><div class="acts"><button class="btn sm">CSV</button></div>
+      <div style="margin-top:8px">${hbars([['山田 太郎', 168], ['佐藤 花子', 142], ['鈴木 一郎', 85]], '件')}</div></div>
+    <div class="panel" style="grid-column:span 4"><h4>得意先別の注文数（上位 5）</h4><div class="sub">明細の件数</div><div class="acts"><button class="btn sm">CSV</button></div>
+      <div style="margin-top:8px">${hbars([['サンプル精機（株）', 64], ['テスト工業（株）', 51], ['見本電機（株）', 38], ['サンプル大学', 22], ['試験製作所（株）', 19]], '件')}</div></div>
+    <div class="panel" style="grid-column:span 4"><h4>月別の読み取り件数</h4><div class="sub">締まった月だけ表示（11 月は 11/05 までで 342 件）</div><div class="acts"><button class="btn sm">CSV</button></div>${monthLine(330, 150)}</div>
+    <div class="panel" style="grid-column:span 7"><h4>未確認の一覧</h4><div class="sub">納期が近い順</div><div class="acts"><button class="btn sm">すべて見る</button><button class="btn sm">CSV</button></div>
+      <table class="t"><tr><th>ミスミ納期</th><th>グローバル番号</th><th>商品コード</th><th>置場</th><th>数量</th><th>状態</th></tr>
+      <tr><td><b>11/05</b></td><td class="mono">5P000000109484</td><td class="mono">MVSHM-PN06050-4PM-XXXXX</td><td>0055</td><td class="n">3</td><td><span class="pill p-gray">未チェック</span></td></tr>
+      <tr><td><b>11/05</b></td><td class="mono">5P000000111624</td><td class="mono">MVSWD-PN02350-4PR-XXXXX</td><td>0055</td><td class="n">2</td><td><span class="pill p-gray">未チェック</span></td></tr>
+      <tr><td><b>11/05</b></td><td class="mono">5P000000201101</td><td class="mono">MVSHM-PN02000-4PW-XXXXX</td><td>0057</td><td class="n">1</td><td><span class="pill p-warn">⚠ 置場未登録</span></td></tr>
+      <tr><td>11/06</td><td class="mono">5P000000112207</td><td class="mono">MVSHM-PN01250-4PW-XXXXX</td><td>0053</td><td class="n">1</td><td><span class="pill p-gray">未チェック</span></td></tr></table></div>
+    <div class="panel" style="grid-column:span 5"><h4>エラー・重複の発生状況</h4><div class="sub">理由別（この期間）</div><div class="acts"><button class="btn sm">CSV</button></div>
+      <table class="t"><tr><th>理由</th><th style="text-align:right">回数</th><th>多い担当者</th></tr>
+      <tr><td><span class="pill" style="background:#fef3c7;color:#854d0e">⚠ 読み取り済み</span></td><td class="n">18</td><td>佐藤 花子（7）</td></tr>
+      <tr><td><span class="pill p-ng">✖ 未登録</span></td><td class="n">6</td><td>鈴木 一郎（3）</td></tr>
+      <tr><td><span class="pill" style="background:#ffedd5;color:#9a3412">⚠ 要確認（出荷日違い）</span></td><td class="n">3</td><td>山田 太郎（2）</td></tr>
+      <tr><td><span class="pill p-gray">⌨ 手入力</span></td><td class="n">4</td><td>山田 太郎（3）</td></tr></table></div>`;
+  // スマホ
+  $('phAna').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${tiles.slice(0, 4).map(t => `<div class="card" style="padding:9px 11px"><div style="font-size:11px;color:var(--sub)">${t[0]}</div><div style="font-size:22px;font-weight:800">${t[1]}<span style="font-size:11px;color:var(--sub)"> ${t[2]}</span></div><div style="font-size:11px;color:var(--sub)">${t[3]}</div></div>`).join('')}</div>
+    <div class="card" style="padding:10px"><b style="font-size:13px">日別の読み取り件数</b><div class="legend" style="margin-top:4px">${RES.map(r => `<span><i style="background:${r[1]}"></i>${r[0]}</span>`).join('')}</div>${stackedBars(310, 160)}</div>
+    <div class="card" style="padding:10px"><b style="font-size:13px">置場別の照合状況</b><div style="margin-top:8px">${hbars([['0053 東日本', 171, 178], ['0055 中日本', 205, 214], ['0056 西日本第二', 19, 20]], '件')}</div></div>
+    <div class="card" style="padding:10px"><b style="font-size:13px">担当者別</b><div style="margin-top:8px">${hbars([['山田 太郎', 168], ['佐藤 花子', 142], ['鈴木 一郎', 85]], '件')}</div></div>`;
+  $('phAna').querySelectorAll('.hbar').forEach(h => h.style.gridTemplateColumns = '92px 1fr 62px');
+}
+document.querySelectorAll('#period button').forEach(b => b.onclick = () => { document.querySelectorAll('#period button').forEach(x => x.classList.toggle('on', x === b)); });
+// ================= 得意先の分析（CSV の得意先コード・得意先名で集計。名前はダミー） =================
+const CUST = [ // 名前, コード, 明細, 伝票, 数量, 重量kg, 照合率, 未確認, 前月同期比, 主な置場, 月別(6〜10月), 納品先数
+  ['サンプル精機（株）', '100001', 64, 38, 142, 182.4, 98.4, 1, 12, '0055', [210, 236, 198, 251, 268], 3],
+  ['テスト工業（株）', '100002', 51, 22, 98, 140.2, 96.1, 2, -5, '0053', [190, 172, 205, 188, 214], 2],
+  ['見本電機（株）', '100003', 38, 31, 61, 44.8, 100, 0, 8, '0055', [120, 131, 118, 140, 152], 4],
+  ['サンプル大学', '100004', 22, 20, 30, 9.6, 90.9, 2, 40, '0053', [40, 52, 38, 61, 70], 1],
+  ['試験製作所（株）', '100005', 19, 9, 57, 66.1, 100, 0, -12, '0056', [88, 80, 92, 75, 71], 1],
+  ['モデル機工（株）', '100006', 17, 11, 25, 31.7, 94.1, 1, 3, '0055', [60, 66, 59, 63, 68], 2],
+  ['見本化学（株）', '100007', 15, 6, 40, 52.0, 100, 0, -20, '0053', [70, 64, 58, 61, 50], 1],
+  ['テスト自動車（株）', '100008', 14, 8, 22, 70.3, 92.9, 1, 15, '0055', [41, 45, 48, 52, 60], 2],
+  ['サンプル重工（株）', '100009', 12, 4, 18, 120.5, 100, 0, 0, '0053', [44, 40, 47, 43, 44], 1],
+  ['見本システム（株）', '100010', 11, 10, 13, 5.2, 100, 0, 22, '0055', [22, 28, 30, 33, 41], 3],
+];
+const OTHER = { n: 36, items: 149, qty: 260, kg: 210.3 };
+let cMetric = 'items', cSort = 'items', cPick = 0;
+const MET = { items: ['明細数', 2, '件'], qty: ['数量', 4, '個'], kg: ['重量', 5, 'kg'] };
+const fmt = (v, m) => m === 'kg' ? v.toFixed(1) : v.toLocaleString();
+const otherOf = m => m === 'items' ? OTHER.items : m === 'qty' ? OTHER.qty : OTHER.kg;
+function sparkSvg(arr, w, h) {
+  const max = Math.max(...arr) * 1.1, X = i => 4 + (w - 8) * i / (arr.length - 1), Y = v => 4 + (h - 8) * (1 - v / max);
+  return `<svg width="${w}" height="${h}" aria-hidden="true"><polyline points="${arr.map((v, i) => X(i) + ',' + Y(v)).join(' ')}" fill="none" stroke="var(--series-1)" stroke-width="2"/><circle cx="${X(arr.length - 1)}" cy="${Y(arr[arr.length - 1])}" r="3.5" fill="var(--series-1)"/></svg>`;
+}
+function miniBars(arr) {
+  const w = 200, h = 90, max = Math.max(...arr, 1), bw = 22, gap = (w - 10) / arr.length, d = ['11/01', '11/02', '11/03', '11/04', '11/05'];
+  let s = `<svg width="${w}" height="${h}" aria-label="日別の明細数"><line x1="0" x2="${w}" y1="${h - 16}" y2="${h - 16}" stroke="#e8e7e2"/>`;
+  arr.forEach((v, i) => {
+    const x = 5 + gap * i + (gap - bw) / 2, hh = v / max * (h - 34), y = h - 16 - hh;
+    if (v) s += `<path d="M${x},${h - 16} V${y + 4} q0,-4 4,-4 h${bw - 8} q4,0 4,4 V${h - 16} Z" fill="var(--series-1)"/><text x="${x + bw / 2}" y="${y - 4}" font-size="10" fill="#0b0b0b" text-anchor="middle">${v}</text>`;
+    s += `<rect x="${x - 4}" y="0" width="${bw + 8}" height="${h - 16}" fill="transparent" data-tip="<b>${d[i]}</b>　${v} 件"/><text x="${x + bw / 2}" y="${h - 3}" font-size="10" fill="#52514e" text-anchor="middle">${d[i].slice(3)}日</text>`;
+  });
+  return s + '</svg>';
+}
+function renderCust() {
+  const totItems = CUST.reduce((a, c) => a + c[2], 0) + OTHER.items;
+  const top5 = CUST.slice(0, 5).reduce((a, c) => a + c[2], 0);
+  const mi = MET[cMetric][1], rows = [...CUST].sort((a, b) => b[mi] - a[mi]);
+  const maxv = rows[0][mi], totM = CUST.reduce((a, c) => a + c[mi], 0) + otherOf(cMetric);
+  const sortIdx = { items: 2, slips: 3, qty: 4, kg: 5, rate: 6, open: 7, diff: 8 };
+  const list = [...CUST].sort((a, b) => cSort === 'name' ? a[0].localeCompare(b[0], 'ja') : b[sortIdx[cSort]] - a[sortIdx[cSort]]);
+  const P = CUST[cPick];
+  const tiles = [
+    ['得意先の数', CUST.length + OTHER.n, '社', '今月注文のあった得意先'],
+    ['上位 5 社の割合', (top5 / totItems * 100).toFixed(0), '%', `明細 ${totItems} 件のうち ${top5} 件`],
+    ['今月はじめての得意先', '3', '社', 'サンプル大学 ほか'],
+    ['1 社あたりの明細', (totItems / (CUST.length + OTHER.n)).toFixed(1), '件', '中央値 3 件'],
+    ['未確認が残る得意先', CUST.filter(c => c[7]).length, '社', '<span style="color:var(--warn)">⚠ 納期今日 2 社</span>'],
+    ['前月同期より増えた', CUST.filter(c => c[8] > 0).length, '社', `減った ${CUST.filter(c => c[8] < 0).length} 社`],
+  ];
+  const locPair = P[9] === '0055' ? [['0055 中日本', Math.round(P[2] * .8)], ['0053 東日本', P[2] - Math.round(P[2] * .8)]]
+    : [[P[9] + (P[9] === '0053' ? ' 東日本' : ' 西日本第二'), Math.round(P[2] * .9)], ['0055 中日本', P[2] - Math.round(P[2] * .9)]];
+  const d1 = Math.round(P[2] * .3), d2 = Math.round(P[2] * .2), d3 = Math.round(P[2] * .28);
+  $('dash').innerHTML = tiles.map(t => `<div class="tile"><div class="l">${t[0]}</div><div class="v">${t[1]}<span style="font-size:13px;font-weight:600;color:var(--sub);margin-left:3px">${t[2]}</span></div><div class="d">${t[3]}</div></div>`).join('') + `
+    <div class="panel" style="grid-column:span 6"><h4>得意先別の注文（上位 10）</h4><div class="sub">右の % は全体に占める割合。残り ${OTHER.n} 社は「その他」</div>
+      <div class="acts"><div class="seg" id="cMet">${Object.entries(MET).map(([k, v]) => `<button data-m="${k}" class="${k === cMetric ? 'on' : ''}" style="padding:3px 9px;font-size:12px">${v[0]}</button>`).join('')}</div><button class="btn sm">CSV</button></div>
+      <div class="hbar" style="grid-template-columns:130px 1fr 96px;margin-top:10px">${rows.map(c => `<span class="k" title="${c[0]}">${c[0]}</span><span class="track" data-tip="<b>${c[0]}</b><br>${MET[cMetric][0]} ${fmt(c[mi], cMetric)} ${MET[cMetric][2]}（${(c[mi] / totM * 100).toFixed(1)}%）"><i style="width:${c[mi] / maxv * 100}%"></i></span><span class="v">${fmt(c[mi], cMetric)}<span style="color:#8a8984;font-size:11px;margin-left:4px">${(c[mi] / totM * 100).toFixed(0)}%</span></span>`).join('')}
+      <span class="k" style="color:#8a8984">その他 ${OTHER.n} 社</span><span></span><span class="v" style="color:#52514e">${fmt(otherOf(cMetric), cMetric)}</span></div></div>
+    <div class="panel" style="grid-column:span 6"><h4>上位 5 社の月別の明細数</h4><div class="sub">6〜10 月（締まった月）。1 社ずつ同じ形のグラフで比べる</div><div class="acts"><button class="btn sm">CSV</button></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px">${CUST.slice(0, 5).map(c => { const a = c[10], d = (a[4] - a[3]) / a[3] * 100; return `<div class="spark" data-tip="<b>${c[0]}</b><br>${['6月', '7月', '8月', '9月', '10月'].map((m, i) => m + ' ' + a[i]).join('<br>')}"><div class="nm">${c[0]}</div><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:6px"><div><div class="vv">${a[4]}</div><div class="sd">10月・前月比 ${d >= 0 ? '+' : ''}${d.toFixed(0)}%</div></div>${sparkSvg(a, 96, 40)}</div></div>`; }).join('')}
+      <div class="spark" style="display:flex;align-items:center;justify-content:center;color:var(--sub);font-size:12px;text-align:center">一覧で得意先を選ぶと<br>下に内訳を表示</div></div></div>
+    <div class="panel" style="grid-column:span 12"><h4>得意先の一覧</h4><div class="sub">見出しを押すと並べ替え。行を押すと下に内訳を表示</div><div class="acts"><button class="btn sm">CSV</button></div>
+      <div style="max-height:250px;overflow:auto;margin-top:6px"><table class="t sort" id="cTable"><tr>
+        ${[['name', '得意先'], ['', 'コード'], ['items', '明細'], ['slips', '伝票'], ['qty', '数量'], ['kg', '重量(kg)'], ['rate', '照合率'], ['open', '未確認'], ['diff', '前月同期比'], ['', '主な置場'], ['', '納品先']].map(([k, l]) => `<th data-s="${k}" class="${k && k === cSort ? 'on' : ''}" style="${['items', 'slips', 'qty', 'kg', 'rate', 'open', 'diff'].includes(k) ? 'text-align:right' : ''}">${l}${k && k === cSort ? ' ▼' : ''}</th>`).join('')}</tr>
+        ${list.map(c => { const i = CUST.indexOf(c); return `<tr class="cr ${i === cPick ? 'pick' : ''}" data-i="${i}"><td><b>${c[0]}</b></td><td class="mono">${c[1]}</td><td class="n">${c[2]}</td><td class="n">${c[3]}</td><td class="n">${c[4]}</td><td class="n">${c[5].toFixed(1)}</td>
+          <td class="n">${c[6] === 100 ? '<span style="color:var(--ok)">✔ 100%</span>' : c[6].toFixed(1) + '%'}</td><td class="n">${c[7] ? `<span class="pill p-warn">${c[7]}</span>` : '—'}</td>
+          <td class="n" style="color:${c[8] > 0 ? 'var(--ok)' : c[8] < 0 ? 'var(--ng)' : 'var(--sub)'}">${c[8] > 0 ? '▲ +' : c[8] < 0 ? '▼ ' : '± '}${c[8]}%</td><td>${c[9]}</td><td class="n">${c[11]} か所</td></tr>`; }).join('')}
+      </table></div></div>
+    <div class="panel" style="grid-column:span 12;border-color:#93c5fd" id="cDetail"><h4>${P[0]} の内訳 <span style="font-weight:400;color:var(--sub);font-size:12px">得意先コード ${P[1]}・今月</span></h4><div class="acts"><button class="btn sm">この得意先の注文一覧 →</button><button class="btn sm">CSV</button></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1.3fr 1fr;gap:16px;margin-top:10px">
+        <div><div style="font-size:12px;font-weight:700;margin-bottom:6px">日別の明細数</div>${miniBars([0, d1, d2, d3, P[2] - d1 - d2 - d3])}</div>
+        <div><div style="font-size:12px;font-weight:700;margin-bottom:6px">置場別</div><div class="hbar" style="grid-template-columns:90px 1fr 34px">${locPair.map(([k, v]) => `<span class="k">${k}</span><span class="track" data-tip="<b>${k}</b>　${v} 件"><i style="width:${v / locPair[0][1] * 100}%"></i></span><span class="v">${v}</span>`).join('')}</div></div>
+        <div><div style="font-size:12px;font-weight:700;margin-bottom:6px">納品先（直送先）</div><table class="t">${Array.from({ length: P[11] }, (_, k) => `<tr><td>${P[0]} ${['第1工場', '本社', '第2工場', '研究所'][k]}</td><td class="n">${k === 0 ? P[2] - (P[11] - 1) * 3 : 3} 件</td></tr>`).join('')}</table></div>
+        <div><div style="font-size:12px;font-weight:700;margin-bottom:6px">よく出る商品（上位 3）</div><table class="t"><tr><td class="mono">MVSHM-PN02000-…</td><td class="n">${Math.ceil(P[2] * .25)}</td></tr><tr><td class="mono">MVSHM-PN03250-…</td><td class="n">${Math.ceil(P[2] * .18)}</td></tr><tr><td class="mono">MVSWD-PN06050-…</td><td class="n">${Math.ceil(P[2] * .1)}</td></tr></table></div>
+      </div></div>`;
+  $('dash').querySelectorAll('#cMet button').forEach(b => b.onclick = () => { cMetric = b.dataset.m; renderCust(); });
+  $('dash').querySelectorAll('#cTable th[data-s]').forEach(th => { if (th.dataset.s) th.onclick = () => { cSort = th.dataset.s; renderCust(); }; });
+  $('dash').querySelectorAll('#cTable tr.cr').forEach(tr => tr.onclick = () => { cPick = +tr.dataset.i; renderCust(); $('cDetail').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+}
+function phoneCust() {
+  const rows = CUST.slice(0, 8), max = rows[0][2];
+  $('phAna').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="card" style="padding:9px 11px"><div style="font-size:11px;color:var(--sub)">得意先の数</div><div style="font-size:22px;font-weight:800">${CUST.length + OTHER.n}<span style="font-size:11px;color:var(--sub)"> 社</span></div></div>
+      <div class="card" style="padding:9px 11px"><div style="font-size:11px;color:var(--sub)">上位 5 社の割合</div><div style="font-size:22px;font-weight:800">43<span style="font-size:11px;color:var(--sub)"> %</span></div></div></div>
+    <div class="card" style="padding:10px"><b style="font-size:13px">得意先別の明細数</b>
+      <div class="hbar" style="grid-template-columns:104px 1fr 30px;margin-top:8px">${rows.map(c => `<span class="k">${c[0]}</span><span class="track"><i style="width:${c[2] / max * 100}%"></i></span><span class="v">${c[2]}</span>`).join('')}</div></div>
+    ${rows.slice(0, 4).map(c => `<div class="card" style="padding:9px 11px;display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><b style="font-size:13px">${c[0]}</b><div style="font-size:11px;color:var(--sub)">明細 ${c[2]}・照合率 ${c[6]}%・${c[7] ? '<span style="color:var(--warn)">未確認 ' + c[7] + '</span>' : '未確認なし'}</div></div>${sparkSvg(c[10], 70, 30)}</div>`).join('')}`;
+}
+let anaMode = 'all';
+function setAna(m) {
+  anaMode = m;
+  document.querySelectorAll('#anaView button,#phView button').forEach(b => b.classList.toggle('on', b.dataset.a === m));
+  $('ddStaff').style.display = m === 'all' ? '' : 'none';
+  $('ddCust').style.display = m === 'cust' ? '' : 'none';
+  if (m === 'all') renderAna(); else { renderCust(); phoneCust(); }
+}
+document.querySelectorAll('#anaView button,#phView button').forEach(b => b.onclick = () => setAna(b.dataset.a));
+
+setAna("all");
+</script>
+</body>
+</html>

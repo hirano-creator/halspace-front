@@ -1,0 +1,39 @@
+# partsgate-api（PARTS GATE の業務 API）。秘密情報はここに書かない（wrangler secret put / .dev.vars）。
+# PARTS GATE は TENQ と無料枠を取り合わないよう、専用の Cloudflare アカウントに置く（docs/architecture.md §6）。
+# そのアカウントはまだない（requirements Q-4）。いまはローカル（--local）だけで動かす。
+# ローカルは database_id に関係なく .wrangler/ 内の SQLite を使う。遠隔の D1 を作ったら ID を書き換える。
+name = "partsgate-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# ===== 開発（ローカル） =====
+[env.dev]
+name = "partsgate-api-dev"
+
+[env.dev.vars]
+APP_ENV = "dev"
+HALSPACE_API = "http://127.0.0.1:8000/api"
+ALLOWED_ORIGINS = "http://localhost:5174,http://127.0.0.1:5174"
+# 開発用の簡易ログイン（"dev-<hs_user_id>"）。本番の設定には絶対に書かない
+DEV_AUTH_STUB = "1"
+# 簡易ログインで運営者（企業管理ができる人）として扱う hs_user_id
+DEV_OPERATOR_IDS = "900001"
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "partsgate-db-dev"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[env.dev.r2_buckets]]
+binding = "FILES"
+bucket_name = "partsgate-files-dev"
+
+# ===== 本番（専用アカウントを作ってから。オーナーの承認なしにデプロイしない） =====
+# [env.production]
+# name = "partsgate-api"
+# [env.production.vars]
+# APP_ENV = "production"
+# HALSPACE_API = "https://halspace-api-production.up.railway.app/api"
+# ALLOWED_ORIGINS = "https://space-apps.pages.dev"

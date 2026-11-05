@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PARTS GATE 置場別チェック</title>
+<style>
+:root{
+  --ink:#1f2937; --sub:#6b7280; --line:#e5e7eb; --bg:#eef0f3; --dark:#111827; --accent:#334155;
+  --ok:#15803d; --ok-bg:#dcfce7; --ok-row:#d7efdf; --warn:#a16207; --warn-bg:#fef3c7; --ng:#b91c1c; --ng-bg:#fee2e2;
+  --info:#1d4ed8; --info-bg:#dbeafe;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif;font-size:14px}
+header.top{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+header.top h1{font-size:16px;margin:0}
+.demo{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:auto}
+.demo span{font-size:12px;color:var(--sub)}
+.demo button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
+.demo button:hover{background:#f3f4f6}
+main{padding:18px 20px}
+.note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:16px;line-height:1.7}
+.note h2{font-size:18px;margin:0 0 4px}
+.note ul{margin:4px 0 0;padding-left:18px}
+.stage{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.cap{font-size:12px;color:var(--sub);margin:0 0 6px}
+
+/* PC 枠 */
+.pc{width:1140px;height:760px;background:#fff;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08);display:flex;flex-direction:column}
+.chrome{height:28px;background:#e5e7eb;display:flex;align-items:center;gap:6px;padding:0 10px;font-size:11px;color:#6b7280;flex:none}
+.chrome i{width:10px;height:10px;border-radius:50%;background:#cbd5e1;display:inline-block}
+.screen{flex:1;display:flex;min-height:0}
+.rail{width:64px;background:#1f2937;color:#9ca3af;display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:12px;flex:none}
+.rail .logo{color:#fff;font-weight:800;letter-spacing:.08em;margin-bottom:10px}
+.rail a{width:48px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:19px}
+.rail a.cur{background:#374151;color:#fff}
+.content{flex:1;display:flex;flex-direction:column;min-width:0;background:#f9fafb}
+.bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line)}
+.staff{font-size:14px;white-space:nowrap}.staff b{font-size:17px}
+/* 読み取り状態の表示（中身は見えない入力欄。リーダーの文字をここで受け取る） */
+.reader{flex:1;position:relative;display:flex;align-items:center;gap:10px;border:2px solid;border-radius:10px;padding:7px 8px 7px 12px;min-width:0;cursor:pointer;min-height:46px}
+.reader .dot{width:12px;height:12px;border-radius:50%;flex:none}
+.reader .rt{font-size:15px;font-weight:700;white-space:nowrap}
+.reader .rs{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reader .inp{position:absolute;inset:0;opacity:0;border:0;width:100%;cursor:pointer}
+.reader .man{margin-left:auto;position:relative;z-index:2;border:1px solid currentColor;background:#fff;border-radius:6px;padding:4px 8px;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.reader.ready{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
+.reader.ready .dot{background:var(--ok);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+.reader.stopped{border-color:var(--ng);background:var(--ng-bg);color:var(--ng);animation:shake .3s}
+.reader.stopped .dot{background:var(--ng)}
+@keyframes shake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+.reader.paused{border-color:#cbd5e1;background:#f3f4f6;color:var(--sub);cursor:default}
+.reader.paused .dot{background:#9ca3af}
+.reader.paused .man{display:none}
+.reader.manual{border-color:var(--accent);background:#fff;color:var(--ink);cursor:text}
+.reader.manual .inp{position:static;opacity:1;flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:6px 10px;font-size:16px;font-family:Consolas,monospace;cursor:text}
+.reader.manual .rs,.reader.manual .dot{display:none}
+.btn{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:7px 12px;font:inherit;font-size:13px;white-space:nowrap;cursor:pointer}
+.sel{border:1px solid #cbd5e1;border-radius:8px;padding:6px 10px;font-size:13px;background:#fff;white-space:nowrap}
+.sel b{font-size:14px}
+
+/* 結果帯 */
+.band{margin:12px 16px 0;border:2px solid;border-radius:10px;padding:8px 14px;display:flex;align-items:center;gap:12px;min-height:58px}
+.band .ic{font-size:26px;width:30px;text-align:center}
+.band .lb{font-size:22px;font-weight:800;white-space:nowrap}
+.band .ms{font-size:14px}
+.band .info{font-size:13px;color:#374151;margin-left:auto;text-align:right;line-height:1.4}
+.band.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.band.dup,.band.rv{background:var(--warn-bg);color:var(--warn);border-color:#ca8a04}
+.band.nf{background:var(--ng-bg);color:var(--ng);border-color:var(--ng)}
+.band.idle{background:#fff;color:var(--sub);border-color:var(--line)}
+.move{display:inline-block;background:var(--info-bg);color:var(--info);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;margin-left:6px}
+
+/* 置場タブ */
+.loc-tabs{display:flex;gap:8px;padding:12px 16px 0}
+.lt{flex:1;border:1px solid var(--line);border-bottom:none;border-radius:10px 10px 0 0;background:#eef1f5;padding:8px 12px;cursor:pointer;text-align:left;font:inherit;color:var(--ink);position:relative}
+.lt .nm{font-weight:800;font-size:15px}
+.lt .ct{float:right;font-weight:700}
+.lt .pb{height:6px;background:#d1d5db;border-radius:3px;margin-top:6px;overflow:hidden}
+.lt .pb i{display:block;height:100%;background:var(--accent)}
+.lt.done .pb i{background:var(--ok)}
+.lt.cur{background:#fff;border-color:#cbd5e1;box-shadow:0 -2px 0 var(--accent) inset}
+.lt.cur::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#fff}
+.lt.empty{opacity:.55}
+.lt.flash{animation:flash .9s ease 2}
+@keyframes flash{50%{background:var(--info-bg)}}
+.sheet{flex:1;margin:0 16px;background:#fff;border:1px solid #cbd5e1;border-radius:0 0 10px 10px;display:flex;flex-direction:column;min-height:0}
+.tools{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:3px 12px;background:#fff;cursor:pointer;font:inherit;font-size:12px}
+.chip.on{background:var(--dark);color:#fff;border-color:var(--dark)}
+.scroll{flex:1;overflow:auto;min-height:0}
+table.g{width:100%;border-collapse:collapse;font-size:12.5px}
+table.g th{position:sticky;top:0;background:#4b5563;color:#fff;font-weight:600;padding:6px 6px;text-align:center;white-space:nowrap;z-index:1}
+table.g td{padding:5px 6px;border-bottom:1px solid #eef0f2;white-space:nowrap}
+table.g td.n{text-align:right;font-variant-numeric:tabular-nums}
+table.g td.c{text-align:center}
+table.g tr.chk td{background:var(--ok-row)}
+table.g tr.hit td{background:#bbf7d0;font-weight:700}
+table.g tr.hit td:first-child{box-shadow:inset 4px 0 0 var(--ok)}
+table.g tr.hitdup td{background:var(--warn-bg);font-weight:700}
+table.g tr.hitdup td:first-child{box-shadow:inset 4px 0 0 #ca8a04}
+.mono{font-family:Consolas,"BIZ UDGothic",monospace}
+.mark{font-size:15px;font-weight:700}
+.sum{display:flex;gap:22px;align-items:center;padding:8px 14px;border-top:1px solid var(--line);font-size:13px;color:var(--sub);background:#f9fafb;border-radius:0 0 10px 10px}
+.sum b{color:var(--ink);font-size:17px;margin-left:4px}
+.today{display:flex;gap:16px;padding:8px 16px 10px;font-size:12px;color:var(--sub)}
+.today b{color:var(--ink);font-size:14px;margin-left:2px}
+
+/* スマホ */
+.phone{width:360px;height:760px;background:#fff;border:10px solid #1f2937;border-radius:36px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.12);display:flex;flex-direction:column}
+.notch{height:22px;flex:none;display:flex;justify-content:space-between;padding:4px 18px 0;font-size:11px;font-weight:600}
+.ph-h{padding:10px 14px;border-bottom:1px solid var(--line)}
+.ph-h b{font-size:16px}
+.ph-h div{font-size:12px;color:var(--sub)}
+.ph-tabs{display:flex;gap:6px;padding:8px 10px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
+.pt{flex:none;border:1px solid var(--line);border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;background:#fff;cursor:pointer}
+.pt.cur{background:var(--dark);color:#fff;border-color:var(--dark)}
+.ph-prog{padding:10px 14px;border-bottom:1px solid var(--line)}
+.ph-prog .big{font-size:26px;font-weight:800}
+.ph-prog .pb{height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden;margin-top:4px}
+.ph-prog .pb i{display:block;height:100%;background:var(--accent)}
+.ph-list{flex:1;overflow:auto;background:#f9fafb;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.pc-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px}
+.pc-card.chk{background:var(--ok-row);border-color:#a7d8b8}
+.pc-card .r1{display:flex;justify-content:space-between;font-size:13px}
+.pc-card .r2{color:#4b5563;margin-top:2px}
+.tab-bottom{display:flex;border-top:1px solid var(--line);flex:none;background:#fff}
+.tab-bottom div{flex:1;text-align:center;padding:7px 0 9px;font-size:10px;color:var(--sub)}
+.tab-bottom div b{display:block;font-size:17px;font-weight:400;line-height:1.3}
+.tab-bottom div.cur{color:var(--ink);font-weight:700}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>PARTS GATE｜C案 改訂：置場（向け先）別チェック</h1>
+  <div class="demo">
+    <span>試す：</span>
+    <button data-act="ok">✔ 次の部品を読む</button>
+    <button data-act="other">↪ 別の置場の部品を読む</button>
+    <button data-act="dup">⚠ 読み取り済みを読む</button>
+    <button data-act="nf">✖ 未登録を読む</button>
+    <button data-act="stop">別の場所を押す（読み取り停止）</button>
+    <button data-act="reset">最初に戻す</button>
+  </div>
+</header>
+<main>
+  <div class="note">
+    <h2>今の「部品確認シート」を置場ごとのタブにした形</h2>
+    <ul>
+      <li>上のタブが置場（0053 東日本・0055 中日本 など）。<b>タブごとに「済み / 全体」と進み具合</b>が分かります。一覧の列はシートと同じです</li>
+      <li>チェック済みの行は<b>シートと同じ緑色</b>になり、チェック者とチェック時間が入ります。未チェックの行は白のままです</li>
+      <li>別の置場の部品を読むと、<b>その置場のタブに自動で切り替わり</b>、「置場が違います」と青で知らせます</li>
+      <li>シートの「ミスミ納期」で絞る操作は、右上の「ミスミ納期」で選びます。下段には件数・数量・重量の合計を表示します</li>
+      <li>上部の<b>緑の「読み取りOK」</b>は、リーダーの読み取りを受け取る場所です。作業者は何も入力しません。別の場所を押して読み取りが止まると赤に変わり、押すと再開します。担当者の変更中は灰色です</li>
+      <li>ラベルが汚れて読めないときだけ「番号を手で入力」を押し、番号を入力して Enter を押します（手入力したことは履歴に残ります）</li>
+      <li>読み取りOKの状態でキーボードを打って Enter を押すと、リーダーで読んだときの動きを試せます（どんな文字でも「次の部品」として扱います）</li>
+    </ul>
+  </div>
+  <div class="stage">
+    <div><p class="cap">PC：バーコード読み取り（置場別チェック）</p>
+      <div class="pc"><div class="chrome"><i></i><i></i><i></i>&nbsp; space-apps.pages.dev/PartsGate/app/#/scan</div>
+        <div class="screen">
+          <nav class="rail"><div class="logo">PG</div><a class="cur" title="読み取り">▣</a><a title="注文">☰</a><a title="履歴">↺</a><a title="分析">▤</a><a title="設定">⚙</a></nav>
+          <div class="content">
+            <div class="bar">
+              <span class="staff">担当：<b>山田 太郎</b></span>
+              <div class="reader ready" id="reader">
+                <span class="dot"></span><span class="rt" id="r-t"></span><span class="rs" id="r-s"></span>
+                <input class="inp" id="inp" autocomplete="off" aria-label="バーコードの読み取り値">
+                <button class="man" id="man" type="button">番号を手で入力</button>
+              </div>
+              <span class="sel">ミスミ納期 <b>2026/11/06（金）</b> ▾</span>
+              <button class="btn" id="chg">担当者を変える</button>
+            </div>
+            <div class="band idle" id="band"><span class="ic" id="b-ic">▣</span><span class="lb" id="b-lb">読み取り待ち</span><span class="ms" id="b-ms">部品のバーコードを読み取ってください</span><span class="info" id="b-info"></span></div>
+            <div class="loc-tabs" id="tabs"></div>
+            <div class="sheet">
+              <div class="tools">
+                <button class="chip on" data-f="all">すべて</button><button class="chip" data-f="todo">未チェックだけ</button><button class="chip" data-f="done">チェック済みだけ</button>
+                <label style="margin-left:12px;font-size:12px;color:var(--sub)"><input type="checkbox" id="todoFirst"> 未チェックを上に並べる</label>
+                <span style="margin-left:auto"></span><button class="btn">印刷</button><button class="btn">CSV 出力</button>
+              </div>
+              <div class="scroll" id="scroll"><table class="g"><thead><tr>
+                <th></th><th>グローバル番号</th><th>メーカー出荷日(SSD)</th><th>ミスミ納期(VRD)</th><th>出荷方法</th><th>商品コード</th><th>置場</th><th>数量</th><th>個別重量</th><th>商品重量</th><th>チェック者</th><th>チェック時間</th>
+              </tr></thead><tbody id="rows"></tbody></table></div>
+              <div class="sum" id="sum"></div>
+            </div>
+            <div class="today" id="today"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div><p class="cap">スマホ：置場別の確認（閲覧用）</p>
+      <div class="phone"><div class="notch"><span>9:41</span><span>●●●</span></div>
+        <div class="ph-h"><b>置場別チェック</b><div>ミスミ納期 2026/11/06（金）</div></div>
+        <div class="ph-tabs" id="ptabs"></div>
+        <div class="ph-prog" id="pprog"></div>
+        <div class="ph-list" id="plist"></div>
+        <div class="tab-bottom"><div class="cur"><b>▣</b>置場別</div><div><b>☰</b>注文</div><div><b>↺</b>履歴</div><div><b>▤</b>分析</div></div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+// ===== ダミーデータ（実データは使わない） =====
+let seed = 7;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const pick = a => a[Math.floor(rnd() * a.length)];
+const LOCS = [
+  { code: '0053', name: '東日本', n: 14, done: 9 },
+  { code: '0055', name: '中日本', n: 22, done: 15 },
+  { code: '0056', name: '西日本第二', n: 1, done: 1 },
+  { code: '0052', name: '西日本', n: 0, done: 0 },
+];
+const STAFF = ['佐藤 花子', '鈴木 一郎', '山田 太郎'];
+const AL = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
+const rcode = n => Array.from({ length: n }, () => pick(AL)).join('');
+let rows, cur, filter = 'all', last = null, minute;
+function build() {
+  seed = 7; rows = []; minute = 46 * 60;
+  let g = 100000;
+  for (const l of LOCS) {
+    const idx = []; for (let i = 0; i < l.n; i++) idx.push(i);
+    const doneSet = new Set(idx.sort(() => rnd() - .5).slice(0, l.done));
+    for (let i = 0; i < l.n; i++) {
+      g += 1 + Math.floor(rnd() * 900);
+      const qty = pick([1, 1, 1, 1, 2, 2, 3, 4, 6]);
+      const w = Math.round(20 + rnd() * 1500);
+      const done = doneSet.has(i);
+      rows.push({ id: rows.length, loc: l.code, gno: '5P000' + String(g).padStart(9, '0'),
+        prod: pick(['MVSHM-PN0', 'MVSHM-PN0', 'MVSWD-PN0']) + pick(['2000', '3250', '1250', '6050', '4552', '2350']) + '-4P' + pick(['W', 'S', 'R', 'M']) + '-' + rcode(5),
+        qty, w, by: done ? pick(STAFF) : '', at: done ? tm(10 * 60 + 40 + Math.floor(rnd() * 19), Math.floor(rnd() * 60)) : '' });
+    }
+  }
+  cur = '0055'; last = null; filter = 'all';
+  setBand('idle', '▣', '読み取り待ち', '部品のバーコードを読み取ってください', '');
+  render();
+}
+const tm = (m, s) => `2026/11/05 ${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+const now = () => { minute++; return tm(10 * 60 + 59 + Math.floor(minute / 60) % 30, minute % 60); };
+const locName = c => LOCS.find(l => l.code === c).name;
+const kg = g => (g / 1000).toFixed(1) + ' kg';
+
+function render() {
+  // 置場タブ
+  const t = document.getElementById('tabs'); t.innerHTML = '';
+  const pt = document.getElementById('ptabs'); pt.innerHTML = '';
+  for (const l of LOCS) {
+    const rs = rows.filter(r => r.loc === l.code), d = rs.filter(r => r.by).length;
+    const b = document.createElement('button');
+    b.className = 'lt' + (l.code === cur ? ' cur' : '') + (rs.length === 0 ? ' empty' : '') + (rs.length && d === rs.length ? ' done' : '');
+    b.dataset.loc = l.code;
+    b.innerHTML = `<span class="nm">${l.code} ${l.name}</span><span class="ct">${rs.length && d === rs.length ? '✔ ' : ''}${d} / ${rs.length}</span><div class="pb"><i style="width:${rs.length ? d / rs.length * 100 : 0}%"></i></div>`;
+    b.onclick = () => { cur = l.code; render(); document.getElementById('inp').focus(); };
+    t.appendChild(b);
+    const p = document.createElement('button');
+    p.className = 'pt' + (l.code === cur ? ' cur' : ''); p.textContent = `${l.code} ${d}/${rs.length}`;
+    p.onclick = () => { cur = l.code; render(); };
+    pt.appendChild(p);
+  }
+  // 一覧
+  let rs = rows.filter(r => r.loc === cur);
+  const all = rs;
+  if (filter === 'todo') rs = rs.filter(r => !r.by);
+  if (filter === 'done') rs = rs.filter(r => r.by);
+  if (document.getElementById('todoFirst').checked) rs = [...rs].sort((a, b) => (!!a.by - !!b.by) || a.id - b.id);
+  const tb = document.getElementById('rows');
+  tb.innerHTML = rs.length ? rs.map(r => `<tr class="${r.by ? 'chk' : ''} ${last && last.id === r.id ? (last.kind === 'dup' ? 'hitdup' : 'hit') : ''}" id="r${r.id}">
+    <td class="c mark" style="color:${r.by ? 'var(--ok)' : '#cbd5e1'}">${r.by ? '✔' : '○'}</td>
+    <td class="mono">${r.gno}</td><td class="c">20261105</td><td class="c">20261106</td><td>センター納入</td>
+    <td class="mono">${r.prod}</td><td class="c">${r.loc}</td><td class="n">${r.qty}</td><td class="n">${r.w.toLocaleString()}</td><td class="n">${(r.w * r.qty).toLocaleString()}</td>
+    <td>${r.by}</td><td>${r.at}</td></tr>`).join('')
+    : `<tr><td colspan="12" style="text-align:center;color:var(--sub);padding:40px">この置場の明細はありません</td></tr>`;
+  const done = all.filter(r => r.by);
+  document.getElementById('sum').innerHTML =
+    `<span>${cur} ${locName(cur)}</span><span>チェック済み<b>${done.length} / ${all.length}</b></span><span>未チェック<b style="color:${all.length - done.length ? 'var(--warn)' : 'var(--ok)'}">${all.length - done.length}</b></span>` +
+    `<span>数量合計<b>${all.reduce((s, r) => s + r.qty, 0)}</b></span><span>商品重量合計<b>${kg(all.reduce((s, r) => s + r.w * r.qty, 0))}</b></span>`;
+  const tot = rows.length, td = rows.filter(r => r.by).length;
+  document.getElementById('today').innerHTML = `全置場 <span>チェック済み<b>${td} / ${tot}</b></span><span>正常<b>${121 + td - 25}</b></span><span>読み取り済み（重複）<b>5</b></span><span>エラー<b>2</b></span>`;
+  // スマホ
+  document.getElementById('pprog').innerHTML = `<div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:15px">${cur} ${locName(cur)}</b><span class="big">${done.length}<span style="font-size:14px;color:var(--sub)"> / ${all.length}</span></span></div>
+    <div class="pb"><i style="width:${all.length ? done.length / all.length * 100 : 0}%;background:${all.length && done.length === all.length ? 'var(--ok)' : 'var(--accent)'}"></i></div>
+    <div style="font-size:12px;color:var(--sub);margin-top:4px">未チェック ${all.length - done.length} 件 ・ 数量 ${all.reduce((s, r) => s + r.qty, 0)} ・ ${kg(all.reduce((s, r) => s + r.w * r.qty, 0))}</div>`;
+  const pl = [...all].sort((a, b) => (!!a.by - !!b.by) || a.id - b.id);
+  document.getElementById('plist').innerHTML = pl.length ? pl.map(r => `<div class="pc-card ${r.by ? 'chk' : ''}"><div class="r1"><b class="mono">${r.gno}</b><span>${r.by ? '✔ ' + r.at.slice(11, 16) : '未チェック'}</span></div>
+    <div class="r2 mono">${r.prod}</div><div class="r2">数量 ${r.qty} ・ ${(r.w * r.qty).toLocaleString()} g${r.by ? ' ・ ' + r.by : ''}</div></div>`).join('')
+    : '<div style="text-align:center;color:var(--sub);padding:30px">明細はありません</div>';
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.f === filter));
+  if (last) { const el = document.getElementById('r' + last.id); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+}
+function setBand(kind, ic, lb, ms, info) {
+  const b = document.getElementById('band'); b.className = 'band ' + kind;
+  document.getElementById('b-ic').textContent = ic; document.getElementById('b-lb').textContent = lb;
+  document.getElementById('b-ms').innerHTML = ms; document.getElementById('b-info').innerHTML = info;
+}
+function detail(r) { return `<span class="mono">${r.gno}</span><br><span class="mono">${r.prod}</span> ・ 数量 <b style="font-size:16px">${r.qty}</b>`; }
+function scan(act) {
+  if (act === 'reset') { build(); return; }
+  if (act === 'nf') { last = null; setBand('nf', '✖', '未登録', 'この番号の注文データがありません。ラベルと今日の CSV を確認してください', '<span class="mono">5P000999999999</span>'); render(); return; }
+  if (act === 'dup') {
+    const r = rows.find(x => x.loc === cur && x.by) || rows.find(x => x.by);
+    cur = r.loc; last = { id: r.id, kind: 'dup' };
+    setBand('dup', '⚠', '読み取り済み', `${r.at.slice(11, 16)} に ${r.by} さんがチェック済みです`, detail(r)); render(); return;
+  }
+  let r = act === 'other' ? rows.find(x => x.loc !== cur && !x.by) : (rows.find(x => x.loc === cur && !x.by) || rows.find(x => !x.by));
+  if (!r) { setBand('ok', '✔', '全部チェック済み', 'この納期の部品はすべてチェックが終わりました', ''); last = null; render(); return; }
+  const moved = r.loc !== cur;
+  r.by = '山田 太郎'; r.at = now(); cur = r.loc; last = { id: r.id, kind: 'ok' };
+  setBand('ok', '✔', '正常', `置場 <b>${r.loc} ${locName(r.loc)}</b> の部品です${moved ? '<span class="move">置場が違います → 表示を切り替えました</span>' : ''}`, detail(r));
+  render();
+  if (moved) { const t = document.querySelector(`.lt[data-loc="${r.loc}"]`); t && t.classList.add('flash'); }
+}
+// ===== 読み取り状態の表示 =====
+// 実装では: 入力欄にフォーカスがある＝読み取りOK、外れた＝停止、担当者変更中＝無効。
+// リーダーは文字を高速に送るので、表示が見えなくても入力欄が文字を受け取れれば読める。
+const reader = document.getElementById('reader'), inp = document.getElementById('inp');
+let mode = 'ready'; // ready / stopped / paused / manual
+const RT = {
+  ready:   ['読み取りOK', 'リーダーで部品のラベルを読んでください'],
+  stopped: ['読み取りが止まっています', 'ここを押すと再開します'],
+  paused:  ['読み取りを止めています', '担当者を選ぶと読み取れます'],
+  manual:  ['手入力', ''],
+};
+function setMode(m) {
+  mode = m; reader.className = 'reader ' + m;
+  document.getElementById('r-t').textContent = RT[m][0];
+  document.getElementById('r-s').textContent = RT[m][1];
+  inp.disabled = m === 'paused';
+  inp.placeholder = m === 'manual' ? 'ラベルの番号を入力して Enter（Esc でやめる）' : '';
+  document.getElementById('man').textContent = m === 'manual' ? 'やめる' : '番号を手で入力';
+  document.getElementById('chg').textContent = m === 'paused' ? '担当者を選んだことにする' : '担当者を変える';
+}
+inp.addEventListener('focus', () => { if (mode === 'stopped') setMode('ready'); });
+inp.addEventListener('blur', () => { setTimeout(() => { if (document.activeElement !== inp && (mode === 'ready' || mode === 'manual')) setMode('stopped'); }, 120); });
+reader.addEventListener('click', e => { if (e.target.id !== 'man' && mode !== 'paused') inp.focus(); });
+document.getElementById('man').onclick = e => { e.stopPropagation(); setMode(mode === 'manual' ? 'ready' : 'manual'); inp.value = ''; inp.focus(); };
+document.getElementById('chg').onclick = () => {
+  if (mode === 'paused') { setMode('ready'); inp.focus(); }
+  else { setMode('paused'); setBand('idle', '▣', '担当者を選んでください', '担当者を変えている間は読み取りません', ''); }
+};
+inp.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && mode === 'manual') { setMode('ready'); inp.value = ''; }
+  if (e.key === 'Enter') { inp.value = ''; const wasManual = mode === 'manual'; scan('ok'); if (wasManual) { setMode('ready'); document.getElementById('b-ms').innerHTML += '<span class="move">手入力</span>'; } }
+});
+
+document.querySelectorAll('.demo button').forEach(b => b.onclick = () => {
+  if (b.dataset.act === 'stop') { inp.blur(); return; }
+  if (mode === 'paused') { setBand('idle', '▣', '担当者を選んでください', '担当者を変えている間は読み取りません', ''); return; }
+  scan(b.dataset.act); if (mode !== 'manual') setMode('ready'); inp.focus();
+});
+document.querySelectorAll('.chip').forEach(c => c.onclick = () => { filter = c.dataset.f; render(); inp.focus(); });
+document.getElementById('todoFirst').onchange = () => { render(); inp.focus(); };
+build();
+setMode('ready');
+inp.focus();
+</script>
+</body>
+</html>

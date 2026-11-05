@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PARTS GATE 置場別チェック 一覧優先</title>
+<style>
+:root{
+  --ink:#1f2937; --sub:#6b7280; --line:#e5e7eb; --bg:#eef0f3; --dark:#111827; --accent:#334155;
+  --ok:#15803d; --ok-bg:#dcfce7; --ok-row:#d7efdf; --warn:#a16207; --warn-bg:#fef3c7; --ng:#b91c1c; --ng-bg:#fee2e2;
+  --info:#1d4ed8; --info-bg:#dbeafe;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif;font-size:14px}
+header.top{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+header.top h1{font-size:16px;margin:0}
+.demo{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:auto}
+.demo span{font-size:12px;color:var(--sub)}
+.demo button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
+.demo button:hover{background:#f3f4f6}
+main{padding:18px 20px}
+.note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:16px;line-height:1.7;display:grid;grid-template-columns:1fr 1fr;gap:6px 28px}
+.note h2{font-size:18px;margin:0 0 4px;grid-column:1/-1}
+.note h3{font-size:13px;margin:0;color:var(--sub)}
+.note ul{margin:0;padding-left:18px}
+.stage{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.cap{font-size:12px;color:var(--sub);margin:0 0 6px}
+
+.pc{width:1140px;height:760px;background:#fff;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08);display:flex;flex-direction:column}
+.chrome{height:28px;background:#e5e7eb;display:flex;align-items:center;gap:6px;padding:0 10px;font-size:11px;color:#6b7280;flex:none}
+.chrome i{width:10px;height:10px;border-radius:50%;background:#cbd5e1;display:inline-block}
+.screen{flex:1;display:flex;min-height:0}
+.rail{width:56px;background:#1f2937;color:#9ca3af;display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:12px;flex:none}
+.rail .logo{color:#fff;font-weight:800;letter-spacing:.06em;margin-bottom:10px;font-size:13px}
+.rail a{width:42px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.rail a.cur{background:#374151;color:#fff}
+.content{flex:1;display:flex;flex-direction:column;min-width:0;background:#fff}
+
+/* ===== 1 段目: 担当者・読み取りバー・納期 ===== */
+.bar{display:flex;align-items:stretch;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);flex:none}
+.who{display:flex;flex-direction:column;justify-content:center;font-size:11px;color:var(--sub);white-space:nowrap;line-height:1.25}
+.who b{font-size:16px;color:var(--ink)}
+.who button{border:0;background:none;color:var(--info);font:inherit;font-size:11px;padding:0;cursor:pointer;text-align:left}
+.sel{border:1px solid #cbd5e1;border-radius:8px;padding:4px 10px;font-size:11px;color:var(--sub);background:#fff;white-space:nowrap;display:flex;flex-direction:column;justify-content:center;line-height:1.3}
+.sel b{font-size:14px;color:var(--ink)}
+
+/* 読み取りバー: 読み取りの状態と直前の結果を 1 本で表す */
+.rbar{flex:1;position:relative;display:flex;align-items:center;gap:12px;border:2px solid;border-radius:10px;padding:4px 8px 4px 12px;min-width:0;height:56px;cursor:pointer;transition:background .2s}
+.rbar .ic{font-size:26px;width:30px;text-align:center;flex:none;font-weight:700}
+.rbar .lb{font-size:22px;font-weight:800;white-space:nowrap}
+.rbar .ms{font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rbar .it{margin-left:auto;text-align:right;font-size:12px;line-height:1.35;white-space:nowrap}
+.rbar .it b{font-size:15px}
+.rbar .st{flex:none;position:relative;z-index:2;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;border-left:1px solid rgba(0,0,0,.12);padding-left:10px;white-space:nowrap}
+.rbar .dot{width:10px;height:10px;border-radius:50%;background:currentColor}
+.rbar .man{border:1px solid currentColor;background:#fff;border-radius:6px;padding:3px 7px;font:inherit;font-size:11px;cursor:pointer;color:inherit}
+.rbar .inp{position:absolute;inset:0;opacity:0;border:0;width:100%;cursor:pointer}
+/* 待機 */
+.rbar.idle{border-color:var(--ok);background:#f6fdf8;color:var(--ok)}
+.rbar.idle .dot{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+/* 結果 */
+.rbar.ok{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
+.rbar.dup,.rbar.rv{border-color:#ca8a04;background:var(--warn-bg);color:var(--warn)}
+.rbar.nf{border-color:var(--ng);background:var(--ng-bg);color:var(--ng)}
+.rbar.ok .dot,.rbar.dup .dot,.rbar.nf .dot{color:var(--ok);animation:pulse 1.6s ease-in-out infinite}
+.rbar.pop{animation:pop .35s ease}
+@keyframes pop{40%{transform:scale(1.015)}}
+/* 停止中・担当者変更中（結果より優先して表示） */
+.rbar.stopped{border-color:var(--ng);background:var(--ng);color:#fff}
+.rbar.stopped .man{background:transparent}
+.rbar.paused{border-color:#cbd5e1;background:#f3f4f6;color:var(--sub);cursor:default}
+.rbar.paused .man{display:none}
+.rbar.manual{border-color:var(--accent);background:#fff;color:var(--ink);cursor:text}
+.rbar.manual .inp{position:static;opacity:1;flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:7px 10px;font-size:16px;font-family:Consolas,monospace;cursor:text}
+.rbar.manual .ms,.rbar.manual .it{display:none}
+
+/* ===== 2 段目: 置場タブ＋絞り込み（1 行） ===== */
+.row2{display:flex;align-items:flex-end;gap:6px;padding:6px 12px 0;border-bottom:1px solid #cbd5e1;background:#f9fafb;flex:none}
+.lt{border:1px solid transparent;border-bottom:none;border-radius:8px 8px 0 0;background:transparent;padding:5px 10px 6px;cursor:pointer;font:inherit;color:var(--ink);text-align:left;min-width:128px;position:relative;white-space:nowrap}
+.lt .nm{font-weight:800;font-size:14px}
+.lt .ct{float:right;font-weight:700;font-size:13px;margin-left:8px}
+.lt .pb{height:4px;background:#d1d5db;border-radius:2px;margin-top:4px;overflow:hidden;clear:both}
+.lt .pb i{display:block;height:100%;background:var(--accent)}
+.lt.done .pb i{background:var(--ok)}
+.lt.done .ct{color:var(--ok)}
+.lt.cur{background:#fff;border-color:#cbd5e1}
+.lt.cur::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#fff}
+.lt.empty{opacity:.5}
+.lt.flash{animation:flash .9s ease 2}
+@keyframes flash{50%{background:var(--info-bg)}}
+.tools{margin-left:auto;display:flex;gap:6px;align-items:center;padding-bottom:6px}
+.seg{display:flex;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden}
+.seg button{white-space:nowrap;border:0;background:#fff;padding:5px 9px;font:inherit;font-size:12px;cursor:pointer;border-left:1px solid #e5e7eb}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--dark);color:#fff}
+.ib{border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:5px 9px;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.ib.on{background:#e5e7eb}
+
+/* ===== 一覧 ===== */
+.cond{font-size:12px;color:var(--sub);padding:5px 14px;border-bottom:1px solid var(--line);flex:none;display:flex;gap:18px}
+.cond b{color:var(--ink)}
+.scroll{flex:1;overflow:auto;min-height:0}
+table.g{width:100%;border-collapse:collapse;font-size:13px}
+table.g th{position:sticky;top:0;background:#4b5563;color:#fff;font-weight:600;padding:5px 8px;text-align:center;white-space:nowrap;z-index:1;font-size:12px}
+table.g td{padding:0 8px;height:30px;border-bottom:1px solid #eef0f2;white-space:nowrap}
+table.g td.n{text-align:right;font-variant-numeric:tabular-nums}
+table.g td.c{text-align:center}
+table.g tr.chk td{background:var(--ok-row)}
+table.g tr.hit td{background:#a7f3c0;font-weight:700}
+table.g tr.hit td:first-child{box-shadow:inset 5px 0 0 var(--ok)}
+table.g tr.hitdup td{background:#fde68a;font-weight:700}
+table.g tr.hitdup td:first-child{box-shadow:inset 5px 0 0 #ca8a04}
+table.g .ex{display:none}
+table.g.full .ex{display:table-cell}
+.mono{font-family:Consolas,"BIZ UDGothic",monospace}
+.mark{font-size:14px;font-weight:700}
+
+/* ===== 最下段 ===== */
+.sum{display:flex;gap:20px;align-items:center;padding:6px 14px;border-top:1px solid #cbd5e1;font-size:12px;color:var(--sub);background:#f9fafb;flex:none;white-space:nowrap}
+.sum b{color:var(--ink);font-size:15px;margin-left:3px}
+.sum .sep{width:1px;height:16px;background:#d1d5db}
+
+/* スマホ */
+.phone{width:360px;height:760px;background:#fff;border:10px solid #1f2937;border-radius:36px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.12);display:flex;flex-direction:column}
+.notch{height:22px;flex:none;display:flex;justify-content:space-between;padding:4px 18px 0;font-size:11px;font-weight:600}
+.ph-h{padding:8px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline}
+.ph-h b{font-size:15px}
+.ph-h span{font-size:12px;color:var(--sub)}
+.ph-tabs{display:flex;gap:6px;padding:8px 10px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line);flex:none}
+.pt{flex:none;border:1px solid var(--line);border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;background:#fff;cursor:pointer}
+.pt.cur{background:var(--dark);color:#fff;border-color:var(--dark)}
+.ph-prog{padding:6px 14px 8px;border-bottom:1px solid var(--line);font-size:12px;color:var(--sub);flex:none}
+.ph-prog .pb{height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;margin-bottom:4px}
+.ph-prog .pb i{display:block;height:100%;background:var(--accent)}
+.ph-list{flex:1;overflow:auto}
+.prow{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid #eef0f2;font-size:12px}
+.prow.chk{background:var(--ok-row)}
+.prow .m{width:16px;text-align:center;font-weight:700}
+.prow .b{flex:1;min-width:0}
+.prow .b div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .q{text-align:right;white-space:nowrap}
+.tab-bottom{display:flex;border-top:1px solid var(--line);flex:none;background:#fff}
+.tab-bottom div{flex:1;text-align:center;padding:7px 0 9px;font-size:10px;color:var(--sub)}
+.tab-bottom div b{display:block;font-size:17px;font-weight:400;line-height:1.3}
+.tab-bottom div.cur{color:var(--ink);font-weight:700}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>PARTS GATE｜置場別チェック（一覧優先レイアウト）</h1>
+  <div class="demo">
+    <span>試す：</span>
+    <button data-act="ok">✔ 次の部品を読む</button>
+    <button data-act="other">↪ 別の置場の部品</button>
+    <button data-act="dup">⚠ 読み取り済み</button>
+    <button data-act="nf">✖ 未登録</button>
+    <button data-act="stop">別の場所を押す</button>
+    <button data-act="reset">最初に戻す</button>
+  </div>
+</header>
+<main>
+  <div class="note">
+    <h2>前の案から変えたところ（一覧の見える行数：約 10 行 → 約 18 行）</h2>
+    <div><h3>1. 結果の帯と「読み取りOK」を 1 本にまとめた</h3>
+      <ul><li>どちらも「いまの状態」を示していたので重複していました。上の 1 本の<b>読み取りバー</b>に、直前の結果（色・アイコン・文字・部品の情報）と、右端に読み取りの状態（● 読み取りOK）を出します</li>
+      <li>読み取りが止まったときは、結果より優先して<b>バー全体が赤</b>になります（読み取りの取りこぼしが一番困るため）</li></ul></div>
+    <div><h3>2. 置場タブと絞り込みを 1 行にした</h3>
+      <ul><li>タブを低くし、「すべて・未チェック・済み」と印刷・CSV を同じ行の右側へ移しました</li>
+      <li>最下段の「全置場」の行は、置場ごとの合計と同じ行にまとめました</li></ul></div>
+    <div><h3>3. 全部の行が同じ値になる列は、一覧の上に 1 回だけ表示</h3>
+      <ul><li>置場（タブで選んでいる）、ミスミ納期（右上で選んでいる）、メーカー出荷日・出荷方法（その日は全行同じ）は、一覧の上に 1 行で表示します。「全列」ボタンで、今のシートと同じ全部の列に戻せます</li></ul></div>
+    <div><h3>4. 行を詰め、結果は行そのものでも示す</h3>
+      <ul><li>行の高さを詰めました。読んだ行は自動でその位置まで移動し、濃い緑（読み取り済みは黄）で光ります</li>
+      <li>未登録など一覧にない結果は、読み取りバーが赤のまま次の読み取りまで残ります</li></ul></div>
+  </div>
+  <div class="stage">
+    <div><p class="cap">PC：バーコード読み取り（置場別チェック）</p>
+      <div class="pc"><div class="chrome"><i></i><i></i><i></i>&nbsp; space-apps.pages.dev/PartsGate/app/#/scan</div>
+        <div class="screen">
+          <nav class="rail"><div class="logo">PG</div><a class="cur" title="読み取り">▣</a><a title="注文">☰</a><a title="履歴">↺</a><a title="分析">▤</a><a title="設定">⚙</a></nav>
+          <div class="content">
+            <div class="bar">
+              <div class="who">担当<b>山田 太郎</b><button id="chg">担当者を変える</button></div>
+              <div class="rbar idle" id="rbar">
+                <span class="ic" id="b-ic"></span><span class="lb" id="b-lb"></span><span class="ms" id="b-ms"></span><span class="it" id="b-it"></span>
+                <input class="inp" id="inp" autocomplete="off" aria-label="バーコードの読み取り値">
+                <span class="st"><span class="dot"></span><span id="st-t"></span><button class="man" id="man" type="button">手入力</button></span>
+              </div>
+              <div class="sel">ミスミ納期<b>11/06（金）▾</b></div>
+            </div>
+            <div class="row2">
+              <div id="tabs" style="display:flex;gap:4px"></div>
+              <div class="tools">
+                <div class="seg" id="seg"><button data-f="all" class="on">すべて</button><button data-f="todo">未チェック</button><button data-f="done">済み</button></div>
+                <button class="ib" id="todoFirst" title="未チェックを上に並べる">未チェックを上へ</button>
+                <button class="ib" id="full" title="今のシートと同じ全部の列を表示">全列</button>
+                <button class="ib">印刷</button><button class="ib">CSV</button>
+              </div>
+            </div>
+            <div class="cond" id="cond"></div>
+            <div class="scroll" id="scroll"><table class="g" id="grid"><thead><tr>
+              <th></th><th>グローバル番号</th><th class="ex">メーカー出荷日(SSD)</th><th class="ex">ミスミ納期(VRD)</th><th class="ex">出荷方法</th><th>商品コード</th><th class="ex">置場</th><th>数量</th><th>個別重量</th><th>商品重量</th><th>チェック者</th><th>チェック時間</th>
+            </tr></thead><tbody id="rows"></tbody></table></div>
+            <div class="sum" id="sum"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div><p class="cap">スマホ：置場別の確認（閲覧用・1 行表示で件数を多く）</p>
+      <div class="phone"><div class="notch"><span>9:41</span><span>●●●</span></div>
+        <div class="ph-h"><b>置場別チェック</b><span>ミスミ納期 11/06（金）</span></div>
+        <div class="ph-tabs" id="ptabs"></div>
+        <div class="ph-prog" id="pprog"></div>
+        <div class="ph-list" id="plist"></div>
+        <div class="tab-bottom"><div class="cur"><b>▣</b>置場別</div><div><b>☰</b>注文</div><div><b>↺</b>履歴</div><div><b>▤</b>分析</div></div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+// ===== ダミーデータ（実データは使わない） =====
+let seed = 7;
+const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const pick = a => a[Math.floor(rnd() * a.length)];
+const LOCS = [
+  { code: '0053', name: '東日本', n: 14, done: 9 },
+  { code: '0055', name: '中日本', n: 22, done: 15 },
+  { code: '0056', name: '西日本第二', n: 1, done: 1 },
+  { code: '0052', name: '西日本', n: 0, done: 0 },
+];
+const STAFF = ['佐藤 花子', '鈴木 一郎', '山田 太郎'];
+const AL = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
+const rcode = n => Array.from({ length: n }, () => pick(AL)).join('');
+let rows, cur, filter = 'all', last = null, minute, todoFirst = false;
+let result = null;       // 直前の結果 { kind, ic, lb, ms, it }
+let mode = 'ready';      // ready / stopped / paused / manual
+const inp = document.getElementById('inp'), rbar = document.getElementById('rbar');
+
+function build() {
+  seed = 7; rows = []; minute = 0; let g = 100000;
+  for (const l of LOCS) {
+    const idx = [...Array(l.n).keys()];
+    const doneSet = new Set(idx.sort(() => rnd() - .5).slice(0, l.done));
+    for (let i = 0; i < l.n; i++) {
+      g += 1 + Math.floor(rnd() * 900);
+      const done = doneSet.has(i);
+      rows.push({ id: rows.length, loc: l.code, gno: '5P000' + String(g).padStart(9, '0'),
+        prod: pick(['MVSHM-PN0', 'MVSHM-PN0', 'MVSWD-PN0']) + pick(['2000', '3250', '1250', '6050', '4552', '2350']) + '-4P' + pick(['W', 'S', 'R', 'M']) + '-' + rcode(5),
+        qty: pick([1, 1, 1, 1, 2, 2, 3, 4, 6]), w: Math.round(20 + rnd() * 1500),
+        by: done ? pick(STAFF) : '', at: done ? tm(10 * 60 + 40 + Math.floor(rnd() * 19), Math.floor(rnd() * 60)) : '' });
+    }
+  }
+  cur = '0055'; last = null; filter = 'all'; result = null; mode = 'ready';
+  paint(); render();
+}
+const tm = (m, s) => `11/05 ${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+const now = () => { minute++; return tm(11 * 60 + Math.floor(minute / 4), (minute * 13) % 60); };
+const locName = c => LOCS.find(l => l.code === c).name;
+const kg = g => (g / 1000).toFixed(1) + ' kg';
+
+// 読み取りバーの描画: 停止中・担当者変更中・手入力は結果より優先
+function paint() {
+  const S = { ready: ['読み取りOK'], stopped: ['停止中'], paused: ['停止中'], manual: ['手入力'] };
+  let cls, ic, lb, ms, it;
+  if (mode === 'stopped') { cls = 'stopped'; ic = '⏸'; lb = '読み取りが止まっています'; ms = 'ここを押すと再開します'; it = ''; }
+  else if (mode === 'paused') { cls = 'paused'; ic = '⏸'; lb = '担当者を選んでください'; ms = '担当者を変えている間は読み取りません'; it = ''; }
+  else if (mode === 'manual') { cls = 'manual'; ic = '⌨'; lb = ''; ms = ''; it = ''; }
+  else if (result) { ({ kind: cls, ic, lb, ms, it } = result); }
+  else { cls = 'idle'; ic = '▣'; lb = 'リーダーで部品のラベルを読んでください'; ms = ''; it = ''; }
+  rbar.className = 'rbar ' + cls;
+  document.getElementById('b-ic').textContent = ic;
+  document.getElementById('b-lb').textContent = lb;
+  document.getElementById('b-lb').style.fontSize = cls === 'idle' ? '17px' : '';
+  document.getElementById('b-ms').innerHTML = ms;
+  document.getElementById('b-it').innerHTML = it;
+  document.getElementById('st-t').textContent = S[mode][0];
+  document.getElementById('man').textContent = mode === 'manual' ? 'やめる' : '手入力';
+  inp.disabled = mode === 'paused';
+  inp.placeholder = mode === 'manual' ? 'ラベルの番号を入力して Enter（Esc でやめる）' : '';
+  document.getElementById('chg').textContent = mode === 'paused' ? '担当者を選んだことにする' : '担当者を変える';
+}
+
+function render() {
+  const t = document.getElementById('tabs'); t.innerHTML = '';
+  const pt = document.getElementById('ptabs'); pt.innerHTML = '';
+  for (const l of LOCS) {
+    const rs = rows.filter(r => r.loc === l.code), d = rs.filter(r => r.by).length, full = rs.length && d === rs.length;
+    const b = document.createElement('button');
+    b.className = 'lt' + (l.code === cur ? ' cur' : '') + (rs.length ? '' : ' empty') + (full ? ' done' : '');
+    b.dataset.loc = l.code;
+    b.innerHTML = `<span class="nm">${l.code} ${l.name}</span><span class="ct">${full ? '✔ ' : ''}${d}/${rs.length}</span><div class="pb"><i style="width:${rs.length ? d / rs.length * 100 : 0}%"></i></div>`;
+    b.onclick = () => { cur = l.code; last = null; render(); inp.focus(); };
+    t.appendChild(b);
+    const p = document.createElement('button');
+    p.className = 'pt' + (l.code === cur ? ' cur' : ''); p.textContent = `${l.code} ${d}/${rs.length}`;
+    p.onclick = () => { cur = l.code; render(); };
+    pt.appendChild(p);
+  }
+  const all = rows.filter(r => r.loc === cur);
+  let rs = all;
+  if (filter === 'todo') rs = rs.filter(r => !r.by);
+  if (filter === 'done') rs = rs.filter(r => r.by);
+  if (todoFirst) rs = [...rs].sort((a, b) => (!!a.by - !!b.by) || a.id - b.id);
+  document.getElementById('cond').innerHTML = `<span>置場 <b>${cur} ${locName(cur)}</b></span><span>ミスミ納期 <b>2026/11/06</b></span><span>メーカー出荷日 <b>2026/11/05</b></span><span>出荷方法 <b>センター納入</b></span><span style="margin-left:auto">${rs.length} 件表示</span>`;
+  document.getElementById('rows').innerHTML = rs.length ? rs.map(r => `<tr class="${r.by ? 'chk' : ''} ${last && last.id === r.id ? (last.kind === 'dup' ? 'hitdup' : 'hit') : ''}" id="r${r.id}">
+    <td class="c mark" style="color:${r.by ? 'var(--ok)' : '#cbd5e1'}">${r.by ? '✔' : '○'}</td>
+    <td class="mono">${r.gno}</td><td class="c ex">20261105</td><td class="c ex">20261106</td><td class="ex">センター納入</td>
+    <td class="mono">${r.prod}</td><td class="c ex">${r.loc}</td><td class="n">${r.qty}</td><td class="n">${r.w.toLocaleString()}</td><td class="n">${(r.w * r.qty).toLocaleString()}</td>
+    <td>${r.by}</td><td>${r.at}</td></tr>`).join('')
+    : `<tr><td colspan="12" style="text-align:center;color:var(--sub);height:80px">この置場の明細はありません</td></tr>`;
+  const done = all.filter(r => r.by), tot = rows.length, td = rows.filter(r => r.by).length;
+  document.getElementById('sum').innerHTML =
+    `<span><b style="font-size:13px">${cur} ${locName(cur)}</b></span><span>済み<b>${done.length}/${all.length}</b></span><span>未チェック<b style="color:${all.length - done.length ? 'var(--warn)' : 'var(--ok)'}">${all.length - done.length}</b></span>` +
+    `<span>数量<b>${all.reduce((s, r) => s + r.qty, 0)}</b></span><span>商品重量<b>${kg(all.reduce((s, r) => s + r.w * r.qty, 0))}</b></span>` +
+    `<span class="sep"></span><span>全置場 済み<b>${td}/${tot}</b></span><span>重複<b>5</b></span><span>エラー<b>2</b></span>`;
+  // スマホ
+  document.getElementById('pprog').innerHTML = `<div class="pb"><i style="width:${all.length ? done.length / all.length * 100 : 0}%;background:${all.length && done.length === all.length ? 'var(--ok)' : 'var(--accent)'}"></i></div>
+    <b style="color:var(--ink)">${cur} ${locName(cur)}</b>　済み <b style="color:var(--ink)">${done.length}/${all.length}</b>・未チェック ${all.length - done.length}・数量 ${all.reduce((s, r) => s + r.qty, 0)}・${kg(all.reduce((s, r) => s + r.w * r.qty, 0))}`;
+  const pl = [...all].sort((a, b) => (!!a.by - !!b.by) || a.id - b.id);
+  document.getElementById('plist').innerHTML = pl.length ? pl.map(r => `<div class="prow ${r.by ? 'chk' : ''}"><span class="m" style="color:${r.by ? 'var(--ok)' : '#cbd5e1'}">${r.by ? '✔' : '○'}</span>
+    <div class="b"><div class="mono"><b>${r.gno}</b></div><div class="mono" style="color:#4b5563">${r.prod}</div></div>
+    <div class="q">数量 <b>${r.qty}</b><div style="color:var(--sub)">${r.by ? r.at.slice(6, 11) + ' ' + r.by.split(' ')[0] : '未'}</div></div></div>`).join('')
+    : '<div style="text-align:center;color:var(--sub);padding:30px">明細はありません</div>';
+  document.querySelectorAll('#seg button').forEach(c => c.classList.toggle('on', c.dataset.f === filter));
+  document.getElementById('todoFirst').classList.toggle('on', todoFirst);
+  if (last) { const el = document.getElementById('r' + last.id); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+}
+const itemInfo = r => `<span class="mono">${r.gno}</span><br><span class="mono">${r.prod}</span>　数量 <b>${r.qty}</b>`;
+function show(res) { result = res; paint(); rbar.classList.remove('pop'); void rbar.offsetWidth; rbar.classList.add('pop'); }
+function scan(act, manual) {
+  if (act === 'reset') { build(); return; }
+  if (act === 'nf') { last = null; show({ kind: 'nf', ic: '✖', lb: '未登録', ms: '注文データにない番号です。ラベルと今日の CSV を確認してください', it: '<span class="mono">5P000999999999</span>' }); render(); return; }
+  if (act === 'dup') {
+    const r = rows.find(x => x.loc === cur && x.by) || rows.find(x => x.by);
+    cur = r.loc; last = { id: r.id, kind: 'dup' };
+    show({ kind: 'dup', ic: '⚠', lb: '読み取り済み', ms: `${r.at.slice(6, 11)} に ${r.by} さんがチェック済み`, it: itemInfo(r) }); render(); return;
+  }
+  const r = act === 'other' ? rows.find(x => x.loc !== cur && !x.by) : (rows.find(x => x.loc === cur && !x.by) || rows.find(x => !x.by));
+  if (!r) { last = null; show({ kind: 'ok', ic: '✔', lb: '全部チェック済み', ms: 'この納期の部品はすべて終わりました', it: '' }); render(); return; }
+  const moved = r.loc !== cur;
+  r.by = '山田 太郎'; r.at = now(); cur = r.loc; last = { id: r.id, kind: 'ok' };
+  show({ kind: 'ok', ic: '✔', lb: '正常', ms: `置場 <b>${r.loc} ${locName(r.loc)}</b>${moved ? ' <span style="background:var(--info-bg);color:var(--info);border-radius:999px;padding:1px 8px;font-size:12px;font-weight:700">置場が違います → 切り替えました</span>' : ''}${manual ? ' <span style="background:#e5e7eb;color:#374151;border-radius:999px;padding:1px 8px;font-size:12px">手入力</span>' : ''}`, it: itemInfo(r) });
+  render();
+  if (moved) { const t = document.querySelector(`.lt[data-loc="${r.loc}"]`); t && t.classList.add('flash'); }
+}
+
+// ===== 読み取りの状態（実装では入力欄のフォーカスで判定） =====
+const setMode = m => { mode = m; paint(); };
+inp.addEventListener('focus', () => { if (mode === 'stopped') setMode('ready'); });
+inp.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== inp && (mode === 'ready' || mode === 'manual')) setMode('stopped'); }, 120));
+rbar.addEventListener('click', e => { if (e.target.id !== 'man' && mode !== 'paused') inp.focus(); });
+document.getElementById('man').onclick = e => { e.stopPropagation(); if (mode === 'paused') return; setMode(mode === 'manual' ? 'ready' : 'manual'); inp.value = ''; inp.focus(); };
+document.getElementById('chg').onclick = () => { if (mode === 'paused') { setMode('ready'); inp.focus(); } else setMode('paused'); };
+inp.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && mode === 'manual') { inp.value = ''; setMode('ready'); }
+  if (e.key === 'Enter') { const m = mode === 'manual'; inp.value = ''; mode = 'ready'; scan('ok', m); }
+});
+document.querySelectorAll('.demo button').forEach(b => b.onclick = () => {
+  if (b.dataset.act === 'stop') { inp.blur(); return; }
+  if (mode === 'paused' && b.dataset.act !== 'reset') { rbar.classList.remove('pop'); void rbar.offsetWidth; rbar.classList.add('pop'); return; }
+  if (mode === 'manual' || mode === 'stopped') mode = 'ready';
+  scan(b.dataset.act); inp.focus();
+});
+document.querySelectorAll('#seg button').forEach(c => c.onclick = () => { filter = c.dataset.f; last = null; render(); inp.focus(); });
+document.getElementById('todoFirst').onclick = () => { todoFirst = !todoFirst; render(); inp.focus(); };
+document.getElementById('full').onclick = e => { const g = document.getElementById('grid'); g.classList.toggle('full'); e.target.classList.toggle('on'); inp.focus(); };
+build();
+inp.focus();
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+var e=`英数字と - _ . で 32 文字まで`,t=[`barcode_global_no`,`global_no`],n={barcode_global_no:`バーコード用グローバル番号`,global_no:`グローバル番号`},r=[`one`,`quantity`],i={one:`1 行につきラベル 1 枚（1 回読めば照合完了）`,quantity:`数量の分だけラベルがある（数量の回数読む）`};export{i as a,r as i,t as n,n as r,e as t};
