@@ -75,5 +75,42 @@ export async function apiSend<T = unknown>(method: 'POST' | 'PUT', path: string,
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
+/** ファイル本体をそのまま送る（CSV 取込の元ファイル）。ヘッダーでファイル名などを渡す */
+export async function apiUploadRaw<T>(path: string, body: Uint8Array, extraHeaders: Record<string, string>): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(API_BASE + path, {
+      method: 'POST',
+      headers: { ...headers(false), 'Content-Type': 'text/csv', ...extraHeaders },
+      body: new Blob([body as BlobPart]),
+      signal: AbortSignal.timeout(60_000),
+    });
+  } catch {
+    throw new ApiError(0, 'ファイルを送れませんでした。ネットワークを確かめて、もう一度お試しください。');
+  }
+  if (!res.ok) { handle401(res); throw await toError(res); }
+  return (await res.json()) as T;
+}
+
+/** 権限が必要なファイルを取得して保存させる（ファイル名はサーバーの Content-Disposition に従う） */
+export async function apiDownload(path: string, fallbackName: string): Promise<void> {
+  const res = await fetch(API_BASE + path, { headers: headers(false), signal: AbortSignal.timeout(60_000) });
+  if (!res.ok) { handle401(res); throw await toError(res); }
+  const m = /filename\*=UTF-8''([^;]+)/.exec(res.headers.get('Content-Disposition') ?? '');
+  saveBlob(m?.[1] ? decodeURIComponent(m[1]) : fallbackName, await res.blob());
+}
+
+/** 端末にファイルとして保存させる */
+export function saveBlob(name: string, blob: Blob): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
 /** 一覧 API の形（キーセットのページ送り） */
 export interface Page<T> { items: T[]; next_cursor: string | null }

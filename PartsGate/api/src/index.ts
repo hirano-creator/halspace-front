@@ -8,6 +8,7 @@ import { requireAuth } from './middleware/auth';
 import { auditRoutes } from './routes/audit';
 import { companyRoutes } from './routes/companies';
 import { destinationRoutes, locationRoutes, staffRoutes } from './routes/masters';
+import { importRoutes } from './routes/imports';
 import { meRoutes } from './routes/me';
 import { settingsRoutes } from './routes/settings';
 import { userRoutes } from './routes/users';
@@ -19,7 +20,8 @@ app.use('*', secureHeaders({ xFrameOptions: 'DENY', referrerPolicy: 'same-origin
 // Bearer トークンのみで Cookie を使わないので credentials は許可しない（CSRF の対象外にする）
 app.use('/api/*', (c, next) => cors({
   origin: (origin) => (c.env.ALLOWED_ORIGINS.split(',').includes(origin) ? origin : null),
-  allowHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-File-Name'],
+  // X-File-* / X-Encoding は CSV 取込の元ファイルの送信に使う（足し忘れるとブラウザが送信の前に止める）
+  allowHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-File-Name', 'X-File-Sha256', 'X-Encoding'],
   allowMethods: ['GET', 'POST', 'PUT', 'OPTIONS'],
   maxAge: 600,
 })(c, next));
@@ -48,6 +50,7 @@ api.route('/', userRoutes);
 api.route('/', staffRoutes);
 api.route('/', locationRoutes);
 api.route('/', destinationRoutes);
+api.route('/', importRoutes);
 api.route('/', auditRoutes);
 api.route('/', companyRoutes);
 app.route('/api', api);

@@ -4,7 +4,7 @@
 
 ## 状態
 
-STEP 4 までローカルで完了（2026-11-05）。次は STEP 5（CSV 取込）。設計書は `docs/`、未確定事項は `docs/requirements.md` §6、画面の方向性は `_mock-c-compact.html`（読み取り）・`_mock-import-analytics.html`（取込・分析）。起動・テストは README。
+STEP 5（CSV 取込）までローカルで完了（2026-11-05）。次は STEP 6（バーコード照合）。設計書は `docs/`、未確定事項は `docs/requirements.md` §6、画面の方向性は `_mock-c-compact.html`（読み取り）・`_mock-import-analytics.html`（取込・分析）。起動・テストは README。
 
 ## 実装の決まり
 

@@ -25,6 +25,21 @@ export async function call<T = any>(method: string, path: string, token?: string
   return { status: res.status, body: parsed as T, headers: res.headers };
 }
 
+/** CSV の本体をそのまま送る（取込の POST /imports） */
+export async function upload(token: string, text: string, headers: Record<string, string> = {}): Promise<Res> {
+  const body = new TextEncoder().encode(text);
+  const res = await app.request('/api/imports', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`, 'Content-Type': 'text/csv', 'Content-Length': String(body.length),
+      'X-File-Name': encodeURIComponent('test.csv'), 'X-File-Sha256': 'a'.repeat(64), 'X-Encoding': 'utf-8', ...headers,
+    },
+    body,
+  }, env);
+  const t = await res.text();
+  return { status: res.status, body: t ? JSON.parse(t) : null, headers: res.headers };
+}
+
 export const get = <T = any>(path: string, token?: string) => call<T>('GET', path, token);
 export const post = <T = any>(path: string, token: string, body: unknown = {}) => call<T>('POST', path, token, body);
 export const put = <T = any>(path: string, token: string, body: unknown) => call<T>('PUT', path, token, body);

@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, type ReactNode } from 'react';
 import type { Action } from '@partsgate/shared';
 import { useAuth, AuthProvider } from './auth/AuthContext';
-import { navigate, usePath } from './router';
+import { match, navigate, usePath } from './router';
 import { Layout } from './components/Layout';
 import { Alert, Loading } from './components/ui';
 import { LoginPage } from './pages/LoginPage';
@@ -21,13 +21,19 @@ const UsersPage = admin('UsersPage');
 const SettingsPage = admin('SettingsPage');
 const AuditPage = admin('AuditPage');
 const CompaniesPage = admin('CompaniesPage');
+const ImportPage = lazy(() => import('./pages/ImportPage').then((m) => ({ default: m.ImportPage })));
+const ImportHistoryPage = lazy(() => import('./pages/ImportHistoryPage').then((m) => ({ default: m.ImportHistoryPage })));
+const ImportDetailPage = lazy(() => import('./pages/ImportHistoryPage').then((m) => ({ default: m.ImportDetailPage })));
 
 /** 画面の一覧（docs/screens.md §1）。action は画面を開ける権限（最終判定は API） */
-const ROUTES: { path: string; action?: Action; render: () => ReactNode }[] = [
+const ROUTES: { path: string; action?: Action; render: (p: Record<string, string>) => ReactNode }[] = [
   { path: '/', render: () => <HomePage /> },
   { path: '/staff', action: 'master.view', render: () => <StaffPage /> },
   { path: '/locations', action: 'master.view', render: () => <LocationsPage /> },
   { path: '/destinations', action: 'master.view', render: () => <DestinationsPage /> },
+  { path: '/imports/new', action: 'import', render: () => <ImportPage /> },
+  { path: '/imports', action: 'import', render: () => <ImportHistoryPage /> },
+  { path: '/imports/:id', action: 'import', render: (p) => <ImportDetailPage key={p.id} id={p.id ?? ''} /> },
   { path: '/users', action: 'users.manage', render: () => <UsersPage /> },
   { path: '/settings', action: 'settings.manage', render: () => <SettingsPage /> },
   { path: '/audit', action: 'audit.view', render: () => <AuditPage /> },
@@ -44,11 +50,13 @@ function Screen() {
   if (loading) return <Loading />;
   if (!me) return <LoginPage />;
 
-  const route = ROUTES.find((r) => r.path === path);
+  // 固定のパスを先に、:id のようなパターンはあとで照合する（/imports/new が /imports/:id に当たらないように）
+  let params: Record<string, string> = {};
+  const route = ROUTES.find((r) => r.path === path) ?? ROUTES.find((r) => { const m = r.path.includes(':') ? match(r.path, path) : null; if (m) params = m; return !!m; });
   let body: ReactNode;
   if (!route) body = <div className="p-5"><Alert kind="warn">ページが見つかりません。<a className="underline" href="#/">ホームへ</a></Alert></div>;
   else if (route.action && !can(route.action)) body = <div className="p-5"><Alert kind="warn">この画面を開く権限がありません。</Alert></div>;
-  else body = <Suspense fallback={<Loading />}>{route.render()}</Suspense>;
+  else body = <Suspense fallback={<Loading />}>{route.render(params)}</Suspense>;
   return <Layout path={path}>{body}</Layout>;
 }
 
