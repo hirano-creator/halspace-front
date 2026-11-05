@@ -16,8 +16,11 @@ const NAV: NavGroup[] = [
   { items: [{ to: '/', label: 'ホーム', icon: '⌂' }] },
   { label: '業務', items: [
     { to: '/scan', label: 'バーコード読み取り', icon: '▣', action: 'scan' },
+    { to: '/orders', label: '注文データ', icon: '☷', action: 'orders.view' },
+    { to: '/scan-logs', label: '読み取り履歴', icon: '⌕', action: 'orders.view' },
     { to: '/imports/new', label: 'CSV 取込', icon: '⇪', action: 'import' },
     { to: '/imports', label: '取込履歴', icon: '↺', action: 'import' },
+    { to: '/analytics', label: 'データ分析', icon: '▤', action: 'analytics.view' },
   ] },
   { label: 'マスター', items: [
     { to: '/staff', label: '担当者', icon: '◉', action: 'master.view' },
