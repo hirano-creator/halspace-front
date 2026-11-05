@@ -37,7 +37,7 @@ describe('ログイン確認', () => {
 
   it('CORS: 画面のオリジンには、取込で使うヘッダーも許可する', async () => {
     const { env } = await import('cloudflare:workers');
-    const app = (await import('../src/index')).default;
+    const { app } = await import('../src/index');
     const res = await app.request('/api/imports', {
       method: 'OPTIONS',
       headers: { Origin: 'http://localhost:5174', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'authorization,content-type,x-file-name,x-file-sha256,x-encoding' },

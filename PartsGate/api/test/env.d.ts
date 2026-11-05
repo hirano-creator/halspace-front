@@ -6,6 +6,8 @@ declare global {
     interface Env extends AppEnv {
       TEST_MIGRATIONS: D1Migration[];
       TEST_SEED_SQL: string;
+      TEST_INIT_SQL: string;
+      RESTORE_DB: D1Database;
     }
   }
 }

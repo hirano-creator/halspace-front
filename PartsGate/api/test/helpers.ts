@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:workers';
-import app from '../src/index';
+import { app } from '../src/index';
 
 /** ダミーデータの利用者（開発用の簡易ログイン "dev-<hs_user_id>"。api/seed/dev-seed.sql） */
 export const T = {
