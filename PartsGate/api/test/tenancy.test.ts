@@ -21,6 +21,9 @@ const COVERED = new Set<string>([
   // 取込は imports.test.ts の「取込のテナント分離」で確かめている
   'POST /api/imports/lookup', 'POST /api/imports', 'POST /api/imports/:id/rows', 'POST /api/imports/:id/commit', 'POST /api/imports/:id/abort',
   'GET /api/imports', 'GET /api/imports/:id', 'GET /api/imports/:id/rows', 'GET /api/imports/:id/file',
+  // 照合は scans.test.ts の「照合のテナント分離」で確かめている
+  'POST /api/work-sessions', 'POST /api/work-sessions/:id/end', 'POST /api/scans', 'GET /api/scans/today',
+  'GET /api/scan-board/dates', 'GET /api/scan-board',
   'GET /api/audit-logs',
   'GET /api/admin/companies', 'PUT /api/admin/companies/:id',
 ]);
