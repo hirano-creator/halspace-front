@@ -79,3 +79,32 @@
   .sidebar-user-role { @apply block text-xs text-slate-400; }
   .btn-sidebar-back { @apply flex w-full items-center gap-2 rounded-lg px-2.5 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white; min-height: 44px; }
 }
+
+/* ===== 読み取り画面（docs/scan-matching.md §6、モック _mock-c-compact.html） ===== */
+@layer components {
+  /* 読み取りバー: 読み取りの状態と直前の結果を 1 本で表す。色だけに頼らず文字とアイコンも出す */
+  .rbar-idle { border-color: var(--color-ok); background: #f6fdf8; color: var(--color-ok); }
+  .rbar-ok { border-color: var(--color-ok); background: var(--color-ok-bg); color: var(--color-ok); }
+  .rbar-dup, .rbar-rv { border-color: #ca8a04; background: var(--color-warn-bg); color: var(--color-warn); }
+  .rbar-nf { border-color: var(--color-ng); background: var(--color-ng-bg); color: var(--color-ng); }
+  .rbar-stopped { border-color: var(--color-ng); background: var(--color-ng); color: #fff; }
+  .rbar-paused { border-color: #cbd5e1; background: #f3f4f6; color: var(--color-sub); }
+  .rbar-manual { border-color: #334155; background: #fff; color: var(--color-ink); }
+
+  .scan-grid th { position: sticky; top: 0; z-index: 1; background: #4b5563; color: #fff; font-weight: 600; font-size: 12px; padding: 5px 8px; white-space: nowrap; text-align: center; }
+  .scan-grid td { height: 30px; padding: 0 8px; border-bottom: 1px solid #eef0f2; white-space: nowrap; }
+  .scan-grid tr.chk td { background: var(--color-ok-row); }
+  .scan-grid tr.hit td { background: #a7f3c0; font-weight: 700; }
+  .scan-grid tr.hit td:first-child { box-shadow: inset 5px 0 0 var(--color-ok); }
+  .scan-grid tr.hitdup td { background: #fde68a; font-weight: 700; }
+  .scan-grid tr.hitdup td:first-child { box-shadow: inset 5px 0 0 #ca8a04; }
+}
+
+/* 印刷: 一覧だけを出す（メニュー・操作のボタンは出さない） */
+@media print {
+  aside, header, .rbar-idle, .rbar-ok, .rbar-dup, .rbar-rv, .rbar-nf, .rbar-stopped, .rbar-manual, .rbar-paused, button { display: none !important; }
+  .scan { height: auto !important; }
+  .scan .overflow-auto { overflow: visible !important; }
+  .scan-grid th { position: static; background: #e5e7eb !important; color: #000 !important; }
+  body { background: #fff; }
+}

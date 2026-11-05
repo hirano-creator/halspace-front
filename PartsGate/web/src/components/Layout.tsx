@@ -15,6 +15,7 @@ interface NavGroup { label?: string; items: NavItem[] }
 const NAV: NavGroup[] = [
   { items: [{ to: '/', label: 'ホーム', icon: '⌂' }] },
   { label: '業務', items: [
+    { to: '/scan', label: 'バーコード読み取り', icon: '▣', action: 'scan' },
     { to: '/imports/new', label: 'CSV 取込', icon: '⇪', action: 'import' },
     { to: '/imports', label: '取込履歴', icon: '↺', action: 'import' },
   ] },

@@ -21,6 +21,7 @@ const UsersPage = admin('UsersPage');
 const SettingsPage = admin('SettingsPage');
 const AuditPage = admin('AuditPage');
 const CompaniesPage = admin('CompaniesPage');
+const ScanPage = lazy(() => import('./pages/ScanPage').then((m) => ({ default: m.ScanPage })));
 const ImportPage = lazy(() => import('./pages/ImportPage').then((m) => ({ default: m.ImportPage })));
 const ImportHistoryPage = lazy(() => import('./pages/ImportHistoryPage').then((m) => ({ default: m.ImportHistoryPage })));
 const ImportDetailPage = lazy(() => import('./pages/ImportHistoryPage').then((m) => ({ default: m.ImportDetailPage })));
@@ -31,6 +32,7 @@ const ROUTES: { path: string; action?: Action; render: (p: Record<string, string
   { path: '/staff', action: 'master.view', render: () => <StaffPage /> },
   { path: '/locations', action: 'master.view', render: () => <LocationsPage /> },
   { path: '/destinations', action: 'master.view', render: () => <DestinationsPage /> },
+  { path: '/scan', action: 'scan', render: () => <ScanPage /> },
   { path: '/imports/new', action: 'import', render: () => <ImportPage /> },
   { path: '/imports', action: 'import', render: () => <ImportHistoryPage /> },
   { path: '/imports/:id', action: 'import', render: (p) => <ImportDetailPage key={p.id} id={p.id ?? ''} /> },

@@ -41,9 +41,11 @@ export function HomePage() {
           </div>
           {can('settings.manage') && <p className="mt-3 text-sm"><a className="text-blue-700 underline" href="#/settings">システム設定</a>で、照合に使う列やラベルの枚数を確認してください。</p>}
         </section>
-        <Alert kind="info">
-          バーコード読み取り・CSV 取込・注文データ・読み取り履歴・分析の画面は、これから順に作ります（開発の STEP 5〜7）。
-        </Alert>
+        <a href="#/scan" className="card flex items-center gap-4 p-5 hover:border-slate-500">
+          <span className="text-4xl" aria-hidden="true">▣</span>
+          <span><b className="text-lg">バーコード読み取りを始める</b><span className="block text-sm text-slate-500">担当者を選んで、置場ごとに部品をチェックします</span></span>
+        </a>
+        <Alert kind="info">注文データ・読み取り履歴・分析の画面は、これから作ります（開発の STEP 7）。</Alert>
       </div>
     </>
   );
