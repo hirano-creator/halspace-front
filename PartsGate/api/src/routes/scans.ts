@@ -64,10 +64,11 @@ interface ScanRow {
   scanned_at: string; staff_name: string;
 }
 
-/** 読み取り値を整える（docs/scan-matching.md §3）。前後の空白・制御文字 → 設定の前後の文字 → 大文字 */
+/** 読み取り値を整える（docs/scan-matching.md §3）。全角→半角 → 前後の空白・制御文字 → 設定の前後の文字 → 大文字 */
 export function normalizeBarcode(raw: string, prefix: string, suffix: string): string {
+  // 日本語入力がオンのままリーダーで読むと「５K9…」のように全角が混ざるので、先に半角へそろえる
   // eslint-disable-next-line no-control-regex
-  let s = raw.replace(/[\u0000-\u001f\u007f]/g, '').trim();
+  let s = raw.normalize('NFKC').replace(/[\u0000-\u001f\u007f]/g, '').trim();
   if (prefix && s.startsWith(prefix)) s = s.slice(prefix.length);
   if (suffix && s.endsWith(suffix)) s = s.slice(0, -suffix.length);
   return s.trim().toUpperCase();

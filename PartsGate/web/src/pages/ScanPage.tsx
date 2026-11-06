@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CompositionEvent, type KeyboardEvent } from 'react';
 import { toCsv } from '@partsgate/shared';
 import { ApiError, apiGet, apiSend, saveBlob, type Page } from '../api/client';
 import { Alert, Button, Field, Loading, errorMessage } from '../components/ui';
@@ -125,6 +125,7 @@ function ScanBoard({ session }: { session: WorkSession }) {
   const queue = useRef<{ id: string; raw: string; input: 'scanner' | 'manual'; at: string }[]>([]);
   const running = useRef(false);
   const keyTimes = useRef<number[]>([]);
+  const pendingEnter = useRef(false); // 日本語入力の確定に使われた Enter（確定し終わったら送る）
   const locRef = useRef(0);
   const [tick, setTick] = useState(0); // 一覧の読み直し（読み取りのあとに 1 増やす）
   useEffect(() => { locRef.current = locationId; }, [locationId]);
@@ -229,12 +230,9 @@ function ScanBoard({ session }: { session: WorkSession }) {
   };
 
   // ---- 読み取り欄（見えない入力欄。リーダーはキーボードとして文字を送り、最後に Enter） ----
-  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Escape' && mode === 'manual') { e.currentTarget.value = ''; setMode('ready'); return; }
-    if (e.key !== 'Enter') { keyTimes.current.push(performance.now()); return; }
-    e.preventDefault();
-    const raw = e.currentTarget.value;
-    e.currentTarget.value = '';
+  const finishInput = (el: HTMLInputElement) => {
+    const raw = el.value;
+    el.value = '';
     // 文字の間隔が平均 30ms 未満ならリーダー、それより遅ければ手入力（docs/scan-matching.md §1）
     const t = keyTimes.current;
     keyTimes.current = [];
@@ -242,6 +240,24 @@ function ScanBoard({ session }: { session: WorkSession }) {
     const input = mode === 'manual' || avg >= 30 ? 'manual' : 'scanner';
     if (mode === 'manual') setMode('ready');
     submit(raw, input);
+  };
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    // 日本語入力がオンだと、リーダーの文字は変換中の文字になり、最後の Enter は「確定」に使われる。
+    // そのまま無視すると読み取りが送られず入力欄にたまるので、確定し終わった時点で送る（onCompositionEnd）
+    if (e.nativeEvent.isComposing || e.keyCode === 229) {
+      if (e.code === 'Enter' || e.code === 'NumpadEnter') pendingEnter.current = true;
+      else keyTimes.current.push(performance.now());
+      return;
+    }
+    if (e.key === 'Escape' && mode === 'manual') { e.currentTarget.value = ''; setMode('ready'); return; }
+    if (e.key !== 'Enter') { keyTimes.current.push(performance.now()); return; }
+    e.preventDefault();
+    finishInput(e.currentTarget);
+  };
+  const onCompositionEnd = (e: CompositionEvent<HTMLInputElement>) => {
+    if (!pendingEnter.current) return;
+    pendingEnter.current = false;
+    finishInput(e.currentTarget);
   };
 
   const changeStaff = async () => {
@@ -311,7 +327,7 @@ function ScanBoard({ session }: { session: WorkSession }) {
           <input ref={inputRef} autoFocus aria-label="バーコードの読み取り値" autoComplete="off" spellCheck={false}
             className={mode === 'manual' ? 'input mono relative z-10 flex-1' : 'absolute inset-0 h-full w-full cursor-pointer opacity-0'}
             placeholder={mode === 'manual' ? 'ラベルの番号を入力して Enter（Esc でやめる）' : undefined}
-            disabled={mode === 'busy-staff'} onKeyDown={onKeyDown}
+            disabled={mode === 'busy-staff'} onKeyDown={onKeyDown} onCompositionEnd={onCompositionEnd}
             onFocus={() => setMode((m) => (m === 'stopped' ? 'ready' : m))}
             onBlur={() => setTimeout(() => { if (document.activeElement !== inputRef.current) setMode((m) => (m === 'ready' || m === 'manual' ? 'stopped' : m)); }, 150)} />
           <span className="relative z-10 flex flex-none items-center gap-1.5 border-l border-black/10 pl-2.5 text-xs font-bold whitespace-nowrap">

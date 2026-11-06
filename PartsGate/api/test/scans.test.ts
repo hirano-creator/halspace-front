@@ -83,6 +83,14 @@ describe('照合', () => {
     await put('/settings', T.adminA, { ...s2, barcode_strip_prefix: '' });
   });
 
+  it('日本語入力がオンのまま読んで全角が混ざっても、半角にそろえて照合する', async () => {
+    expect(normalizeBarcode('５K900000000008', '', '')).toBe('5K900000000008');
+    expect(normalizeBarcode('ＭＶＳ－００１', '', '')).toBe('MVS-001');
+    const r = await scan('５ＰＳＣ00000005');
+    expect(r.body.result).toBe('ok');
+    expect(r.body.barcode).toBe('5PSC00000005');
+  });
+
   it('メーカー出荷日が今日でない明細は「要確認」で、照合済みにしない', async () => {
     const r = await scan('5PSC00000004');
     expect(r.body.result).toBe('review');
