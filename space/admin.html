@@ -315,6 +315,7 @@
   .app-chip-whatsno { background: rgba(59,130,246,.1); color: var(--blue); }
   .app-chip-meetlog { background: rgba(18,183,106,.1); color: var(--green); }
   .app-chip-tenq    { background: rgba(31,95,209,.1); color: #1f5fd1; }
+  .app-chip-partsgate { background: rgba(21,128,61,.1); color: #15803d; }
 
   /* ── アクションメニュー ── */
   .action-menu { position: relative; display: inline-block; }
@@ -1272,7 +1273,7 @@
 <!-- トースト -->
 <div class="toast-wrap" id="toastWrap"></div>
 
-<script src="assets/js/space.js?v=20261022a"></script>
+<script src="assets/js/space.js?v=20261107a"></script>
 <script>
 'use strict';
 
@@ -1773,6 +1774,7 @@ const APP_ICON_COLORS = {
   whatsno: { bg: 'var(--blue-lt)',   color: 'var(--blue)' },
   meetlog: { bg: 'var(--green-lt)',  color: 'var(--green)' },
   tenq:    { bg: 'var(--blue-lt)',   color: 'var(--blue)' },
+  partsgate: { bg: 'var(--green-lt)', color: 'var(--green)' },
 };
 
 function renderAppConfigModal(company) {
@@ -2439,8 +2441,8 @@ function appBadge(app) {
   return `<span class="badge ${cls}">${lbl}</span>`;
 }
 function appChip(app) {
-  const map = { solid: 'app-chip-solid', whatsno: 'app-chip-whatsno', meetlog: 'app-chip-meetlog', tenq: 'app-chip-tenq' };
-  const lbl = { solid: 'SOLID', whatsno: "What'sNo", meetlog: 'MeetLog', tenq: 'TENQ' };
+  const map = { solid: 'app-chip-solid', whatsno: 'app-chip-whatsno', meetlog: 'app-chip-meetlog', tenq: 'app-chip-tenq', partsgate: 'app-chip-partsgate' };
+  const lbl = { solid: 'SOLID', whatsno: "What'sNo", meetlog: 'MeetLog', tenq: 'TENQ', partsgate: 'PARTS GATE' };
   return `<span class="app-chip ${map[app] ?? ''}">${lbl[app] ?? app}</span>`;
 }
 function roleLabel(role) {
