@@ -4,7 +4,7 @@
 
 ## 状態
 
-STEP 8（セキュリティ・性能・バックアップ）までローカルで完了（2026-11-05）。次は STEP 9（本番公開）。実機の USB リーダーでの確認（Q-1）と専用 Cloudflare アカウント（Q-4）待ち。設計書は `docs/`、未確定事項は `docs/requirements.md` §6、画面の方向性は `_mock-c-compact.html`（読み取り）・`_mock-import-analytics.html`（取込・分析）。起動・テストは README。
+STEP 8（セキュリティ・性能・バックアップ）までローカルで完了（2026-11-05）。次は STEP 9（本番公開）。Cloudflare は h.hirano@hirano50.com（Space.app・TENQ と同じ。2026-11-07 決定）。**操作の前に必ず `npx wrangler whoami`**（wsk6611 のアカウントに戻っていることが多い）。遠隔の開発用環境は作らない。設計書は `docs/`、未確定事項は `docs/requirements.md` §6、画面の方向性は `_mock-c-compact.html`（読み取り）・`_mock-import-analytics.html`（取込・分析）。起動・テストは README。
 
 ## 実装の決まり
 
