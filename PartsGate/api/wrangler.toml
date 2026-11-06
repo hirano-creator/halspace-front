@@ -34,10 +34,26 @@ migrations_dir = "migrations"
 binding = "FILES"
 bucket_name = "partsgate-files-dev"
 
-# ===== 本番（オーナーの承認なしに作成・デプロイしない） =====
-# [env.production]
-# name = "partsgate-api"
-# [env.production.vars]
-# APP_ENV = "production"
-# HALSPACE_API = "https://halspace-api-production.up.railway.app/api"
-# ALLOWED_ORIGINS = "https://space-apps.pages.dev"
+# ===== 本番（オーナーの承認なしにデプロイしない。2026-11-07 作成） =====
+# DEV_AUTH_STUB・DEV_OPERATOR_IDS は書かない（開発用の簡易ログインを本番で受け付けない）
+[env.production]
+name = "partsgate-api"
+
+# 毎日のバックアップ（日本時間 3 時 = UTC 18 時。api/src/lib/backup.ts）
+[env.production.triggers]
+crons = ["0 18 * * *"]
+
+[env.production.vars]
+APP_ENV = "production"
+HALSPACE_API = "https://halspace-api-production.up.railway.app/api"
+ALLOWED_ORIGINS = "https://space-apps.pages.dev"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "partsgate-db"
+database_id = "c87fa796-c7b8-4960-aa04-369212479cfc"
+migrations_dir = "migrations"
+
+[[env.production.r2_buckets]]
+binding = "FILES"
+bucket_name = "partsgate-files"
