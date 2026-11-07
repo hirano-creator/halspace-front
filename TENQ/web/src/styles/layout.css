@@ -1,5 +1,5 @@
 /* ===== 外枠 ===== */
-.app-header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; min-height: 56px; }
+.app-header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 40; min-height: 56px; }
 .brand { text-decoration: none; }
 /* 上の帯のメニュー（2026-11-03 見直し: 工場・記録・⚙ の 3 つだけ） */
 .top-nav { display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0; margin-left: 12px; }
@@ -125,3 +125,56 @@ a.tile:hover { border-color: var(--accent); }
 .cards { list-style: none; padding: 0; margin: 0; }
 .center-box { max-width: 520px; margin: 48px auto; padding: 0 16px; }
 .qr-error { max-width: 560px; }
+
+/* ===== 初めての人の案内（2026-11-08。components/Coach.tsx・SetupChecklist.tsx） ===== */
+.nav-drop .nav-help { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 10px; background: none; color: var(--accent); font: inherit; font-size: 15px; font-weight: 700; text-align: left; cursor: pointer; border-top: 1px solid var(--line); margin-top: 4px; }
+.nav-drop .nav-help:hover { background: var(--accent-lt); }
+.coach-veil { position: fixed; inset: 0; z-index: 80; }
+.coach-veil.dark { background: rgba(15,23,42,.55); }
+.coach-spot { position: fixed; z-index: 81; border-radius: 12px; box-shadow: 0 0 0 3px #fff, 0 0 0 4000px rgba(15,23,42,.55); pointer-events: none; transition: all .25s ease; }
+.coach-ring { position: fixed; z-index: 81; border-radius: 12px; pointer-events: none; box-shadow: 0 0 0 4px var(--accent), 0 0 0 9px rgba(31,95,209,.25); animation: coach-ring 1.4s ease-in-out infinite; transition: all .25s ease; }
+@keyframes coach-ring { 50% { box-shadow: 0 0 0 4px var(--accent), 0 0 0 14px rgba(31,95,209,.08); } }
+.coach-bal { position: fixed; z-index: 82; background: var(--card); border-radius: 14px; box-shadow: 0 14px 40px rgba(15,23,42,.3); padding: 14px 16px 12px; font-size: 15px; }
+.coach-bal.center { left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; padding: 22px 20px 16px; }
+.coach-bal::before { content: ""; position: absolute; width: 16px; height: 16px; background: var(--card); transform: rotate(45deg); left: var(--ax, 40px); }
+.coach-bal.below::before { top: -8px; }
+.coach-bal.above::before { bottom: -8px; }
+.coach-bal.center::before, .coach-bal.float::before { display: none; }
+.coach-bal h2 { margin: 2px 32px 4px 0; font-size: 18px; }
+.coach-bal.center h2 { margin-right: 0; }
+.coach-body { margin: 0 0 12px; line-height: 1.7; }
+.coach-step { font-size: 13px; font-weight: 800; color: var(--accent); }
+.coach-hero { font-size: 40px; line-height: 1; margin-bottom: 6px; }
+.coach-x { position: absolute; right: 4px; top: 4px; width: 44px; height: 44px; border: 0; background: none; font-size: 22px; color: var(--sub); cursor: pointer; }
+.coach-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.coach-bal.center .coach-row { justify-content: center; }
+.coach-dots { display: flex; gap: 4px; margin-right: auto; }
+.coach-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); }
+.coach-dots i.on { background: var(--accent); width: 18px; border-radius: 4px; }
+/* はじめにやること（見取り図の右下） */
+.onb { position: fixed; right: 16px; bottom: 16px; z-index: 35; width: min(340px, calc(100vw - 24px)); background: var(--card); border: 2px solid var(--accent); border-radius: 16px; box-shadow: 0 12px 32px rgba(15,23,42,.2); padding: 12px 14px; font-size: 15px; }
+.onb h2 { margin: 0; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+.onb h2 button { margin-left: auto; border: 0; background: none; color: var(--sub); font: inherit; font-size: 14px; font-weight: 600; min-height: 36px; cursor: pointer; }
+.onb-bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; margin: 8px 0 2px; }
+.onb-bar i { display: block; height: 100%; background: var(--st-ok); transition: width .3s; }
+.onb-count { margin: 0 0 6px; font-size: 13px; color: var(--sub); }
+.onb-done { font-size: 14px; margin: 8px 0 10px; }
+.onb ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.onb li { display: flex; text-align: left; align-items: center; gap: 8px; border-radius: 10px; padding: 6px 8px; }
+.onb li .m { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex: none; }
+.onb li .t { flex: 1; line-height: 1.35; }
+.onb li small { display: block; color: var(--sub); font-size: 12px; }
+.onb li.is-done .m { background: var(--st-ok); border-color: var(--st-ok); color: #fff; }
+.onb li.is-done .t { color: var(--sub); }
+.onb li.is-now { background: var(--accent-lt); }
+.onb li.is-now .m { border-color: var(--accent); color: var(--accent); }
+.onb li .btn { min-height: 40px; padding: 4px 12px; font-size: 14px; }
+.onb-pill { position: fixed; right: 16px; bottom: 16px; z-index: 35; border: 2px solid var(--accent); background: var(--card); color: var(--accent); border-radius: 999px; min-height: 44px; padding: 0 18px; font-weight: 800; font-size: 15px; box-shadow: 0 6px 18px rgba(15,23,42,.18); cursor: pointer; }
+/* ？ 使い方（画面の各場所に札） */
+.help-layer { position: fixed; inset: 0; z-index: 85; background: rgba(15,23,42,.45); }
+.help-outline { position: fixed; border: 2px dashed #FDE68A; border-radius: 12px; pointer-events: none; }
+.help-tag { position: fixed; background: #1F2937; color: #fff; border-radius: 10px; padding: 6px 10px; font-size: 13px; line-height: 1.45; box-shadow: 0 6px 16px rgba(0,0,0,.25); pointer-events: none; }
+.help-tag b { color: #FDE68A; margin-right: 6px; }
+.help-close { position: fixed; right: 16px; bottom: 16px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media print { .onb, .onb-pill, .coach-bal, .coach-veil, .coach-spot, .coach-ring, .help-layer { display: none !important; } }

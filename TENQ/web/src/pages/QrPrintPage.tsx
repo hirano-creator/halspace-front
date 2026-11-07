@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { apiGet } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { markOnb } from '../onboarding';
 import { QrCode, qrUrl } from '../components/QrCode';
 import { Alert, Button, Loading, PageHeader, useLoad } from '../components/ui';
 import { currentQuery } from '../router';
@@ -40,7 +41,7 @@ export function QrPrintPage() {
     <>
       <div className="no-print">
         <PageHeader title="QRラベル印刷" sub="印刷する設備を選び、A4 用紙に印刷します。ラベル用紙（ラミネート推奨）に印刷して、設備の見やすい場所に貼ってください。"
-          actions={<Button variant="primary" disabled={!labels.length} onClick={() => window.print()}>印刷する（{labels.length}枚・{pages.length}ページ）</Button>} />
+          actions={<Button variant="primary" disabled={!labels.length} onClick={() => { if (me) markOnb(me.user.id, 'qr'); window.print(); }}>印刷する（{labels.length}枚・{pages.length}ページ）</Button>} />
         {error && <Alert kind="error">{error}</Alert>}
 
         <div className="filters">

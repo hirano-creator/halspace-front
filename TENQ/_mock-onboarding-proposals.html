@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TENQ 初めての案内案</title>
+<!-- 検討用のモック（本番画面ではない）。初めて使う人を吹き出しで誘導する 3 案。
+     画面は 2026-11-08 の本番（Webセンター・建屋 1 つ・設備 0 台）を再現している。各案とも実際に押して試せる -->
+<style>
+:root {
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  --bg: #F5F7FA; --ink: #1B2430; --sub: #5F6B7A; --line: #E1E6EC; --line-strong: #C9D1DB; --accent: #1F5FD1; --accent-lt: #E8F0FD;
+  --ok: #15803D; --ok-lt: #DCFCE7; --ng: #DC2626; --ng-lt: #FEE2E2; --todo: #64748B; --warn-lt: #FEF9C3;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #E9EDF2; color: var(--ink); font-family: var(--font); line-height: 1.6; }
+button { font-family: inherit; cursor: pointer; }
+.top { position: sticky; top: 0; z-index: 90; background: #fff; border-bottom: 1px solid var(--line); padding: 14px 24px 0; }
+.top h1 { margin: 0; font-size: 20px; }
+.top p { margin: 2px 0 10px; font-size: 13px; color: var(--sub); }
+.tabs { display: flex; gap: 4px; overflow-x: auto; }
+.tabs button { border: 1px solid var(--line); border-bottom: 0; background: #F6F8FA; color: var(--sub); padding: 8px 18px; border-radius: 8px 8px 0 0; white-space: nowrap; font-size: 14px; }
+.tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+main { padding: 20px 24px 60px; max-width: 1500px; margin: 0 auto; }
+.plan { display: none; }
+.plan.on { display: block; }
+.idea { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; margin-bottom: 14px; }
+.idea h2 { margin: 0 0 4px; font-size: 22px; }
+.idea .catch { font-size: 16px; font-weight: 700; color: var(--accent); margin: 0 0 8px; }
+.idea ul { margin: 0; padding-left: 1.3em; font-size: 14px; }
+.ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.ctl .note { font-size: 13px; color: var(--sub); }
+.btn { border: 2px solid var(--line-strong); background: #fff; border-radius: 10px; min-height: 42px; padding: 0 14px; font-size: 15px; font-weight: 700; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.btn.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.btn.try { background: var(--warn-lt); border-color: #EAB308; }
+h3.sec { font-size: 16px; margin: 22px 0 10px; }
+h3.sec small { color: var(--sub); font-weight: 400; margin-left: 8px; }
+
+/* ===== 本番の画面の再現 ===== */
+.screen { position: relative; background: var(--bg); border: 8px solid #1F2937; border-radius: 14px; overflow: hidden; min-height: 560px; }
+.hdr { display: flex; align-items: center; gap: 4px; background: #fff; border-bottom: 1px solid var(--line); padding: 0 14px; min-height: 56px; }
+.logo { font-weight: 900; font-size: 17px; color: var(--ink); margin-right: 16px; letter-spacing: .05em; display: flex; align-items: center; gap: 6px; }
+.logo i { width: 20px; height: 20px; border: 2px solid var(--accent); border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; color: var(--accent); font-style: normal; font-size: 13px; }
+.tab { border: 0; background: none; min-height: 54px; padding: 0 14px; font-size: 15px; font-weight: 700; color: var(--sub); border-bottom: 3px solid transparent; }
+.tab.on { color: var(--ink); border-bottom-color: var(--accent); }
+.sp { flex: 1; }
+.dd { display: none; position: absolute; top: 52px; right: 8px; background: #fff; border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 12px 32px rgba(15,23,42,.18); padding: 6px; width: 250px; z-index: 26; }
+.dd.open { display: block; }
+.dd a { display: block; padding: 9px 12px; border-radius: 8px; font-size: 14px; color: var(--ink); cursor: pointer; }
+.dd a:hover { background: var(--accent-lt); }
+.dd hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.dd .help { color: var(--accent); font-weight: 700; }
+.body { padding: 16px 22px; }
+.mhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.mhead h4 { margin: 0; font-size: 21px; }
+.mhead h4 small { font-size: 13px; color: var(--sub); margin-left: 8px; }
+.sum { display: flex; gap: 6px; margin-left: auto; }
+.sum span { border-radius: 10px; padding: 2px 12px; font-weight: 800; font-size: 14px; white-space: nowrap; }
+.sum b { font-size: 19px; margin-left: 3px; }
+.n-ng { background: var(--ng); color: #fff; }
+.n-todo { background: #fff; border: 2px dashed var(--todo); }
+.n-ok { background: var(--ok-lt); color: var(--ok); }
+.info { background: var(--accent-lt); border-left: 4px solid var(--accent); border-radius: 8px; padding: 8px 14px; font-size: 13px; margin-bottom: 12px; }
+.lay { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: start; }
+.floor { background: #E9EDF2; border-radius: 16px; padding: 14px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; min-height: 150px; align-content: start; }
+.bld { grid-column: 3 / span 5; background: #fff; border: 2px solid var(--line-strong); border-radius: 14px; padding: 8px 10px 10px; min-height: 96px; }
+.bld.has-ng { border-color: var(--ng); }
+.bld h5 { margin: 0 0 6px; display: flex; justify-content: space-between; font-size: 15px; }
+.bld h5 small { color: var(--sub); font-size: 12px; }
+.bname { border: 0; background: none; padding: 0; font: inherit; font-weight: 700; color: var(--ink); }
+.eqs { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
+.eqs .muted { font-size: 13px; color: var(--sub); }
+.eq { border-radius: 10px; border: 2px dashed var(--todo); background: #fff; padding: 5px 8px; text-align: left; min-height: 56px; font-size: 12px; line-height: 1.3; }
+.eq b { display: block; font-size: 13px; }
+.eq-ok { background: var(--ok); border: 2px solid var(--ok); color: #fff; }
+.eq-ng { background: var(--ng); border: 2px solid var(--ng); color: #fff; }
+.side { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; font-size: 13px; }
+.side h5 { margin: 0 0 6px; font-size: 15px; }
+.side p { margin: 4px 0; color: var(--sub); }
+.ngl { border: 2px solid var(--ng); background: var(--ng-lt); border-radius: 10px; padding: 6px 10px; color: var(--ng); font-weight: 700; }
+.toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: #1F2937; color: #fff; border-radius: 10px; padding: 8px 16px; font-size: 14px; display: none; z-index: 40; white-space: nowrap; }
+.toast.open { display: block; }
+
+/* ===== 吹き出しの部品（3 案共通） ===== */
+.veil { position: absolute; inset: 0; z-index: 20; display: none; }
+.veil.open { display: block; }
+.spot { position: absolute; z-index: 21; border-radius: 12px; box-shadow: 0 0 0 3px #fff, 0 0 0 3000px rgba(15,23,42,.55); transition: all .3s ease; pointer-events: none; }
+.spot.ring { box-shadow: 0 0 0 4px var(--accent), 0 0 0 9px rgba(31,95,209,.25); animation: ring 1.4s ease-in-out infinite; }
+@keyframes ring { 50% { box-shadow: 0 0 0 4px var(--accent), 0 0 0 14px rgba(31,95,209,.08); } }
+.bal { position: absolute; z-index: 22; width: 320px; background: #fff; border-radius: 14px; box-shadow: 0 14px 40px rgba(15,23,42,.3); padding: 14px 16px 12px; font-size: 14px; transition: top .3s ease, left .3s ease; }
+.bal::before { content: ""; position: absolute; width: 16px; height: 16px; background: #fff; transform: rotate(45deg); left: var(--ax, 40px); }
+.bal.below::before { top: -8px; }
+.bal.above::before { bottom: -8px; }
+.bal.center::before { display: none; }
+.bal .step { font-size: 12px; font-weight: 800; color: var(--accent); }
+.bal h6 { margin: 2px 0 4px; font-size: 17px; }
+.bal p { margin: 0 0 10px; }
+.bal .row { display: flex; align-items: center; gap: 8px; }
+.bal .row .btn { min-height: 38px; font-size: 14px; }
+.bal .skip { border: 0; background: none; color: var(--sub); font-size: 13px; margin-right: auto; padding: 0; min-height: 38px; }
+.dots { display: flex; gap: 4px; margin-right: auto; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); }
+.dots i.on { background: var(--accent); width: 18px; border-radius: 4px; }
+.bal .x { position: absolute; right: 6px; top: 4px; border: 0; background: none; font-size: 20px; color: var(--sub); width: 36px; height: 36px; }
+.bal.center { width: 420px; text-align: center; padding: 24px 24px 16px; }
+.bal.center .row { justify-content: center; }
+.bal .hero { font-size: 40px; line-height: 1; margin-bottom: 6px; }
+
+/* B 案: はじめにやること */
+.check { position: absolute; right: 14px; bottom: 14px; z-index: 25; width: 320px; background: #fff; border: 2px solid var(--accent); border-radius: 16px; box-shadow: 0 12px 32px rgba(15,23,42,.2); padding: 12px 14px; font-size: 14px; }
+.check h6 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.check h6 button { margin-left: auto; border: 0; background: none; color: var(--sub); font-size: 13px; }
+.pbar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; margin: 8px 0; }
+.pbar i { display: block; height: 100%; background: var(--ok); transition: width .3s; }
+.check ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.check li { display: flex; align-items: center; gap: 8px; border-radius: 10px; padding: 6px 8px; }
+.check li .m { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex: none; }
+.check li.done .m { background: var(--ok); border-color: var(--ok); color: #fff; }
+.check li.done span { color: var(--sub); text-decoration: line-through; }
+.check li.now { background: var(--accent-lt); }
+.check li.now .m { border-color: var(--accent); color: var(--accent); }
+.check li small { display: block; color: var(--sub); font-size: 12px; text-decoration: none; }
+.check li .btn { margin-left: auto; min-height: 34px; font-size: 13px; padding: 0 10px; }
+.pill { position: absolute; right: 14px; bottom: 14px; z-index: 25; display: none; border: 2px solid var(--accent); background: #fff; color: var(--accent); border-radius: 999px; padding: 6px 16px; font-weight: 800; box-shadow: 0 6px 18px rgba(15,23,42,.18); }
+
+/* C 案: その場のヒント（青い点）と使い方モード */
+.beacon { position: absolute; z-index: 15; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); border: 3px solid #fff; box-shadow: 0 0 0 0 rgba(31,95,209,.6); animation: pulse 1.6s infinite; cursor: pointer; padding: 0; }
+@keyframes pulse { 70% { box-shadow: 0 0 0 14px rgba(31,95,209,0); } 100% { box-shadow: 0 0 0 0 rgba(31,95,209,0); } }
+.helpbtn { border: 2px solid var(--accent); color: var(--accent); background: #fff; border-radius: 999px; min-height: 36px; padding: 0 12px; font-weight: 800; font-size: 14px; margin-right: 8px; }
+.helpbtn.on { background: var(--accent); color: #fff; }
+.tag { position: absolute; z-index: 16; background: #1F2937; color: #fff; border-radius: 10px; padding: 6px 10px; font-size: 12.5px; line-height: 1.45; width: 210px; box-shadow: 0 6px 16px rgba(0,0,0,.2); pointer-events: none; }
+.tag b { color: #FDE68A; margin-right: 4px; }
+.outline { position: absolute; z-index: 14; border: 2px dashed #FDE68A; border-radius: 12px; pointer-events: none; }
+.screen.helping::after { content: ""; position: absolute; inset: 0; background: rgba(15,23,42,.45); z-index: 13; pointer-events: none; }
+.screen.helping [data-k] { position: relative; }
+
+/* スマホ（作業者）の案内 */
+.flow { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; align-items: flex-start; }
+.phone { flex: 0 0 240px; height: 470px; background: #fff; border: 8px solid #1F2937; border-radius: 30px; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+.phone .cap { text-align: center; font-size: 11px; color: #fff; background: #1F2937; padding-bottom: 3px; }
+.ps { flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; position: relative; }
+.big { border: 0; border-radius: 16px; font-size: 19px; font-weight: 800; padding: 18px 8px; color: #fff; background: var(--accent); width: 100%; }
+.oxr { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; }
+.oxr span { flex: 1; }
+.oxr b { width: 38px; height: 38px; border-radius: 8px; border: 2px solid var(--line-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 17px; }
+.pdim::after { content: ""; position: absolute; inset: 0; background: rgba(15,23,42,.5); z-index: 1; }
+.plift { position: relative; z-index: 2; box-shadow: 0 0 0 3px #fff; border-radius: 12px; background: #fff; }
+.pbal { position: relative; z-index: 2; background: #fff; border-radius: 12px; padding: 10px 12px; font-size: 13px; box-shadow: 0 8px 20px rgba(0,0,0,.3); }
+.pbal b { display: block; font-size: 14px; margin-bottom: 2px; }
+.pbal .row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 12px; color: var(--sub); }
+.pbal .row span:last-child { color: #fff; background: var(--accent); border-radius: 8px; padding: 4px 12px; font-weight: 800; }
+.cam { flex: 1; background: #111827; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #fff; text-align: center; font-size: 12px; position: relative; }
+.cam::before { content: ""; width: 110px; height: 110px; border: 4px solid #fff; border-radius: 14px; position: absolute; }
+
+/* 比較 */
+.cmp { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; }
+.cmp th, .cmp td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+.cmp th { background: #F6F8FA; }
+.rec { background: #EFF6FF; border: 2px solid var(--accent); border-radius: 14px; padding: 14px 18px; margin-top: 16px; }
+.rec h3 { margin: 0 0 6px; }
+.common { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 20px; margin-top: 16px; font-size: 14px; }
+.common h3 { margin: 0 0 6px; font-size: 16px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>TENQ 初めての人の案内（吹き出し）案（2026-11-08）</h1>
+  <p>検討用モック。画面は今の本番（Webセンター・建屋 1 つ・設備 0 台）を再現しています。どの案も実際に押して試せます。案内は<b>初めて開いたときに 1 回だけ</b>出て、あとから ⚙ の「使い方を見る」で見直せる想定です。</p>
+  <div class="tabs">
+    <button class="on" data-p="a">A案 順番に案内するツアー</button>
+    <button data-p="b">B案「はじめにやること」リスト</button>
+    <button data-p="c">C案 その場のヒント（青い点）</button>
+    <button data-p="cmp">くらべる</button>
+  </div>
+</div>
+<main>
+
+<!-- ===================== A 案 ===================== -->
+<section class="plan on" id="p-a">
+  <div class="idea">
+    <h2>A案 順番に案内するツアー</h2>
+    <p class="catch">初めて開くと画面が暗くなり、1 か所ずつ明るくして「ここは何か」を吹き出しで説明する。</p>
+    <ul>
+      <li>最初に「ようこそ」の吹き出し →「はじめる」で 8 か所を順番に説明（見取り図・色の意味・今日の数・異常の欄・設備を足す・配置を動かす・記録・⚙）</li>
+      <li>「次へ」「戻る」で進み、いつでも「とばす」で終われる。何番目かは点で分かる</li>
+      <li>最後に「この案内は ⚙ の『使い方を見る』からいつでも見られます」と伝える</li>
+      <li>説明を読むだけなので短く終わる。代わりに、実際に手は動かさない</li>
+    </ul>
+    <div class="ctl"><button class="btn try" data-start>▶ 初めての人として開く</button><span class="note">⚙ を押して「使い方を見る」からも始められます</span></div>
+  </div>
+  <div class="screen" data-screen></div>
+
+  <h3 class="sec">スマホ（作業者）<small>初めて QR を読んだとき、点検表の上で 3 つだけ説明する</small></h3>
+  <div class="flow">
+    <div class="phone"><div class="cap">① ようこそ</div><div class="ps pdim">
+      <div style="flex:1"></div>
+      <div class="pbal" style="text-align:center"><b style="font-size:16px">👋 はじめまして</b>設備の QR を読んで、項目に ○ か ✕ を付けて送るだけです。3 つだけ説明します。<div class="row"><span>とばす</span><span>はじめる</span></div></div>
+      <div style="flex:1"></div>
+    </div></div>
+    <div class="phone"><div class="cap">② ○ と ✕</div><div class="ps pdim">
+      <div style="font-weight:800;position:relative;z-index:0">P-01 プレス機</div>
+      <div class="oxr plift"><span>油もれ</span><b style="border-color:var(--ok);color:var(--ok)">○</b><b style="border-color:var(--ng);color:var(--ng)">✕</b></div>
+      <div class="pbal"><b>1 / 3　見て、○ か ✕ を押す</b>大丈夫なら ○、おかしいときは ✕。✕ を押すと、一言と写真を付けられます。<div class="row"><span>●○○</span><span>次へ</span></div></div>
+    </div></div>
+    <div class="phone"><div class="cap">③ 送る</div><div class="ps pdim">
+      <div style="flex:1"></div>
+      <div class="pbal"><b>3 / 3　全部付けたら「送る」</b>✕ を付けた所は、工場長の画面に赤で出ます。送ったら次の設備の QR を読みます。<div class="row"><span>●●●</span><span>わかった</span></div></div>
+      <button class="big plift" style="background:var(--accent);color:#fff">送る</button>
+    </div></div>
+  </div>
+</section>
+
+<!-- ===================== B 案 ===================== -->
+<section class="plan" id="p-b">
+  <div class="idea">
+    <h2>B案「はじめにやること」リスト</h2>
+    <p class="catch">右下に「はじめにやること」のリスト。「やってみる」を押すと、押す場所を吹き出しで指して、実際に操作しながら覚える。</p>
+    <ul>
+      <li>使い始めるまでの手順を 5 つに分けて並べる（① 建屋をつくる ② 設備を登録 ③ QR ラベルを印刷して貼る ④ スマホで点検してみる ⑤ 毎朝の見方）</li>
+      <li>「やってみる」を押すと、押す場所が青く光り、吹き出しで「ここを押します」と説明。<b>実際に押すと、そのまま次の手順へ</b>進む</li>
+      <li>できた手順には自動で ✓ が付く（設備が登録されたら ② に ✓、など。もうできている ① は最初から ✓）</li>
+      <li>「あとで」で小さくたためて、全部終わると消える。今の本番のような「設備 0 台」の状態にいちばん合う</li>
+    </ul>
+    <div class="ctl"><button class="btn try" data-start>▶ 初めての人として開く</button><span class="note">リストの「やってみる」を押して、光った所を押してください</span></div>
+  </div>
+  <div class="screen" data-screen></div>
+
+  <h3 class="sec">スマホ（作業者）<small>作業者にはリストを出さず、初めての点検のときだけ吹き出し（A案と同じ）</small></h3>
+  <div class="flow">
+    <div class="phone"><div class="cap">ホーム（初めて）</div><div class="ps pdim">
+      <div style="position:relative;z-index:0;font-weight:800;font-size:16px">おはようございます</div>
+      <div style="flex:1"></div>
+      <div class="pbal"><b>まずはここから</b>設備に貼ってある QR を、このボタンで読みます。<div class="row"><span>1 / 3</span><span>次へ</span></div></div>
+      <button class="big plift">📷 QR を読む</button>
+    </div></div>
+    <div class="phone"><div class="cap">カメラ（初めて）</div><div class="ps">
+      <div class="cam">QR を四角に入れてください</div>
+      <div class="pbal" style="box-shadow:0 4px 14px rgba(0,0,0,.2)"><b>QR が見つからないとき</b>設備の正面・横に貼ってある黒い四角です。暗いときは近づけてください。</div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ===================== C 案 ===================== -->
+<section class="plan" id="p-c">
+  <div class="idea">
+    <h2>C案 その場のヒント（青い点）</h2>
+    <p class="catch">画面をふさがず、次に押すとよい所に<b>青い点</b>が点滅する。点を押すと吹き出しで説明。右上の「？ 使い方」で、画面の全部の場所に説明が付く。</p>
+    <ul>
+      <li>状況に合わせて点が出る: 設備が 0 台なら「＋ 設備を足す」に、設備ができたらタイルに、赤い設備が出たらその設備に</li>
+      <li>点を押すと短い説明と「わかった」。一度読んだ点は出ない</li>
+      <li>「？ 使い方」を押すと、画面の各場所に名前と説明の札がまとめて付く（もう一度押すと消える）</li>
+      <li>ふだんの操作をじゃましない。代わりに、順番は自分で選ぶ</li>
+    </ul>
+    <div class="ctl"><button class="btn try" data-start>▶ 初めての人として開く</button><button class="btn" data-ng>デモ: 赤い設備を出す</button><span class="note">青い点を押してみてください</span></div>
+  </div>
+  <div class="screen" data-screen></div>
+
+  <h3 class="sec">スマホ（作業者）<small>点検表の初めての項目に青い点。押すと説明</small></h3>
+  <div class="flow">
+    <div class="phone"><div class="cap">点検表（初めて）</div><div class="ps">
+      <div style="font-weight:800">P-01 プレス機</div>
+      <div class="oxr" style="position:relative"><span>油もれ</span><b>○</b><b>✕</b><span class="beacon" style="position:absolute;right:-6px;top:-8px;animation:pulse 1.6s infinite"></span></div>
+      <div class="pbal" style="box-shadow:0 4px 14px rgba(0,0,0,.2)"><b>○ か ✕ を押します</b>大丈夫なら ○、おかしいときは ✕。<div class="row"><span></span><span>わかった</span></div></div>
+      <div class="oxr"><span>異音</span><b>○</b><b>✕</b></div>
+      <div class="oxr"><span>安全カバー</span><b>○</b><b>✕</b></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ===================== 比較 ===================== -->
+<section class="plan" id="p-cmp">
+  <table class="cmp">
+    <tr><th></th><th>A案 順番に案内するツアー</th><th>B案「はじめにやること」リスト</th><th>C案 その場のヒント（青い点）</th></tr>
+    <tr><th>分かること</th><td>画面のどこに何があるか</td><td>使い始めるまでに何を、どの順でやるか</td><td>今、次に押すとよい所</td></tr>
+    <tr><th>手を動かすか</th><td>読むだけ（1 分）</td><td>実際に押しながら進む</td><td>気になった所だけ</td></tr>
+    <tr><th>設備 0 台の今の状態</th><td>説明は分かるが、何から始めるかは自分で考える</td><td><b>いちばん合う</b>（① ✓ → ② 設備を登録 …と道が見える）</td><td>「設備を足す」に点が出るので迷いにくい</td></tr>
+    <tr><th>慣れた人のじゃま</th><td>最初の 1 回だけ（とばせる）</td><td>全部終わると消える。たためる</td><td>ほとんどない</td></tr>
+    <tr><th>見直し方</th><td>⚙ →「使い方を見る」</td><td>⚙ →「はじめにやること」</td><td>右上の「？ 使い方」</td></tr>
+    <tr><th>作る量</th><td>中（吹き出しの部品と 8 か所の文）</td><td>多（手順ごとの「できた」の判定）</td><td>中（点の出る条件と札）</td></tr>
+  </table>
+  <div class="rec">
+    <h3>おすすめ: B案（はじめにやること）＋ 終わった後は C案の「？ 使い方」</h3>
+    <p style="margin:0">今の本番は設備がまだ 0 台なので、「何から始めるか」の道筋が見える B案がいちばん効きます。準備が終わってからは、毎日の見方を確かめたいときに「？ 使い方」（C案）で画面に説明の札を出せると、慣れた人のじゃまになりません。作業者のスマホは、どの案でも初めての点検のときだけ 3 つの吹き出しを出します。</p>
+  </div>
+  <div class="common">
+    <h3>どの案でも同じにすること・決めてほしいこと</h3>
+    <ul style="margin:0;padding-left:1.3em">
+      <li>案内は「とばす」「あとで」でいつでも閉じられる。押す場所が隠れないよう、吹き出しは押す場所の上か下に出す</li>
+      <li>案内を見たかどうかの覚え方（仮定）: まずは端末のブラウザに覚える（同じ人が別の端末を使うと、もう一度出る）。人ごとに覚えるには DB に 1 項目足す必要があるので、必要なら別に相談</li>
+      <li>文は今の画面の言葉に合わせる（「設備を足す」「配置を動かす」「直した」など）</li>
+    </ul>
+  </div>
+</section>
+</main>
+
+<script>
+const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+/** 本番の画面（工場長のホーム）を再現する。state.eq が設備 */
+function buildScreen(plan, extraHeader = '') {
+  const s = plan.querySelector('[data-screen]');
+  s.innerHTML = `
+    <div class="hdr">
+      <span class="logo"><i>✓</i>TENQ</span>
+      <button class="tab on">🏭 工場</button>
+      <button class="tab" data-k="records">🔍 記録 ▾</button>
+      <span class="sp"></span>${extraHeader}
+      <button class="tab" data-k="gear">⚙ 平野 秀和 ▾</button>
+      <div class="dd" data-dd>
+        <a data-k="eqlist">設備の一覧（台帳）</a><a>点検する項目（点検基準）</a><a data-k="qrprint">QRラベル印刷</a><a>工場・建屋</a><a>ユーザー管理</a><a>操作の記録</a><a>システム設定</a><a>ログインした端末</a>
+        <hr><a class="help" data-k="help">❔ 使い方を見る</a><hr><a>← アプリ選択に戻る</a>
+      </div>
+    </div>
+    <div class="body">
+      <div class="mhead">
+        <h4>Webセンター<small>2026-11-08</small></h4>
+        <div class="sum" data-k="sum"></div>
+        <button class="btn" data-k="scan">QR を読む</button>
+        <button class="btn" data-k="addeq">＋ 設備を足す</button>
+        <button class="btn" data-k="lock">🔓 配置を動かす</button>
+      </div>
+      <div class="info">今日は稼働日ではありません（毎日点検の設備は対象外です）。</div>
+      <div class="lay">
+        <div class="floor" data-k="floor"><section class="bld" data-k="bld"><h5><button class="bname" data-k="bname">C1_溶接エリア</button><small data-cnt></small></h5><div class="eqs" data-eqs></div></section></div>
+        <aside class="side" data-k="side"></aside>
+      </div>
+    </div>
+    <div class="veil" data-veil></div>
+    <div class="toast" data-toast></div>`;
+  const dd = s.querySelector('[data-dd]');
+  s.querySelector('[data-k="gear"]').addEventListener('click', (e) => { e.stopPropagation(); dd.classList.toggle('open'); });
+  s.addEventListener('click', (e) => { if (!e.target.closest('[data-dd], [data-k="gear"]')) dd.classList.remove('open'); });
+  return s;
+}
+
+function renderScreen(s, state) {
+  const c = (k) => state.eq.filter((e) => e.st === k).length;
+  s.querySelector('[data-k="sum"]').innerHTML = `<span class="n-ng">✕ 異常<b>${c('ng')}</b></span><span class="n-todo">まだ<b>${c('todo')}</b></span><span class="n-ok">○ 正常<b>${c('ok')}</b></span>`;
+  s.querySelector('[data-eqs]').innerHTML = state.eq.length
+    ? state.eq.map((e) => `<button class="eq eq-${e.st}" data-k="tile-${e.id}"><b>${esc(e.id)} ${esc(e.name)}</b>${e.st === 'ok' ? '○ 08:12' : e.st === 'ng' ? '✕ 今日' : 'まだ'}</button>`).join('')
+    : '<span class="muted">設備がありません</span>';
+  s.querySelector('[data-cnt]').textContent = `まだ ${c('todo')}`;
+  s.querySelector('[data-k="bld"]').classList.toggle('has-ng', c('ng') > 0);
+  const ng = state.eq.filter((e) => e.st === 'ng');
+  s.querySelector('[data-k="side"]').innerHTML = `<h5>直っていない異常（${ng.length}）</h5>` + (ng.length ? ng.map((e) => `<div class="ngl">✕ ${esc(e.id)} ${esc(e.name)}<br><small style="font-weight:400">油もれ・今日</small></div>`).join('') : '<p>ありません。</p>') + '<p style="font-size:12px">設備を押すと、そのそばに詳しい内容と「直した」が出ます。</p>';
+}
+
+function toast(s, msg) {
+  const t = s.querySelector('[data-toast]');
+  t.textContent = msg; t.classList.add('open');
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('open'), 3000);
+}
+
+/** 吹き出し。target（data-k）のそばに出す。dim = 周りを暗くする（A案）、ring = 光る枠だけ（B案） */
+function coach(s) {
+  let spot, bal;
+  const veil = s.querySelector('[data-veil]');
+  function clear() { spot?.remove(); bal?.remove(); spot = bal = null; veil.classList.remove('open'); }
+  function show({ k, step, title, body, buttons, dim = true, onX }) {
+    clear();
+    const sr = s.getBoundingClientRect();
+    bal = document.createElement('div');
+    bal.className = 'bal';
+    bal.innerHTML = `${onX ? '<button class="x" aria-label="閉じる">×</button>' : ''}${step ? `<div class="step">${step}</div>` : ''}<h6>${title}</h6><p>${body}</p><div class="row"></div>`;
+    const row = bal.querySelector('.row');
+    for (const b of buttons) {
+      if (b.dots) { const d = document.createElement('span'); d.className = 'dots'; d.innerHTML = Array.from({ length: b.dots[1] }, (_, i) => `<i class="${i === b.dots[0] ? 'on' : ''}"></i>`).join(''); row.appendChild(d); continue; }
+      const el = document.createElement('button');
+      el.className = b.skip ? 'skip' : `btn ${b.pri ? 'pri' : ''}`;
+      el.textContent = b.label;
+      el.addEventListener('click', (e) => { e.stopPropagation(); b.on(); });
+      row.appendChild(el);
+    }
+    if (onX) bal.querySelector('.x').addEventListener('click', (e) => { e.stopPropagation(); onX(); });
+    if (dim) veil.classList.add('open');
+    s.appendChild(bal);
+    const t = k && s.querySelector(`[data-k="${k}"]`);
+    if (!t) {
+      bal.classList.add('center');
+      if (dim) { spot = document.createElement('div'); spot.className = 'spot'; Object.assign(spot.style, { left: '50%', top: '50%', width: '0px', height: '0px' }); s.appendChild(spot); }
+      bal.style.left = (sr.width - bal.offsetWidth) / 2 + 'px';
+      bal.style.top = (sr.height - bal.offsetHeight) / 2 + 'px';
+      return;
+    }
+    const r = t.getBoundingClientRect();
+    const box = { x: r.left - sr.left - 6, y: r.top - sr.top - 6, w: r.width + 12, h: r.height + 12 };
+    spot = document.createElement('div');
+    spot.className = 'spot' + (dim ? '' : ' ring');
+    Object.assign(spot.style, { left: box.x + 'px', top: box.y + 'px', width: box.w + 'px', height: box.h + 'px' });
+    s.appendChild(spot);
+    const bw = bal.offsetWidth, bh = bal.offsetHeight;
+    let left = Math.min(Math.max(10, box.x + box.w / 2 - bw / 2), sr.width - bw - 10);
+    let top = box.y + box.h + 14, cls = 'below';
+    if (top + bh > sr.height - 10) { top = box.y - bh - 14; cls = 'above'; }
+    bal.classList.add(cls);
+    bal.style.left = left + 'px'; bal.style.top = Math.max(10, top) + 'px';
+    bal.style.setProperty('--ax', Math.min(Math.max(16, box.x + box.w / 2 - left - 8), bw - 32) + 'px');
+  }
+  return { show, clear };
+}
+
+/* ---------- A 案: 順番に案内するツアー ---------- */
+(() => {
+  const plan = document.getElementById('p-a');
+  const state = { eq: [] };
+  const s = buildScreen(plan);
+  renderScreen(s, state);
+  const c = coach(s);
+  const STEPS = [
+    { k: 'floor', title: '工場の見取り図', body: '四角い枠が<b>建屋</b>、中に並ぶタイルが<b>設備</b>です。実際の工場と同じ並びにできます。' },
+    { k: 'bld', title: '設備の色の意味', body: '設備は毎日、<b style="color:#DC2626">✕ 赤 = おかしい所あり</b>／<b style="color:#15803D">○ 緑 = 点検済み</b>／<b>点線 = まだ</b> に変わります。今はまだ設備がありません。' },
+    { k: 'sum', title: '今日の点検の数', body: '毎朝ここを見れば、おかしい所が何件、まだの設備が何台あるかが分かります。' },
+    { k: 'side', title: '直っていない異常', body: '作業者が ✕ を付けた所がここに並びます。押すと内容と写真、<b>「○ 直した」</b>ボタンが出ます。' },
+    { k: 'addeq', title: 'まず、設備を登録します', body: 'ここから設備を足します。番号と名前を入れると、QR ラベルが印刷できるようになります。' },
+    { k: 'lock', title: '配置を変えるとき', body: 'ここを押している間だけ、建屋や設備をマウスでつかんで動かせます。終わったら「🔒 固定する」。' },
+    { k: 'records', title: '記録を見る', body: '過去の点検の記録、異常の記録、CSV・帳票の出力はここです。' },
+    { k: 'gear', title: '設定と、この案内', body: '設備の一覧・QR ラベル印刷・使う人の設定はここ。<b>この案内は ⚙ の「使い方を見る」からいつでも見られます。</b>' },
+  ];
+  let i = 0;
+  const go = (n) => {
+    i = n;
+    if (i >= STEPS.length) { c.clear(); toast(s, '案内を終わりました。⚙ →「使い方を見る」でまた見られます'); return; }
+    const st = STEPS[i];
+    c.show({ ...st, step: `${i + 1} / ${STEPS.length}`, onX: () => c.clear(), buttons: [
+      { dots: [i, STEPS.length] },
+      ...(i > 0 ? [{ label: '戻る', on: () => go(i - 1) }] : []),
+      { label: i === STEPS.length - 1 ? '終わる' : '次へ', pri: true, on: () => go(i + 1) },
+    ] });
+  };
+  const start = () => c.show({ title: 'TENQ へようこそ', body: '工場の設備の毎日の点検を、紙からスマホに置き換えるアプリです。<br>画面の見方を <b>1 分</b>で案内します。', buttons: [
+    { label: 'とばす', skip: true, on: () => { c.clear(); toast(s, '⚙ →「使い方を見る」でいつでも見られます'); } },
+    { label: 'はじめる', pri: true, on: () => go(0) },
+  ] });
+  const hero = () => { start(); const b = s.querySelector('.bal h6'); b.insertAdjacentHTML('beforebegin', '<div class="hero">👋</div>'); };
+  plan.querySelector('[data-start]').addEventListener('click', hero);
+  s.querySelector('[data-k="help"]').addEventListener('click', () => { s.querySelector('[data-dd]').classList.remove('open'); go(0); });
+  plan.start = hero;
+})();
+
+/* ---------- B 案: はじめにやること ---------- */
+(() => {
+  const plan = document.getElementById('p-b');
+  const state = { eq: [] };
+  const s = buildScreen(plan);
+  renderScreen(s, state);
+  const c = coach(s);
+  const done = { area: true, eq: false, qr: false, inspect: false, daily: false };
+  const TASKS = [
+    { key: 'area', label: '建屋をつくる', sub: '「C1_溶接エリア」ができています' },
+    { key: 'eq', label: '設備を登録する', sub: '番号と名前だけで OK' },
+    { key: 'qr', label: 'QR ラベルを印刷して貼る', sub: '設備ごとに 1 枚' },
+    { key: 'inspect', label: 'スマホで点検してみる', sub: 'QR を読んで ○✕ → 送る' },
+    { key: 'daily', label: '毎朝の見方を知る', sub: '見取り図の色と数' },
+  ];
+  const box = document.createElement('div');
+  box.className = 'check';
+  const pill = document.createElement('button');
+  pill.className = 'pill';
+  s.appendChild(box); s.appendChild(pill);
+  pill.addEventListener('click', () => { pill.style.display = 'none'; box.style.display = ''; });
+  const next = () => TASKS.find((t) => !done[t.key]);
+  function draw() {
+    const n = TASKS.filter((t) => done[t.key]).length;
+    const cur = next();
+    if (!cur) { box.style.display = 'none'; pill.style.display = 'none'; c.show({ title: '🎉 準備ができました', body: 'これで使い始められます。毎朝はこの見取り図を開いて、赤い設備がないかを見るだけです。<br>このリストは ⚙ の「使い方を見る」からまた開けます。', buttons: [{ label: 'はじめる', pri: true, on: () => c.clear() }] }); return; }
+    box.innerHTML = `<h6>🚀 はじめにやること<button data-later>あとで</button></h6><div class="pbar"><i style="width:${n / TASKS.length * 100}%"></i></div><div style="font-size:12px;color:var(--sub)">${n} / ${TASKS.length} できました</div>
+      <ol>${TASKS.map((t, i) => `<li class="${done[t.key] ? 'done' : t === cur ? 'now' : ''}"><span class="m">${done[t.key] ? '✓' : i + 1}</span><span>${t.label}<small>${t.sub}</small></span>${t === cur ? '<button class="btn pri" data-try>やってみる</button>' : ''}</li>`).join('')}</ol>`;
+    box.querySelector('[data-later]').addEventListener('click', () => { c.clear(); box.style.display = 'none'; pill.textContent = `🚀 はじめにやること ${n}/${TASKS.length}`; pill.style.display = 'block'; });
+    box.querySelector('[data-try]').addEventListener('click', () => guide(cur.key));
+  }
+  // 光らせた所を「1 回だけ」押したら進む
+  function wait(k, fn) {
+    const el = s.querySelector(`[data-k="${k}"]`);
+    const h = (e) => { e.stopPropagation(); el.removeEventListener('click', h, true); fn(); };
+    el.addEventListener('click', h, true);
+  }
+  function guide(key) {
+    if (key === 'eq') {
+      c.show({ k: 'addeq', dim: false, step: '② 設備を登録する', title: 'ここを押します', body: '「＋ 設備を足す」を押すと登録の画面が開きます。<b>設備番号</b>（例: W-01）と<b>名前</b>を入れて、置く建屋を選びます。', buttons: [{ label: 'やめる', skip: true, on: () => c.clear() }] });
+      wait('addeq', () => { state.eq.push({ id: 'W-01', name: '溶接機 1号', st: 'todo' }); renderScreen(s, state); done.eq = true; c.clear(); toast(s, '（モック）W-01 溶接機 1号 を登録しました'); draw(); setTimeout(() => guide('qr'), 600); });
+    } else if (key === 'qr') {
+      c.show({ k: 'gear', dim: false, step: '③ QR ラベルを印刷して貼る', title: '⚙ を開きます', body: 'QR ラベルの印刷は ⚙ の中にあります。', buttons: [{ label: 'やめる', skip: true, on: () => c.clear() }] });
+      wait('gear', () => {
+        s.querySelector('[data-dd]').classList.add('open');
+        setTimeout(() => {
+          c.show({ k: 'qrprint', dim: false, step: '③ QR ラベルを印刷して貼る', title: '「QRラベル印刷」を押します', body: '設備を選んで A4 に印刷し、設備の見やすい所に貼ります。QR には URL しか入っていないので、貼っても安全です。', buttons: [{ label: 'やめる', skip: true, on: () => c.clear() }] });
+          wait('qrprint', () => { s.querySelector('[data-dd]').classList.remove('open'); done.qr = true; c.clear(); toast(s, '（モック）QR ラベルの印刷画面が開きます'); draw(); setTimeout(() => guide('inspect'), 600); });
+        }, 50);
+      });
+    } else if (key === 'inspect') {
+      c.show({ k: 'scan', dim: false, step: '④ スマホで点検してみる', title: 'スマホで QR を読みます', body: 'ふだんは作業者がスマホで QR を読みます。試しにここから読んで、○ を付けて送ってみましょう。', buttons: [{ label: 'やめる', skip: true, on: () => c.clear() }] });
+      wait('scan', () => { state.eq[0].st = 'ok'; renderScreen(s, state); done.inspect = true; c.clear(); toast(s, '（モック）W-01 を点検して送りました'); draw(); setTimeout(() => guide('daily'), 600); });
+    } else if (key === 'daily') {
+      c.show({ k: 'tile-W-01', dim: false, step: '⑤ 毎朝の見方', title: '点検すると緑になります', body: '点検した設備は <b style="color:#15803D">○ 緑</b>に、✕ が付くと <b style="color:#DC2626">赤</b>になります。赤い設備を押すと「直した」が出ます。', buttons: [{ label: 'わかった', pri: true, on: () => { done.daily = true; c.clear(); draw(); } }] });
+    }
+  }
+  const start = () => {
+    state.eq = []; Object.assign(done, { area: true, eq: false, qr: false, inspect: false, daily: false });
+    renderScreen(s, state); c.clear(); box.style.display = ''; pill.style.display = 'none'; draw();
+    c.show({ title: 'TENQ へようこそ', body: '使い始めるまでに、やることは <b>5 つ</b>です。右下のリストの「やってみる」を押すと、押す場所を案内します。', buttons: [{ label: 'リストを見る', pri: true, on: () => c.clear() }] });
+    s.querySelector('.bal h6').insertAdjacentHTML('beforebegin', '<div class="hero">🚀</div>');
+  };
+  plan.querySelector('[data-start]').addEventListener('click', start);
+  s.querySelector('[data-k="help"]').addEventListener('click', () => { s.querySelector('[data-dd]').classList.remove('open'); box.style.display = ''; pill.style.display = 'none'; draw(); });
+  draw();
+  plan.start = start;
+})();
+
+/* ---------- C 案: その場のヒント ---------- */
+(() => {
+  const plan = document.getElementById('p-c');
+  const state = { eq: [] };
+  const s = buildScreen(plan, '<button class="helpbtn" data-k="helpbtn">？ 使い方</button>');
+  renderScreen(s, state);
+  const c = coach(s);
+  let seen = new Set();
+  const HINTS = [
+    { id: 'add', k: 'addeq', when: () => state.eq.length === 0, title: 'まず設備を登録しましょう', body: '設備がまだありません。ここから番号と名前を入れて登録します。', act: () => { state.eq.push({ id: 'W-01', name: '溶接機 1号', st: 'todo' }); toast(s, '（モック）W-01 溶接機 1号 を登録しました'); } },
+    { id: 'tile', k: 'tile-W-01', when: () => state.eq.some((e) => e.st === 'todo'), title: '設備のタイル', body: '点線は「まだ点検していない」です。押すと、その設備の詳しい内容・QR ラベルの印刷などが出ます。' },
+    { id: 'ng', k: 'tile-W-02', when: () => state.eq.some((e) => e.st === 'ng'), title: '赤い設備 = おかしい所あり', body: '作業者が ✕ を付けました。押すと内容と写真が見られ、直したら<b>「○ 直した」</b>を押すと緑に戻ります。' },
+    { id: 'bname', k: 'bname', when: () => true, title: '建屋の名前', body: '押すと、名前を変える・この建屋に設備を足す・QR をまとめて印刷、ができます。' },
+  ];
+  const beacons = [];
+  function drawBeacons() {
+    beacons.splice(0).forEach((b) => b.remove());
+    if (s.classList.contains('helping')) return;
+    const sr = s.getBoundingClientRect();
+    for (const h of HINTS) {
+      if (seen.has(h.id) || !h.when()) continue;
+      const t = s.querySelector(`[data-k="${h.k}"]`);
+      if (!t) continue;
+      const r = t.getBoundingClientRect();
+      const b = document.createElement('button');
+      b.className = 'beacon';
+      b.setAttribute('aria-label', 'ヒント: ' + h.title);
+      b.style.left = r.right - sr.left - 12 + 'px';
+      b.style.top = r.top - sr.top - 10 + 'px';
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        c.show({ k: h.k, dim: false, title: h.title, body: h.body, onX: () => c.clear(), buttons: [
+          ...(h.act ? [{ label: 'やってみる', on: () => { seen.add(h.id); h.act(); c.clear(); refresh(); } }] : []),
+          { label: 'わかった', pri: true, on: () => { seen.add(h.id); c.clear(); refresh(); } },
+        ] });
+      });
+      s.appendChild(b);
+      beacons.push(b);
+    }
+  }
+  const refresh = () => { renderScreen(s, state); drawBeacons(); };
+  // 「？ 使い方」: 画面の各場所に札を付ける
+  const TAGS = [
+    ['sum', '今日の数', 'おかしい所・まだ・済みの台数'],
+    ['addeq', '設備を足す', '新しい設備を登録する'],
+    ['lock', '配置を動かす', '押している間だけ建屋・設備をドラッグ'],
+    ['floor', '工場の見取り図', '建屋の中に設備。赤=おかしい／緑=済み／点線=まだ'],
+    ['side', '直っていない異常', '押すと内容と「直した」'],
+    ['records', '記録', '点検の記録・異常の記録・CSV'],
+    ['gear', '⚙ 設定', '設備の一覧・QR 印刷・使う人'],
+  ];
+  const tagEls = [];
+  function toggleHelp() {
+    const on = !s.classList.contains('helping');
+    s.classList.toggle('helping', on);
+    s.querySelector('[data-k="helpbtn"]').classList.toggle('on', on);
+    s.querySelector('[data-k="helpbtn"]').textContent = on ? '✕ 使い方を閉じる' : '？ 使い方';
+    tagEls.splice(0).forEach((t) => t.remove());
+    c.clear();
+    if (on) {
+      const sr = s.getBoundingClientRect();
+      TAGS.forEach(([k, name, desc], i) => {
+        const t = s.querySelector(`[data-k="${k}"]`);
+        const r = t.getBoundingClientRect();
+        const o = document.createElement('div'); o.className = 'outline';
+        Object.assign(o.style, { left: r.left - sr.left - 4 + 'px', top: r.top - sr.top - 4 + 'px', width: r.width + 8 + 'px', height: r.height + 8 + 'px' });
+        const g = document.createElement('div'); g.className = 'tag';
+        g.innerHTML = `<b>${i + 1}</b><strong>${name}</strong><br>${desc}`;
+        // 札が重ならないよう、場所ごとに置き方を決める（右上はボタンが詰まっているので段をずらす）
+        const L = r.left - sr.left, R = r.right - sr.left, T = r.top - sr.top, B = r.bottom - sr.top;
+        let left = L, top = B + 8;
+        if (k === 'addeq') left = L - 150;
+        if (k === 'lock') { left = R - 210; top = B + 64; }
+        if (k === 'gear') left = R - 210;
+        if (k === 'floor') top = T + 60;
+        if (k === 'side') top = T + 90;
+        left = Math.min(Math.max(8, left), sr.width - 220);
+        Object.assign(g.style, { left: left + 'px', top: top + 'px' });
+        s.appendChild(o); s.appendChild(g); tagEls.push(o, g);
+      });
+    }
+    drawBeacons();
+  }
+  s.querySelector('[data-k="helpbtn"]').addEventListener('click', toggleHelp);
+  s.querySelector('[data-k="help"]').addEventListener('click', () => { s.querySelector('[data-dd]').classList.remove('open'); toggleHelp(); });
+  plan.querySelector('[data-ng]').addEventListener('click', () => {
+    if (!state.eq.some((e) => e.id === 'W-02')) state.eq.push({ id: 'W-02', name: '溶接機 2号', st: 'ng' });
+    seen.delete('ng'); refresh(); toast(s, '（デモ）作業者が W-02 に ✕ を付けました');
+  });
+  const start = () => { state.eq = []; seen = new Set(); if (s.classList.contains('helping')) toggleHelp(); c.clear(); refresh();
+    c.show({ title: 'TENQ へようこそ', body: '<b>青く点滅している点</b>が、次に押すとよい所です。点を押すと説明が出ます。<br>右上の「？ 使い方」で、画面の全部の場所の説明も見られます。', buttons: [{ label: 'わかった', pri: true, on: () => c.clear() }] });
+    s.querySelector('.bal h6').insertAdjacentHTML('beforebegin', '<div class="hero">💡</div>');
+  };
+  plan.querySelector('[data-start]').addEventListener('click', start);
+  window.addEventListener('resize', () => { if (plan.classList.contains('on')) drawBeacons(); });
+  plan.start = start;
+  plan.redraw = drawBeacons;
+})();
+
+/* ---------- タブ ---------- */
+let started = {};
+const showPlan = (k) => {
+  document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x.dataset.p === k));
+  document.querySelectorAll('.plan').forEach((p) => p.classList.toggle('on', p.id === 'p-' + k));
+  const p = document.getElementById('p-' + k);
+  // 初めて開いたタブは、初めての人として始める（画面が見えてから位置を計る）
+  if (p.start && !started[k]) { started[k] = true; requestAnimationFrame(() => p.start()); }
+  else if (p.redraw) requestAnimationFrame(() => p.redraw());
+};
+document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => { showPlan(b.dataset.p); window.scrollTo(0, 0); }));
+showPlan('a');
+</script>
+</body>
+</html>
