@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TENQ とは | Space.app</title>
+<meta name="description" content="TENQ は工場設備の日常点検アプリ。設備の QR を読んで ○ か ✕ を押して送るだけ。工場長は工場の見取り図で、毎朝どこがおかしいかをひと目で見られます。">
+<!-- TENQ の紹介ページ（2026-11-08。TENQ/_mock-lp-proposals.html の A 案に B 案「朝の流れ」を入れた形）。
+     作りは lp-whatsno.html にそろえる（ヘッダー・CTA・フッター）。
+     ★ お客様の声は架空の例。公開・宣伝に使う前に、実際に使った会社の声（掲載の許可を得たもの）に差し替えること。
+       架空の声を本物として載せると、景品表示法（不当表示・ステマ規制）に触れうる -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{
+  --brand:#1f5fd1; --brand-d:#1747a6; --brand-l:#e8f0fd; --hl:#c7dbfb;
+  --ink:#1f2430; --muted:#6b7280; --line:#e8eaf0; --bg:#fff; --soft:#f7f8fb;
+  --ok:#15803d; --ok-l:#dcfce7; --ng:#dc2626; --ng-l:#fee2e2; --todo:#64748b;
+  --morning:#fb923c; --radius:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans JP',sans-serif;color:var(--ink);background:var(--bg);
+  font-size:15px;line-height:1.85;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+ul{list-style:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+/* ── ヘッダー（lp-whatsno.html と同じ） ── */
+.hd{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.9);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.hd-in{max-width:1080px;margin:0 auto;padding:0 24px;height:58px;display:flex;align-items:center;gap:16px}
+.hd-back{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:7px}
+.hd-back:hover{color:var(--brand)}
+.hd-logo{font-family:'Poppins',sans-serif;font-weight:800;font-size:17px;letter-spacing:.02em;
+  margin-left:4px;padding-left:16px;border-left:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.hd-logo i{color:var(--brand)}
+.hd-sp{flex:1}
+.hd-nav{display:flex;gap:22px;font-size:13.5px;color:var(--muted)}
+.hd-nav a:hover{color:var(--brand)}
+.hd-cta{background:var(--brand);color:#fff;font-size:13px;font-weight:700;
+  padding:9px 18px;border-radius:999px;transition:.2s}
+.hd-cta:hover{background:var(--brand-d)}
+
+/* ── 共通 ── */
+section{padding:84px 0;scroll-margin-top:58px}
+.sec-head{text-align:center;max-width:680px;margin:0 auto 44px}
+.sec-tag{display:inline-block;font-size:12px;font-weight:700;color:var(--brand);background:var(--brand-l);
+  padding:5px 14px;border-radius:999px;margin-bottom:14px}
+h1{font-size:43px;font-weight:900;line-height:1.38;letter-spacing:-.02em}
+h2{font-size:31px;font-weight:900;line-height:1.45;letter-spacing:-.01em}
+.sec-head p{color:var(--muted);margin-top:14px;font-size:15.5px}
+.u{background:linear-gradient(transparent 64%, var(--hl) 64%)}
+.soft{background:var(--soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.btns{display:flex;gap:12px;margin-top:32px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:9px;font-size:14.5px;font-weight:700;
+  padding:15px 28px;border-radius:12px;transition:.2s;border:1px solid transparent}
+.btn-main{background:var(--brand);color:#fff;box-shadow:0 8px 22px rgba(31,95,209,.28)}
+.btn-main:hover{background:var(--brand-d);transform:translateY(-2px)}
+.btn-sub{border-color:var(--line);color:var(--ink);background:#fff}
+.btn-sub:hover{border-color:var(--brand);color:var(--brand)}
+
+/* ── ヒーロー ── */
+.hero{padding:72px 0 76px;background:radial-gradient(900px 420px at 82% 8%, #dbeafe 0%, transparent 62%), var(--bg)}
+.hero-in{display:grid;grid-template-columns:1fr 470px;gap:48px;align-items:center}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;
+  color:var(--brand);background:var(--brand-l);padding:6px 14px;border-radius:999px;margin-bottom:22px}
+.lead{font-size:16px;color:var(--muted);margin-top:22px;max-width:30em}
+.hero-note{font-size:12.5px;color:var(--muted);margin-top:16px;display:flex;align-items:center;gap:8px}
+.hero-note i{color:var(--ok)}
+.visual{position:relative;height:430px}
+.visual .pcmock{position:absolute;right:0;top:16px;width:430px}
+.visual .ph{position:absolute;left:-6px;bottom:-6px;transform:scale(.86);transform-origin:left bottom}
+
+/* 画面の絵: スマホの点検表 */
+.ph{width:250px;background:#fff;border:9px solid #1f2937;border-radius:34px;padding:14px 12px 16px;
+  box-shadow:0 24px 60px rgba(31,36,48,.18);font-size:12px;flex:none}
+.ph .s{color:var(--muted);font-size:11px}
+.ph .t{font-weight:900;font-size:15px;margin:2px 0 8px}
+.ph .r{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:6px 8px;margin-bottom:6px}
+.ph .r span{flex:1;font-weight:700}
+.ph .r b{width:34px;height:34px;border-radius:8px;border:2px solid #cbd5e1;display:inline-flex;align-items:center;justify-content:center;font-size:16px;color:#94a3b8}
+.ph .r b.o{background:var(--ok);border-color:var(--ok);color:#fff}
+.ph .r b.x{background:var(--ng);border-color:var(--ng);color:#fff}
+.ph .memo{border:2px solid var(--ng-l);border-radius:8px;padding:5px 8px;color:var(--muted);margin:-2px 0 6px;font-size:11px}
+.ph .send{background:var(--brand);color:#fff;text-align:center;font-weight:800;border-radius:12px;padding:10px;margin-top:8px;font-size:14px}
+/* 画面の絵: 工場の見取り図 */
+.pcmock{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 24px 60px rgba(31,36,48,.13);overflow:hidden;font-size:11px}
+.pcmock .bar{display:flex;gap:6px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);font-weight:800;font-size:12px}
+.pcmock .bar i{width:8px;height:8px;border-radius:50%;background:#e2e8f0}
+.pcmock .bar span{margin-left:8px}
+.pcmock .sum{display:flex;gap:6px;padding:10px 12px 0}
+.pcmock .sum em{font-style:normal;font-weight:800;border-radius:8px;padding:1px 9px}
+.pcmock .floor{display:grid;grid-template-columns:repeat(12,1fr);gap:8px;padding:10px 12px 14px}
+.pcmock .b{border:2px solid #cbd5e1;border-radius:10px;padding:5px 6px}
+.pcmock .b.ng{border-color:var(--ng)}
+.pcmock .b h6{font-size:11px;margin-bottom:4px}
+.pcmock .eqs{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:4px}
+.pcmock .e{border-radius:6px;padding:3px 5px;font-weight:700;font-size:10px;line-height:1.3;border:2px dashed var(--todo)}
+.pcmock .e.ok{background:var(--ok);border:2px solid var(--ok);color:#fff}
+.pcmock .e.ng{background:var(--ng);border:2px solid var(--ng);color:#fff}
+
+/* ── 困りごと ── */
+.pains{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.pain{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px;font-size:14.5px;color:var(--muted)}
+.pain b{display:flex;align-items:center;gap:8px;font-size:16px;color:var(--ink);margin-bottom:6px}
+.pain b i{color:var(--ng)}
+
+/* ── 朝の流れ（B 案から） ── */
+.morning{background:linear-gradient(180deg,#fff7ed 0%,#fffbeb 18%,#fff 60%)}
+.morning .sec-tag{color:#c2410c;background:#ffedd5}
+.timeline{position:relative}
+.timeline::before{content:"";position:absolute;left:96px;top:10px;bottom:10px;width:3px;
+  background:linear-gradient(var(--morning),var(--brand));border-radius:2px}
+.tl{display:grid;grid-template-columns:96px 1fr 320px;gap:32px;align-items:center;margin-bottom:52px;position:relative}
+.tl:last-child{margin-bottom:0}
+.tl .time{font-family:'Poppins',sans-serif;font-weight:800;font-size:26px;color:var(--brand);text-align:right;padding-right:26px}
+.tl .time.small{font-size:20px}
+.tl .dot{position:absolute;left:89px;top:50%;width:17px;height:17px;border-radius:50%;background:#fff;
+  border:4px solid var(--brand);transform:translateY(-50%)}
+.tl .who{font-size:12px;font-weight:700;color:var(--brand);background:var(--brand-l);display:inline-flex;align-items:center;gap:6px;
+  border-radius:999px;padding:2px 12px;margin-bottom:8px}
+.tl h3{font-size:21px;line-height:1.5;margin-bottom:6px}
+.tl p{color:var(--muted);font-size:14.5px}
+.tl .pic{display:flex;justify-content:center}
+.tl .pic .ph{transform:scale(.8);margin:-40px 0}
+.tl .pic .pcmock{width:320px}
+.bubble{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px;
+  box-shadow:0 10px 30px rgba(31,36,48,.08);font-size:14px;line-height:1.9;width:100%;max-width:300px}
+.bubble .ng{color:var(--ng);font-weight:800}
+.bubble .ok{color:var(--ok);font-weight:800}
+.bubble i{color:var(--brand);width:18px}
+
+/* ── できること ── */
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.fc{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px}
+.fc .ic{width:46px;height:46px;border-radius:12px;background:var(--brand-l);color:var(--brand);
+  display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:14px}
+.fc h4{font-size:16.5px;font-weight:800;margin-bottom:6px}
+.fc p{font-size:13.5px;color:var(--muted)}
+.safe-row{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 22px;margin-top:30px;font-size:13.5px;color:var(--muted)}
+.safe-row span{display:inline-flex;align-items:center;gap:8px}
+.safe-row i{color:var(--ok)}
+
+/* ── お客様の声（架空の例） ── */
+.rv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.rv{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px 22px 18px;position:relative;display:flex;flex-direction:column}
+.rv .fake{position:absolute;right:14px;top:14px;font-size:11px;font-weight:700;color:#92400e;background:#fef3c7;
+  border:1px solid #f59e0b;border-radius:999px;padding:1px 10px}
+.rv .stars{color:#f59e0b;letter-spacing:2px;font-size:13px}
+.rv blockquote{font-size:14.5px;margin:10px 0 16px;flex:1}
+.rv .who{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:12px}
+.rv .av{width:40px;height:40px;border-radius:50%;background:var(--brand-l);color:var(--brand);
+  display:flex;align-items:center;justify-content:center;font-weight:900;flex:none}
+.rv .who b{display:block;font-size:14px}
+.rv .who small{color:var(--muted);font-size:12px}
+.rv-note{font-size:12.5px;color:#92400e;background:#fffbeb;border:1px dashed #f59e0b;border-radius:10px;
+  padding:8px 14px;margin-top:18px;text-align:center}
+
+/* ── はじめ方（lp-whatsno.html の 3 ステップと同じ形） ── */
+.how{display:grid;grid-template-columns:repeat(3,1fr);gap:34px;counter-reset:s}
+.hw{counter-increment:s;position:relative;padding-top:8px;display:flex;flex-direction:column}
+.hw::before{content:counter(s,decimal-leading-zero);font-family:'Poppins',sans-serif;
+  font-size:40px;font-weight:800;color:var(--hl);line-height:1;display:block;margin-bottom:10px}
+.hw h4{font-size:17px;font-weight:800;margin-bottom:8px}
+.hw p{font-size:13.5px;color:var(--muted);margin-bottom:16px}
+.hw .sub{margin-top:auto;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:7px}
+.hw .sub div{font-size:12px;color:#4b5563;display:flex;gap:9px;align-items:flex-start;line-height:1.75}
+.hw .sub i{color:var(--brand);font-size:11px;margin-top:6px}
+
+/* ── CTA・フッター（lp-whatsno.html と同じ） ── */
+.cta{background:linear-gradient(135deg,var(--brand-d),var(--brand) 60%,#60a5fa);color:#fff;text-align:center;padding:78px 0}
+.cta h2{color:#fff}
+.cta p{color:rgba(255,255,255,.85);font-size:14.5px;margin-top:14px}
+.cta-tel{margin-top:32px;display:flex;align-items:center;justify-content:center;gap:11px;
+  flex-wrap:wrap;font-size:14.5px;color:rgba(255,255,255,.9)}
+.cta-tel i{font-size:12px;color:rgba(255,255,255,.65)}
+.cta-tel .tel{font-family:'Poppins',sans-serif;font-weight:800;font-size:23px;color:#fff;letter-spacing:.02em}
+.site-footer{padding:40px 0 34px;border-top:1px solid var(--line);background:#fff;scroll-margin-top:70px}
+.footer-in{display:flex;justify-content:space-between;align-items:flex-start;gap:28px;flex-wrap:wrap}
+.footer-brand{display:flex;gap:14px;align-items:flex-start}
+.footer-logo{display:flex;align-items:center;gap:9px;flex:none;padding-top:1px}
+.footer-logo svg{width:25px;height:25px;color:#37453a;flex:none}
+.footer-word{font-family:'Poppins',sans-serif;font-weight:700;font-size:16px;color:#2b352d;letter-spacing:-.01em;white-space:nowrap}
+.footer-addr{font-size:12.5px;color:var(--muted);line-height:1.9}
+.footer-meta{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px;text-align:right}
+
+@media(max-width:900px){
+  .hero{padding:52px 0 44px}
+  .hero-in{grid-template-columns:1fr;gap:30px}
+  h1{font-size:30px}
+  h2{font-size:24px}
+  section{padding:58px 0}
+  .hd-nav{display:none}
+  .visual{height:auto;display:flex;flex-direction:column;align-items:center;gap:20px}
+  .visual .pcmock{position:relative;width:100%;top:0}
+  .visual .ph{position:relative;left:0;bottom:0;transform:none}
+  .pains,.feats,.rv-grid,.how{grid-template-columns:1fr}
+  .timeline::before{left:12px}
+  .tl{grid-template-columns:1fr;padding-left:38px;gap:12px;margin-bottom:44px}
+  .tl .time{text-align:left;padding:0;font-size:22px}
+  .tl .dot{left:5px;top:18px;transform:none}
+  .tl .pic{justify-content:flex-start}
+  .tl .pic .ph{transform:none;margin:0}
+  .tl .pic .pcmock{width:100%}
+  .hd-logo{margin-left:0}
+  .footer-in{flex-direction:column;gap:20px}
+  .footer-meta{text-align:left}
+}
+</style>
+</head>
+<body>
+
+<header class="hd">
+  <div class="hd-in">
+    <a class="hd-back" href="apps.html"><i class="fa-solid fa-arrow-left"></i>Space.app</a>
+    <span class="hd-logo"><i class="fa-solid fa-clipboard-check"></i>TENQ</span>
+    <span class="hd-sp"></span>
+    <nav class="hd-nav"><a href="#morning">朝の流れ</a><a href="#use">できること</a><a href="#voice">お客様の声</a><a href="#start">はじめ方</a></nav>
+    <a class="hd-cta" href="#contact">HaLSpace</a>
+  </div>
+</header>
+
+<!-- ヒーロー -->
+<section class="hero">
+  <div class="wrap hero-in">
+    <div>
+      <span class="eyebrow"><i class="fa-solid fa-clipboard-check"></i>設備の日常点検アプリ</span>
+      <h1>紙の点検表を、<br><span class="u">スマホの ○ と ✕</span> に。</h1>
+      <p class="lead">設備の QR を読んで、○ か ✕ を押して送るだけ。工場長は事務所の PC で、工場のどこがおかしいかを毎朝ひと目で見られます。</p>
+      <div class="btns">
+        <a class="btn btn-sub" href="#morning"><i class="fa-solid fa-sun"></i>朝の流れを見る</a>
+        <a class="btn btn-main" href="#contact"><i class="fa-solid fa-comments"></i>担当者へ連絡</a>
+      </div>
+      <p class="hero-note"><i class="fa-solid fa-circle-check"></i>スマホと PC のブラウザで使えます（アプリのインストールは不要）</p>
+    </div>
+    <div class="visual" aria-label="TENQ の画面の例（PC の見取り図とスマホの点検表）">
+      <div data-pc></div>
+      <div data-ph="ng"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 困りごと -->
+<section class="soft">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-tag">こんなこと、ありませんか</span>
+      <h2>点検は毎日しているのに、<br>工場の様子が見えない。</h2>
+    </div>
+    <div class="pains">
+      <div class="pain"><b><i class="fa-solid fa-circle-xmark"></i>点検表を集めて回る</b>紙を回収して、印鑑を確かめて、ファイルに綴じる。それだけで朝の時間がなくなる。</div>
+      <div class="pain"><b><i class="fa-solid fa-circle-xmark"></i>異常が伝わるのが遅い</b>✕ が付いていても、点検表を見るまで気づかない。気づいたときには止まっている。</div>
+      <div class="pain"><b><i class="fa-solid fa-circle-xmark"></i>監査の前に記録を探す</b>ISO の監査のたびに、何か月分もの紙をめくって探す。</div>
+    </div>
+  </div>
+</section>
+
+<!-- 朝の流れ -->
+<section class="morning" id="morning">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-tag"><i class="fa-solid fa-sun"></i> TENQ のある朝</span>
+      <h2>朝の点検が終わるころには、<br><span class="u">工場の様子がもう見えている。</span></h2>
+      <p>作業者がスマホで送った点検結果が、そのまま工場長の PC の見取り図に色で出ます。</p>
+    </div>
+    <div class="timeline">
+      <div class="tl"><div class="time">7:30</div><span class="dot"></span>
+        <div><span class="who"><i class="fa-solid fa-helmet-safety"></i>作業者</span><h3>設備の QR を読んで、<br>○ と ✕ を付けて送る</h3>
+          <p>設備の前でスマホをかざすと、その設備の点検表が開きます。見て押すだけ。油もれを見つけたので、✕ と一言・写真を付けて送りました。</p></div>
+        <div class="pic" data-ph="ng"></div></div>
+      <div class="tl"><div class="time">8:00</div><span class="dot"></span>
+        <div><span class="who"><i class="fa-solid fa-industry"></i>工場長</span><h3>事務所の PC で、<br>見取り図の赤を見る</h3>
+          <p>工場の建屋の並びどおりに設備が並び、✕ 赤・○ 緑・点線（まだ）で色が変わります。赤を押すと、さっきの写真と一言。まだの設備も分かります。</p></div>
+        <div class="pic" data-pc></div></div>
+      <div class="tl"><div class="time">9:00</div><span class="dot"></span>
+        <div><span class="who"><i class="fa-solid fa-wrench"></i>設備担当</span><h3>直したら、<br>「直した」を押すだけ</h3>
+          <p>何をして直したかを一言入れて「○ 直した」。見取り図の赤が緑に戻り、対応の記録が残ります。赤は直すまで消えません。</p></div>
+        <div class="pic"><div class="bubble"><span class="ng">✕ P-01 油もれ</span>（7:32 作業者）<br><i class="fa-solid fa-arrow-turn-down fa-rotate-270"></i>「パッキンを交換した」<br><span class="ok">○ 直した</span>（9:12 設備担当）</div></div></div>
+      <div class="tl"><div class="time small">月末</div><span class="dot"></span>
+        <div><span class="who"><i class="fa-solid fa-file-shield"></i>品質管理</span><h3>監査の記録は、<br>期間を選んで印刷</h3>
+          <p>確定した点検記録は、書き換えも削除もできない形で残ります。期間を選んで、月の点検表や異常と対応の一覧を印刷・CSV で出せます。</p></div>
+        <div class="pic"><div class="bubble"><i class="fa-solid fa-file-lines"></i>11 月の点検表（A 棟）<br><i class="fa-solid fa-list-check"></i>異常と対応の一覧<br><i class="fa-solid fa-file-csv"></i>CSV で保存</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- できること -->
+<section class="soft" id="use">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-tag">できること</span>
+      <h2>点検に必要なことは、ひと通り。</h2>
+    </div>
+    <div class="feats">
+      <div class="fc"><div class="ic"><i class="fa-solid fa-qrcode"></i></div><h4>QR で点検表を開く</h4><p>設備に貼った QR を読むと、その設備の点検表。探す手間がありません。ログインは 30 日覚えます。</p></div>
+      <div class="fc"><div class="ic"><i class="fa-regular fa-circle"></i></div><h4>○ ✕ で記入</h4><p>項目ごとに ○ か ✕。✕ のときは一言と写真を付けられ、そのまま異常として届きます。</p></div>
+      <div class="fc"><div class="ic"><i class="fa-solid fa-map"></i></div><h4>工場の見取り図</h4><p>建屋の並びどおりに設備を並べ、今日の状態を 3 色で表示。配置はマウスで動かせます。</p></div>
+      <div class="fc"><div class="ic"><i class="fa-solid fa-screwdriver-wrench"></i></div><h4>「直した」で記録</h4><p>直した内容と時刻が残り、見取り図の赤が緑に戻ります。直っていない異常は一覧に。</p></div>
+      <div class="fc"><div class="ic"><i class="fa-solid fa-print"></i></div><h4>印刷・CSV</h4><p>月の点検表、異常と対応の一覧を印刷。CSV は Excel でそのまま開けます。</p></div>
+      <div class="fc"><div class="ic"><i class="fa-regular fa-comment-dots"></i></div><h4>初めての人に案内</h4><p>「はじめにやること」と吹き出しで、使い始めるまでを画面が案内します。</p></div>
+    </div>
+    <div class="safe-row">
+      <span><i class="fa-solid fa-lock"></i>QR には URL とランダムな番号だけ。読んでもログインしないと何も見られません</span>
+      <span><i class="fa-solid fa-shield-halved"></i>確定した記録は上書き・削除できません（訂正は履歴で残ります）</span>
+      <span><i class="fa-solid fa-users"></i>作業者・設備担当・工場長・システム管理者で権限を分けます</span>
+    </div>
+  </div>
+</section>
+
+<!-- お客様の声（★ 架空の例。公開・宣伝に使う前に実際の声へ差し替える） -->
+<section id="voice">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-tag">お客様の声</span>
+      <h2>使っている会社の声</h2>
+    </div>
+    <div class="rv-grid">
+      <div class="rv"><span class="fake">架空の例</span><div class="stars" aria-hidden="true">★★★★★</div>
+        <blockquote>毎朝、紙の点検表を集めて回るのに 20 分かかっていました。今は事務所の PC で見取り図を見るだけ。赤い設備から順に回れます。</blockquote>
+        <div class="who"><span class="av">〇</span><span><b>〇〇精工（例）</b><small>金属加工 ・ 従業員 80 名 ・ 工場長</small></span></div></div>
+      <div class="rv"><span class="fake">架空の例</span><div class="stars" aria-hidden="true">★★★★★</div>
+        <blockquote>✕ を付けると写真付きで届くので、現場に行く前に部品の見当がつきます。直したら「直した」を押すだけで、記録も残ります。</blockquote>
+        <div class="who"><span class="av">△</span><span><b>△△製作所（例）</b><small>樹脂成形 ・ 従業員 45 名 ・ 設備担当</small></span></div></div>
+      <div class="rv"><span class="fake">架空の例</span><div class="stars" aria-hidden="true">★★★★★</div>
+        <blockquote>ISO の監査で点検記録をそろえるのが一日仕事でした。今は期間を選んで印刷するだけ。記録が書き換えられないのも、説明しやすいです。</blockquote>
+        <div class="who"><span class="av">□</span><span><b>□□工業（例）</b><small>プレス加工 ・ 従業員 120 名 ・ 品質管理</small></span></div></div>
+    </div>
+    <p class="rv-note">※ 掲載しているお客様の声は、ページの作成用の<b>架空の例</b>です。実際にお使いの会社の声に順次差し替えます。</p>
+  </div>
+</section>
+
+<!-- はじめ方 -->
+<section class="soft" id="start">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-tag">はじめ方</span>
+      <h2>今日から、使えます。</h2>
+      <p>工場長の画面には「はじめにやること」が出て、次にやることを案内します。</p>
+    </div>
+    <div class="how">
+      <div class="hw"><h4>建屋と設備を登録する</h4><p>建屋を足して、設備の番号と名前を入れるだけ。点検する項目は、ひな形から選べます。</p>
+        <div class="sub"><div><i class="fa-solid fa-circle"></i>建屋の場所・幅はマウスで動かせる</div><div><i class="fa-solid fa-circle"></i>点検項目は必須・任意・「今日は対象外」を選べる</div></div></div>
+      <div class="hw"><h4>QR ラベルを印刷して貼る</h4><p>A4 にまとめて印刷して、設備の見やすい所に貼ります。</p>
+        <div class="sub"><div><i class="fa-solid fa-circle"></i>建屋ごとにまとめて印刷できる</div><div><i class="fa-solid fa-circle"></i>QR だけでは中身は見られないので、貼っても安全</div></div></div>
+      <div class="hw"><h4>毎朝、スマホで点検する</h4><p>作業者は QR を読んで ○✕ を押して送るだけ。初めてのときは吹き出しで使い方を案内します。</p>
+        <div class="sub"><div><i class="fa-solid fa-circle"></i>送れなかったときは、押し直しても二重に記録されない</div><div><i class="fa-solid fa-circle"></i>工場長は見取り図で赤と点線を見るだけ</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta" id="cta">
+  <div class="wrap">
+    <h2>まずは、ひとことご相談ください。</h2>
+    <p>工場の設備の数や、今お使いの点検表をお聞かせください。始め方をご案内します。</p>
+    <div class="cta-tel">
+      担当者への連絡は<i class="fa-solid fa-arrow-right"></i><span class="tel">043-307-7301</span>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer" id="contact">
+  <div class="wrap footer-in">
+    <div class="footer-brand">
+      <div class="footer-logo">
+        <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 30 L13 8 L20 22 L28 6 L35 20"/>
+          <circle cx="13" cy="8" r="1.6" fill="currentColor" stroke="none"/>
+          <circle cx="20" cy="22" r="1.6" fill="currentColor" stroke="none"/>
+          <circle cx="28" cy="6" r="1.6" fill="currentColor" stroke="none"/>
+          <circle cx="35" cy="20" r="1.6" fill="currentColor" stroke="none"/>
+        </svg>
+        <span class="footer-word">HaLSpace.</span>
+      </div>
+      <div class="footer-addr">
+        <div>千葉営業所</div>
+        <div>〒260-0028　千葉県千葉市中央区新町3-7 高山ビル3階</div>
+        <div>Tel：043-307-7301　Fax：043-307-7302</div>
+      </div>
+    </div>
+    <div class="footer-meta">
+      <span>&copy; 2026 HaLSpace Inc.</span>
+      <span>Space.app / TENQ</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+// 画面の絵（スマホの点検表・工場の見取り図）。同じ絵を何か所かで使うので、ここで 1 回だけ書く
+(() => {
+  const PH = `<div class="ph" aria-hidden="true"><div class="s">P-01 ・ 今日</div><div class="t">油圧プレス機 1号</div>
+    <div class="r"><span>外観</span><b class="o">○</b><b>✕</b></div>
+    <div class="r"><span>油もれ</span><b>○</b><b class="x">✕</b></div><div class="memo">シリンダーの下に油 📷1</div>
+    <div class="r"><span>異音</span><b class="o">○</b><b>✕</b></div>
+    <div class="r"><span>非常停止</span><b class="o">○</b><b>✕</b></div><div class="send">送る</div></div>`;
+  const e = (cls, code) => `<span class="e ${cls}">${code}<br>${cls === 'ok' ? '○ 07:42' : cls === 'ng' ? '✕ 今日' : 'まだ'}</span>`;
+  const PC = `<div class="pcmock" aria-hidden="true"><div class="bar"><i></i><i></i><i></i><span>TENQ ・ 第1工場</span></div>
+    <div class="sum"><em style="background:var(--ng);color:#fff">✕ 異常 2</em><em style="border:2px dashed var(--todo)">まだ 2</em><em style="background:var(--ok-l);color:var(--ok)">○ 正常 8</em></div>
+    <div class="floor">
+      <div class="b ng" style="grid-column:1/span 5"><h6>A棟 プレス</h6><div class="eqs">${e('ng', 'P-01')}${e('ok', 'P-02')}${e('', 'P-03')}${e('ok', 'P-04')}</div></div>
+      <div class="b" style="grid-column:6/span 4"><h6>B棟 切削</h6><div class="eqs">${e('ok', 'L-05')}${e('ok', 'L-07')}${e('ok', 'M-04')}</div></div>
+      <div class="b ng" style="grid-column:10/span 3"><h6>屋外</h6><div class="eqs">${e('ng', 'CR-2')}</div></div>
+      <div class="b" style="grid-column:3/span 7"><h6>C棟 溶接</h6><div class="eqs">${e('ok', 'W-01')}${e('', 'W-02')}${e('ok', 'W-03')}${e('ok', 'K-01')}</div></div>
+    </div></div>`;
+  document.querySelectorAll('[data-ph]').forEach((el) => { el.innerHTML = PH; });
+  document.querySelectorAll('[data-pc]').forEach((el) => { el.innerHTML = PC; });
+})();
+</script>
+</body>
+</html>
