@@ -2,11 +2,13 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { Action } from '@tenq/shared';
 import { useAuth } from '../auth/AuthContext';
 import { SPACE_APPS_URL, isStandalone } from '../auth/session';
+import { replayOnb } from '../onboarding';
+import { navigate } from '../router';
 import { Logo } from './Logo';
 
 /** ログイン後の外枠。上の帯にメニューを 3 つだけ置く（PC・スマホ共通） */
 
-interface NavItem { to: string; label: string; icon: ReactNode; action?: Action }
+interface NavItem { to: string; label: string; icon: ReactNode; action?: Action; tour?: string }
 
 const I = {
   home: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6.5 8 6.5v9h-5.5v-5.5h-5V20H4z" /></svg>,
@@ -24,6 +26,7 @@ const I = {
   gear: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" /></svg>,
   back: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>,
   logout: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H15M10 16l4-4-4-4M14 12H4" /></svg>,
+  help: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5v.7M12 17v.2" /></svg>,
   device: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2" /><path d="M11 18h2" /></svg>,
 };
 
@@ -40,7 +43,7 @@ const RECORDS: NavItem[] = [
 const SETTINGS: NavItem[] = [
   { to: '/equipment', label: '設備の一覧（台帳）', icon: I.tool, action: 'qr.issue' },
   { to: '/templates', label: '点検する項目（点検基準）', icon: I.list, action: 'template.edit' },
-  { to: '/qr', label: 'QRラベル印刷', icon: I.qr, action: 'qr.issue' },
+  { to: '/qr', label: 'QRラベル印刷', icon: I.qr, action: 'qr.issue', tour: 'qr-print' },
   { to: '/admin/factories', label: '工場・建屋', icon: I.factory, action: 'layout.edit' },
   { to: '/admin/users', label: 'ユーザー管理', icon: I.user, action: 'users.manage' },
   { to: '/admin/audit', label: '操作の記録', icon: I.eye, action: 'audit.view' },
@@ -74,7 +77,7 @@ export function Layout({ path, children }: { path: string; children: ReactNode }
   }, [open]);
 
   const link = (n: NavItem) => (
-    <a key={n.to} href={`#${n.to}`} className={active(n.to) ? 'on' : ''} aria-current={active(n.to) ? 'page' : undefined}>
+    <a key={n.to} href={`#${n.to}`} className={active(n.to) ? 'on' : ''} aria-current={active(n.to) ? 'page' : undefined} data-tour={n.tour}>
       {n.icon}<span>{n.label}</span>
     </a>
   );
@@ -85,22 +88,24 @@ export function Layout({ path, children }: { path: string; children: ReactNode }
         <a href="#/" className="brand" aria-label="TENQ ホーム"><Logo /></a>
         <nav className="top-nav" aria-label="メニュー">
           <a href="#/" className={`top-tab ${isHome ? 'on' : ''}`} aria-current={isHome ? 'page' : undefined}>{I.factory}<span>{homeLabel}</span></a>
-          {records.length === 1 && <a href={`#${records[0]!.to}`} className={`top-tab ${active(records[0]!.to) ? 'on' : ''}`}>{I.search}<span>記録</span></a>}
+          {records.length === 1 && <a href={`#${records[0]!.to}`} className={`top-tab ${active(records[0]!.to) ? 'on' : ''}`} data-tour="records">{I.search}<span>記録</span></a>}
           {records.length > 1 && (
             <div className="nav-drop-wrap">
-              <button type="button" className={`top-tab ${records.some((n) => active(n.to)) ? 'on' : ''}`} aria-expanded={open === 'records'} aria-controls="nav-records"
+              <button type="button" data-tour="records" className={`top-tab ${records.some((n) => active(n.to)) ? 'on' : ''}`} aria-expanded={open === 'records'} aria-controls="nav-records"
                 onClick={() => setOpen((o) => (o === 'records' ? null : 'records'))}>{I.search}<span>記録</span><i aria-hidden="true">▾</i></button>
               {open === 'records' && <div id="nav-records" className="nav-drop">{records.map(link)}</div>}
             </div>
           )}
           <div className="nav-drop-wrap right">
-            <button type="button" className={`top-tab ${settings.some((n) => active(n.to)) ? 'on' : ''}`} aria-label="設定とアカウント" aria-expanded={open === 'settings'} aria-controls="nav-settings"
+            <button type="button" data-tour="settings" className={`top-tab ${settings.some((n) => active(n.to)) ? 'on' : ''}`} aria-label="設定とアカウント" aria-expanded={open === 'settings'} aria-controls="nav-settings"
               onClick={() => setOpen((o) => (o === 'settings' ? null : 'settings'))}>
               {I.gear}<span className="hide-sm">{me?.user.name}</span><i aria-hidden="true">▾</i>
             </button>
             {open === 'settings' && (
               <div id="nav-settings" className="nav-drop">
                 {settings.map(link)}
+                {/* 初めての人の案内（はじめにやること・作業者の吹き出し）をもう一度出す */}
+                <button type="button" className="nav-help" onClick={() => { if (me) replayOnb(me.user.id); setOpenAt(null); navigate('/'); }}>{I.help}<span>使い方を見る</span></button>
                 <div className="sidebar-bottom">
                   <div className="sidebar-user">
                     <span className="sidebar-avatar" aria-hidden="true">{me?.user.name.charAt(0)}</span>

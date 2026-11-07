@@ -3,6 +3,8 @@ import { simpleStatus, type BoardStatus, type SimpleStatus } from '@tenq/shared'
 import { apiGet, apiSend, apiUpload } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { AuthImage, shrinkPhoto } from '../components/Photo';
+import { HelpTags } from '../components/Coach';
+import { SetupChecklist } from '../components/SetupChecklist';
 import { Alert, Button, Loading, errorMessage, useLoad } from '../components/ui';
 import { formatDateTime, formatTime } from '../labels';
 import { navigate } from '../router';
@@ -28,6 +30,17 @@ interface Draft { areas: Area[]; items: Item[] }
 type Pop = { kind: 'eq' | 'area'; id: string; style: CSSProperties };
 
 const UNPLACED = '__unplaced__';
+
+/** 「？ 使い方」で付ける札（画面にないものは出ない） */
+const HELP_TAGS = [
+  { target: 'map-sum', name: '今日の数', desc: 'おかしい所・まだ・済みの台数' },
+  { target: 'add-eq', name: '設備を足す', desc: '新しい設備を登録する' },
+  { target: 'map-lock', name: '配置を動かす', desc: '押している間だけ建屋・設備をドラッグ' },
+  { target: 'map-floor', name: '工場の見取り図', desc: '建屋の中に設備。赤＝おかしい／緑＝済み／点線＝まだ。押すと詳しい内容' },
+  { target: 'map-side', name: '直っていない異常', desc: '押すと内容と「直した」' },
+  { target: 'records', name: '記録', desc: '点検の記録・異常の記録・CSV' },
+  { target: 'settings', name: '⚙ 設定', desc: '設備の一覧・QR 印刷・使う人・使い方を見る' },
+];
 const POP_W = 340;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -78,6 +91,7 @@ export function BoardPage() {
   const floorRef = useRef<HTMLDivElement>(null);
   const layoutRef = useRef<HTMLDivElement>(null);
   const canEdit = can('layout.edit', { factoryId });
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // 自動更新（配置を動かしている間は止める）。読み直しの関数は描画のたびに変わるので ref で持ち、タイマーを作り直さない。
   // 画面を見ていないとき（別のタブ・最小化・スリープ）は API を呼ばない。開きっぱなしの PC で
@@ -299,17 +313,18 @@ export function BoardPage() {
             {me?.factories.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
           </select>
         )}
-        <div className="map-sum" aria-label="今日の点検状況">
+        <div className="map-sum" aria-label="今日の点検状況" data-tour="map-sum">
           <span className="n-ng">✕ 異常<b>{count('ng')}</b></span>
           <span className="n-todo">まだ<b>{count('todo')}</b></span>
           <span className="n-ok">○ 正常<b>{count('ok')}</b></span>
         </div>
         <div className="map-actions">
-          {can('inspection.perform') && !editing && <Button onClick={() => navigate('/scan')}>QR を読む</Button>}
-          {can('equipment.create', { factoryId }) && !editing && <Button onClick={() => navigate(`/equipment/new?factory=${encodeURIComponent(factoryId)}`)}>＋ 設備を足す</Button>}
+          {can('inspection.perform') && !editing && <Button data-tour="scan" onClick={() => navigate('/scan')}>QR を読む</Button>}
+          {can('equipment.create', { factoryId }) && !editing && <Button data-tour="add-eq" onClick={() => navigate(`/equipment/new?factory=${encodeURIComponent(factoryId)}`)}>＋ 設備を足す</Button>}
           {canEdit && (editing
-            ? <Button variant="primary" className="map-lock" onClick={stopEdit}>🔒 固定する</Button>
-            : <Button className="map-lock" onClick={startEdit}>🔓 配置を動かす</Button>)}
+            ? <Button variant="primary" className="map-lock" data-tour="map-lock" onClick={stopEdit}>🔒 固定する</Button>
+            : <Button className="map-lock" data-tour="map-lock" onClick={startEdit}>🔓 配置を動かす</Button>)}
+          {!editing && <Button className="help-btn" onClick={() => setHelpOpen(true)}>？ 使い方</Button>}
         </div>
       </div>
       {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
@@ -324,7 +339,7 @@ export function BoardPage() {
 
       <div className="map-layout" ref={layoutRef}>
         <div className="map-main">
-          <div className={`floor ${editing ? 'editing' : ''}`} ref={floorRef}>
+          <div className={`floor ${editing ? 'editing' : ''}`} ref={floorRef} data-tour="map-floor">
             {areas.map((a) => {
               const list = inArea(a.id);
               const ng = list.filter((i) => st(i) === 'ng').length;
@@ -354,7 +369,7 @@ export function BoardPage() {
               <h2>
                 まだ置いていない設備
                 <small>{editing ? 'ここから建屋へドラッグ。建屋から外すときはここへ' : canEdit ? '「🔓 配置を動かす」で建屋へ置けます' : ''}</small>
-                {editing && adding === null && <Button className="tray-add" onClick={() => setAdding('')}>＋ 建屋を足す</Button>}
+                {editing && adding === null && <Button className="tray-add" data-tour="add-area" onClick={() => setAdding('')}>＋ 建屋を足す</Button>}
               </h2>
               {editing && adding !== null && (
                 <form className="tray-form" onSubmit={(e) => { e.preventDefault(); if (adding.trim()) void addArea(adding.trim()); }}>
@@ -368,7 +383,7 @@ export function BoardPage() {
           )}
         </div>
 
-        <aside className="map-side" aria-label="直っていない異常">
+        <aside className="map-side" aria-label="直っていない異常" data-tour="map-side">
           <h2>直っていない異常（{ngItems.length}）</h2>
           {ngItems.length === 0 ? <p className="muted">ありません。</p> : (
             <ul className="ng-list">
@@ -404,6 +419,10 @@ export function BoardPage() {
           </div>
         )}
       </div>
+
+      {canEdit && <SetupChecklist areas={data.areas.length} items={data.items.length}
+        inspectedToday={data.items.some((i) => !!i.inspection?.completed_at)} canQr={can('qr.issue', { factoryId })} />}
+      {helpOpen && <HelpTags onClose={() => setHelpOpen(false)} tags={HELP_TAGS} />}
 
       {toast && (
         <div className="map-toast" role="status" key={toast.n}>

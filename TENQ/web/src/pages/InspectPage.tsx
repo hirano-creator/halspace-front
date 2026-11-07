@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ApiError, apiGet, apiSend, apiUpload } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { TipTour } from '../components/Coach';
 import { shrinkPhoto } from '../components/Photo';
 import { Alert, Button, Loading, ReasonDialog, errorMessage, useLoad } from '../components/ui';
 import { JUDGMENT, formatTime } from '../labels';
@@ -228,14 +229,19 @@ export function InspectPage({ equipmentId }: { equipmentId: string }) {
 
       {!other && (
         <>
+          <TipTour id="inspect" ready={items.length > 0} steps={[
+            { hero: '👋', title: 'はじめての点検です', body: '項目ごとに設備を見て ○ か ✕ を押し、最後に「送る」を押すだけです。3 つだけ説明します。' },
+            { target: 'ox-first', title: '見て、○ か ✕ を押す', body: '大丈夫なら ○、おかしいときは ✕。✕ を押すと、一言と写真を付けられます。' },
+            { target: 'send', title: '全部付けたら「送る」', body: '✕ を付けた所は、工場長の見取り図に赤で出ます。送ったら次の設備の QR を読みます。' },
+          ]} />
           <ol className="ox-list">
-            {items.map((it) => {
+            {items.map((it, idx) => {
               const a = answers[it.id];
               const err = itemErrors[`item.${it.id}`];
               const pics = photos[it.id] ?? [];
               return (
                 <li key={it.id} className={`ox-item ${a ? `ans-${a.judgment}` : ''} ${err ? 'has-error' : ''}`}>
-                  <div className="ox-row">
+                  <div className="ox-row" data-tour={idx === 0 ? 'ox-first' : undefined}>
                     <span className="ox-label">{it.label}{!it.required && <span className="opt">任意</span>}{it.criteria && <small>{it.criteria}</small>}</span>
                     <span className="ox" role="group" aria-label={`${it.label} の判定`}>
                       <button type="button" className={`o ${a?.judgment === 'ok' ? 'on' : ''}`} aria-pressed={a?.judgment === 'ok'} disabled={busy} onClick={() => void choose(it, 'ok')} aria-label="○ 正常">○</button>
@@ -266,7 +272,7 @@ export function InspectPage({ equipmentId }: { equipmentId: string }) {
 
           {inspectionId && <button type="button" className="link" onClick={() => setVoidOpen(true)}>この点検をやめる（取り消す）</button>}
 
-          <div className="sticky-action">
+          <div className="sticky-action" data-tour="send">
             <Button variant="primary" className="block big" disabled={busy || remaining > 0 || !inspectionId} onClick={() => void complete()}>
               {busy ? '送っています…' : remaining > 0 ? `あと ${remaining} 項目` : '送る'}
             </Button>
