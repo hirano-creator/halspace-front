@@ -386,7 +386,7 @@ inspectionRoutes.get('/board', async (c) => {
   const keys = Object.values(today.keys);
 
   const [areas, equipment, inspections, abnormalities] = await db.batch([
-    db.prepare("SELECT id, name, grid_row, grid_col, col_span, sort_order, version FROM areas WHERE factory_id = ? AND status = 'active' ORDER BY sort_order, name").bind(factoryId),
+    db.prepare("SELECT id, name, grid_row, grid_col, col_span, row_span, sort_order, version FROM areas WHERE factory_id = ? AND status = 'active' ORDER BY sort_order, name").bind(factoryId),
     db.prepare(`SELECT e.id, e.equipment_code, e.name, e.status, e.frequency, e.area_id, e.board_order, e.template_id, e.manager_user_id, m.name AS manager_name
                 FROM equipment e LEFT JOIN users m ON m.id = e.manager_user_id
                 WHERE e.factory_id = ? AND e.company_id = ? AND e.status <> 'retired' ORDER BY e.board_order, e.equipment_code`).bind(factoryId, auth.companyId),

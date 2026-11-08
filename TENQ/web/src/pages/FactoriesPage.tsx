@@ -5,7 +5,7 @@ import { Alert, Button, Field, Loading, PageHeader, errorMessage, fieldErrors, u
 import { WEEKDAYS, workingDaysText } from '../labels';
 
 interface Factory { id: string; code: string; name: string; address: string | null; working_days: string; status: string; version: number }
-interface Area { id: string; name: string; grid_row: number; grid_col: number; col_span: number; sort_order: number; status: string; version: number }
+interface Area { id: string; name: string; grid_row: number; grid_col: number; col_span: number; row_span: number; sort_order: number; status: string; version: number }
 
 /**
  * 工場とエリア。工場の追加はシステム管理者、エリアは工場長以上。
@@ -53,12 +53,12 @@ export function FactoriesPage() {
           {areas.error && <Alert kind="error">{areas.error}</Alert>}
           <div className="area-preview" aria-label="配置のイメージ">
             {areas.data?.items.filter((a) => a.status === 'active').map((a) => (
-              <div key={a.id} className="area-box" style={{ gridRow: a.grid_row + 1, gridColumn: `${a.grid_col + 1} / span ${a.col_span}` }}>{a.name}</div>
+              <div key={a.id} className="area-box" style={{ gridRow: `${a.grid_row + 1} / span ${a.row_span || 3}`, gridColumn: `${a.grid_col + 1} / span ${a.col_span}` }}>{a.name}</div>
             ))}
           </div>
           <div className="table-wrap">
             <table className="table">
-              <thead><tr><th>エリア名</th><th>行</th><th>列</th><th>横幅（12列中）</th><th>並び順</th><th>状態</th><th></th></tr></thead>
+              <thead><tr><th>エリア名</th><th>行</th><th>列</th><th>横幅（12列中）</th><th>高さ（マス）</th><th>並び順</th><th>状態</th><th></th></tr></thead>
               <tbody>
                 {areas.data?.items.map((a) => <AreaRow key={`${a.id}-${a.version}`} area={a} editable={can('layout.edit', { factoryId })}
                   onDone={(t, ok) => { setMsg({ kind: ok ? 'success' : 'error', text: t }); areas.reload(); }} />)}
@@ -78,16 +78,17 @@ function AreaRow({ area, editable, onDone }: { area: Area; editable: boolean; on
   const num = (k: keyof Area) => (e: { target: { value: string } }) => setV((x) => ({ ...x, [k]: Number(e.target.value) }));
   const save = async () => {
     try {
-      await apiSend('PATCH', `/areas/${area.id}`, { version: area.version, name: v.name, grid_row: v.grid_row, grid_col: v.grid_col, col_span: v.col_span, sort_order: v.sort_order, status: v.status });
+      await apiSend('PATCH', `/areas/${area.id}`, { version: area.version, name: v.name, grid_row: v.grid_row, grid_col: v.grid_col, col_span: v.col_span, row_span: v.row_span, sort_order: v.sort_order, status: v.status });
       onDone(`「${v.name}」を保存しました。`, true);
     } catch (e) { onDone(errorMessage(e), false); }
   };
   return (
     <tr className={area.status !== 'active' ? 'row-muted' : ''}>
       <td><input aria-label="エリア名" value={v.name} maxLength={40} disabled={!editable} onChange={(e) => setV({ ...v, name: e.target.value })} /></td>
-      <td><input aria-label="行" type="number" min={0} max={50} value={v.grid_row} disabled={!editable} onChange={num('grid_row')} className="num" /></td>
+      <td><input aria-label="行" type="number" min={0} max={200} value={v.grid_row} disabled={!editable} onChange={num('grid_row')} className="num" /></td>
       <td><input aria-label="列" type="number" min={0} max={11} value={v.grid_col} disabled={!editable} onChange={num('grid_col')} className="num" /></td>
       <td><input aria-label="横幅" type="number" min={2} max={12} value={v.col_span} disabled={!editable} onChange={num('col_span')} className="num" /></td>
+      <td><input aria-label="高さ" type="number" min={2} max={40} value={v.row_span} disabled={!editable} onChange={num('row_span')} className="num" /></td>
       <td><input aria-label="並び順" type="number" min={0} max={9999} value={v.sort_order} disabled={!editable} onChange={num('sort_order')} className="num" /></td>
       <td>
         <select aria-label="状態" value={v.status} disabled={!editable} onChange={(e) => setV({ ...v, status: e.target.value })}>

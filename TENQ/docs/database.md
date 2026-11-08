@@ -138,9 +138,10 @@ PC のエリア別カード一覧（requirements F-7・F-12）の枠。運用開
 | company_id | INTEGER | NOT NULL | |
 | factory_id | TEXT | NOT NULL FK factories.id | 工場ごとに別の配置 |
 | name | TEXT | NOT NULL | 「A棟 プレスライン」など |
-| grid_row | INTEGER | NOT NULL DEFAULT 0 | 画面上の行（0 始まり） |
+| grid_row | INTEGER | NOT NULL DEFAULT 0 | 縦の位置（0 始まりのマス。1 マス = 画面で最低 40px。0004 で「段」から変更し、既存値は 3 倍） |
 | grid_col | INTEGER | NOT NULL DEFAULT 0 | 画面上の列（0 始まり。全体は 12 列の格子） |
 | col_span | INTEGER | NOT NULL DEFAULT 4 CHECK (col_span BETWEEN 2 AND 12) | 横幅（何列分か） |
+| row_span | INTEGER | NOT NULL DEFAULT 3 CHECK (row_span BETWEEN 2 AND 40) | 高さ（縦に何マス分か。中身が入りきらなければ画面でマスが伸びる。0004 で追加） |
 | sort_order | INTEGER | NOT NULL DEFAULT 0 | スマホなど 1 列表示のときの並び順 |
 | status | TEXT | NOT NULL DEFAULT 'active' CHECK IN ('active','inactive') | 無効化しても設備の割り当ては残す（表示は「未配置」へ） |
 | created_at / created_by / updated_at / updated_by / version | | | 共通 |

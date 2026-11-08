@@ -97,15 +97,17 @@ test('「配置を動かす」の間だけ、設備と建屋をつかんで動�
   await card.dragTo(weld);
   await expect(weld.getByRole('button', { name: /^D-01 / })).toBeVisible();
 
-  // 建屋の右下 ◢ を左へ引っぱると幅が狭くなり、帯をつかんで右へ動かせる（12 列のマス目に吸い付く）
+  // 建屋の右下 ◢ を左下へ引っぱると幅が狭く・高さが高くなり、帯をつかんで右へ動かせる（横 12 列・縦 1 マス 40px＋すき間 12px のマス目に吸い付く）
   const floor = await page.locator('.floor').boundingBox();
   const col = floor!.width / 12;
   const rz = await weld.locator('.bld-rz').boundingBox();
   await page.mouse.move(rz!.x + rz!.width / 2, rz!.y + rz!.height / 2);
   await page.mouse.down();
-  await page.mouse.move(rz!.x - col * 2, rz!.y + rz!.height / 2, { steps: 8 });
+  await page.mouse.move(rz!.x - col * 2, rz!.y + rz!.height / 2 + 52 * 2, { steps: 8 });
   await page.mouse.up();
-  await expect(page.getByText('「C棟 溶接」の幅を変えました（保存しました）')).toBeVisible();
+  await expect(page.getByText('「C棟 溶接」の大きさを変えました（保存しました）')).toBeVisible();
+  const gridRow = (l: typeof weld) => l.evaluate((el) => (el as HTMLElement).style.gridRow);
+  await expect.poll(() => gridRow(weld)).toBe('4 / span 5');
   const bar = await weld.locator('h2').boundingBox();
   await page.mouse.move(bar!.x + 60, bar!.y + bar!.height / 2);
   await page.mouse.down();
@@ -120,6 +122,7 @@ test('「配置を動かす」の間だけ、設備と建屋をつかんで動�
   const weld2 = page.getByRole('region', { name: 'C棟 溶接' });
   await expect(weld2.getByRole('button', { name: /^D-01 / })).toBeVisible();
   await expect.poll(() => gridColumn(weld2)).toBe('3 / span 7');
+  await expect.poll(() => gridRow(weld2)).toBe('4 / span 5');
 });
 
 test('点検履歴を絞り込み、その条件で CSV を出力できる（BOM 付き UTF-8）', async ({ page }) => {

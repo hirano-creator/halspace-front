@@ -9,7 +9,7 @@ import { scopeWhere } from '../lib/scope';
 /** エリア（PC のカード一覧の枠。requirements F-12）。配置のドラッグ編集は第6段階 */
 export const areaRoutes = new Hono<AppEnv>();
 
-interface AreaRow { id: string; factory_id: string; name: string; grid_row: number; grid_col: number; col_span: number; sort_order: number; status: string; version: number }
+interface AreaRow { id: string; factory_id: string; name: string; grid_row: number; grid_col: number; col_span: number; row_span: number; sort_order: number; status: string; version: number }
 
 areaRoutes.get('/areas', async (c) => {
   const auth = c.get('auth');
@@ -18,7 +18,7 @@ areaRoutes.get('/areas', async (c) => {
   authorize(c, 'board.view', { factoryId });
   const s = scopeWhere(auth, '');
   const { results } = await c.env.DB.prepare(
-    `SELECT id, factory_id, name, grid_row, grid_col, col_span, sort_order, status, version FROM areas WHERE ${s.sql} AND factory_id = ? ORDER BY sort_order, name`,
+    `SELECT id, factory_id, name, grid_row, grid_col, col_span, row_span, sort_order, status, version FROM areas WHERE ${s.sql} AND factory_id = ? ORDER BY sort_order, name`,
   ).bind(...s.params, factoryId).all();
   return c.json({ items: results });
 });
@@ -28,9 +28,10 @@ areaRoutes.post('/areas', async (c) => {
   const v = new Validator(await readJson(c.req.raw));
   const factoryId = v.str('factory_id', { required: true, max: 64, label: '工場' });
   const name = v.str('name', { required: true, max: 40, label: 'エリア名' });
-  const gridRow = v.int('grid_row', { min: 0, max: 50, label: '行' }) ?? 0;
+  const gridRow = v.int('grid_row', { min: 0, max: 200, label: '行' }) ?? 0;
   const gridCol = v.int('grid_col', { min: 0, max: 11, label: '列' }) ?? 0;
   const colSpan = v.int('col_span', { min: 2, max: 12, label: '横幅' }) ?? 4;
+  const rowSpan = v.int('row_span', { min: 2, max: 40, label: '高さ' }) ?? 3;
   const sortOrder = v.int('sort_order', { min: 0, max: 9999, label: '並び順' }) ?? 0;
   v.done();
   authorize(c, 'layout.edit', { factoryId });
@@ -44,9 +45,9 @@ areaRoutes.post('/areas', async (c) => {
   const id = newId();
   const now = nowIso();
   await c.env.DB.batch([
-    c.env.DB.prepare(`INSERT INTO areas (id, company_id, factory_id, name, grid_row, grid_col, col_span, sort_order, created_at, created_by, updated_at, updated_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, auth.companyId, factoryId, name, gridRow, gridCol, colSpan, sortOrder, now, auth.user.id, now, auth.user.id),
+    c.env.DB.prepare(`INSERT INTO areas (id, company_id, factory_id, name, grid_row, grid_col, col_span, row_span, sort_order, created_at, created_by, updated_at, updated_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, auth.companyId, factoryId, name, gridRow, gridCol, colSpan, rowSpan, sortOrder, now, auth.user.id, now, auth.user.id),
     auditStatement(c, { action: 'area.create', targetType: 'area', targetId: id, factoryId, detail: { name } }),
   ]);
   return c.json({ id }, 201);
@@ -62,9 +63,10 @@ areaRoutes.patch('/areas/:id', async (c) => {
   const version = v.version();
   const after = {
     name: v.str('name', { max: 40, label: 'エリア名' }),
-    grid_row: v.int('grid_row', { min: 0, max: 50, label: '行' }),
+    grid_row: v.int('grid_row', { min: 0, max: 200, label: '行' }),
     grid_col: v.int('grid_col', { min: 0, max: 11, label: '列' }),
     col_span: v.int('col_span', { min: 2, max: 12, label: '横幅' }),
+    row_span: v.int('row_span', { min: 2, max: 40, label: '高さ' }),
     sort_order: v.int('sort_order', { min: 0, max: 9999, label: '並び順' }),
     status: v.oneOf('status', ['active', 'inactive'] as const, { label: '状態' }),
   };
@@ -75,9 +77,9 @@ areaRoutes.patch('/areas/:id', async (c) => {
   const now = nowIso();
   const [upd] = await c.env.DB.batch([
     c.env.DB.prepare(`UPDATE areas SET name = COALESCE(?, name), grid_row = COALESCE(?, grid_row), grid_col = COALESCE(?, grid_col),
-        col_span = COALESCE(?, col_span), sort_order = COALESCE(?, sort_order), status = COALESCE(?, status),
+        col_span = COALESCE(?, col_span), row_span = COALESCE(?, row_span), sort_order = COALESCE(?, sort_order), status = COALESCE(?, status),
         updated_at = ?, updated_by = ?, version = version + 1 WHERE id = ? AND version = ?`)
-      .bind(after.name ?? null, after.grid_row ?? null, after.grid_col ?? null, after.col_span ?? null, after.sort_order ?? null, after.status ?? null,
+      .bind(after.name ?? null, after.grid_row ?? null, after.grid_col ?? null, after.col_span ?? null, after.row_span ?? null, after.sort_order ?? null, after.status ?? null,
         now, auth.user.id, before.id, version),
     auditStatement(c, { action: 'area.update', targetType: 'area', targetId: before.id, factoryId: before.factory_id, detail: { changes } },
       updatedBy('areas', before.id, version, now, auth.user.id)),
@@ -87,7 +89,7 @@ areaRoutes.patch('/areas/:id', async (c) => {
 });
 
 /**
- * カード一覧の配置をまとめて保存（エリアの位置・幅・並び、設備の置き場所・並び）。
+ * カード一覧の配置をまとめて保存（エリアの位置・幅・高さ・並び、設備の置き場所・並び）。
  * 配置は見た目の情報で記録の内容には関わらないため、楽観ロックはせず後から保存した内容を正とする（監査ログには残す）。
  */
 areaRoutes.put('/areas/layout', async (c) => {
@@ -102,7 +104,7 @@ areaRoutes.put('/areas/layout', async (c) => {
   if (areas.length > 100 || equipment.length > 2000) throw new HttpError(422, '配置の件数が多すぎます。');
   const int = (x: unknown, min: number, max: number) => typeof x === 'number' && Number.isInteger(x) && x >= min && x <= max;
   for (const a of areas) {
-    if (typeof a.id !== 'string' || !int(a.grid_row, 0, 50) || !int(a.grid_col, 0, 11) || !int(a.col_span, 2, 12) || !int(a.sort_order, 0, 9999)) {
+    if (typeof a.id !== 'string' || !int(a.grid_row, 0, 200) || !int(a.grid_col, 0, 11) || !int(a.col_span, 2, 12) || !(a.row_span === undefined || int(a.row_span, 2, 40)) || !int(a.sort_order, 0, 9999)) {
       throw new HttpError(422, 'エリアの配置の値が正しくありません。');
     }
     if ((a.grid_col as number) + (a.col_span as number) > 12) throw new HttpError(422, 'エリアが横にはみ出しています（列＋横幅は12まで）。');
@@ -124,9 +126,9 @@ areaRoutes.put('/areas/layout', async (c) => {
 
   const now = nowIso();
   await db.batch([
-    db.prepare(`UPDATE areas SET grid_row = j.grid_row, grid_col = j.grid_col, col_span = j.col_span, sort_order = j.sort_order, updated_at = ?, updated_by = ?, version = version + 1
+    db.prepare(`UPDATE areas SET grid_row = j.grid_row, grid_col = j.grid_col, col_span = j.col_span, row_span = COALESCE(j.row_span, areas.row_span), sort_order = j.sort_order, updated_at = ?, updated_by = ?, version = version + 1
                 FROM (SELECT json_extract(value, '$.id') AS id, json_extract(value, '$.grid_row') AS grid_row, json_extract(value, '$.grid_col') AS grid_col,
-                             json_extract(value, '$.col_span') AS col_span, json_extract(value, '$.sort_order') AS sort_order FROM json_each(?)) AS j
+                             json_extract(value, '$.col_span') AS col_span, json_extract(value, '$.row_span') AS row_span, json_extract(value, '$.sort_order') AS sort_order FROM json_each(?)) AS j
                 WHERE areas.id = j.id AND areas.factory_id = ?`).bind(now, auth.user.id, JSON.stringify(areas), factoryId),
     db.prepare(`UPDATE equipment SET area_id = j.area_id, board_order = j.board_order, updated_at = ?, updated_by = ?, version = version + 1
                 FROM (SELECT json_extract(value, '$.id') AS id, json_extract(value, '$.area_id') AS area_id, json_extract(value, '$.board_order') AS board_order FROM json_each(?)) AS j
