@@ -68,6 +68,7 @@ Space.app のアプリ一覧に TENQ を出す変更（`space/assets/js/space.js
 | 2026-11-03 | 73de804 | 218.00 KiB | 50.85 KiB | 76.43 KiB | 見取り図からすべて操作（小窓・配置のドラッグ・メニュー 3 つ）。依存の追加なし |
 | 2026-11-08 | 88637d5 | 218.00 KiB | 50.85 KiB | 76.84 KiB | 初めての人の案内（はじめにやること・？ 使い方・作業者の吹き出し）。画面だけ・依存の追加なし |
 | 2026-11-08 | 7252ab9 | 218.42 KiB | 50.95 KiB | 76.84 KiB | 建屋の高さ（row_span）。依存の追加なし |
+| 2026-11-08 | 829ce5c | 219.26 KiB | 51.18 KiB | 76.84 KiB | 設備を建屋の中の好きな位置に（board_x / board_y）。依存の追加なし |
 | 2026-10-22 | 第6段階 | 212.07 KiB | 49.18 KiB | 75.87 KiB | 帳票・集計・CSV は画面ごとに分割 |
 | 2026-10-22 | 第5段階 | 181.49 KiB | 42.41 KiB | 75.01 KiB | 写真は Worker で変換せず、そのまま R2 へ（縮小は端末側） |
 | 2026-10-22 | 第4段階 | 155.20 KiB | 36.55 KiB | 74.54 KiB | jsQR（QR 読み取り）は読み取り画面でブラウザに機能がないときだけ読み込む |
@@ -162,3 +163,11 @@ Space.app のアプリ一覧に TENQ を出す変更（`space/assets/js/space.js
 - 本番 DB の復元地点（念のため）: bookmark `00000027-00000000-0000511d-03abc12c656253d255e0f175ed91a964`
 - 本番 D1 に 0004 を適用 → 本番 API を再デプロイ（Version d7a5d2a4）→ main に cherry-pick して push（b5e94fb）。順番は **DB → API → 画面**
 - 確認: `/api/health` が production、開発用ログインは 401、Pages の Production 行が b5e94fb、本番の画面が今回のビルド（index-BtgaCn6J.js、BoardPage に「大きさを変えました」、開発用ログインなし）、`/TENQ/q/` 200
+
+### 9-8. 設備を建屋の中の好きな位置に置く変更の反映（2026-11-08）
+
+- 内容: `equipment.board_x / board_y`（建屋の中身に対する千分率、NULL = 上から順）を追加。配置を動かしている間、タイルを落とした場所に置ける。既存の設備は NULL のまま（見た目は変わらない）
+- 開発用リモートに 0005 を適用 → 開発 API を更新
+- 本番 DB の復元地点（念のため）: bookmark `0000002b-00000000-0000511d-d519129d276abe10f73ba2d4095ac3ae`
+- 本番 D1 に 0005 を適用 → 本番 API を再デプロイ（Version 6e80d7bb）→ main に cherry-pick して push（6f55ea4）
+- 確認: `/api/health` が production、開発用ログインは 401、Pages の Production 行が 6f55ea4、本番の画面が今回のビルド（index-BnJvTqwE.js、BoardPage に「建屋の中の好きな場所」、開発用ログインなし）、`/TENQ/q/` 200
