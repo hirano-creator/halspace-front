@@ -387,7 +387,7 @@ inspectionRoutes.get('/board', async (c) => {
 
   const [areas, equipment, inspections, abnormalities] = await db.batch([
     db.prepare("SELECT id, name, grid_row, grid_col, col_span, row_span, sort_order, version FROM areas WHERE factory_id = ? AND status = 'active' ORDER BY sort_order, name").bind(factoryId),
-    db.prepare(`SELECT e.id, e.equipment_code, e.name, e.status, e.frequency, e.area_id, e.board_order, e.template_id, e.manager_user_id, m.name AS manager_name
+    db.prepare(`SELECT e.id, e.equipment_code, e.name, e.status, e.frequency, e.area_id, e.board_order, e.board_x, e.board_y, e.template_id, e.manager_user_id, m.name AS manager_name
                 FROM equipment e LEFT JOIN users m ON m.id = e.manager_user_id
                 WHERE e.factory_id = ? AND e.company_id = ? AND e.status <> 'retired' ORDER BY e.board_order, e.equipment_code`).bind(factoryId, auth.companyId),
     db.prepare(`SELECT i.id, i.equipment_id, i.period_key, i.status, i.overall_result, i.started_at, i.completed_at, u.name AS inspector_name
@@ -397,7 +397,7 @@ inspectionRoutes.get('/board', async (c) => {
     db.prepare(`SELECT id, equipment_id, title, description, found_at FROM abnormalities WHERE factory_id = ? AND status <> 'closed' ORDER BY found_at`).bind(factoryId),
   ]);
 
-  type Eq = { id: string; equipment_code: string; name: string; status: 'active' | 'stopped' | 'retired'; frequency: Frequency; area_id: string | null; board_order: number; template_id: string | null; manager_name: string | null };
+  type Eq = { id: string; equipment_code: string; name: string; status: 'active' | 'stopped' | 'retired'; frequency: Frequency; area_id: string | null; board_order: number; board_x: number | null; board_y: number | null; template_id: string | null; manager_name: string | null };
   type Ins = { id: string; equipment_id: string; period_key: string; status: 'in_progress' | 'completed'; overall_result: 'ok' | 'ng' | null; started_at: string; completed_at: string | null; inspector_name: string };
   const insMap = new Map<string, Ins>();
   for (const i of inspections?.results as Ins[]) insMap.set(`${i.equipment_id}|${i.period_key}`, i);

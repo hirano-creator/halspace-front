@@ -21,7 +21,7 @@ import { navigate } from '../router';
 interface Area { id: string; name: string; grid_row: number; grid_col: number; col_span: number; row_span: number; sort_order: number; version: number }
 interface OpenAbn { id: string; title: string; description: string | null; found_at: string }
 interface Item {
-  id: string; equipment_code: string; name: string; status: string; frequency: string; area_id: string | null; board_order: number; template_id: string | null;
+  id: string; equipment_code: string; name: string; status: string; frequency: string; area_id: string | null; board_order: number; board_x?: number | null; board_y?: number | null; template_id: string | null;
   manager_name: string | null; board_status: BoardStatus; open_abnormalities: number; abnormalities: OpenAbn[];
   inspection: null | { id: string; status: string; inspector_name: string; started_at: string; completed_at: string | null };
 }
@@ -44,6 +44,9 @@ const HELP_TAGS = [
 const POP_W = 340;
 /** 見取り図の縦の 1 マスの最低の高さ（board.css の .floor の grid-auto-rows と揃える） */
 const ROW_UNIT = 40;
+/** 建屋の中に好きな位置で置いた設備のタイルの大きさ（board.css の .eq.placed と揃える。はみ出さないように位置を抑える） */
+const TILE_W = 132, TILE_H = 62;
+const placed = (i: Item) => i.area_id !== null && typeof i.board_x === 'number' && typeof i.board_y === 'number';
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 /** 異常を見つけた日（日本時間）から今日までの日数の表記 */
@@ -96,6 +99,8 @@ export function BoardPage() {
   const toastSeq = useRef(0);
   const saveChain = useRef<Promise<void>>(Promise.resolve());
   const floorRef = useRef<HTMLDivElement>(null);
+  /** 設備のタイルをつかんだ位置（タイルの左上から）。落とした場所にタイルの左上を合わせるため */
+  const grabRef = useRef({ dx: 0, dy: 0 });
   const layoutRef = useRef<HTMLDivElement>(null);
   const canEdit = can('layout.edit', { factoryId });
   const [helpOpen, setHelpOpen] = useState(false);
@@ -183,7 +188,7 @@ export function BoardPage() {
         await apiSend('PUT', '/areas/layout', {
           factory_id: factoryId,
           areas: d.areas.map((a, i) => ({ id: a.id, grid_row: a.grid_row, grid_col: a.grid_col, col_span: a.col_span, row_span: rowSpanOf(a), sort_order: a.sort_order ?? i })),
-          equipment: d.items.map((i) => ({ id: i.id, area_id: i.area_id, board_order: i.board_order })),
+          equipment: d.items.map((i) => ({ id: i.id, area_id: i.area_id, board_order: i.board_order, board_x: i.board_x ?? null, board_y: i.board_y ?? null })),
         });
       } catch (e) {
         setToast(null);
@@ -261,15 +266,34 @@ export function BoardPage() {
     window.addEventListener('pointerup', up);
   }
 
+  /**
+   * 設備のタイルを落とす。建屋へは「落とした場所」に置く（建屋の中身の幅・高さに対する千分率で保存。
+   * 建屋の大きさを変えても比率で付いてくる）。「まだ置いていない設備」へは位置を消して順に並べる
+   */
   function dropOn(e: DragEvent, areaId: string | null, beforeId: string | null) {
     e.preventDefault(); e.stopPropagation();
     const id = e.dataTransfer.getData('text/plain');
     const card = draft?.items.find((i) => i.id === id);
-    if (!draft || !card || id === beforeId) return;
-    const next = moveCard(draft, id, areaId, beforeId);
-    const same = (d: Draft) => d.items.filter((i) => i.area_id === areaId).sort((a, b) => a.board_order - b.board_order).map((i) => i.id).join();
-    if (card.area_id === areaId && same(next) === same(draft)) return;
-    commit(draft, next, `${card.equipment_code} を「${areaId ? areaName.get(areaId) ?? '' : 'まだ置いていない設備'}」へ動かしました`);
+    if (!draft || !card) return;
+    const label = (to: string | null) => card.area_id === to ? `${card.equipment_code} を動かしました` : `${card.equipment_code} を「${to ? areaName.get(to) ?? '' : 'まだ置いていない設備'}」へ動かしました`;
+    if (areaId === null) {
+      if (id === beforeId) return;
+      const next = moveCard(draft, id, null, beforeId);
+      const same = (d: Draft) => d.items.filter((i) => i.area_id === null).sort((a, b) => a.board_order - b.board_order).map((i) => i.id).join();
+      if (card.area_id === null && same(next) === same(draft)) return;
+      commit(draft, { ...next, items: next.items.map((i) => (i.id === id ? { ...i, board_x: null, board_y: null } : i)) }, label(null));
+      return;
+    }
+    const box = (e.currentTarget as HTMLElement).closest('.bld')?.querySelector('.eqs');
+    if (!box) return;
+    const r = box.getBoundingClientRect();
+    const g = grabRef.current;
+    const ratio = (v: number, size: number, tile: number) => Math.round(clamp(v / Math.max(1, size), 0, Math.max(0, size - tile) / Math.max(1, size)) * 1000);
+    const x = ratio(e.clientX - g.dx - r.left, r.width, TILE_W);
+    const y = ratio(e.clientY - g.dy - r.top, r.height, TILE_H);
+    if (card.area_id === areaId && card.board_x === x && card.board_y === y) return;
+    const next = card.area_id === areaId ? draft : moveCard(draft, id, areaId, null);
+    commit(draft, { ...next, items: next.items.map((i) => (i.id === id ? { ...i, area_id: areaId, board_x: x, board_y: y } : i)) }, label(areaId));
   }
 
   async function addArea(name: string) {
@@ -292,8 +316,13 @@ export function BoardPage() {
       : s === 'stop' ? (i.status === 'stopped' ? '停止中' : '今日は対象外')
       : i.board_status === 'doing' ? '点検中' : 'まだ';
     return (
-      <button key={i.id} type="button" data-eq={i.id} className={`eq eq-${s} ${pop?.kind === 'eq' && pop.id === i.id ? 'sel' : ''}`} draggable={editing}
-        onDragStart={(e) => { e.dataTransfer.setData('text/plain', i.id); e.dataTransfer.effectAllowed = 'move'; }}
+      <button key={i.id} type="button" data-eq={i.id} className={`eq eq-${s} ${placed(i) ? 'placed' : ''} ${pop?.kind === 'eq' && pop.id === i.id ? 'sel' : ''}`} draggable={editing}
+        style={placed(i) ? { left: `min(${i.board_x! / 10}%, calc(100% - ${TILE_W}px))`, top: `min(${i.board_y! / 10}%, calc(100% - ${TILE_H}px))` } : undefined}
+        onDragStart={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          grabRef.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+          e.dataTransfer.setData('text/plain', i.id); e.dataTransfer.effectAllowed = 'move';
+        }}
         onDragOver={editing ? (e) => e.preventDefault() : undefined}
         onDrop={editing ? (e) => dropOn(e, i.area_id, i.id) : undefined}
         onClick={(e) => { if (!editing) openPop('eq', i.id, e.currentTarget); }}
@@ -342,7 +371,7 @@ export function BoardPage() {
       {!data.workingDay && <Alert kind="info">今日は稼働日ではありません（毎日点検の設備は対象外です）。</Alert>}
       {editing && (
         <div className="map-edit-hint" role="status">
-          🔓 配置を動かせます。建屋は <b>⠿ の帯</b>をつかんで動かし、右下の <b>◢</b> を引っぱると幅と高さが変わります。設備はタイルをつかんで別の建屋へ。
+          🔓 配置を動かせます。建屋は <b>⠿ の帯</b>をつかんで動かし、右下の <b>◢</b> を引っぱると幅と高さが変わります。設備はタイルをつかんで、建屋の中の好きな場所へ。
           動かすとすぐ保存されます。終わったら「🔒 固定する」を押してください。
         </div>
       )}
