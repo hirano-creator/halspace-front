@@ -52,6 +52,9 @@
 /* 建屋の中の設備置き場は建屋の残りの高さいっぱい。好きな位置に置いた設備（.placed）はその中で左上の位置を千分率で持つ */
 .bld .eqs { flex: 1 1 auto; position: relative; }
 .eq.placed { position: absolute; width: 132px; height: 62px; min-height: 0; overflow: hidden; z-index: 1; }
+/* 設備のカードの大きさを変える ◢（配置を動かしている間だけ。建屋の ◢ より小さく） */
+.eq { position: relative; }
+.eq-rz { position: absolute; right: 0; bottom: 0; width: 20px; height: 20px; cursor: nwse-resize; touch-action: none; background: linear-gradient(135deg, transparent 50%, var(--accent) 50%); border-bottom-right-radius: 8px; }
 /* 設備は 3 色だけ。色に頼らず ✕ ○ と文字も必ず出す */
 .eq { border-radius: 10px; border: 2px solid var(--line-strong); background: #fff; padding: 6px 8px; text-align: left; min-height: 60px; display: flex; flex-direction: column; justify-content: center; gap: 2px; font-size: 13px; color: var(--ink); cursor: pointer; line-height: 1.3; }
 .eq b { font-size: 14px; }
@@ -106,7 +109,8 @@
   .floor { grid-template-columns: 1fr; grid-auto-rows: auto; padding: 8px; }
   .floor .bld { grid-column: 1 / -1 !important; grid-row: auto !important; }
   /* 狭い画面では置いた位置を使わず、順に並べる */
-  .eq.placed { position: static; width: auto; height: auto; min-height: 60px; }
+  .eq.placed { position: static; width: auto !important; height: auto !important; min-height: 60px; }
+  .eq-rz { display: none; }
   /* 狭い画面では建屋が縦 1 列になるので、配置は PC で動かす */
   .map-lock { display: none; }
   .map-sum { margin-left: 0; width: 100%; }

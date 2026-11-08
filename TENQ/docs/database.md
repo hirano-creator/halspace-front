@@ -120,6 +120,8 @@ Space.app のユーザーに TENQ 固有の情報を足したもの。氏名・�
 | board_order | INTEGER | NOT NULL DEFAULT 0 | エリア内のカードの並び順 |
 | board_x | INTEGER | NULL, CHECK (0〜1000) | 建屋の中での左上の横位置（中身の幅に対する千分率）。NULL = 上から順に並べる。0005 で追加 |
 | board_y | INTEGER | NULL, CHECK (0〜1000) | 建屋の中での左上の縦位置（中身の高さに対する千分率）。0005 で追加 |
+| board_w | INTEGER | NULL, CHECK (60〜1200) | 見取り図のカードの幅（px）。NULL = 既定 132px。0006 で追加 |
+| board_h | INTEGER | NULL, CHECK (40〜800) | 見取り図のカードの高さ（px）。NULL = 既定 62px。0006 で追加 |
 | status | TEXT | NOT NULL CHECK IN ('active','stopped','retired') | 使用状態 |
 | status_reason | TEXT | | 停止・廃止の理由 |
 | frequency | TEXT | NOT NULL CHECK IN ('daily','weekly','monthly') | 点検頻度 |

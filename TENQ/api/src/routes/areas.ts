@@ -109,10 +109,12 @@ areaRoutes.put('/areas/layout', async (c) => {
     }
     if ((a.grid_col as number) + (a.col_span as number) > 12) throw new HttpError(422, 'エリアが横にはみ出しています（列＋横幅は12まで）。');
   }
-  // board_x / board_y: 建屋の中の位置（千分率）。null = 上から順に並べる。送らなければ今の位置のまま（古い画面）
-  const pos = (x: unknown) => x === undefined || x === null || int(x, 0, 1000);
+  // board_x / board_y: 建屋の中の位置（千分率）。null = 上から順に並べる。board_w / board_h: カードの大きさ（px）。null = 既定。
+  // 送らなければ今の値のまま（古い画面）
+  const opt = (x: unknown, min: number, max: number) => x === undefined || x === null || int(x, min, max);
+  const pos = (x: unknown) => opt(x, 0, 1000);
   for (const e of equipment) {
-    if (typeof e.id !== 'string' || !(e.area_id === null || typeof e.area_id === 'string') || !int(e.board_order, 0, 99999) || !pos(e.board_x) || !pos(e.board_y)) {
+    if (typeof e.id !== 'string' || !(e.area_id === null || typeof e.area_id === 'string') || !int(e.board_order, 0, 99999) || !pos(e.board_x) || !pos(e.board_y) || !opt(e.board_w, 60, 1200) || !opt(e.board_h, 40, 800)) {
       throw new HttpError(422, '設備の配置の値が正しくありません。');
     }
   }
@@ -132,16 +134,21 @@ areaRoutes.put('/areas/layout', async (c) => {
                 FROM (SELECT json_extract(value, '$.id') AS id, json_extract(value, '$.grid_row') AS grid_row, json_extract(value, '$.grid_col') AS grid_col,
                              json_extract(value, '$.col_span') AS col_span, json_extract(value, '$.row_span') AS row_span, json_extract(value, '$.sort_order') AS sort_order FROM json_each(?)) AS j
                 WHERE areas.id = j.id AND areas.factory_id = ?`).bind(now, auth.user.id, JSON.stringify(areas), factoryId),
-    db.prepare(`UPDATE equipment SET area_id = j.area_id, board_order = j.board_order, board_x = j.board_x, board_y = j.board_y, updated_at = ?, updated_by = ?, version = version + 1
+    db.prepare(`UPDATE equipment SET area_id = j.area_id, board_order = j.board_order, board_x = j.board_x, board_y = j.board_y, board_w = j.board_w, board_h = j.board_h, updated_at = ?, updated_by = ?, version = version + 1
                 FROM (SELECT e2.id, j0.area_id, j0.board_order,
                              CASE WHEN j0.tx IS NULL THEN e2.board_x ELSE j0.board_x END AS board_x,
-                             CASE WHEN j0.ty IS NULL THEN e2.board_y ELSE j0.board_y END AS board_y
+                             CASE WHEN j0.ty IS NULL THEN e2.board_y ELSE j0.board_y END AS board_y,
+                             CASE WHEN j0.tw IS NULL THEN e2.board_w ELSE j0.board_w END AS board_w,
+                             CASE WHEN j0.th IS NULL THEN e2.board_h ELSE j0.board_h END AS board_h
                       FROM (SELECT json_extract(value, '$.id') AS id, json_extract(value, '$.area_id') AS area_id, json_extract(value, '$.board_order') AS board_order,
                                    json_type(value, '$.board_x') AS tx, json_extract(value, '$.board_x') AS board_x,
-                                   json_type(value, '$.board_y') AS ty, json_extract(value, '$.board_y') AS board_y FROM json_each(?)) AS j0
+                                   json_type(value, '$.board_y') AS ty, json_extract(value, '$.board_y') AS board_y,
+                                   json_type(value, '$.board_w') AS tw, json_extract(value, '$.board_w') AS board_w,
+                                   json_type(value, '$.board_h') AS th, json_extract(value, '$.board_h') AS board_h FROM json_each(?)) AS j0
                       JOIN equipment e2 ON e2.id = j0.id) AS j
                 WHERE equipment.id = j.id AND equipment.factory_id = ?
-                  AND (equipment.area_id IS NOT j.area_id OR equipment.board_order <> j.board_order OR equipment.board_x IS NOT j.board_x OR equipment.board_y IS NOT j.board_y)`)
+                  AND (equipment.area_id IS NOT j.area_id OR equipment.board_order <> j.board_order OR equipment.board_x IS NOT j.board_x OR equipment.board_y IS NOT j.board_y
+                       OR equipment.board_w IS NOT j.board_w OR equipment.board_h IS NOT j.board_h)`)
       .bind(now, auth.user.id, JSON.stringify(equipment), factoryId),
     auditStatement(c, { action: 'layout.update', targetType: 'factory', targetId: factoryId, factoryId, detail: { areas: areas.length, equipment: equipment.length } }),
   ]);

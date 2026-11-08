@@ -122,6 +122,18 @@ test('「配置を動かす」の間だけ、設備と建屋をつかんで動�
   const p1 = await placedBox();
   expect(p1.right).toBeLessThan(60);
   expect(p1.bottom).toBeLessThan(60);
+
+  // 設備のカードも右下の ◢ で大きさを変えられる
+  const before = await d01.boundingBox();
+  const trz = await d01.locator('.eq-rz').boundingBox();
+  await page.mouse.move(trz!.x + trz!.width / 2, trz!.y + trz!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(trz!.x + trz!.width / 2 - 30, trz!.y + trz!.height / 2 - 10, { steps: 6 });
+  await page.mouse.up();
+  await expect(page.getByText('D-01 の大きさを変えました（保存しました）')).toBeVisible();
+  const after = await d01.boundingBox();
+  expect(Math.round(before!.width - after!.width)).toBe(30);
+  expect(Math.round(before!.height - after!.height)).toBe(10);
   const bar = await weld.locator('h2').boundingBox();
   await page.mouse.move(bar!.x + 60, bar!.y + bar!.height / 2);
   await page.mouse.down();
@@ -136,6 +148,7 @@ test('「配置を動かす」の間だけ、設備と建屋をつかんで動�
   const weld2 = page.getByRole('region', { name: 'C棟 溶接' });
   await expect(weld2.getByRole('button', { name: /^D-01 / })).toBeVisible();
   await expect(weld2.getByRole('button', { name: /^D-01 / })).toHaveClass(/placed/);
+  expect(Math.round((await weld2.getByRole('button', { name: /^D-01 / }).boundingBox())!.width)).toBe(Math.round(after!.width));
   await expect.poll(() => gridColumn(weld2)).toBe('3 / span 7');
   await expect.poll(() => gridRow(weld2)).toBe('4 / span 5');
 });
