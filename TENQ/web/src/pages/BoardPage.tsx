@@ -18,7 +18,7 @@ import { navigate } from '../router';
  * 動かすたびにすぐ保存し、「元に戻す」で 1 つ前に戻せる（保存ボタンの押し忘れをなくすため）。
  */
 
-interface Area { id: string; name: string; grid_row: number; grid_col: number; col_span: number; sort_order: number; version: number }
+interface Area { id: string; name: string; grid_row: number; grid_col: number; col_span: number; row_span: number; sort_order: number; version: number }
 interface OpenAbn { id: string; title: string; description: string | null; found_at: string }
 interface Item {
   id: string; equipment_code: string; name: string; status: string; frequency: string; area_id: string | null; board_order: number; template_id: string | null;
@@ -42,6 +42,8 @@ const HELP_TAGS = [
   { target: 'settings', name: '⚙ 設定', desc: '設備の一覧・QR 印刷・使う人・使い方を見る' },
 ];
 const POP_W = 340;
+/** 見取り図の縦の 1 マスの最低の高さ（board.css の .floor の grid-auto-rows と揃える） */
+const ROW_UNIT = 40;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 /** 異常を見つけた日（日本時間）から今日までの日数の表記 */
@@ -51,16 +53,21 @@ function since(foundAt: string, today: string): string {
   return days <= 0 ? '今日' : `${days}日前から`;
 }
 
-/** 同じ段で横に重なる建屋があるか */
-function overlaps(areas: Area[], id: string, n: { row: number; col: number; span: number }): boolean {
-  return areas.some((x) => x.id !== id && x.grid_row === n.row && n.col < x.grid_col + x.col_span && x.grid_col < n.col + n.span);
+/** 縦に何マス使うか（古い API の応答には row_span がないので 3 マスとみなす） */
+const rowSpanOf = (a: Area) => a.row_span || 3;
+
+/** ほかの建屋と重なるか（縦・横とも） */
+function overlaps(areas: Area[], id: string, n: { row: number; col: number; span: number; rows: number }): boolean {
+  return areas.some((x) => x.id !== id
+    && n.row < x.grid_row + rowSpanOf(x) && x.grid_row < n.row + n.rows
+    && n.col < x.grid_col + x.col_span && x.grid_col < n.col + n.span);
 }
 
-/** 段の番号を詰める（空いた段が残ると、すき間だけが増えていくため） */
+/** 一番上の建屋が 0 マス目に来るように詰める（建屋どうしの間のすき間は実際の配置なので残す） */
 function packRows(d: Draft): Draft {
-  const rows = [...new Set(d.areas.map((a) => a.grid_row))].sort((a, b) => a - b);
-  const to = new Map(rows.map((r, i) => [r, i]));
-  return { ...d, areas: d.areas.map((a) => ({ ...a, grid_row: to.get(a.grid_row) ?? a.grid_row })) };
+  if (!d.areas.length) return d;
+  const top = Math.min(...d.areas.map((a) => a.grid_row));
+  return top === 0 ? d : { ...d, areas: d.areas.map((a) => ({ ...a, grid_row: a.grid_row - top })) };
 }
 
 /** 設備を area（null = 未配置）の beforeId の前（なければ最後）へ */
@@ -175,7 +182,7 @@ export function BoardPage() {
       try {
         await apiSend('PUT', '/areas/layout', {
           factory_id: factoryId,
-          areas: d.areas.map((a, i) => ({ id: a.id, grid_row: a.grid_row, grid_col: a.grid_col, col_span: a.col_span, sort_order: a.sort_order ?? i })),
+          areas: d.areas.map((a, i) => ({ id: a.id, grid_row: a.grid_row, grid_col: a.grid_col, col_span: a.col_span, row_span: rowSpanOf(a), sort_order: a.sort_order ?? i })),
           equipment: d.items.map((i) => ({ id: i.id, area_id: i.area_id, board_order: i.board_order })),
         });
       } catch (e) {
@@ -203,8 +210,9 @@ export function BoardPage() {
   }
 
   /**
-   * 建屋の帯をつかんで動かす（mode = move）／右端の ◢ で幅を変える（mode = size）。
-   * 横は 12 列のマス目、縦は今ある段に吸い付く。段の位置はつかんだ時点のものを使う（動かすと段の高さが変わり、位置が揺れるため）。
+   * 建屋の帯をつかんで動かす（mode = move）／右下の ◢ で幅と高さを変える（mode = size）。
+   * 横は 12 列、縦は 1 マス（最低 ROW_UNIT px、中身が入りきらなければ伸びる）のマス目に吸い付く。
+   * マスの位置はつかんだ時点のものを使う（動かすとマスの高さが変わり、位置が揺れるため）。
    * ほかの建屋と重なる場所には動かない
    */
   function onAreaDown(e: ReactPointerEvent, a: Area, mode: 'move' | 'size') {
@@ -226,26 +234,28 @@ export function BoardPage() {
         if (y < bottom + rowGap / 2) return i;
         top = bottom + rowGap;
       }
-      return rows.length;  // 一番下の段より下 = 新しい段
+      // 一番下のマスより下 = 新しいマス（最低の高さで続いているとみなす）
+      return rows.length + Math.max(0, Math.floor((y - top) / (ROW_UNIT + rowGap)));
     };
     const grab = colAt(e.clientX) - a.grid_col;
-    let cur = { row: a.grid_row, col: a.grid_col, span: a.col_span };
+    const grabRow = rowAt(e.clientY) - a.grid_row;
+    let cur = { row: a.grid_row, col: a.grid_col, span: a.col_span, rows: rowSpanOf(a) };
     setDragId(a.id);
     const move = (ev: PointerEvent) => {
       const n = mode === 'move'
-        ? { ...cur, col: clamp(colAt(ev.clientX) - grab, 0, 12 - a.col_span), row: clamp(rowAt(ev.clientY), 0, 50) }
-        : { ...cur, span: clamp(colAt(ev.clientX) - a.grid_col + 1, 2, 12 - a.grid_col) };
-      if ((n.row === cur.row && n.col === cur.col && n.span === cur.span) || overlaps(start.areas, a.id, n)) return;
+        ? { ...cur, col: clamp(colAt(ev.clientX) - grab, 0, 12 - a.col_span), row: clamp(rowAt(ev.clientY) - grabRow, 0, 200 - cur.rows) }
+        : { ...cur, span: clamp(colAt(ev.clientX) - a.grid_col + 1, 2, 12 - a.grid_col), rows: clamp(rowAt(ev.clientY) - a.grid_row + 1, 2, 40) };
+      if ((n.row === cur.row && n.col === cur.col && n.span === cur.span && n.rows === cur.rows) || overlaps(start.areas, a.id, n)) return;
       cur = n;
-      setDraft((d) => d && { ...d, areas: d.areas.map((x) => (x.id === a.id ? { ...x, grid_row: n.row, grid_col: n.col, col_span: n.span } : x)) });
+      setDraft((d) => d && { ...d, areas: d.areas.map((x) => (x.id === a.id ? { ...x, grid_row: n.row, grid_col: n.col, col_span: n.span, row_span: n.rows } : x)) });
     };
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       setDragId(null);
-      if (cur.row === a.grid_row && cur.col === a.grid_col && cur.span === a.col_span) return;
-      const next = { ...start, areas: start.areas.map((x) => (x.id === a.id ? { ...x, grid_row: cur.row, grid_col: cur.col, col_span: cur.span } : x)) };
-      commit(start, next, mode === 'move' ? `「${a.name}」を動かしました` : `「${a.name}」の幅を変えました`);
+      if (cur.row === a.grid_row && cur.col === a.grid_col && cur.span === a.col_span && cur.rows === rowSpanOf(a)) return;
+      const next = { ...start, areas: start.areas.map((x) => (x.id === a.id ? { ...x, grid_row: cur.row, grid_col: cur.col, col_span: cur.span, row_span: cur.rows } : x)) };
+      commit(start, next, mode === 'move' ? `「${a.name}」を動かしました` : `「${a.name}」の大きさを変えました`);
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -264,12 +274,12 @@ export function BoardPage() {
 
   async function addArea(name: string) {
     if (!draft) return;
-    const row = draft.areas.length ? Math.max(...draft.areas.map((a) => a.grid_row)) + 1 : 0;
+    const row = draft.areas.length ? Math.max(...draft.areas.map((a) => a.grid_row + rowSpanOf(a))) : 0;
     try {
-      const r = await apiSend<{ id: string }>('POST', '/areas', { factory_id: factoryId, name, grid_row: row, grid_col: 0, col_span: 4, sort_order: draft.areas.length });
+      const r = await apiSend<{ id: string }>('POST', '/areas', { factory_id: factoryId, name, grid_row: row, grid_col: 0, col_span: 4, row_span: 3, sort_order: draft.areas.length });
       // 建屋はもう登録済み。「元に戻す」では消さない（消すのは ⚙ の「工場・建屋」から）
-      setDraft((d) => d && { ...d, areas: [...d.areas, { id: r.id, name, grid_row: row, grid_col: 0, col_span: 4, sort_order: d.areas.length, version: 1 }] });
-      undoStack.current = undoStack.current.map((d) => ({ ...d, areas: [...d.areas, { id: r.id, name, grid_row: row, grid_col: 0, col_span: 4, sort_order: d.areas.length, version: 1 }] }));
+      setDraft((d) => d && { ...d, areas: [...d.areas, { id: r.id, name, grid_row: row, grid_col: 0, col_span: 4, row_span: 3, sort_order: d.areas.length, version: 1 }] });
+      undoStack.current = undoStack.current.map((d) => ({ ...d, areas: [...d.areas, { id: r.id, name, grid_row: row, grid_col: 0, col_span: 4, row_span: 3, sort_order: d.areas.length, version: 1 }] }));
       setAdding(null);
       setToast({ text: `「${name}」を足しました。帯をつかんで好きな場所へ動かせます`, undo: false, n: ++toastSeq.current });
     } catch (e) { setMsg({ kind: 'error', text: errorMessage(e) }); }
@@ -332,7 +342,7 @@ export function BoardPage() {
       {!data.workingDay && <Alert kind="info">今日は稼働日ではありません（毎日点検の設備は対象外です）。</Alert>}
       {editing && (
         <div className="map-edit-hint" role="status">
-          🔓 配置を動かせます。建屋は <b>⠿ の帯</b>をつかんで動かし、右下の <b>◢</b> を引っぱると幅が変わります。設備はタイルをつかんで別の建屋へ。
+          🔓 配置を動かせます。建屋は <b>⠿ の帯</b>をつかんで動かし、右下の <b>◢</b> を引っぱると幅と高さが変わります。設備はタイルをつかんで別の建屋へ。
           動かすとすぐ保存されます。終わったら「🔒 固定する」を押してください。
         </div>
       )}
@@ -346,7 +356,7 @@ export function BoardPage() {
               const todo = list.filter((i) => st(i) === 'todo').length;
               return (
                 <section key={a.id} className={`bld ${ng ? 'has-ng' : ''} ${editing ? 'editing' : ''} ${dragId === a.id ? 'dragging' : ''}`}
-                  style={{ gridRow: a.grid_row + 1, gridColumn: `${a.grid_col + 1} / span ${a.col_span}` }}
+                  style={{ gridRow: `${a.grid_row + 1} / span ${rowSpanOf(a)}`, gridColumn: `${a.grid_col + 1} / span ${a.col_span}` }}
                   onDragOver={editing ? (e) => e.preventDefault() : undefined} onDrop={editing ? (e) => dropOn(e, a.id, null) : undefined} aria-label={a.name}>
                   <h2 className={editing ? 'bld-grab' : ''} onPointerDown={editing ? (e) => onAreaDown(e, a, 'move') : undefined}
                     title={editing ? 'つかんで動かす' : undefined}>
@@ -356,7 +366,7 @@ export function BoardPage() {
                     <small>{ng > 0 && <span className="r">✕ {ng}</span>}まだ {todo}</small>
                   </h2>
                   <div className="eqs">{list.map(tile)}{list.length === 0 && <span className="muted small">{editing ? 'ここに設備をドラッグ' : '設備がありません'}</span>}</div>
-                  {editing && <span className="bld-rz" aria-hidden="true" title="引っぱって幅を変える" onPointerDown={(e) => onAreaDown(e, a, 'size')} />}
+                  {editing && <span className="bld-rz" aria-hidden="true" title="引っぱって幅と高さを変える" onPointerDown={(e) => onAreaDown(e, a, 'size')} />}
                 </section>
               );
             })}

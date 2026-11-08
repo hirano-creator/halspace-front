@@ -12,8 +12,9 @@
 .map-actions { display: flex; gap: 8px; }
 .map-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; position: relative; }
 .map-main { min-width: 0; }
-.floor { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; align-items: start; background: #E9EDF2; border-radius: 16px; padding: 12px; }
-.bld { border: 2px solid var(--line-strong); border-radius: 14px; background: var(--card); padding: 8px 10px 10px; min-width: 0; position: relative; }
+/* 縦は 1 マス = 最低 40px（BoardPage の ROW_UNIT）。建屋は縦に row_span マス使い、中身が入りきらなければマスが伸びる */
+.floor { display: grid; grid-template-columns: repeat(12, 1fr); grid-auto-rows: minmax(40px, auto); gap: 12px; align-items: stretch; background: #E9EDF2; border-radius: 16px; padding: 12px; }
+.bld { border: 2px solid var(--line-strong); border-radius: 14px; background: var(--card); padding: 8px 10px 10px; min-width: 0; position: relative; display: flex; flex-direction: column; }
 .bld.has-ng { border-color: var(--st-ng); }
 .bld.editing { border-style: dashed; border-color: var(--accent); background: #FAFCFF; }
 .bld h2 { margin: 0 0 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 16px; }
@@ -23,13 +24,13 @@
 .bld-name { border: 0; background: none; padding: 0; font: inherit; font-weight: 700; color: var(--ink); min-height: 32px; cursor: pointer; text-align: left; }
 .bld-name:hover { color: var(--accent); text-decoration: underline; }
 .bld-title { display: inline-flex; align-items: center; gap: 6px; }
-/* 配置を動かしている間: 帯をつかんで動かす・右下の ◢ で幅を変える */
-.floor.editing { background-color: #E3E9F1; background-image: radial-gradient(circle, #B7C3D3 1.2px, transparent 1.3px); background-size: calc(100% / 12) 24px; }
+/* 配置を動かしている間: 帯をつかんで動かす・右下の ◢ で幅と高さを変える */
+.floor.editing { background-color: #E3E9F1; background-image: radial-gradient(circle, #B7C3D3 1.2px, transparent 1.3px); background-size: calc(100% / 12) 52px; background-position: 12px 12px; }
 .bld-grab { cursor: grab; touch-action: none; user-select: none; background: var(--accent-lt); margin: -8px -10px 6px !important; padding: 6px 10px; border-radius: 12px 12px 0 0; }
 .bld-grab:active { cursor: grabbing; }
 .bld-grip { color: var(--accent); font-size: 18px; line-height: 1; }
 .bld.dragging { box-shadow: 0 12px 28px rgba(15,23,42,.25); z-index: 2; }
-.bld-rz { position: absolute; right: 0; bottom: 0; width: 28px; height: 28px; cursor: ew-resize; touch-action: none; background: linear-gradient(135deg, transparent 50%, var(--accent) 50%); border-bottom-right-radius: 12px; }
+.bld-rz { position: absolute; right: 0; bottom: 0; width: 28px; height: 28px; cursor: nwse-resize; touch-action: none; background: linear-gradient(135deg, transparent 50%, var(--accent) 50%); border-bottom-right-radius: 12px; }
 .map-edit-hint { background: #FEF9C3; border: 1px solid #EAB308; border-radius: 10px; padding: 8px 14px; font-size: 14px; margin-bottom: 12px; }
 /* まだ置いていない設備（見取り図の下） */
 .map-tray { margin-top: 12px; border: 2px dashed var(--line-strong); border-radius: 14px; background: #FAFBFC; padding: 8px 10px 10px; }
@@ -99,7 +100,7 @@
   .side-bg { display: block; position: fixed; inset: 0; background: rgba(15,23,42,.3); z-index: 40; }
 }
 @media (max-width: 899px) {
-  .floor { grid-template-columns: 1fr; padding: 8px; }
+  .floor { grid-template-columns: 1fr; grid-auto-rows: auto; padding: 8px; }
   .floor .bld { grid-column: 1 / -1 !important; grid-row: auto !important; }
   /* 狭い画面では建屋が縦 1 列になるので、配置は PC で動かす */
   .map-lock { display: none; }

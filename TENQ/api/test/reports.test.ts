@@ -162,12 +162,21 @@ describe('システム設定', () => {
 
 describe('カード一覧の配置', () => {
   it('工場長は設備を別のエリアへ移せる。他工場のエリア・はみ出しは 422、一般社員は 403', async () => {
-    const body = { factory_id: 'fac-1a', areas: [{ id: 'area-b', grid_row: 0, grid_col: 5, col_span: 4, sort_order: 2 }], equipment: [{ id: 'eq-new', area_id: 'area-b', board_order: 9 }] };
+    const body = { factory_id: 'fac-1a', areas: [{ id: 'area-b', grid_row: 0, grid_col: 5, col_span: 4, row_span: 3, sort_order: 2 }], equipment: [{ id: 'eq-new', area_id: 'area-b', board_order: 9 }] };
     expect((await call('PUT', '/areas/layout', T.worker, body)).status).toBe(403);
     expect((await call('PUT', '/areas/layout', T.manager, { ...body, areas: [{ ...body.areas[0], grid_col: 10, col_span: 4 }] })).status).toBe(422);
     expect((await call('PUT', '/areas/layout', T.manager, { ...body, equipment: [{ id: 'eq-b01', area_id: 'area-b', board_order: 1 }] })).status).toBe(422);
     expect((await call('PUT', '/areas/layout', T.manager, body)).status).toBe(200);
     const board = await get('/board?factory=fac-1a', T.manager);
     expect(board.body.items.find((i: { id: string }) => i.id === 'eq-new').area_id).toBe('area-b');
+  });
+
+  it('建屋の高さ（row_span）を保存できる。範囲外は 422、送らなければ今の高さのまま', async () => {
+    const area = { id: 'area-u', grid_row: 0, grid_col: 9, col_span: 3, sort_order: 3 };
+    expect((await call('PUT', '/areas/layout', T.manager, { factory_id: 'fac-1a', areas: [{ ...area, row_span: 41 }], equipment: [] })).status).toBe(422);
+    expect((await call('PUT', '/areas/layout', T.manager, { factory_id: 'fac-1a', areas: [{ ...area, row_span: 7 }], equipment: [] })).status).toBe(200);
+    expect((await call('PUT', '/areas/layout', T.manager, { factory_id: 'fac-1a', areas: [area], equipment: [] })).status).toBe(200);
+    const board = await get('/board?factory=fac-1a', T.manager);
+    expect(board.body.areas.find((x: { id: string }) => x.id === 'area-u').row_span).toBe(7);
   });
 });

@@ -34,7 +34,7 @@ INSERT INTO areas (id, company_id, factory_id, name, grid_row, grid_col, col_spa
   ('area-a', 1, 'fac-1a', 'A棟 プレスライン', 0, 0, 5, 1, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   ('area-b', 1, 'fac-1a', 'B棟 切削',         0, 5, 4, 2, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   ('area-u', 1, 'fac-1a', '共用設備・屋外',   0, 9, 3, 3, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-  ('area-c', 1, 'fac-1a', 'C棟 溶接',         1, 0, 9, 4, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+  ('area-c', 1, 'fac-1a', 'C棟 溶接',         3, 0, 9, 4, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'));
 
 -- ===== 点検基準（版は draft で項目を入れてから published にする。トリガーの都合） =====
 INSERT INTO inspection_templates (id, company_id, factory_id, name, created_at, updated_at) VALUES

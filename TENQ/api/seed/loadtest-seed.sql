@@ -14,7 +14,7 @@ INSERT INTO user_factories (user_id, factory_id, created_at) VALUES
 
 INSERT INTO areas (id, company_id, factory_id, name, grid_row, grid_col, col_span, sort_order, created_at, updated_at)
   WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 5)
-  SELECT 'area-lt-' || i, 3, 'fac-lt', 'ライン ' || i, (i - 1) / 2, ((i - 1) % 2) * 6, 6, i, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now') FROM n;
+  SELECT 'area-lt-' || i, 3, 'fac-lt', 'ライン ' || i, ((i - 1) / 2) * 3, ((i - 1) % 2) * 6, 6, i, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now') FROM n;
 
 INSERT INTO inspection_templates (id, company_id, name, created_at, updated_at) VALUES
   ('tpl-lt', 3, '負荷テスト 日常点検', strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'));
