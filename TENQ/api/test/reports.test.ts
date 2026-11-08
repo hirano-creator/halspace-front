@@ -179,4 +179,20 @@ describe('カード一覧の配置', () => {
     const board = await get('/board?factory=fac-1a', T.manager);
     expect(board.body.areas.find((x: { id: string }) => x.id === 'area-u').row_span).toBe(7);
   });
+
+  it('設備を建屋の中の好きな位置（千分率）に置ける。範囲外は 422、送らなければ今の位置、null で上から順に戻る', async () => {
+    const put = (e: Record<string, unknown>) => call('PUT', '/areas/layout', T.manager, { factory_id: 'fac-1a', areas: [], equipment: [{ id: 'eq-l05', area_id: 'area-b', board_order: 1, ...e }] });
+    const pos = async () => {
+      const b = await get('/board?factory=fac-1a', T.manager);
+      const i = b.body.items.find((x: { id: string }) => x.id === 'eq-l05');
+      return [i.board_x, i.board_y];
+    };
+    expect((await put({ board_x: 1001, board_y: 0 })).status).toBe(422);
+    expect((await put({ board_x: 250, board_y: 600 })).status).toBe(200);
+    expect(await pos()).toEqual([250, 600]);
+    expect((await put({})).status).toBe(200);
+    expect(await pos()).toEqual([250, 600]);
+    expect((await put({ board_x: null, board_y: null })).status).toBe(200);
+    expect(await pos()).toEqual([null, null]);
+  });
 });

@@ -48,7 +48,10 @@
 /* 「元に戻す」の帯 */
 .map-toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 50; background: #1F2937; color: #fff; border-radius: 12px; padding: 8px 10px 8px 16px; display: flex; align-items: center; gap: 12px; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.25); max-width: calc(100vw - 32px); }
 .map-toast button { border: 0; background: #fff; color: var(--ink); border-radius: 8px; min-height: 40px; padding: 0 14px; font-weight: 800; font-size: 16px; }
-.eqs { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; min-height: 40px; }
+.eqs { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); align-content: start; gap: 6px; min-height: 40px; }
+/* 建屋の中の設備置き場は建屋の残りの高さいっぱい。好きな位置に置いた設備（.placed）はその中で左上の位置を千分率で持つ */
+.bld .eqs { flex: 1 1 auto; position: relative; }
+.eq.placed { position: absolute; width: 132px; height: 62px; min-height: 0; overflow: hidden; z-index: 1; }
 /* 設備は 3 色だけ。色に頼らず ✕ ○ と文字も必ず出す */
 .eq { border-radius: 10px; border: 2px solid var(--line-strong); background: #fff; padding: 6px 8px; text-align: left; min-height: 60px; display: flex; flex-direction: column; justify-content: center; gap: 2px; font-size: 13px; color: var(--ink); cursor: pointer; line-height: 1.3; }
 .eq b { font-size: 14px; }
@@ -102,6 +105,8 @@
 @media (max-width: 899px) {
   .floor { grid-template-columns: 1fr; grid-auto-rows: auto; padding: 8px; }
   .floor .bld { grid-column: 1 / -1 !important; grid-row: auto !important; }
+  /* 狭い画面では置いた位置を使わず、順に並べる */
+  .eq.placed { position: static; width: auto; height: auto; min-height: 60px; }
   /* 狭い画面では建屋が縦 1 列になるので、配置は PC で動かす */
   .map-lock { display: none; }
   .map-sum { margin-left: 0; width: 100%; }
