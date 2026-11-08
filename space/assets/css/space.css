@@ -556,6 +556,29 @@ input { font-family: inherit; }
 }
 .app-card:hover:not(.locked)::after { color: #635bff; transform: translateX(3px); }
 
+/* 長押しで並べ替え（契約中のカードのみ） */
+.app-card:not(.locked) {
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+}
+.apps-grid.is-reordering { scroll-snap-type: none; cursor: grabbing; }
+.app-order-error {
+  margin-top: 8px; font-size: 12px; color: #b91c1c;
+  background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 12px;
+}
+.app-order-error[hidden] { display: none; }
+.apps-grid.is-reordering .app-card:hover:not(.locked):not(.is-dragging) {
+  transform: none; box-shadow: 0 2px 8px rgba(0,0,0,.06), 0 0 0 0.5px rgba(0,0,0,.04);
+}
+.app-card.is-dragging {
+  z-index: 5;
+  cursor: grabbing;
+  background: #fff;
+  transition: box-shadow .2s ease !important;
+  box-shadow: 0 18px 40px rgba(0,0,0,.18), 0 4px 10px rgba(0,0,0,.08);
+  border-color: #c7d2fe;
+}
+
 /* ══════════════════════════════════════════
    提携企業からのお知らせ（協賛バナー）
 ══════════════════════════════════════════ */
