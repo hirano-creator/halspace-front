@@ -1783,7 +1783,8 @@ function renderAppConfigModal(company) {
 
   container.innerHTML = apps.map(app => {
     const cfg       = configs[app.id] ?? {};
-    const isEnabled = cfg.enabled !== undefined ? cfg.enabled : enabled.includes(app.id);
+    /* 有効/無効は apps_enabled が正（app_configs は契約情報だけを持つ） */
+    const isEnabled = enabled.includes(app.id);
     const col       = APP_ICON_COLORS[app.id] ?? { bg: 'var(--bg)', color: 'var(--muted)' };
     return `
       <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;">

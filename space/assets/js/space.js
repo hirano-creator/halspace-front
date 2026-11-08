@@ -231,6 +231,7 @@ if (loginForm) {
       role: u.role, solid_type: u.solid_type, is_operator: u.is_operator,
       company: u.company_name, company_id: u.company_id,
       apps: u.apps_enabled ?? ['solid'],
+      app_order: u.app_order ?? [],
       wn_extended_options_enabled: u.wn_extended_options_enabled ?? false,
       token: data.token,
     });
@@ -395,30 +396,102 @@ if (appsGrid) {
     document.getElementById('adminLink').style.display = '';
   }
 
-  APP_CATALOG.forEach(app => {
-    const enabled = user.apps.includes(app.id);
-    const isFuture = app.id === 'future';
+  /* ── アプリカード ──
+     並び: 契約中のアプリ（自分で並べ替えた順 → 無ければ契約の古い順）→ 未契約のアプリ（カタログ順）。
+     契約の古い順は API（/auth/me・ログイン応答の apps_enabled）が並べて返す。
+     並べ替えた順はアカウントに保存する（users.app_order）ので、どの端末でも同じ並びになる。 */
+  const isMockSession = !user.token || String(user.token).startsWith('mock-');
+  const loadCustomOrder = () => (Array.isArray(user.app_order) ? user.app_order : []);
+  const saveCustomOrder = ids => {
+    user.app_order = ids;
+    patchAuthUser({ app_order: ids });
+    if (isMockSession) return;
+    fetch(`${SPACE_API}/auth/app-order`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${user.token}`, Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ app_order: ids }),
+    }).then(r => { if (!r.ok) throw new Error(r.status); })
+      .catch(() => showAppOrderError());
+  };
+  /* 保存に失敗しても画面の並びはそのまま。次に開いたときに元へ戻ることだけ知らせる */
+  function showAppOrderError() {
+    let el = document.getElementById('appOrderError');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'appOrderError';
+      el.className = 'app-order-error';
+      el.textContent = '並び順を保存できませんでした。通信状態を確認して、もう一度並べ替えてください。';
+      appsGrid.closest('.apps-scroll-wrap').after(el);
+    }
+    clearTimeout(el._t);
+    el.hidden = false;
+    el._t = setTimeout(() => { el.hidden = true; }, 6000);
+  }
+
+  function orderedEnabledApps(apps) {
+    const known = apps.filter(id => APP_CATALOG.some(a => a.id === id));
+    const custom = loadCustomOrder().filter(id => known.includes(id));
+    /* 並べ替えた後に増えたアプリは、契約順のまま後ろへ足す */
+    return [...custom, ...known.filter(id => !custom.includes(id))];
+  }
+
+  function buildCard(app, enabled) {
     const card = document.createElement('div');
-    card.className = `app-card${(!enabled && !isFuture) ? ' locked' : ''}${isFuture ? ' locked' : ''}`;
+    card.className = `app-card${enabled ? '' : ' locked'}`;
+    card.dataset.appId = app.id;
     card.innerHTML = `
-      ${(!enabled || isFuture) ? '<i class="fa-solid fa-lock lock-icon"></i>' : ''}
+      ${enabled ? '' : '<i class="fa-solid fa-lock lock-icon"></i>'}
       <div class="app-icon ${app.iconClass}">
         <i class="${app.icon}"></i>
       </div>
       <div class="app-name">${app.name}</div>
       <div class="app-desc">${app.desc}</div>
-      <span class="app-tag ${enabled && !isFuture ? 'app-tag-active' : 'app-tag-soon'}">
-        <i class="fa-solid ${enabled && !isFuture ? 'fa-circle-check' : 'fa-clock'}"></i>
-        ${enabled && !isFuture ? '利用中' : '近日公開'}
+      <span class="app-tag ${enabled ? 'app-tag-active' : 'app-tag-soon'}">
+        <i class="fa-solid ${enabled ? 'fa-circle-check' : 'fa-clock'}"></i>
+        ${enabled ? '利用中' : '近日公開'}
       </span>`;
-    if (enabled && !isFuture && app.url) {
-      card.addEventListener('click', () => {
+    if (enabled && app.url) {
+      card.addEventListener('click', e => {
+        /* 長押しで並べ替えた直後の click では開かない */
+        if (appsGrid.dataset.suppressClick === '1') { e.preventDefault(); return; }
         if (app.id === 'aa') { openAa(); return; }
         location.href = app.url;
       });
     }
-    appsGrid.appendChild(card);
+    return card;
+  }
+
+  function renderAppCards(apps) {
+    appsGrid.innerHTML = '';
+    const enabledIds = orderedEnabledApps(apps);
+    enabledIds.forEach(id => appsGrid.appendChild(buildCard(APP_CATALOG.find(a => a.id === id), true)));
+    APP_CATALOG.filter(a => !enabledIds.includes(a.id))
+      .forEach(app => appsGrid.appendChild(buildCard(app, false)));
+  }
+
+  renderAppCards(user.apps);
+  initAppCardReorder(appsGrid, () => {
+    saveCustomOrder([...appsGrid.querySelectorAll('.app-card:not(.locked)')].map(c => c.dataset.appId));
   });
+
+  /* ログイン時に保存した apps は古いことがある（契約の追加・別の端末での並べ替え）ので、裏で最新を取り直す */
+  if (!isMockSession) {
+    fetch(`${SPACE_API}/auth/me`, { headers: { Authorization: `Bearer ${user.token}`, Accept: 'application/json' } })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        const apps = data?.user?.apps_enabled;
+        const appOrder = data?.user?.app_order ?? [];
+        if (!Array.isArray(apps)) return;
+        if (JSON.stringify(apps) === JSON.stringify(user.apps)
+            && JSON.stringify(appOrder) === JSON.stringify(user.app_order ?? [])) return;
+        user.apps = apps;
+        user.app_order = appOrder;
+        patchAuthUser({ apps, app_order: appOrder });
+        if (!appsGrid.classList.contains('is-reordering')) renderAppCards(apps);
+        updateArrows();
+      })
+      .catch(() => {});
+  }
 
   document.getElementById('logoutBtn').addEventListener('click', () => {
     clearAuth();
@@ -451,6 +524,141 @@ if (appsGrid) {
   renderHero(user);
   renderSponsors();
   renderStore();
+}
+
+/* ── アプリカードの長押し並べ替え ──
+   契約中のカード（.app-card:not(.locked)）だけを動かせる。未契約のカードは常に後ろのまま。
+   ・長押し（0.45秒）でつかむ。それまでに指/マウスが動いたら通常のスクロール/クリック扱い
+   ・つかんだカードはポインターに追従し、ほかの契約中カードの間に来たらその位置へ入れ替わる
+   ・離したら onDone() で並び順を保存。直後の click では開かないよう抑止する */
+function initAppCardReorder(grid, onDone) {
+  const HOLD_MS = 450, MOVE_TOLERANCE = 8, EDGE = 60;
+  let pending = null;   /* 長押し待ち { card, x, y, timer, pointerId } */
+  let drag = null;      /* 並べ替え中 { card, pointerId, offsetX, offsetY, lastX, lastY, raf } */
+
+  const movable = () => [...grid.querySelectorAll('.app-card:not(.locked)')];
+
+  function cancelPending() {
+    if (pending) { clearTimeout(pending.timer); pending = null; }
+  }
+
+  /* 入れ替えの前後の位置差をアニメーションさせる（FLIP） */
+  function animateSwap(mutate) {
+    const cards = movable().filter(c => c !== drag.card);
+    const before = new Map(cards.map(c => [c, c.getBoundingClientRect().left]));
+    mutate();
+    cards.forEach(c => {
+      const dx = before.get(c) - c.getBoundingClientRect().left;
+      if (!dx) return;
+      c.style.transition = 'none';
+      c.style.transform = `translateX(${dx}px)`;
+      requestAnimationFrame(() => {
+        c.style.transition = 'transform .2s ease';
+        c.style.transform = '';
+      });
+    });
+  }
+
+  /* DOM上の位置が変わっても、見た目はポインターに付いてくるよう自然位置との差で動かす */
+  function placeDragged() {
+    const { card, lastX, lastY, offsetX, offsetY } = drag;
+    card.style.transform = 'none';
+    const r = card.getBoundingClientRect();
+    card.style.transform = `translate(${lastX - offsetX - r.left}px, ${lastY - offsetY - r.top}px) scale(1.04)`;
+  }
+
+  function reorderAt(x) {
+    const others = movable().filter(c => c !== drag.card);
+    let target = null;
+    for (const c of others) {
+      const r = c.getBoundingClientRect();
+      if (x < r.left + r.width / 2) { target = c; break; }
+    }
+    const lastMovable = others[others.length - 1];
+    const ref = target ?? (lastMovable ? lastMovable.nextSibling : null);
+    if (ref === drag.card || drag.card.nextSibling === ref) return;
+    animateSwap(() => grid.insertBefore(drag.card, ref));
+  }
+
+  /* 端に寄せたら横スクロールして、画面外のカードとも入れ替えられるようにする */
+  function autoScroll() {
+    if (!drag) return;
+    const r = grid.getBoundingClientRect();
+    let dx = 0;
+    if (drag.lastX < r.left + EDGE) dx = -Math.ceil((r.left + EDGE - drag.lastX) / 6);
+    else if (drag.lastX > r.right - EDGE) dx = Math.ceil((drag.lastX - (r.right - EDGE)) / 6);
+    if (dx) { grid.scrollLeft += dx; reorderAt(drag.lastX); placeDragged(); }
+    drag.raf = requestAnimationFrame(autoScroll);
+  }
+
+  function startDrag() {
+    const { card, x, y, pointerId } = pending;
+    pending = null;
+    const r = card.getBoundingClientRect();
+    drag = { card, pointerId, offsetX: x - r.left, offsetY: y - r.top, lastX: x, lastY: y };
+    try { card.setPointerCapture(pointerId); } catch (_) {}
+    grid.classList.add('is-reordering');
+    card.classList.add('is-dragging');
+    if (navigator.vibrate) { try { navigator.vibrate(15); } catch (_) {} }
+    placeDragged();
+    drag.raf = requestAnimationFrame(autoScroll);
+  }
+
+  function endDrag() {
+    if (!drag) return;
+    const { card, raf } = drag;
+    cancelAnimationFrame(raf);
+    drag = null;
+    /* 自然位置へ戻るアニメーションの後で後片付け */
+    card.style.transition = 'transform .18s ease';
+    card.style.transform = '';
+    setTimeout(() => {
+      card.classList.remove('is-dragging');
+      card.style.transition = '';
+      grid.classList.remove('is-reordering');
+    }, 180);
+    grid.dataset.suppressClick = '1';
+    setTimeout(() => { delete grid.dataset.suppressClick; }, 350);
+    onDone();
+  }
+
+  grid.addEventListener('pointerdown', e => {
+    if (drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    const card = e.target.closest('.app-card:not(.locked)');
+    if (!card || !grid.contains(card)) return;
+    cancelPending();
+    pending = { card, x: e.clientX, y: e.clientY, pointerId: e.pointerId,
+                timer: setTimeout(startDrag, HOLD_MS) };
+  });
+
+  /* setPointerCapture 後のイベントはカードに届き、グリッドへバブルする */
+  grid.addEventListener('pointermove', e => {
+    if (pending && e.pointerId === pending.pointerId) {
+      if (Math.hypot(e.clientX - pending.x, e.clientY - pending.y) > MOVE_TOLERANCE) cancelPending();
+      return;
+    }
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    e.preventDefault();
+    drag.lastX = e.clientX; drag.lastY = e.clientY;
+    reorderAt(e.clientX);
+    placeDragged();
+  });
+
+  const finish = e => {
+    if (pending && e.pointerId === pending.pointerId) cancelPending();
+    if (drag && e.pointerId === drag.pointerId) endDrag();
+  };
+  grid.addEventListener('pointerup', finish);
+  grid.addEventListener('pointercancel', finish);
+  /* スクロールが始まったら長押し待ちはやめる（横スワイプしただけでつかまないように） */
+  grid.addEventListener('scroll', () => { if (!drag) cancelPending(); }, { passive: true });
+
+  /* つかんでいる間はページ・グリッドをスクロールさせない（タッチ） */
+  grid.addEventListener('touchmove', e => { if (drag) e.preventDefault(); }, { passive: false });
+  /* スマホの長押しメニューを出さない */
+  grid.addEventListener('contextmenu', e => {
+    if (e.target.closest('.app-card:not(.locked)')) e.preventDefault();
+  });
 }
 
 /* ── パスワード変更モーダル ──
