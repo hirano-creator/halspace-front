@@ -21,7 +21,7 @@ import { navigate } from '../router';
 interface Area { id: string; name: string; grid_row: number; grid_col: number; col_span: number; row_span: number; sort_order: number; version: number }
 interface OpenAbn { id: string; title: string; description: string | null; found_at: string }
 interface Item {
-  id: string; equipment_code: string; name: string; status: string; frequency: string; area_id: string | null; board_order: number; board_x?: number | null; board_y?: number | null; template_id: string | null;
+  id: string; equipment_code: string; name: string; status: string; frequency: string; area_id: string | null; board_order: number; board_x?: number | null; board_y?: number | null; board_w?: number | null; board_h?: number | null; template_id: string | null;
   manager_name: string | null; board_status: BoardStatus; open_abnormalities: number; abnormalities: OpenAbn[];
   inspection: null | { id: string; status: string; inspector_name: string; started_at: string; completed_at: string | null };
 }
@@ -46,6 +46,10 @@ const POP_W = 340;
 const ROW_UNIT = 40;
 /** 建屋の中に好きな位置で置いた設備のタイルの大きさ（board.css の .eq.placed と揃える。はみ出さないように位置を抑える） */
 const TILE_W = 132, TILE_H = 62;
+/** カードの大きさを変えるときの最小（API の下限より少し大きく。文字が 1 行は読める大きさ） */
+const MIN_W = 90, MIN_H = 44;
+const tileW = (i: Item) => i.board_w ?? TILE_W;
+const tileH = (i: Item) => i.board_h ?? TILE_H;
 const placed = (i: Item) => i.area_id !== null && typeof i.board_x === 'number' && typeof i.board_y === 'number';
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -188,7 +192,7 @@ export function BoardPage() {
         await apiSend('PUT', '/areas/layout', {
           factory_id: factoryId,
           areas: d.areas.map((a, i) => ({ id: a.id, grid_row: a.grid_row, grid_col: a.grid_col, col_span: a.col_span, row_span: rowSpanOf(a), sort_order: a.sort_order ?? i })),
-          equipment: d.items.map((i) => ({ id: i.id, area_id: i.area_id, board_order: i.board_order, board_x: i.board_x ?? null, board_y: i.board_y ?? null })),
+          equipment: d.items.map((i) => ({ id: i.id, area_id: i.area_id, board_order: i.board_order, board_x: i.board_x ?? null, board_y: i.board_y ?? null, board_w: i.board_w ?? null, board_h: i.board_h ?? null })),
         });
       } catch (e) {
         setToast(null);
@@ -289,11 +293,51 @@ export function BoardPage() {
     const r = box.getBoundingClientRect();
     const g = grabRef.current;
     const ratio = (v: number, size: number, tile: number) => Math.round(clamp(v / Math.max(1, size), 0, Math.max(0, size - tile) / Math.max(1, size)) * 1000);
-    const x = ratio(e.clientX - g.dx - r.left, r.width, TILE_W);
-    const y = ratio(e.clientY - g.dy - r.top, r.height, TILE_H);
+    const x = ratio(e.clientX - g.dx - r.left, r.width, tileW(card));
+    const y = ratio(e.clientY - g.dy - r.top, r.height, tileH(card));
     if (card.area_id === areaId && card.board_x === x && card.board_y === y) return;
     const next = card.area_id === areaId ? draft : moveCard(draft, id, areaId, null);
     commit(draft, { ...next, items: next.items.map((i) => (i.id === id ? { ...i, area_id: areaId, board_x: x, board_y: y } : i)) }, label(areaId));
+  }
+
+  /**
+   * 設備のカードの右下 ◢ で大きさを変える（px）。順に並んでいたカードは、今の場所に置いた扱いにする。
+   * カードは HTML のドラッグ（別の建屋へ移す）も持つので、引っぱっている間はそのカードのドラッグを止める
+   */
+  function onTileResize(e: ReactPointerEvent, i: Item) {
+    if (!editing || !draft || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const tile = (e.currentTarget as HTMLElement).closest<HTMLElement>('.eq');
+    const box = tile?.closest('.eqs');
+    if (!tile || !box) return;
+    tile.setAttribute('draggable', 'false');
+    const start = draft;
+    const tr = tile.getBoundingClientRect(), br = box.getBoundingClientRect();
+    const per = (v: number, size: number) => Math.round(clamp(v / Math.max(1, size), 0, 1) * 1000);
+    const x0 = placed(i) ? i.board_x! : per(tr.left - br.left, br.width);
+    const y0 = placed(i) ? i.board_y! : per(tr.top - br.top, br.height);
+    const w0 = Math.round(tr.width), h0 = Math.round(tr.height);
+    let cur = { w: w0, h: h0 };
+    const apply = (d: Draft): Draft => ({ ...d, items: d.items.map((x) => (x.id === i.id ? { ...x, board_x: x0, board_y: y0, board_w: cur.w, board_h: cur.h } : x)) });
+    const move = (ev: PointerEvent) => {
+      const n = {
+        w: clamp(Math.round(w0 + ev.clientX - e.clientX), MIN_W, Math.max(MIN_W, Math.min(1200, Math.floor(br.width)))),
+        h: clamp(Math.round(h0 + ev.clientY - e.clientY), MIN_H, Math.max(MIN_H, Math.min(800, Math.floor(br.height)))),
+      };
+      if (n.w === cur.w && n.h === cur.h) return;
+      cur = n;
+      setDraft((d) => d && apply(d));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      tile.setAttribute('draggable', 'true');
+      if (cur.w === w0 && cur.h === h0) { setDraft(start); return; }
+      commit(start, apply(start), `${i.equipment_code} の大きさを変えました`);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   }
 
   async function addArea(name: string) {
@@ -317,7 +361,10 @@ export function BoardPage() {
       : i.board_status === 'doing' ? '点検中' : 'まだ';
     return (
       <button key={i.id} type="button" data-eq={i.id} className={`eq eq-${s} ${placed(i) ? 'placed' : ''} ${pop?.kind === 'eq' && pop.id === i.id ? 'sel' : ''}`} draggable={editing}
-        style={placed(i) ? { left: `min(${i.board_x! / 10}%, calc(100% - ${TILE_W}px))`, top: `min(${i.board_y! / 10}%, calc(100% - ${TILE_H}px))` } : undefined}
+        style={placed(i) ? {
+          left: `min(${i.board_x! / 10}%, calc(100% - ${tileW(i)}px))`, top: `min(${i.board_y! / 10}%, calc(100% - ${tileH(i)}px))`,
+          width: tileW(i), height: tileH(i),
+        } : undefined}
         onDragStart={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
           grabRef.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
@@ -329,6 +376,7 @@ export function BoardPage() {
         aria-label={`${i.equipment_code} ${i.name} ${sub}`}>
         <b>{i.equipment_code} {i.name}</b>
         <small>{sub}</small>
+        {editing && i.area_id !== null && <span className="eq-rz" aria-hidden="true" title="引っぱって大きさを変える" onPointerDown={(e) => onTileResize(e, i)} />}
       </button>
     );
   };
@@ -371,7 +419,7 @@ export function BoardPage() {
       {!data.workingDay && <Alert kind="info">今日は稼働日ではありません（毎日点検の設備は対象外です）。</Alert>}
       {editing && (
         <div className="map-edit-hint" role="status">
-          🔓 配置を動かせます。建屋は <b>⠿ の帯</b>をつかんで動かし、右下の <b>◢</b> を引っぱると幅と高さが変わります。設備はタイルをつかんで、建屋の中の好きな場所へ。
+          🔓 配置を動かせます。建屋は <b>⠿ の帯</b>をつかんで動かし、右下の <b>◢</b> を引っぱると幅と高さが変わります。設備はタイルをつかんで、建屋の中の好きな場所へ（タイルの右下の ◢ で大きさも変わります）。
           動かすとすぐ保存されます。終わったら「🔒 固定する」を押してください。
         </div>
       )}

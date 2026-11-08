@@ -195,4 +195,19 @@ describe('カード一覧の配置', () => {
     expect((await put({ board_x: null, board_y: null })).status).toBe(200);
     expect(await pos()).toEqual([null, null]);
   });
+
+  it('設備のカードの大きさ（px）を保存できる。範囲外は 422、送らなければ今の大きさ', async () => {
+    const put = (e: Record<string, unknown>) => call('PUT', '/areas/layout', T.manager, { factory_id: 'fac-1a', areas: [], equipment: [{ id: 'eq-l07', area_id: 'area-b', board_order: 2, ...e }] });
+    const size = async () => {
+      const b = await get('/board?factory=fac-1a', T.manager);
+      const i = b.body.items.find((x: { id: string }) => x.id === 'eq-l07');
+      return [i.board_w, i.board_h];
+    };
+    expect((await put({ board_w: 59, board_h: 100 })).status).toBe(422);
+    expect((await put({ board_w: 200, board_h: 801 })).status).toBe(422);
+    expect((await put({ board_x: 0, board_y: 0, board_w: 220, board_h: 90 })).status).toBe(200);
+    expect(await size()).toEqual([220, 90]);
+    expect((await put({})).status).toBe(200);
+    expect(await size()).toEqual([220, 90]);
+  });
 });
