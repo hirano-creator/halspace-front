@@ -66,13 +66,15 @@ function StaffSelect() {
 
 type ResultKind = 'ok' | 'not_found' | 'duplicate' | 'over_quantity' | 'review' | 'error';
 interface ScanItem {
-  id: number; global_no: string; status: string; matched_at: string | null; matched_staff_name: string | null; product_code: string; product_name: string; quantity: number; location_id: number | null; location_code: string;
+  id: number; global_no: string; ssd?: string | null; status: string; matched_at: string | null; matched_staff_name: string | null; product_code: string; product_name: string; quantity: number; location_id: number | null; location_code: string;
   location_name: string | null; customer_name: string | null; destination_name: string | null; slip_no: string; slip_total: number; slip_matched: number;
 }
 interface ScanResponse {
   scan_id: number; result: ResultKind; message: string; barcode: string; input: string; scanned_at: string; staff_name: string; replay: boolean;
   item: ScanItem | null; previous: { scanned_at: string; staff_name: string } | null;
 }
+/** 確認するまで読み取りを止める知らせ（未登録・数量超過・エラー・要確認）。モック _mock-scan-alert.html */
+interface StopAlert { key: number; tone: 'ng' | 'am'; title: string; sub: string; message: string; todo: string; barcode: string; item: ScanItem | null }
 interface ShownResult { kind: 'ok' | 'dup' | 'rv' | 'nf'; label: string; message: string; barcode: string; item: ScanItem | null; moved: boolean; manual: boolean; at: number }
 interface BoardItem {
   id: number; global_no: string; ssd: string | null; vrd: string | null; ship_method: string | null; product_code: string; location_code: string;
@@ -89,7 +91,7 @@ const LABELS: Record<ResultKind, { kind: ShownResult['kind']; label: string; sou
   ok: { kind: 'ok', label: '正常', sound: 'ok' },
   duplicate: { kind: 'dup', label: '読み取り済み', sound: 'warn' },
   over_quantity: { kind: 'nf', label: '数量超過', sound: 'error' },
-  review: { kind: 'rv', label: '要確認', sound: 'warn' },
+  review: { kind: 'rv', label: '要確認', sound: 'error' }, // 確認するまで止めるので、未登録と同じ音
   not_found: { kind: 'nf', label: '未登録', sound: 'error' },
   error: { kind: 'nf', label: 'エラー', sound: 'error' },
 };
@@ -106,6 +108,23 @@ const newScanId = () => crypto.randomUUID().replace(/-/g, '');
 /** 送信の失敗（通信）だけは、同じ読み取り ID で待ってから送り直す（docs/scan-matching.md §6） */
 const RETRY_WAIT_MS = [2000, 5000, 10000];
 const QUEUE_MAX = 20;
+/** この結果のときは画面全体で知らせ、確認するまで次の読み取りを受け付けない（2026-11-09 オーナー決定） */
+const STOP_RESULTS: readonly ResultKind[] = ['not_found', 'over_quantity', 'error', 'review'];
+
+type NewAlert = Omit<StopAlert, 'key'>;
+
+function stopAlertFor(r: ScanResponse, today: string | null): NewAlert {
+  const base = { barcode: r.barcode, item: r.item, message: r.message };
+  if (r.result === 'review') {
+    const dateDiff = !!(r.item?.ssd && today && r.item.ssd !== today && r.item.status === 'pending');
+    return dateDiff
+      ? { ...base, tone: 'am', title: '日付違い', sub: 'メーカー出荷日が今日ではない部品です', todo: '別の日の部品が混ざっていないかを確かめてください。照合済みにはなっていません（要確認）。' }
+      : { ...base, tone: 'am', title: '要確認', sub: '確かめる必要がある明細です', todo: '管理者に確認してください。照合済みにはなっていません。' };
+  }
+  if (r.result === 'not_found') return { ...base, tone: 'ng', title: '未登録', sub: '注文データにない番号です', todo: 'ラベルが照合用のバーコードか、別の部品が混ざっていないか、その日の CSV を取り込んだかを確かめてください。' };
+  if (r.result === 'over_quantity') return { ...base, tone: 'ng', title: '数量超過', sub: '必要な回数より多く読みました', todo: '同じ部品が余分に入っていないかを確かめてください。' };
+  return { ...base, tone: 'ng', title: 'エラー', sub: '読み取りを照合できませんでした', todo: 'もう一度読み取ってください。続くときは管理者に連絡してください。' };
+}
 
 function ScanBoard({ session }: { session: WorkSession }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -122,15 +141,27 @@ function ScanBoard({ session }: { session: WorkSession }) {
   const [full, setFull] = useState(false);
   const [hit, setHit] = useState<{ id: number; kind: 'hit' | 'hitdup' } | null>(null);
   const [today, setToday] = useState<Today | null>(null);
-  const queue = useRef<{ id: string; raw: string; input: 'scanner' | 'manual'; at: string; ssd: string | null }[]>([]);
+  const queue = useRef<{ id: string; raw: string; input: 'scanner' | 'manual'; at: string }[]>([]);
   const running = useRef(false);
   const keyTimes = useRef<number[]>([]);
   const pendingEnter = useRef(false); // 日本語入力の確定に使われた Enter（確定し終わったら送る）
   const locRef = useRef(0);
-  const ssdRef = useRef<string | null>(null); // 読み取った瞬間に選んでいたメーカー納期（出荷日の確認は API がこの日と比べる）
   const [tick, setTick] = useState(0); // 一覧の読み直し（読み取りのあとに 1 増やす）
+  // 確認待ちの知らせ（先に起きた順）。1 件でもあれば、新しい読み取りは送らずに捨てる
+  const [alerts, setAlerts] = useState<StopAlert[]>([]);
+  const alertsRef = useRef<StopAlert[]>([]);
+  const alertKey = useRef(0);
+  const [blocked, setBlocked] = useState(0); // 止まっている間に読んだ回数（知らせを揺らす）
+  const todayRef = useRef<string | null>(null);
+  const pushAlert = useCallback((a: NewAlert) => {
+    const next = [...alertsRef.current, { ...a, key: ++alertKey.current }];
+    alertsRef.current = next; setAlerts(next);
+  }, []);
+  const ackAlert = useCallback(() => {
+    const next = alertsRef.current.slice(1);
+    alertsRef.current = next; setAlerts(next); setBlocked(0);
+  }, []);
   useEffect(() => { locRef.current = locationId; }, [locationId]);
-  useEffect(() => { ssdRef.current = ssd; }, [ssd]);
 
   const focus = useCallback(() => { setTimeout(() => inputRef.current?.focus(), 0); }, []);
 
@@ -138,7 +169,7 @@ function ScanBoard({ session }: { session: WorkSession }) {
 
   useEffect(() => {
     apiGet<{ today: string; items: { ssd: string; total: number; pending: number }[] }>('/scan-board/dates').then((d) => {
-      setDates(d);
+      setDates(d); todayRef.current = d.today;
       // 既定のメーカー納期: 今日以降で照合待ちがある最初の日 → 今日 → いちばん新しい日
       const pick = d.items.find((x) => x.ssd >= d.today && x.pending > 0)?.ssd ?? d.items.find((x) => x.ssd === d.today)?.ssd ?? d.items[d.items.length - 1]?.ssd ?? d.today;
       setSsd(pick);
@@ -167,6 +198,7 @@ function ScanBoard({ session }: { session: WorkSession }) {
     if (r.result === 'duplicate' && r.previous) message = `${fmtTime(r.previous.scanned_at).slice(6, 11)} に ${r.previous.staff_name} さんがチェック済みです`;
     setResult({ kind: L.kind, label: L.label, message, barcode: r.barcode, item: r.item, moved, manual, at: Date.now() });
     play(L.sound);
+    if (STOP_RESULTS.includes(r.result)) pushAlert(stopAlertFor(r, todayRef.current));
     if (r.item) {
       setHit({ id: r.item.id, kind: r.result === 'ok' ? 'hit' : 'hitdup' });
       // 一覧の読み直しを待たずに、読んだ行をその場でチェック済みにする（件数は読み直しで合わせる）
@@ -176,7 +208,7 @@ function ScanBoard({ session }: { session: WorkSession }) {
       if (moved && r.item.location_id) setLocationId(r.item.location_id);
       else setTick((t) => t + 1);
     } else setHit(null);
-  }, []);
+  }, [pushAlert]);
 
   const pump = useCallback(async () => {
     if (running.current) return;
@@ -188,7 +220,7 @@ function ScanBoard({ session }: { session: WorkSession }) {
         let res: ScanResponse | null = null;
         for (let attempt = 0; ; attempt++) {
           try {
-            res = await apiSend<ScanResponse>('POST', '/scans', { work_session_id: session.id, client_scan_id: q.id, raw_value: q.raw, input: q.input, client_scanned_at: q.at, ...(q.ssd ? { ssd: q.ssd } : {}) });
+            res = await apiSend<ScanResponse>('POST', '/scans', { work_session_id: session.id, client_scan_id: q.id, raw_value: q.raw, input: q.input, client_scanned_at: q.at });
             break;
           } catch (e) {
             if (e instanceof ApiError && e.status === 409) {
@@ -206,6 +238,9 @@ function ScanBoard({ session }: { session: WorkSession }) {
               ? '通信できません。この読み取りは保存されていない可能性があります。もう一度読み取ってください'
               : errorMessage(e), barcode: q.raw, item: null, moved: false, manual: false, at: Date.now() });
             play('error');
+            pushAlert({ tone: 'ng', title: 'エラー', sub: '読み取りを送れませんでした', barcode: q.raw, item: null,
+              message: e instanceof ApiError && e.status === 0 ? '通信できません。この読み取りは保存されていない可能性があります。' : errorMessage(e),
+              todo: '通信が戻ってから、このラベルをもう一度読み取ってください。' });
             break;
           }
         }
@@ -217,17 +252,23 @@ function ScanBoard({ session }: { session: WorkSession }) {
       setSending(0);
       loadToday();
     }
-  }, [session.id, show, loadToday]);
+  }, [session.id, show, loadToday, pushAlert]);
 
   const submit = (raw: string, input: 'scanner' | 'manual') => {
     const v = raw.trim();
     if (!v) return;
+    if (alertsRef.current.length) {
+      // 確認するまで止める。読んだラベルは送らない（記録も数え上げもしない）
+      play('error');
+      setBlocked((n) => n + 1);
+      return;
+    }
     if (queue.current.length >= QUEUE_MAX) {
       setResult({ kind: 'nf', label: '送信待ちがいっぱいです', message: '通信の回復を待っています。少し待ってから読み取ってください', barcode: v, item: null, moved: false, manual: false, at: Date.now() });
       play('error');
       return;
     }
-    queue.current.push({ id: newScanId(), raw: v, input, at: new Date().toISOString(), ssd: ssdRef.current });
+    queue.current.push({ id: newScanId(), raw: v, input, at: new Date().toISOString() });
     void pump();
   };
 
@@ -254,6 +295,8 @@ function ScanBoard({ session }: { session: WorkSession }) {
     if (e.key === 'Escape' && mode === 'manual') { e.currentTarget.value = ''; setMode('ready'); return; }
     if (e.key !== 'Enter') { keyTimes.current.push(performance.now()); return; }
     e.preventDefault();
+    // 確認待ちのとき、文字のない Enter（人が押した Enter）は「確認しました」。リーダーは番号のあとに Enter を送るので、ここには来ない
+    if (alertsRef.current.length && !e.currentTarget.value.trim()) { keyTimes.current = []; ackAlert(); return; }
     finishInput(e.currentTarget);
   };
   const onCompositionEnd = (e: CompositionEvent<HTMLInputElement>) => {
@@ -424,6 +467,8 @@ function ScanBoard({ session }: { session: WorkSession }) {
         )}
       </div>
 
+      {alerts[0] && <ScanAlertView alert={alerts[0]} rest={alerts.length - 1} blocked={blocked} onAck={() => { ackAlert(); focus(); }} />}
+
       {/* 最下段: 合計 */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-slate-300 bg-slate-50 px-3.5 py-1.5 text-xs whitespace-nowrap text-slate-500">
         {tab && <b className="text-[13px] text-slate-900">{tab.code} {tab.name}</b>}
@@ -434,6 +479,51 @@ function ScanBoard({ session }: { session: WorkSession }) {
         <span className="h-4 w-px bg-slate-300" />
         <span>全置場 済み <b className="text-[15px] text-slate-900">{doneAll}/{totalAll}</b></span>
         {today && <span>今日の読み取り <b className="text-[15px] text-slate-900">{today.total}</b>（正常 {today.ok}・重複 {today.duplicate}・要確認 {today.review}・エラー {today.error}）</span>}
+      </div>
+    </div>
+  );
+}
+
+// ===================== エラーの知らせ（確認するまで止める） =====================
+
+function ScanAlertView({ alert, rest, blocked, onAck }: { alert: StopAlert; rest: number; blocked: number; onAck: () => void }) {
+  const it = alert.item;
+  return (
+    <div className={`scan-alert fixed inset-0 z-50 flex items-center justify-center p-4 ${alert.tone === 'am' ? 'scan-alert-am' : ''}`}
+      role="alertdialog" aria-modal="true" aria-labelledby="scan-alert-title" aria-describedby="scan-alert-message"
+      onMouseDown={(e) => e.preventDefault()}>
+      <div key={alert.key} className="scan-alert-flash absolute inset-0" aria-hidden="true" />
+      <div className="absolute inset-0 bg-slate-900/40" aria-hidden="true" />
+      <div className="scan-alert-card relative max-h-full w-[min(720px,100%)] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="scan-alert-head flex items-center gap-4 px-6 py-5">
+          <span className="text-5xl leading-none font-black" aria-hidden="true">{alert.tone === 'am' ? '⚠' : '✖'}</span>
+          <div className="min-w-0">
+            <div id="scan-alert-title" className="text-4xl font-black tracking-wide">{alert.title}</div>
+            <div className="mt-1 text-base opacity-95">{alert.sub}</div>
+          </div>
+          {rest > 0 && <span className="ml-auto rounded-full bg-white/20 px-3 py-1 text-sm font-bold whitespace-nowrap">ほかに {rest} 件</span>}
+        </div>
+        <div className="px-6 pt-4 pb-2 text-base leading-relaxed">
+          <p id="scan-alert-message" className="mb-2.5 text-lg font-bold">{alert.message}</p>
+          <dl className="grid grid-cols-[7em_1fr] gap-x-3 gap-y-1 text-[15px]">
+            <dt className="text-slate-500">読んだ番号</dt><dd className="mono break-all">{it?.global_no ?? alert.barcode}</dd>
+            {it && <><dt className="text-slate-500">商品コード</dt><dd className="mono break-all">{it.product_code}</dd></>}
+            {it?.location_code && <><dt className="text-slate-500">置場</dt><dd>{it.location_code} {it.location_name ?? ''}</dd></>}
+            {it?.ssd && <><dt className="text-slate-500">メーカー出荷日</dt><dd className="font-bold">{it.ssd.replace(/-/g, '/')}</dd></>}
+          </dl>
+          <p className="mt-3.5 rounded-lg bg-slate-50 px-3.5 py-2.5 text-[15px]">{alert.todo}</p>
+        </div>
+        {blocked > 0 && (
+          <p key={blocked} className="scan-alert-blocked mx-6 rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-800" role="status">
+            止まっています。先に確認してください（今読んだラベルは送っていません）
+          </p>
+        )}
+        <div className="flex flex-wrap items-center gap-4 px-6 pt-4 pb-6">
+          {/* 押してもリーダーの入力欄からフォーカスを奪わない（Enter でも確認できるように） */}
+          <button type="button" className="scan-alert-ack min-h-16 flex-1 rounded-xl px-4 text-2xl font-extrabold"
+            onMouseDown={(e) => e.preventDefault()} onClick={onAck}>確認しました（Enter）</button>
+          <p className="max-w-[15em] text-[13px] leading-snug text-slate-500">確認するまで、次の読み取りは受け付けません</p>
+        </div>
       </div>
     </div>
   );
