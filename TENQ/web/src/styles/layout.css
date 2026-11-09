@@ -26,7 +26,7 @@
 .nav-drop .btn-sidebar-back { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 10px 12px; border: 0; border-radius: 10px; background: none; color: var(--sub); font: inherit; font-size: 16px; text-align: left; cursor: pointer; }
 .nav-drop .btn-sidebar-back:hover { background: var(--bg); color: var(--ink); }
 .content { padding: 20px 24px 40px; max-width: 1200px; width: 100%; margin: 0 auto; }
-.content.wide { max-width: 1600px; }
+.content.wide { max-width: none; padding-top: 12px; padding-bottom: 16px; }
 @media (max-width: 899px) {
   .content { padding: 16px 16px 40px; }
   .app-header { gap: 4px; padding: 4px 8px; }

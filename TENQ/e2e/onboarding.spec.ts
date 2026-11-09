@@ -8,6 +8,9 @@ test('工場長の「はじめにやること」: できた手順に ✓、「�
   await page.goto('./');
   await devLogin(page, '中村 誠', { guide: true });
   const list = page.getByRole('region', { name: 'はじめにやること' });
+  // もう何かできている工場では、見取り図に重ならないよう右下の小さなボタンにたたんである
+  await expect(list).toHaveCount(0);
+  await page.getByRole('button', { name: '🚀 はじめにやること 3/5' }).click();
   await expect(list).toBeVisible();
   // ダミーデータには建屋・設備・今日の点検があるので、①②④ はもうできている
   await expect(list.locator('li.is-done')).toHaveCount(3);
