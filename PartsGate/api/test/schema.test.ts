@@ -105,7 +105,10 @@ describe('索引（全件走査をしない）', () => {
     ["SELECT id FROM order_items WHERE company_id = 1 AND barcode_global_no = 'x'"],
     ["SELECT id FROM order_items WHERE company_id = 1 AND vrd = '2026-11-06' AND location_id = 3"],
     // 置場別チェックの一覧（読み取りのたびに読む）。並べ替えの索引に引っ張られて会社の全件を読んでいた（migrations/0004）
-    ["SELECT oi.id FROM order_items oi WHERE oi.company_id = 1 AND oi.vrd = '2026-11-06' AND oi.location_id = 3 AND oi.status <> 'cancelled' ORDER BY oi.global_no LIMIT 2000"],
+    ["SELECT oi.id FROM order_items oi WHERE oi.company_id = 1 AND oi.ssd = '2026-11-06' AND oi.location_id = 3 AND oi.status <> 'cancelled' ORDER BY oi.global_no LIMIT 2000"],
+    // 一覧のタブ（メーカー納期ごとの置場別件数）と、選べるメーカー納期（2026-11-09 にミスミ納期からメーカー納期へ変更。migrations/0005）
+    ["SELECT oi.location_id, COUNT(*) FROM order_items oi WHERE oi.company_id = 1 AND oi.ssd = '2026-11-06' AND oi.status <> 'cancelled' GROUP BY oi.location_id"],
+    ["SELECT ssd, COUNT(*) FROM order_items WHERE company_id = 1 AND ssd >= '2026-11-01' GROUP BY ssd ORDER BY ssd LIMIT 30"],
     ["SELECT id FROM order_items WHERE company_id = 1 AND vrd BETWEEN '2026-10-01' AND '2026-10-31' ORDER BY vrd, id LIMIT 101"],
     ["SELECT id FROM scan_logs WHERE company_id = 1 AND day BETWEEN '2026-10-01' AND '2026-10-31' ORDER BY day DESC, id DESC LIMIT 101"],
     ["SELECT id FROM order_items WHERE company_id = 1 AND status = 'pending' AND ssd <= '2026-11-05'"],

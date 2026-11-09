@@ -173,14 +173,14 @@ scanRoutes.post('/scans', async (c) => {
 
 // ---------- 置場別チェック（画面の一覧） ----------
 
-/** 選べるミスミ納期（今日の 7 日前から先、最大 30 日分） */
+/** 選べるメーカー納期（メーカー出荷日 SSD。今日の 7 日前から先、最大 30 日分）。現場はメーカー納期で管理している */
 scanRoutes.get('/scan-board/dates', async (c) => {
   authorize(c, 'orders.view');
   const db = scoped(c);
   const from = jstDay(Date.now() - 7 * 86_400_000);
-  const rows = await db.all<{ vrd: string; total: number; pending: number }>(
-    `SELECT vrd, COUNT(*) AS total, SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending
-       FROM order_items WHERE company_id = ?1 AND vrd >= ?2 GROUP BY vrd ORDER BY vrd LIMIT 30`, from);
+  const rows = await db.all<{ ssd: string; total: number; pending: number }>(
+    `SELECT ssd, COUNT(*) AS total, SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending
+       FROM order_items WHERE company_id = ?1 AND ssd >= ?2 GROUP BY ssd ORDER BY ssd LIMIT 30`, from);
   return c.json({ today: jstDay(), items: rows });
 });
 
@@ -189,16 +189,16 @@ const BOARD_MAX = 2000;
 scanRoutes.get('/scan-board', async (c) => {
   authorize(c, 'orders.view');
   const db = scoped(c);
-  const vrd = c.req.query('vrd') ?? '';
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(vrd)) throw new HttpError(422, 'ミスミ納期の指定が正しくありません。');
+  const ssd = c.req.query('ssd') ?? '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ssd)) throw new HttpError(422, 'メーカー納期の指定が正しくありません。');
   const locationId = Number(c.req.query('location_id') ?? 0) || 0;
   // 置場ごとの件数（タブ）。照合済み = matched
   const tabs = await db.all<{ location_id: number | null; code: string | null; name: string | null; total: number; done: number; qty: number; weight: number }>(
     `SELECT oi.location_id, l.code, l.name, COUNT(*) AS total, SUM(CASE WHEN oi.status = 'matched' THEN 1 ELSE 0 END) AS done,
             SUM(oi.quantity) AS qty, COALESCE(SUM(oi.total_weight), 0) AS weight
        FROM order_items oi LEFT JOIN locations l ON l.company_id = oi.company_id AND l.id = oi.location_id
-      WHERE oi.company_id = ?1 AND oi.vrd = ?2 AND oi.status <> 'cancelled'
-      GROUP BY oi.location_id ORDER BY l.code`, vrd);
+      WHERE oi.company_id = ?1 AND oi.ssd = ?2 AND oi.status <> 'cancelled'
+      GROUP BY oi.location_id ORDER BY l.code`, ssd);
   // 利用中の置場は、その日の注文がなくてもタブに出す（0 / 0）
   const locations = await db.all<{ id: number; code: string; name: string }>("SELECT id, code, name FROM locations WHERE company_id = ?1 AND status = 'active' ORDER BY code");
   const merged = locations.map((l) => {
@@ -211,9 +211,9 @@ scanRoutes.get('/scan-board', async (c) => {
             oi.quantity, oi.unit_weight, oi.total_weight, oi.status, oi.scan_count, oi.required_scans, oi.customer_name, oi.destination_name,
             oi.matched_at, s.name AS matched_staff_name
        FROM order_items oi LEFT JOIN staff s ON s.company_id = oi.company_id AND s.id = oi.matched_staff_id
-      WHERE oi.company_id = ?1 AND oi.vrd = ?2 AND oi.location_id = ?3 AND oi.status <> 'cancelled'
-      ORDER BY oi.global_no LIMIT ?4`, vrd, selected, BOARD_MAX) : [];
-  return c.json({ vrd, location_id: selected, tabs: merged, items, truncated: items.length >= BOARD_MAX });
+      WHERE oi.company_id = ?1 AND oi.ssd = ?2 AND oi.location_id = ?3 AND oi.status <> 'cancelled'
+      ORDER BY oi.global_no LIMIT ?4`, ssd, selected, BOARD_MAX) : [];
+  return c.json({ ssd, location_id: selected, tabs: merged, items, truncated: items.length >= BOARD_MAX });
 });
 
 /** 今日の件数（読み取りバーの下・ホーム）。集計表から読むので軽い */

@@ -129,10 +129,11 @@ describe('照合', () => {
 
 describe('置場別チェックの一覧', () => {
   it('置場ごとの件数と、選んだ置場の明細（チェック者つき）', async () => {
-    const r = await get(`/scan-board?vrd=${TODAY}&location_id=3`, T.generalA);
+    const r = await get(`/scan-board?ssd=${TODAY}&location_id=3`, T.generalA);
     expect(r.status).toBe(200);
     const tab55 = r.body.tabs.find((t: { code: string }) => t.code === '0055');
-    expect(tab55).toMatchObject({ total: 9 });
+    expect(tab55).toMatchObject({ total: 8 }); // メーカー納期で絞る。5PSC00000004（メーカー出荷日 2020-01-01）は入らない
+    expect(r.body.items.map((x: { global_no: string }) => x.global_no)).not.toContain('5PSC00000004');
     expect(tab55.done).toBeGreaterThanOrEqual(4);
     expect(r.body.tabs.map((t: { code: string }) => t.code)).toEqual(['0052', '0053', '0055', '0056']);
     const first = r.body.items.find((x: { global_no: string }) => x.global_no === '5PSC00000001');
@@ -140,9 +141,9 @@ describe('置場別チェックの一覧', () => {
     expect(r.body.items.every((x: { location_code: string }) => x.location_code === '0055')).toBe(true);
   });
 
-  it('納期の一覧', async () => {
+  it('メーカー納期の一覧', async () => {
     const r = await get('/scan-board/dates', T.generalA);
-    expect(r.body.items.map((x: { vrd: string }) => x.vrd)).toContain(TODAY);
+    expect(r.body.items.map((x: { ssd: string }) => x.ssd)).toContain(TODAY);
   });
 });
 
@@ -160,7 +161,7 @@ describe('照合のテナント分離', () => {
   });
 
   it('他社の一覧には会社 A の明細が出ない', async () => {
-    const r = await get(`/scan-board?vrd=${TODAY}&location_id=3`, T.generalB);
+    const r = await get(`/scan-board?ssd=${TODAY}&location_id=3`, T.generalB);
     expect(r.body.items).toEqual([]);
     expect(r.body.tabs.map((t: { code: string }) => t.code)).not.toContain('0055');
   });

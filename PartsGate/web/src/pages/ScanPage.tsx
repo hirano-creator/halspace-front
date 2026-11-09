@@ -80,7 +80,7 @@ interface BoardItem {
   customer_name: string | null; destination_name: string | null;
 }
 interface Tab { location_id: number; code: string; name: string; total: number; done: number; qty: number; weight: number }
-interface Board { vrd: string; location_id: number; tabs: Tab[]; items: BoardItem[]; truncated: boolean }
+interface Board { ssd: string; location_id: number; tabs: Tab[]; items: BoardItem[]; truncated: boolean }
 interface Today { total: number; ok: number; duplicate: number; review: number; error: number }
 
 type Mode = 'ready' | 'stopped' | 'manual' | 'busy-staff';
@@ -112,8 +112,8 @@ function ScanBoard({ session }: { session: WorkSession }) {
   const [mode, setMode] = useState<Mode>('ready');
   const [result, setResult] = useState<ShownResult | null>(null);
   const [sending, setSending] = useState(0);
-  const [dates, setDates] = useState<{ today: string; items: { vrd: string; total: number; pending: number }[] } | null>(null);
-  const [vrd, setVrd] = useState<string | null>(null);
+  const [dates, setDates] = useState<{ today: string; items: { ssd: string; total: number; pending: number }[] } | null>(null);
+  const [ssd, setSsd] = useState<string | null>(null); // メーカー納期（メーカー出荷日 SSD）。現場はこの日で管理している
   const [locationId, setLocationId] = useState(0);
   const [board, setBoard] = useState<Board | null>(null);
   const [boardError, setBoardError] = useState<string | null>(null);
@@ -135,19 +135,19 @@ function ScanBoard({ session }: { session: WorkSession }) {
   const loadToday = useCallback(() => { apiGet<Today>('/scans/today').then(setToday).catch(() => { /* 件数だけなので出さない */ }); }, []);
 
   useEffect(() => {
-    apiGet<{ today: string; items: { vrd: string; total: number; pending: number }[] }>('/scan-board/dates').then((d) => {
+    apiGet<{ today: string; items: { ssd: string; total: number; pending: number }[] }>('/scan-board/dates').then((d) => {
       setDates(d);
-      // 既定の納期: 今日以降で照合待ちがある最初の日 → 今日 → いちばん新しい日
-      const pick = d.items.find((x) => x.vrd >= d.today && x.pending > 0)?.vrd ?? d.items.find((x) => x.vrd === d.today)?.vrd ?? d.items[d.items.length - 1]?.vrd ?? d.today;
-      setVrd(pick);
+      // 既定のメーカー納期: 今日以降で照合待ちがある最初の日 → 今日 → いちばん新しい日
+      const pick = d.items.find((x) => x.ssd >= d.today && x.pending > 0)?.ssd ?? d.items.find((x) => x.ssd === d.today)?.ssd ?? d.items[d.items.length - 1]?.ssd ?? d.today;
+      setSsd(pick);
     }).catch((e: unknown) => setBoardError(errorMessage(e)));
     loadToday();
   }, [loadToday]);
   // ---- 一覧（納期・置場・読み直しの回数が変わったら読み直す） ----
   useEffect(() => {
-    if (!vrd) return;
+    if (!ssd) return;
     let alive = true;
-    apiGet<Board>(`/scan-board?vrd=${vrd}${locationId ? `&location_id=${locationId}` : ''}`)
+    apiGet<Board>(`/scan-board?ssd=${ssd}${locationId ? `&location_id=${locationId}` : ''}`)
       .then((b) => {
         if (!alive) return;
         setBoard(b); setBoardError(null);
@@ -155,7 +155,7 @@ function ScanBoard({ session }: { session: WorkSession }) {
       })
       .catch((e: unknown) => { if (alive) setBoardError(errorMessage(e)); });
     return () => { alive = false; };
-  }, [vrd, locationId, tick]);
+  }, [ssd, locationId, tick]);
 
   // ---- 読み取りの送信（順番待ちで 1 件ずつ） ----
   const show = useCallback((r: ScanResponse, manual: boolean) => {
@@ -290,7 +290,7 @@ function ScanBoard({ session }: { session: WorkSession }) {
     if (!board || !tab) return;
     const csv = toCsv(['グローバル番号', 'メーカー出荷日(SSD)', 'ミスミ納期(VRD)', '出荷方法', '商品コード', '置場', '数量', '個別重量', '商品重量', 'チェック者', 'チェック時間'],
       all.map((r) => [r.global_no, r.ssd, r.vrd, r.ship_method, r.product_code, r.location_code, r.quantity, r.unit_weight, r.total_weight, r.matched_staff_name ?? '', r.matched_at ? fmtTime(r.matched_at) : '']));
-    saveBlob(`置場別チェック_${board.vrd}_${tab.code}.csv`, new Blob([csv], { type: 'text/csv' }));
+    saveBlob(`置場別チェック_${board.ssd}_${tab.code}.csv`, new Blob([csv], { type: 'text/csv' }));
   };
 
   return (
@@ -341,10 +341,10 @@ function ScanBoard({ session }: { session: WorkSession }) {
           </span>
         </div>
         <label className="ml-auto flex flex-col justify-center rounded-lg border border-slate-300 px-2.5 text-[11px] text-slate-500 md:ml-0">
-          ミスミ納期
-          <select className="bg-transparent text-sm font-bold text-slate-900 outline-none" value={vrd ?? ''} onChange={(e) => { setVrd(e.target.value); setLocationId(0); setHit(null); focus(); }} aria-label="ミスミ納期">
+          メーカー納期
+          <select className="bg-transparent text-sm font-bold text-slate-900 outline-none" value={ssd ?? ''} onChange={(e) => { setSsd(e.target.value); setLocationId(0); setHit(null); focus(); }} aria-label="メーカー納期">
             {!dates?.items.length && <option value="">（注文なし）</option>}
-            {dates?.items.map((d) => <option key={d.vrd} value={d.vrd}>{md(d.vrd)}{d.vrd === dates.today ? '（今日）' : ''} 残り {d.pending}</option>)}
+            {dates?.items.map((d) => <option key={d.ssd} value={d.ssd}>{md(d.ssd)}{d.ssd === dates.today ? '（今日）' : ''} 残り {d.pending}</option>)}
           </select>
         </label>
       </div>
@@ -383,7 +383,7 @@ function ScanBoard({ session }: { session: WorkSession }) {
       {/* 一覧の上: 全部の行が同じ値になる列 */}
       <div className="flex flex-wrap gap-x-5 border-b border-slate-200 px-3.5 py-1 text-xs text-slate-500">
         {tab && <span>置場 <b className="text-slate-900">{tab.code} {tab.name}</b></span>}
-        {vrd && <span>ミスミ納期 <b className="text-slate-900">{vrd.replace(/-/g, '/')}</b></span>}
+        {ssd && <span>メーカー納期 <b className="text-slate-900">{ssd.replace(/-/g, '/')}</b></span>}
         <span className="ml-auto">{rows.length} 件表示{board?.truncated ? '（多すぎるため一部だけ）' : ''}</span>
       </div>
       {boardError && <div className="p-2"><Alert kind="error">{boardError}</Alert></div>}

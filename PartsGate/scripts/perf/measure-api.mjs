@@ -27,7 +27,7 @@ await add('照合 POST /scans（200 回）', (i) => {
   const g = kind < 6 ? `5PF${String(359000 + i).padStart(11, '0')}` : kind < 9 ? `5PF${String(1000 + i).padStart(11, '0')}` : `5PZZ${i}`;
   return fetch(`${API}/scans`, { method: 'POST', headers: H, body: JSON.stringify({ work_session_id: ws.id, client_scan_id: `perf-${run}-${i}-xxxx`, raw_value: g }) });
 }, 200);
-await add('置場別チェック GET /scan-board', () => fetch(`${API}/scan-board?vrd=${today}&location_id=3`, { headers: H }));
+await add('置場別チェック GET /scan-board', () => fetch(`${API}/scan-board?ssd=${today}&location_id=3`, { headers: H }));
 await add('今日の件数 GET /scans/today', () => fetch(`${API}/scans/today`, { headers: H }));
 await add('ダッシュボード GET /dashboard', () => fetch(`${API}/dashboard`, { headers: H }));
 await add('読み取り履歴 1 日', () => fetch(`${API}/scan-logs?from=${day(-3)}&to=${day(-3)}&limit=100`, { headers: H }));
