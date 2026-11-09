@@ -91,11 +91,22 @@ describe('照合', () => {
     expect(r.body.barcode).toBe('5PSC00000005');
   });
 
-  it('メーカー出荷日が今日でない明細は「要確認」で、照合済みにしない', async () => {
-    const r = await scan('5PSC00000004');
+  it('メーカー納期が画面で選んだ日と違う明細は「要確認」で、照合済みにしない（Q-6）', async () => {
+    const r = await scan('5PSC00000004', { ssd: TODAY });
     expect(r.body.result).toBe('review');
     expect(r.body.message).toContain('01/01');
+    expect(r.body.message).toContain(`（${TODAY.slice(5, 7)}/${TODAY.slice(8, 10)}）`);
     expect(r.body.item.status).toBe('pending');
+    // 日を送らない古い画面は、今日と比べる
+    expect((await scan('5PSC00000004')).body.result).toBe('review');
+    // 日付の形が違えば 422
+    expect((await scan('5PSC00000004', { ssd: '2026/11/09' })).status).toBe(422);
+  });
+
+  it('画面でその日を選んでいれば、今日でない明細も「正常」（先に翌日分を準備できる。Q-6）', async () => {
+    const r = await scan('5PSC00000004', { ssd: '2020-01-01' });
+    expect(r.body.result).toBe('ok');
+    expect(r.body.item.status).toBe('matched');
   });
 
   it('同じ読み取りの再送は前回の結果を返す（記録 1 件）', async () => {

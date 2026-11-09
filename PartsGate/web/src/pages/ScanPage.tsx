@@ -122,13 +122,15 @@ function ScanBoard({ session }: { session: WorkSession }) {
   const [full, setFull] = useState(false);
   const [hit, setHit] = useState<{ id: number; kind: 'hit' | 'hitdup' } | null>(null);
   const [today, setToday] = useState<Today | null>(null);
-  const queue = useRef<{ id: string; raw: string; input: 'scanner' | 'manual'; at: string }[]>([]);
+  const queue = useRef<{ id: string; raw: string; input: 'scanner' | 'manual'; at: string; ssd: string | null }[]>([]);
   const running = useRef(false);
   const keyTimes = useRef<number[]>([]);
   const pendingEnter = useRef(false); // 日本語入力の確定に使われた Enter（確定し終わったら送る）
   const locRef = useRef(0);
+  const ssdRef = useRef<string | null>(null); // 読み取った瞬間に選んでいたメーカー納期（出荷日の確認は API がこの日と比べる）
   const [tick, setTick] = useState(0); // 一覧の読み直し（読み取りのあとに 1 増やす）
   useEffect(() => { locRef.current = locationId; }, [locationId]);
+  useEffect(() => { ssdRef.current = ssd; }, [ssd]);
 
   const focus = useCallback(() => { setTimeout(() => inputRef.current?.focus(), 0); }, []);
 
@@ -186,7 +188,7 @@ function ScanBoard({ session }: { session: WorkSession }) {
         let res: ScanResponse | null = null;
         for (let attempt = 0; ; attempt++) {
           try {
-            res = await apiSend<ScanResponse>('POST', '/scans', { work_session_id: session.id, client_scan_id: q.id, raw_value: q.raw, input: q.input, client_scanned_at: q.at });
+            res = await apiSend<ScanResponse>('POST', '/scans', { work_session_id: session.id, client_scan_id: q.id, raw_value: q.raw, input: q.input, client_scanned_at: q.at, ...(q.ssd ? { ssd: q.ssd } : {}) });
             break;
           } catch (e) {
             if (e instanceof ApiError && e.status === 409) {
@@ -225,7 +227,7 @@ function ScanBoard({ session }: { session: WorkSession }) {
       play('error');
       return;
     }
-    queue.current.push({ id: newScanId(), raw: v, input, at: new Date().toISOString() });
+    queue.current.push({ id: newScanId(), raw: v, input, at: new Date().toISOString(), ssd: ssdRef.current });
     void pump();
   };
 

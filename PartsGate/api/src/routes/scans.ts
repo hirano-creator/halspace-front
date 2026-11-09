@@ -104,6 +104,9 @@ scanRoutes.post('/scans', async (c) => {
   const rawValue = v.str('raw_value', { required: true, max: 200, label: '読み取り値' });
   const input = v.oneOf('input', ['scanner', 'manual'] as const, { label: '入力の方法' }) ?? 'scanner';
   const clientAt = v.str('client_scanned_at', { max: 30, label: '読み取り日時' }) ?? null;
+  // 画面で選んでいるメーカー納期。出荷日の確認（Q-6）はこの日と比べる。送られてこなければ今日と比べる
+  const boardSsd = v.str('ssd', { max: 10, label: 'メーカー納期' }) ?? null;
+  if (boardSsd && !/^\d{4}-\d{2}-\d{2}$/.test(boardSsd)) v.fail('ssd', 'メーカー納期の指定が正しくありません。');
   if (clientScanId && !CLIENT_SCAN_ID.test(clientScanId)) v.fail('client_scan_id', '読み取り ID の形式が正しくありません。');
   v.done();
 
@@ -136,18 +139,19 @@ scanRoutes.post('/scans', async (c) => {
         `INSERT INTO scan_logs (${COLS}, order_item_id, location_id, result, reason)
          SELECT ${VALS}, oi.id, oi.location_id,
                 CASE WHEN oi.status IN ('review', 'cancelled') THEN 'review'
-                     WHEN ?15 = 1 AND oi.ssd IS NOT NULL AND oi.ssd <> ?12 AND oi.status = 'pending' THEN 'review'
+                     WHEN ?15 = 1 AND oi.ssd IS NOT NULL AND oi.ssd <> ?16 AND oi.status = 'pending' THEN 'review'
                      WHEN oi.status = 'pending' AND oi.scan_count < oi.required_scans THEN 'ok'
                      WHEN oi.required_scans = 1 THEN 'duplicate'
                      ELSE 'over_quantity' END,
                 CASE WHEN oi.status = 'cancelled' THEN '取消になった明細です。管理者に確認してください'
                      WHEN oi.status = 'review' THEN '要確認の明細です。管理者に確認してください'
-                     WHEN ?15 = 1 AND oi.ssd IS NOT NULL AND oi.ssd <> ?12 AND oi.status = 'pending'
-                       THEN 'メーカー出荷日が ' || substr(oi.ssd, 6, 2) || '/' || substr(oi.ssd, 9, 2) || ' の明細です。今日の出荷か確認してください'
+                     WHEN ?15 = 1 AND oi.ssd IS NOT NULL AND oi.ssd <> ?16 AND oi.status = 'pending'
+                       THEN 'メーカー納期が ' || substr(oi.ssd, 6, 2) || '/' || substr(oi.ssd, 9, 2) || ' の明細です。選んでいる日（'
+                            || substr(?16, 6, 2) || '/' || substr(?16, 9, 2) || '）の出荷か確認してください'
                      ELSE NULL END
            FROM order_items oi WHERE oi.company_id = ?1 AND oi.${col} = ?14
          ON CONFLICT (company_id, client_scan_id) DO NOTHING`,
-        ...base, barcode, settings.warn_ship_date_mismatch ? 1 : 0,
+        ...base, barcode, settings.warn_ship_date_mismatch ? 1 : 0, boardSsd ?? day,
       );
       if (!r.meta.changes) {
         // 明細がない（または同時に届いた再送が先に記録した）。未登録として記録する
