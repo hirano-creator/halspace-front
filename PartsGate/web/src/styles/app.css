@@ -98,11 +98,24 @@
   .scan-grid tr.hit td:first-child { box-shadow: inset 5px 0 0 var(--color-ok); }
   .scan-grid tr.hitdup td { background: #fde68a; font-weight: 700; }
   .scan-grid tr.hitdup td:first-child { box-shadow: inset 5px 0 0 #ca8a04; }
+
+  /* エラーの知らせ（モック _mock-scan-alert.html）: 画面全体を点滅させ、確認するまで止める。赤 = 未登録・数量超過・エラー、オレンジ = 要確認 */
+  .scan-alert { --alert: var(--color-ng); }
+  .scan-alert-am { --alert: #c2410c; }
+  .scan-alert-flash { background: var(--alert); animation: scan-alert-flash 0.5s steps(1) 6; opacity: 0.35; }
+  .scan-alert-card { border: 6px solid var(--alert); }
+  .scan-alert-head, .scan-alert-ack { background: var(--alert); color: #fff; }
+  .scan-alert-blocked { animation: scan-alert-shake 0.3s; }
+}
+@keyframes scan-alert-flash { 0% { opacity: 0.95; } 50% { opacity: 0.35; } }
+@keyframes scan-alert-shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+@media (prefers-reduced-motion: reduce) {
+  .scan-alert-flash, .scan-alert-blocked { animation: none; }
 }
 
 /* 印刷: 一覧だけを出す（メニュー・操作のボタンは出さない） */
 @media print {
-  aside, header, .rbar-idle, .rbar-ok, .rbar-dup, .rbar-rv, .rbar-nf, .rbar-stopped, .rbar-manual, .rbar-paused, button { display: none !important; }
+  aside, header, .rbar-idle, .rbar-ok, .rbar-dup, .rbar-rv, .rbar-nf, .rbar-stopped, .rbar-manual, .rbar-paused, .scan-alert, button { display: none !important; }
   .scan { height: auto !important; }
   .scan .overflow-auto { overflow: visible !important; }
   .scan-grid th { position: static; background: #e5e7eb !important; color: #000 !important; }

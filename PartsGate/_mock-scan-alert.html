@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PARTS GATE エラーの知らせ方（A＋B）</title>
+<style>
+/* モック（値はすべて架空）。読み取り画面のエラーを「画面全体で知らせる（B）＋確認するまで止める（A）」 */
+:root{
+  --ink:#1f2937; --sub:#6b7280; --line:#e5e7eb; --bg:#eef0f3;
+  --ok:#15803d; --ok-bg:#dcfce7; --ok-row:#d7efdf; --warn:#a16207; --warn-bg:#fef3c7; --ng:#b91c1c; --ng-bg:#fee2e2;
+  --info:#1d4ed8; --amber:#c2410c;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif;font-size:14px}
+header.top{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);padding:10px 20px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+header.top h1{font-size:16px;margin:0}
+.demo{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:auto}
+.demo span{font-size:12px;color:var(--sub)}
+.demo button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer}
+.demo button:hover{background:#f3f4f6}
+.demo button.ng{border-color:#fca5a5;color:var(--ng)}
+.demo button.am{border-color:#fdba74;color:var(--amber)}
+main{padding:18px 20px}
+.note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:16px;line-height:1.7}
+.note h2{font-size:18px;margin:0 0 6px}
+.note table{border-collapse:collapse;margin-top:6px;font-size:13px}
+.note th,.note td{border:1px solid var(--line);padding:5px 10px;text-align:left;vertical-align:top}
+.note th{background:#f9fafb}
+.tag{display:inline-block;border-radius:999px;padding:0 8px;font-size:12px;font-weight:700}
+.tag.stop{background:var(--ng-bg);color:var(--ng)}
+.tag.go{background:#f3f4f6;color:var(--sub)}
+
+.pc{width:1140px;max-width:100%;height:700px;background:#fff;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.08);display:flex;flex-direction:column;position:relative}
+.chrome{height:28px;background:#e5e7eb;display:flex;align-items:center;gap:6px;padding:0 10px;font-size:11px;color:#6b7280;flex:none}
+.chrome i{width:10px;height:10px;border-radius:50%;background:#cbd5e1;display:inline-block}
+.screen{flex:1;display:flex;min-height:0;position:relative}
+.rail{width:56px;background:#1f2937;color:#9ca3af;display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:12px;flex:none}
+.rail .logo{color:#fff;font-weight:800;font-size:13px;margin-bottom:10px}
+.rail a{width:42px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.rail a.cur{background:#374151;color:#fff}
+.content{flex:1;display:flex;flex-direction:column;min-width:0}
+.bar{display:flex;align-items:stretch;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line)}
+.who{display:flex;flex-direction:column;justify-content:center;font-size:11px;color:var(--sub);white-space:nowrap}
+.who b{font-size:16px;color:var(--ink)}
+.sel{border:1px solid #cbd5e1;border-radius:8px;padding:4px 10px;font-size:11px;color:var(--sub);display:flex;flex-direction:column;justify-content:center}
+.sel b{font-size:14px;color:var(--ink)}
+.rbar{flex:1;display:flex;align-items:center;gap:12px;border:2px solid;border-radius:10px;padding:4px 12px;min-width:0;height:56px}
+.rbar .ic{font-size:26px;width:30px;text-align:center;font-weight:700}
+.rbar .lb{font-size:22px;font-weight:800;white-space:nowrap}
+.rbar .ms{font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rbar.idle{border-color:var(--ok);background:#f6fdf8;color:var(--ok)}
+.rbar.ok{border-color:var(--ok);background:var(--ok-bg);color:var(--ok)}
+.rbar.dup{border-color:#ca8a04;background:var(--warn-bg);color:var(--warn)}
+.rbar.stop{border-color:var(--ng);background:var(--ng);color:#fff}
+.tabs{display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line)}
+.tabs span{border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:13px}
+.tabs span.cur{border-color:var(--ink);font-weight:700}
+.list{flex:1;overflow:auto}
+.list table{width:100%;border-collapse:collapse;font-size:13px}
+.list th,.list td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.list th{background:#f9fafb;color:var(--sub);font-weight:600;position:sticky;top:0}
+.list tr.done td{background:var(--ok-row)}
+.mono{font-family:Consolas,"Courier New",monospace}
+
+/* ===== B: 画面全体で知らせる ===== */
+.alert{position:absolute;inset:0;z-index:30;display:none;align-items:center;justify-content:center;padding:28px}
+.alert.show{display:flex}
+.alert .flash{position:absolute;inset:0;animation:flash .5s steps(1) 6}
+.alert.ng .flash{background:var(--ng)}
+.alert.am .flash{background:var(--amber)}
+.alert .bg{position:absolute;inset:0;background:rgba(17,24,39,.55)}
+@keyframes flash{0%{opacity:.95}50%{opacity:.35}}
+.card{position:relative;width:min(720px,100%);background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.35);border:6px solid}
+.alert.ng .card{border-color:var(--ng)}
+.alert.am .card{border-color:var(--amber)}
+.card .head{display:flex;align-items:center;gap:18px;padding:22px 28px;color:#fff}
+.alert.ng .head{background:var(--ng)}
+.alert.am .head{background:var(--amber)}
+.card .big{font-size:64px;line-height:1;font-weight:900}
+.card .title{font-size:44px;font-weight:900;letter-spacing:.04em}
+.card .sub{font-size:16px;opacity:.95;margin-top:4px}
+.card .body{padding:20px 28px 8px;font-size:16px;line-height:1.7}
+.card .body .msg{font-size:20px;font-weight:700;margin-bottom:10px}
+.card dl{display:grid;grid-template-columns:7em 1fr;gap:4px 12px;margin:0;font-size:15px}
+.card dt{color:var(--sub)}
+.card dd{margin:0}
+.card .todo{margin:14px 0 0;padding:10px 14px;background:#f9fafb;border-radius:10px;font-size:15px}
+.card .foot{padding:18px 28px 24px;display:flex;align-items:center;gap:16px}
+.card .ack{flex:1;border:0;border-radius:12px;padding:18px;font:inherit;font-size:22px;font-weight:800;color:#fff;cursor:pointer}
+.alert.ng .ack{background:var(--ng)}
+.alert.am .ack{background:var(--amber)}
+.card .lock{font-size:13px;color:var(--sub);max-width:15em;line-height:1.5}
+.card .blocked{display:none;margin:0 28px 0;padding:8px 12px;border-radius:8px;background:var(--ng-bg);color:var(--ng);font-weight:700;font-size:14px}
+.card .blocked.show{display:block;animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>エラーの知らせ方（A 止めて確認 ＋ B 画面全体）</h1>
+  <div class="demo">
+    <span>読み取りの結果を試す:</span>
+    <button onclick="scan('ok')">正常</button>
+    <button onclick="scan('dup')">読み取り済み</button>
+    <button class="am" onclick="scan('date')">日付違い（要確認）</button>
+    <button class="ng" onclick="scan('nf')">未登録</button>
+    <button class="ng" onclick="scan('over')">数量超過</button>
+    <button onclick="scan('ok')" title="止まっている間にリーダーで読んだとき">止まっている間に読む</button>
+  </div>
+</header>
+<main>
+  <section class="note">
+    <h2>決まりごと（案）</h2>
+    <table>
+      <tr><th>結果</th><th>知らせ方</th><th>止める</th></tr>
+      <tr><td>正常</td><td>上の帯が緑・「ピッ」</td><td><span class="tag go">止めない</span></td></tr>
+      <tr><td>読み取り済み</td><td>上の帯が黄色・「ブッブッ」（誰がいつ読んだかを表示）</td><td><span class="tag go">止めない</span></td></tr>
+      <tr><td>日付違い（要確認）</td><td>画面全体がオレンジに点滅・「ブーー」</td><td><span class="tag stop">確認するまで止める</span></td></tr>
+      <tr><td>未登録・数量超過・エラー</td><td>画面全体が赤に点滅・「ブーー」</td><td><span class="tag stop">確認するまで止める</span></td></tr>
+    </table>
+    <p style="margin:8px 0 0">止まっている間にリーダーで読んだラベルは<b>送らずに捨てて</b>、「先に確認してください」と知らせます（記録も数え上げもしない）。確認は「確認しました」ボタンか <b>Enter</b>。日付違いの「要確認」は管理者が明細を確かめるまで照合済みにならないのは今と同じです。上のボタンを押すと音も鳴ります。</p>
+  </section>
+
+  <div class="pc">
+    <div class="chrome"><i></i><i></i><i></i>&nbsp; space-apps.pages.dev/PartsGate/app/</div>
+    <div class="screen">
+      <nav class="rail"><div class="logo">PG</div><a class="cur">▣</a><a>☰</a><a>⇪</a><a>▤</a><a>⚙</a></nav>
+      <div class="content">
+        <div class="bar">
+          <div class="who">担当<b>山田 太郎</b></div>
+          <div id="rbar" class="rbar idle"><span class="ic" id="ic">▣</span><span class="lb" id="lb"></span><span class="ms" id="ms">リーダーで部品のラベルを読んでください</span></div>
+          <div class="sel">メーカー納期<b>11/10（火）</b></div>
+        </div>
+        <div class="tabs"><span>0052 西日本 0/0</span><span>0053 東日本 <b id="cnt">3</b>/12</span><span class="cur">0055 中日本 5/8</span><span>0056 西日本第二 0/1</span></div>
+        <div class="list">
+          <table>
+            <thead><tr><th>状態</th><th>グローバル番号</th><th>商品コード</th><th>数量</th><th>得意先</th><th>チェック</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- B＋A: 画面全体で知らせ、確認するまで止める -->
+      <div id="alert" class="alert" role="alertdialog" aria-modal="true" aria-labelledby="atitle">
+        <div class="bg"></div><div class="flash"></div>
+        <div class="card">
+          <div class="head"><span class="big" id="abig">✖</span><div><div class="title" id="atitle">未登録</div><div class="sub" id="asub"></div></div></div>
+          <div class="body">
+            <div class="msg" id="amsg"></div>
+            <dl id="adl"></dl>
+            <div class="todo" id="atodo"></div>
+          </div>
+          <div class="blocked" id="blocked">止まっています。先に確認してください（今読んだラベルは送っていません）</div>
+          <div class="foot">
+            <button class="ack" id="ack" onclick="ack()">確認しました（Enter）</button>
+            <div class="lock">確認するまで、次の読み取りは受け付けません</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+const rows = [
+  ['5P900000000101','MVSHM-TEST101-AAA',1,'テスト工業（株）',true],
+  ['5P900000000102','MVSHM-TEST102-AAA',2,'テスト工業（株）',true],
+  ['5P900000000103','MVSWD-TEST103-AAA',1,'見本電機（株）',true],
+  ['5P900000000104','MVSHM-TEST104-AAA',1,'見本電機（株）',true],
+  ['5P900000000105','MVSHM-TEST105-AAA',4,'サンプル大学',true],
+  ['5P900000000106','MVSHM-TEST106-AAA',1,'サンプル大学',false],
+  ['5P900000000107','MVSWD-TEST107-AAA',1,'テスト工業（株）',false],
+  ['5P900000000108','MVSHM-TEST108-AAA',2,'見本電機（株）',false],
+];
+function draw(){
+  document.getElementById('rows').innerHTML = rows.map(r=>`<tr class="${r[4]?'done':''}"><td>${r[4]?'✔ 済':'未'}</td><td class="mono">${r[0]}</td><td class="mono">${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]?'山田 太郎':''}</td></tr>`).join('');
+}
+draw();
+
+// 音（実際の画面と同じ作り）
+let ctx;
+function tone(f,at,len,type='sine'){const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(.25,ctx.currentTime+at);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+at+len);o.connect(g).connect(ctx.destination);o.start(ctx.currentTime+at);o.stop(ctx.currentTime+at+len+.02);}
+function play(k){try{ctx=ctx||new AudioContext();if(k==='ok')tone(1760,0,.12);else if(k==='warn'){tone(520,0,.14,'square');tone(520,.2,.14,'square');}else tone(220,0,.6,'sawtooth');}catch(e){}}
+
+const CASES = {
+  nf:   {cls:'ng', big:'✖', title:'未登録', sub:'注文データにない番号です', msg:'このラベルは、取り込んだ注文にありません。',
+         dl:[['読んだ番号','<span class="mono">5P900000009999</span>']], todo:'ラベルが照合用のバーコードか、別の部品が混ざっていないかを確かめてください。'},
+  over: {cls:'ng', big:'✖', title:'数量超過', sub:'必要な回数より多く読みました', msg:'この明細はすでに必要な回数を読んでいます。',
+         dl:[['番号','<span class="mono">5P900000000102</span>'],['商品コード','<span class="mono">MVSHM-TEST102-AAA</span>'],['置場','0055 中日本']], todo:'同じ部品が余分に入っていないかを確かめてください。'},
+  date: {cls:'am', big:'⚠', title:'日付違い', sub:'選んでいるメーカー納期と違う部品です', msg:'メーカー納期が 11/12 の明細です。選んでいる日（11/10）の出荷ではありません。',
+         dl:[['番号','<span class="mono">5P900000000210</span>'],['商品コード','<span class="mono">MVSHM-TEST210-AAA</span>'],['置場','0055 中日本'],['メーカー納期','<b>11/12（木）</b>'] ], todo:'別の日の部品が混ざっていないかを確かめてください。照合済みにはなっていません（要確認）。'},
+};
+let stopped = false;
+function setBar(cls, ic, lb, ms){const b=document.getElementById('rbar');b.className='rbar '+cls;document.getElementById('ic').textContent=ic;document.getElementById('lb').textContent=lb;document.getElementById('ms').textContent=ms;}
+function scan(kind){
+  if (stopped){ // A: 止まっている間の読み取りは送らない
+    play('err');
+    const b=document.getElementById('blocked');b.classList.remove('show');void b.offsetWidth;b.classList.add('show');
+    return;
+  }
+  if (kind==='ok'){
+    const r=rows.find(x=>!x[4]); if(r){r[4]=true;draw();}
+    setBar('ok','✔','正常','置場 0055 中日本 注文データと一致しました'); play('ok'); return;
+  }
+  if (kind==='dup'){ setBar('dup','⚠','読み取り済み','10:42 に 山田 太郎 さんがチェック済みです'); play('warn'); return; }
+  const c = CASES[kind];
+  const a=document.getElementById('alert');
+  a.className='alert show '+c.cls;
+  const f=a.querySelector('.flash'); f.style.animation='none'; void f.offsetWidth; f.style.animation='';
+  document.getElementById('abig').textContent=c.big;
+  document.getElementById('atitle').textContent=c.title;
+  document.getElementById('asub').textContent=c.sub;
+  document.getElementById('amsg').textContent=c.msg;
+  document.getElementById('adl').innerHTML=c.dl.map(d=>`<dt>${d[0]}</dt><dd>${d[1]}</dd>`).join('');
+  document.getElementById('atodo').textContent=c.todo;
+  document.getElementById('blocked').classList.remove('show');
+  setBar('stop','⏸','止まっています',c.title+'を確認してください');
+  stopped = true; play('err');
+  document.getElementById('ack').focus();
+}
+function ack(){
+  stopped=false;
+  document.getElementById('alert').className='alert';
+  setBar('idle','▣','','リーダーで部品のラベルを読んでください');
+}
+document.addEventListener('keydown',e=>{ if(stopped && e.key==='Enter'){ e.preventDefault(); ack(); } });
+</script>
+</body>
+</html>

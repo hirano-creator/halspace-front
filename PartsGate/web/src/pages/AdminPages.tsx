@@ -130,7 +130,7 @@ function SettingsForm({ initial, onSaved }: { initial: CompanySettings; onSaved:
         </div>
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" className="mt-1" checked={s.warn_ship_date_mismatch} onChange={(e) => setS({ ...s, warn_ship_date_mismatch: e.target.checked })} />
-          <span>読み取り画面で選んでいるメーカー納期と違う日の明細を読んだら「要確認」にする<span className="block text-xs text-slate-500">オフにすると、別の日の明細も「正常」として照合します</span></span>
+          <span>メーカー出荷日が今日でない明細を読んだら「要確認」にする<span className="block text-xs text-slate-500">オフにすると、別の日の明細も「正常」として照合します</span></span>
         </label>
       </section>
       <section className="flex flex-col gap-3.5 border-t border-slate-200 pt-5">

@@ -36,7 +36,7 @@ settingsRoutes.put('/settings', async (c) => {
   const prefix = v.str('barcode_strip_prefix', { max: 10, label: '読み取り値から外す先頭の文字' }) ?? '';
   const suffix = v.str('barcode_strip_suffix', { max: 10, label: '読み取り値から外す末尾の文字' }) ?? '';
   const scans = v.oneOf('scans_per_item', SCANS_PER_ITEM, { required: true, label: 'ラベルの枚数' });
-  const warn = v.bool('warn_ship_date_mismatch', { required: true, label: '選んでいるメーカー納期と違う明細を要確認にするか' });
+  const warn = v.bool('warn_ship_date_mismatch', { required: true, label: '出荷日が今日でない明細を要確認にするか' });
   const reauth = v.int('reauth_hours', { required: true, min: 1, max: 72, label: '再ログインまでの時間' });
   const version = v.version();
   v.done();
