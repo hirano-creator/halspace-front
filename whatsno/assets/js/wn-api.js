@@ -774,16 +774,18 @@ async function wnFetchFileBuffer(fileId, { onProgress, timeoutMs = 120000 } = {}
   }
 }
 
-/* Office Online Viewer 用パブリックプロキシURL
-   - Microsoft側がプロキシを取得するため token をURLに付与する
+/* Office Online Viewer 用URL（async）
+   - Microsoft側が取りに来るURLには、このファイルだけ・15分だけ有効な署名URLを使う。
+     ログイントークン（期限なし・アカウント全体の権限）を外部へ渡さないため（2026-11-09）
    - localhost / .test ではMicrosoftから到達不可能なため null を返す（呼び出し側でフォールバック表示） */
-function wnOfficeViewerUrl(fileId) {
+async function wnOfficeViewerUrl(fileId) {
   const h = location.hostname;
   if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.test')) return null;
-  const token = sessionStorage.getItem('space_token');
-  if (!token) return null;
-  const proxyUrl = WN_API_BASE + `/wn/files/${fileId}/public-view?token=${encodeURIComponent(token)}`;
-  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(proxyUrl)}`;
+  const res = await wnFetch(`/wn/files/${fileId}/office-url`);
+  if (!res || !res.ok) return null;
+  const signedUrl = (await res.json()).url;
+  if (!signedUrl) return null;
+  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(signedUrl)}`;
 }
 
 /* Officeプレビュー対応拡張子か判定 */

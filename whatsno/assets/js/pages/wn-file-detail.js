@@ -565,8 +565,8 @@ async function showOfficePreview() {
 
   /* 本番環境 + Excel: Microsoft Office Online Viewer を iframe で埋め込み
      Word (.docx/.docm) は mammoth.js レンダリングを使う（Ctrl+ホイールズームのため） */
-  const officeUrl = wnOfficeViewerUrl(fileId);
-  if (officeUrl && ['xlsx','xls','xlsm'].includes(ext)) {
+  const officeUrl = ['xlsx','xls','xlsm'].includes(ext) ? await wnOfficeViewerUrl(fileId) : null;
+  if (officeUrl) {
     hint.textContent = 'Office Online 読み込み中…';
     placeholder.style.display = '';
     container.style.display = 'none';
@@ -2514,11 +2514,20 @@ function initActions() {
     /* Office系 (Excel/Word/PowerPoint) は生URLを開くとブラウザがダウンロードしてしまうため、
        Microsoft Office Online Viewer を新タブで開く */
     if (wnIsOfficeFile(fileData.file_name)) {
-      const officeUrl = wnOfficeViewerUrl(fileId);
-      if (officeUrl) {
-        window.open(officeUrl, '_blank');
-      } else {
+      /* 署名URLの取得を待つとクリック由来の扱いが切れてポップアップが止められるため、
+         先に空のタブを開いてから行き先を入れる */
+      const h = location.hostname;
+      if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.test')) {
         wnShowToast('別タブ表示は本番環境でご利用ください', 'info');
+        return;
+      }
+      const win = window.open('', '_blank');
+      const officeUrl = await wnOfficeViewerUrl(fileId);
+      if (officeUrl && win) {
+        win.location.href = officeUrl;
+      } else {
+        win?.close();
+        wnShowToast('プレビューを開けませんでした', 'danger');
       }
       return;
     }
