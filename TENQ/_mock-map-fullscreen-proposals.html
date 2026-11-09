@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TENQ 見取り図を広く</title>
+<!-- 検討用のモック（本番画面ではない）。管理者ホームの見取り図を画面いっぱいに使う 3 案。
+     どの案も「見取り図の高さを画面の残りに合わせる（建屋の縦の大きさを割合で決める）」は共通。
+     違いは右の欄（直っていない異常）と「はじめにやること」と上のボタンの逃がし方 -->
+<style>
+:root {
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  --bg: #EEF1F5; --ink: #1B2430; --sub: #5F6B7A; --line: #E1E6EC; --line-strong: #C9D1DB; --accent: #1F5FD1; --accent-lt: #EFF6FF;
+  --ok: #15803D; --ok-lt: #DCFCE7; --ng: #DC2626; --ng-lt: #FEE2E2; --todo: #64748B; --warn-lt: #FEF9C3;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.6; }
+button { font-family: inherit; cursor: pointer; }
+.top { position: sticky; top: 0; z-index: 60; background: #fff; border-bottom: 1px solid var(--line); padding: 14px 24px 0; }
+.top h1 { margin: 0; font-size: 20px; }
+.top p { margin: 2px 0 10px; font-size: 13px; color: var(--sub); }
+.tabs { display: flex; gap: 4px; overflow-x: auto; }
+.tabs button { border: 1px solid var(--line); border-bottom: 0; background: #F6F8FA; color: var(--sub); padding: 8px 18px; border-radius: 8px 8px 0 0; white-space: nowrap; font-size: 14px; }
+.tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+main { padding: 22px 24px 60px; max-width: 1600px; margin: 0 auto; }
+.plan { display: none; }
+.plan.on { display: block; }
+.idea { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; margin-bottom: 16px; }
+.idea h2 { margin: 0 0 4px; font-size: 22px; }
+.idea .catch { font-size: 16px; font-weight: 700; color: var(--accent); margin: 0 0 8px; }
+.idea ul { margin: 0; padding-left: 1.3em; font-size: 14px; }
+.idea .gain { display: inline-block; margin-top: 8px; background: var(--ok-lt); color: var(--ok); border-radius: 8px; padding: 2px 12px; font-weight: 800; font-size: 14px; }
+.try { display: inline-block; background: var(--warn-lt); border: 1px solid #EAB308; border-radius: 8px; padding: 4px 12px; font-size: 14px; font-weight: 700; margin: 8px 0 0 8px; }
+
+/* PC の枠（16:9 のモニターに見立てる） */
+.pc { background: #F7F9FB; border: 8px solid #1F2937; border-radius: 14px; overflow: hidden; position: relative; aspect-ratio: 16 / 9; display: flex; flex-direction: column; font-size: 14px; }
+.appbar { display: flex; align-items: center; gap: 4px; background: #fff; border-bottom: 1px solid var(--line); padding: 0 14px; height: 48px; flex: none; }
+.logo { font-weight: 900; font-size: 16px; color: var(--accent); margin-right: 14px; letter-spacing: .04em; }
+.nv { border: 0; background: none; padding: 0 12px; height: 48px; font-size: 14px; font-weight: 700; color: var(--sub); border-bottom: 3px solid transparent; }
+.nv.on { color: var(--ink); border-bottom-color: var(--accent); }
+.spacer { flex: 1; }
+.who { font-size: 13px; color: var(--sub); }
+.page { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+
+.head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; flex: none; }
+.head h3 { margin: 0; font-size: 19px; white-space: nowrap; }
+.head h3 small { font-size: 12px; color: var(--sub); font-weight: 600; margin-left: 8px; }
+.sum { display: flex; gap: 6px; }
+.sum span { border-radius: 10px; padding: 1px 10px; font-weight: 800; font-size: 13px; white-space: nowrap; border: 2px solid transparent; }
+.sum b { font-size: 18px; margin-left: 3px; }
+.sum .n-ng { background: var(--ng); color: #fff; }
+.sum .n-todo { background: #fff; border: 2px dashed var(--todo); }
+.sum .n-ok { background: var(--ok-lt); color: var(--ok); }
+.btn { border: 2px solid var(--line-strong); background: #fff; border-radius: 10px; min-height: 40px; padding: 0 12px; font-size: 14px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.btn.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.sm { min-height: 34px; font-size: 13px; padding: 0 10px; }
+.btn.ghost { border-color: transparent; background: none; }
+
+/* 見取り図: 12 列 × 12 行。行も 1fr にして、見取り図の高さ（画面の残り）を建屋で分け合う */
+.floor { display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(12, 1fr); gap: 10px; background: #E9EDF2; border-radius: 14px; padding: 10px; flex: 1; min-height: 0; }
+.bld { border: 2px solid var(--line-strong); border-radius: 12px; background: #fff; padding: 6px 10px 8px; min-width: 0; min-height: 0; position: relative; display: flex; flex-direction: column; }
+.bld.has-ng { border-color: var(--ng); }
+.bld h4 { margin: 0; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+.bld h4 small { font-size: 11px; color: var(--sub); font-weight: 700; }
+.bld .in { position: relative; flex: 1; }
+.bld .none { color: var(--sub); font-size: 12px; }
+.eq { position: absolute; width: 28%; min-width: 110px; border-radius: 9px; border: 2px solid var(--line-strong); background: #fff; padding: 4px 8px; text-align: left; font-size: 12px; color: var(--ink); line-height: 1.25; }
+.eq b { display: block; font-size: 12.5px; }
+.eq small { font-size: 11px; font-weight: 700; }
+.eq-ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.eq-ng { background: var(--ng); border-color: var(--ng); color: #fff; box-shadow: 0 0 0 3px var(--ng-lt); }
+.eq-todo { border: 2px dashed var(--todo); }
+.eq-todo small { color: var(--sub); }
+.eq:hover { outline: 3px solid var(--accent); outline-offset: 1px; }
+
+/* 小窓（設備を押したとき） */
+.pop { position: absolute; z-index: 30; width: 260px; background: #fff; border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 14px 36px rgba(15,23,42,.22); padding: 10px 12px; font-size: 13px; display: none; }
+.pop.open { display: block; }
+.pop h5 { margin: 0 0 4px; font-size: 15px; }
+.pop .acts { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.pop .acts button { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 8px; min-height: 36px; padding: 0 10px; font-size: 13px; }
+.x { position: absolute; right: 4px; top: 2px; width: 36px; height: 36px; border: 0; background: none; font-size: 20px; color: var(--sub); }
+
+/* はじめにやること（中身は各案共通） */
+.cl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.cl-list li { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 8px; }
+.cl-list li.cur { background: var(--accent-lt); }
+.cl-list i { font-style: normal; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; border: 2px solid var(--line-strong); flex: none; }
+.cl-list .dn i { background: var(--ok); border-color: var(--ok); color: #fff; }
+.cl-list .dn span { color: var(--sub); }
+.cl-list .cur i { border-color: var(--accent); color: var(--accent); }
+.bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 40%; background: var(--ok); }
+
+/* ===== 今の画面（比較用） ===== */
+.now .page { overflow: hidden; }
+.now .wrap { max-width: 1100px; width: 100%; margin: 0 auto; padding: 0 14px; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.now .head .sum { margin-left: auto; }
+.now .lay { display: grid; grid-template-columns: 1fr 240px; gap: 12px; align-items: start; }
+.now .floor { flex: none; height: 520px; }
+.now .side { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px; font-size: 12px; }
+.now .side h5 { margin: 0 0 4px; font-size: 14px; }
+.now .cl { position: absolute; right: 8px; bottom: 8px; width: 260px; background: #fff; border: 2px solid var(--accent); border-radius: 14px; padding: 10px; box-shadow: 0 10px 30px rgba(15,23,42,.18); }
+.now .cl h5 { margin: 0 0 4px; font-size: 14px; }
+.waste { position: absolute; border: 3px dashed #F97316; border-radius: 10px; color: #C2410C; font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: center; background: rgba(249,115,22,.07); pointer-events: none; text-align: center; padding: 4px; }
+
+/* ===== A 案: 右の欄を引き出しに ===== */
+.a .head .sum { margin-left: 6px; }
+.a .head .acts { margin-left: auto; display: flex; gap: 6px; }
+.a .body { flex: 1; min-height: 0; display: flex; padding: 0 14px 14px; }
+.a .ngbtn { position: relative; }
+.a .ngbtn em { font-style: normal; background: var(--ok-lt); color: var(--ok); border-radius: 999px; padding: 0 8px; margin-left: 4px; }
+.drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 300px; background: #fff; border-left: 1px solid var(--line-strong); box-shadow: -10px 0 30px rgba(15,23,42,.15); padding: 14px; transform: translateX(105%); transition: transform .2s; z-index: 25; font-size: 13px; }
+.drawer.open { transform: none; }
+.drawer h5 { margin: 0 0 6px; font-size: 16px; }
+.pill { position: absolute; right: 22px; bottom: 22px; z-index: 26; }
+.pill > button { border: 2px solid var(--accent); background: #fff; border-radius: 999px; padding: 6px 14px; font-weight: 800; font-size: 13px; box-shadow: 0 6px 18px rgba(15,23,42,.15); color: var(--ink); }
+.pill .card { position: absolute; right: 0; bottom: 48px; width: 270px; background: #fff; border: 2px solid var(--accent); border-radius: 14px; padding: 10px; box-shadow: 0 10px 30px rgba(15,23,42,.18); display: none; }
+.pill.open .card { display: block; }
+.pill .card h5 { margin: 0 0 4px; font-size: 14px; display: flex; justify-content: space-between; }
+
+/* ===== B 案: 異常と案内を上の帯に ===== */
+.b .head { padding-bottom: 6px; }
+.b .head .sum { margin-left: 6px; }
+.b .head .acts { margin-left: auto; display: flex; gap: 6px; position: relative; }
+.more { position: absolute; right: 0; top: 44px; background: #fff; border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 10px 30px rgba(15,23,42,.15); padding: 6px; width: 210px; z-index: 30; display: none; }
+.more.open { display: block; }
+.more button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 8px; font-size: 13px; min-height: 40px; }
+.more button:hover { background: var(--accent-lt); }
+.strip { display: flex; align-items: center; gap: 8px; margin: 0 14px 6px; padding: 5px 10px; border-radius: 10px; font-size: 13px; flex: none; }
+.strip.ok { background: var(--ok-lt); color: var(--ok); font-weight: 700; }
+.strip.ng { background: var(--ng-lt); }
+.strip.ng .chip { border: 2px solid var(--ng); background: #fff; border-radius: 999px; padding: 0 10px; font-size: 12px; font-weight: 700; color: var(--ng); }
+.strip.guide { background: var(--accent-lt); border: 1px solid #BFDBFE; }
+.strip.guide .bar { width: 120px; flex: none; }
+.strip.guide .btn { margin-left: auto; }
+.strip .toggle { margin-left: auto; border: 0; background: none; font-size: 12px; color: var(--sub); text-decoration: underline; min-height: 28px; }
+.b .body { flex: 1; min-height: 0; display: flex; padding: 0 14px 14px; }
+.b .guide-open { position: absolute; left: 14px; right: 14px; top: 96px; background: #fff; border: 2px solid var(--accent); border-radius: 14px; padding: 10px 14px; z-index: 28; box-shadow: 0 10px 30px rgba(15,23,42,.18); display: none; }
+.b .guide-open.open { display: block; }
+.b .guide-open .cl-list { flex-direction: row; flex-wrap: wrap; }
+.b .guide-open .cl-list li { flex: 1 1 180px; }
+
+/* ===== C 案: 全画面（見取り図だけ） ===== */
+.c .appbar { transition: margin .2s; }
+.c.full .appbar { margin-top: -48px; }
+.c .body { flex: 1; min-height: 0; display: flex; padding: 14px; }
+.c.full .body { padding: 6px; }
+.c .float { position: absolute; z-index: 20; background: rgba(255,255,255,.96); border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: 0 8px 24px rgba(15,23,42,.14); }
+.c .tl { left: 24px; top: 24px; display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 14px; }
+.c.full .tl { left: 14px; top: 14px; }
+.c .tl h3 { margin: 0; font-size: 16px; white-space: nowrap; }
+.c .tl h3 small { font-size: 11px; color: var(--sub); margin-left: 6px; }
+.c .tr { right: 24px; top: 24px; display: flex; gap: 4px; padding: 4px; }
+.c.full .tr { right: 14px; top: 14px; }
+.c .tr .btn { min-height: 36px; font-size: 13px; padding: 0 10px; border-width: 1px; }
+.c .bl { left: 24px; bottom: 24px; padding: 8px 12px; font-size: 12px; width: 230px; }
+.c.full .bl { left: 14px; bottom: 14px; }
+.c .bl h5 { margin: 0; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+.c .bl.min p { display: none; }
+.c .bl p { margin: 4px 0 0; color: var(--sub); }
+.c .br { right: 24px; bottom: 24px; display: flex; gap: 4px; padding: 4px; align-items: center; }
+.c.full .br { right: 14px; bottom: 14px; }
+.c .br .btn { min-height: 34px; font-size: 13px; border-width: 1px; padding: 0 10px; }
+.c .br .pill { position: relative; right: auto; bottom: auto; }
+.c .br .pill > button { box-shadow: none; padding: 4px 12px; }
+.c .br .pill .card { bottom: 46px; }
+/* 見取り図の上の方を浮きボタンが隠さないよう、建屋の 1 行目は空けておく前提で上に余白 */
+.c .floor { padding-top: 64px; padding-bottom: 60px; }
+.esc { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: #1F2937; color: #fff; border-radius: 999px; font-size: 12px; padding: 3px 14px; z-index: 40; opacity: 0; transition: opacity .3s; pointer-events: none; }
+.c.full .esc.show { opacity: 1; }
+
+.notes { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.notes div { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-size: 13px; }
+.notes h4 { margin: 0 0 4px; font-size: 14px; }
+.notes ul { margin: 0; padding-left: 1.2em; }
+table.cmp { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; font-size: 14px; }
+table.cmp th, table.cmp td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+table.cmp th { background: #F6F8FA; white-space: nowrap; }
+@media (max-width: 900px) {
+  .pc { aspect-ratio: auto; height: 640px; }
+  main { padding: 16px 16px 40px; }
+}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>TENQ 見取り図を画面いっぱいに使う 3 案</h1>
+  <p>検討用のモック（本番画面ではない）。枠は 16:9 のモニター。どの案も <b>見取り図の高さを画面の残りに合わせる</b>（建屋の縦の大きさを「マス」ではなく割合で決める）のは共通です。設備を押すと小窓が出ます。</p>
+  <div class="tabs" id="tabs">
+    <button data-p="now">今の画面</button>
+    <button data-p="a" class="on">A 案 右の欄を引き出しに</button>
+    <button data-p="b">B 案 異常と案内を上の帯に</button>
+    <button data-p="c">C 案 全画面（見取り図だけ）</button>
+    <button data-p="cmp">くらべる</button>
+  </div>
+</div>
+
+<main>
+  <!-- 今の画面 -->
+  <section class="plan" id="p-now">
+    <div class="idea">
+      <h2>今の画面</h2>
+      <p class="catch">見取り図が使えているのは画面の半分くらい</p>
+      <ul>
+        <li>本文の最大幅（1600px）で左右が空く。大きいモニターほど空く</li>
+        <li>右の欄（340px）は「直っていない異常 0 件」のときもずっと幅を取る</li>
+        <li>見取り図の高さは建屋の「マス数 × 40px」で決まるので、画面の下まで届かない／はみ出す</li>
+        <li>「はじめにやること」が見取り図の右下に重なって、設備が隠れる</li>
+      </ul>
+    </div>
+    <div class="pc now">
+      <div class="appbar"><span class="logo">☑ TENQ</span><button class="nv on">工場</button><button class="nv">記録 ▾</button><span class="spacer"></span><span class="who">☼ 平野 秀和 ▾</span></div>
+      <div class="page">
+        <div class="wrap">
+          <div class="head"><h3>Webセンター<small>2026-11-09</small></h3>
+            <div class="sum"><span class="n-ng">✕ 異常<b>0</b></span><span class="n-todo">まだ<b>3</b></span><span class="n-ok">○ 正常<b>2</b></span></div>
+            <button class="btn sm">QR を読む</button><button class="btn sm">＋ 設備を足す</button><button class="btn sm">🔓 配置を動かす</button><button class="btn sm">？ 使い方</button>
+          </div>
+          <div class="lay">
+            <div class="floor" data-floor></div>
+            <div class="side"><h5>直っていない異常（0）</h5>ありません。<p style="color:var(--sub)">設備を押すと、そのそばに詳しい内容と「直した」が出ます。…</p></div>
+          </div>
+        </div>
+        <div class="cl"><h5>🚀 はじめにやること <small style="float:right;color:var(--sub)">あとで</small></h5><div class="bar"><i></i></div><ul class="cl-list" data-cl></ul></div>
+        <div class="waste" style="left:0;top:0;width:calc((100% - 1100px)/2);bottom:0">本文の最大幅で<br>空く</div>
+        <div class="waste" style="right:0;top:0;width:calc((100% - 1100px)/2);bottom:0">空く</div>
+        <div class="waste" style="left:calc((100% - 1100px)/2 + 14px);right:calc((100% - 1100px)/2 + 14px);top:590px;bottom:0">見取り図が下まで届かない</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- A 案 -->
+  <section class="plan on" id="p-a">
+    <div class="idea">
+      <h2>A 案 右の欄を引き出しに</h2>
+      <p class="catch">今の作りのまま、見取り図を横いっぱい・下いっぱいに広げる。いちばん小さな変更</p>
+      <ul>
+        <li>本文の最大幅をなくし、右の欄（直っていない異常）は上の「⚠ 直っていない異常」ボタンで右から引き出す。<b>異常が 1 件以上あるときは最初から開いておく</b>（見落とさない）</li>
+        <li>見取り図は上の 1 行の下から画面の下まで。建屋の縦の大きさは割合なので、モニターの大きさに合わせて伸び縮み</li>
+        <li>「はじめにやること」は右下の小さなボタン（🚀 はじめに 2/5）にたたむ。押すと開く</li>
+      </ul>
+      <span class="gain">見取り図の面積 約 1.8 倍</span><span class="try">試す: 「直っていない異常」と「🚀」を押す</span>
+    </div>
+    <div class="pc a">
+      <div class="appbar"><span class="logo">☑ TENQ</span><button class="nv on">工場</button><button class="nv">記録 ▾</button><span class="spacer"></span><span class="who">☼ 平野 秀和 ▾</span></div>
+      <div class="page">
+        <div class="head"><h3>Webセンター<small>2026-11-09</small></h3>
+          <div class="sum"><span class="n-ng">✕ 異常<b>0</b></span><span class="n-todo">まだ<b>3</b></span><span class="n-ok">○ 正常<b>2</b></span></div>
+          <div class="acts">
+            <button class="btn sm ngbtn" data-act="drawer">⚠ 直っていない異常<em>0</em></button>
+            <button class="btn sm">QR を読む</button><button class="btn sm">＋ 設備を足す</button><button class="btn sm">🔓 配置を動かす</button><button class="btn sm">？</button>
+          </div>
+        </div>
+        <div class="body"><div class="floor" data-floor></div></div>
+        <div class="drawer"><button class="x" data-act="drawer">×</button><h5>直っていない異常（0）</h5><p>ありません。</p><p style="color:var(--sub)">異常が出たときは、この欄が最初から開いた状態で表示されます。</p></div>
+        <div class="pill"><button data-act="pill">🚀 はじめに 2/5</button><div class="card"><h5>🚀 はじめにやること <small style="color:var(--sub)" data-act="pill">たたむ</small></h5><div class="bar"><i></i></div><ul class="cl-list" data-cl></ul></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- B 案 -->
+  <section class="plan" id="p-b">
+    <div class="idea">
+      <h2>B 案 異常と案内を上の帯に</h2>
+      <p class="catch">右の欄をやめて、異常も案内も「見取り図の上の細い帯」にする。見取り図には何も重ならない</p>
+      <ul>
+        <li>直っていない異常は帯に 1 行で並べる（0 件なら「✓ 直っていない異常はありません」の細い緑の帯）。設備名を押すとその設備の小窓</li>
+        <li>「はじめにやること」も帯 1 行に縮める（進み具合と「次: QR ラベルを印刷して貼る［やってみる］」だけ）。「全部見る」で開く。終わったら帯ごと消える</li>
+        <li>ボタンは「QR を読む」「＋ 設備を足す」だけ出し、配置・使い方は「︙」にまとめる</li>
+      </ul>
+      <span class="gain">見取り図の面積 約 2 倍・何も重ならない</span><span class="try">試す: 「異常あり」に切り替える・「全部見る」・「︙」</span>
+    </div>
+    <div class="pc b">
+      <div class="appbar"><span class="logo">☑ TENQ</span><button class="nv on">工場</button><button class="nv">記録 ▾</button><span class="spacer"></span><span class="who">☼ 平野 秀和 ▾</span></div>
+      <div class="page">
+        <div class="head"><h3>Webセンター<small>2026-11-09</small></h3>
+          <div class="sum" data-bsum><span class="n-ng">✕ 異常<b>0</b></span><span class="n-todo">まだ<b>3</b></span><span class="n-ok">○ 正常<b>2</b></span></div>
+          <div class="acts">
+            <button class="btn sm pri">QR を読む</button><button class="btn sm">＋ 設備を足す</button><button class="btn sm" data-act="more">︙</button>
+            <div class="more"><button>🔓 配置を動かす</button><button>？ 使い方</button><button>🖨 QR ラベルを印刷</button></div>
+          </div>
+        </div>
+        <div class="strip ok" data-strip>✓ 直っていない異常はありません<button class="toggle" data-act="ngtoggle">（モック: 異常ありに切り替え）</button></div>
+        <div class="strip guide">🚀 <b>はじめに</b><div class="bar"><i></i></div>2/5 ・ 次: <b>QR ラベルを印刷して貼る</b><button class="btn sm pri">やってみる</button><button class="toggle" style="margin-left:0" data-act="guide">全部見る</button></div>
+        <div class="guide-open"><button class="x" data-act="guide">×</button><b>🚀 はじめにやること 2/5</b><ul class="cl-list" data-cl></ul></div>
+        <div class="body"><div class="floor" data-floor></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- C 案 -->
+  <section class="plan" id="p-c">
+    <div class="idea">
+      <h2>C 案 全画面（見取り図だけ）</h2>
+      <p class="catch">見取り図を画面の端から端まで。数字・ボタン・異常・案内は見取り図の四隅に小さく浮かべる</p>
+      <ul>
+        <li>左上: 工場名と数（✕ ○ まだ）、右上: ボタン、左下: 直っていない異常（たたむと 1 行）、右下: 🚀 はじめに と「⛶ 全画面」</li>
+        <li>「⛶ 全画面」で上のメニューも隠して、モニターいっぱいに見取り図だけ（Esc で戻る）。事務所の大きいモニターに出しっぱなしにする使い方向け</li>
+        <li>浮かべた部品が設備を隠さないよう、見取り図の上下に少し余白を取る</li>
+      </ul>
+      <span class="gain">見取り図の面積 約 2.3 倍（全画面なら 2.5 倍）</span><span class="try">試す: 右下の「⛶ 全画面」・左下の「たたむ」</span>
+    </div>
+    <div class="pc c" id="cpc">
+      <div class="appbar"><span class="logo">☑ TENQ</span><button class="nv on">工場</button><button class="nv">記録 ▾</button><span class="spacer"></span><span class="who">☼ 平野 秀和 ▾</span></div>
+      <div class="page">
+        <div class="esc">全画面です。Esc か「⛶ 戻す」で元に戻ります</div>
+        <div class="body"><div class="floor" data-floor></div></div>
+        <div class="float tl"><h3>Webセンター<small>2026-11-09</small></h3><div class="sum"><span class="n-ng">✕<b>0</b></span><span class="n-todo">まだ<b>3</b></span><span class="n-ok">○<b>2</b></span></div></div>
+        <div class="float tr"><button class="btn pri">QR を読む</button><button class="btn">＋ 設備</button><button class="btn">🔓 配置</button><button class="btn">？</button></div>
+        <div class="float bl"><h5>直っていない異常（0）<button class="btn ghost sm" data-act="cmin">たたむ</button></h5><p>ありません。異常が出たら、ここに赤で並びます。</p></div>
+        <div class="float br"><div class="pill"><button data-act="pill">🚀 はじめに 2/5</button><div class="card"><h5>🚀 はじめにやること</h5><div class="bar"><i></i></div><ul class="cl-list" data-cl></ul></div></div><button class="btn" data-act="full">⛶ 全画面</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- くらべる -->
+  <section class="plan" id="p-cmp">
+    <table class="cmp">
+      <tr><th></th><th>A 案 引き出し</th><th>B 案 上の帯</th><th>C 案 全画面</th></tr>
+      <tr><th>見取り図の広さ</th><td>約 1.8 倍</td><td>約 2 倍</td><td>約 2.3 倍（全画面 2.5 倍）</td></tr>
+      <tr><th>異常の見落とし</th><td>異常ありなら最初から開く。閉じると数字だけ</td><td>帯に常に名前が並ぶ（いちばん見える）</td><td>左下に常に出る。たたむと件数だけ</td></tr>
+      <tr><th>見取り図に重なるもの</th><td>右下の 🚀 ボタンだけ（開いた引き出し）</td><td>なし</td><td>四隅の浮き部品（余白で逃がす）</td></tr>
+      <tr><th>今からの変更量</th><td>小（CSS ＋ 引き出し）</td><td>中（右の欄・案内の作り直し）</td><td>中〜大（浮き部品・全画面・Esc）</td></tr>
+      <tr><th>向いている使い方</th><td>今の使い方のまま広げたい</td><td>毎朝ぱっと見て異常を確認</td><td>事務所のモニターに出しっぱなし</td></tr>
+    </table>
+    <div class="notes">
+      <div><h4>3 案共通の変更</h4><ul><li>見取り図の行を <code>1fr</code> にして高さを画面の残りに合わせる（今は 1 マス 40px 固定）</li><li>本文の最大幅 1600px を工場画面だけ外す</li><li>設備の位置（千分率）はそのまま使えるので、データの変更はない</li></ul></div>
+      <div><h4>気をつけること</h4><ul><li>建屋の高さが画面で変わるので、設備が多い建屋は縮んだときに中だけ縦に流れる（はみ出させない）</li><li>スマホ（899px 以下）は今と同じ縦 1 列のまま</li><li>案内の <code>data-tour</code> の指す場所が変わるので、案内の吹き出しの位置を合わせ直す</li></ul></div>
+    </div>
+  </section>
+</main>
+
+<div class="pop" id="pop"><button class="x" onclick="closePop()">×</button><h5 id="popT"></h5><div id="popS"></div><div class="acts"><button>📋 点検の記録を見る</button><button>✏ 点検項目を直す</button><button>🖨 QR ラベルを印刷</button></div></div>
+
+<script>
+// 建屋: 12 列 × 12 行の中の位置（列・行は 1 始まり）。設備は建屋の中の千分率
+const BLDS = [
+  { name: 'C1_溶接エリア', c: 4, cs: 5, r: 1, rs: 5, eqs: [
+    { n: '101 溶接ロボ 1号', s: 'ok', x: 80, y: 120 }, { n: '102 溶接ロボ 2号', s: 'ok', x: 400, y: 120 }, { n: '103 集じん機', s: 'todo', x: 700, y: 560 } ] },
+  { name: '開発センター', c: 1, cs: 5, r: 6, rs: 7, eqs: [
+    { n: '001 emlレーザー', s: 'todo', x: 600, y: 120 }, { n: '002 Ensis 9kw レーザー', s: 'todo', x: 600, y: 620 } ] },
+  { name: '第一工場', c: 8, cs: 5, r: 6, rs: 5, eqs: [] },
+];
+const STXT = { ok: '○ 正常', ng: '✕ 異常', todo: 'まだ' };
+const CL = [['✓', '建屋をつくる', 'dn'], ['✓', '設備を登録する', 'dn'], ['3', 'QR ラベルを印刷して貼る', 'cur'], ['4', 'スマホで点検してみる', ''], ['5', '毎朝の見方を知る', '']];
+
+function renderFloor(el) {
+  el.innerHTML = '';
+  BLDS.forEach(b => {
+    const d = document.createElement('div');
+    d.className = 'bld' + (b.eqs.some(e => e.s === 'ng') ? ' has-ng' : '');
+    d.style.gridColumn = b.c + ' / span ' + b.cs;
+    d.style.gridRow = b.r + ' / span ' + b.rs;
+    const todo = b.eqs.filter(e => e.s === 'todo').length;
+    d.innerHTML = '<h4>' + b.name + '<small>まだ ' + todo + '</small></h4><div class="in"></div>';
+    const inn = d.querySelector('.in');
+    if (!b.eqs.length) inn.innerHTML = '<span class="none">設備がありません</span>';
+    b.eqs.forEach(e => {
+      const q = document.createElement('button');
+      q.className = 'eq eq-' + e.s;
+      q.style.left = (e.x / 10) + '%'; q.style.top = (e.y / 10) + '%';
+      q.style.maxWidth = (100 - e.x / 10) + '%';
+      q.innerHTML = '<b>' + e.n + '</b><small>' + STXT[e.s] + '</small>';
+      q.onclick = ev => { ev.stopPropagation(); openPop(q, e); };
+      inn.appendChild(q);
+    });
+    el.appendChild(d);
+  });
+}
+function renderAll() { document.querySelectorAll('[data-floor]').forEach(renderFloor); }
+document.querySelectorAll('[data-cl]').forEach(ul => {
+  ul.innerHTML = CL.map(([i, t, c]) => '<li class="' + c + '"><i>' + i + '</i><span>' + t + '</span>' + (c === 'cur' ? '<button class="btn sm pri" style="margin-left:auto">やってみる</button>' : '') + '</li>').join('');
+});
+renderAll();
+
+const pop = document.getElementById('pop');
+function openPop(btn, e) {
+  document.getElementById('popT').textContent = e.n;
+  document.getElementById('popS').textContent = '今日: ' + STXT[e.s];
+  const r = btn.getBoundingClientRect();
+  let left = r.right + window.scrollX + 8;
+  if (left + 270 > window.innerWidth) left = r.left + window.scrollX - 268;
+  pop.style.left = left + 'px'; pop.style.top = (r.top + window.scrollY) + 'px';
+  pop.classList.add('open');
+}
+function closePop() { pop.classList.remove('open'); }
+document.addEventListener('click', e => { if (!pop.contains(e.target)) closePop(); });
+
+// タブ
+document.getElementById('tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.plan').forEach(p => p.classList.toggle('on', p.id === 'p-' + b.dataset.p));
+  closePop();
+});
+
+// 各案の動き
+let ngMode = false;
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-act]'); if (!t) return;
+  const pc = t.closest('.pc');
+  const act = t.dataset.act;
+  if (act === 'drawer') pc.querySelector('.drawer').classList.toggle('open');
+  if (act === 'pill') t.closest('.pill').classList.toggle('open');
+  if (act === 'more') pc.querySelector('.more').classList.toggle('open');
+  if (act === 'guide') pc.querySelector('.guide-open').classList.toggle('open');
+  if (act === 'cmin') { const bl = t.closest('.bl'); bl.classList.toggle('min'); t.textContent = bl.classList.contains('min') ? 'ひらく' : 'たたむ'; }
+  if (act === 'full') {
+    pc.classList.toggle('full');
+    const on = pc.classList.contains('full');
+    t.textContent = on ? '⛶ 戻す' : '⛶ 全画面';
+    const esc = pc.querySelector('.esc'); esc.classList.toggle('show', on);
+    if (on) setTimeout(() => esc.classList.remove('show'), 2500);
+  }
+  if (act === 'ngtoggle') {
+    ngMode = !ngMode;
+    BLDS[0].eqs[1].s = ngMode ? 'ng' : 'ok';
+    renderAll();
+    const s = pc.querySelector('[data-strip]');
+    s.className = 'strip ' + (ngMode ? 'ng' : 'ok');
+    s.innerHTML = ngMode
+      ? '<b style="color:var(--ng)">✕ 直っていない異常 1</b><span class="chip">102 溶接ロボ 2号 ・ 冷却水の漏れ ・ 今朝 8:12</span><button class="toggle" data-act="ngtoggle">（モック: 異常なしに戻す）</button>'
+      : '✓ 直っていない異常はありません<button class="toggle" data-act="ngtoggle">（モック: 異常ありに切り替え）</button>';
+    pc.querySelector('[data-bsum] .n-ng b').textContent = ngMode ? 1 : 0;
+    pc.querySelector('[data-bsum] .n-ok b').textContent = ngMode ? 1 : 2;
+  }
+});
+document.addEventListener('keydown', e => {
+  const c = document.getElementById('cpc');
+  if (e.key === 'Escape' && c.classList.contains('full')) c.querySelector('[data-act="full"]').click();
+});
+</script>
+</body>
+</html>

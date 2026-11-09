@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { simpleStatus, type BoardStatus, type SimpleStatus } from '@tenq/shared';
 import { apiGet, apiSend, apiUpload } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
@@ -12,7 +12,9 @@ import { navigate } from '../router';
 /**
  * 管理者のホーム = 工場の見取り図（2026-10-31 簡単化。2026-11-03 に C 案「見取り図からすべて操作」へ。requirements §10 Q-15）。
  * 建屋（areas）を実際の配置どおりに並べ、設備を 3 色で出す: ✕ 異常 = 赤 / ○ 正常 = 緑 / まだ = 白の点線。
- * 赤は直すまで消えない（次の日以降も「2日前から」と出す）。右の欄に直っていない異常を常に並べる。
+ * 赤は直すまで消えない（次の日以降も「2日前から」と出す）。直っていない異常は右の欄（引き出し）に並べる。
+ * 2026-11-09 A 案「見取り図を画面いっぱいに」: 見取り図は横いっぱい・画面の下まで（建屋の縦はマスを伸ばして埋める）。
+ * 右の欄は上の「⚠ 直っていない異常」で開け閉めし、異常が 1 件以上あれば最初から開いておく（見落とさない）。
  * 設備を押すと、そのそばに小窓（詳細・「直した」・点検表・記録・QR 印刷）、建屋の名前を押すと建屋の小窓が出る。
  * 工場長以上は「配置を動かす」を押している間だけ、建屋の帯をつかんで動かし、右端の ◢ で幅を変え、設備をつかんで別の建屋へ動かせる。
  * 動かすたびにすぐ保存し、「元に戻す」で 1 つ前に戻せる（保存ボタンの押し忘れをなくすため）。
@@ -37,11 +39,13 @@ const HELP_TAGS = [
   { target: 'add-eq', name: '設備を足す', desc: '新しい設備を登録する' },
   { target: 'map-lock', name: '配置を動かす', desc: '押している間だけ建屋・設備をドラッグ' },
   { target: 'map-floor', name: '工場の見取り図', desc: '建屋の中に設備。赤＝おかしい／緑＝済み／点線＝まだ。押すと詳しい内容' },
-  { target: 'map-side', name: '直っていない異常', desc: '押すと内容と「直した」' },
+  { target: 'map-side', name: '直っていない異常', desc: '押すと右に一覧。一覧を押すと内容と「直した」' },
   { target: 'records', name: '記録', desc: '点検の記録・異常の記録・CSV' },
   { target: 'settings', name: '⚙ 設定', desc: '設備の一覧・QR 印刷・使う人・使い方を見る' },
 ];
 const POP_W = 340;
+/** 見取り図の下の余白（board.css の .content.wide の下の余白と揃える。これでスクロールが出ない） */
+const FLOOR_BOTTOM = 16;
 /** 見取り図の縦の 1 マスの最低の高さ（board.css の .floor の grid-auto-rows と揃える） */
 const ROW_UNIT = 40;
 /** 建屋の中に好きな位置で置いた設備のタイルの大きさ（board.css の .eq.placed と揃える。はみ出さないように位置を抑える） */
@@ -108,6 +112,24 @@ export function BoardPage() {
   const layoutRef = useRef<HTMLDivElement>(null);
   const canEdit = can('layout.edit', { factoryId });
   const [helpOpen, setHelpOpen] = useState(false);
+  /** 右の欄（直っていない異常）。null = 自動（異常が 1 件以上なら開く）。押したらその人の選んだとおり */
+  const [sideOpen, setSideOpen] = useState<boolean | null>(null);
+
+  // 見取り図の高さを画面の下までにする（建屋の縦のマスは CSS の grid の伸びで埋まる）。
+  // 上の注意書きの有無などで見取り図の位置が変わるので、描画のたびに測り直す（DOM を直すだけで state は変えない）。
+  // 狭い画面（建屋が縦 1 列）と、配置を動かしている間（下の「まだ置いていない設備」「＋ 建屋を足す」を画面に入れるため）は中身の高さのまま
+  useLayoutEffect(() => {
+    const fit = () => {
+      const f = floorRef.current;
+      if (!f) return;
+      if (window.innerWidth < 900 || editing) { f.style.minHeight = ''; return; }
+      const top = f.getBoundingClientRect().top + window.scrollY;
+      f.style.minHeight = `${Math.max(360, window.innerHeight - top - FLOOR_BOTTOM)}px`;
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  });
 
   // 自動更新（配置を動かしている間は止める）。読み直しの関数は描画のたびに変わるので ref で持ち、タイマーを作り直さない。
   // 画面を見ていないとき（別のタブ・最小化・スリープ）は API を呼ばない。開きっぱなしの PC で
@@ -390,6 +412,9 @@ export function BoardPage() {
   const popItem = pop?.kind === 'eq' ? data.items.find((i) => i.id === pop.id) : undefined;
   const popArea = pop?.kind === 'area' ? data.areas.find((a) => a.id === pop.id) : undefined;
   const areaMenu = canEdit || can('equipment.create', { factoryId }) || can('qr.issue', { factoryId });
+  const showSide = sideOpen ?? ngItems.length > 0;
+  /** 配置を動かしている間は、下に 3 マス空けておく（建屋を下へ動かす・伸ばす場所。見取り図が画面の下までなので） */
+  const lastRow = areas.reduce((m, a) => Math.max(m, a.grid_row + rowSpanOf(a)), 0);
 
   return (
     <div className={`map-page ${editing ? 'is-editing' : ''}`}>
@@ -412,6 +437,10 @@ export function BoardPage() {
             ? <Button variant="primary" className="map-lock" data-tour="map-lock" onClick={stopEdit}>🔒 固定する</Button>
             : <Button className="map-lock" data-tour="map-lock" onClick={startEdit}>🔓 配置を動かす</Button>)}
           {!editing && <Button className="help-btn" onClick={() => setHelpOpen(true)}>？ 使い方</Button>}
+          <Button className={`side-toggle ${ngItems.length ? 'has-ng' : ''}`} data-tour="map-side" aria-expanded={showSide} aria-controls="map-side"
+            onClick={() => setSideOpen(!showSide)}>
+            {ngItems.length ? '✕' : '⚠'} 直っていない異常<em>{ngItems.length}</em>
+          </Button>
         </div>
       </div>
       {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
@@ -424,9 +453,10 @@ export function BoardPage() {
         </div>
       )}
 
-      <div className="map-layout" ref={layoutRef}>
+      <div className={`map-layout ${showSide ? 'side-open' : ''}`} ref={layoutRef}>
         <div className="map-main">
-          <div className={`floor ${editing ? 'editing' : ''}`} ref={floorRef} data-tour="map-floor">
+          <div className={`floor ${editing ? 'editing' : ''}`} ref={floorRef} data-tour="map-floor"
+            style={editing ? { gridTemplateRows: `repeat(${lastRow + 3}, minmax(${ROW_UNIT}px, auto))` } : undefined}>
             {areas.map((a) => {
               const list = inArea(a.id);
               const ng = list.filter((i) => st(i) === 'ng').length;
@@ -470,8 +500,10 @@ export function BoardPage() {
           )}
         </div>
 
-        <aside className="map-side" aria-label="直っていない異常" data-tour="map-side">
-          <h2>直っていない異常（{ngItems.length}）</h2>
+        {showSide && <aside className="map-side" id="map-side" aria-label="直っていない異常">
+          <h2>直っていない異常（{ngItems.length}）
+            <button type="button" className="side-close" aria-label="閉じる" onClick={() => setSideOpen(false)}>×</button>
+          </h2>
           {ngItems.length === 0 ? <p className="muted">ありません。</p> : (
             <ul className="ng-list">
               {ngItems.map((i) => (
@@ -489,7 +521,7 @@ export function BoardPage() {
             </ul>
           )}
           <p className="muted small">設備を押すと、そのそばに詳しい内容と「直した」が出ます。建屋の名前を押すと、建屋の操作が出ます。{refresh}秒ごとに自動で新しくなります。</p>
-        </aside>
+        </aside>}
 
         {pop && (popItem || popArea) && <div className="side-bg" onClick={() => setPop(null)} aria-hidden="true" />}
         {popItem && (

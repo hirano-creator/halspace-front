@@ -18,6 +18,13 @@ test('見取り図: 建屋ごとに設備を 3 色（✕ 異常・○ 正常・�
   // 止めている設備でも、直っていない異常があれば赤のまま
   await expect(page.getByRole('button', { name: /^K-02 研削盤 2号 ✕/ })).toBeVisible();
   await expect(page.getByRole('complementary', { name: '直っていない異常' })).toContainText('CR-2');
+  // 右の欄は異常があるので最初から開いている。上のボタンで閉じると見取り図が横いっぱいになり、もう一度押すと開く
+  const sideBtn = page.getByRole('button', { name: /直っていない異常/ }).first();
+  await expect(sideBtn).toHaveAttribute('aria-expanded', 'true');
+  await sideBtn.click();
+  await expect(page.getByRole('complementary', { name: '直っていない異常' })).toHaveCount(0);
+  await sideBtn.click();
+  await expect(page.getByRole('complementary', { name: '直っていない異常' })).toContainText('CR-2');
 
   // 設備を押すと、そのそばに小窓。この設備でできることもここから
   await l07.click();
@@ -97,13 +104,19 @@ test('「配置を動かす」の間だけ、設備と建屋をつかんで動�
   await card.dragTo(weld);
   await expect(weld.getByRole('button', { name: /^D-01 / })).toBeVisible();
 
-  // 建屋の右下 ◢ を左下へ引っぱると幅が狭く・高さが高くなり、帯をつかんで右へ動かせる（横 12 列・縦 1 マス 40px＋すき間 12px のマス目に吸い付く）
+  // 建屋の右下 ◢ を左下へ引っぱると幅が狭く・高さが高くなり、帯をつかんで右へ動かせる（横 12 列・縦のマス目に吸い付く）。
+  // 見取り図は画面の下まで伸び、縦のマスの高さは画面で変わるので、実際のマスの位置（真ん中）をもらって動かす
   const floor = await page.locator('.floor').boundingBox();
   const col = floor!.width / 12;
+  const rowMid = await page.locator('.floor').evaluate((el) => {
+    const cs = getComputedStyle(el);
+    let y = el.getBoundingClientRect().top + parseFloat(cs.paddingTop);
+    return cs.gridTemplateRows.split(' ').map(parseFloat).map((h) => { const c = y + h / 2; y += h + parseFloat(cs.rowGap); return c; });
+  });
   const rz = await weld.locator('.bld-rz').boundingBox();
   await page.mouse.move(rz!.x + rz!.width / 2, rz!.y + rz!.height / 2);
   await page.mouse.down();
-  await page.mouse.move(rz!.x - col * 2, rz!.y + rz!.height / 2 + 52 * 2, { steps: 8 });
+  await page.mouse.move(rz!.x - col * 2, rowMid[7]!, { steps: 8 });
   await page.mouse.up();
   await expect(page.getByText('「C棟 溶接」の大きさを変えました（保存しました）')).toBeVisible();
   const gridRow = (l: typeof weld) => l.evaluate((el) => (el as HTMLElement).style.gridRow);

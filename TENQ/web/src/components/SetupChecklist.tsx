@@ -8,6 +8,8 @@ import { Coach } from './Coach';
  * できたかどうかは見取り図のデータで判定する（建屋がある・設備がある・今日の点検がある）。
  * データで分からないもの（QR を印刷した・毎朝の見方を読んだ）は onboarding.ts に覚える。
  * 「やってみる」で押す場所を青く光らせ、そこが押されたら案内を消す（押した先の操作はそのまま進む）
+ * 2026-11-09 A 案「見取り図を画面いっぱいに」: 1 つでもできていれば、最初から右下の小さなボタンにたたんでおく
+ * （開いたままだと見取り図の右下の設備に重なるため）。まだ何もない工場では開いて出す。開け閉めはその人の選んだとおり
  */
 
 type Key = 'area' | 'eq' | 'qr' | 'inspect' | 'daily';
@@ -67,7 +69,7 @@ export function SetupChecklist({ areas, items, inspectedToday, canQr }: { areas:
 
   if (off || !uid || st.finished) return null;
 
-  if (st.collapsed) {
+  if (st.collapsed ?? doneCount > 0) {
     return <button type="button" className="onb-pill" onClick={() => save((s) => ({ ...s, collapsed: false }))}>🚀 はじめにやること {doneCount}/{tasks.length}</button>;
   }
 

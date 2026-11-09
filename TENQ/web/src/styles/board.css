@@ -10,9 +10,18 @@
 .map-sum .n-todo { background: #fff; border: 2px dashed var(--st-todo); }
 .map-sum .n-ok { background: var(--st-ok-lt); color: var(--st-ok); }
 .map-actions { display: flex; gap: 8px; }
-.map-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; position: relative; }
+.map-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; position: relative; }
+/* 右の欄（直っていない異常）は開いているときだけ幅を取る。見取り図に重ねない（右端の設備が隠れるため） */
+.map-layout.side-open { grid-template-columns: minmax(0, 1fr) 320px; }
+.side-toggle em { font-style: normal; margin-left: 6px; border-radius: 999px; padding: 0 8px; background: var(--st-ok-lt); color: var(--st-ok); }
+.side-toggle.has-ng { border-color: var(--st-ng); color: var(--st-ng); }
+.side-toggle.has-ng em { background: var(--st-ng); color: #fff; }
+.side-toggle[aria-expanded="true"] { background: var(--accent-lt); }
+.side-close { margin-left: auto; border: 0; background: none; color: var(--sub); font-size: 22px; line-height: 1; width: 40px; height: 40px; margin: -8px -8px -8px auto; cursor: pointer; border-radius: 8px; }
+.side-close:hover { background: var(--bg); color: var(--ink); }
 .map-main { min-width: 0; }
-/* 縦は 1 マス = 最低 40px（BoardPage の ROW_UNIT）。建屋は縦に row_span マス使い、中身が入りきらなければマスが伸びる */
+/* 縦は 1 マス = 最低 40px（BoardPage の ROW_UNIT）。建屋は縦に row_span マス使い、中身が入りきらなければマスが伸びる。
+   PC では BoardPage が見取り図の高さを画面の下までにし、余った高さはマス（auto の行）が分け合って伸びる（2026-11-09 A 案） */
 .floor { display: grid; grid-template-columns: repeat(12, 1fr); grid-auto-rows: minmax(40px, auto); gap: 12px; align-items: stretch; background: #E9EDF2; border-radius: 16px; padding: 12px; }
 .bld { border: 2px solid var(--line-strong); border-radius: 14px; background: var(--card); padding: 8px 10px 10px; min-width: 0; position: relative; display: flex; flex-direction: column; }
 .bld.has-ng { border-color: var(--st-ng); }
@@ -69,7 +78,7 @@
 
 /* 右の欄（直っていない異常・設備の詳細） */
 .map-side { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; position: sticky; top: 68px; max-height: calc(100vh - 84px); overflow-y: auto; }
-.map-side h2 { font-size: 16px; margin: 0 0 8px; }
+.map-side h2 { font-size: 16px; margin: 0 0 8px; display: flex; align-items: center; }
 .ng-list { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 6px; }
 .ng-list button { width: 100%; text-align: left; border: 2px solid var(--st-ng); background: var(--st-ng-lt); border-radius: 10px; padding: 8px 10px; font-size: 14px; color: var(--ink); min-height: 44px; }
 .ng-list b { color: var(--st-ng); display: block; }
