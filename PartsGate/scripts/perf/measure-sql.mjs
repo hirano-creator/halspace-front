@@ -16,8 +16,8 @@ const year1 = day(-365);
 const CASES = [
   ['照合: バーコードで明細を探す', "SELECT id, status, scan_count, required_scans FROM order_items WHERE company_id = 1 AND barcode_global_no = '5PF00000180000'"],
   ['照合: 再送の確認（client_scan_id）', "SELECT * FROM scan_logs WHERE company_id = 1 AND client_scan_id = 'perf-ok-2180000'"],
-  ['置場別チェック: タブ（1 日分）', `SELECT oi.location_id, COUNT(*), SUM(CASE WHEN oi.status = 'matched' THEN 1 ELSE 0 END) FROM order_items oi WHERE oi.company_id = 1 AND oi.vrd = '${day(-3)}' AND oi.status <> 'cancelled' GROUP BY oi.location_id`],
-  ['置場別チェック: 一覧（1 日・1 置場）', `SELECT oi.id, oi.global_no, s.name FROM order_items oi LEFT JOIN staff s ON s.company_id = oi.company_id AND s.id = oi.matched_staff_id WHERE oi.company_id = 1 AND oi.vrd = '${day(-3)}' AND oi.location_id = 3 AND oi.status <> 'cancelled' ORDER BY oi.global_no LIMIT 2000`],
+  ['置場別チェック: タブ（メーカー納期 1 日分）', `SELECT oi.location_id, COUNT(*), SUM(CASE WHEN oi.status = 'matched' THEN 1 ELSE 0 END) FROM order_items oi WHERE oi.company_id = 1 AND oi.ssd = '${day(-3)}' AND oi.status <> 'cancelled' GROUP BY oi.location_id`],
+  ['置場別チェック: 一覧（1 日・1 置場）', `SELECT oi.id, oi.global_no, s.name FROM order_items oi LEFT JOIN staff s ON s.company_id = oi.company_id AND s.id = oi.matched_staff_id WHERE oi.company_id = 1 AND oi.ssd = '${day(-3)}' AND oi.location_id = 3 AND oi.status <> 'cancelled' ORDER BY oi.global_no LIMIT 2000`],
   ['今日の件数（集計表）', `SELECT result, SUM(count) FROM daily_scan_stats WHERE company_id = 1 AND day = '${day(-3)}' GROUP BY result`],
   ['ダッシュボード: 未確認（30 日）', `SELECT COUNT(*) FROM order_items WHERE company_id = 1 AND status IN ('pending', 'review') AND ssd <= '${today}' AND ssd >= '${day(-30)}'`],
   ['読み取り履歴: 1 日（100 件）', `SELECT s.id FROM scan_logs s LEFT JOIN order_items oi ON oi.company_id = s.company_id AND oi.id = s.order_item_id WHERE s.company_id = 1 AND s.day BETWEEN '${day(-3)}' AND '${day(-3)}' ORDER BY s.day DESC, s.id DESC LIMIT 101`],
