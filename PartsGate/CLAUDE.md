@@ -4,7 +4,7 @@
 
 ## 状態
 
-STEP 8（セキュリティ・性能・バックアップ）までローカルで完了（2026-11-05）。STEP 9（本番公開）進行中: 2026-11-07 に本番の D1・R2・API を作成し、画面と Space.app への登録を main に反映（halspace-front 801e645、solid-api c674393）。残りはヒラノでの有効化・実アカウントでの確認・置場/担当者の登録。本番反映は main から作った worktree に cherry-pick して push する（feat/cloudflare-migration は TimeCalc の本番反映ブランチなので push しない）。Cloudflare は h.hirano@hirano50.com（Space.app・TENQ と同じ。2026-11-07 決定）。**操作の前に必ず `npx wrangler whoami`**（wsk6611 のアカウントに戻っていることが多い）。遠隔の開発用環境は作らない。設計書は `docs/`、未確定事項は `docs/requirements.md` §6、画面の方向性は `_mock-c-compact.html`（読み取り）・`_mock-import-analytics.html`（取込・分析）。起動・テストは README。
+STEP 8（セキュリティ・性能・バックアップ）までローカルで完了（2026-11-05）。STEP 9（本番公開）進行中: 2026-11-07 に本番の D1・R2・API を作成し、画面と Space.app への登録を main に反映（halspace-front 801e645、solid-api c674393）。2026-11-09 にヒラノで稼働開始（運用は `docs/operations.md`）。本番反映は main から作った worktree に cherry-pick して push する（feat/cloudflare-migration は TimeCalc の本番反映ブランチなので push しない）。Cloudflare は h.hirano@hirano50.com（Space.app・TENQ と同じ。2026-11-07 決定）。**操作の前に必ず `npx wrangler whoami`**（wsk6611 のアカウントに戻っていることが多い）。遠隔の開発用環境は作らない。設計書は `docs/`、未確定事項は `docs/requirements.md` §6、画面の方向性は `_mock-c-compact.html`（読み取り）・`_mock-import-analytics.html`（取込・分析）。起動・テストは README。
 
 ## 実装の決まり
 

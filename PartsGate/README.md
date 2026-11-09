@@ -4,7 +4,7 @@
 
 ## 状態
 
-STEP 8（セキュリティ・性能・バックアップ）までローカルで完成。次は STEP 9（本番公開）。実機の USB リーダーでの確認と、専用の Cloudflare アカウントが残っている。
+2026-11-09 からヒラノで本番稼働（STEP 9）。本番の確認・運用は [docs/operations.md](docs/operations.md)。
 
 ## 開発の始め方（ローカルだけで動く）
 
@@ -70,5 +70,6 @@ node ../scripts/perf/measure-api.mjs                                            
 | [docs/security.md](docs/security.md) | 企業間データ分離・認証・権限 |
 | [docs/screens.md](docs/screens.md) | 画面一覧・読み取り画面 |
 | [docs/development-plan.md](docs/development-plan.md) | 工程・テスト計画・バックアップ・課題 |
+| [docs/operations.md](docs/operations.md) | 運用マニュアル（利用開始・毎日の流れ・困ったとき・定期の確認） |
 
 環境構築・公開・バックアップ・復元の手順は、STEP 4 以降で実装に合わせてここに書く。
