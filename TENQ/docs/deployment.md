@@ -180,3 +180,9 @@ Space.app のアプリ一覧に TENQ を出す変更（`space/assets/js/space.js
 - 本番 DB の復元地点（念のため）: bookmark `0000002d-00000000-0000511d-65a29c2d7607b273acb38356418d0e51`
 - 本番 D1 に 0006 を適用 → 本番 API を再デプロイ（Version b7119428）→ main に cherry-pick して push（8c7fc9f）
 - 確認: `/api/health` が production、開発用ログインは 401、Pages の Production 行が 8c7fc9f、本番の画面が今回のビルド（index-z2bsjSPj.js、BoardPage に「引っぱって大きさを変える」、開発用ログインなし）、`/TENQ/q/` 200
+
+### 9-10. 見取り図を画面いっぱいにする変更の反映（2026-11-09）
+
+- 内容: 管理者ホームの見取り図を画面いっぱいに（`_mock-map-fullscreen-proposals.html` の A 案）。工場画面だけ本文の最大幅をなくし、見取り図の高さを画面の下まで。直っていない異常の右の欄は上のボタンで開け閉め（異常があれば最初から開く）、はじめにやることは 1 つでもできていればたたむ。**画面だけ**の変更（API・DB は変えていない）なので、main への push だけ
+- main に cherry-pick して push（7c88298）
+- 確認: Pages の Production 行が 7c88298、本番の画面が今回のビルド（index-CQywOEhT.js、BoardPage-BC8mmn9B.js に `side-toggle`、開発用ログインなし）、`/TENQ/q/` 200
