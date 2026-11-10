@@ -154,9 +154,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     // 確定記録（source !== "CLOCK"）はその確定値、打刻のみの日は ClockEvent から求める。
     const dayEvents = eventsByDate.get(date) ?? [];
     const derived = record ? null : deriveDailyFromEvents(dayEvents);
-    const isOpen = !record && derived?.status === "open" && date < today;
+    // 手入力で出勤だけ確定した日（朝の打刻忘れを追加した等）。退勤前なので計算エラーではなく
+    // 打刻のみの勤務中の日と同じ扱い（当日=出勤中、過去日=退勤未打刻）にする
+    const awaitingOut = Boolean(record?.clockIn && !record.clockOut);
+    const isOpen = ((!record && derived?.status === "open") || awaitingOut) && date < today;
     // 出勤打刻済みで退勤前（勤務中・外出中）の日
-    const isClockedIn = !record && derived?.status === "open";
+    const isClockedIn = (!record && derived?.status === "open") || awaitingOut;
 
     // deriveAndSaveAttendance は退勤するまで Attendance を作らないため、
     // record だけを見ていると出勤直後の行が丸ごと空になり、管理者から打刻が見えない。
@@ -253,7 +256,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       baseAmountLabel: pay && ok ? formatYen(pay.basePay) : "-",
       premiumAmountLabel: pay && ok ? formatYen(pay.premiumPay) : "-",
       totalPayLabel: pay && ok ? formatYen(pay.totalPay) : "-",
-      error: calc?.error ?? null,
+      error: awaitingOut ? null : (calc?.error ?? null),
     });
   }
 

@@ -112,7 +112,9 @@ export async function GET(request: Request) {
     const ok = calc && !calc.error;
 
     const derived = record ? null : deriveDailyFromEvents(eventsByDate.get(date) ?? []);
-    const isOpen = !record && derived?.status === "open" && date < today;
+    // 手入力で出勤だけ確定した日（朝の打刻忘れを追加した等）は、計算エラーではなく退勤待ちとして扱う
+    const awaitingOut = Boolean(record?.clockIn && !record.clockOut);
+    const isOpen = ((!record && derived?.status === "open") || awaitingOut) && date < today;
     if (isOpen) openCount++;
 
     const openIn = derived?.status === "open" ? derived.clockInSoFar : null;
@@ -193,7 +195,7 @@ export async function GET(request: Request) {
       isToday: date === today,
       hasPendingRequest: pendingDates.has(date),
       kioskPunches: kioskByDate.get(date) ?? [],
-      error: calc?.error ?? null,
+      error: awaitingOut ? null : (calc?.error ?? null),
     });
   }
   rows.reverse();

@@ -73,6 +73,14 @@ export async function getClockStatus(
       where: { userId_date: { userId, date: last!.date } },
     });
     if (attendance?.clockOut) lastEventType = "OUT";
+  } else if (!isToday) {
+    // 当日の打刻は無いが、朝の打刻忘れを管理者・本人が手入力で「出勤だけ」確定している日は
+    // 出勤中として扱い、そのまま退勤を打刻できるようにする
+    // （出勤からやり直させると、手入力した出勤時刻が夕方の打刻で上書きされてしまう）
+    const attendance = await db.attendance.findUnique({
+      where: { userId_date: { userId, date: today } },
+    });
+    if (isManualOpen(attendance)) lastEventType = "IN";
   }
 
   const phase = phaseOfLastEvent(lastEventType);
@@ -189,13 +197,17 @@ export async function computeDerivedAttendance(
 ): Promise<DerivedAttendance | null> {
   // トランザクション内で呼ばれたときは勤務ルールの読み取りも同じ tx で行う
   // （別接続で読むと、プールが埋まった際に tx 同士が互いの接続待ちで詰まる）
-  const [events, user, allRules] = await Promise.all([
+  const [events, user, allRules, attendance] = await Promise.all([
     db.clockEvent.findMany({ where: { userId, date }, orderBy: { timestamp: "asc" } }),
     db.user.findUnique({ where: { id: userId }, include: { department: true } }),
     getAllWorkRules(db),
+    db.attendance.findUnique({ where: { userId_date: { userId, date } } }),
   ]);
 
-  const mappedEvents = events.map((e) => ({ type: e.type as ClockEventType, time: e.time }));
+  const mappedEvents = withManualClockIn(
+    events.map((e) => ({ type: e.type as ClockEventType, time: e.time })),
+    attendance,
+  );
   const derived = deriveDailyFromEvents(mappedEvents);
 
   if (derived.status !== "closed") return null;
@@ -229,6 +241,35 @@ export async function computeDerivedAttendance(
   };
 }
 
+type AttendanceTimes = { clockIn: string | null; clockOut: string | null; source: string } | null;
+
+/** 手入力（打刻以外）で出勤だけ確定し、退勤がまだの勤怠か（朝の打刻忘れを追加した日など） */
+function isManualOpen(attendance: AttendanceTimes): boolean {
+  return Boolean(attendance && attendance.source !== "CLOCK" && attendance.clockIn && !attendance.clockOut);
+}
+
+/** 手入力された勤怠（打刻以外。退勤の有無は問わない） */
+function isManual(attendance: AttendanceTimes): boolean {
+  return Boolean(attendance && attendance.source !== "CLOCK");
+}
+
+/**
+ * 手入力で出勤だけ確定している日は、その出勤時刻を打刻列の始業として扱う。
+ * - 出勤打刻が無い（朝の打刻忘れ）→ 先頭に出勤を補う
+ * - 出勤打刻がある（遅れて押した時刻を管理者が直した）→ 最初の出勤をその時刻に置き換える
+ * 該当しない日は打刻列をそのまま返す。
+ */
+function withManualClockIn(
+  events: { type: ClockEventType; time: string }[],
+  attendance: AttendanceTimes,
+): { type: ClockEventType; time: string }[] {
+  if (!isManualOpen(attendance)) return events;
+  const manualIn = attendance!.clockIn!;
+  const firstIn = events.findIndex((e) => e.type === "IN");
+  if (firstIn === -1) return [{ type: "IN", time: manualIn }, ...events];
+  return events.map((e, i) => (i === firstIn ? { ...e, time: manualIn } : e));
+}
+
 /**
  * 指定日の打刻イベントから1日分の勤怠を導出し、確定していれば Attendance に書き戻す。
  * 未退勤（status:"open"、外出中を含む）の場合は書き戻さない
@@ -243,8 +284,26 @@ export async function deriveAndSaveAttendance(
   date: string,
   db: ClockDb = prisma,
 ): Promise<void> {
-  const result = await computeDerivedAttendance(userId, date, db);
+  const [result, existing] = await Promise.all([
+    computeDerivedAttendance(userId, date, db),
+    db.attendance.findUnique({ where: { userId_date: { userId, date } } }),
+  ]);
   if (!result) return;
+
+  // 手入力で出退勤とも確定済みの日は、時刻を打刻から計算し直して上書きしない
+  // （理由の追記など後からの呼び出しで、管理者の修正が打刻の値に戻ってしまうため）。理由だけ反映する
+  if (isManual(existing) && existing!.clockOut) {
+    if (result.lateReason || result.earlyLeaveReason) {
+      await db.attendance.update({
+        where: { userId_date: { userId, date } },
+        data: {
+          lateReason: result.lateReason ?? undefined,
+          earlyLeaveReason: result.earlyLeaveReason ?? undefined,
+        },
+      });
+    }
+    return;
+  }
 
   await db.attendance.upsert({
     where: { userId_date: { userId, date } },
@@ -252,7 +311,9 @@ export async function deriveAndSaveAttendance(
       clockIn: result.clockIn,
       clockOut: result.clockOut,
       breakMinutes: result.breakMinutes,
-      source: "CLOCK",
+      // 手入力の出勤に退勤打刻をつないで確定した日は手入力扱いのまま残す
+      // （CLOCK にすると打刻だけからの再計算対象になり、手入力の出勤時刻が失われる）
+      source: isManualOpen(existing) ? undefined : "CLOCK",
       // 打刻時の理由入力がある場合のみ転記する（undefined = 変更しない）
       lateReason: result.lateReason ?? undefined,
       earlyLeaveReason: result.earlyLeaveReason ?? undefined,
