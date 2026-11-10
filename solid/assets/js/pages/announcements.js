@@ -258,7 +258,7 @@ function renderDetail() {
         const [ic, cls, lbl] = fileIcon(f.file_name);
         const canPv = PREVIEW_EXTS.includes(extOf(f.file_name));
         return `<div class="an-file">
-          <span class="an-fi ${cls}"><i class="fa-solid ${ic}"></i><small>${esc(lbl)}</small></span>
+          <span class="an-fi ${cls}"><i class="fa-solid ${ic}"></i>${cls === 'f-pdf' ? '' : `<small>${esc(lbl)}</small>`}</span>
           <span class="an-fn"><b title="${esc(f.file_name)}">${esc(f.file_name)}</b><small>${fmtSize(f.file_size)}</small></span>
           <span class="an-acts">${canPv ? `<button type="button" title="プレビュー" data-pv="${f.id}"><i class="fa-solid fa-eye"></i></button>` : ''}<button type="button" title="ダウンロード" data-dl="${f.id}"><i class="fa-solid fa-download"></i></button></span>
         </div>`;
