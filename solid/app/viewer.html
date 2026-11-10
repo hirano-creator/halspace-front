@@ -8,12 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <!-- Three.js r128 -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <!-- occt-import-js（STEP/STP用 WASM） -->
-  <script src="https://cdn.jsdelivr.net/npm/occt-import-js@0.0.21/dist/occt-import-js.js"></script>
+  <!-- 3D用のライブラリ（Three.js / occt-import-js）は 3D ファイルを開くときだけ _open3D で読む。
+       ここで読むと PDF や Office を開くときも毎回待たされる -->
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -172,13 +168,26 @@
 </div>
 
 <script src="../assets/js/api.js?v=20261021a"></script>
-<script src="../assets/js/viewer.js"></script>
+<script src="../assets/js/viewer.js?v=20261110a"></script>
+<script src="../assets/js/pdf-viewer.js?v=20261110a"></script>
 <script>
 'use strict';
 
 const params   = new URLSearchParams(location.search);
 const fileId   = Number(params.get('file_id'));
 const fileName = params.get('file_name') || '';
+
+/* PDFなら、ファイル本体の取得と並行して表示ライブラリを読み始める（開くまでの待ちを減らす） */
+if (/\.pdf$/i.test(fileName)) SolidPdfViewer.preload().catch(() => {});
+
+/* この画面は auth.js を読まないので、apiFetch が 401 のときに呼ぶログアウト処理をここで用意する */
+if (typeof spaceLogout !== 'function') {
+  window.spaceLogout = () => {
+    sessionStorage.removeItem('space_token');
+    sessionStorage.removeItem('space_user');
+    location.href = '../login.html';
+  };
+}
 
 /* Office系（Excel/Word/PowerPoint/CSV）。project-detail.js の OFFICE_PREVIEW_EXTS と揃えること */
 const OFFICE_KIND = {
@@ -292,10 +301,18 @@ async function _openPdf(file, content, loading) {
       return;
     }
 
-    const blobUrl = URL.createObjectURL(new Blob([buf], { type: 'application/pdf' }));
-    const iframe = document.createElement('iframe');
-    iframe.src = blobUrl + '#toolbar=1&navpanes=0';
-    content.appendChild(iframe);
+    /* 自前のビューア（つかんで移動・書き込み）で開く。表示ライブラリを読めなかったときなどは
+       ブラウザ内蔵のPDF表示に切り替える（見るだけはできるようにしておく） */
+    try {
+      await SolidPdfViewer.open(content, { file, buf });
+    } catch (err) {
+      console.error(err);
+      content.querySelectorAll('.pv').forEach(el => el.remove());
+      const blobUrl = URL.createObjectURL(new Blob([buf], { type: 'application/pdf' }));
+      const iframe = document.createElement('iframe');
+      iframe.src = blobUrl + '#toolbar=1&navpanes=0';
+      content.appendChild(iframe);
+    }
   } catch (err) {
     loading.outerHTML = `<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><span>PDFの読み込みに失敗しました: ${err.message}</span></div>`;
   }
@@ -432,6 +449,15 @@ async function _openDxf(file, content, loading, toolbar) {
 
 /* ── 3D ── */
 async function _open3D(file, content, loading, toolbar, ext) {
+  /* 3D用のライブラリはここで初めて読む（STLLoader と OrbitControls は THREE の後でないと動かない） */
+  try {
+    await _loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js');
+    await Promise.all([
+      _loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js'),
+      _loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js'),
+      ext === 'stl' ? null : _loadScript('https://cdn.jsdelivr.net/npm/occt-import-js@0.0.21/dist/occt-import-js.js'),
+    ]);
+  } catch {}
   const THREE = window.THREE;
   if (!THREE) {
     loading.outerHTML = '<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><span>3Dライブラリの読み込みに失敗しました</span></div>';

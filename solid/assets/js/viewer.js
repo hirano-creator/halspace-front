@@ -1345,7 +1345,13 @@ const Viewer = (() => {
     document.getElementById('viewerModal')?.addEventListener('click', e => {
       if (e.target === document.getElementById('viewerModal')) close();
     });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      /* 別タブのビューア(viewer.html)にはモーダルが無い（ダミー要素だけ）。そこで閉じる処理が走ると
+         表示中の図面が消えてしまうので、モーダルが実際に開いているときだけ閉じる */
+      const modal = document.getElementById('viewerModal');
+      if (modal && !modal.classList.contains('hidden') && modal.contains(document.getElementById('viewerContent'))) close();
+    });
   });
 
   /* viewer-page.html（別タブ版）向けに内部エンジンを公開 */
