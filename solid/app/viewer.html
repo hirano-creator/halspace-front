@@ -170,6 +170,7 @@
 <script src="../assets/js/api.js?v=20261021a"></script>
 <script src="../assets/js/viewer.js?v=20261110a"></script>
 <script src="../assets/js/pdf-viewer.js?v=20261110a"></script>
+<script src="../assets/js/model-viewer.js?v=20261110a"></script>
 <script>
 'use strict';
 
@@ -464,28 +465,6 @@ async function _open3D(file, content, loading, toolbar, ext) {
     return;
   }
   try {
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a2e);
-
-    const w = content.clientWidth  || window.innerWidth;
-    const h = content.clientHeight || window.innerHeight - 52;
-    const camera = new THREE.PerspectiveCamera(45, w / h, 0.001, 100000);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(w, h);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    content.appendChild(renderer.domElement);
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-    const dir1 = new THREE.DirectionalLight(0xffffff, 0.8);
-    dir1.position.set(1, 2, 3); scene.add(dir1);
-    const dir2 = new THREE.DirectionalLight(0x88aaff, 0.4);
-    dir2.position.set(-2, -1, -2); scene.add(dir2);
-
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-
     const url    = `${API_BASE}/files/${file.id}/view`;
     const buffer = await _fetchFileBuffer(url);
 
@@ -500,51 +479,9 @@ async function _open3D(file, content, loading, toolbar, ext) {
       geometry = Viewer._occtToGeometry ? Viewer._occtToGeometry(THREE, result) : _occtToGeometryLocal(THREE, result);
     }
 
-    geometry.computeVertexNormals();
-    const mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({
-      color: 0x0984e3, specular: 0x3399ff, shininess: 50, side: THREE.DoubleSide,
-    }));
-    const wire = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
-      color: 0x004080, wireframe: true, opacity: 0.08, transparent: true,
-    }));
-    scene.add(mesh); scene.add(wire);
-
-    const box    = new THREE.Box3().setFromObject(mesh);
-    const size   = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const fitDist = maxDim * 1.8;
-
-    const grid = new THREE.GridHelper(maxDim * 3, 20, 0x334455, 0x223344);
-    grid.position.y = box.min.y; scene.add(grid);
-
-    camera.position.set(center.x, center.y + maxDim * 0.5, center.z + fitDist);
-    camera.lookAt(center);
-    controls.target.copy(center);
-    controls.update();
-
-    toolbar.classList.add('visible');
-    document.getElementById('threejsReset').onclick = () => {
-      camera.position.set(center.x, center.y + maxDim * 0.5, center.z + fitDist);
-      camera.lookAt(center);
-      controls.target.copy(center);
-      controls.update();
-    };
-
-    window.addEventListener('resize', () => {
-      const nw = content.clientWidth, nh = content.clientHeight;
-      camera.aspect = nw / nh;
-      camera.updateProjectionMatrix();
-      renderer.setSize(nw, nh);
-    });
-
+    /* 見た目（グレーの立体＋角の線・平行投影・座標軸・視点の切り替え）は model-viewer.js にまとめてある */
+    SolidModelViewer.open(content, geometry, { toolbar });
     loading.remove();
-
-    (function animate() {
-      requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
-    })();
 
   } catch (err) {
     loading.outerHTML = `<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><span>3Dファイルの読み込みに失敗しました: ${err.message}</span></div>`;
