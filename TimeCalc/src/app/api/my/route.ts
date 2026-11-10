@@ -162,7 +162,8 @@ export async function GET(request: Request) {
       // 出退勤が未確定（record側がnull）の日は、編集フォームに架空の時刻を埋めず
       // 空欄のままにする（記録が全く無い日のみ典型的な始業・終業時刻を仮置きする）
       clockIn: record ? (record.clockIn ?? "") : (openIn ?? "09:00"),
-      clockOut: record ? (record.clockOut ?? "") : "18:00",
+      // 退勤打刻忘れの日（出勤打刻のみ）は退勤を空欄にして入力してもらう
+      clockOut: record ? (record.clockOut ?? "") : openIn ? "" : "18:00",
       breakMinutes: record?.breakMinutes ?? 60,
       outingStart: record?.outingStart ?? "",
       outingEnd: record?.outingEnd ?? "",

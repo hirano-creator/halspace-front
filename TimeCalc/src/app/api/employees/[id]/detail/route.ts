@@ -207,10 +207,25 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       date,
       dayLabel: `${m}/${d}(${WEEKDAYS[weekday]})`,
       isWeekend: weekday === 0 || weekday === 6,
-      // 出退勤が未確定（record側がnull）の日は編集フォームを空欄のままにする
-      clockIn: record ? (record.clockIn ?? "") : "08:00",
-      clockOut: record ? (record.clockOut ?? "") : "17:00",
-      breakMinutes: record?.breakMinutes ?? 60,
+      // 編集フォームの初期値。確定記録があればその値、無ければ打刻ログ（ClockEvent）から補う。
+      // 退勤打刻忘れの日は打刻済みの出勤時刻を入れ、退勤は空欄にして入力してもらう
+      // （以前は打刻があっても 08:00 / 17:00 を仮置きしていたため、保存すると出勤時刻が上書きされた）。
+      // 打刻も記録も全く無い日だけ典型的な始業・終業時刻を仮置きする。
+      clockIn: record
+        ? (record.clockIn ?? "")
+        : derived?.status === "open"
+          ? derived.clockInSoFar
+          : derived?.status === "closed"
+            ? derived.clockIn
+            : "08:00",
+      clockOut: record
+        ? (record.clockOut ?? "")
+        : derived?.status === "open"
+          ? ""
+          : derived?.status === "closed"
+            ? derived.clockOut
+            : "17:00",
+      breakMinutes: record?.breakMinutes ?? (derived?.status === "closed" ? derived.breakMinutes : 60),
       note: record?.note ?? null,
       actualClockInLabel,
       actualClockOutLabel,

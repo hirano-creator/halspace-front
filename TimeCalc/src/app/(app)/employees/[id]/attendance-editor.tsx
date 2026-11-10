@@ -495,7 +495,8 @@ export function AttendanceEditor({
                         onClick={() => setEditingDate(row.date)}
                         className="text-xs text-primary hover:underline"
                       >
-                        {row.attendanceId ? "修正" : "追加"}
+                        {/* 打刻ログだけある日（退勤打刻忘れなど）も、既存の打刻を直す操作なので「修正」 */}
+                        {row.attendanceId || row.hasClockEvents ? "修正" : "追加"}
                       </button>
                       {/* Attendanceが無くても打刻ログだけ残っている日は消せるようにする
                           （実出勤・実退勤が表示されているのに削除できない状態を作らない） */}
