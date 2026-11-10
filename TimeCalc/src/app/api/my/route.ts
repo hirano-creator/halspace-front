@@ -159,11 +159,10 @@ export async function GET(request: Request) {
       dayLabel: `${m}/${d}(${WEEKDAYS[weekday]})`,
       isWeekend: weekday === 0 || weekday === 6,
       hasRecord: !!record,
-      // 出退勤が未確定（record側がnull）の日は、編集フォームに架空の時刻を埋めず
-      // 空欄のままにする（記録が全く無い日のみ典型的な始業・終業時刻を仮置きする）
-      clockIn: record ? (record.clockIn ?? "") : (openIn ?? "09:00"),
-      // 退勤打刻忘れの日（出勤打刻のみ）は退勤を空欄にして入力してもらう
-      clockOut: record ? (record.clockOut ?? "") : openIn ? "" : "18:00",
+      // 編集フォームに架空の時刻は埋めない。退勤打刻忘れの日は打刻済みの出勤時刻のみ入れ、
+      // 記録の無い日（追加）も含め空欄から入力してもらう
+      clockIn: record ? (record.clockIn ?? "") : (openIn ?? ""),
+      clockOut: record ? (record.clockOut ?? "") : "",
       breakMinutes: record?.breakMinutes ?? 60,
       outingStart: record?.outingStart ?? "",
       outingEnd: record?.outingEnd ?? "",
