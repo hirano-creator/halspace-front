@@ -226,6 +226,126 @@ function renderSidebarUser(user) {
   applyChatNav(user);
   /* 「不具合対策書」は HaLSpace と PT.HILANO LCZ INDONESIA の所属者だけ */
   applyQualityNav(user);
+  applyNewsNav(user);
+}
+
+/* ── SOLID「お知らせ」：サイドバーの件数の赤丸＋右上のベル（全員に出す） ──
+   サイドバーに #navNews があるページ（SOLID の画面）だけで動く。What'sNo 等からも
+   このファイルは読まれるが、#navNews が無いので何もしない。
+   未読の判定は API（/solid/announcements/unread-count）が正。ここは表示だけ。 */
+const NEWS_CAT = {
+  important: ['重要', 'fa-circle-exclamation'],
+  feature:   ['機能追加', 'fa-wand-magic-sparkles'],
+  maint:     ['メンテナンス', 'fa-screwdriver-wrench'],
+  info:      ['お知らせ', 'fa-circle-info'],
+};
+let _newsLastFetch = 0;
+
+function _newsGet(path) {
+  const token = sessionStorage.getItem('space_token');
+  return fetch(spaceApiBase() + path, {
+    headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+  }).then(res => (res.ok ? res.json() : null));
+}
+
+/* 赤丸の数を全部の表示にまとめて反映する（お知らせ画面からも呼ぶ） */
+function solidNewsSetCount(n) {
+  n = Math.max(0, Number(n) || 0);
+  const txt = n > 99 ? '99+' : String(n);
+  const badge = document.getElementById('navNewsBadge');
+  if (badge) { badge.textContent = txt; badge.style.display = n > 0 ? 'grid' : 'none'; }
+  const bc = document.getElementById('newsBellCount');
+  if (bc) { bc.textContent = txt; bc.style.display = n > 0 ? 'grid' : 'none'; }
+  const bell = document.getElementById('newsBell');
+  if (bell) bell.setAttribute('aria-label', n > 0 ? `お知らせ（未読 ${n} 件）` : 'お知らせ');
+  /* スマホはメニューを閉じていると赤丸が見えないので、メニューボタンにも点を付ける */
+  const toggle = document.getElementById('menuToggle');
+  if (toggle) toggle.classList.toggle('has-news', n > 0);
+}
+
+function solidNewsRefresh(force) {
+  if (!force && Date.now() - _newsLastFetch < 60000) return;
+  _newsLastFetch = Date.now();
+  _newsGet('/solid/announcements/unread-count')
+    .then(d => { if (d) solidNewsSetCount(d.count); })
+    .catch(() => { /* 赤丸が出ないだけなので黙って諦める */ });
+}
+
+function applyNewsNav(user) {
+  const link = document.getElementById('navNews');
+  if (!link || !user) return;
+  link.style.display = 'flex';
+
+  const right = document.querySelector('.top-bar-right');
+  if (right && !document.getElementById('newsBell')) {
+    const wrap = document.createElement('div');
+    wrap.className = 'news-bell-wrap';
+    wrap.innerHTML = `
+      <button type="button" class="news-bell" id="newsBell" aria-label="お知らせ" title="お知らせ">
+        <i class="fa-solid fa-bell"></i><span class="news-bell-count" id="newsBellCount" style="display:none"></span>
+      </button>
+      <div class="news-pop" id="newsPop" hidden></div>`;
+    right.appendChild(wrap);
+    const pop = wrap.querySelector('#newsPop');
+    wrap.querySelector('#newsBell').addEventListener('click', e => {
+      e.stopPropagation();
+      if (!pop.hidden) { pop.hidden = true; return; }
+      pop.hidden = false;
+      _renderNewsPop(pop);
+    });
+    document.addEventListener('click', e => { if (!wrap.contains(e.target)) pop.hidden = true; });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') pop.hidden = true; });
+  }
+
+  solidNewsRefresh(true);
+  if (!window._newsVisHooked) {
+    window._newsVisHooked = true;
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) solidNewsRefresh(false); });
+  }
+}
+
+async function _renderNewsPop(pop) {
+  const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  pop.innerHTML = '<div class="news-pop-h">お知らせ</div><div class="news-pop-empty"><i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…</div>';
+  let d = null;
+  try { d = await _newsGet('/solid/announcements'); } catch {}
+  if (pop.hidden) return;
+  if (!d) {
+    pop.innerHTML = '<div class="news-pop-h">お知らせ</div><div class="news-pop-empty">読み込めませんでした。時間をおいて開き直してください。</div>';
+    return;
+  }
+  solidNewsSetCount(d.unread_count);
+  const items = (d.items || []).filter(x => !x.is_draft).slice(0, 5);
+  pop.innerHTML = `
+    <div class="news-pop-h">お知らせ<span style="flex:1"></span>${d.unread_count > 0 ? '<button type="button" id="newsPopReadAll">すべて既読</button>' : ''}</div>
+    ${items.length ? items.map(x => {
+      const c = NEWS_CAT[x.category] || NEWS_CAT.info;
+      return `<a class="news-pop-i${x.unread ? ' unread' : ''}" href="announcements.html?id=${x.id}" data-news-id="${x.id}">
+        <span class="news-pop-ic news-c-${e(x.category)}"><i class="fa-solid ${c[1]}"></i></span>
+        <span class="news-pop-tx"><span class="news-pop-tt">${x.pinned ? '<i class="fa-solid fa-thumbtack" style="color:var(--primary)"></i> ' : ''}${e(x.title)}</span>
+          <span class="news-pop-meta">${e((x.published_at || '').slice(0, 10).replace(/-/g, '.'))}${x.image_count ? ` <i class="fa-regular fa-image"></i>${x.image_count}` : ''}${x.file_count ? ` <i class="fa-solid fa-paperclip"></i>${x.file_count}` : ''}</span></span>
+        ${x.unread ? '<span class="news-pop-dot"></span>' : ''}</a>`;
+    }).join('') : '<div class="news-pop-empty">お知らせはまだありません</div>'}
+    <a class="news-pop-f" href="announcements.html">すべて見る <i class="fa-solid fa-arrow-right"></i></a>`;
+
+  /* お知らせ画面にいるときは、ページを読み直さずにその場で開く */
+  pop.querySelectorAll('[data-news-id]').forEach(a => a.addEventListener('click', ev => {
+    if (typeof window.solidNewsOpen === 'function') {
+      ev.preventDefault();
+      pop.hidden = true;
+      window.solidNewsOpen(Number(a.dataset.newsId));
+    }
+  }));
+  const ra = pop.querySelector('#newsPopReadAll');
+  if (ra) ra.addEventListener('click', async () => {
+    ra.disabled = true;
+    try {
+      await spaceApiPost('/solid/announcements/read-all', {});
+      solidNewsSetCount(0);
+      if (typeof window.solidNewsReload === 'function') window.solidNewsReload();
+      _renderNewsPop(pop);
+    } catch { ra.disabled = false; }
+  });
 }
 
 /* サイドバーの「不具合対策書」「外部リンク」を出し入れする（メニューがあるSOLIDページだけで動く）。

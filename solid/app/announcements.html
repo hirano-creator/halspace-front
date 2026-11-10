@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="../icon-180.png">
+  <link rel="manifest" href="../manifest.json">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#FF6B35">
+  <title>お知らせ | SOLID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/app.css?v=20261111a">
+  <link rel="stylesheet" href="../assets/css/announcements.css?v=1">
+</head>
+<body class="an-body">
+<div class="app-layout">
+
+  <!-- サイドバー -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span class="sidebar-logo-title">SOLID</span>
+      <span class="sidebar-logo-sub">by HaLSpace</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">メニュー</div>
+      <a href="dashboard.html">
+        <i class="fa-solid fa-gauge"></i> ダッシュボード
+      </a>
+      <a href="chat.html" id="navChat" style="display:none">
+        <i class="fa-solid fa-comments"></i> チャット
+        <span class="nav-badge" id="navChatBadge" style="display:none"></span>
+      </a>
+      <a href="announcements.html" id="navNews" class="active" style="display:none"><i class="fa-solid fa-bullhorn"></i> お知らせ<span class="nav-badge news-badge" id="navNewsBadge" style="display:none"></span></a>
+      <a href="calendar.html">
+        <i class="fa-solid fa-calendar-days"></i> 進捗・納期カレンダー
+      </a>
+      <a href="project-new.html">
+        <i class="fa-solid fa-plus-circle"></i> 新規発注
+      </a>
+      <a href="quality-reports.html" id="navQuality" style="display:none">
+        <i class="fa-solid fa-file-shield"></i> 不具合対策書
+        <span class="nav-badge" id="navQualityBadge" style="display:none"></span>
+      </a>
+      <a href="links.html" id="navLinks" style="display:none">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> 外部リンク
+      </a>
+      <a href="admin.html" id="adminLink" style="display:none">
+        <i class="fa-solid fa-gear"></i> 管理者画面
+      </a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div id="sidebarUser"></div>
+      <button class="btn-sidebar-copylink" type="button" onclick="copyStandaloneUrl()" title="Space.appを経由せず直接ログインできるURLをコピー">
+        <i class="fa-solid fa-link"></i> 独立URLをコピー
+      </button>
+      <button class="btn-sidebar-logout" id="btnBackToApps" onclick="solidLogout()">
+        <i class="fa-solid fa-arrow-left"></i> アプリ選択に戻る
+      </button>
+      <button class="btn-sidebar-logout" id="btnStandaloneLogout" onclick="spaceLogout()" style="display:none">
+        <i class="fa-solid fa-right-from-bracket"></i> ログアウト
+      </button>
+    </div>
+  </aside>
+
+  <!-- メインコンテンツ -->
+  <div class="main-content">
+    <div class="top-bar">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+        <button class="menu-toggle" id="menuToggle"><i class="fa-solid fa-bars"></i></button>
+        <span class="top-bar-title">お知らせ</span>
+      </div>
+      <div class="top-bar-right">
+        <button class="btn btn-primary btn-sm" id="btnCompose" style="display:none">
+          <i class="fa-solid fa-plus"></i><span class="btn-label"> お知らせを書く</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body an-page">
+      <div class="an-split" id="anSplit">
+        <div class="an-list-col">
+          <div class="an-tools" id="anChips"></div>
+          <div class="an-list" id="anList"><div class="an-empty"><i class="fa-solid fa-spinner fa-spin"></i> 読み込み中…</div></div>
+        </div>
+        <div class="an-detail" id="anDetail"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 画像の拡大 -->
+<div class="an-lb" id="anLb" hidden>
+  <div class="an-lb-top">
+    <b id="anLbName"></b>
+    <button type="button" id="anLbDl" title="ダウンロード"><i class="fa-solid fa-download"></i></button>
+    <button type="button" id="anLbClose" title="閉じる"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="an-lb-stage">
+    <button type="button" class="an-lb-nav l" id="anLbPrev" title="前の画像"><i class="fa-solid fa-chevron-left"></i></button>
+    <img id="anLbImg" alt="">
+    <button type="button" class="an-lb-nav r" id="anLbNext" title="次の画像"><i class="fa-solid fa-chevron-right"></i></button>
+  </div>
+  <div class="an-lb-cnt" id="anLbCnt"></div>
+</div>
+
+<!-- 書く・直す（社内管理者だけ。API でも 403） -->
+<div class="an-modal-bg" id="anCompose" hidden>
+  <div class="an-modal">
+    <div class="an-modal-h"><i class="fa-solid fa-bullhorn"></i><span id="cmTitle">お知らせを書く</span><span class="sp"></span>
+      <button type="button" class="an-x" data-close title="閉じる"><i class="fa-solid fa-xmark"></i></button></div>
+    <form class="an-modal-b" id="cmForm" autocomplete="off">
+      <div class="an-fld"><label>タイトル <span class="req">*</span></label><input type="text" id="cmName" maxlength="200" required></div>
+      <div class="an-row2">
+        <div class="an-fld"><label>種類</label>
+          <select id="cmCat">
+            <option value="info">お知らせ</option>
+            <option value="feature">機能追加</option>
+            <option value="maint">メンテナンス</option>
+            <option value="important">重要</option>
+          </select></div>
+        <label class="an-chk"><input type="checkbox" id="cmPin"> <i class="fa-solid fa-thumbtack" style="color:var(--primary)"></i> 一覧のいちばん上に固定する</label>
+      </div>
+      <div class="an-fld"><label>本文</label><textarea id="cmBody" maxlength="20000" placeholder="URL を書くとリンクになります"></textarea></div>
+      <div class="an-fld"><label>画像・資料</label>
+        <div class="an-drop" id="cmDrop" tabindex="0">
+          <i class="fa-solid fa-cloud-arrow-up"></i>ここにドラッグ、または<b>ファイルを選ぶ</b>
+          <small>画像（JPG・PNG・GIF・WebP）は本文に表示／それ以外（PDF・Excel・Word・PowerPoint・STL・ZIP など）は資料として添付<br>
+          1ファイル 50MB まで・1件につき 20 ファイルまで。<b style="color:#c92a2a">動画は添付できません</b></small>
+        </div>
+        <input type="file" id="cmFile" multiple hidden>
+        <div class="an-up" id="cmUp"></div>
+      </div>
+    </form>
+    <div class="an-modal-f">
+      <button type="button" class="btn btn-ghost btn-sm an-del" id="cmDelete" style="display:none"><i class="fa-solid fa-trash"></i> 削除</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="cmUnpublish" style="display:none"><i class="fa-solid fa-eye-slash"></i> 下書きに戻す</button>
+      <span class="note" id="cmNote"><i class="fa-solid fa-users"></i> 発注者・モデラー・社内の全員に公開されます</span>
+      <label class="an-chk" id="cmNotifyWrap" style="display:none"><input type="checkbox" id="cmNotify"> 全員に赤丸で知らせ直す</label>
+      <span class="an-status" id="cmStatus"></span>
+      <button type="button" class="btn btn-outline btn-sm" id="cmDraft">下書き保存</button>
+      <button type="button" class="btn btn-primary btn-sm" id="cmSave"><i class="fa-solid fa-paper-plane"></i> 公開する</button>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="toast-container" id="toastContainer"></div>
+<script src="../assets/js/auth.js?v=13"></script>
+<script src="../assets/js/api.js?v=20261021a"></script>
+<script src="../assets/js/pages/announcements.js?v=1"></script>
+</body>
+</html>

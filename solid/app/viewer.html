@@ -176,6 +176,10 @@
 
 const params   = new URLSearchParams(location.search);
 const fileId   = Number(params.get('file_id'));
+/* お知らせの添付（ann_file_id）。物件のファイルではないので id は持たせず preview_url で取りに行く
+   （id が無いと PDF の書き込み機能は動かない＝お知らせの資料には書き込めない） */
+const annFileId = Number(params.get('ann_file_id')) || 0;
+const viewUrlOf = f => f.preview_url || `${API_BASE}/files/${f.id}/view`;
 const fileName = params.get('file_name') || '';
 
 /* PDFなら、ファイル本体の取得と並行して表示ライブラリを読み始める（開くまでの待ちを減らす） */
@@ -204,7 +208,7 @@ const OFFICE_KIND = {
   ppt:  { app:'ppt',   label:'PowerPoint', icon:'fa-file-powerpoint', color:'#d24726' },
 };
 
-if (!fileId) {
+if (!fileId && !annFileId) {
   document.getElementById('initialLoading').outerHTML =
     '<div class="viewer-error"><i class="fa-solid fa-circle-exclamation"></i><strong>ファイルIDが指定されていません</strong></div>';
 } else {
@@ -249,7 +253,9 @@ if (!fileId) {
     document.body.appendChild(dummyFileName);
 
     // viewer.js の open() を使わず、内部エンジンを直接呼び出す
-    _openFile({ id: fileId, file_name: fileName });
+    _openFile(annFileId
+      ? { id: null, file_name: fileName, preview_url: `${API_BASE}/solid/announcements/files/${annFileId}/view` }
+      : { id: fileId, file_name: fileName });
   });
 }
 
@@ -287,7 +293,7 @@ async function _openFile(file) {
 
 /* ── PDF ── */
 async function _openPdf(file, content, loading) {
-  const url = `${API_BASE}/files/${file.id}/view`;
+  const url = viewUrlOf(file);
   try {
     const buf = await _fetchFileBuffer(url);
     loading.remove();
@@ -326,7 +332,7 @@ async function _openPdf(file, content, loading) {
    CSV はブラウザ内で表示する（Excel は表のみ、Word は docx のみ）。 */
 async function _openOffice(file, content, loading, ext) {
   const kind = OFFICE_KIND[ext];
-  const url  = `${API_BASE}/files/${file.id}/view`;
+  const url  = viewUrlOf(file);
   try {
     const token = sessionStorage.getItem('space_token');
     const r = await fetch(url, {
@@ -427,7 +433,7 @@ function _loadScript(src) {
 
 /* ── DXF ── */
 async function _openDxf(file, content, loading, toolbar) {
-  const url = `${API_BASE}/files/${file.id}/view`;
+  const url = viewUrlOf(file);
   try {
     const buf = await _fetchFileBuffer(url);
     const dxfText = _decodeDxfBuf(buf);
@@ -465,7 +471,7 @@ async function _open3D(file, content, loading, toolbar, ext) {
     return;
   }
   try {
-    const url    = `${API_BASE}/files/${file.id}/view`;
+    const url    = viewUrlOf(file);
     const buffer = await _fetchFileBuffer(url);
 
     let geometry;

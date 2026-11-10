@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>お知らせ モック</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{
+  --primary:#FF6B35; --blue:#0984E3; --accent:#00B894; --red:#E5383B;
+  --bg:#F0F2F5; --white:#fff; --border:#e5e7eb; --text:#2D3436; --muted:#636e72; --surface:#f7f8fa;
+  --side:#2d3436; --side-ink:#dfe6e9;
+  --page:#16181f; --ink:#eceef3; --ink-dim:#a0a6b4; --line:rgba(255,255,255,.1);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+body{background:var(--page);color:var(--ink);font-family:'Noto Sans JP',sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;}
+button{cursor:pointer;border:none;background:none;font:inherit;color:inherit;}
+input,textarea,select{font:inherit;color:inherit;font-size:16px;}
+
+/* ══ 見せ枠 ══ */
+.wrap{max-width:1440px;margin:0 auto;padding:36px 16px 80px;}
+.eyebrow{font-family:'Poppins';font-size:12px;letter-spacing:.2em;color:#ffb08c;text-transform:uppercase;margin-bottom:8px;}
+.page-title{font-size:clamp(22px,4vw,28px);font-weight:900;line-height:1.4;}
+.page-lead{color:var(--ink-dim);font-size:14px;line-height:1.9;margin-top:10px;max-width:1040px;}
+.page-lead b{color:var(--ink);}
+.points{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:16px;}
+.points div{background:#22252f;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:12.5px;line-height:1.75;color:var(--ink-dim);}
+.points h4{font-size:12.5px;color:#ffb08c;margin-bottom:3px;}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:24px 0 6px;position:sticky;top:0;z-index:50;background:var(--page);padding:10px 0;}
+.tab{padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:#22252f;font-size:14px;font-weight:700;color:var(--ink-dim);}
+.tab b{font-family:'Poppins';color:#ffb08c;margin-right:6px;}
+.tab.on{background:#fff;color:var(--text);border-color:#fff;}
+.tab.on b{color:var(--primary);}
+.reset{margin-left:auto;font-size:12px;color:var(--ink-dim);border:1px dashed var(--line);border-radius:10px;padding:8px 12px;}
+.view{display:none;} .view.on{display:block;}
+.frame-label{font-size:12px;color:var(--ink-dim);margin:18px 0 8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.frame-label em{font-style:normal;color:#ffb08c;}
+.row2{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;}
+
+/* ══ アプリ枠 ══ */
+.app{display:flex;background:var(--bg);color:var(--text);border-radius:14px;overflow:hidden;min-height:680px;position:relative;}
+.side{width:220px;flex-shrink:0;background:var(--side);color:var(--side-ink);padding:22px 12px;}
+.side-logo{padding:0 8px 18px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:16px;}
+.side-logo b{display:block;font-family:'Poppins';font-weight:800;font-size:22px;color:var(--primary);}
+.side-logo span{font-size:11px;color:#9aa4a8;}
+.side-label{font-size:11px;color:#9aa4a8;padding:0 10px 8px;}
+.side a{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:9px;font-size:14px;color:var(--side-ink);text-decoration:none;margin-bottom:2px;cursor:pointer;}
+.side a i{width:18px;text-align:center;color:#b2bec3;}
+.side a.on{background:rgba(255,255,255,.08);color:var(--primary);}
+.side a.on i{color:var(--primary);}
+.cnt{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--red);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;font-family:'Poppins';}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--red);flex-shrink:0;}
+.hide{display:none!important;}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+.top{background:#fff;border-bottom:1px solid var(--border);padding:14px 22px;display:flex;align-items:center;gap:12px;position:relative;}
+.top h1{font-size:18px;font-weight:900;}
+.top .sp{flex:1;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;white-space:nowrap;}
+.btn-p{background:var(--primary);color:#fff;}
+.btn-g{background:#fff;border:1px solid var(--border);color:var(--text);}
+.btn-sm{padding:6px 10px;font-size:12px;}
+.only{font-size:10px;font-weight:700;color:#6c5ce7;background:#fff;border-radius:4px;padding:1px 5px;margin-left:2px;}
+.body{padding:16px 22px 24px;flex:1;min-height:0;}
+.date{font-size:12px;color:var(--muted);font-family:'Poppins';font-weight:600;white-space:nowrap;}
+.pin{color:var(--primary);font-size:12px;}
+
+.cat{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;border-radius:5px;padding:2px 8px;white-space:nowrap;}
+.c-important{background:#ffe3e3;color:#c92a2a;}
+.c-feature{background:#e3f2ff;color:#0a6fc2;}
+.c-maint{background:#fff3d6;color:#b26a00;}
+.c-info{background:#e6f7f1;color:#0b8a66;}
+.i-important{background:#ffe3e3;color:#c92a2a;} .i-feature{background:#e3f2ff;color:#0a6fc2;}
+.i-maint{background:#fff3d6;color:#b26a00;} .i-info{background:#e6f7f1;color:#0b8a66;}
+
+/* ベル */
+.bell{position:relative;width:38px;height:38px;border-radius:50%;border:1px solid var(--border);display:grid;place-items:center;color:#4a5458;font-size:16px;flex-shrink:0;}
+.bell .cnt{position:absolute;top:-5px;right:-6px;margin:0;min-width:18px;height:18px;font-size:10px;padding:0 5px;box-shadow:0 0 0 2px #fff;}
+.bell.ring i{animation:ring 1.2s ease 2;}
+@keyframes ring{0%,100%{transform:rotate(0)}15%{transform:rotate(14deg)}30%{transform:rotate(-12deg)}45%{transform:rotate(8deg)}60%{transform:rotate(-4deg)}}
+.pop{position:absolute;top:60px;right:18px;width:370px;max-width:calc(100% - 24px);background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.18);z-index:15;overflow:hidden;}
+.pop-h{display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid var(--border);font-weight:900;font-size:14px;}
+.pop-h .sp{flex:1;}
+.pop-h button{font-size:12px;color:var(--blue);font-weight:700;}
+.pop-i{display:flex;gap:10px;padding:11px 14px;border-bottom:1px solid #f0f1f3;cursor:pointer;align-items:flex-start;}
+.pop-i:hover{background:#fafbfc;}
+.pop-i.unread{background:#fff8f5;}
+.pop-i .ic{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;flex-shrink:0;font-size:14px;overflow:hidden;}
+.pop-i .ic img{width:100%;height:100%;object-fit:cover;}
+.pop-i .tx{flex:1;min-width:0;}
+.pop-i .tt{font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.pop-i.unread .tt{font-weight:700;}
+.pop-i .dot{margin-top:6px;}
+.pop-f{display:block;width:100%;text-align:center;padding:11px;font-size:13px;font-weight:700;color:var(--primary);}
+.has{display:inline-flex;gap:8px;font-size:11px;color:var(--muted);margin-left:6px;}
+.has i{margin-right:2px;}
+
+/* 2ペイン */
+.split{display:grid;grid-template-columns:340px 1fr;background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;height:600px;}
+.list-col{border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0;}
+.list-tools{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.chip{padding:5px 11px;border-radius:20px;border:1px solid #d5d9de;background:#fff;font-size:12px;font-weight:700;}
+.chip.on{border-color:var(--primary);color:var(--primary);background:#fff4ef;}
+.chip .n{font-family:'Poppins';margin-left:3px;}
+.chip .n.r{color:var(--red);}
+.list{overflow:auto;flex:1;}
+.li{display:flex;gap:10px;width:100%;text-align:left;padding:12px 14px;border-bottom:1px solid #f0f1f3;}
+.li:hover{background:#fafbfc;}
+.li.sel{background:#fff4ef;box-shadow:inset 3px 0 0 var(--primary);}
+.li .thumb{width:54px;height:54px;border-radius:8px;flex-shrink:0;overflow:hidden;background:#eef0f3;display:grid;place-items:center;color:#9aa4a8;font-size:18px;}
+.li .thumb img{width:100%;height:100%;object-fit:cover;}
+.li .tx{flex:1;min-width:0;}
+.li .l1{display:flex;align-items:center;gap:6px;margin-bottom:4px;}
+.li .l1 .sp{flex:1;}
+.li .tt{font-size:13.5px;line-height:1.5;color:#4a5458;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.li.unread .tt{font-weight:700;color:var(--text);}
+.li .l3{margin-top:4px;display:flex;align-items:center;gap:6px;}
+
+.detail{overflow:auto;padding:24px 30px 30px;min-height:0;}
+.detail h3{font-size:21px;font-weight:900;line-height:1.55;margin:10px 0 6px;}
+.detail .by{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);padding-bottom:14px;border-bottom:1px solid var(--border);margin-bottom:18px;flex-wrap:wrap;}
+.detail .by .av{width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-size:10px;font-weight:700;}
+.detail .by .sp{flex:1;}
+.detail .tx{font-size:14.5px;line-height:2;color:#3d4548;}
+.detail .tx p+p{margin-top:12px;}
+.detail .tx b{color:var(--text);}
+.sec-h{font-size:13px;font-weight:900;margin:22px 0 10px;display:flex;align-items:center;gap:8px;}
+.sec-h small{font-weight:500;color:var(--muted);}
+
+/* 既読の人 */
+.readers{position:absolute;top:36px;right:0;width:320px;max-width:80vw;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.18);z-index:12;color:var(--text);text-align:left;}
+.rd-h{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);font-weight:900;font-size:13px;}
+.rd-h .sp{flex:1;}
+.rd-h button{color:#9aa4a8;}
+.rd-b{max-height:260px;overflow:auto;padding:6px 14px;}
+.rd-co{padding:8px 0;border-bottom:1px solid #f0f1f3;font-size:12.5px;}
+.rd-co:last-child{border-bottom:none;}
+.rd-co small{color:var(--muted);font-family:'Poppins';}
+.rd-co > div{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.rd-p{font-size:11.5px;border-radius:20px;padding:2px 9px;background:#f1f2f3;color:#9aa4a8;}
+.rd-p.on{background:#e6f7f1;color:#0b8a66;}
+.rd-p i{font-size:9px;margin-right:3px;}
+.rd-f{font-size:11px;color:#6c5ce7;padding:8px 14px;border-top:1px solid var(--border);}
+
+/* 画像 */
+.hero{display:block;width:100%;border-radius:10px;overflow:hidden;border:1px solid var(--border);margin:16px 0 4px;cursor:zoom-in;position:relative;}
+.hero img{display:block;width:100%;height:auto;}
+.cap{font-size:12px;color:var(--muted);margin-bottom:6px;}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+.gal button{border-radius:8px;overflow:hidden;border:1px solid var(--border);aspect-ratio:4/3;position:relative;cursor:zoom-in;display:block;}
+.gal img{width:100%;height:100%;object-fit:cover;display:block;}
+.gal .zoom{position:absolute;right:6px;bottom:6px;width:24px;height:24px;border-radius:6px;background:rgba(0,0,0,.45);color:#fff;font-size:11px;display:grid;place-items:center;}
+
+/* 資料 */
+.files{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;}
+.file{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#fff;}
+.file .fi{width:40px;height:48px;border-radius:6px;display:grid;place-items:center;font-size:20px;flex-shrink:0;position:relative;}
+.file .fi small{position:absolute;bottom:3px;font-size:8px;font-weight:800;font-family:'Poppins';}
+.f-pdf{background:#ffe9e9;color:#d63031;} .f-xls{background:#e5f6ec;color:#1d7a46;}
+.f-doc{background:#e5efff;color:#2b5fbf;} .f-ppt{background:#ffefe3;color:#c55a11;}
+.f-stl{background:#efecff;color:#6c5ce7;} .f-mp4{background:#2d3436;color:#fff;} .f-zip{background:#f1f2f3;color:#636e72;}
+.file .fn{flex:1;min-width:0;}
+.file .fn b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.file .fn small{font-size:11.5px;color:var(--muted);}
+.file .acts{display:flex;gap:4px;}
+.file .acts button{width:32px;height:32px;border-radius:7px;border:1px solid var(--border);color:#4a5458;font-size:13px;}
+.file .acts button:hover{border-color:var(--primary);color:var(--primary);}
+.dl-all{font-size:12px;font-weight:700;color:var(--blue);margin-left:auto;}
+.empty{height:100%;display:grid;place-items:center;color:var(--muted);font-size:13px;text-align:center;}
+
+/* プレビュー（全画面） */
+.lb{position:absolute;inset:0;background:rgba(14,15,19,.92);z-index:30;display:flex;flex-direction:column;}
+.lb-top{display:flex;align-items:center;gap:10px;padding:12px 16px;color:#fff;}
+.lb-top b{flex:1;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lb-top button{color:#fff;width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.1);}
+.lb-stage{flex:1;display:flex;align-items:center;justify-content:center;padding:10px 60px 20px;position:relative;min-height:0;}
+.lb-stage img{max-width:100%;max-height:100%;border-radius:6px;box-shadow:0 10px 40px rgba(0,0,0,.5);}
+.lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:16px;}
+.lb-nav.l{left:10px;} .lb-nav.r{right:10px;}
+.lb-cnt{text-align:center;color:#aaa;font-size:12px;padding-bottom:12px;font-family:'Poppins';}
+.pdfpage{background:#fff;width:min(440px,90%);aspect-ratio:1/1.414;border-radius:4px;padding:28px;color:#333;box-shadow:0 10px 40px rgba(0,0,0,.5);overflow:hidden;}
+.pdfpage h5{font-size:15px;margin-bottom:12px;border-bottom:2px solid var(--primary);padding-bottom:6px;}
+.pdfpage .ln{height:8px;background:#e8eaed;border-radius:4px;margin-bottom:9px;}
+.pdfpage .fig{height:120px;background:linear-gradient(135deg,#dfe6e9,#f5f6f7);border-radius:6px;margin:14px 0;display:grid;place-items:center;color:#9aa4a8;font-size:30px;}
+
+/* 投稿画面 */
+.compose{position:absolute;inset:0;background:rgba(20,22,28,.5);z-index:25;display:flex;align-items:flex-start;justify-content:center;padding:28px 16px;overflow:auto;}
+.cm{background:#fff;border-radius:14px;width:100%;max-width:720px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.cm-h{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);font-weight:900;}
+.cm-h .sp{flex:1;}
+.cm-b{padding:16px 18px;display:grid;gap:14px;}
+.fld label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px;}
+.fld input,.fld textarea,.fld select{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 11px;background:#fff;}
+.fld textarea{min-height:110px;line-height:1.8;resize:vertical;}
+.fld-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.drop{border:2px dashed #cfd4d8;border-radius:10px;padding:16px;text-align:center;color:var(--muted);font-size:13px;background:#fafbfc;}
+.drop i{font-size:24px;color:var(--primary);display:block;margin-bottom:6px;}
+.drop small{display:block;font-size:11.5px;margin-top:4px;}
+.up{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.up-img{width:84px;height:64px;border-radius:7px;overflow:hidden;position:relative;border:1px solid var(--border);}
+.up-img img{width:100%;height:100%;object-fit:cover;}
+.up-img .x,.up-f .x{position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:9px;display:grid;place-items:center;}
+.up-img .cover{position:absolute;left:3px;bottom:3px;font-size:9px;font-weight:700;background:var(--primary);color:#fff;border-radius:3px;padding:0 4px;}
+.up-f{position:relative;display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:7px;padding:6px 28px 6px 8px;font-size:12px;height:64px;}
+.up-f .fi{width:30px;height:36px;border-radius:5px;display:grid;place-items:center;}
+.up-f .bar{height:4px;background:#eef0f3;border-radius:2px;margin-top:5px;width:110px;overflow:hidden;}
+.up-f .bar span{display:block;height:100%;background:var(--accent);}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;}
+.chk input{width:18px;height:18px;accent-color:var(--primary);}
+.cm-f{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--border);align-items:center;}
+.cm-f .note{margin-right:auto;font-size:12px;color:var(--muted);}
+
+/* スマホ */
+.phone{width:300px;flex-shrink:0;background:#0d0e12;border-radius:34px;padding:10px;box-shadow:0 0 0 1px #333;}
+.phone .scr{background:var(--bg);border-radius:26px;overflow:hidden;height:600px;color:var(--text);display:flex;flex-direction:column;position:relative;}
+.ph-top{background:#fff;border-bottom:1px solid var(--border);padding:12px;display:flex;align-items:center;gap:10px;}
+.ph-top h1{font-size:15px;font-weight:900;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hamb{position:relative;width:34px;height:34px;border-radius:8px;border:1px solid var(--border);display:grid;place-items:center;flex-shrink:0;}
+.hamb .dot{position:absolute;top:-3px;right:-3px;box-shadow:0 0 0 2px #fff;}
+.ph-body{flex:1;overflow:auto;}
+.ph-body .li{background:#fff;}
+.ph-body .detail{padding:14px 14px 24px;background:#fff;min-height:100%;}
+.ph-body .detail h3{font-size:17px;}
+.ph-body .detail .tx{font-size:13.5px;}
+.ph-body .files{grid-template-columns:1fr;}
+.ph-body .gal{grid-template-columns:1fr 1fr;}
+.ph-drawer{position:absolute;inset:0;z-index:5;display:flex;}
+.ph-drawer .side{width:220px;padding:18px 10px;}
+.ph-drawer .shade{flex:1;background:rgba(0,0,0,.4);}
+.ph-cap{font-size:11.5px;color:var(--ink-dim);text-align:center;margin-top:10px;line-height:1.7;}
+.ph-switch{display:flex;gap:6px;justify-content:center;margin-bottom:10px;}
+.ph-switch button{font-size:11.5px;padding:5px 10px;border-radius:20px;border:1px solid var(--line);color:var(--ink-dim);}
+.ph-switch button.on{background:#fff;color:var(--text);}
+
+@media (max-width:980px){
+  .side{display:none;}
+  .ph-drawer .side{display:block;}
+  .split{grid-template-columns:1fr;height:auto;}
+  .list-col{border-right:none;border-bottom:1px solid var(--border);max-height:300px;}
+  .detail{max-height:none;}
+  .phone{margin:0 auto;}
+  .fld-row{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">SOLID · Mock · B案</div>
+  <div class="page-title">お知らせページ ── B案（画像・資料つき）</div>
+  <p class="page-lead">
+    発注者・モデラー・社内の<b>全員が見られる</b>お知らせです。新しいお知らせは<b>左メニューの「お知らせ」</b>と<b>右上のベル</b>の両方に赤丸で件数が出ます。開くと既読になり、赤丸が減ります（既読は人ごと）。<br>
+    本文に加えて<b>画像（押すと拡大）</b>と<b>資料（PDF・Excel・Word・PowerPoint・3D データなど。動画は不可）</b>を付けられます。資料はその場でプレビューでき、ダウンロードもできます。
+  </p>
+  <div class="points">
+    <div><h4><i class="fa-solid fa-circle"></i> 通知の印</h4>左メニュー「お知らせ」に件数の赤丸（チャットと同じ形）。全画面の右上にベル＋件数。スマホはメニューボタンにも赤丸。</div>
+    <div><h4><i class="fa-solid fa-image"></i> 画像</h4>1枚目は本文の上に大きく、2枚目以降は並べて表示。押すと全画面で拡大し、左右で切り替え。一覧のサムネイルにも1枚目を使用。</div>
+    <div><h4><i class="fa-solid fa-paperclip"></i> 資料</h4>PDF・Office・STL などは SOLID の既存プレビューで開く。「まとめてダウンロード」あり。<b style="color:var(--ink)">動画は載せない</b>（選ぶと受け付けない）。</div>
+    <div><h4><i class="fa-solid fa-pen"></i> 書く人</h4><b style="color:var(--ink)">社内管理者だけ</b>（ボタンも API も）。画像・資料はドラッグで追加。「重要」「ピン留め」を選べる。</div>
+    <div><h4><i class="fa-solid fa-eye"></i> 既読の人数</h4>社内管理者にだけ表示。押すと「読んだ人／まだの人」を会社ごとに確認できる。発注者・モデラーには出さない。</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-v="read"><b>1</b>読む（全員）</button>
+    <button class="tab" data-v="write"><b>2</b>書く（社内管理者）</button>
+    <button class="reset" id="reset"><i class="fa-solid fa-rotate-left"></i> 最初に戻す（全部未読に）</button>
+  </div>
+
+  <!-- ═════════ 読む ═════════ -->
+  <section class="view on" id="V-read">
+    <div class="row2">
+      <div style="flex:1 1 780px;min-width:0;">
+        <div class="frame-label"><i class="fa-solid fa-desktop"></i> PC：お知らせページ <em>— 一覧を押すと右に本文・画像・資料。画像や資料を押すとプレビュー。右上のベルで小窓。</em></div>
+        <div class="app" id="app">
+          <aside class="side">
+            <div class="side-logo"><b>SOLID</b><span>3D Modeling Orders</span></div>
+            <div class="side-label">メニュー</div>
+            <a><i class="fa-solid fa-gauge"></i> ダッシュボード</a>
+            <a><i class="fa-solid fa-comments"></i> チャット</a>
+            <a class="on"><i class="fa-solid fa-bullhorn"></i> お知らせ <span class="cnt" data-cnt></span></a>
+            <a><i class="fa-solid fa-calendar-days"></i> 進捗・納期カレンダー</a>
+            <a><i class="fa-solid fa-plus-circle"></i> 新規発注</a>
+          </aside>
+          <div class="main">
+            <div class="top">
+              <h1>お知らせ</h1>
+              <span class="sp"></span>
+              <button class="btn btn-p" data-compose><i class="fa-solid fa-plus"></i> お知らせを書く<span class="only">社内管理者のみ</span></button>
+              <button class="bell ring" id="bell"><i class="fa-solid fa-bell"></i><span class="cnt" data-cnt></span></button>
+              <div class="pop hide" id="pop"></div>
+            </div>
+            <div class="body">
+              <div class="split">
+                <div class="list-col">
+                  <div class="list-tools" id="chips"></div>
+                  <div class="list" id="list"></div>
+                </div>
+                <div class="detail" id="detail"></div>
+              </div>
+            </div>
+          </div>
+          <div id="lb"></div>
+          <div id="compose"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="frame-label"><i class="fa-solid fa-mobile-screen"></i> スマホ</div>
+        <div class="ph-switch" id="phSwitch">
+          <button data-ph="home" class="on">別の画面</button>
+          <button data-ph="menu">メニュー</button>
+          <button data-ph="list">一覧</button>
+          <button data-ph="detail">本文</button>
+        </div>
+        <div class="phone"><div class="scr" id="phone"></div></div>
+        <p class="ph-cap" id="phCap"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════ 書く ═════════ -->
+  <section class="view" id="V-write">
+    <div class="frame-label"><i class="fa-solid fa-desktop"></i> PC：「お知らせを書く」を押したところ <em>— 社内管理者にだけボタンが出ます</em></div>
+    <div class="app" style="min-height:760px;">
+      <aside class="side">
+        <div class="side-logo"><b>SOLID</b><span>3D Modeling Orders</span></div>
+        <div class="side-label">メニュー</div>
+        <a><i class="fa-solid fa-gauge"></i> ダッシュボード</a>
+        <a><i class="fa-solid fa-comments"></i> チャット</a>
+        <a class="on"><i class="fa-solid fa-bullhorn"></i> お知らせ <span class="cnt" data-cnt></span></a>
+        <a><i class="fa-solid fa-calendar-days"></i> 進捗・納期カレンダー</a>
+        <a><i class="fa-solid fa-gear"></i> 管理者画面</a>
+      </aside>
+      <div class="main"><div class="top"><h1>お知らせ</h1></div></div>
+      <div class="compose" style="position:absolute;" id="composeStatic"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ── 画像（モック用の絵。本番はアップロードした実画像） ── */
+const svg = s => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
+const IMG = {
+  pdf1: svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450"><rect width="800" height="450" fill="#e9ecef"/><rect width="800" height="44" fill="#2d3436"/><circle cx="24" cy="22" r="6" fill="#FF6B35"/><rect x="44" y="16" width="120" height="12" rx="6" fill="#636e72"/><rect x="600" y="12" width="40" height="20" rx="5" fill="#FF6B35"/><rect x="648" y="12" width="40" height="20" rx="5" fill="#4a5458"/><rect x="696" y="12" width="40" height="20" rx="5" fill="#4a5458"/><rect x="744" y="12" width="40" height="20" rx="5" fill="#4a5458"/><rect x="200" y="62" width="400" height="370" fill="#fff" stroke="#cfd4d8"/><g stroke="#2d3436" stroke-width="2" fill="none"><rect x="250" y="120" width="300" height="180"/><circle cx="400" cy="210" r="50"/><line x1="250" y1="330" x2="550" y2="330"/><line x1="250" y1="325" x2="250" y2="335"/><line x1="550" y1="325" x2="550" y2="335"/></g><text x="380" y="352" font-size="14" font-family="sans-serif" fill="#2d3436">300</text><path d="M470 110 L430 165" stroke="#E5383B" stroke-width="4"/><path d="M430 165 l3 -16 l10 9 z" fill="#E5383B"/><rect x="455" y="80" width="140" height="30" rx="4" fill="#fff4ef" stroke="#E5383B"/><text x="464" y="101" font-size="15" font-family="sans-serif" fill="#E5383B">ここR5に変更</text><path d="M270 380 q30 -30 60 0 t60 0" stroke="#0984E3" stroke-width="3" fill="none"/></svg>`),
+  pdf2: svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><rect width="800" height="600" fill="#f7f8fa"/><rect x="40" y="40" width="720" height="520" rx="14" fill="#fff" stroke="#e5e7eb"/><text x="70" y="90" font-size="24" font-weight="bold" font-family="sans-serif" fill="#2d3436">書き込み一覧</text><g font-family="sans-serif" font-size="17" fill="#2d3436"><rect x="70" y="120" width="660" height="70" rx="10" fill="#fff4ef"/><text x="140" y="162">1ページ  テキスト「ここR5に変更」</text><rect x="70" y="200" width="660" height="70" rx="10" fill="#f7f8fa"/><text x="140" y="242">1ページ  矢印</text><rect x="70" y="280" width="660" height="70" rx="10" fill="#f7f8fa"/><text x="140" y="322">2ページ  ペン</text></g><circle cx="105" cy="155" r="16" fill="#E5383B"/><circle cx="105" cy="235" r="16" fill="#E5383B"/><circle cx="105" cy="315" r="16" fill="#0984E3"/></svg>`),
+  pdf3: svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600"><rect width="800" height="600" fill="#2d3436"/><rect x="250" y="40" width="300" height="520" rx="34" fill="#111"/><rect x="262" y="56" width="276" height="488" rx="26" fill="#fff"/><rect x="262" y="56" width="276" height="50" fill="#f0f2f5"/><rect x="290" y="130" width="220" height="300" fill="#fff" stroke="#cfd4d8"/><g stroke="#2d3436" stroke-width="2" fill="none"><rect x="320" y="180" width="160" height="110"/><circle cx="400" cy="235" r="30"/></g><path d="M440 160 l-24 32" stroke="#E5383B" stroke-width="4"/><circle cx="400" cy="490" r="24" fill="#FF6B35"/><text x="391" y="498" fill="#fff" font-size="22" font-family="sans-serif">+</text></svg>`),
+  cube: svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfd9e3"/><stop offset="1" stop-color="#f6f8fa"/></linearGradient></defs><rect width="800" height="450" fill="url(#g)"/><g stroke="#1e272e" stroke-width="2.5"><polygon points="400,90 560,170 400,250 240,170" fill="#b8c4cf"/><polygon points="240,170 400,250 400,390 240,310" fill="#8796a5"/><polygon points="560,170 400,250 400,390 560,310" fill="#9faebb"/><ellipse cx="400" cy="170" rx="50" ry="25" fill="#7f8c99"/></g><g transform="translate(700,380)" font-family="sans-serif" font-size="13" font-weight="bold"><line x1="0" y1="0" x2="40" y2="0" stroke="#e5383b" stroke-width="3"/><text x="44" y="5" fill="#e5383b">X</text><line x1="0" y1="0" x2="0" y2="-40" stroke="#00b894" stroke-width="3"/><text x="-4" y="-46" fill="#00b894">Y</text><line x1="0" y1="0" x2="-26" y2="22" stroke="#0984e3" stroke-width="3"/><text x="-40" y="36" fill="#0984e3">Z</text></g><rect x="20" y="20" width="200" height="34" rx="8" fill="#fff" opacity=".85"/><text x="34" y="43" font-family="sans-serif" font-size="15" fill="#2d3436">陰影＋エッジ表示</text></svg>`),
+  cal: svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450"><rect width="800" height="450" fill="#fff4ef"/><text x="60" y="80" font-family="sans-serif" font-size="30" font-weight="bold" fill="#2d3436">年末年始の休業日</text><g font-family="sans-serif" font-size="16" fill="#636e72"><text x="60" y="130">日</text><text x="160" y="130">月</text><text x="260" y="130">火</text><text x="360" y="130">水</text><text x="460" y="130">木</text><text x="560" y="130">金</text><text x="660" y="130">土</text></g><g font-family="Poppins,sans-serif" font-size="22" fill="#2d3436"><text x="58" y="190">20</text><text x="158" y="190">21</text><text x="258" y="190">22</text><text x="358" y="190">23</text><text x="458" y="190">24</text><text x="558" y="190">25</text><text x="658" y="190">26</text></g><rect x="40" y="215" width="720" height="70" rx="12" fill="#E5383B" opacity=".14"/><rect x="40" y="305" width="420" height="70" rx="12" fill="#E5383B" opacity=".14"/><g font-family="Poppins,sans-serif" font-size="22" fill="#c92a2a"><text x="58" y="260">27</text><text x="158" y="260">28</text><text x="258" y="260">29</text><text x="358" y="260">30</text><text x="458" y="260">31</text><text x="568" y="260">1</text><text x="668" y="260">2</text><text x="68" y="350">3</text><text x="168" y="350">4</text></g><g font-family="Poppins,sans-serif" font-size="22" fill="#2d3436"><text x="268" y="350" fill="#00b894">5</text></g><text x="250" y="400" font-family="sans-serif" font-size="15" fill="#00b894">← 1/5（月）から通常どおり</text></svg>`),
+  maint: svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450"><rect width="800" height="450" fill="#fff8e6"/><g font-family="sans-serif"><text x="60" y="90" font-size="28" font-weight="bold" fill="#2d3436">11/15（日）メンテナンス</text><rect x="60" y="150" width="680" height="40" rx="8" fill="#eef0f3"/><rect x="60" y="150" width="56" height="40" rx="8" fill="#eef0f3"/><rect x="117" y="150" width="57" height="40" fill="#fdcb6e"/><text x="60" y="220" font-size="14" fill="#636e72">0:00</text><text x="110" y="220" font-size="14" fill="#b26a00">2:00</text><text x="168" y="220" font-size="14" fill="#b26a00">4:00</text><text x="700" y="220" font-size="14" fill="#636e72">24:00</text><text x="60" y="300" font-size="18" fill="#2d3436">この時間はログイン・アップロードができません</text></g></svg>`),
+};
+
+const SEED = [
+  {id:1,cat:'important',pin:true,date:'2026-11-10',title:'年末年始の休業と納期についてのお願い',
+   body:['<b>12月27日（日）〜1月4日（日）</b>は休業します。','休業前の納品をご希望の物件は、<b>12月11日（金）まで</b>にご発注ください。休業中にいただいたご発注・コメントは1月5日（月）から順に対応します。'],
+   imgs:[{src:'cal',cap:'休業日のカレンダー'}],
+   files:[{t:'pdf',n:'2026年末年始_休業のご案内.pdf',s:'240 KB'}]},
+  {id:2,cat:'feature',date:'2026-11-10',title:'PDFの図面に書き込みができるようになりました',
+   body:['PDFのプレビューで、<b>つかんで移動・テキスト・ペン・矢印</b>の書き込みができるようになりました。','書き込みは自動で保存され、書き込み入りのPDFとしてダウンロードもできます。詳しい使い方は下の資料をご覧ください。'],
+   imgs:[{src:'pdf1',cap:'図面に矢印とテキストを書き込んだところ'},{src:'pdf2',cap:'書き込み一覧'},{src:'pdf3',cap:'スマホでも書き込めます'}],
+   files:[{t:'pdf',n:'PDF書き込み機能の使い方.pdf',s:'1.8 MB'},{t:'ppt',n:'機能紹介スライド.pptx',s:'3.2 MB'}]},
+  {id:3,cat:'feature',date:'2026-11-09',title:'3Dモデルの表示が見やすくなりました',
+   body:['STL / STEP の表示を、CADに近い見た目（陰影・エッジ表示・視点の切り替え）に変更しました。','下のサンプルデータで実際に確認できます。'],
+   imgs:[{src:'cube',cap:'新しい表示'}],
+   files:[{t:'stl',n:'サンプル_ブラケット.stl',s:'860 KB'}]},
+  {id:4,cat:'maint',date:'2026-11-07',title:'11月15日（日）2:00〜4:00 メンテナンスのお知らせ',
+   body:['システムのメンテナンスのため、上記の時間はSOLIDをご利用いただけません。','作業中のアップロードは時間外に行ってください。'],
+   imgs:[{src:'maint',cap:''}], files:[]},
+  {id:5,cat:'info',date:'2026-10-27',title:'発注書テンプレートを更新しました',
+   body:['発注時に添付いただくテンプレートを新しくしました。今後はこちらをお使いください。'],
+   imgs:[], files:[{t:'xls',n:'3Dモデリング発注書_v3.xlsx',s:'58 KB'},{t:'doc',n:'記入例.docx',s:'120 KB'},{t:'zip',n:'旧テンプレート一式.zip',s:'2.1 MB'}]},
+  {id:6,cat:'info',date:'2026-10-05',title:'月間パーツ数の数え方について',
+   body:['月間パーツ数は「納品した時点」で数えます。納品後にファイルを削除しても数は減りません。'],
+   imgs:[], files:[]},
+];
+const UNREAD0 = [1,2,3];
+const CAT = {important:['重要','fa-circle-exclamation'],feature:['機能追加','fa-wand-magic-sparkles'],maint:['メンテナンス','fa-screwdriver-wrench'],info:['お知らせ','fa-circle-info']};
+const FT = {pdf:['fa-file-pdf','PDF','プレビュー'],xls:['fa-file-excel','XLSX','Excel で表示'],doc:['fa-file-word','DOCX','Word で表示'],ppt:['fa-file-powerpoint','PPTX','PowerPoint で表示'],stl:['fa-cube','STL','3D で表示'],zip:['fa-file-zipper','ZIP','']};
+const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = d => d.replace(/-/g,'.');
+const catTag = c => `<span class="cat c-${c}"><i class="fa-solid ${CAT[c][1]}"></i>${CAT[c][0]}</span>`;
+const sorted = () => [...SEED].sort((a,b)=>(b.pin?1:0)-(a.pin?1:0) || b.date.localeCompare(a.date));
+const hasIcons = x => `<span class="has">${x.imgs.length?`<span><i class="fa-regular fa-image"></i>${x.imgs.length}</span>`:''}${x.files.length?`<span><i class="fa-solid fa-paperclip"></i>${x.files.length}</span>`:''}</span>`;
+
+let unread, sel, pop, filter, lb, compose, ph, readers;
+function reset(){ unread=new Set(UNREAD0); sel=null; pop=false; filter='all'; lb=null; compose=false; ph='home'; readers=false; render(); }
+
+function badges(){
+  const n = unread.size;
+  document.querySelectorAll('[data-cnt]').forEach(e=>{ e.textContent=n; e.classList.toggle('hide',n===0); });
+  document.querySelectorAll('[data-dot]').forEach(e=>e.classList.toggle('hide',n===0));
+}
+
+function listHtml(){
+  const xs = sorted().filter(x=> filter==='all' || (filter==='unread'?unread.has(x.id):x.cat===filter));
+  return xs.map(x=>`
+    <button class="li ${unread.has(x.id)?'unread':''} ${sel===x.id?'sel':''}" data-id="${x.id}">
+      <span class="thumb">${x.imgs.length?`<img src="${IMG[x.imgs[0].src]}" alt="">`:`<i class="fa-solid ${x.files.length?'fa-paperclip':CAT[x.cat][1]}"></i>`}</span>
+      <span class="tx">
+        <span class="l1">${catTag(x.cat)}${x.pin?'<i class="fa-solid fa-thumbtack pin"></i>':''}<span class="sp"></span>${unread.has(x.id)?'<span class="dot"></span>':''}</span>
+        <span class="tt">${esc(x.title)}</span>
+        <span class="l3"><span class="date">${fmt(x.date)}</span>${hasIcons(x)}</span>
+      </span>
+    </button>`).join('') || '<p style="padding:30px;text-align:center;color:var(--muted);font-size:13px;">該当するお知らせはありません</p>';
+}
+
+function detailHtml(s, mobile){
+  if(!s) return `<div class="empty"><div><i class="fa-regular fa-envelope-open" style="font-size:34px;display:block;margin-bottom:10px;color:#cfd4d8"></i>左のお知らせを選ぶと<br>本文・画像・資料が表示されます</div></div>`;
+  const [first,...rest] = s.imgs;
+  return `
+    ${mobile?'<button class="btn btn-g btn-sm" data-ph="list" style="margin-bottom:10px;"><i class="fa-solid fa-chevron-left"></i> 一覧</button><br>':''}
+    ${catTag(s.cat)} ${s.pin?'<i class="fa-solid fa-thumbtack pin"></i>':''}
+    <h3>${esc(s.title)}</h3>
+    <div class="by"><span class="av">H</span>HaLSpace 運営<span class="date">${fmt(s.date)}</span>
+      ${mobile?'':`<span class="sp"></span><span class="only" style="background:#efecff">社内管理者のみ</span><button class="btn btn-g btn-sm"><i class="fa-solid fa-pen"></i> 編集</button><span style="position:relative"><button class="btn btn-g btn-sm" data-readers><i class="fa-solid fa-eye"></i> 既読 ${readCount(s)}/${PEOPLE.length}人</button>${readers?readersHtml(s):''}</span>`}</div>
+    ${first?`<button class="hero" data-lb="${s.id}:0"><img src="${IMG[first.src]}" alt=""></button>${first.cap?`<div class="cap">${esc(first.cap)}</div>`:''}`:''}
+    <div class="tx">${s.body.map(p=>`<p>${p}</p>`).join('')}</div>
+    ${rest.length?`<div class="sec-h"><i class="fa-regular fa-images" style="color:var(--primary)"></i> 画像 <small>${s.imgs.length}枚・押すと拡大</small></div>
+      <div class="gal">${s.imgs.map((im,i)=>`<button data-lb="${s.id}:${i}" title="${esc(im.cap)}"><img src="${IMG[im.src]}" alt=""><span class="zoom"><i class="fa-solid fa-expand"></i></span></button>`).join('')}</div>`:''}
+    ${s.files.length?`<div class="sec-h"><i class="fa-solid fa-paperclip" style="color:var(--primary)"></i> 資料 <small>${s.files.length}件</small>${s.files.length>1?'<button class="dl-all"><i class="fa-solid fa-download"></i> まとめてダウンロード</button>':''}</div>
+      <div class="files">${s.files.map((f,i)=>`
+        <div class="file"><span class="fi f-${f.t}"><i class="fa-solid ${FT[f.t][0]}"></i><small>${FT[f.t][1]}</small></span>
+          <span class="fn"><b title="${esc(f.n)}">${esc(f.n)}</b><small>${f.s}${FT[f.t][2]?' · '+FT[f.t][2]:''}</small></span>
+          <span class="acts">${FT[f.t][2]?`<button title="${FT[f.t][2]}" data-pv="${s.id}:${i}"><i class="fa-solid fa-eye"></i></button>`:''}<button title="ダウンロード"><i class="fa-solid fa-download"></i></button></span>
+        </div>`).join('')}</div>`:''}`;
+}
+
+/* 既読の人（社内管理者だけが見られる） */
+const PEOPLE = [
+  ['HaLSpace','社内'],['HaLSpace','社内'],['HaLSpace','社内'],['HaLSpace','社内'],
+  ['ヒラノ製作所','発注者'],['ヒラノ製作所','発注者'],['ヒラノ製作所','発注者'],['ヒラノ製作所','発注者'],['ヒラノ製作所','発注者'],
+  ['丸山製作所','発注者'],['丸山製作所','発注者'],['丸山製作所','発注者'],
+  ['モデラー','モデラー'],['モデラー','モデラー'],['モデラー','モデラー'],['モデラー','モデラー'],
+];
+const NAMES = ['山田','佐藤','鈴木','高橋','田中','伊藤','渡辺','中村','小林','加藤','吉田','山本','松本','井上','木村','林'];
+const readCount = s => Math.max(0, PEOPLE.length - 5 - s.id) + (unread.has(s.id)?0:1);
+function readersHtml(s){
+  const n = readCount(s);
+  const groups = {};
+  PEOPLE.forEach(([co],i)=>{ (groups[co]=groups[co]||{r:[],u:[]})[i<n?'r':'u'].push(NAMES[i]); });
+  return `<div class="readers"><div class="rd-h">既読 ${n}/${PEOPLE.length}人<span class="sp"></span><button data-readers><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="rd-b">${Object.entries(groups).map(([co,g])=>`<div class="rd-co"><b>${esc(co)}</b> <small>${g.r.length}/${g.r.length+g.u.length}</small>
+      <div>${g.r.map(x=>`<span class="rd-p on"><i class="fa-solid fa-check"></i>${x}</span>`).join('')}${g.u.map(x=>`<span class="rd-p">${x}</span>`).join('')}</div></div>`).join('')}</div>
+    <div class="rd-f"><i class="fa-solid fa-lock"></i> 社内管理者だけに表示</div></div>`;
+}
+
+function popHtml(){
+  return `<div class="pop-h">お知らせ<span class="sp"></span><button data-readall>すべて既読</button></div>`+
+    sorted().slice(0,4).map(x=>`<div class="pop-i ${unread.has(x.id)?'unread':''}" data-id="${x.id}">
+      <span class="ic i-${x.cat}">${x.imgs.length?`<img src="${IMG[x.imgs[0].src]}" alt="">`:`<i class="fa-solid ${CAT[x.cat][1]}"></i>`}</span>
+      <div class="tx"><div class="tt">${esc(x.title)}</div><div class="date">${fmt(x.date)}${hasIcons(x)}</div></div>
+      ${unread.has(x.id)?'<span class="dot"></span>':''}</div>`).join('')+
+    `<button class="pop-f" data-closepop>すべて見る <i class="fa-solid fa-arrow-right"></i></button>`;
+}
+
+function lbHtml(){
+  if(!lb) return '';
+  const s = SEED.find(x=>x.id===lb.id);
+  if(lb.kind==='img'){
+    const im = s.imgs[lb.i];
+    return `<div class="lb"><div class="lb-top"><b>${esc(im.cap||s.title)}</b><button title="ダウンロード"><i class="fa-solid fa-download"></i></button><button data-lbclose><i class="fa-solid fa-xmark"></i></button></div>
+      <div class="lb-stage">${s.imgs.length>1?`<button class="lb-nav l" data-lbmove="-1"><i class="fa-solid fa-chevron-left"></i></button>`:''}
+        <img src="${IMG[im.src]}" alt="">
+        ${s.imgs.length>1?`<button class="lb-nav r" data-lbmove="1"><i class="fa-solid fa-chevron-right"></i></button>`:''}</div>
+      <div class="lb-cnt">${lb.i+1} / ${s.imgs.length}</div></div>`;
+  }
+  const f = s.files[lb.i];
+  const inner = f.t==='stl' ? `<img src="${IMG.cube}" alt="" style="max-width:min(640px,100%)">`
+    : `<div class="pdfpage"><h5>${esc(f.n.replace(/\.\w+$/,''))}</h5><div class="ln"></div><div class="ln" style="width:85%"></div><div class="ln" style="width:92%"></div><div class="fig"><i class="fa-regular fa-image"></i></div><div class="ln"></div><div class="ln" style="width:70%"></div><div class="ln" style="width:88%"></div><div class="ln" style="width:60%"></div></div>`;
+  return `<div class="lb"><div class="lb-top"><span class="cat c-${s.cat}" style="background:#fff"><i class="fa-solid ${FT[f.t][0]}"></i>${FT[f.t][1]}</span><b>${esc(f.n)}</b><button title="ダウンロード"><i class="fa-solid fa-download"></i></button><button data-lbclose><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="lb-stage">${inner}</div><div class="lb-cnt">SOLID の既存プレビュー（PDF・Office・3D）で表示</div></div>`;
+}
+
+function composeHtml(closable){
+  return `<div class="cm">
+    <div class="cm-h"><i class="fa-solid fa-bullhorn" style="color:var(--primary);margin-right:8px"></i>お知らせを書く<span class="sp"></span>${closable?'<button data-composeclose style="font-size:18px;color:#9aa4a8"><i class="fa-solid fa-xmark"></i></button>':''}</div>
+    <div class="cm-b">
+      <div class="fld"><label>タイトル</label><input value="PDFの図面に書き込みができるようになりました"></div>
+      <div class="fld-row">
+        <div class="fld"><label>種類</label><select><option>機能追加</option><option>重要</option><option>メンテナンス</option><option>お知らせ</option></select></div>
+        <div class="fld"><label>公開日時</label><input value="今すぐ公開"></div>
+      </div>
+      <div class="fld"><label>本文</label><textarea>PDFのプレビューで、つかんで移動・テキスト・ペン・矢印の書き込みができるようになりました。
+書き込みは自動で保存され、書き込み入りのPDFとしてダウンロードもできます。</textarea></div>
+      <div class="fld"><label>画像・資料</label>
+        <div class="drop"><i class="fa-solid fa-cloud-arrow-up"></i>ここにドラッグ、または<b style="color:var(--primary)">ファイルを選ぶ</b><small>画像（JPG・PNG）は本文に表示／それ以外（PDF・Excel・Word・PowerPoint・STL・ZIP など）は資料として添付<br><b style="color:#c92a2a">動画は添付できません</b></small></div>
+        <div class="up">
+          <div class="up-img"><img src="${IMG.pdf1}"><span class="cover">先頭</span><span class="x"><i class="fa-solid fa-xmark"></i></span></div>
+          <div class="up-img"><img src="${IMG.pdf2}"><span class="x"><i class="fa-solid fa-xmark"></i></span></div>
+          <div class="up-img"><img src="${IMG.pdf3}"><span class="x"><i class="fa-solid fa-xmark"></i></span></div>
+          <div class="up-f"><span class="fi f-pdf"><i class="fa-solid fa-file-pdf"></i></span><span>PDF書き込み機能の使い方.pdf<div class="bar"><span style="width:100%"></span></div></span><span class="x"><i class="fa-solid fa-xmark"></i></span></div>
+          <div class="up-f"><span class="fi f-ppt"><i class="fa-solid fa-file-powerpoint"></i></span><span>機能紹介スライド.pptx<div class="bar"><span style="width:62%"></span></div></span><span class="x"><i class="fa-solid fa-xmark"></i></span></div>
+          <div class="up-f" style="border-color:#ffc9c9;background:#fff5f5;color:#c92a2a;"><span class="fi f-mp4"><i class="fa-solid fa-ban"></i></span><span>操作デモ.mp4<br><small>動画は添付できません</small></span><span class="x"><i class="fa-solid fa-xmark"></i></span></div>
+        </div>
+      </div>
+      <label class="chk"><input type="checkbox"> 一覧のいちばん上に固定する（ピン留め）</label>
+      <label class="chk"><input type="checkbox" checked> 全員に赤丸で知らせる（誤字の修正などはオフにして更新）</label>
+    </div>
+    <div class="cm-f"><span class="note"><i class="fa-solid fa-users"></i> 発注者・モデラー・社内の全員に公開されます</span>
+      <button class="btn btn-g">下書き保存</button><button class="btn btn-p" ${closable?'data-composeclose':''}><i class="fa-solid fa-paper-plane"></i> 公開する</button></div>
+  </div>`;
+}
+
+function phoneHtml(){
+  const s = SEED.find(x=>x.id===sel) || sorted()[0];
+  const top = (title,menuDot=true) => `<div class="ph-top"><button class="hamb" data-ph="menu"><i class="fa-solid fa-bars"></i>${menuDot?'<span class="dot" data-dot></span>':''}</button><h1>${title}</h1><button class="bell" style="width:34px;height:34px;font-size:14px;" data-ph="list"><i class="fa-solid fa-bell"></i><span class="cnt" data-cnt></span></button></div>`;
+  if(ph==='home') return top('ダッシュボード') + `<div class="ph-body" style="padding:12px"><div style="background:#fff;border-radius:10px;height:90px;margin-bottom:10px;border:1px solid var(--border)"></div><div style="background:#fff;border-radius:10px;height:90px;margin-bottom:10px;border:1px solid var(--border)"></div><div style="background:#fff;border-radius:10px;height:200px;border:1px solid var(--border)"></div></div>`;
+  if(ph==='menu') return top('ダッシュボード') + `<div class="ph-body"></div><div class="ph-drawer"><aside class="side"><div class="side-logo"><b>SOLID</b><span>3D Modeling Orders</span></div><div class="side-label">メニュー</div><a><i class="fa-solid fa-gauge"></i> ダッシュボード</a><a data-ph="list"><i class="fa-solid fa-bullhorn"></i> お知らせ <span class="cnt" data-cnt></span></a><a><i class="fa-solid fa-calendar-days"></i> カレンダー</a><a><i class="fa-solid fa-plus-circle"></i> 新規発注</a></aside><div class="shade" data-ph="home"></div></div>`;
+  if(ph==='list') return top('お知らせ') + `<div class="ph-body">${listHtml()}</div>`;
+  return top('お知らせ') + `<div class="ph-body"><div class="detail">${detailHtml(s,true)}</div></div>`;
+}
+const PHCAP = {home:'どの画面でも、メニューボタンとベルに赤丸',menu:'メニューを開くと「お知らせ」に件数',list:'一覧は1枚目の画像がサムネイルに',detail:'本文の下に画像と資料。押すと拡大・プレビュー'};
+
+function render(){
+  document.getElementById('chips').innerHTML = [['all','すべて'],['unread','未読'],['important','重要'],['feature','機能追加'],['maint','メンテ']].map(([k,l])=>{
+    const n = k==='all'?SEED.length : k==='unread'?unread.size : SEED.filter(x=>x.cat===k).length;
+    return `<button class="chip ${filter===k?'on':''}" data-f="${k}">${l}<span class="n ${k==='unread'&&n?'r':''}">${n}</span></button>`;
+  }).join('');
+  document.getElementById('list').innerHTML = listHtml();
+  document.getElementById('detail').innerHTML = detailHtml(SEED.find(x=>x.id===sel));
+  const p = document.getElementById('pop'); p.innerHTML = popHtml(); p.classList.toggle('hide',!pop);
+  document.getElementById('lb').innerHTML = lbHtml();
+  document.getElementById('compose').innerHTML = compose?`<div class="compose">${composeHtml(true)}</div>`:'';
+  document.getElementById('composeStatic').innerHTML = composeHtml(false);
+  document.getElementById('phone').innerHTML = phoneHtml();
+  document.getElementById('phCap').textContent = PHCAP[ph];
+  document.querySelectorAll('#phSwitch button').forEach(b=>b.classList.toggle('on',b.dataset.ph===ph));
+  badges();
+}
+
+function open(id){ sel=id; unread.delete(id); pop=false; readers=false; document.getElementById('detail').scrollTop=0; }
+
+document.addEventListener('click', e=>{
+  const t = e.target.closest('[data-v],[data-f],[data-id],[data-lb],[data-pv],[data-lbmove],[data-lbclose],[data-readall],[data-closepop],[data-compose],[data-composeclose],[data-ph],#bell,#reset');
+  if(!t) return;
+  if(t.dataset.v){
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
+    document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id==='V-'+t.dataset.v));
+    return;
+  }
+  if(t.id==='reset') return reset();
+  if(t.id==='bell'){ pop=!pop; t.classList.remove('ring'); }
+  else if(t.dataset.f) filter=t.dataset.f;
+  else if(t.dataset.id){ open(+t.dataset.id); if(t.closest('.phone')) ph='detail'; }
+  else if(t.dataset.lb){ const [id,i]=t.dataset.lb.split(':').map(Number); lb={kind:'img',id,i}; }
+  else if(t.dataset.pv){ const [id,i]=t.dataset.pv.split(':').map(Number); lb={kind:'file',id,i}; }
+  else if(t.dataset.lbmove){ const n=SEED.find(x=>x.id===lb.id).imgs.length; lb.i=(lb.i+ +t.dataset.lbmove+n)%n; }
+  else if(t.hasAttribute('data-lbclose')) lb=null;
+  else if(t.hasAttribute('data-readers')) readers=!readers;
+  else if(t.hasAttribute('data-readall')) unread.clear();
+  else if(t.hasAttribute('data-closepop')) pop=false;
+  else if(t.hasAttribute('data-compose')) compose=true;
+  else if(t.hasAttribute('data-composeclose')) compose=false;
+  else if(t.dataset.ph) ph=t.dataset.ph;
+  render();
+});
+document.addEventListener('keydown', e=>{
+  if(!lb) return;
+  if(e.key==='Escape'){ lb=null; render(); }
+  if(lb && lb.kind==='img' && (e.key==='ArrowLeft'||e.key==='ArrowRight')){
+    const n=SEED.find(x=>x.id===lb.id).imgs.length; lb.i=(lb.i+(e.key==='ArrowRight'?1:-1)+n)%n; render();
+  }
+});
+reset();
+</script>
+</body>
+</html>
