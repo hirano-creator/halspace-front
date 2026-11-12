@@ -472,6 +472,8 @@ function renderPreview() {
     showOfficePreview();
   } else if (['dxf'].includes(ext)) {
     loadSheetEyeEmbed(fileId, fileData.file_name);
+  } else if (['stl', 'stp', 'step'].includes(ext)) {
+    showModel3dPreview(ext);
   } else {
     document.getElementById('previewHint').textContent = 'このファイル形式はブラウザプレビュー非対応です';
   }
@@ -528,6 +530,37 @@ async function showHtmlPreview() {
   } catch (e) {
     console.error('HTML preview error:', e);
     hint.textContent = 'HTMLのプレビューに失敗しました: ' + e.message;
+  }
+}
+
+/* ────────────────────────────────
+   3Dモデル (STL / STEP) プレビュー
+   - 表示は app/model3d.html（SOLID と同じ model-viewer.js）を iframe で埋め込む。
+     このページは DXF 用に three@0.160 を読んでいて、STL/STEP 用の 0.128 と同居できないため分けている
+   - ファイル本体はここで取得して iframe に渡す（iframe 側は API に触らない）
+   ──────────────────────────────── */
+async function showModel3dPreview(ext) {
+  const placeholder = document.getElementById('previewPlaceholder');
+  const hint        = document.getElementById('previewHint');
+  const frame       = document.getElementById('previewFrame');
+  hint.textContent = '3Dモデルを読み込み中…';
+  try {
+    const ready = new Promise(r => { frame.onload = r; });
+    frame.src = 'model3d.html?v=20261112';
+    const buffer = await wnFetchFileBuffer(fileId, {
+      timeoutMs: 300000,
+      onProgress: pct => { hint.textContent = `読み込み中… ${pct}%`; },
+    });
+    if (!buffer) throw new Error('ファイル取得失敗');
+    await ready;
+    placeholder.style.display = 'none';
+    frame.style.display = 'block';
+    await frame.contentWindow.wnOpenModel(buffer, ext);
+  } catch (e) {
+    console.error('3D preview error:', e);
+    frame.style.display = 'none';
+    placeholder.style.display = '';
+    hint.textContent = '3Dモデルのプレビューに失敗しました: ' + e.message;
   }
 }
 
