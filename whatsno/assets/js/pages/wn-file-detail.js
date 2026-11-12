@@ -546,7 +546,7 @@ async function showModel3dPreview(ext) {
   hint.textContent = '3Dモデルを読み込み中…';
   try {
     const ready = new Promise(r => { frame.onload = r; });
-    frame.src = 'model3d.html?v=20261112';
+    frame.src = 'model3d.html?v=20261112b';
     const buffer = await wnFetchFileBuffer(fileId, {
       timeoutMs: 300000,
       onProgress: pct => { hint.textContent = `読み込み中… ${pct}%`; },
@@ -555,13 +555,26 @@ async function showModel3dPreview(ext) {
     await ready;
     placeholder.style.display = 'none';
     frame.style.display = 'block';
-    await frame.contentWindow.wnOpenModel(buffer, ext);
+    const ok = await frame.contentWindow.wnOpenModel(buffer, ext);
+    if (ok) saveModel3dThumbIfMissing(frame);
   } catch (e) {
     console.error('3D preview error:', e);
     frame.style.display = 'none';
     placeholder.style.display = '';
     hint.textContent = '3Dモデルのプレビューに失敗しました: ' + e.message;
   }
+}
+
+/* 3D表示ができたら、その場で一覧用サムネイルを撮ってサーバーに保存する（まだ無いときだけ）。
+   ファイルはもう読み込み済みなので追加の通信はほぼ無い。一覧では重いファイルやスマホでは作らないので、
+   ここが確実に作れる場所になる */
+async function saveModel3dThumbIfMissing(frame) {
+  try {
+    const res = await fetch(wnThumbUrl(fileId, fileData.updated_at ?? fileData.created_at));
+    if (res.status !== 404) return;
+    const blob = await frame.contentWindow.wnModelThumb();
+    if (blob) await wnUploadThumb(fileId, blob);
+  } catch (e) { console.warn('3D thumb save skipped:', e); }
 }
 
 /* ────────────────────────────────

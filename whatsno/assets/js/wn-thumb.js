@@ -325,6 +325,7 @@ function wnThumbSupported(file) {
   if (wnThIsVideo(file) && (file.file_size ?? 0) > WN_TH_VIDEO_MAX_BYTES) return false;
   return wnThIsImage(file) || wnThIsPdf(file) || wnThIsVideo(file)
       || ext === 'dxf'
+      || ['stl', 'stp', 'step'].includes(ext)   /* 3D はここでは作らず、ダッシュボード/詳細で作った保存済みサムネを出す */
       || ['xlsx', 'xls', 'xlsm', 'docx', 'docm', 'pptx', 'ppt', 'pptm'].includes(ext)
       || (typeof wnIsHtml === 'function' && wnIsHtml(file.file_name, wnThMime(file))
           && (file.file_size ?? 0) <= WN_HTML_THUMB_MAX_BYTES);

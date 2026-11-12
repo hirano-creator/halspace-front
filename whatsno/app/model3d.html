@@ -34,7 +34,7 @@
   <div id="msg"><i class="fa-solid fa-spinner fa-spin"></i><span>3Dモデルを読み込み中…</span></div>
 </div>
 
-<script src="../../solid/assets/js/model-viewer.js?v=20261112"></script>
+<script src="../../solid/assets/js/model-viewer.js?v=20261112b"></script>
 <script>
 'use strict';
 const msg = document.getElementById('msg');
@@ -109,6 +109,30 @@ window.wnOpenModel = async function (buffer, ext) {
     setMsg('3Dモデルを表示できませんでした: ' + (e.message || e), 'fa-circle-exclamation');
     return false;
   }
+};
+/* サムネイル（一覧用）: 等角の画を中央 4:3 で切り出し、800x600 の JPEG にする。
+   一気に縮めると角の線が消えるので半分ずつ縮める */
+window.wnModelThumb = async function () {
+  if (!viewer || !viewer.snapshot) return null;
+  viewer.setView('iso');
+  const src = viewer.snapshot();
+  let cw = src.width, ch = Math.round(cw * 3 / 4);
+  if (ch > src.height) { ch = src.height; cw = Math.round(ch * 4 / 3); }
+  let cur = document.createElement('canvas');
+  cur.width = cw; cur.height = ch;
+  cur.getContext('2d').drawImage(src, (src.width - cw) / 2, (src.height - ch) / 2, cw, ch, 0, 0, cw, ch);
+  const TW = 800, TH = 600;
+  while (cur.width / 2 >= TW) {
+    const n = document.createElement('canvas');
+    n.width = Math.round(cur.width / 2); n.height = Math.round(cur.height / 2);
+    const c = n.getContext('2d'); c.imageSmoothingQuality = 'high'; c.drawImage(cur, 0, 0, n.width, n.height);
+    cur = n;
+  }
+  const out = document.createElement('canvas');
+  const k = Math.min(1, TW / cur.width);
+  out.width = Math.round(cur.width * k); out.height = Math.round(cur.height * k);
+  const c = out.getContext('2d'); c.imageSmoothingQuality = 'high'; c.drawImage(cur, 0, 0, out.width, out.height);
+  return await new Promise(r => out.toBlob(r, 'image/jpeg', 0.9));
 };
 window.wnModelMessage = (text, isError) => setMsg(text, isError ? 'fa-circle-exclamation' : 'fa-spinner fa-spin');
 </script>

@@ -179,8 +179,26 @@ const SolidModelViewer = (() => {
       renderer.render(triScene, triCam);
     })();
 
+    /* サムネイル用の静止画（What'sNo の一覧で使う）。座標軸は入れず、背景のグラデーションを焼き込む。
+       WebGL の描画内容は次の表示更新で消えるので、描いた直後に同じ処理の中で写し取る */
+    function snapshot() {
+      renderer.clear();
+      renderer.setViewport(0, 0, w, h);
+      renderer.render(scene, camera);
+      const src = renderer.domElement;
+      const out = document.createElement('canvas');
+      out.width = src.width; out.height = src.height;
+      const ctx = out.getContext('2d');
+      const g = ctx.createLinearGradient(0, 0, 0, out.height);
+      g.addColorStop(0, '#b9c6d4'); g.addColorStop(.7, '#eef2f6'); g.addColorStop(1, '#f7f9fb');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, out.width, out.height);
+      ctx.drawImage(src, 0, 0);
+      return out;
+    }
+
     return {
       setView,
+      snapshot,
       destroy() { dead = true; cancelAnimationFrame(raf); ro.disconnect(); controls.dispose(); renderer.dispose(); renderer.domElement.remove(); },
     };
   }

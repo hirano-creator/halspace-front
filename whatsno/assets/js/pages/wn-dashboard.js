@@ -2193,6 +2193,56 @@ function wnEnhanceLineArt(canvas, amount = 1.3, gamma = 1.55) {
 const OFFICE_MAX_BYTES = 2 * 1024 * 1024;     /* 2MB超のOffice（クライアント生成時のみ） */
 const VIDEO_MAX_BYTES  = 200 * 1024 * 1024;   /* 200MB超の動画 */
 
+/* ── 3Dモデル (STL / STEP) のサムネイル ──
+   画面外の iframe に model3d.html（ファイル詳細と同じ3D表示）を開き、等角の画を撮る。
+   - STEP の解析部品は約10MBあり解析も重いので、一覧で作るのは PC で 30MB 以下だけ・1件ずつ。
+     それ以外はファイル詳細を開いたときに作られる（wn-file-detail.js）。サーバーに保存されれば全端末で出る
+   - 1件ごとに iframe を作り直して捨てる（WebGL とメモリを確実に解放するため）
+   - 作れなかったファイルは端末に覚えておき、一覧を開くたびに重いダウンロードを繰り返さない */
+const WN_3D_EXTS = ['stl', 'stp', 'step'];
+const MODEL3D_THUMB_MAX_BYTES = 30 * 1024 * 1024;
+const WN_3D_FAIL_KEY = 'wn_3d_thumb_failed';
+let wnModel3dChain = Promise.resolve();
+
+function wnModel3dFailed(f) {
+  try { return (JSON.parse(localStorage.getItem(WN_3D_FAIL_KEY) || '[]')).includes(`${f.id}_${f.updated_at ?? ''}`); }
+  catch { return false; }
+}
+function wnModel3dMarkFailed(f) {
+  try {
+    const list = JSON.parse(localStorage.getItem(WN_3D_FAIL_KEY) || '[]');
+    list.push(`${f.id}_${f.updated_at ?? ''}`);
+    localStorage.setItem(WN_3D_FAIL_KEY, JSON.stringify(list.slice(-200)));
+  } catch {}
+}
+
+function wnModel3dThumb(f, ext) {
+  const run = wnModel3dChain.then(() => wnModel3dThumbRun(f, ext));
+  wnModel3dChain = run.catch(() => {});
+  return run;
+}
+
+async function wnModel3dThumbRun(f, ext) {
+  const buffer = await wnFetchFileBuffer(f.id, { timeoutMs: 180000 });
+  if (!buffer) return null;
+  const frame = document.createElement('iframe');
+  frame.setAttribute('aria-hidden', 'true');
+  frame.tabIndex = -1;
+  frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:800px;height:600px;border:0;pointer-events:none;';
+  const ready = new Promise(r => { frame.onload = r; });
+  frame.src = 'model3d.html?v=20261112b';
+  document.body.appendChild(frame);
+  try {
+    await ready;
+    const ok = await frame.contentWindow.wnOpenModel(buffer, ext);
+    const blob = ok ? await frame.contentWindow.wnModelThumb() : null;
+    if (!blob) wnModel3dMarkFailed(f);
+    return blob;
+  } finally {
+    frame.remove();
+  }
+}
+
 function wnThumbEligible(f) {
   const ext  = (f.file_name || '').split('.').pop().toLowerCase();
   const mime = f.mime_type ?? '';
@@ -2204,6 +2254,7 @@ function wnThumbEligible(f) {
       || mime === 'application/pdf' || ext === 'pdf'
       || isVid
       || ext === 'dxf'
+      || WN_3D_EXTS.includes(ext)
       || isOffice
       || ['pptx','ppt','pptm'].includes(ext)
       || (wnIsHtml(f.file_name, mime) && (f.file_size ?? 0) <= WN_HTML_THUMB_MAX_BYTES);
@@ -2625,6 +2676,13 @@ async function loadOneThumbnail(f) {
       blob = await new Promise(r => out.toBlob(r, 'image/jpeg', 0.90));
       wnFreeCanvas(canvas, out);
 
+    } else if (WN_3D_EXTS.includes(ext)) {
+      if (WN_IS_MOBILE || (f.file_size ?? 0) > MODEL3D_THUMB_MAX_BYTES || wnModel3dFailed(f)) return;
+      /* 3D は専用の順番待ち（1件ずつ）なので、待っている間は PDF 等の生成枠を空けておく */
+      wnGenSem.release();
+      try { blob = await wnModel3dThumb(f, ext); }
+      finally { await wnGenSem.acquire(); }
+
     } else if (['xlsx','xls','xlsm'].includes(ext)) {
       if (typeof XLSX === 'undefined') return;
       const res = await fetch(directUrl);
@@ -2878,6 +2936,7 @@ function fileCardHtml(f) {
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
                 || ext === 'dxf'
+                || WN_3D_EXTS.includes(ext)
                 || ['xlsx','xls','xlsm','docx','docm','pptx','ppt','pptm'].includes(ext)
                 || wnIsHtml(f.file_name, mime);
   const thumbHtml = hasThumb
@@ -2956,6 +3015,7 @@ function fileRowHtmlClassic(f) {
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
                 || ext === 'dxf'
+                || WN_3D_EXTS.includes(ext)
                 || ['xlsx','xls','xlsm','docx','docm','pptx','ppt','pptm'].includes(ext)
                 || wnIsHtml(f.file_name, mime);
   const iconContent = hasThumb
@@ -3023,6 +3083,7 @@ function fileRowHtmlIG(f) {
                 || mime === 'application/pdf' || ext === 'pdf'
                 || mime.startsWith('video/') || ['mp4','mov','avi','webm'].includes(ext)
                 || ext === 'dxf'
+                || WN_3D_EXTS.includes(ext)
                 || ['xlsx','xls','xlsm','docx','docm','pptx','ppt','pptm'].includes(ext)
                 || wnIsHtml(f.file_name, mime);
   const placeholderIcon = hasThumb
