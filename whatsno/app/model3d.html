@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3Dモデル表示</title>
+<!-- STL / STEP の表示（ファイル詳細のプレビュー枠に iframe で埋め込む）。
+     見た目は SOLID と同じ solid/assets/js/model-viewer.js を使う。
+     ファイル詳細は three@0.160（DXF用）を読んでいて、STLLoader / OrbitControls の
+     クラシック版が無い。同じページで 0.128 を読むと window.THREE が入れ替わるため、ページを分けている。
+     ファイル本体は親画面が wnFetchFileBuffer で取得し、window.wnOpenModel(buffer, ext) で渡す -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root { --muted: #5b6573; }
+  html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif; background: #eef2f6; }
+  body { display: flex; flex-direction: column; }
+  #toolbar { display: none; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; background: #fff; border-bottom: 1px solid #d8dee6; }
+  #toolbar.visible { display: flex; }
+  .tb-btn { font: inherit; font-size: 12px; padding: 5px 10px; border: 1px solid #c9d1db; border-radius: 6px; background: #fff; color: #1f2933; cursor: pointer; }
+  .tb-btn:hover { background: #f0f4f8; }
+  .tb-sep { width: 1px; height: 18px; background: #d8dee6; }
+  #stage { flex: 1; position: relative; min-height: 0; touch-action: none; }
+  #stage canvas { display: block; }
+  #msg { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--muted); font-size: 14px; text-align: center; padding: 16px; }
+  #msg i { font-size: 28px; }
+  @media (max-width: 640px) {
+    #toolbar span, #toolbar .tb-sep { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="toolbar"></div>
+<div id="stage">
+  <div id="msg"><i class="fa-solid fa-spinner fa-spin"></i><span>3Dモデルを読み込み中…</span></div>
+</div>
+
+<script src="../../solid/assets/js/model-viewer.js?v=20261112"></script>
+<script>
+'use strict';
+const msg = document.getElementById('msg');
+function setMsg(text, icon = 'fa-spinner fa-spin') {
+  msg.style.display = 'flex';
+  msg.innerHTML = `<i class="fa-solid ${icon}"></i><span></span>`;
+  msg.querySelector('span').textContent = text;
+}
+
+function loadScript(src) {
+  return new Promise((ok, ng) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = ok; s.onerror = () => ng(new Error('読み込み失敗: ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+/* occt-import-js の結果（部品ごとのメッシュ）を1つのジオメトリにまとめる */
+function occtToGeometry(THREE, result) {
+  const positions = [], normals = [], indices = [];
+  let offset = 0;
+  for (const m of (result.meshes || [])) {
+    const pos = m.attributes?.position?.array || [];
+    const nor = m.attributes?.normal?.array   || [];
+    const idx = m.index?.array || [];
+    for (const v of pos) positions.push(v);
+    for (const n of nor) normals.push(n);
+    for (const i of idx) indices.push(i + offset);
+    offset += pos.length / 3;
+  }
+  if (!positions.length) throw new Error('形状が見つかりませんでした');
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  if (normals.length === positions.length) geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  if (indices.length) geo.setIndex(indices);
+  return geo;
+}
+
+let viewer = null;
+window.wnOpenModel = async function (buffer, ext) {
+  try {
+    setMsg('3D表示の準備中…');
+    /* STLLoader と OrbitControls は THREE の後でないと動かない */
+    await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js');
+    await Promise.all([
+      loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js'),
+      loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js'),
+      ext === 'stl' ? null : loadScript('https://cdn.jsdelivr.net/npm/occt-import-js@0.0.21/dist/occt-import-js.js'),
+    ]);
+    const THREE = window.THREE;
+
+    let geometry;
+    if (ext === 'stl') {
+      setMsg('STLを解析中…');
+      geometry = new THREE.STLLoader().parse(buffer);
+    } else {
+      setMsg('STEPを解析中…（初回は時間がかかる場合があります）');
+      const occt = await occtimportjs({
+        locateFile: f => 'https://cdn.jsdelivr.net/npm/occt-import-js@0.0.21/dist/' + f,
+      });
+      const result = occt.ReadStepFile(new Uint8Array(buffer), null);
+      if (!result || result.success === false) throw new Error('STEPファイルを読み取れませんでした');
+      geometry = occtToGeometry(THREE, result);
+    }
+
+    msg.style.display = 'none';
+    viewer?.destroy();
+    viewer = SolidModelViewer.open(document.getElementById('stage'), geometry, { toolbar: document.getElementById('toolbar') });
+    return true;
+  } catch (e) {
+    console.error('[model3d]', e);
+    setMsg('3Dモデルを表示できませんでした: ' + (e.message || e), 'fa-circle-exclamation');
+    return false;
+  }
+};
+window.wnModelMessage = (text, isError) => setMsg(text, isError ? 'fa-circle-exclamation' : 'fa-spinner fa-spin');
+</script>
+</body>
+</html>
