@@ -23,6 +23,7 @@ window.SS = window.SS || {};
     violet: ['#7158c4', '#eeeafa'], teal: ['#1d8795', '#e0f2f4'], rose: ['#bf4f68', '#fae8ec'],
     amber: ['#a9781c', '#f8efd9'], gray: ['#6b7078', '#eceef0']
   };
+  SS.COLOR_NAMES = { blue: '青', green: '緑', orange: 'オレンジ', violet: '紫', teal: '青緑', rose: 'ローズ', amber: '山吹', gray: 'グレー' };
   SS.NOTIFY = { '': '通知なし', '10': '10分前', '30': '30分前', '60': '1時間前', '1440': '前日' };
   SS.REPEAT = { none: '繰り返しなし', daily: '毎日', weekly: '毎週', monthly: '毎月' };
   SS.PERM = { all: '全社員', manager: '部署管理者以上', admin: '企業管理者のみ' };
@@ -62,7 +63,7 @@ window.SS = window.SS || {};
     place: e.place || '', memo: e.memo || '', owner: e.owner_user_id, assignee: e.assignee_user_id || null, deptId: e.department_id || null,
     cal: e.calendar_id == null ? 'personal' : 'c' + e.calendar_id, shared: e.shared, scope: e.share_scope,
     notify: e.notify_minutes == null ? '' : String(e.notify_minutes), repeat: e.repeat_rule, until: e.repeat_until || '',
-    important: !!e.important, version: e.version, masked: !!e.masked, canEdit: !!e.can_edit
+    important: !!e.important, color: e.color || '', version: e.version, masked: !!e.masked, canEdit: !!e.can_edit
   });
   SS.toApi = ev => ({
     title: ev.title, calendar_id: ev.cal === 'personal' ? null : +ev.cal.slice(1),
@@ -73,7 +74,7 @@ window.SS = window.SS || {};
     shared: ev.cal === 'personal' && !!ev.shared, share_scope: ev.scope || 'detail',
     notify_minutes: ev.notify ? +ev.notify : null, repeat_rule: ev.repeat || 'none',
     repeat_until: ev.repeat && ev.repeat !== 'none' && ev.until ? ev.until : null,
-    important: !!ev.important, ...(ev.version ? { version: ev.version } : {})
+    important: !!ev.important, color: ev.color || null, ...(ev.version ? { version: ev.version } : {})
   });
 
   SS.boot = async () => {
@@ -195,7 +196,9 @@ window.SS = window.SS || {};
   SS.masked = ev => !!ev.masked;
   SS.titleOf = ev => ev.title;
   SS.layerOf = ev => ev.cal !== 'personal' ? ev.cal : (ev.owner === D.me.id && S.cal !== 'shared' ? 'personal' : 'shared');
-  SS.colorOf = ev => { const c = SS.cal(SS.layerOf(ev)); return SS.PAL[(c && c.color) || 'gray']; };
+  /* 予定に色を付けていればその色、なければ所属カレンダーの色 */
+  SS.calColor = calId => { const c = SS.cal(calId); return SS.PAL[(c && c.color) || 'gray'] || SS.PAL.gray; };
+  SS.colorOf = ev => (ev.color && SS.PAL[ev.color]) || SS.calColor(SS.layerOf(ev));
   SS.timeOf = o => o.allDay ? '終日' : o.st + '–' + o.en;
 
   /* ---------- 権限（API の印を見る） ---------- */

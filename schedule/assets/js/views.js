@@ -163,7 +163,7 @@
     return `<div class="detail" ${sty(SS.colorOf(o))}>
       <div class="d-head"><i class="d-bar"></i><div><h3>${o.important && !m ? '<i class="imp">重要</i>' : ''}${h(SS.titleOf(o))}</h3><p>${when}</p></div>${closable ? `<button class="icon-btn" data-act="closefloat" aria-label="閉じる">${I('x')}</button>` : ''}</div>
       ${m ? `<div class="d-mask">${I('lock')}この予定は「予定ありのみ公開」です。詳細は登録者だけが見られます。</div>${row('user', '登録者', h(ow.name) + (ow.dept ? '（' + h(ow.dept) + '）' : ''))}`
-        : row('cal', 'カレンダー', `<span class="lg"><i class="dot"></i>${h(c.name)}</span>`) + row('pin', '場所', h(o.place)) + row('user', '担当者', a ? h(a.name) : '')
+        : row('cal', 'カレンダー', `<span class="lg" ${sty(PAL[c.color] || PAL.gray)}><i class="dot"></i>${h(c.name)}</span>`) + row('pin', '場所', h(o.place)) + row('user', '担当者', a ? h(a.name) : '')
         + row('building', '部署・工場', h(dept) + (a && a.site ? '／' + h(a.site) : '')) + row('edit', '登録者', h(ow.name)) + row('share', '共有', share)
         + row('repeat', '繰り返し', h(repeat)) + row('bell', '通知', SS.NOTIFY[o.notify] || '') + row('note', 'メモ', h(o.memo).replace(/\n/g, '<br>'))}
       <div class="d-foot">${SS.canEdit(o) && !m ? `<button class="btn" data-act="edit" data-arg="${o.id}">${I('edit', 14)}編集</button><button class="btn danger" data-act="askdel" data-arg="${o.id}">${I('trash', 14)}削除</button>` : `<span class="ro">${I('lock', 14)}閲覧のみ</span>`}</div></div>`;
@@ -172,6 +172,12 @@
   /* ---------- 入力画面（モーダル） ---------- */
   const opt = (v, l, cur) => `<option value="${h(v)}" ${String(v) === String(cur == null ? '' : cur) ? 'selected' : ''}>${h(l)}</option>`;
   const err = () => S.modal && S.modal.err ? `<p class="form-err" role="alert">${h(S.modal.err)}</p>` : '';
+  /* 予定の色。先頭の「カレンダーと同じ」は所属カレンダーの色で描く（カレンダーを選び直すと syncForm が塗り替える） */
+  function evSwatches(ev) {
+    const auto = SS.calColor(ev.cal), sel = ev.color && PAL[ev.color] ? ev.color : '';
+    return `<label class="auto" title="カレンダーと同じ色"><input type="radio" name="f_color" value="" ${sel ? '' : 'checked'} aria-label="カレンダーと同じ色"><i id="autoSw" style="--c:${auto[0]};--cb:${auto[1]}"></i><em>カレンダーと同じ</em></label>`
+      + Object.keys(PAL).map(k => `<label title="${SS.COLOR_NAMES[k]}"><input type="radio" name="f_color" value="${k}" ${sel === k ? 'checked' : ''} aria-label="${SS.COLOR_NAMES[k]}"><i style="--c:${PAL[k][0]};--cb:${PAL[k][1]}"></i></label>`).join('');
+  }
   function eventModal(ev, isNew) {
     const D = SS.D, cals = D.calendars.filter(c => c.type === 'personal' || (c.type === 'custom' && (SS.canAddTo(c.id) || c.id === ev.cal)));
     return `<div class="modal-bg" data-act="close-bg"><div class="modal" role="dialog" aria-modal="true" aria-label="${isNew ? '予定を追加' : '予定を編集'}">
@@ -183,6 +189,7 @@
         <div class="checks"><label class="ckl"><input type="checkbox" id="f_allday" ${ev.allDay ? 'checked' : ''}>終日</label><label class="ckl"><input type="checkbox" id="f_imp" ${ev.important ? 'checked' : ''}>重要な予定にする</label></div>
         <div class="fld-2"><label class="fld"><span>所属カレンダー</span><select id="f_cal">${cals.map(c => opt(c.id, c.name, ev.cal)).join('')}</select></label>
           <label class="fld"><span>場所</span><input id="f_place" value="${h(ev.place)}" placeholder="会議室・訪問先など" maxlength="200"></label></div>
+        <div class="fld full"><span>色</span><div class="swatches ev-sw">${evSwatches(ev)}</div></div>
         <div class="fld-2"><label class="fld"><span>担当者</span><select id="f_assignee">${opt('', '（なし）', ev.assignee)}${D.members.map(e => opt(e.id, e.name + (SS.deptName(e.department_id) ? '（' + SS.deptName(e.department_id) + '）' : ''), ev.assignee)).join('')}</select></label>
           <label class="fld"><span>部署</span><select id="f_dept">${opt('', '（なし）', ev.deptId)}${D.departments.map(d => opt(d.id, d.name, ev.deptId)).join('')}</select></label></div>
         <div class="fld-2"><label class="fld"><span>繰り返し</span><select id="f_repeat">${Object.keys(SS.REPEAT).map(k => opt(k, SS.REPEAT[k], ev.repeat)).join('')}</select></label>
@@ -206,7 +213,7 @@
       <div class="modal-b">${err()}
         <label class="fld full"><span>カレンダー名</span><input id="c_name" value="${h(c.name)}" placeholder="例）出張カレンダー" maxlength="100"></label>
         <label class="fld full"><span>説明</span><input id="c_desc" value="${h(c.desc)}" placeholder="何の予定を入れるカレンダーか" maxlength="255"></label>
-        <div class="fld full"><span>色</span><div class="swatches">${Object.keys(PAL).filter(k => k !== 'blue' && k !== 'green').map(k => `<label><input type="radio" name="c_color" value="${k}" ${c.color === k ? 'checked' : ''} aria-label="${k}"><i style="--c:${PAL[k][0]};--cb:${PAL[k][1]}"></i></label>`).join('')}</div></div>
+        <div class="fld full"><span>色</span><div class="swatches">${Object.keys(PAL).filter(k => k !== 'blue' && k !== 'green').map(k => `<label><input type="radio" name="c_color" value="${k}" ${c.color === k ? 'checked' : ''} aria-label="${SS.COLOR_NAMES[k]}"><i style="--c:${PAL[k][0]};--cb:${PAL[k][1]}"></i></label>`).join('')}</div></div>
         <div class="fld-2"><label class="fld"><span>閲覧権限</span><select id="c_view">${Object.keys(SS.PERM).map(k => opt(k, SS.PERM[k], c.view)).join('')}</select></label>
           <label class="fld"><span>編集権限</span><select id="c_edit">${Object.keys(SS.PERM).map(k => opt(k, SS.PERM[k], c.edit)).join('')}</select></label></div>
         <label class="fld full"><span>利用者（説明）</span><input id="c_users" value="${h(c.users)}" placeholder="全社員／部署名など" maxlength="255"></label>

@@ -52,6 +52,7 @@
     $('shareHint').textContent = sh ? '共有ON：共有カレンダーにも表示されます（予定は1件のまま・二重登録なし）' : '共有OFF：自分だけが見られます';
     $('f_st').disabled = $('f_en').disabled = ad;
     $('untilBox').hidden = $('f_repeat').value === 'none';
+    const auto = SS.calColor($('f_cal').value); $('autoSw').style.cssText = `--c:${auto[0]};--cb:${auto[1]}`;
   }
   /* 入力画面の内容を状態に写す（保存に失敗して描き直しても、入力が消えないように） */
   function readForm(ev) {
@@ -62,7 +63,8 @@
       assignee: g('f_assignee') ? +g('f_assignee') : null, deptId: g('f_dept') ? +g('f_dept') : null,
       repeat: g('f_repeat'), until: g('f_until'), notify: g('f_notify'), memo: g('f_memo').trim(), cal: g('f_cal'),
       important: $('f_imp').checked, shared: $('f_shared').checked,
-      scope: (document.querySelector('[name=f_scope]:checked') || {}).value || 'detail'
+      scope: (document.querySelector('[name=f_scope]:checked') || {}).value || 'detail',
+      color: (document.querySelector('[name=f_color]:checked') || {}).value || ''
     });
     if (ev.end < ev.start) ev.end = ev.start;
     if (!ev.allDay && ev.start === ev.end && ev.en <= ev.st) ev.en = SS.hm(Math.min(1439, SS.mins(ev.st) + 60));
@@ -73,7 +75,7 @@
     const me = SS.D.me, custom = !['personal', 'shared', 'all'].includes(S.cal) && SS.canAddTo(S.cal);
     return {
       id: null, title: '', start: d, end: d, allDay: !!allDay, st: st || '09:00', en: en || '10:00', place: '', owner: me.id, assignee: me.id, deptId: me.department_id,
-      memo: '', cal: custom ? S.cal : 'personal', shared: S.cal === 'shared', scope: 'detail', notify: '10', repeat: 'none', until: '', important: false
+      memo: '', cal: custom ? S.cal : 'personal', shared: S.cal === 'shared', scope: 'detail', notify: '10', repeat: 'none', until: '', important: false, color: ''
     };
   }
   const openEvent = (ev, isNew) => { S.modal = { type: 'event', ev, isNew }; S.float = S.quick = null; focusNew = isNew; };
