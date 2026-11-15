@@ -117,7 +117,6 @@
       const vis = new Set(S.cal === 'all' ? all.filter(id => !S.hidden[id]) : group(S.cal));
       const ids = SS.isParentCal(SS.cal(a)) ? group(a) : [a];
       if (vis.has(a)) ids.forEach(id => vis.delete(id)); else ids.forEach(id => vis.add(id));
-      if (!vis.size) return;   // 何も見えない状態にはしない
       S.hidden = {}; all.forEach(id => { if (!vis.has(id)) S.hidden[id] = true; });
       S.cal = 'all'; S.selEvent = null;
     },
