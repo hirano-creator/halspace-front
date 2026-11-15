@@ -27,6 +27,12 @@ body[data-variant="b"] { --accent: #0e7a6c; --accent-pale: #e1f2ef; --r: 8px; --
 .b-cal:hover { background: #ecedee; }
 .b-cal.solo { background: var(--surface); }
 .b-cal.solo .b-cal-n { font-weight: 700; }
+.b-cal.child { padding-left: 26px; }
+.b-sub-add { width: 24px; height: 24px; opacity: 0; }
+.b-cal:hover .b-sub-add, .b-sub-add:focus-visible { opacity: 1; }
+.tbl tr.child td:first-child { padding-left: 28px; }
+.tbl .tree { color: var(--mute); margin-right: 6px; }
+.tbl tr.child .mute { white-space: nowrap; }
 .b-cal-n { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; height: 100%; }
 .b-all, .b-co { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px; border-radius: var(--r); color: var(--sub); font-size: 12px; margin-top: 8px; }
 .b-all:hover, .b-co:hover { background: #ecedee; }
