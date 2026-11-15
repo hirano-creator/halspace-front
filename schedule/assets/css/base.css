@@ -276,7 +276,9 @@ select { height: 30px; border: 1px solid var(--line); border-radius: var(--r); b
 .radio span { display: flex; flex-direction: column; }
 .radio:has(input:checked) { border-color: var(--accent); background: var(--accent-pale); }
 .cal-note { display: flex; align-items: center; gap: 6px; color: var(--sub); font-size: 12px; background: var(--bg); border-radius: var(--r); padding: 9px 12px; }
-.swatches { display: flex; gap: 8px; }
+.swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.swatches .auto { display: flex; align-items: center; gap: 6px; margin-right: 6px; }
+.swatches .auto em { font-style: normal; font-size: 13px; color: var(--sub, #5b6068); }
 .swatches label { position: relative; cursor: pointer; }
 .swatches input { position: absolute; opacity: 0; }
 .swatches i { display: block; width: 28px; height: 28px; border-radius: 50%; background: var(--cb); border: 2px solid var(--cb); box-shadow: inset 0 0 0 8px var(--cb), inset 0 0 0 14px var(--c); }
