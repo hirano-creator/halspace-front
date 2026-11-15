@@ -45,7 +45,18 @@
   }
 
   /* 入力画面：カレンダーの種類・共有・終日・繰り返しに応じて欄を出し入れする（描き直さずに DOM を直接切り替える） */
+  /* 中のカレンダーの色は、外側や兄弟とかぶらない色を先に選んでおく */
+  function nextColor(p) {
+    const used = [p.color].concat(SS.childrenOf(p.id).map(c => c.color));
+    return ['teal', 'violet', 'amber', 'rose', 'orange', 'gray'].find(k => !used.includes(k)) || 'gray';
+  }
   function syncForm() {
+    if ($('c_parent')) {   // カレンダーの設定: 中のカレンダーにするときは権限の欄を隠す（外側と同じになる）
+      const p = SS.cal($('c_parent').value);
+      $('c_rules').hidden = !!p; $('c_inherit').hidden = !p;
+      if (p) $('c_inherit_name').textContent = p.name;
+      return;
+    }
     if (!$('f_cal')) return;
     const personal = $('f_cal').value === 'personal', sh = $('f_shared').checked, ad = $('f_allday').checked;
     $('shareBox').hidden = !personal; $('calNote').hidden = personal; $('scopeBox').hidden = !sh;
@@ -101,11 +112,13 @@
   const A = {
     go(a) { S.screen = a; S.drawer = false; S.selEvent = null; },
     cal(a) { S.cal = a; S.screen = 'calendar'; S.selEvent = null; S.drawer = false; },
-    bcheck(a) {   // チェックを入れたカレンダーを重ねて表示
-      if (S.cal === 'all') { S.hidden[a] = !S.hidden[a]; return; }
-      const cur = S.cal; S.hidden = {};
-      SS.calList().forEach(c => { if (c.id !== cur && c.id !== a) S.hidden[c.id] = true; });
-      if (cur === a) return;
+    bcheck(a) {   // チェックを入れたカレンダーを重ねて表示。外側のチェックは中のカレンダーもまとめて切り替える
+      const all = SS.calList().map(c => c.id), group = id => [id].concat(SS.childrenOf(id).map(c => c.id));
+      const vis = new Set(S.cal === 'all' ? all.filter(id => !S.hidden[id]) : group(S.cal));
+      const ids = SS.isParentCal(SS.cal(a)) ? group(a) : [a];
+      if (vis.has(a)) ids.forEach(id => vis.delete(id)); else ids.forEach(id => vis.add(id));
+      if (!vis.size) return;   // 何も見えない状態にはしない
+      S.hidden = {}; all.forEach(id => { if (!vis.has(id)) S.hidden[id] = true; });
       S.cal = 'all'; S.selEvent = null;
     },
     view(a) { S.view = a; SS._scroll = null; },
@@ -165,7 +178,10 @@
       return false;
     },
     askdel(a) { const ev = SS.ev(a); S.float = null; S.modal = { type: 'confirm', msg: `「${ev.title}」を削除します。${ev.repeat !== 'none' ? '繰り返しの予定はすべて削除されます。' : ''}よろしいですか？`, fn: 'ev', arg: a }; },
-    askdelcal(a) { const c = SS.cal(a); S.modal = { type: 'confirm', msg: `「${c.name}」と、その中の予定をすべて削除します。元に戻せません。よろしいですか？`, fn: 'cal', arg: a }; },
+    askdelcal(a) {
+      const c = SS.cal(a), kids = SS.childrenOf(a).map(x => '「' + x.name + '」').join('');
+      S.modal = { type: 'confirm', msg: `「${c.name}」と、その中の予定をすべて削除します。${kids ? `中のカレンダー${kids}とその予定も削除されます。` : ''}元に戻せません。よろしいですか？`, fn: 'cal', arg: a };
+    },
     confirm() {
       const m = S.modal; m.err = null;
       withBusy(async () => {
@@ -183,11 +199,16 @@
     'close-bg'(a, el, e) { if (e.target !== el || busy) return false; S.modal = null; },
     closefloat() { S.float = S.quick = null; },
     drawer() { S.drawer = !S.drawer; },
-    calnew() { S.modal = { type: 'cal', isNew: true, cal: { id: null, type: 'custom', name: '', desc: '', color: 'gray', icon: 'cal', view: 'all', edit: 'manager', users: '全社員', notify: true, visible: true } }; S.drawer = false; focusNew = true; },
+    calnew(a) {   // a = 外側のカレンダー（その中に追加するとき）
+      const p = a && SS.isParentCal(SS.cal(a)) ? SS.cal(a) : null;
+      S.modal = { type: 'cal', isNew: true, cal: { id: null, type: 'custom', parentId: p ? p.id : null, name: '', desc: '', color: p ? nextColor(p) : 'gray', icon: p ? p.icon : 'cal',
+        view: p ? p.view : 'all', edit: p ? p.edit : 'manager', users: p ? p.users : '全社員', notify: p ? p.notify : true, visible: true } };
+      S.drawer = false; focusNew = true;
+    },
     caledit(a) { S.modal = { type: 'cal', isNew: false, cal: Object.assign({}, SS.cal(a)) }; },
     calsave() {
       const m = S.modal, c = m.cal;
-      Object.assign(c, { name: $('c_name').value.trim(), desc: $('c_desc').value.trim(), color: (document.querySelector('[name=c_color]:checked') || {}).value || 'gray', view: $('c_view').value, edit: $('c_edit').value, users: $('c_users').value.trim(), notify: $('c_notify').checked, visible: $('c_visible').checked });
+      Object.assign(c, { parentId: $('c_parent').value || null, name: $('c_name').value.trim(), desc: $('c_desc').value.trim(), color: (document.querySelector('[name=c_color]:checked') || {}).value || 'gray', view: $('c_view').value, edit: $('c_edit').value, users: $('c_users').value.trim(), notify: $('c_notify').checked, visible: $('c_visible').checked });
       if (!c.name) { $('c_name').focus(); SS.toast('カレンダー名を入力してください'); return false; }
       m.err = null;
       withBusy(async () => {

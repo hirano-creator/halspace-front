@@ -53,7 +53,7 @@ window.SS = window.SS || {};
     { id: 'shared', type: 'shared', name: '共有カレンダー', color: 'green', icon: 'users', desc: '社員が共有ONにした予定が自動で集まります。' }
   ];
   const calFromApi = c => ({
-    id: 'c' + c.id, sid: c.id, type: 'custom', name: c.name, desc: c.description || '', color: c.color, icon: c.icon,
+    id: 'c' + c.id, sid: c.id, type: 'custom', parentId: c.parent_id ? 'c' + c.parent_id : null, name: c.name, desc: c.description || '', color: c.color, icon: c.icon,
     view: c.view_perm, edit: c.edit_perm, users: c.users_note || '', notify: c.notify, visible: c.visible, canEdit: c.can_edit_events
   });
   /* 予定は画面では文字の番号で扱う（data-arg が文字になるため） */
@@ -123,8 +123,13 @@ window.SS = window.SS || {};
   SS.isAdmin = () => !!D.me.can_manage;
   SS.roleLabel = () => D.me.role === 'super_admin' ? 'システム管理者' : D.me.role === 'admin' ? '企業管理者' : D.me.is_dept_manager ? '部署管理者' : '一般社員';
 
-  /* 左の一覧に出すカレンダー（非表示にしたものは管理者にも出さない。管理画面からは見える） */
-  SS.calList = () => D.calendars.filter(c => c.type !== 'custom' || c.visible);
+  /* 子カレンダー（業務別カレンダーの中のカレンダー。1 段だけ。権限は親と同じ） */
+  SS.childrenOf = id => D.calendars.filter(c => c.parentId === id);
+  SS.isParentCal = c => !!c && c.type === 'custom' && !c.parentId;
+  /* 親のすぐ後ろに子が並ぶ順にする（親が入っていない子は出さない） */
+  SS.calTree = list => list.filter(c => !c.parentId).flatMap(p => [p].concat(list.filter(c => c.parentId === p.id)));
+  /* 左の一覧に出すカレンダー（非表示にしたものは管理者にも出さない。管理画面からは見える）。子は親も表示中のときだけ */
+  SS.calList = () => SS.calTree(D.calendars.filter(c => c.type !== 'custom' || c.visible));
   SS.customCals = () => SS.calList().filter(c => c.type === 'custom');
 
   /* 管理メニュー（権限ごと）。部署管理者は部署・拠点を見るだけ（変更は企業管理者） */
@@ -177,7 +182,9 @@ window.SS = window.SS || {};
       const c = SS.calList().find(x => x.id === ev.cal);
       return !!c && (raw || !S.hidden[c.id]);
     }
-    return ev.cal === sel;
+    if (ev.cal === sel) return true;
+    const c = SS.cal(ev.cal);   // 親カレンダーを選ぶと、中のカレンダーの予定も出す
+    return !!c && c.parentId === sel;
   }
   SS.query = (sel, from, to, raw) => {
     const q = raw ? '' : S.q.trim().toLowerCase();
@@ -222,17 +229,20 @@ window.SS = window.SS || {};
     D.events = D.events.filter(e => e.id !== ev.id);
   };
   SS.saveCalendar = async (cal, isNew) => {
-    const body = { name: cal.name, description: cal.desc || null, color: cal.color, icon: cal.icon || 'cal', view_perm: cal.view, edit_perm: cal.edit, users_note: cal.users || null, notify: !!cal.notify, visible: cal.visible !== false };
+    const body = { parent_id: cal.parentId ? +cal.parentId.slice(1) : null, name: cal.name, description: cal.desc || null, color: cal.color, icon: cal.icon || 'cal', view_perm: cal.view, edit_perm: cal.edit, users_note: cal.users || null, notify: !!cal.notify, visible: cal.visible !== false };
     const r = isNew ? await SS.api('POST', '/schedule/calendars', body) : await SS.api('PUT', '/schedule/calendars/' + cal.sid, body);
     const saved = calFromApi(r.calendar), i = D.calendars.findIndex(c => c.id === saved.id);
     if (i >= 0) D.calendars[i] = saved; else D.calendars.push(saved);
+    // 中のカレンダーの権限は外側と同じ（API も外側の設定で判定する）
+    SS.childrenOf(saved.id).forEach(k => Object.assign(k, { view: saved.view, edit: saved.edit, users: saved.users, notify: saved.notify, canEdit: saved.canEdit }));
     return saved;
   };
   SS.deleteCalendar = async id => {
     const c = SS.cal(id);
     await SS.api('DELETE', '/schedule/calendars/' + c.sid);
-    D.calendars = D.calendars.filter(x => x.id !== id);
-    D.events = D.events.filter(e => e.cal !== id);
+    const gone = [id].concat(SS.childrenOf(id).map(x => x.id));   // 中のカレンダーとその予定も消える
+    D.calendars = D.calendars.filter(x => !gone.includes(x.id));
+    D.events = D.events.filter(e => !gone.includes(e.cal));
   };
 
   /* 拠点・部署・社員の所属（管理者のみ。API 側でも確認している） */

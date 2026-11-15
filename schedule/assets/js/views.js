@@ -179,7 +179,8 @@
       + Object.keys(PAL).map(k => `<label title="${SS.COLOR_NAMES[k]}"><input type="radio" name="f_color" value="${k}" ${sel === k ? 'checked' : ''} aria-label="${SS.COLOR_NAMES[k]}"><i style="--c:${PAL[k][0]};--cb:${PAL[k][1]}"></i></label>`).join('');
   }
   function eventModal(ev, isNew) {
-    const D = SS.D, cals = D.calendars.filter(c => c.type === 'personal' || (c.type === 'custom' && (SS.canAddTo(c.id) || c.id === ev.cal)));
+    const D = SS.D, cals = SS.calTree(D.calendars.filter(c => c.type === 'personal' || (c.type === 'custom' && (SS.canAddTo(c.id) || c.id === ev.cal))));
+    const calLabel = c => c.parentId ? '　' + ((SS.cal(c.parentId) || {}).name || '') + ' › ' + c.name : c.name;
     return `<div class="modal-bg" data-act="close-bg"><div class="modal" role="dialog" aria-modal="true" aria-label="${isNew ? '予定を追加' : '予定を編集'}">
       <div class="modal-h"><h2>${isNew ? '予定を追加' : '予定を編集'}</h2><button class="icon-btn" data-act="close" aria-label="閉じる">${I('x')}</button></div>
       <div class="modal-b">${err()}
@@ -187,7 +188,7 @@
         <div class="fld-4"><label class="fld"><span>開始日</span><input type="date" id="f_start" value="${ev.start}"></label><label class="fld"><span>開始時間</span><input type="time" id="f_st" value="${ev.st}" step="900"></label>
           <label class="fld"><span>終了日</span><input type="date" id="f_end" value="${ev.end}"></label><label class="fld"><span>終了時間</span><input type="time" id="f_en" value="${ev.en}" step="900"></label></div>
         <div class="checks"><label class="ckl"><input type="checkbox" id="f_allday" ${ev.allDay ? 'checked' : ''}>終日</label><label class="ckl"><input type="checkbox" id="f_imp" ${ev.important ? 'checked' : ''}>重要な予定にする</label></div>
-        <div class="fld-2"><label class="fld"><span>所属カレンダー</span><select id="f_cal">${cals.map(c => opt(c.id, c.name, ev.cal)).join('')}</select></label>
+        <div class="fld-2"><label class="fld"><span>所属カレンダー</span><select id="f_cal">${cals.map(c => opt(c.id, calLabel(c), ev.cal)).join('')}</select></label>
           <label class="fld"><span>場所</span><input id="f_place" value="${h(ev.place)}" placeholder="会議室・訪問先など" maxlength="200"></label></div>
         <div class="fld full"><span>色</span><div class="swatches ev-sw">${evSwatches(ev)}</div></div>
         <div class="fld-2"><label class="fld"><span>担当者</span><select id="f_assignee">${opt('', '（なし）', ev.assignee)}${D.members.map(e => opt(e.id, e.name + (SS.deptName(e.department_id) ? '（' + SS.deptName(e.department_id) + '）' : ''), ev.assignee)).join('')}</select></label>
@@ -208,16 +209,25 @@
       <div class="modal-f">${isNew ? '' : `<button class="btn danger" data-act="askdel" data-arg="${ev.id}">${I('trash', 14)}削除</button>`}<span class="grow"></span><button class="btn" data-act="close">キャンセル</button><button class="btn primary" data-act="save" id="saveBtn">保存</button></div></div></div>`;
   }
   function calModal(c, isNew) {
+    const kids = c.id ? SS.childrenOf(c.id) : [], parents = SS.D.calendars.filter(x => SS.isParentCal(x) && x.id !== c.id), p = c.parentId ? SS.cal(c.parentId) : null;
+    const title = isNew ? (p ? '「' + p.name + '」の中にカレンダーを追加' : '新しいカレンダー') : 'カレンダーの設定';
     return `<div class="modal-bg" data-act="close-bg"><div class="modal narrow" role="dialog" aria-modal="true" aria-label="カレンダーの設定">
-      <div class="modal-h"><h2>${isNew ? '新しいカレンダー' : 'カレンダーの設定'}</h2><button class="icon-btn" data-act="close" aria-label="閉じる">${I('x')}</button></div>
+      <div class="modal-h"><h2>${h(title)}</h2><button class="icon-btn" data-act="close" aria-label="閉じる">${I('x')}</button></div>
       <div class="modal-b">${err()}
-        <label class="fld full"><span>カレンダー名</span><input id="c_name" value="${h(c.name)}" placeholder="例）出張カレンダー" maxlength="100"></label>
+        <label class="fld full"><span>カレンダー名</span><input id="c_name" value="${h(c.name)}" placeholder="${p ? '例）4㌧車' : '例）出張カレンダー'}" maxlength="100"></label>
+        <label class="fld full"><span>入れる場所</span><select id="c_parent" ${kids.length ? 'disabled' : ''}>${opt('', '（なし）独立したカレンダー', c.parentId || '')}${parents.map(x => opt(x.id, x.name + ' の中', c.parentId || '')).join('')}</select>
+          ${kids.length ? `<small>中にカレンダー（${kids.map(k => h(k.name)).join('・')}）があるので、ほかのカレンダーの中には入れられません。</small>` : ''}</label>
         <label class="fld full"><span>説明</span><input id="c_desc" value="${h(c.desc)}" placeholder="何の予定を入れるカレンダーか" maxlength="255"></label>
         <div class="fld full"><span>色</span><div class="swatches">${Object.keys(PAL).filter(k => k !== 'blue' && k !== 'green').map(k => `<label><input type="radio" name="c_color" value="${k}" ${c.color === k ? 'checked' : ''} aria-label="${SS.COLOR_NAMES[k]}"><i style="--c:${PAL[k][0]};--cb:${PAL[k][1]}"></i></label>`).join('')}</div></div>
-        <div class="fld-2"><label class="fld"><span>閲覧権限</span><select id="c_view">${Object.keys(SS.PERM).map(k => opt(k, SS.PERM[k], c.view)).join('')}</select></label>
-          <label class="fld"><span>編集権限</span><select id="c_edit">${Object.keys(SS.PERM).map(k => opt(k, SS.PERM[k], c.edit)).join('')}</select></label></div>
-        <label class="fld full"><span>利用者（説明）</span><input id="c_users" value="${h(c.users)}" placeholder="全社員／部署名など" maxlength="255"></label>
-        <div class="checks"><label class="ckl"><input type="checkbox" id="c_notify" ${c.notify ? 'checked' : ''}>予定の追加・変更を利用者に通知する</label><label class="ckl"><input type="checkbox" id="c_visible" ${c.visible !== false ? 'checked' : ''}>メニューに表示する</label></div>
+        <div id="c_rules" ${p ? 'hidden' : ''}>
+          <div class="fld-2"><label class="fld"><span>閲覧権限</span><select id="c_view">${Object.keys(SS.PERM).map(k => opt(k, SS.PERM[k], c.view)).join('')}</select></label>
+            <label class="fld"><span>編集権限</span><select id="c_edit">${Object.keys(SS.PERM).map(k => opt(k, SS.PERM[k], c.edit)).join('')}</select></label></div>
+          <label class="fld full"><span>利用者（説明）</span><input id="c_users" value="${h(c.users)}" placeholder="全社員／部署名など" maxlength="255"></label>
+          <div class="checks"><label class="ckl"><input type="checkbox" id="c_notify" ${c.notify ? 'checked' : ''}>予定の追加・変更を利用者に通知する</label></div>
+          ${kids.length ? '<p class="hint">閲覧権限・編集権限・通知は、中のカレンダーにも同じように効きます。</p>' : ''}
+        </div>
+        <div class="cal-note" id="c_inherit" ${p ? '' : 'hidden'}>${I('layers', 14)}<span>見られる人・予定を入れられる人・通知は「<b id="c_inherit_name">${h(p ? p.name : '')}</b>」と同じです。</span></div>
+        <div class="checks"><label class="ckl"><input type="checkbox" id="c_visible" ${c.visible !== false ? 'checked' : ''}>メニューに表示する</label></div>
       </div>
       <div class="modal-f">${isNew ? '' : `<button class="btn danger" data-act="askdelcal" data-arg="${c.id}">${I('trash', 14)}削除</button>`}<span class="grow"></span><button class="btn" data-act="close">キャンセル</button><button class="btn primary" data-act="calsave" id="saveBtn">保存</button></div></div></div>`;
   }
@@ -250,19 +260,19 @@
 
   /* カレンダー管理（企業管理者） */
   V.calmanage = function () {
-    const rows = SS.D.calendars.map(c => {
-      const fixed = c.type !== 'custom';
-      return `<tr><td><span class="lg strong" ${sty(PAL[c.color] || PAL.gray)}><i class="dot"></i>${h(c.name)}</span>${fixed ? '<span class="tag">標準</span>' : ''}<small>${h(c.desc || '')}</small></td>
-        <td>${fixed ? (c.type === 'personal' ? '本人のみ' : '全社員') : SS.PERM[c.view]}</td>
-        <td>${fixed ? (c.type === 'personal' ? '本人' : '登録者・部署管理者') : SS.PERM[c.edit]}</td>
-        <td>${fixed ? '全社員' : h(c.users || '—')}</td>
-        <td>${fixed ? '—' : c.notify ? '通知する' : '通知しない'}</td>
+    const rows = SS.calTree(SS.D.calendars).map(c => {
+      const fixed = c.type !== 'custom', child = !!c.parentId, same = '<span class="mute">外側と同じ</span>';
+      return `<tr class="${child ? 'child' : ''}"><td>${child ? '<span class="tree" aria-hidden="true">└</span>' : ''}<span class="lg strong" ${sty(PAL[c.color] || PAL.gray)}><i class="dot"></i>${h(c.name)}</span>${fixed ? '<span class="tag">標準</span>' : ''}<small>${h(c.desc || '')}</small></td>
+        <td>${fixed ? (c.type === 'personal' ? '本人のみ' : '全社員') : child ? same : SS.PERM[c.view]}</td>
+        <td>${fixed ? (c.type === 'personal' ? '本人' : '登録者・部署管理者') : child ? same : SS.PERM[c.edit]}</td>
+        <td>${fixed ? '全社員' : child ? same : h(c.users || '—')}</td>
+        <td>${fixed ? '—' : child ? same : c.notify ? '通知する' : '通知しない'}</td>
         <td>${fixed ? '<span class="mute">常に表示</span>' : sw(c.visible, 'calvis', c.id, c.name + 'をメニューに表示')}</td>
-        <td class="r">${fixed ? '' : `<button class="btn sm" data-act="caledit" data-arg="${c.id}">設定</button>`}</td></tr>`;
+        <td class="r">${fixed ? '' : `${SS.isParentCal(c) ? `<button class="btn sm" data-act="calnew" data-arg="${c.id}">${I('plus', 13)}中に追加</button> ` : ''}<button class="btn sm" data-act="caledit" data-arg="${c.id}">設定</button>`}</td></tr>`;
     }).join('');
     return page('カレンダー管理', '業務に合わせてカレンダーを追加し、見られる人・予定を入れられる人を決めます。', `<button class="btn primary" data-act="calnew">${I('plus')}新しいカレンダー</button>`,
       `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>カレンダー</th><th>閲覧できる人</th><th>予定を入れられる人</th><th>利用者</th><th>通知</th><th>メニューに表示</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-      <p class="hint">「メニューに表示」をオフにすると、管理者以外のメニューから消え、その予定も見えなくなります。通知はまだ送られません（設定だけ保存されます）。</p>`);
+      <p class="hint">「中に追加」で、カレンダーの中にカレンダーを作れます（例：配車 → 4㌧車・10㌧大型車）。中のカレンダーの見られる人・予定を入れられる人は、外側のカレンダーと同じです。「メニューに表示」をオフにすると、管理者以外のメニューから消え、その予定も見えなくなります（外側をオフにすると中のカレンダーも消えます）。通知はまだ送られません（設定だけ保存されます）。</p>`);
   };
 
   /* 部署・拠点（企業管理者は編集、部署管理者は閲覧のみ） */

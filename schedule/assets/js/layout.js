@@ -8,9 +8,11 @@
   SS.layout = function () {
     const isCal = S.screen === 'calendar', nav = SS.navItems();
     const row = c => {
-      const on = S.cal === 'all' ? !S.hidden[c.id] : S.cal === c.id;
-      return `<div class="b-cal ${isCal && S.cal === c.id ? 'solo' : ''}"><button class="ck ${on ? 'on' : ''}" data-act="bcheck" data-arg="${c.id}" style="--c:${(SS.PAL[c.color] || SS.PAL.gray)[0]}" aria-pressed="${on}" aria-label="${h(c.name)}を重ねて表示">${I('check', 12)}</button>
-        <button class="b-cal-n" data-act="cal" data-arg="${c.id}" title="このカレンダーだけ表示">${h(c.name)}</button></div>`;
+      const on = S.cal === 'all' ? !S.hidden[c.id] : (S.cal === c.id || S.cal === c.parentId);
+      const kids = SS.isParentCal(c) ? SS.childrenOf(c.id).length : 0;
+      const add = SS.isAdmin() && SS.isParentCal(c) ? `<button class="icon-btn sm b-sub-add" data-act="calnew" data-arg="${c.id}" title="${h(c.name)}の中にカレンダーを追加" aria-label="${h(c.name)}の中にカレンダーを追加">${I('plus', 13)}</button>` : '';
+      return `<div class="b-cal ${c.parentId ? 'child' : ''} ${isCal && S.cal === c.id ? 'solo' : ''}"><button class="ck ${on ? 'on' : ''}" data-act="bcheck" data-arg="${c.id}" style="--c:${(SS.PAL[c.color] || SS.PAL.gray)[0]}" aria-pressed="${on}" aria-label="${h(c.name)}${kids ? '（中のカレンダーも）' : ''}を重ねて表示">${I('check', 12)}</button>
+        <button class="b-cal-n" data-act="cal" data-arg="${c.id}" title="${kids ? 'このカレンダーと中のカレンダーを表示' : 'このカレンダーだけ表示'}">${h(c.name)}</button>${add}</div>`;
     };
     const cals = SS.calList();
     /* 管理メニューがない人（一般社員）には細い列を出さない */
