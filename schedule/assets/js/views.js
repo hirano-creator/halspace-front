@@ -127,7 +127,9 @@
         ${D.sites.length ? `<select data-change="fSite" aria-label="工場・拠点"><option value="">すべての工場・拠点</option>${D.sites.map(s => `<option value="${s.id}" ${S.fSite === String(s.id) ? 'selected' : ''}>${h(s.name)}</option>`).join('')}</select>` : ''}
         <span class="fb-note">${I('share', 14)}個人カレンダーで共有ONにした予定が自動で表示されます</span>`);
     } else if (S.cal === 'all') {
-      out.push(`<span class="fb-l">重ねて表示中</span>` + SS.calList().filter(c => !S.hidden[c.id]).map(c => `<span class="lg" ${sty(PAL[c.color] || PAL.gray)}><i class="dot"></i>${h(c.name.replace('カレンダー', ''))}</span>`).join(''));
+      const on = SS.calList().filter(c => !S.hidden[c.id]);
+      out.push(on.length ? `<span class="fb-l">重ねて表示中</span>` + on.map(c => `<span class="lg" ${sty(PAL[c.color] || PAL.gray)}><i class="dot"></i>${h(c.name.replace('カレンダー', ''))}</span>`).join('')
+        : `<span class="fb-note">表示中のカレンダーがありません。左の一覧でチェックを入れてください。</span>`);
     } else if (S.cal === 'personal') {
       out.push(`<span class="fb-note">${I('lock', 14)}共有OFFの予定は本人だけに表示されます</span>`);
     } else {
