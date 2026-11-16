@@ -15,7 +15,7 @@ window.SS = window.SS || {};
   const h = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const WD = ['日', '月', '火', '水', '木', '金', '土'];
   const md = s => { const d = parse(s); return (d.getMonth() + 1) + '月' + d.getDate() + '日（' + WD[d.getDay()] + '）'; };
-  Object.assign(SS, { pad, iso, parse, addD, diffD, today, mins, hm, h, WD, md, HOUR: 46 });
+  Object.assign(SS, { pad, iso, parse, addD, diffD, today, mins, hm, h, WD, md, HOUR: 56 });
 
   /* カレンダーの色（濃い色＝線・点、淡い色＝背景）。API は色の名前だけを持つ */
   SS.PAL = {

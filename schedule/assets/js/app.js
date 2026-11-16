@@ -32,6 +32,9 @@
     }
     syncForm();
     if (focusNew) { focusNew = false; const t = $('q_title') || $('f_title') || $('c_name') || $('o_name'); if (t && !SS.isMobile()) t.focus(); }
+    /* 月表示: 1日に出せる予定の段数は表の高さで決まる。描いた高さが前回と違えば、その高さで描き直す（2回目で止まる） */
+    const mg = document.querySelector('.m-grid');
+    if (mg && !SS.isMobile() && mg.clientHeight > 0 && Math.abs(mg.clientHeight - (SS._mgH || 0)) > 4) { SS._mgH = mg.clientHeight; render(); }
   }
   SS.render = render;
   /* 裏の読み込みが終わったとき用。入力中なら後回しにする */
@@ -325,7 +328,13 @@
     } finally { busy = false; render(); }
   });
 
-  window.addEventListener('resize', () => { const m = SS.isMobile(); if (m !== wasMobile) { wasMobile = m; S.float = S.quick = null; if (!S.modal) render(); } });
+  let resizeT = null;
+  window.addEventListener('resize', () => {
+    const m = SS.isMobile(); if (m !== wasMobile) { wasMobile = m; S.float = S.quick = null; if (!S.modal) render(); return; }
+    /* 月表示は窓の高さで出せる段数が変わるので描き直す（入力中は描き直さない） */
+    clearTimeout(resizeT);
+    resizeT = setTimeout(() => { if (SS.view() === 'month' && S.screen === 'calendar' && !S.modal && !S.quick && !S.float) render(); }, 150);
+  });
   /* 他の人の変更: 画面に戻ってきたとき（1 分以上たっていたら）と、5 分ごとに読み込み直す */
   document.addEventListener('visibilitychange', () => { if (ready && document.visibilityState === 'visible' && Date.now() - (SS.lastLoad || 0) > 60e3) load(true); });
   setInterval(() => { if (ready && document.visibilityState === 'visible' && !busy) load(true); }, 5 * 60e3);

@@ -41,10 +41,10 @@
     if (v === 'month') return d.getFullYear() + '年' + (d.getMonth() + 1) + '月';
     if (v === 'day') return d.getFullYear() + '年' + SS.md(S.date);
     const a = parse(addD(S.date, -d.getDay())), b = parse(addD(S.date, 6 - d.getDay()));
-    return a.getFullYear() + '年' + (a.getMonth() + 1) + '月' + a.getDate() + '日 – ' + (a.getMonth() !== b.getMonth() ? (b.getMonth() + 1) + '月' : '') + b.getDate() + '日';
+    return a.getFullYear() + '年' + (a.getMonth() + 1) + '月' + (a.getMonth() !== b.getMonth() ? '〜' + (b.getFullYear() !== a.getFullYear() ? b.getFullYear() + '年' : '') + (b.getMonth() + 1) + '月' : '');
   };
   V.dateNav = () => `<div class="datenav"><button class="btn" data-act="today">今日</button><button class="icon-btn" data-act="nav" data-arg="-1" aria-label="前へ">${I('chevL')}</button><button class="icon-btn" data-act="nav" data-arg="1" aria-label="次へ">${I('chevR')}</button></div>`;
-  V.seg = () => `<div class="seg" role="tablist">${[['month', '月'], ['week', '週'], ['day', '日']].map(x => `<button class="${SS.view() === x[0] ? 'on' : ''}" data-act="view" data-arg="${x[0]}">${x[1]}</button>`).join('')}</div>`;
+  V.seg = () => `<div class="seg" role="tablist">${[['day', '日'], ['week', '週'], ['month', '月']].map(x => `<button class="${SS.view() === x[0] ? 'on' : ''}" data-act="view" data-arg="${x[0]}">${x[1]}</button>`).join('')}</div>`;
   V.search = () => `<label class="search">${I('search')}<input id="q" type="search" data-input="q" placeholder="予定を検索" value="${h(S.q)}" autocomplete="off"></label>`;
   V.loading = () => S.loading ? `<span class="loading" role="status">${I('clock', 14)}読み込み中</span>` : '';
 
@@ -56,12 +56,29 @@
       <a class="sb-back" href="../../space/apps.html">${I('back', 15)}アプリ選択に戻る</a></div>`;
   };
 
-  /* ---------- 予定の小さな表示（月表示・終日欄） ---------- */
-  function chip(o, d) {
-    const long = SS.isLong(o), multi = o.start !== o.end, t = SS.titleOf(o);
-    return `<div class="chip ${long ? 'solid' : ''} ${multi && d !== o.start ? 'cl' : ''} ${multi && d !== o.end ? 'cr' : ''} ${S.selEvent === o.id ? 'sel' : ''} ${SS.masked(o) ? 'busy' : ''}" data-act="ev" data-arg="${o.id}" data-d="${d}" ${sty(SS.colorOf(o))} title="${h(t)}"><i class="dot"></i>${long ? '' : `<span class="t">${o.st}</span>`}<span class="n">${o.important ? '<b class="imp mini" title="重要">!</b>' : ''}${h(t)}</span></div>`;
+  /* ---------- 予定の帯（月表示・終日欄） ---------- */
+  /* 「予定ありのみ公開」は灰色で出す */
+  const colOf = o => SS.masked(o) ? PAL.gray : SS.colorOf(o);
+  const cvar = o => { const c = colOf(o); return `--c:${c[0]};--cb:${c[1]}`; };
+  /* 終日・連日の帯と時刻つきの予定を段に詰める（連日は日をまたぐ1本の帯にする） */
+  function lanes(days, occ, withTimed) {
+    const first = days[0], last = days[days.length - 1], rows = [], items = [];
+    const free = (l, a, b) => { for (let c = a; c <= b; c++) if (rows[l] && rows[l][c]) return false; return true; };
+    const put = it => { let l = 0; while (!free(l, it.a, it.b)) l++; rows[l] = rows[l] || []; for (let c = it.a; c <= it.b; c++) rows[l][c] = true; it.lane = l; items.push(it); };
+    occ.filter(o => SS.isLong(o) && o.start <= last && o.end >= first)
+      .sort((x, y) => x.start.localeCompare(y.start) || y.end.localeCompare(x.end))
+      .forEach(o => {
+        const a = o.start < first ? 0 : SS.diffD(first, o.start), b = o.end > last ? days.length - 1 : SS.diffD(first, o.end);
+        put({ o, a, b, d: days[a], cl: o.start < first, cr: o.end > last, bar: true });
+      });
+    if (withTimed) days.forEach((x, c) => occ.filter(o => !SS.isLong(o) && o.start === x).forEach(o => put({ o, a: c, b: c, d: x })));
+    return items;
   }
-  const sortDay = list => list.slice().sort((a, b) => (SS.isLong(b) - SS.isLong(a)) || a.st.localeCompare(b.st));
+  function chip(it, pos) {
+    const o = it.o, t = SS.titleOf(o), time = !o.allDay && !it.cl ? `<span class="t">${o.st}</span>` : '';
+    return `<div class="chip ${it.bar ? 'bar' : 'timed'} ${it.cl ? 'cl' : ''} ${it.cr ? 'cr' : ''} ${S.selEvent === o.id ? 'sel' : ''} ${SS.masked(o) ? 'busy' : ''}" data-act="ev" data-arg="${o.id}" data-d="${it.d}" style="${pos};${cvar(o)}" title="${h(t)}">${time}<span class="n">${o.important ? '<b class="imp mini" title="重要">!</b>' : ''}${h(t)}</span></div>`;
+  }
+  const at = it => `grid-column:${it.a + 1}/${it.b + 2};grid-row:${it.lane + 1}`;
 
   /* ---------- 月表示 ---------- */
   V.month = function () {
@@ -69,14 +86,30 @@
     const start = addD(iso(first), -first.getDay());
     const weeks = Math.ceil((first.getDay() + new Date(y, m + 1, 0).getDate()) / 7);
     const end = addD(start, weeks * 7 - 1), occ = SS.query(S.cal, start, end), td = SS.today();
-    let cells = '';
-    for (let i = 0; i < weeks * 7; i++) {
-      const x = addD(start, i), dx = parse(x), list = sortDay(SS.onDay(occ, x)), max = 3;
-      cells += `<div class="mcell ${dx.getMonth() !== m ? 'out' : ''} ${x === td ? 'today' : ''} ${x === S.selDate ? 'sel' : ''} wd${dx.getDay()}" data-act="day" data-arg="${x}">
-        <div class="mnum"><span data-act="goday" data-arg="${x}">${dx.getDate() === 1 ? (dx.getMonth() + 1) + '/1' : dx.getDate()}</span></div>
-        <div class="mevs">${list.slice(0, max).map(o => chip(o, x)).join('')}${list.length > max ? `<div class="more" data-act="more" data-arg="${x}">他 ${list.length - max} 件</div>` : ''}</div></div>`;
+    /* 1日に出せる段の数は行の高さで決める（パソコンは描いたあとに高さを測り直す。app.js） */
+    const mob = SS.isMobile(), ih = mob ? 19 : 25, head = mob ? 26 : 34;
+    const rowH = mob ? 94 : Math.max(80, (SS._mgH || innerHeight - 170) / weeks);
+    const maxL = Math.max(1, Math.floor((rowH - head - 4) / (ih + 2)));
+    let rowsHtml = '';
+    for (let w = 0; w < weeks; w++) {
+      const days = [0, 1, 2, 3, 4, 5, 6].map(i => addD(start, w * 7 + i)), items = lanes(days, occ, true);
+      const top = Array(7).fill(-1);
+      items.forEach(it => { for (let c = it.a; c <= it.b; c++) top[c] = Math.max(top[c], it.lane); });
+      const lim = top.map(t => t + 1 > maxL ? maxL - 1 : maxL), hidden = Array(7).fill(0);
+      let fg = '';
+      items.forEach(it => {
+        let mx = Infinity; for (let c = it.a; c <= it.b; c++) mx = Math.min(mx, lim[c]);
+        if (it.lane < mx) fg += chip(it, at(it)); else for (let c = it.a; c <= it.b; c++) hidden[c]++;
+      });
+      hidden.forEach((n, c) => { if (n) fg += `<div class="more" data-act="more" data-arg="${days[c]}" style="grid-column:${c + 1};grid-row:${lim[c] + 1}">他 ${n} 件</div>`; });
+      const bg = days.map(x => {
+        const dx = parse(x);
+        return `<div class="mcell ${dx.getMonth() !== m ? 'out' : ''} ${x === td ? 'today' : ''} ${x === S.selDate ? 'sel' : ''} wd${dx.getDay()}" data-act="day" data-arg="${x}">
+          <div class="mnum"><span data-act="goday" data-arg="${x}">${dx.getDate() === 1 ? (dx.getMonth() + 1) + '月1日' : dx.getDate()}</span></div></div>`;
+      }).join('');
+      rowsHtml += `<div class="mweek" style="--ih:${ih}px;--mh:${head}px${mob ? ';height:' + rowH + 'px' : ''}"><div class="mbg">${bg}</div><div class="mfg">${fg}</div></div>`;
     }
-    return `<div class="month"><div class="m-head">${WD.map((w, i) => `<div class="wd${i}">${w}</div>`).join('')}</div><div class="m-grid" style="grid-template-rows:repeat(${weeks},minmax(var(--mrow),1fr))">${cells}</div></div>`;
+    return `<div class="month"><div class="m-head">${WD.map((w, i) => `<div class="wd${i}">${w}</div>`).join('')}</div><div class="m-grid">${rowsHtml}</div></div>`;
   };
 
   /* ---------- 週・日表示（時間軸） ---------- */
@@ -93,9 +126,11 @@
   }
   V.timegrid = function (days) {
     const H = SS.HOUR, occ = SS.query(S.cal, days[0], days[days.length - 1]), td = SS.today();
-    const cols = `style="grid-template-columns:var(--gut) repeat(${days.length},minmax(0,1fr))"`;
+    const n = days.length, cols = `style="grid-template-columns:var(--gut) repeat(${n},minmax(0,1fr))"`, sub = `grid-template-columns:repeat(${n},minmax(0,1fr))`;
     const head = days.map(x => { const dx = parse(x); return `<div class="tg-dh ${x === td ? 'today' : ''} wd${dx.getDay()}" data-act="goday" data-arg="${x}"><span class="w">${WD[dx.getDay()]}</span><span class="n">${dx.getDate()}</span></div>`; }).join('');
-    const all = days.map(x => `<div class="tg-ac" data-act="slot" data-d="${x}" data-arg="all">${sortDay(SS.onDay(occ, x).filter(SS.isLong)).map(o => chip(o, x)).join('')}</div>`).join('');
+    const ad = lanes(days, occ, false), nl = ad.reduce((mx, it) => Math.max(mx, it.lane + 1), 0);
+    const all = `<div class="tg-ad" style="--ih:${SS.isMobile() ? 19 : 24}px;--nl:${nl}"><div class="tg-adbg" style="${sub}">${days.map(x => `<div class="tg-ac" data-act="slot" data-d="${x}" data-arg="all"></div>`).join('')}</div>
+      <div class="tg-adfg" style="${sub}">${ad.map(it => chip(it, at(it))).join('')}</div></div>`;
     let hours = '', lines = '';
     for (let i = 0; i < 24; i++) { hours += `<div class="tg-hr" style="height:${H}px"><span>${i ? i + ':00' : ''}</span></div>`; lines += `<div class="tg-ln" style="height:${H}px"></div>`; }
     const now = new Date(), nowTop = (now.getHours() * 60 + now.getMinutes()) / 60 * H;
@@ -103,13 +138,13 @@
       const list = occ.filter(o => !SS.isLong(o) && o.start === x).map(o => ({ o, s: SS.mins(o.st), e: Math.max(SS.mins(o.en), SS.mins(o.st) + 30) }));
       layout(list);
       return `<div class="tg-col ${x === td ? 'today' : ''}" data-act="slot" data-d="${x}"><div class="tg-lines">${lines}</div>` + list.map(it => {
-        const o = it.o, short = it.e - it.s <= 30;
+        const o = it.o, short = it.e - it.s <= 45, last = it.col === it.cols - 1;
         return `<div class="tev ${short ? 'short' : ''} ${S.selEvent === o.id ? 'sel' : ''} ${SS.masked(o) ? 'busy' : ''} ${SS.canEdit(o) ? 'drag' : ''}" data-act="ev" data-arg="${o.id}" data-d="${x}"
-          style="top:${it.s / 60 * H}px;height:${(it.e - it.s) / 60 * H - 2}px;left:calc(${it.col / it.cols * 100}% + 2px);width:calc(${100 / it.cols}% - 5px);--c:${SS.colorOf(o)[0]};--cb:${SS.colorOf(o)[1]}">
-          <b>${o.important ? '<i class="imp mini" title="重要">!</i>' : ''}${h(SS.titleOf(o))}</b><span>${o.st} – ${o.en}${!SS.masked(o) && o.place ? '・' + h(o.place) : ''}</span></div>`;
+          style="top:${it.s / 60 * H}px;height:${(it.e - it.s) / 60 * H - 2}px;left:calc(${it.col / it.cols * 100}% + 1px);width:calc(${100 / it.cols}% - ${last ? 8 : 2}px);${cvar(o)}">
+          <b>${o.important ? '<i class="imp mini" title="重要">!</i>' : ''}${h(SS.titleOf(o))}</b><span>${short ? o.st : o.st + '〜' + o.en}</span>${!short && !SS.masked(o) && o.place ? `<span>${h(o.place)}</span>` : ''}</div>`;
       }).join('') + (x === td ? `<div class="tg-now" style="top:${nowTop}px"></div>` : '') + '</div>';
     }).join('');
-    return `<div class="tg ${days.length === 1 ? 'one' : ''}"><div class="tg-scroll" id="tgScroll">
+    return `<div class="tg ${n === 1 ? 'one' : ''}"><div class="tg-scroll" id="tgScroll">
       <div class="tg-head" ${cols}><div class="tg-gut"></div>${head}</div>
       <div class="tg-all" ${cols}><div class="tg-gut">終日</div>${all}</div>
       <div class="tg-body" ${cols}><div class="tg-gut">${hours}</div>${body}</div></div></div>`;
@@ -128,8 +163,7 @@
         <span class="fb-note">${I('share', 14)}個人カレンダーで共有ONにした予定が自動で表示されます</span>`);
     } else if (S.cal === 'all') {
       const on = SS.calList().filter(c => !S.hidden[c.id]);
-      out.push(on.length ? `<span class="fb-l">重ねて表示中</span>` + on.map(c => `<span class="lg" ${sty(PAL[c.color] || PAL.gray)}><i class="dot"></i>${h(c.name.replace('カレンダー', ''))}</span>`).join('')
-        : `<span class="fb-note">表示中のカレンダーがありません。左の一覧でチェックを入れてください。</span>`);
+      if (!on.length) out.push(`<span class="fb-note">表示中のカレンダーがありません。左の一覧でチェックを入れてください。</span>`);
     } else if (S.cal === 'personal') {
       out.push(`<span class="fb-note">${I('lock', 14)}共有OFFの予定は本人だけに表示されます</span>`);
     } else {
