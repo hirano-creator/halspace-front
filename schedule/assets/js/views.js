@@ -76,7 +76,7 @@
   }
   function chip(it, pos) {
     const o = it.o, t = SS.titleOf(o), time = !o.allDay && !it.cl ? `<span class="t">${o.st}</span>` : '';
-    return `<div class="chip ${it.bar ? 'bar' : 'timed'} ${it.cl ? 'cl' : ''} ${it.cr ? 'cr' : ''} ${S.selEvent === o.id ? 'sel' : ''} ${SS.masked(o) ? 'busy' : ''}" data-act="ev" data-arg="${o.id}" data-d="${it.d}" style="${pos};${cvar(o)}" title="${h(t)}">${time}<span class="n">${o.important ? '<b class="imp mini" title="重要">!</b>' : ''}${h(t)}</span></div>`;
+    return `<div class="chip ${it.bar ? 'bar' : 'timed'} ${it.cl ? 'cl' : ''} ${it.cr ? 'cr' : ''} ${S.selEvent === o.id ? 'sel' : ''} ${SS.masked(o) ? 'busy' : ''} ${SS.canEdit(o) ? 'drag' : ''}" data-act="ev" data-arg="${o.id}" data-d="${it.d}" data-s="${o.start}" style="${pos};${cvar(o)}" title="${h(t)}">${time}<span class="n">${o.important ? '<b class="imp mini" title="重要">!</b>' : ''}${h(t)}</span></div>`;
   }
   const at = it => `grid-column:${it.a + 1}/${it.b + 2};grid-row:${it.lane + 1}`;
 

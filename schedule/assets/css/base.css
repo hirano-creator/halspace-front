@@ -172,6 +172,13 @@ select { height: 30px; border: 1px solid var(--line); border-radius: var(--r); b
 .tev.short { flex-direction: row; gap: 6px; align-items: center; padding-top: 0; padding-bottom: 0; }
 .tev.sel { outline: 2px solid var(--text); outline-offset: 1px; z-index: 4; }
 .tev.dragging { opacity: .8; z-index: 10; cursor: grabbing; outline: 2px dashed var(--text); }
+/* 長押しで持ち上げて移動（月・終日の帯は複製を指に付けて動かし、元は薄くする） */
+.tev.drag, .chip.drag { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.tev.lifted { z-index: 10; box-shadow: 0 6px 18px rgba(0, 0, 0, .22); }
+.chip.drag-src { opacity: .35; }
+.chip.drag-ghost { position: fixed; z-index: 1000; margin: 0; pointer-events: none; opacity: .95; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); cursor: grabbing; }
+.mcell.drop, .tg-ac.drop, .tg-col.drop { background: var(--accent-pale); }
+body.ss-dragging, body.ss-dragging * { cursor: grabbing !important; }
 .tev .imp.mini { background: #fff; color: var(--danger); font-size: 9px; }
 
 /* ---------- 選択日の一覧・予定詳細 ---------- */
