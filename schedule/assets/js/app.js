@@ -296,32 +296,111 @@
     if (e.key === 'Enter' && !e.isComposing && e.target.id === 'q_title') A.quicksave();
   });
 
-  /* 時間軸の予定をドラッグで移動（15 分きざみ・日をまたげる）。繰り返し予定は全部の回が同じだけ動く */
+  /* 予定を長押しで持ち上げて移動する。繰り返し予定は全部の回が同じだけ動く
+     - 時間軸の予定（週・日）: 時刻（15 分きざみ）と日を変えられる
+     - 月表示の予定・終日の帯: 日だけ変わる（時刻はそのまま）
+     - 長押し（0.35 秒）で持ち上がる。マウスは押したまま動かしても持ち上がる（従来どおり）
+     - スマホは長押しの前に指が動いたら、ふつうのスクロールとして扱う */
+  const HOLD = 350;
   let drag = null;
+  const dayAt = (x, y) => {   // 指・マウスの下の日付と、その枠
+    const u = document.elementFromPoint(x, y), c = u && u.closest('.mcell, .tg-ac, .tg-col');
+    return c ? { el: c, d: c.dataset.d || c.dataset.arg } : null;
+  };
+  function setDrop(g, t) {
+    const el = t && t.el;
+    if (g.drop === el) return;
+    if (g.drop) g.drop.classList.remove('drop');
+    g.drop = el; if (el) el.classList.add('drop');
+  }
+  function lift(g) {
+    clearTimeout(g.timer);
+    if (g.active) return;
+    g.active = true; S.float = S.quick = null;
+    const f = $('float'); if (f) f.remove();
+    document.body.classList.add('ss-dragging');
+    g.el.style.pointerEvents = 'none';   // 下の日付を拾えるように
+    g.from = dayAt(g.x, g.y);
+    if (g.timed) g.el.classList.add('dragging', 'lifted');
+    else {
+      const r = g.el.getBoundingClientRect(), gh = g.el.cloneNode(true);
+      gh.classList.add('drag-ghost'); gh.classList.remove('sel');
+      Object.assign(gh.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+      document.body.appendChild(gh); g.ghost = gh; g.el.classList.add('drag-src');
+    }
+    if (g.touch && navigator.vibrate) try { navigator.vibrate(12); } catch (e) { }
+    move(g);
+  }
+  function move(g) {
+    const dx = g.cx - g.x, dy = g.cy - g.y;
+    if (g.timed) g.el.style.transform = `translate(${dx}px,${dy + (g.sc ? g.sc.scrollTop - g.sc0 : 0)}px)`;
+    else g.ghost.style.transform = `translate(${dx}px,${dy}px)`;
+    setDrop(g, dayAt(g.cx, g.cy));
+  }
+  /* 時間軸の上下の端に近づいたら、自動でスクロールする */
+  function autoScroll(g) {
+    if (!drag || drag !== g || !g.sc) return;
+    const r = g.sc.getBoundingClientRect(), edge = 40;
+    const v = g.cy < r.top + edge ? -1 : g.cy > r.bottom - edge ? 1 : 0;
+    if (v) { g.sc.scrollTop += v * 10; move(g); }
+    g.raf = requestAnimationFrame(() => autoScroll(g));
+  }
+  function endDrag(g) {
+    clearTimeout(g.timer); cancelAnimationFrame(g.raf);
+    if (g.ghost) g.ghost.remove();
+    setDrop(g, null);
+    document.body.classList.remove('ss-dragging');
+  }
+
   document.addEventListener('pointerdown', e => {
-    if (e.button !== 0 || SS.isMobile() || busy) return;
-    const el = e.target.closest('.tev.drag'); if (el) drag = { el, id: el.dataset.arg, d: el.dataset.d, x: e.clientX, y: e.clientY, moved: false };
+    if (drag || busy || S.modal || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    const el = e.target.closest('.tev.drag, .chip.drag'); if (!el) return;
+    const timed = el.classList.contains('tev'), sc = timed ? el.closest('.tg-scroll') : null;
+    const g = drag = { el, id: el.dataset.arg, d: el.dataset.d, s: el.dataset.s || el.dataset.d, timed, sc, sc0: sc ? sc.scrollTop : 0,
+      x: e.clientX, y: e.clientY, cx: e.clientX, cy: e.clientY, touch: e.pointerType !== 'mouse', active: false, pid: e.pointerId };
+    g.timer = setTimeout(() => { if (drag === g) lift(g); }, HOLD);
   });
   document.addEventListener('pointermove', e => {
-    if (!drag) return;
-    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
-    drag.moved = true; drag.el.classList.add('dragging'); drag.el.style.transform = `translate(${dx}px,${dy}px)`;
+    const g = drag; if (!g || e.pointerId !== g.pid) return;
+    g.cx = e.clientX; g.cy = e.clientY;
+    if (!g.active) {
+      if (Math.hypot(g.cx - g.x, g.cy - g.y) < (g.touch ? 8 : 5)) return;
+      if (g.touch) { clearTimeout(g.timer); drag = null; return; }   // スマホ: 長押しの前に動いた＝スクロール
+      lift(g);
+      if (g.sc) autoScroll(g);
+      return;
+    }
+    if (g.sc && !g.raf) autoScroll(g);
+    move(g);
+  });
+  /* 持ち上げている間は画面をスクロールさせない（スマホ）・長押しのメニューを出さない */
+  document.addEventListener('touchmove', e => { if (drag && drag.active) e.preventDefault(); }, { passive: false });
+  document.addEventListener('contextmenu', e => { if (drag || e.target.closest('.tev.drag, .chip.drag')) e.preventDefault(); });
+  document.addEventListener('pointercancel', e => {
+    const g = drag; if (!g || e.pointerId !== g.pid) return;
+    drag = null; endDrag(g); if (g.active) render();
   });
   document.addEventListener('pointerup', async e => {
-    const g = drag; drag = null; if (!g || !g.moved) return;
+    const g = drag; if (!g || e.pointerId !== g.pid) return;
+    drag = null; endDrag(g);
+    if (!g.active) return;   // 長押しになる前に離した＝ふつうのクリック（詳細を出す）
     justDragged = true; setTimeout(() => justDragged = false, 60);
-    g.el.style.pointerEvents = 'none';
-    const under = document.elementFromPoint(e.clientX, e.clientY), col = under && under.closest('.tg-col');
-    const ev = SS.ev(g.id), before = Object.assign({}, ev), len = SS.mins(ev.en) - SS.mins(ev.st);
-    const s = Math.max(0, Math.min(1440 - len, SS.mins(ev.st) + Math.round((e.clientY - g.y) / SS.HOUR * 4) * 15)), dd = col ? SS.diffD(g.d, col.dataset.d) : 0;
-    if (s === SS.mins(ev.st) && dd === 0) { render(); return; }
-    Object.assign(ev, { st: SS.hm(s), en: SS.hm(s + len), start: SS.addD(ev.start, dd), end: SS.addD(ev.end, dd) });
-    S.selEvent = ev.id; S.float = null; render();
+    const ev = SS.ev(g.id); if (!ev) { render(); return; }
+    const to = dayAt(e.clientX, e.clientY), dd = to && g.from ? SS.diffD(g.from.d, to.d) : 0;
+    const before = Object.assign({}, ev);
+    let s = SS.mins(ev.st);
+    if (g.timed && to && to.el.classList.contains('tg-col')) {
+      const len = SS.mins(ev.en) - SS.mins(ev.st), dy = e.clientY - g.y + (g.sc ? g.sc.scrollTop - g.sc0 : 0);
+      s = Math.max(0, Math.min(1440 - len, s + Math.round(dy / SS.HOUR * 4) * 15));
+      Object.assign(ev, { st: SS.hm(s), en: SS.hm(s + len) });
+    }
+    if (s === SS.mins(before.st) && dd === 0) { render(); return; }
+    Object.assign(ev, { start: SS.addD(ev.start, dd), end: SS.addD(ev.end, dd) });
+    S.selEvent = ev.id; S.float = null; S.selDate = SS.addD(g.s, dd); render();
     busy = true;
     try {
       await SS.updateEvent(ev);
-      SS.toast('予定を ' + SS.md(SS.addD(g.d, dd)) + ' ' + SS.hm(s) + ' に移動しました');
+      SS.toast('予定を ' + SS.md(SS.addD(g.s, dd)) + (ev.allDay ? '' : ' ' + ev.st) + ' に移動しました');
     } catch (err) {
       Object.assign(ev, before);
       if (err.status === 409) { SS.toast(err.message); load(true); } else SS.toast('移動できませんでした。' + err.message);

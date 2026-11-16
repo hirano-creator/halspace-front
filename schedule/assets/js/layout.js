@@ -38,6 +38,6 @@
       ${isCal ? `${V.dateNav()}<h1>${V.title()}<small>${h(SS.screenTitle())}</small></h1>${V.loading()}<span class="grow"></span>${V.search()}${V.seg()}`
         : `<h1>${h(SS.screenTitle())}</h1>${V.loading()}<span class="grow"></span>`}</header>`;
     return `<div class="b-shell ${nav.length ? 'has-rail' : ''}">${rail}<div class="b-col">${top}<div class="b-body">${panel}<div class="b-main ${isCal ? '' : 'manage'}">
-      ${isCal ? `<div class="b-cal-wrap">${V.calendar()}</div><div class="b-tip">空いている時間をクリックで追加・予定はドラッグで移動できます</div>${V.fab()}` : `<div class="b-page">${V.screen()}</div>`}</div></div></div></div>`;
+      ${isCal ? `<div class="b-cal-wrap">${V.calendar()}</div><div class="b-tip">空いている時間をクリックで追加・予定は長押しして動かすと移動できます</div>${V.fab()}` : `<div class="b-page">${V.screen()}</div>`}</div></div></div></div>`;
   };
 })(window.SS);
