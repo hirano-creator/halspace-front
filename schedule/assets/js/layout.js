@@ -20,7 +20,7 @@
       <button class="${isCal ? 'on' : ''}" data-act="go" data-arg="calendar">${I('cal', 20)}<span>カレンダー</span></button>
       ${nav.map(n => `<button class="${S.screen === n[0] ? 'on' : ''}" data-act="go" data-arg="${n[0]}">${I(n[2], 20)}<span>${RAIL[n[0]] || n[1]}</span></button>`).join('')}</nav>` : '';
     const panel = `<aside class="b-panel ${S.drawer ? 'open' : ''}" aria-label="カレンダーの一覧">
-      <div class="b-brand">${V.logo()}</div>
+      <div class="b-brand only-m-block">${V.logo()}</div>
       ${isCal ? `<button class="btn primary b-create" data-act="add">${I('plus')}予定を作成</button>
       ${V.miniMonth()}
       <div class="b-grp"><span>マイカレンダー</span></div>
@@ -31,11 +31,13 @@
       : nav.map(n => `<button class="b-all ${S.screen === n[0] ? 'on' : ''}" data-act="go" data-arg="${n[0]}">${I(n[2], 14)}${n[1]}</button>`).join('')}
       ${V.sidebarBottom()}
     </aside>${S.drawer ? '<div class="scrim" data-act="drawer"></div>' : ''}`;
+    /* 上の帯は画面の幅いっぱい（Googleカレンダーと同じ並び: ロゴ → 今日・前後 → 年月 … 検索・日週月） */
     const top = `<header class="b-top ${isCal ? '' : 'manage'}">
       <button class="icon-btn only-m" data-act="drawer" aria-label="メニュー">${I('menu', 20)}</button>
+      <div class="b-top-brand">${V.logo()}</div>
       ${isCal ? `${V.dateNav()}<h1>${V.title()}<small>${h(SS.screenTitle())}</small></h1>${V.loading()}<span class="grow"></span>${V.search()}${V.seg()}`
         : `<h1>${h(SS.screenTitle())}</h1>${V.loading()}<span class="grow"></span>`}</header>`;
-    return `<div class="b-shell ${nav.length ? 'has-rail' : ''}">${rail}${panel}<div class="b-main">${top}
-      ${isCal ? `<div class="b-cal-wrap">${V.calendar()}</div><div class="b-tip">空いている時間をクリックで追加・予定はドラッグで移動できます</div>${V.fab()}` : `<div class="b-page">${V.screen()}</div>`}</div></div>`;
+    return `<div class="b-shell ${nav.length ? 'has-rail' : ''}">${rail}<div class="b-col">${top}<div class="b-body">${panel}<div class="b-main ${isCal ? '' : 'manage'}">
+      ${isCal ? `<div class="b-cal-wrap">${V.calendar()}</div><div class="b-tip">空いている時間をクリックで追加・予定はドラッグで移動できます</div>${V.fab()}` : `<div class="b-page">${V.screen()}</div>`}</div></div></div></div>`;
   };
 })(window.SS);
