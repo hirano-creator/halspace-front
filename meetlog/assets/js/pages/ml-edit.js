@@ -1012,18 +1012,39 @@ ${autoprintScript}
    印刷（常に新規ウィンドウ + @page margin で全ページ余白を保証）
 ──────────────────────────── */
 async function printMinute() {
-  if (selectedForm) {
-    if (previewIsEditing) togglePreviewEdit();
-    await renderFormPaper();
-    return printFormPaper();
+  if (!currentMarkdown().trim()) {
+    mlShowToast('紙がまだ白紙です。先に「AIで整えて紙に入れる」を押してください', 'warning');
+    return;
   }
-  const { title, bodyHtml, actHtml } = await buildPrintContent();
-  const html = buildPrintHtml(title, bodyHtml, actHtml, true);
-  const w = window.open('', '_blank', 'width=900,height=700');
-  w.document.write(html);
-  w.document.close();
-}
+  if (previewIsEditing) {
+    const md = document.getElementById('previewEditArea').value;
+    togglePreviewEdit();
+    await showPreviewMode(md);
+  } else {
+    await renderFormPaper();
+  }
+  deselectImg();
 
+  // 画像の読み込みを待つ（最大3秒）
+  const imgs = [...document.querySelectorAll('#paper img')].filter(i => !i.complete);
+  if (imgs.length) {
+    await Promise.race([
+      Promise.all(imgs.map(i => new Promise(r => { i.onload = i.onerror = r; }))),
+      new Promise(r => setTimeout(r, 3000)),
+    ]);
+  }
+
+  const keepTitle = document.title;
+  document.title = document.getElementById('titleInput').value.trim() || '議事録';
+  document.body.classList.add('print-paper');
+  const done = () => {
+    document.body.classList.remove('print-paper');
+    document.title = keepTitle;
+    window.removeEventListener('afterprint', done);
+  };
+  window.addEventListener('afterprint', done);
+  window.print();
+}
 
 /* ────────────────────────────
    PDF出力
@@ -1043,8 +1064,8 @@ async function exportPdf() {
     return;
   }
   if (previewIsEditing) togglePreviewEdit();
-  if (selectedForm) await renderFormPaper();
-  const target = selectedForm ? document.getElementById('formPaper') : preview;
+  await renderFormPaper();
+  const target = document.getElementById(selectedForm ? 'formPaper' : 'stdWrap');
 
   const pdfBtn = document.getElementById('pdfBtn');
   const pdfBtnKeep = pdfBtn.innerHTML;

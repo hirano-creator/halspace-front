@@ -324,14 +324,44 @@
       .btn-voice-sm { width: 40px; }
     }
 
-    /* ── 印刷（QRモーダル用） ── */
+    /* 紙の中身を入れる表（印刷のとき、どのページにも上下の余白を付けるため） */
+    .pg-table { width: 100%; border-collapse: collapse; border-spacing: 0; table-layout: fixed; }
+    .pg-table > * > tr > td { padding: 0; border: none; }
+    .pg-gap { height: 0; }
+
+    /* ── 印刷：右の紙をそのまま出す（画面と同じ幅・同じ文字の大きさ） ── */
+    @page { size: A4; margin: 0; }
     @media print {
-      .edit-header, .pane-left, .tplbar, .outbar, .toast-container, #mobileTabs { display: none !important; }
-      html, body { overflow: visible !important; height: auto !important; }
-      .edit-page { height: auto !important; }
-      .edit-body { display: block !important; }
-      .desk { overflow: visible !important; padding: 0; }
-      .paper { box-shadow: none; max-width: none; padding: 0; }
+      html, body { overflow: visible !important; height: auto !important; background: #fff !important; }
+      body.print-paper > *:not(.edit-page) { display: none !important; }
+      body.print-paper .edit-header,
+      body.print-paper #mobileTabs,
+      body.print-paper .pane-left,
+      body.print-paper .tplbar,
+      body.print-paper .outbar,
+      body.print-paper .edit-note { display: none !important; }
+      body.print-paper .edit-page,
+      body.print-paper .edit-body,
+      body.print-paper .pane-right,
+      body.print-paper .desk {
+        display: block !important; position: static !important; height: auto !important; min-height: 0 !important;
+        overflow: visible !important; padding: 0 !important; background: #fff !important; inset: auto !important;
+      }
+      body.print-paper .paper {
+        width: 760px !important; max-width: none !important; min-height: 0 !important; margin: 0 auto !important;
+        box-shadow: none !important; padding: 0 48px !important;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      }
+      body.print-paper .paper:has(#formPaper:not([style*="none"])) { padding: 0 32px !important; }
+      body.print-paper .pg-gap { height: 10mm; }
+      body.print-paper .fp-frame {
+        display: block !important; min-height: 1040px !important;
+        -webkit-box-decoration-break: clone; box-decoration-break: clone;
+      }
+      body.print-paper img { border-color: transparent !important; box-shadow: none !important; }
+      body.print-paper h2, body.print-paper h3, body.print-paper h4 { break-after: avoid; }
+      body.print-paper tr, body.print-paper img { break-inside: avoid; }
+      body.print-paper .pg-table > tbody > tr { break-inside: auto; }
     }
 
     /* ── タブレット ── */
@@ -521,14 +551,19 @@
       <div class="desk pane-scroll" id="desk">
         <div class="paper" id="paper">
           <div class="edit-note"><i class="fa-solid fa-pen"></i> 文章をなおしています。終わったら右上の「なおし終わる」を押してください。</div>
-          <div class="preview-area" id="mdPreview">
-            <div class="preview-placeholder">
-              <i class="fa-solid fa-wand-magic-sparkles"></i>
-              <span>左にメモを書いて<br>「AIで整えて紙に入れる」を押してください</span>
+          <table class="pg-table"><thead><tr><td class="pg-gap"></td></tr></thead><tbody><tr><td>
+          <div id="stdWrap">
+            <div class="preview-area" id="mdPreview">
+              <div class="preview-placeholder">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span>左にメモを書いて<br>「AIで整えて紙に入れる」を押してください</span>
+              </div>
             </div>
+            <div class="preview-area" id="stdActions"></div>
           </div>
           <div class="fp" id="formPaper" style="display:none;"></div>
           <textarea id="previewEditArea" style="display:none;" placeholder="議事録の文章をなおせます…"></textarea>
+          </td></tr></tbody><tfoot><tr><td class="pg-gap"></td></tr></tfoot></table>
         </div>
       </div>
 
@@ -696,7 +731,7 @@ function switchMobileTab(tab) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="../../../solid/assets/js/auth.js?v=13"></script>
 <script src="../assets/js/ml-api.js?v=3"></script>
-<script src="../assets/js/pages/ml-edit.js?v=22"></script>
-<script src="../assets/js/ml-forms.js?v=1"></script>
+<script src="../assets/js/pages/ml-edit.js?v=23"></script>
+<script src="../assets/js/ml-forms.js?v=2"></script>
 </body>
 </html>
