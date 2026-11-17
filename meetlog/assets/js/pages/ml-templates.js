@@ -84,12 +84,13 @@ function renderTemplates() {
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:15px;font-weight:700;color:var(--primary);">${escHtml(t.name)}</span>
+          ${t.kind === 'xlsx' ? '<span style="font-size:11px;font-weight:700;color:#166534;background:#DCFCE7;padding:2px 8px;border-radius:20px;">Excel様式</span>' : ''}
           ${t.is_default ? '<span style="font-size:11px;font-weight:700;color:var(--ml-accent);background:var(--ml-accent-lt);padding:2px 8px;border-radius:20px;">デフォルト</span>' : ''}
         </div>
-        <div class="tpl-body-preview">${escHtml(t.body)}</div>
+        <div class="tpl-body-preview">${t.kind === 'xlsx' ? escHtml((t.file_name || '') + '（入れる場所の設定は、議事録の編集画面の「様式」から行います）') : escHtml(t.body)}</div>
       </div>
       <div class="tpl-actions">
-        <button class="btn btn-outline btn-sm" onclick="openEditModal(${i})">
+        <button class="btn btn-outline btn-sm" onclick="openEditModal(${i})" ${t.kind === 'xlsx' ? 'style="display:none;"' : ''}>
           <i class="fa-solid fa-pen"></i>
         </button>
         <button class="btn btn-ghost btn-sm" onclick="deleteTpl(${t.id})" style="color:var(--red);">

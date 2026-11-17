@@ -16,6 +16,12 @@ let isDirty           = false;
 let autoSaveTimer     = null;
 let lastSavedAt       = null;
 let pendingCarryoverActions = [];
+let currentUser     = null;
+
+/* いま開いている議事録のID（新規で保存した直後も取れるようにする） */
+function curId() {
+  return (currentMinute && currentMinute.id) || minuteId;
+}
 
 /* ────────────────────────────
    初期化
@@ -24,9 +30,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const user = requireAuth();
   if (!user) return;
 
+  currentUser = user;
   initEvents();
   initImgResize();
+  initFormsUi();
   await Promise.all([loadTemplates(), minuteId ? loadMinute() : initNew()]);
+  applyInitialForm();
+  updateMetaLine();
+  isDirty = false;
+  if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
   initVoiceRecognition();
 });
 
@@ -46,7 +58,7 @@ async function initNew() {
   const savedAuthor = localStorage.getItem('ml_author_name') || '';
   document.getElementById('authorNameInput').value = savedAuthor;
   renderActionList([]);
-  markDirty();
+  setMetaOpen(true);
 
   // 前回の未完了アクションを取得してバナー表示
   const myActions = await mlGetMyActions();
@@ -84,9 +96,6 @@ async function loadMinute() {
   if (bodyVal.trim()) showPreviewMode(bodyVal);
   updateClearMemoBtn();
 
-  if (currentMinute.template_type) {
-    setActiveTemplate(currentMinute.template_type);
-  }
 
   const fetchedActions = await mlGetActions(minuteId);
   actions = fetchedActions.map(a => ({ ...a, _saved: true }));
@@ -102,21 +111,43 @@ async function loadMinute() {
 ──────────────────────────── */
 async function loadTemplates() {
   templates = await mlGetTemplates();
-  // テンプレートUIが存在する場合のみ描画
+  forms = templates.filter(t => t.kind === 'xlsx');
+  if (selectedForm) selectedForm = forms.find(f => f.id === selectedForm.id) || null;
+  renderFormPills();
+
+  // メモのひな形（従来のテンプレート）
+  const textTpls = templates.filter(t => t.kind !== 'xlsx');
   const container = document.getElementById('templateBtns');
-  if (!container || !templates.length) return;
-
-  container.innerHTML = templates.map(t => `
+  if (!container) return;
+  container.innerHTML = textTpls.length
+    ? '<span class="tplhint-label">ひな形</span>' + textTpls.map(t => `
     <button class="template-btn" data-id="${t.id}" data-name="${escHtml(t.name)}" data-body="${escHtml(t.body)}"
-      onclick="onTemplateClick(this)">
-      ${escHtml(t.name)}
-    </button>`).join('');
+      onclick="onTemplateClick(this)">${escHtml(t.name)}</button>`).join('')
+    : '';
+  updateClearMemoBtn();
+}
 
-  const def = templates.find(t => t.is_default);
-  if (def && !minuteId) {
-    const btn = container.querySelector(`[data-id="${def.id}"]`);
+/* 開いたときの様式を決める（保存済みならその様式、新規なら会社の標準） */
+function applyInitialForm() {
+  const tt = currentMinute && currentMinute.template_type;
+  if (tt && /^form:\d+$/.test(tt)) {
+    selectForm(Number(tt.slice(5)), true);
+  } else if (tt) {
+    setActiveTemplate(tt);
+    selectForm(null, true);
+  } else if (!minuteId) {
+    const def = forms.find(f => f.is_default);
+    selectForm(def ? def.id : null, true);
+    const defText = templates.find(t => t.kind !== 'xlsx' && t.is_default);
+    const btn = defText && document.querySelector(`.template-btn[data-id="${defText.id}"]`);
     if (btn) applyTemplate(btn);
+  } else {
+    selectForm(null, true);
   }
+}
+
+function templateTypeToSave() {
+  return selectedForm ? `form:${selectedForm.id}` : (selectedTemplate || null);
 }
 
 function onTemplateClick(btn) {
@@ -131,6 +162,7 @@ function applyTemplate(btn) {
   const body = document.getElementById('bodyInput');
   if (!body.value.trim()) {
     body.value = btn.dataset.body.replace(/\\n/g, '\n');
+    updateClearMemoBtn();
     markDirty();
   }
 }
@@ -200,6 +232,7 @@ function startVoice() {
   const btn = document.getElementById('voiceBtn');
   btn.classList.add('listening');
   document.getElementById('voiceBtnLabel').textContent = '停止';
+  btn.title = '音声入力を止める';
   setStatus('音声入力中… マイクに向かって話してください', false);
 }
 
@@ -210,6 +243,7 @@ function stopVoice() {
   const btn = document.getElementById('voiceBtn');
   btn.classList.remove('listening');
   document.getElementById('voiceBtnLabel').textContent = '音声入力';
+  btn.title = '話して入力';
   setStatus('');
 }
 
@@ -219,13 +253,13 @@ function stopVoice() {
 async function doAiFormat() {
   const body = document.getElementById('bodyInput').value.trim();
   if (!body) {
-    mlShowToast('本文を入力してから整形してください', 'warning');
+    mlShowToast('先にメモを書いてください', 'warning');
     return;
   }
 
   const btn = document.getElementById('aiFormatBtn');
   btn.disabled = true;
-  setStatus('<i class="fa-solid fa-spinner spinner"></i> AI整形中… しばらくお待ちください', true);
+  setStatus('<i class="fa-solid fa-spinner spinner"></i> AIが整えています… しばらくお待ちください', true);
 
   // 会議情報をメモ先頭に付加してAIに渡す
   const dateVal      = document.getElementById('meetingDate').value;
@@ -249,12 +283,16 @@ async function doAiFormat() {
     ? metaLines.join('\n') + '\n\n' + body
     : body;
 
-  const result = await mlAiFormat(fullText, selectedTemplate || '', selectedAiStyle);
+  let result = await mlAiFormat(fullText, selectedTemplate || '', selectedAiStyle);
   if (result) {
-    showPreviewMode(result);
+    const keptImgs = (currentMarkdown().match(/!\[[^\]]*\]\(mlimg:\/\/\d+\)(\{width=\d+\})?/g) || [])
+      .filter(tag => !result.includes(tag));
+    if (keptImgs.length) result = result.replace(/\s+$/, '') + '\n\n' + keptImgs.join('\n\n') + '\n';
+    if (previewIsEditing) { previewIsEditing = false; resetEditBtnLabel(); }
+    await showPreviewMode(result);
     markDirty();
     setStatus('');
-    mlShowToast('AI整形が完了しました', 'success');
+    mlShowToast('紙に入れました', 'success');
   } else {
     setStatus('AI整形に失敗しました。しばらく後に再試行してください', false);
   }
@@ -276,8 +314,7 @@ async function showPreviewMode(markdown) {
 
   // mlimg://ID を解決してからレンダリング
   preview.innerHTML = await parseMarkdownWithImages(markdown);
-  preview.style.display = '';
-  editArea.style.display = 'none';
+  syncPaperView();
 
   // メタ情報段落（日時/場所/参加者/作成者）を2行レイアウトに整形
   reformatMetaParagraph(preview);
@@ -301,9 +338,16 @@ async function showPreviewMode(markdown) {
     else if (t.includes('📌'))      { h.style.background = '#EDE9FE'; h.style.color = '#6D28D9'; }
     else if (t.includes('サマリー')) { h.style.background = '#DBEAFE'; h.style.color = '#1D4ED8'; }
   });
+
+  await renderFormPaper();
 }
 
 let previewIsEditing = false;
+
+function resetEditBtnLabel() {
+  const b = document.getElementById('editPreviewBtn');
+  if (b) b.innerHTML = '<i class="fa-solid fa-pen"></i><span>文章をなおす</span>';
+}
 
 function togglePreviewEdit() {
   const preview  = document.getElementById('mdPreview');
@@ -317,9 +361,8 @@ function togglePreviewEdit() {
     if (!editArea.value.trim() && preview.dataset.markdown) {
       editArea.value = preview.dataset.markdown;
     }
-    preview.style.display = 'none';
-    editArea.style.display = 'block';
-    editBtn.innerHTML = '<i class="fa-solid fa-eye"></i> プレビュー';
+    syncPaperView();
+    editBtn.innerHTML = '<i class="fa-solid fa-check"></i><span>なおし終わる</span>';
     editArea.focus();
     setInsertImageBtnVisible(true);
 
@@ -330,7 +373,7 @@ function togglePreviewEdit() {
     deselectImg();
     const md = editArea.value;
     showPreviewMode(md);
-    editBtn.innerHTML = '<i class="fa-solid fa-pen"></i> 編集';
+    resetEditBtnLabel();
     setInsertImageBtnVisible(false);
     markDirty();
   }
@@ -352,7 +395,7 @@ function syncFromPreviewEdit() {
 }
 
 function clearMemo() {
-  if (!confirm('メモ入力欄をクリアしますか？')) return;
+  if (!confirm('メモを消しますか？（紙の内容はそのまま残ります）')) return;
   const ta = document.getElementById('bodyInput');
   ta.value = '';
   updateClearMemoBtn();
@@ -364,10 +407,12 @@ function updateClearMemoBtn() {
   if (!btn) return;
   const hasText = document.getElementById('bodyInput').value.trim().length > 0;
   btn.style.display = hasText ? 'inline-flex' : 'none';
+  const hints = document.getElementById('templateBtns');
+  if (hints) hints.style.display = (!hasText && hints.children.length) ? 'flex' : 'none';
 }
 
 function clearPreview() {
-  if (!confirm('議事録プレビューをクリアしますか？')) return;
+  if (!confirm('紙を白紙に戻しますか？（左のメモはそのまま残ります）')) return;
 
   const preview  = document.getElementById('mdPreview');
   const editArea = document.getElementById('previewEditArea');
@@ -378,19 +423,18 @@ function clearPreview() {
   preview.innerHTML = `
     <div class="preview-placeholder">
       <i class="fa-solid fa-wand-magic-sparkles"></i>
-      <span>左側にメモを入力して<br>「AI整形」ボタンを押してください</span>
+      <span>左にメモを書いて<br>「AIで整えて紙に入れる」を押してください</span>
     </div>`;
   delete preview.dataset.markdown;
-  preview.style.display = '';
-  editArea.style.display = 'none';
   editArea.value = '';
 
   // ボタンを非表示
-  if (editBtn)  { editBtn.style.display  = 'none'; editBtn.innerHTML = '<i class="fa-solid fa-pen"></i> 編集'; }
+  if (editBtn)  { editBtn.style.display  = 'none'; resetEditBtnLabel(); }
   if (clearBtn) clearBtn.style.display = 'none';
-  setInsertImageBtnVisible(false);
 
   previewIsEditing = false;
+  syncPaperView();
+  renderFormPaper();
   markDirty();
 }
 
@@ -401,6 +445,9 @@ function renderActionList(list) {
   actions = list;
   const container = document.getElementById('actionList');
   container.innerHTML = list.map((a, i) => renderActionItem(a, i)).join('');
+  const cnt = document.getElementById('todoCount');
+  if (cnt) { cnt.textContent = list.length; cnt.style.display = list.length ? '' : 'none'; }
+  if (typeof scheduleFormPaper === 'function') scheduleFormPaper();
 }
 
 function renderActionItem(a, idx) {
@@ -413,7 +460,7 @@ function renderActionItem(a, idx) {
       <input type="checkbox" class="action-check" ${a.is_done ? 'checked' : ''}
         onchange="onActionCheck(${idx}, this.checked)">
       <input type="text" class="action-content-input" value="${escHtml(a.content || '')}"
-        placeholder="アクション内容を入力…"
+        placeholder="やることを入力…"
         onchange="onActionChange(${idx}, 'content', this.value)">
       ${carryoverBadge}
       <div class="action-meta">
@@ -441,8 +488,8 @@ function addActionItem() {
 
 function deleteActionItem(idx) {
   const a = actions[idx];
-  if (a._saved && minuteId && a.id) {
-    mlDeleteAction(minuteId, a.id).then(() => {});
+  if (a._saved && curId() && a.id) {
+    mlDeleteAction(curId(), a.id).then(() => {});
   }
   actions.splice(idx, 1);
   renderActionList(actions);
@@ -451,14 +498,15 @@ function deleteActionItem(idx) {
 
 function onActionCheck(idx, checked) {
   actions[idx].is_done = checked;
-  if (actions[idx]._saved && minuteId && actions[idx].id) {
-    mlUpdateAction(minuteId, actions[idx].id, { is_done: checked ? 1 : 0 });
+  if (actions[idx]._saved && curId() && actions[idx].id) {
+    mlUpdateAction(curId(), actions[idx].id, { is_done: checked ? 1 : 0 });
   }
   markDirty();
 }
 
 function onActionChange(idx, field, value) {
   actions[idx][field] = value;
+  scheduleFormPaper();
   markDirty();
 }
 
@@ -493,12 +541,12 @@ function dismissCarryover() {
 async function doAiExtractActions() {
   const mid = currentMinute?.id || minuteId;
   if (!mid) {
-    mlShowToast('先に議事録を保存してからAI抽出を実行してください', 'warning');
+    mlShowToast('先に保存してから押してください', 'warning');
     return;
   }
   const btn = document.getElementById('aiExtractBtn');
   btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-spinner spinner"></i> 抽出中…';
+  btn.innerHTML = '<i class="fa-solid fa-spinner spinner"></i> 書き出し中…';
 
   const extracted = await mlAiExtractActions(mid);
   if (extracted && extracted.length) {
@@ -512,7 +560,7 @@ async function doAiExtractActions() {
   }
 
   btn.disabled = false;
-  btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" style="color:var(--ml-accent);"></i> AIで抽出';
+  btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" style="color:var(--ml-purple);"></i> AIで書き出す';
 }
 
 /* ────────────────────────────
@@ -521,7 +569,7 @@ async function doAiExtractActions() {
 async function save() {
   const title = document.getElementById('titleInput').value.trim();
   if (!title) {
-    mlShowToast('タイトルを入力してください', 'warning');
+    mlShowToast('件名を入れてください', 'warning');
     document.getElementById('titleInput').focus();
     return;
   }
@@ -542,12 +590,12 @@ async function save() {
     attendees,
     body:             getBodyToSave(),
     raw_memo:         document.getElementById('bodyInput').value || null,
-    template_type:    selectedTemplate || null,
+    template_type:    templateTypeToSave(),
   };
 
   let saved;
-  if (minuteId) {
-    saved = await mlUpdateMinute(minuteId, data);
+  if (curId()) {
+    saved = await mlUpdateMinute(curId(), data);
   } else {
     saved = await mlCreateMinute(data);
     if (saved) {
@@ -577,7 +625,7 @@ async function save() {
       due_date:      a.due_date || null,
       is_done:       a.is_done ? 1 : 0,
     });
-    if (created) a._saved = true;
+    if (created) { a._saved = true; a.id = created.id; }
   }
 
   updateFooter(saved.approval_status);
@@ -606,8 +654,7 @@ function updateFooter(status) {
   };
   const s = styleMap[status] ?? styleMap.none;
 
-  btn.className = `btn ${s.style}`;
-  btn.style.cssText = 'flex:1;justify-content:center;';
+  btn.className = `btn btn-sm hd-btn ${s.style}`;
   label.textContent = s.label;
   btn.querySelector('i').className = `fa-solid ${s.icon}`;
   btn.disabled = (status === 'approved');
@@ -854,60 +901,8 @@ function applyImgSize(width) {
   markDirty();
 }
 
-// 編集モード時に「画像挿入」ボタンを表示/非表示
-function setInsertImageBtnVisible(visible) {
-  const btn = document.getElementById('insertImageBtn');
-  if (btn) btn.style.display = visible ? 'inline-flex' : 'none';
-}
-
-// ファイル選択後の処理
-async function onInsertImageSelect(input) {
-  const file = input.files[0];
-  input.value = '';
-  if (!file) return;
-  await insertImageToEditor(file);
-}
-
-async function insertImageToEditor(file) {
-  const mid = currentMinute?.id || minuteId;
-  if (!mid) {
-    mlShowToast('先に議事録を保存してから画像を挿入してください', 'warning');
-    return;
-  }
-  if (!file.type.startsWith('image/')) {
-    mlShowToast('画像ファイルのみ挿入できます', 'warning');
-    return;
-  }
-
-  const btn = document.getElementById('insertImageBtn');
-  if (btn) btn.style.opacity = '0.5';
-  setStatus('<i class="fa-solid fa-spinner spinner"></i> 画像をアップロード中…', true);
-
-  const result = await mlUploadAttachment(mid, file);
-
-  if (btn) btn.style.opacity = '';
-  setStatus('');
-
-  if (!result) {
-    mlShowToast('画像のアップロードに失敗しました', 'danger');
-    return;
-  }
-
-  attachments.push(result);
-  delete imageUrlCache[result.id]; // キャッシュをリセットして次回プレビュー時に再取得
-
-  // カーソル位置に挿入
-  const ta = document.getElementById('previewEditArea');
-  const tag = `\n![${escHtml(result.original_name)}](mlimg://${result.id})\n`;
-  const s = ta.selectionStart;
-  const e = ta.selectionEnd;
-  ta.value = ta.value.slice(0, s) + tag + ta.value.slice(e);
-  ta.selectionStart = ta.selectionEnd = s + tag.length;
-  ta.focus();
-  markDirty();
-
-  mlShowToast('画像を挿入しました', 'success');
-}
+// 旧「画像挿入」ボタンの表示切替（いまは常に出しているので何もしない）
+function setInsertImageBtnVisible() {}
 
 /* ────────────────────────────
    共通：印刷コンテンツ生成
@@ -1017,6 +1012,11 @@ ${autoprintScript}
    印刷（常に新規ウィンドウ + @page margin で全ページ余白を保証）
 ──────────────────────────── */
 async function printMinute() {
+  if (selectedForm) {
+    if (previewIsEditing) togglePreviewEdit();
+    await renderFormPaper();
+    return printFormPaper();
+  }
   const { title, bodyHtml, actHtml } = await buildPrintContent();
   const html = buildPrintHtml(title, bodyHtml, actHtml, true);
   const w = window.open('', '_blank', 'width=900,height=700');
@@ -1024,10 +1024,6 @@ async function printMinute() {
   w.document.close();
 }
 
-/* プレビューモーダル内の印刷ボタン：printMinute() に統一 */
-function previewPrint() {
-  printMinute();
-}
 
 /* ────────────────────────────
    PDF出力
@@ -1043,16 +1039,20 @@ async function exportPdf() {
   const hasContent = preview && !preview.querySelector('.preview-placeholder') && preview.dataset.markdown;
 
   if (!hasContent) {
-    mlShowToast('AI整形後の議事録がありません', 'warning');
+    mlShowToast('紙がまだ白紙です。先に「AIで整えて紙に入れる」を押してください', 'warning');
     return;
   }
+  if (previewIsEditing) togglePreviewEdit();
+  if (selectedForm) await renderFormPaper();
+  const target = selectedForm ? document.getElementById('formPaper') : preview;
 
   const pdfBtn = document.getElementById('pdfBtn');
+  const pdfBtnKeep = pdfBtn.innerHTML;
   pdfBtn.disabled = true;
-  pdfBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="color:#E53E3E;"></i><span>生成中</span>';
+  pdfBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>作成中</span>';
 
   try {
-    const canvas = await html2canvas(preview, {
+    const canvas = await html2canvas(target, {
       scale: 2,
       useCORS: true,
       logging: false,
@@ -1096,7 +1096,7 @@ async function exportPdf() {
     mlShowToast('PDF生成に失敗しました', 'danger');
   } finally {
     pdfBtn.disabled = false;
-    pdfBtn.innerHTML = '<i class="fa-solid fa-file-pdf" style="color:#E53E3E;"></i><span>PDF</span>';
+    pdfBtn.innerHTML = pdfBtnKeep;
   }
 }
 
@@ -1157,61 +1157,6 @@ function copyEmailText() {
 }
 
 /* ────────────────────────────
-   プレビューモーダル（印刷と同一HTMLをiframeで表示）
-──────────────────────────── */
-async function openPreviewModal() {
-  const preview = document.getElementById('mdPreview');
-  if (!preview || preview.querySelector('.preview-placeholder') || !preview.dataset.markdown) {
-    mlShowToast('プレビューがありません。AI整形を実行してください。', 'warning');
-    return;
-  }
-
-  const modal = document.getElementById('previewFullModal');
-  const area  = document.getElementById('previewPagesArea');
-
-  area.innerHTML = `<div style="color:#94a3b8;text-align:center;margin:auto;">
-    <i class="fa-solid fa-spinner fa-spin" style="font-size:2rem;"></i>
-    <p style="margin-top:14px;font-size:13px;">読み込み中…</p>
-  </div>`;
-  modal.classList.remove('hidden');
-
-  try {
-    const { title, bodyHtml, actHtml } = await buildPrintContent();
-    const html = buildPrintHtml(title, bodyHtml, actHtml, false); // autoprint=false
-
-    area.innerHTML = '';
-    area.style.cssText = 'flex:1;overflow:auto;background:#3a3a4a;display:flex;align-items:flex-start;justify-content:center;padding:24px;min-height:0;';
-
-    const iframe = document.createElement('iframe');
-    iframe.id = 'previewIframe';
-    iframe.style.cssText = 'width:794px;border:none;box-shadow:0 4px 32px rgba(0,0,0,.7);background:#fff;display:block;flex-shrink:0;';
-    iframe.scrolling = 'no';
-    area.appendChild(iframe);
-
-    iframe.contentDocument.open();
-    iframe.contentDocument.write(html);
-    iframe.contentDocument.close();
-
-    // コンテンツ高さに合わせてiframe高さを自動設定
-    const adjustHeight = () => {
-      try {
-        const h = iframe.contentDocument.body.scrollHeight;
-        if (h > 0) iframe.style.height = h + 'px';
-      } catch (_) {}
-    };
-    iframe.addEventListener('load', adjustHeight);
-    setTimeout(adjustHeight, 400);
-
-  } catch (e) {
-    console.error('Preview error:', e);
-    area.innerHTML = `<div style="color:#94a3b8;text-align:center;padding:60px 0;margin:auto;">
-      <i class="fa-solid fa-circle-exclamation" style="font-size:2rem;color:#f87171;"></i>
-      <p style="margin-top:16px;font-size:13px;">プレビューの生成に失敗しました</p>
-    </div>`;
-  }
-}
-
-/* ────────────────────────────
    削除
 ──────────────────────────── */
 async function deleteMinute() {
@@ -1252,26 +1197,66 @@ const AI_STYLE_LABELS = {
   summary:  '要約',
 };
 
+/* まとめ方のチップ */
 function selectAiStyle(el) {
   selectedAiStyle = el.dataset.style;
-  document.getElementById('aiFormatBtnLabel').textContent = `AI整形：${AI_STYLE_LABELS[selectedAiStyle]}`;
-  document.getElementById('aiStylePopup').classList.remove('show');
-  doAiFormat();
+  document.querySelectorAll('#aiStyles button').forEach(b => b.classList.toggle('on', b === el));
+}
+
+/* 左の「メモ / 次にやること」の切り替え */
+function switchLeftTab(name) {
+  document.querySelectorAll('.l-tabs [data-ltab]').forEach(b => b.classList.toggle('on', b.dataset.ltab === name));
+  document.getElementById('lpMemo').classList.toggle('on', name === 'memo');
+  document.getElementById('lpTodo').classList.toggle('on', name === 'todo');
+}
+
+/* 会議情報（1行の要約 ⇔ 入力欄） */
+function setMetaOpen(open) {
+  document.getElementById('metaForm').classList.toggle('on', open);
+  document.getElementById('metaLine').classList.toggle('open', open);
+}
+
+function updateMetaLine() {
+  const el = document.getElementById('metaLineText');
+  if (!el) return;
+  const d = document.getElementById('meetingDate').value;
+  const t = document.getElementById('meetingTime').value;
+  const loc = document.getElementById('meetingLocation').value.trim();
+  const n = parseAttendees(document.getElementById('attendeesInput').value).length;
+  const parts = [];
+  if (d) {
+    const dt = new Date(d + 'T00:00:00');
+    parts.push(`<i class="fa-regular fa-calendar"></i>${dt.getMonth() + 1}/${dt.getDate()}（${['日','月','火','水','木','金','土'][dt.getDay()]}）${t ? ' ' + t.slice(0, 5) : ''}`);
+  }
+  if (loc) parts.push(`<i class="fa-solid fa-location-dot"></i>${escHtml(loc)}`);
+  if (n)   parts.push(`<i class="fa-solid fa-user-group"></i>${n}名`);
+  el.innerHTML = parts.length ? parts.map(p => `<span>${p}</span>`).join('') : '<span>日時・場所・出席者を入れる</span>';
+}
+
+/* ヘッダーの小さなメニュー（配る / …） */
+function toggleMenu(id, ev) {
+  if (ev) ev.stopPropagation();
+  document.querySelectorAll('.hd-menu.show').forEach(m => { if (m.id !== id) m.classList.remove('show'); });
+  document.getElementById(id).classList.toggle('show');
 }
 
 function initEvents() {
   document.getElementById('saveBtn').addEventListener('click', save);
   document.getElementById('voiceBtn').addEventListener('click', toggleVoice);
 
-  // AI整形ボタン：クリックでポップアップ開閉
-  document.getElementById('aiFormatBtn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    document.getElementById('aiStylePopup').classList.toggle('show');
+  document.getElementById('aiFormatBtn').addEventListener('click', doAiFormat);
+
+  // メニューの外を押したら閉じる
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.hd-menu.show').forEach(m => m.classList.remove('show'));
   });
 
-  // ポップアップ外クリックで閉じる
-  document.addEventListener('click', () => {
-    document.getElementById('aiStylePopup')?.classList.remove('show');
+  // 会議情報
+  document.getElementById('metaLine').addEventListener('click', () => {
+    setMetaOpen(!document.getElementById('metaForm').classList.contains('on'));
+  });
+  ['meetingDate', 'meetingTime', 'meetingLocation', 'attendeesInput', 'authorNameInput'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => { updateMetaLine(); markDirty(); });
   });
 
   document.getElementById('aiExtractBtn').addEventListener('click', doAiExtractActions);
@@ -1284,10 +1269,6 @@ function initEvents() {
   });
   document.getElementById('emailModalClose').addEventListener('click', () => {
     document.getElementById('emailModal').classList.add('hidden');
-  });
-  // previewModalBtn は onclick="printMinute()" で制御
-  document.getElementById('previewFullModalClose').addEventListener('click', () => {
-    document.getElementById('previewFullModal').classList.add('hidden');
   });
 
   document.getElementById('titleInput').addEventListener('input', () => { markDirty(); syncHeaderTitle(); });
@@ -1323,7 +1304,7 @@ function scheduleAutoSave() {
 
 async function autoSave() {
   // 新規未保存（IDなし）・変更なし・タイトル未入力 はスキップ
-  const mid = currentMinute?.id || new URLSearchParams(location.search).get('id');
+  const mid = curId();
   if (!mid) return;
   if (!isDirty) return;
   const title = document.getElementById('titleInput').value.trim();
@@ -1338,7 +1319,7 @@ async function autoSave() {
     attendees,
     body:             getBodyToSave(),
     raw_memo:         document.getElementById('bodyInput').value || null,
-    template_type:    selectedTemplate || null,
+    template_type:    templateTypeToSave(),
   };
 
   const saved = await mlUpdateMinute(mid, data);
