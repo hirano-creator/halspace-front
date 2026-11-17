@@ -189,6 +189,13 @@ async function mlGetTemplates() {
   return (await res.json()).data ?? [];
 }
 
+/* 会社の様式（Excel）のファイル本体。{ file_name, file_b64 } を返す */
+async function mlGetTemplateFile(id) {
+  const res = await mlFetch(`/meetlog/templates/${id}/file`);
+  if (!res || !res.ok) return null;
+  return (await res.json()).data ?? null;
+}
+
 async function mlCreateTemplate(data) {
   const res = await mlFetch('/meetlog/templates', {
     method: 'POST',
