@@ -875,3 +875,82 @@ function initFormsUi() {
   drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('on'); onRegFile(e.dataTransfer.files[0]); });
   $id('regFileInput').addEventListener('change', function () { const f = this.files[0]; this.value = ''; onRegFile(f); });
 }
+
+/* ══════════════════════════════════════
+   紙の拡大・縮小と、つかんで動かす
+   ・Ctrl＋ホイール（ノートPCのピンチも同じ）で、マウスの位置を中心に拡大・縮小
+   ・紙や机をドラッグすると動かせる
+   ・印刷とPDFは常に100%で出す
+══════════════════════════════════════ */
+const PAPER_ZOOM_MIN = 0.4, PAPER_ZOOM_MAX = 3;
+let paperZoom = 1;
+
+function setPaperZoom(z, cx, cy) {
+  const desk = $id('desk'), paper = $id('paper');
+  if (!desk || !paper) return;
+  z = Math.min(PAPER_ZOOM_MAX, Math.max(PAPER_ZOOM_MIN, Math.round(z * 100) / 100));
+  const dr = desk.getBoundingClientRect();
+  if (cx == null) { cx = dr.left + dr.width / 2; cy = dr.top + dr.height / 2; }
+  // 中心にしたい点が、紙のどこに当たるかを覚えておく
+  const r0 = paper.getBoundingClientRect();
+  const fx = (cx - r0.left) / r0.width, fy = (cy - r0.top) / r0.height;
+
+  paperZoom = z;
+  paper.classList.toggle('zoomed', z !== 1);
+  paper.style.zoom = z === 1 ? '' : String(z);
+
+  // 同じ点が同じ場所に残るように動かす
+  const r1 = paper.getBoundingClientRect();
+  desk.scrollLeft += r1.left + fx * r1.width - cx;
+  desk.scrollTop += r1.top + fy * r1.height - cy;
+
+  const pct = $id('zoomPct');
+  if (pct) pct.textContent = Math.round(z * 100) + '%';
+  if (typeof deselectImg === 'function') deselectImg();
+}
+
+function paperZoomStep(dir) {
+  const steps = [0.4, 0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+  const next = dir > 0 ? steps.find(s => s > paperZoom + 0.001) : [...steps].reverse().find(s => s < paperZoom - 0.001);
+  if (next) setPaperZoom(next);
+}
+
+function initPaperZoom() {
+  const desk = $id('desk');
+  if (!desk) return;
+
+  // Ctrl＋ホイール：ページ全体ではなく紙だけを拡大・縮小
+  desk.addEventListener('wheel', e => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const d = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
+    setPaperZoom(paperZoom * Math.exp(-Math.max(-60, Math.min(60, d)) * 0.0022), e.clientX, e.clientY);
+  }, { passive: false });
+
+  // つかんで動かす（マウスだけ。指は今までどおり、なぞって動かす）
+  let drag = null, moved = false;
+  desk.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    if (e.target.closest('textarea, input, select, button, a, label')) return;
+    // スクロールバーの上は対象外
+    const r = desk.getBoundingClientRect();
+    if (e.clientX > r.left + desk.clientWidth || e.clientY > r.top + desk.clientHeight) return;
+    drag = { x: e.clientX, y: e.clientY, sl: desk.scrollLeft, st: desk.scrollTop };
+    moved = false;
+  });
+  window.addEventListener('mousemove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!moved && Math.abs(dx) + Math.abs(dy) < 5) return;
+    if (!moved) { moved = true; desk.classList.add('panning'); if (typeof deselectImg === 'function') deselectImg(); }
+    e.preventDefault();
+    desk.scrollLeft = drag.sl - dx;
+    desk.scrollTop = drag.st - dy;
+  });
+  const end = () => { drag = null; desk.classList.remove('panning'); };
+  window.addEventListener('mouseup', end);
+  window.addEventListener('blur', end);
+  // 動かしたあとの「クリック」は無視する（画像を押したことにしない）
+  desk.addEventListener('click', e => { if (moved) { moved = false; e.stopPropagation(); e.preventDefault(); } }, true);
+  desk.addEventListener('dragstart', e => { if (e.target.tagName === 'IMG') e.preventDefault(); });
+}

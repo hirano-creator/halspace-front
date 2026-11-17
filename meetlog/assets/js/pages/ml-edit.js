@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initEvents();
   initImgResize();
   initFormsUi();
+  initPaperZoom();
   await Promise.all([loadTemplates(), minuteId ? loadMinute() : initNew()]);
   applyInitialForm();
   updateMetaLine();
@@ -1066,6 +1067,8 @@ async function exportPdf() {
   if (previewIsEditing) togglePreviewEdit();
   await renderFormPaper();
   const target = document.getElementById(selectedForm ? 'formPaper' : 'stdWrap');
+  const keepZoom = paperZoom;
+  setPaperZoom(1); // 拡大したままだとPDFの大きさがずれるので、作る間だけ元に戻す
 
   const pdfBtn = document.getElementById('pdfBtn');
   const pdfBtnKeep = pdfBtn.innerHTML;
@@ -1116,6 +1119,7 @@ async function exportPdf() {
     console.error('PDF export error:', e);
     mlShowToast('PDF生成に失敗しました', 'danger');
   } finally {
+    setPaperZoom(keepZoom);
     pdfBtn.disabled = false;
     pdfBtn.innerHTML = pdfBtnKeep;
   }
