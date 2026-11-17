@@ -1,6 +1,6 @@
 /* What'sNo「並べる」機能(align.html)のE2E検証（バックエンドなし・APIモック）
    justified layout（行ごとに高さを揃え幅いっぱいに埋める）＋クリックで実物大ライトボックスを開く方式 */
-const { chromium } = require('../_aa_e2e/node_modules/playwright-core');
+const { chromium } = require('c:/dev/my-programming/_aa_e2e/node_modules/playwright-core');
 const fs = require('fs');
 const path = require('path');
 
@@ -20,8 +20,15 @@ function readAlignRows(page) {
   return page.evaluate(() => {
     const grid = document.getElementById('alignGrid');
     const gRect = grid.getBoundingClientRect();
-    return [...grid.querySelectorAll('.align-row')].map(row => {
-      const cards = [...row.querySelectorAll('.align-card')];
+    /* 行の入れ物は無い（カードを付け替えないため flex-wrap で折り返す）ので、上端の位置で行に分ける */
+    const groups = [];
+    [...grid.querySelectorAll('.align-card')].forEach(c => {
+      const t = Math.round(c.getBoundingClientRect().top);
+      const g = groups.find(x => Math.abs(x.top - t) <= 2);
+      if (g) g.cards.push(c); else groups.push({ top: t, cards: [c] });
+    });
+    return groups.map(({ cards }) => {
+      const row = cards[0];
       const rects = cards.map(c => c.getBoundingClientRect());
       const imgs = cards.map(c => {
         const img = c.querySelector('.align-thumb-wrap img');
@@ -444,6 +451,130 @@ EOF
       JSON.stringify(stored));
 
     await page.screenshot({ path: path.join(SHOTS, 'align-thumb-generated.png'), fullPage: true });
+    await page.close();
+  }
+
+  /* ════ 6b. align.html: 3D(STL)とPDFはカードの中でそのまま動かせる（静止画で終わらない）
+     報告: 並べたときSTLが静止画のまま回せない／PDFがぼやけて拡大・移動ができない ════ */
+  {
+    const page = await ctx.newPage();
+    page.on('pageerror', e => console.log('PAGE ERROR(align-live):', e.message));
+    await page.setViewportSize({ width: 1600, height: 900 });
+
+    /* 20×20×100 の細長い箱（バイナリSTL） */
+    const boxStl = (sx, sy, sz) => {
+      const v = [[0,0,0],[sx,0,0],[sx,sy,0],[0,sy,0],[0,0,sz],[sx,0,sz],[sx,sy,sz],[0,sy,sz]];
+      const quads = [[0,3,2,1],[4,5,6,7],[0,1,5,4],[2,3,7,6],[1,2,6,5],[0,4,7,3]];
+      const tris = [];
+      for (const [a,b,c,d] of quads) tris.push([v[a],v[b],v[c]], [v[a],v[c],v[d]]);
+      const buf = Buffer.alloc(84 + tris.length * 50);
+      buf.writeUInt32LE(tris.length, 80);
+      tris.forEach((t, i) => { let o = 84 + i * 50 + 12; for (const q of t) for (const n of q) { buf.writeFloatLE(n, o); o += 4; } });
+      return buf;
+    };
+    const stl = boxStl(20, 20, 100);
+    /* A4横・2ページの図面風PDF。0.3pt の細い線を細かく引く（ぼやけると消える太さ） */
+    let lines = '0.3 w\n';
+    for (let x = 40; x < 800; x += 6) lines += `${x} 40 m ${x} 555 l S\n`;
+    lines += '2 w 30 30 782 535 re S';
+    const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Contents 4 0 R >>', `<< /Length ${lines.length} >>\nstream\n${lines}\nendstream`,
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Contents 4 0 R >>'];
+    let pdf = '%PDF-1.4\n'; const offs = [];
+    objs.forEach((o, i) => { offs.push(pdf.length); pdf += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+    const xref = pdf.length;
+    pdf += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` + offs.map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('');
+    pdf += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+    const bigPdf = Buffer.from(pdf, 'latin1');
+
+    await page.route('**/api/wn/**', r => r.fulfill({ json: { data: [] } }));
+    await page.route('**/api/wn/files/41', r => r.fulfill({ json: { data: { id: 41, file_name: 'N11187.STL', file_size: stl.length, updated_at: '2026-07-01T00:00:00Z' } } }));
+    await page.route('**/api/wn/files/42', r => r.fulfill({ json: { data: { id: 42, file_name: '図面.pdf', mime_type: 'application/pdf', updated_at: '2026-07-01T00:00:00Z' } } }));
+    await page.route('**/api/wn/files/4*/thumb*', r => r.fulfill({ contentType: 'image/png', body: thumbBufs[1] }));
+    await page.route('**/api/wn/files/41/view*', r => r.fulfill({ json: { url: 'http://127.0.0.1:8765/__live.stl' } }));
+    await page.route('**/api/wn/files/42/view*', r => r.fulfill({ json: { url: 'http://127.0.0.1:8765/__live.pdf' } }));
+    await page.route('**/__live.stl', r => r.fulfill({ contentType: 'application/octet-stream', body: stl }));
+    await page.route('**/__live.pdf', r => r.fulfill({ contentType: 'application/pdf', body: bigPdf }));
+
+    await page.goto(`${BASE}/app/align.html?ids=41,42`, { waitUntil: 'domcontentloaded' });
+    const live = await page.waitForFunction(() =>
+      document.getElementById('alignCard-41')?.classList.contains('is-live') &&
+      document.getElementById('alignCard-42')?.classList.contains('is-live') &&
+      document.querySelector('#alignThumb-42 canvas.apv-sharp'), null, { timeout: 60000 }).then(() => true).catch(() => false);
+    check('STLとPDFのカードがそのまま動かせる表示に切り替わる', live);
+    await page.waitForTimeout(600);
+
+    /* 3D: iframe の中に WebGL のキャンバスがあり、ドラッグで画が変わる（＝回せる） */
+    const frameEl = await page.$('#alignThumb-41 iframe.align-model-frame');
+    const frame = frameEl && await frameEl.contentFrame();
+    const hasGl = frame ? await frame.evaluate(() => !!document.querySelector('#stage canvas')) : false;
+    check('3D: カードの中に3D表示(WebGL)がある', hasGl);
+    if (hasGl) {
+      /* WebGL の画は読み出すと空になることがあるので、カメラの位置で「回ったか」を見る */
+      const snap = () => frame.evaluate(() => viewer.ctx.camera.position.toArray().map(v => v.toFixed(3)).join(','));
+      const r41 = await (await page.$('#alignThumb-41')).boundingBox();
+      const before = await snap();
+      await page.mouse.move(r41.x + r41.width / 2, r41.y + r41.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(r41.x + r41.width / 2 + 160, r41.y + r41.height / 2 + 40, { steps: 10 });
+      await page.mouse.up();
+      await page.waitForTimeout(400);
+      check('3D: ドラッグでモデルが回る（画が変わる）', before !== await snap());
+      check('3D: カードの上を操作してもライトボックスは開かない',
+        await page.evaluate(() => !document.getElementById('alignLightbox').classList.contains('show')));
+      check('3D: 視点ボタン（ツールバー）が出ている', await frame.evaluate(() => document.getElementById('toolbar').classList.contains('visible')));
+    }
+
+    /* PDF: 表示している画が画面の実ピクセルと同じ細かさで描かれている（ぼやけない） */
+    const sharpInfo = () => page.evaluate(() => {
+      const c = document.querySelector('#alignThumb-42 canvas.apv-sharp');
+      const r = c.getBoundingClientRect();
+      return { ratio: +(c.width / (r.width * devicePixelRatio)).toFixed(3), cssW: Math.round(r.width) };
+    });
+    const s0 = await sharpInfo();
+    check('PDF: 表示中の画が画面の画素と1:1（縮小表示のぼやけがない）', Math.abs(s0.ratio - 1) < 0.02, JSON.stringify(s0));
+
+    const st = () => page.evaluate(() => {
+      const base = document.querySelector('#alignThumb-42 canvas.apv-base');
+      const m = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(base.style.transform) || [];
+      return { w: parseFloat(base.style.width), x: +m[1], y: +m[2] };
+    });
+    const r42 = await (await page.$('#alignThumb-42')).boundingBox();
+    const z0 = await st();
+    await page.mouse.move(r42.x + r42.width / 2, r42.y + r42.height / 2);
+    for (let k = 0; k < 6; k++) { await page.mouse.wheel(0, -120); await page.waitForTimeout(30); }
+    await page.waitForTimeout(600);
+    const z1 = await st();
+    check('PDF: ホイールで拡大できる', z1.w > z0.w * 1.8, `${Math.round(z0.w)} → ${Math.round(z1.w)}`);
+    const s1 = await sharpInfo();
+    check('PDF: 拡大後も描き直して画素と1:1（拡大してもぼやけない）', Math.abs(s1.ratio - 1) < 0.02, JSON.stringify(s1));
+
+    await page.mouse.down();
+    await page.mouse.move(r42.x + r42.width / 2 + 120, r42.y + r42.height / 2 + 60, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    const z2 = await st();
+    check('PDF: ドラッグで動かせる', Math.abs(z2.x - z1.x) > 60 && Math.abs(z2.y - z1.y) > 20, JSON.stringify({ z1, z2 }));
+    check('PDF: ドラッグしてもライトボックスは開かない',
+      await page.evaluate(() => !document.getElementById('alignLightbox').classList.contains('show')));
+
+    await page.click('#alignThumb-42 .apv-bar [data-act="fit"]');
+    await page.waitForTimeout(200);
+    check('PDF: 「全体を表示」で元の大きさに戻る', Math.abs((await st()).w - z0.w) < 1);
+    await page.click('#alignThumb-42 .apv-bar [data-act="next"]');
+    await page.waitForFunction(() => document.querySelector('#alignThumb-42 .apv-page')?.textContent === '2 / 2', null, { timeout: 5000 }).catch(() => {});
+    check('PDF: 複数ページはページ送りできる', await page.evaluate(() => document.querySelector('#alignThumb-42 .apv-page')?.textContent) === '2 / 2');
+
+    const rowsLive = await readAlignRows(page);
+    check('3D・PDFを並べても行は右端まで埋まる', rowsLive.every(r => r.gapToRight <= 2), JSON.stringify(rowsLive.map(r => r.gapToRight)));
+    await page.screenshot({ path: path.join(SHOTS, 'align-live.png') });
+
+    /* 「大きく表示」ボタンからはライトボックスが開き、PDF もそのまま動かせる */
+    await page.click('#alignCard-42 .align-card-expand');
+    const lbOk = await page.waitForFunction(() => document.querySelector('#lbContentWrap .apv canvas.apv-sharp'), null, { timeout: 15000 }).then(() => true).catch(() => false);
+    check('「大きく表示」でライトボックスが開き、PDFが鮮明な描き直し表示になる', lbOk);
+    await page.screenshot({ path: path.join(SHOTS, 'align-live-lightbox.png') });
+    await page.keyboard.press('Escape');
     await page.close();
   }
 

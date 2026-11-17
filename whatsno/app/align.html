@@ -37,8 +37,9 @@
        (横長画像の隣に縦長画像が並ぶと行の高さが最も高いカードに引っ張られる)、
        行の構成そのものをJS側で決める方式に変えている。 */
     .align-body { flex: 1; overflow: auto; padding: 14px; }
-    .align-grid { display: flex; flex-direction: column; gap: 14px; }
-    .align-row  { display: flex; gap: 14px; align-items: flex-start; }
+    /* カードは並べ替えで親を付け替えない（3D表示の iframe は付け替えると読み込み直しになる）。
+       幅だけJSで決め、行の合計がちょうどコンテナ幅になるので flex-wrap が同じ位置で折り返す。 */
+    .align-grid { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
     @media (max-width: 560px) { .align-topbar-hint { display: none; } }
 
     .align-card {
@@ -56,27 +57,50 @@
     }
     .align-thumb-wrap img { display: block; width: 100%; height: 100%; object-fit: contain; }
 
+    /* 番号とボタンは名前の行に置く（表示の上に重ねると、3Dの視点ボタンや図面が隠れる） */
     .align-badge {
-      position: absolute; top: 6px; left: 6px; z-index: 2;
-      width: 20px; height: 20px; border-radius: 50%;
+      flex: none; width: 20px; height: 20px; border-radius: 50%;
       background: rgba(21,101,192,.9); color: #fff; font-size: 11px; font-weight: 700;
       display: flex; align-items: center; justify-content: center;
     }
-    .align-card-link {
-      position: absolute; top: 6px; right: 6px; z-index: 2;
-      width: 24px; height: 24px; border-radius: 6px;
-      background: rgba(255,255,255,.9); color: var(--muted); font-size: 11px;
+    .align-card-btn {
+      flex: none; width: 24px; height: 24px; border-radius: 6px; border: none; padding: 0;
+      background: none; color: var(--muted); font-size: 12px; cursor: pointer;
       display: flex; align-items: center; justify-content: center; text-decoration: none;
     }
-    .align-card-link:hover { color: var(--primary); }
+    .align-card-btn:hover { color: var(--primary); background: var(--bg); }
 
     /* 行内でカード高さを完全に揃えるため、ラベル部の高さも固定する
        (可変にすると1件だけ折り返して行の下端がずれる) */
     .align-card-label {
-      height: 30px; line-height: 16px; padding: 7px 10px;
+      height: 30px; padding: 0 6px 0 8px; display: flex; align-items: center; gap: 6px;
       font-size: 12px; font-weight: 600; color: var(--text);
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
+    .align-card-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── カードの中でそのまま動かせる表示（3Dモデル・PDF） ── */
+    .align-card.is-live { cursor: default; }
+    .align-thumb-wrap img.align-thumb-under { visibility: hidden; }
+    .align-model-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #eef2f6; }
+    .align-model-frame.loading { opacity: 0; pointer-events: none; }
+    .apv { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+    .apv.grabbing { cursor: grabbing; }
+    .apv canvas { position: absolute; left: 0; top: 0; max-width: none; background: #fff; }
+    .apv canvas.apv-base { box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+    .apv-bar {
+      position: absolute; right: 8px; bottom: 8px; z-index: 3; cursor: default;
+      display: flex; align-items: center; gap: 2px; padding: 3px;
+      border-radius: 8px; background: rgba(31,41,51,.82); color: #fff; font-size: 12px;
+    }
+    .apv-bar button {
+      width: 28px; height: 28px; border: 0; border-radius: 6px; background: none; color: #fff;
+      font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .apv-bar button:hover { background: rgba(255,255,255,.2); }
+    .apv-bar .apv-page { padding: 0 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .apv-bar .apv-sep { width: 1px; height: 16px; background: rgba(255,255,255,.3); margin: 0 3px; }
+    .apv-bar [hidden] { display: none; }
+    .align-live-fill { position: relative; flex: 1; align-self: stretch; min-width: 0; overflow: hidden; border-radius: 6px; }
 
     /* サムネ枠の高さはJS管理なので、中身は絶対配置にして高さに影響させない */
     .align-card-spin, .align-card-noPreview {
@@ -163,7 +187,7 @@
       <i class="fa-solid fa-chevron-left"></i> 一覧に戻る
     </a>
     <div class="align-topbar-title" id="alignTitle">並べて表示</div>
-    <div class="align-topbar-hint">クリックで拡大表示</div>
+    <div class="align-topbar-hint" id="alignHint">クリックで拡大表示</div>
   </div>
 
   <!-- 本体 -->
@@ -203,10 +227,24 @@
 <script>
 'use strict';
 
+/* ids は HTML の id 属性などに入れるので、英数字・ハイフン以外は受け付けない */
 const alignIds = (new URLSearchParams(location.search).get('ids') || '')
-  .split(',').map(s => s.trim()).filter(Boolean);
+  .split(',').map(s => s.trim()).filter(s => /^[\w-]+$/.test(s));
 
 const ALIGN_IMG_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+const ALIGN_3D_EXTS  = ['stl', 'stp', 'step'];
+
+/* カードの中でそのまま動かす（3Dを回す・PDFを拡大して動かす）のはマウスのある端末だけ。
+   指で触る端末では、カードの上をなぞると画面のスクロールと取り合いになるので、
+   タップで開く大きい表示のほうで動かせるようにしている。
+   3D は1件ごとに WebGL とメモリを使うので、同時に動かす件数に上限を置く（超えた分は画像のまま） */
+const ALIGN_LIVE_IN_CARD   = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+const ALIGN_LIVE_3D_MAX    = 6;
+const ALIGN_LIVE_PDF_MAX   = 12;
+const ALIGN_LIVE_3D_BYTES  = 150 * 1024 * 1024;
+const ALIGN_MODEL_PAGE     = 'model3d.html?v=20261117';
+let alignLive3dCount = 0, alignLivePdfCount = 0;
+let alignModelChain = Promise.resolve();
 const extOf = f => (f?.file_name ?? '').split('.').pop().toLowerCase();
 
 /* 選択順を保持したままファイル本体をキャッシュ（グリッドはサムネイルのみ、
@@ -238,6 +276,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   document.getElementById('alignTitle').textContent = `並べて表示（${alignIds.length}件）`;
+  document.getElementById('alignHint').textContent = ALIGN_LIVE_IN_CARD
+    ? '3D・PDFはそのまま動かせます（ドラッグで移動・ホイールで拡大縮小）'
+    : 'タップで大きく表示（3D・PDFを動かせます）';
 
   const grid = document.getElementById('alignGrid');
   grid.innerHTML = alignIds.map((id, i) => cardSkeletonHtml(id, i)).join('');
@@ -341,7 +382,8 @@ function layoutAlign(retry) {
   const grid = document.getElementById('alignGrid');
   const body = document.getElementById('alignBody');
   if (!grid || !body) return;
-  const W = grid.clientWidth;
+  /* 端数を切り捨てる（実幅より1pxでも広く見積もると、行の最後の1枚が次の行へ落ちる） */
+  const W = Math.floor(grid.getBoundingClientRect().width);
   if (W < 60) return;
   const availH = Math.max(240, body.clientHeight - 28);
 
@@ -351,10 +393,7 @@ function layoutAlign(retry) {
   const targetH = pickAlignTargetHeight(W, availH, maxPerRow);
   const rows = buildAlignRows(W, targetH, maxPerRow);
 
-  const frag = document.createDocumentFragment();
   rows.forEach(row => {
-    const rowEl = document.createElement('div');
-    rowEl.className = 'align-row';
     const h = Math.round(row.h);
     const avail = W - (row.items.length - 1) * ALIGN_GAP;
     let used = 0;
@@ -368,16 +407,12 @@ function layoutAlign(retry) {
       card.style.width = Math.max(40, w) + 'px';
       const thumb = card.querySelector('.align-thumb-wrap');
       if (thumb) thumb.style.height = h + 'px';
-      rowEl.appendChild(card);
     });
-    frag.appendChild(rowEl);
   });
-  grid.innerHTML = '';
-  grid.appendChild(frag);
 
   /* 組み直しで縦スクロールバーが出た(消えた)場合はコンテナ幅が変わり、
      計算した幅とズレて右端に隙間が残る。幅が変わったときだけ1回やり直す。 */
-  if (!retry && grid.clientWidth !== W) layoutAlign(true);
+  if (!retry && Math.floor(grid.getBoundingClientRect().width) !== W) layoutAlign(true);
 }
 
 /* サムネイルは1件ずつ非同期に届くため、届くたびに組み直す（まとめて1回） */
@@ -391,14 +426,19 @@ function cardSkeletonHtml(id, i) {
   return `
   <div class="align-card" id="alignCard-${id}" data-idx="${i}">
     <div class="align-thumb-wrap" id="alignThumb-${id}">
-      <span class="align-badge">${i + 1}</span>
-      <a href="file-detail.html?id=${encodeURIComponent(id)}" target="_blank" rel="noopener"
-         class="align-card-link" title="詳細を開く（新しいタブ）" onclick="event.stopPropagation();">
-        <i class="fa-solid fa-up-right-from-square"></i>
-      </a>
       <div class="align-card-spin"><i class="fa-solid fa-spinner fa-spin"></i></div>
     </div>
-    <div class="align-card-label" id="alignName-${id}">読み込み中…</div>
+    <div class="align-card-label">
+      <span class="align-badge">${i + 1}</span>
+      <span class="align-card-name" id="alignName-${id}">読み込み中…</span>
+      <button type="button" class="align-card-btn align-card-expand" title="大きく表示">
+        <i class="fa-solid fa-expand"></i>
+      </button>
+      <a href="file-detail.html?id=${encodeURIComponent(id)}" target="_blank" rel="noopener"
+         class="align-card-btn align-card-link" title="詳細を開く（新しいタブ）" onclick="event.stopPropagation();">
+        <i class="fa-solid fa-up-right-from-square"></i>
+      </a>
+    </div>
   </div>`;
 }
 
@@ -416,7 +456,12 @@ async function loadCard(id, i) {
     alignFiles[i] = file;
     nameEl.textContent = file.file_name;
     nameEl.title = file.file_name;
-    cardEl.addEventListener('click', () => openLightbox(i));
+    /* そのまま動かせるカードは、表示の上のクリック（＝ドラッグ操作）では大きい表示を開かない。
+       名前の行と「大きく表示」ボタンからは開ける */
+    cardEl.addEventListener('click', e => {
+      if (cardEl.classList.contains('is-live') && e.target.closest('.align-thumb-wrap')) return;
+      openLightbox(i);
+    });
 
     /* サーバーが作れない種別（PDF/HEIC/動画/DXF）は wn-thumb.js が生成して保存し直す。
        出せなければ null が返り、下の「プレビューなし」に落ちる。 */
@@ -445,6 +490,7 @@ async function loadCard(id, i) {
       ph.innerHTML = `<i class="fa-solid ${icon} ${cls}"></i><span>プレビューなし</span>`;
       thumbEl.appendChild(ph);
     }
+    upgradeCardToLive(file, i, cardEl, thumbEl);
   } catch (err) {
     console.error(err);
     const spin = thumbEl.querySelector('.align-card-spin');
@@ -455,6 +501,315 @@ async function loadCard(id, i) {
     ph.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i><span>${h(err.message || '読み込みに失敗しました')}</span>`;
     thumbEl.appendChild(ph);
   }
+}
+
+/* ────────────────── カードの中でそのまま動かす（3Dモデル・PDF） ──────────────────
+   先に出した画像（サムネイル）はそのまま残し、動かせる表示の用意ができたら上に重ねる。
+   用意できなかったときは画像のままになる（クリックで大きい表示は開ける）。 */
+function upgradeCardToLive(file, i, cardEl, thumbEl) {
+  if (!ALIGN_LIVE_IN_CARD) return;
+  const ext = extOf(file);
+  const settle = () => {
+    thumbEl.querySelectorAll('img, .align-card-noPreview').forEach(el => {
+      if (el.tagName === 'IMG') el.classList.add('align-thumb-under'); else el.remove();
+    });
+    cardEl.classList.add('is-live');
+  };
+
+  if (ALIGN_3D_EXTS.includes(ext)) {
+    if (alignLive3dCount >= ALIGN_LIVE_3D_MAX || (file.file_size ?? 0) > ALIGN_LIVE_3D_BYTES) return;
+    alignLive3dCount++;
+    if (!alignAspects[i]) { alignAspects[i] = 4 / 3; scheduleAlignLayout(); }
+    /* 解析が重いので1件ずつ順に開く */
+    alignModelChain = alignModelChain.then(async () => {
+      const view = alignModelView(thumbEl, file, ext);
+      view.frame.classList.add('loading');
+      try {
+        await view.ready;
+        view.frame.classList.remove('loading');
+        settle();
+      } catch (e) {
+        console.error('[align] 3D表示に失敗', e);
+        view.dispose();
+      }
+    });
+
+  } else if (ext === 'pdf' && typeof pdfjsLib !== 'undefined') {
+    if (alignLivePdfCount >= ALIGN_LIVE_PDF_MAX) return;
+    alignLivePdfCount++;
+    const view = alignPdfView(thumbEl, file.id, {
+      /* 件数が多くて画面が縦にスクロールするときは、ホイールをスクロールに譲る（拡大は Ctrl＋ホイール） */
+      wheelNeedsCtrl: () => {
+        const body = document.getElementById('alignBody');
+        return body.scrollHeight > body.clientHeight + 1;
+      },
+      onAspect: a => { alignAspects[i] = a; scheduleAlignLayout(); },
+    });
+    view.ready.then(settle).catch(e => {
+      console.error('[align] PDF表示に失敗', e);
+      view.dispose();
+    });
+  }
+}
+
+/* 3Dモデル: ファイル詳細と同じ model3d.html を iframe で開く（回す・拡大・視点ボタンがそのまま使える）。
+   このページは DXF 用に three@0.160 を読んでいて STL/STEP 用の 0.128 と同居できないため、ページを分けている。 */
+function alignModelView(host, file, ext) {
+  const frame = document.createElement('iframe');
+  frame.className = 'align-model-frame';
+  frame.title = file.file_name || '3Dモデル';
+  let dead = false;
+  const loaded = new Promise(r => { frame.onload = r; });
+  frame.src = ALIGN_MODEL_PAGE;
+  host.appendChild(frame);
+  const ready = (async () => {
+    const buffer = await wnFetchFileBuffer(file.id, { timeoutMs: 300000 });
+    if (!buffer) throw new Error('ファイルの取得に失敗しました');
+    await loaded;
+    if (dead) return;
+    const ok = await frame.contentWindow.wnOpenModel(buffer, ext);
+    if (!ok && !dead) throw new Error('3Dモデルを表示できませんでした');
+  })();
+  return { ready, frame, dispose() { dead = true; frame.remove(); } };
+}
+
+/* PDF: 拡大縮小とドラッグでの移動ができる表示。
+   画質を落とさないため、止まるたびに「いま見えている範囲」を画面の実ピクセルに合わせて描き直す
+   （拡大しても線や文字がぼやけない。描くのは見えている範囲だけなので、大きく拡大してもメモリは増えない）。
+   動かしている最中は、先に描いておいたページ全体の画（下敷き）を伸び縮みさせて見せる。 */
+function alignPdfView(host, fileId, opts = {}) {
+  const ZOOM_MAX = 24;
+  const BASE_LONG = 1600;          /* 下敷きの長辺(px) */
+  const MAX_SHARP_PX = 12e6;       /* 描き直す画の画素数の上限 */
+  const st = { dead: false, doc: null, page: null, pageNo: 1, pw: 1, ph: 1,
+               fit: 1, zoom: 1, x: 0, y: 0, cw: 0, ch: 0,
+               base: null, sharp: null, sharpRect: null, task: null, timer: null, seq: 0 };
+
+  host.classList.add('apv');
+  const bar = document.createElement('div');
+  bar.className = 'apv-bar';
+  bar.innerHTML = `
+    <button type="button" data-act="prev" title="前のページ" hidden><i class="fa-solid fa-chevron-left"></i></button>
+    <span class="apv-page" hidden></span>
+    <button type="button" data-act="next" title="次のページ" hidden><i class="fa-solid fa-chevron-right"></i></button>
+    <span class="apv-sep" hidden></span>
+    <button type="button" data-act="out" title="縮小"><i class="fa-solid fa-minus"></i></button>
+    <button type="button" data-act="in" title="拡大"><i class="fa-solid fa-plus"></i></button>
+    <button type="button" data-act="fit" title="全体を表示"><i class="fa-solid fa-compress"></i></button>`;
+
+  function clamp() {
+    const w = st.pw * st.fit * st.zoom, h = st.ph * st.fit * st.zoom;
+    st.x = w <= st.cw ? (st.cw - w) / 2 : Math.min(0, Math.max(st.cw - w, st.x));
+    st.y = h <= st.ch ? (st.ch - h) / 2 : Math.min(0, Math.max(st.ch - h, st.y));
+  }
+
+  function place() {
+    clamp();
+    const w = st.pw * st.fit * st.zoom, h = st.ph * st.fit * st.zoom;
+    if (st.base) {
+      st.base.style.width = w + 'px'; st.base.style.height = h + 'px';
+      st.base.style.transform = `translate(${st.x}px, ${st.y}px)`;
+    }
+    if (st.sharp && st.sharpRect) {
+      const r = st.sharpRect;
+      st.sharp.style.width  = (r.u1 - r.u0) * w + 'px';
+      st.sharp.style.height = (r.v1 - r.v0) * h + 'px';
+      st.sharp.style.transform = `translate(${st.x + r.u0 * w}px, ${st.y + r.v0 * h}px)`;
+    }
+  }
+
+  function scheduleSharp(delay = 140) {
+    clearTimeout(st.timer);
+    st.timer = setTimeout(renderSharp, delay);
+  }
+
+  async function renderSharp() {
+    if (st.dead || !st.page || !st.cw || !st.ch) return;
+    const seq = ++st.seq;
+    if (st.task) { try { st.task.cancel(); } catch (_) {} st.task = null; }
+    const w = st.pw * st.fit * st.zoom, h = st.ph * st.fit * st.zoom;
+    const vx0 = Math.max(0, -st.x), vy0 = Math.max(0, -st.y);
+    const vx1 = Math.min(w, st.cw - st.x), vy1 = Math.min(h, st.ch - st.y);
+    if (vx1 - vx0 < 1 || vy1 - vy0 < 1) return;
+    let dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const area = (vx1 - vx0) * (vy1 - vy0);
+    if (area * dpr * dpr > MAX_SHARP_PX) dpr = Math.sqrt(MAX_SHARP_PX / area);
+    const c = document.createElement('canvas');
+    c.className = 'apv-sharp';
+    c.width  = Math.max(1, Math.round((vx1 - vx0) * dpr));
+    c.height = Math.max(1, Math.round((vy1 - vy0) * dpr));
+    const vp = st.page.getViewport({ scale: st.fit * st.zoom * dpr, offsetX: -vx0 * dpr, offsetY: -vy0 * dpr });
+    const task = st.page.render({ canvasContext: c.getContext('2d'), viewport: vp });
+    st.task = task;
+    try { await task.promise; } catch (_) { return; }   /* 途中で次の描き直しが来た（取り消し） */
+    if (st.dead || seq !== st.seq) return;
+    st.task = null;
+    if (st.sharp) st.sharp.remove();
+    st.sharp = c;
+    st.sharpRect = { u0: vx0 / w, v0: vy0 / h, u1: vx1 / w, v1: vy1 / h };
+    host.insertBefore(c, bar);
+    place();
+  }
+
+  function measure() {
+    const cw = host.clientWidth, ch = host.clientHeight;
+    if (!cw || !ch) return false;
+    /* 枠の大きさが変わっても、見ている場所（中心）は保つ */
+    const w0 = st.pw * st.fit * st.zoom, h0 = st.ph * st.fit * st.zoom;
+    const u = st.cw ? (st.cw / 2 - st.x) / w0 : 0.5, v = st.ch ? (st.ch / 2 - st.y) / h0 : 0.5;
+    st.cw = cw; st.ch = ch;
+    st.fit = Math.min(cw / st.pw, ch / st.ph);
+    const w = st.pw * st.fit * st.zoom, h = st.ph * st.fit * st.zoom;
+    st.x = cw / 2 - u * w; st.y = ch / 2 - v * h;
+    return true;
+  }
+
+  function zoomAt(nz, cx, cy) {
+    nz = Math.max(1, Math.min(ZOOM_MAX, nz));
+    if (Math.abs(nz - st.zoom) < 1e-4) return;
+    cx = cx ?? st.cw / 2; cy = cy ?? st.ch / 2;
+    st.x = cx - (cx - st.x) * nz / st.zoom;
+    st.y = cy - (cy - st.y) * nz / st.zoom;
+    st.zoom = nz;
+    place(); scheduleSharp();
+  }
+
+  async function setPage(n) {
+    const page = await st.doc.getPage(n);
+    if (st.dead) return;
+    const vp1 = page.getViewport({ scale: 1 });
+    const s = Math.min(4, BASE_LONG / Math.max(vp1.width, vp1.height));
+    const vp = page.getViewport({ scale: s });
+    const base = document.createElement('canvas');
+    base.className = 'apv-base';
+    base.width = Math.round(vp.width); base.height = Math.round(vp.height);
+    await page.render({ canvasContext: base.getContext('2d'), viewport: vp }).promise;
+    if (st.dead) return;
+    if (st.base) st.base.remove();
+    if (st.sharp) { st.sharp.remove(); st.sharp = null; st.sharpRect = null; }
+    st.page = page; st.pageNo = n; st.pw = vp1.width; st.ph = vp1.height;
+    st.base = base; st.zoom = 1; st.cw = 0; st.ch = 0;
+    host.insertBefore(base, host.firstChild);
+    if (!bar.parentNode) host.appendChild(bar);
+    const many = st.doc.numPages > 1;
+    bar.querySelectorAll('[data-act="prev"], [data-act="next"], .apv-page, .apv-sep').forEach(el => { el.hidden = !many; });
+    bar.querySelector('.apv-page').textContent = `${n} / ${st.doc.numPages}`;
+    if (opts.onAspect) opts.onAspect(st.pw / st.ph);
+    if (measure()) { place(); scheduleSharp(0); }
+  }
+
+  let paging = false;
+  bar.addEventListener('click', async e => {
+    const act = e.target.closest('button')?.dataset.act;
+    if (!act) return;
+    e.stopPropagation();
+    if (act === 'in')  zoomAt(st.zoom * 1.4);
+    if (act === 'out') zoomAt(st.zoom / 1.4);
+    if (act === 'fit') zoomAt(1);
+    if ((act === 'prev' || act === 'next') && !paging && st.doc) {
+      const n = st.pageNo + (act === 'next' ? 1 : -1);
+      if (n < 1 || n > st.doc.numPages) return;
+      paging = true;
+      try { await setPage(n); } catch (err) { console.error(err); } finally { paging = false; }
+    }
+  });
+  bar.addEventListener('dblclick', e => e.stopPropagation());
+
+  const onWheel = e => {
+    if (!st.page) return;
+    if (opts.wheelNeedsCtrl && opts.wheelNeedsCtrl() && !e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const r = host.getBoundingClientRect();
+    /* マウスのホイールは1目盛りで約1.16倍。トラックパッドのピンチ(ctrlKey付き・細かい値)は感度を上げる */
+    const f = Math.exp(-e.deltaY * (e.ctrlKey && Math.abs(e.deltaY) < 40 ? 0.01 : 0.0015));
+    zoomAt(st.zoom * Math.max(0.8, Math.min(1.25, f)), e.clientX - r.left, e.clientY - r.top);
+  };
+  const onDbl = e => {
+    const r = host.getBoundingClientRect();
+    zoomAt(st.zoom > 1.01 ? 1 : 2.5, e.clientX - r.left, e.clientY - r.top);
+  };
+
+  const ptrs = new Map();
+  let pinch = null;   /* { dist, zoom } */
+  const onDown = e => {
+    if (e.target.closest('.apv-bar') || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { host.setPointerCapture(e.pointerId); } catch (_) {}
+    if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), zoom: st.zoom };
+    }
+    host.classList.add('grabbing');
+    e.preventDefault();
+  };
+  const onMove = e => {
+    const p = ptrs.get(e.pointerId);
+    if (!p) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size >= 2 && pinch) {
+      const [a, b] = [...ptrs.values()];
+      const r = host.getBoundingClientRect();
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      st.x += dx / 2; st.y += dy / 2;
+      if (pinch.dist > 0) zoomAt(pinch.zoom * dist / pinch.dist, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+      place(); scheduleSharp();
+      return;
+    }
+    st.x += dx; st.y += dy;
+    place(); scheduleSharp();
+  };
+  const onUp = e => {
+    if (!ptrs.delete(e.pointerId)) return;
+    try { host.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (ptrs.size < 2) pinch = null;
+    if (!ptrs.size) host.classList.remove('grabbing');
+  };
+  host.addEventListener('wheel', onWheel, { passive: false });
+  host.addEventListener('dblclick', onDbl);
+  host.addEventListener('pointerdown', onDown);
+  host.addEventListener('pointermove', onMove);
+  host.addEventListener('pointerup', onUp);
+  host.addEventListener('pointercancel', onUp);
+
+  const ro = new ResizeObserver(() => {
+    if (st.dead || !st.page) return;
+    if (host.clientWidth === st.cw && host.clientHeight === st.ch) return;
+    if (measure()) { place(); scheduleSharp(); }
+  });
+  ro.observe(host);
+
+  const ready = (async () => {
+    const url = await wnGetViewUrl(fileId);
+    if (!url) throw new Error('ファイルのURL取得に失敗しました');
+    const loading = pdfjsLib.getDocument({
+      url,
+      cMapUrl: 'https://unpkg.com/pdfjs-dist@3.11.174/cmaps/',
+      cMapPacked: true,
+    });
+    st.loading = loading;
+    st.doc = await loading.promise;
+    if (st.dead) return;
+    await setPage(1);
+  })();
+
+  function dispose() {
+    st.dead = true;
+    clearTimeout(st.timer);
+    ro.disconnect();
+    if (st.task) { try { st.task.cancel(); } catch (_) {} }
+    try { st.loading?.destroy(); } catch (_) {}
+    host.removeEventListener('wheel', onWheel);
+    host.removeEventListener('dblclick', onDbl);
+    host.removeEventListener('pointerdown', onDown);
+    host.removeEventListener('pointermove', onMove);
+    host.removeEventListener('pointerup', onUp);
+    host.removeEventListener('pointercancel', onUp);
+    host.classList.remove('apv', 'grabbing');
+    [st.base, st.sharp, bar].forEach(el => el && el.remove());
+  }
+
+  return { ready, dispose, state: st };
 }
 
 /* ────────────────── ライトボックス(実物大プレビュー) ────────────────── */
@@ -547,24 +902,21 @@ async function renderLightboxContent(file, wrap) {
 
   if (ext === 'pdf') {
     if (typeof pdfjsLib === 'undefined') throw new Error('PDF表示ライブラリの読み込みに失敗しました');
-    const url = await wnGetViewUrl(file.id);
-    if (!url) throw new Error('ファイルのURL取得に失敗しました');
-    const doc = await pdfjsLib.getDocument(url).promise;
-    const page = await doc.getPage(1);
-    const vp = page.getViewport({ scale: 2 });
-    const canvas = document.createElement('canvas');
-    canvas.width = vp.width;
-    canvas.height = vp.height;
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-    canvas.className = 'align-content';
-    wrap.appendChild(canvas);
-    if (doc.numPages > 1) {
-      const badge = document.createElement('div');
-      badge.className = 'align-lightbox-page-badge';
-      badge.textContent = `1 / ${doc.numPages} ページ`;
-      wrap.parentElement.appendChild(badge);
-    }
-    initAlignZoomPan(wrap, canvas);
+    /* カードと同じ表示（拡大しても描き直すのでぼやけない・ページ送りつき） */
+    const box = document.createElement('div');
+    box.className = 'align-live-fill';
+    wrap.appendChild(box);
+    const view = alignPdfView(box, file.id);
+    lbDispose = view.dispose;
+    await view.ready;
+
+  } else if (ALIGN_3D_EXTS.includes(ext)) {
+    const box = document.createElement('div');
+    box.className = 'align-live-fill';
+    wrap.appendChild(box);
+    const view = alignModelView(box, file, ext);
+    lbDispose = view.dispose;
+    await view.ready;
 
   } else if (ALIGN_IMG_EXTS.includes(ext)) {
     const buf = await wnFetchFileBuffer(file.id);
