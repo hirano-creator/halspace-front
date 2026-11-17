@@ -26,15 +26,94 @@
   @media (max-width: 640px) {
     #toolbar span, #toolbar .tb-sep { display: none; }
   }
+
+  /* ── 寸法（assets/js/wn-model-measure.js） ── */
+  #main { flex: 1; min-height: 0; display: flex; }
+  #main > #stage { flex: 1 1 0; min-width: 0; overflow: hidden; }
+  .tb-btn.on { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  .tb-btn.has:not(.on) { border-color: #1f6feb; color: #1f6feb; }
+  .tb-txt { font-weight: 400; }
+  .dm-status { font-size: 11px; font-weight: 400; color: var(--muted); }
+  .dm-status.bad { color: #c62828; }
+  #stage.dm-measuring canvas { cursor: crosshair; }
+  .dm-svg, .dm-labels { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
+  .dm-line { stroke: #0b57d0; stroke-width: 1.6; }
+  .dm-ext { stroke: #0b57d0; stroke-width: 1; stroke-dasharray: 4 3; opacity: .75; }
+  .dm-dot { fill: #fff; stroke: #0b57d0; stroke-width: 1.6; }
+  .dm-dim.sel .dm-line, .dm-dim.sel .dm-ext, .dm-dim.sel .dm-dot { stroke: #d93025; }
+  .dm-rubber { stroke: #d93025; stroke-width: 1.4; stroke-dasharray: 5 4; }
+  .dm-pend { stroke: #d93025; }
+  .dm-label { position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer; font: inherit; font-size: 13px; line-height: 1.25; white-space: nowrap;
+    display: flex; flex-direction: column; align-items: center; padding: 2px 7px; border-radius: 6px; border: 1px solid #0b57d0; background: rgba(255,255,255,.94); color: #0b3d91; }
+  .dm-label .dm-val { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dm-label .dm-note { font-size: 11px; color: #5b6573; }
+  .dm-label.sel { border-color: #d93025; color: #a50e0e; z-index: 2; box-shadow: 0 1px 6px rgba(0,0,0,.25); }
+  .dm-marker { position: absolute; left: 0; top: 0; width: 14px; height: 14px; pointer-events: none; box-sizing: border-box; border: 2px solid #d93025; background: rgba(255,255,255,.7); }
+  .dm-marker[hidden], .dm-hint[hidden], .dm-panel[hidden] { display: none; }
+  .dm-marker.vertex { border-radius: 50%; }
+  .dm-marker.edge { border-color: #e37400; }
+  .dm-marker.face { width: 10px; height: 10px; border-radius: 50%; border-width: 1px; border-color: #5b6573; }
+  .dm-marker[data-len]::after { content: attr(data-len); position: absolute; left: 16px; top: -8px; padding: 1px 6px; border-radius: 5px; background: #d93025; color: #fff; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .dm-hint { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); max-width: calc(100% - 24px); padding: 5px 12px; border-radius: 999px; background: rgba(31,41,51,.86); color: #fff; font-size: 12px; pointer-events: none; text-align: center; }
+  .dm-panel { position: absolute; left: 8px; top: 8px; width: 230px; max-width: calc(100% - 16px); box-sizing: border-box; padding: 10px; border-radius: 10px; background: #fff; border: 1px solid #d8dee6; box-shadow: 0 4px 16px rgba(0,0,0,.18); font-size: 12px; color: #1f2933; z-index: 5; }
+  .dm-p-head { display: flex; align-items: center; justify-content: space-between; }
+  .dm-p-val { font-size: 22px; font-variant-numeric: tabular-nums; }
+  .dm-p-x { border: 0; background: none; font-size: 20px; line-height: 1; cursor: pointer; color: var(--muted); padding: 2px 6px; }
+  .dm-seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 8px 0; }
+  .dm-seg button { font: inherit; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 0; border: 1px solid #c9d1db; border-radius: 6px; background: #fff; cursor: pointer; min-width: 0; }
+  .dm-seg button span { font-size: 11px; color: var(--muted); }
+  .dm-seg button b { font-size: 11px; font-variant-numeric: tabular-nums; }
+  .dm-seg button.on { border-color: #1f6feb; background: #e8f0fe; }
+  .dm-p-note { display: block; color: var(--muted); }
+  .dm-p-note input { display: block; width: 100%; box-sizing: border-box; margin-top: 3px; padding: 6px 8px; border: 1px solid #c9d1db; border-radius: 6px; font: inherit; font-size: 14px; color: #1f2933; }
+  .dm-p-del { margin-top: 8px; width: 100%; padding: 6px; border: 1px solid #f1c4c0; border-radius: 6px; background: #fff; color: #c62828; font: inherit; cursor: pointer; }
+  .dm-p-foot { margin-top: 6px; font-size: 10.5px; color: var(--muted); }
+
+  /* 図面（PDF）を横に並べる枠 */
+  #drawPane { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; background: #fff; border-left: 1px solid #c9d1db; }
+  #drawPane[hidden] { display: none; }
+  .dp-head { display: flex; align-items: center; gap: 4px; padding: 5px 6px; border-bottom: 1px solid #d8dee6; font-size: 12px; }
+  .dp-head .tb-btn { padding: 4px 8px; flex: 0 0 auto; }
+  .dp-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: #1f2933; }
+  .dp-page { color: var(--muted); white-space: nowrap; }
+  .dp-view { flex: 1; min-height: 0; overflow: auto; background: #dfe5ec; padding: 8px; box-sizing: border-box; cursor: grab; touch-action: none; display: flex; }
+  .dp-view canvas { display: block; margin: auto; flex: 0 0 auto; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+  .dp-msg { margin: auto; color: var(--muted); font-size: 13px; text-align: center; }
+  .dp-msg[hidden] { display: none; }
+  .dp-picker { position: absolute; left: 8px; right: 8px; top: 44px; max-height: calc(100% - 56px); display: flex; flex-direction: column; gap: 6px; padding: 10px; box-sizing: border-box; border-radius: 10px; background: #fff; border: 1px solid #d8dee6; box-shadow: 0 6px 20px rgba(0,0,0,.22); }
+  .dp-picker[hidden] { display: none; }
+  .dp-picker input { padding: 7px 9px; border: 1px solid #c9d1db; border-radius: 6px; font: inherit; font-size: 14px; }
+  .dp-list { overflow: auto; min-height: 40px; display: flex; flex-direction: column; }
+  .dp-row { display: flex; align-items: center; gap: 8px; padding: 8px 6px; border: 0; border-bottom: 1px solid #eef2f6; background: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; color: #1f2933; flex: 0 0 auto; }
+  .dp-row:hover { background: #f0f4f8; }
+  .dp-row i { color: #d93025; }
+  .dp-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dp-empty { padding: 12px 6px; color: var(--muted); font-size: 12px; text-align: center; }
+  .dp-foot { display: flex; justify-content: flex-end; gap: 6px; }
+  @media (max-width: 760px) {
+    #main.with-drawing { flex-direction: column; }
+    #drawPane { border-left: 0; border-top: 1px solid #c9d1db; }
+    .dm-status { display: none; }
+    /* スマホでは編集の小窓を下に出す（上だとモデルと寸法が隠れる） */
+    .dm-panel { top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; }
+  }
+  /* スマホで入力欄を押したときに画面が拡大されないよう、文字は 16px 以上にする */
+  @media (pointer: coarse), (max-width: 1023px) {
+    .dm-p-note input, .dp-picker input { font-size: 16px; }
+  }
 </style>
 </head>
 <body>
 <div id="toolbar"></div>
-<div id="stage">
-  <div id="msg"><i class="fa-solid fa-spinner fa-spin"></i><span>3Dモデルを読み込み中…</span></div>
+<div id="main">
+  <div id="stage">
+    <div id="msg"><i class="fa-solid fa-spinner fa-spin"></i><span>3Dモデルを読み込み中…</span></div>
+  </div>
+  <div id="drawPane" hidden></div>
 </div>
 
-<script src="../../solid/assets/js/model-viewer.js?v=20261112b"></script>
+<script src="../../solid/assets/js/model-viewer.js?v=20261117"></script>
+<script src="../assets/js/wn-model-measure.js?v=20261117"></script>
 <script>
 'use strict';
 const msg = document.getElementById('msg');
@@ -73,7 +152,7 @@ function occtToGeometry(THREE, result) {
   return geo;
 }
 
-let viewer = null;
+let viewer = null, measure = null;
 window.wnOpenModel = async function (buffer, ext) {
   try {
     setMsg('3D表示の準備中…');
@@ -101,6 +180,7 @@ window.wnOpenModel = async function (buffer, ext) {
     }
 
     msg.style.display = 'none';
+    measure?.destroy(); measure = null;
     viewer?.destroy();
     viewer = SolidModelViewer.open(document.getElementById('stage'), geometry, { toolbar: document.getElementById('toolbar') });
     return true;
@@ -133,6 +213,15 @@ window.wnModelThumb = async function () {
   out.width = Math.round(cur.width * k); out.height = Math.round(cur.height * k);
   const c = out.getContext('2d'); c.imageSmoothingQuality = 'high'; c.drawImage(cur, 0, 0, out.width, out.height);
   return await new Promise(r => out.toBlob(r, 'image/jpeg', 0.9));
+};
+/* 寸法（ファイル詳細から呼ぶ。一覧のサムネイル作成では呼ばないので、そちらには何も出ない）。
+   host = { dims, drawing, save(payload), searchPdfs(q), fetchBuffer(id) } — API には親画面だけが触る */
+window.wnModelDimsInit = function (host) {
+  if (!viewer || !viewer.ctx || typeof WnModelMeasure === 'undefined') return false;
+  measure?.destroy();
+  measure = WnModelMeasure.attach({ viewer, stage: document.getElementById('stage'), toolbar: document.getElementById('toolbar'), host });
+  window.wnModelMeasure = measure;
+  return true;
 };
 window.wnModelMessage = (text, isError) => setMsg(text, isError ? 'fa-circle-exclamation' : 'fa-spinner fa-spin');
 </script>

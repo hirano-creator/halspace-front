@@ -546,7 +546,7 @@ async function showModel3dPreview(ext) {
   hint.textContent = '3Dモデルを読み込み中…';
   try {
     const ready = new Promise(r => { frame.onload = r; });
-    frame.src = 'model3d.html?v=20261112b';
+    frame.src = 'model3d.html?v=20261117';
     const buffer = await wnFetchFileBuffer(fileId, {
       timeoutMs: 300000,
       onProgress: pct => { hint.textContent = `読み込み中… ${pct}%`; },
@@ -556,12 +556,47 @@ async function showModel3dPreview(ext) {
     placeholder.style.display = 'none';
     frame.style.display = 'block';
     const ok = await frame.contentWindow.wnOpenModel(buffer, ext);
-    if (ok) saveModel3dThumbIfMissing(frame);
+    if (ok) { await saveModel3dThumbIfMissing(frame); initModel3dDims(frame); }
   } catch (e) {
     console.error('3D preview error:', e);
     frame.style.display = 'none';
     placeholder.style.display = '';
     hint.textContent = '3Dモデルのプレビューに失敗しました: ' + e.message;
+  }
+}
+
+/* 3Dモデルの寸法。モデルのファイルは書き換えず、寸法と「横に並べる図面」をファイルごとに保存する。
+   画面の部品は iframe 側（assets/js/wn-model-measure.js）にあり、API にはこちらだけが触る。
+   寸法の取得に失敗したとき（API が古い等）は、寸法のボタン自体を出さない */
+async function initModel3dDims(frame) {
+  try {
+    const win = frame.contentWindow;
+    if (!win || !win.wnModelDimsInit) return;
+    const res = await wnFetch(`/wn/files/${fileId}/dims`);
+    if (!res || !res.ok) return;
+    const data = await res.json();
+    const baseName = (fileData?.file_name || '').replace(/\.[^.]+$/, '');
+    win.wnModelDimsInit({
+      dims: Array.isArray(data.dims) ? data.dims : [],
+      drawing: data.drawing || null,
+      async save(payload) {
+        const r = await wnFetch(`/wn/files/${fileId}/dims`, { method: 'PUT', body: JSON.stringify(payload) });
+        return !!(r && r.ok);
+      },
+      /* 図面の候補。何も入れていないときは、関連ファイルと「同じ名前のPDF」を先に出す */
+      async searchPdfs(q) {
+        const isPdf = f => /\.pdf$/i.test(f.file_name || '');
+        const out = [], seen = new Set();
+        const add = f => { if (isPdf(f) && !seen.has(f.id)) { seen.add(f.id); out.push({ id: f.id, file_name: f.file_name }); } };
+        if (!q) (typeof relationsCache !== 'undefined' ? relationsCache : []).forEach(add);
+        const term = q || baseName;
+        if (term) ((await wnGetFiles({ search: term })).data ?? []).forEach(add);
+        return out;
+      },
+      fetchBuffer: id => wnFetchFileBuffer(id),
+    });
+  } catch (e) {
+    console.error('3D dims init error:', e);
   }
 }
 

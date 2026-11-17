@@ -31,6 +31,7 @@ node handoff-e2e.js         # 手渡し（人に渡す・受け取り箱・渡�
 # ↓ これだけは実API（ローカル solid-api を 8010 で起動）が必要。手順はファイル冒頭
 WN_TOKEN='1|xxxx' node folders-pins-e2e.js  # 一覧A案: フォルダー作成・ドラッグ移動・フォルダーごとアップロード・パンくず/戻る・ピン留め・種類チップ・スマホの長押しシートと下部ナビ
 node excel-print-unit.js     # ファイル詳細の「印刷」でExcelを印刷用HTMLにする処理（印刷範囲・非表示シート・結合セル・用紙幅に収まるか。SHOT=1でshots/excel-print.*）
+node model3d-dims-e2e.js   # 3Dモデル(STL/STEP)の寸法（2点を押して寸法・角への吸い付き・直線/X/Y/Z・メモ・保存・図面PDFを横に並べる・スマホ。サーバーはスクリプトが立てる。SHOT=1でshots/model3d-dims-*.png）
 ```
 
 ## 重要な教訓（レスポンシブ 2026-08-27）

@@ -162,6 +162,8 @@ const SolidModelViewer = (() => {
     const ro = new ResizeObserver(frame);
     ro.observe(container);
 
+    /* 描くたびに呼ぶ処理（What'sNo の寸法表示が、3Dの動きに合わせて線と数字を置き直すのに使う） */
+    const frameHooks = [];
     let raf = 0, dead = false;
     const dir = new THREE.Vector3();
     (function loop() {
@@ -171,6 +173,7 @@ const SolidModelViewer = (() => {
       renderer.clear();
       renderer.setViewport(0, 0, w, h);
       renderer.render(scene, camera);
+      for (let i = 0; i < frameHooks.length; i++) frameHooks[i](w, h);
       const s = Math.min(110, Math.max(70, Math.min(w, h) * .16));
       renderer.clearDepth();
       renderer.setViewport(6, 6, s, s);
@@ -199,6 +202,8 @@ const SolidModelViewer = (() => {
     return {
       setView,
       snapshot,
+      ctx: { THREE, scene, camera, controls, renderer, mesh, edges, center, radius },
+      onFrame(fn) { frameHooks.push(fn); },
       destroy() { dead = true; cancelAnimationFrame(raf); ro.disconnect(); controls.dispose(); renderer.dispose(); renderer.domElement.remove(); },
     };
   }
