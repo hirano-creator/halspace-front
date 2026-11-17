@@ -433,8 +433,9 @@ function selectForm(id, silent) {
 
 /* 紙の中のどれを見せるか（標準 / 様式 / 文章をなおす） */
 function syncPaperView() {
-  const p = $id('mdPreview'), f = $id('formPaper'), e = $id('previewEditArea');
+  const p = $id('stdWrap'), f = $id('formPaper'), e = $id('previewEditArea');
   if (!p || !f || !e) return;
+  $id('mdPreview').style.display = '';
   e.style.display = previewIsEditing ? 'block' : 'none';
   p.style.display = (!previewIsEditing && !selectedForm) ? '' : 'none';
   f.style.display = (!previewIsEditing && selectedForm) ? '' : 'none';
@@ -457,8 +458,24 @@ function visibleActions() {
   return (actions || []).filter(a => (a.content || '').trim());
 }
 
+function actionsTableHtml(md) {
+  const acts = visibleActions();
+  if (!acts.length || ACTION_HEADING.test(md)) return '';
+  return '<h3>次にやること</h3><table><tr><th>内容</th><th style="width:80px">担当</th><th style="width:90px">期限</th></tr>'
+    + acts.map(a => `<tr><td>${escHtml(a.content)}</td><td>${escHtml(a.assignee_name || '')}</td><td>${escHtml(a.due_date || '')}</td></tr>`).join('') + '</table>';
+}
+
+/* 標準の紙にも「次にやること」を出す（画面と印刷を同じにするため） */
+function renderStdActions() {
+  const el = $id('stdActions');
+  if (!el) return;
+  const md = currentMarkdown();
+  el.innerHTML = md.trim() ? actionsTableHtml(md) : '';
+}
+
 let _fpSeq = 0;
 async function renderFormPaper() {
+  renderStdActions();
   const el = $id('formPaper');
   if (!el) return;
   if (!selectedForm) { el.innerHTML = ''; return; }
@@ -471,11 +488,7 @@ async function renderFormPaper() {
     stripTitleAndMeta(div);
     div.querySelectorAll('h1,h2,h3,h4').forEach(h => { h.textContent = stripEmoji(h.textContent); });
     body = div.innerHTML;
-    const acts = visibleActions();
-    if (acts.length && !ACTION_HEADING.test(md)) {
-      body += '<h3>次にやること</h3><table><tr><th>内容</th><th style="width:80px">担当</th><th style="width:90px">期限</th></tr>'
-        + acts.map(a => `<tr><td>${escHtml(a.content)}</td><td>${escHtml(a.assignee_name || '')}</td><td>${escHtml(a.due_date || '')}</td></tr>`).join('') + '</table>';
-    }
+    body += actionsTableHtml(md);
   } else {
     body = '<div class="fp-empty"><i class="fa-solid fa-wand-magic-sparkles" style="font-size:28px;display:block;margin-bottom:10px"></i>左にメモを書いて「AIで整えて紙に入れる」を押すと<br>ここに入ります</div>';
   }
@@ -485,7 +498,7 @@ async function renderFormPaper() {
 
 let _fpTimer = null;
 function scheduleFormPaper() {
-  if (!selectedForm || previewIsEditing) return;
+  if (previewIsEditing) return;
   clearTimeout(_fpTimer);
   _fpTimer = setTimeout(renderFormPaper, 250);
 }
@@ -573,26 +586,6 @@ async function exportExcel() {
     btn.disabled = false;
     btn.innerHTML = keep;
   }
-}
-
-/* ── 様式の紙を印刷 ── */
-function printFormPaper() {
-  const title = $id('titleInput').value || '議事録';
-  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>${escHtml(title)}</title>
-<style>@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
-*{box-sizing:border-box;margin:0;padding:0;}
-${MLForms.PAPER_CSS}
-.fp{font-size:10.5pt;}
-.fp-frame{min-height:270mm;}
-@page{size:A4;margin:12mm;}
-@media print{h3,h4{page-break-after:avoid;}table{page-break-inside:avoid;}}
-</style></head><body><div class="fp">${$id('formPaper').innerHTML}</div>
-<script>window.onload=function(){setTimeout(function(){window.print();window.onafterprint=function(){window.close();};},300);};<\/script>
-</body></html>`;
-  const w = window.open('', '_blank', 'width=900,height=700');
-  if (!w) { mlShowToast('印刷用の画面を開けませんでした（ポップアップを許可してください）', 'warning'); return; }
-  w.document.write(html);
-  w.document.close();
 }
 
 /* ══════════════════════════════════════
