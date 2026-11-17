@@ -1,6 +1,6 @@
 /* What'sNo「並べる」機能(align.html)のE2E検証（バックエンドなし・APIモック）
    justified layout（行ごとに高さを揃え幅いっぱいに埋める）＋クリックで実物大ライトボックスを開く方式 */
-const { chromium } = require('c:/dev/my-programming/_aa_e2e/node_modules/playwright-core');
+const { chromium } = require('../_aa_e2e/node_modules/playwright-core');
 const fs = require('fs');
 const path = require('path');
 
