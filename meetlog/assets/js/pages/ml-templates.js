@@ -85,12 +85,15 @@ function renderTemplates() {
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:15px;font-weight:700;color:var(--primary);">${escHtml(t.name)}</span>
           ${t.kind === 'xlsx' ? '<span style="font-size:11px;font-weight:700;color:#166534;background:#DCFCE7;padding:2px 8px;border-radius:20px;">Excel様式</span>' : ''}
+          ${t.kind === 'outline' ? '<span style="font-size:11px;font-weight:700;color:#5B21B6;background:#EDE9FE;padding:2px 8px;border-radius:20px;">構成</span>' : ''}
           ${t.is_default ? '<span style="font-size:11px;font-weight:700;color:var(--ml-accent);background:var(--ml-accent-lt);padding:2px 8px;border-radius:20px;">デフォルト</span>' : ''}
         </div>
-        <div class="tpl-body-preview">${t.kind === 'xlsx' ? escHtml((t.file_name || '') + '（入れる場所の設定は、議事録の編集画面の「様式」から行います）') : escHtml(t.body)}</div>
+        <div class="tpl-body-preview">${t.kind === 'xlsx' ? escHtml((t.file_name || '') + '（入れる場所の設定は、議事録の編集画面の「様式」から行います）')
+          : t.kind === 'outline' ? escHtml(((t.config && t.config.sections) || []).map(s => s.title).join(' → ') + '（見出しの変更は、議事録の編集画面の「まとめ方」から行います）')
+          : escHtml(t.body)}</div>
       </div>
       <div class="tpl-actions">
-        <button class="btn btn-outline btn-sm" onclick="openEditModal(${i})" ${t.kind === 'xlsx' ? 'style="display:none;"' : ''}>
+        <button class="btn btn-outline btn-sm" onclick="openEditModal(${i})" ${t.kind === 'xlsx' || t.kind === 'outline' ? 'style="display:none;"' : ''}>
           <i class="fa-solid fa-pen"></i>
         </button>
         <button class="btn btn-ghost btn-sm" onclick="deleteTpl(${t.id})" style="color:var(--red);">

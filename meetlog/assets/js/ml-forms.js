@@ -954,3 +954,148 @@ function initPaperZoom() {
   desk.addEventListener('click', e => { if (moved) { moved = false; e.stopPropagation(); e.preventDefault(); } }, true);
   desk.addEventListener('dragstart', e => { if (e.target.tagName === 'IMG') e.preventDefault(); });
 }
+
+/* ══════════════════════════════════════
+   議事録の構成（見出しと順番）を会社で決める
+   ・ひな形と同じ表（kind = 'outline'、config.sections = [{title, hint}]）に入れる
+   ・「まとめ方」のチップに並び、選んで「AIで整える」とその見出しどおりに出る
+   ・作る・直す・消すのは管理者だけ
+══════════════════════════════════════ */
+const OUTLINE_MAX = 12;
+const OUTLINE_PRESET = [
+  { title: 'サマリー', hint: '3〜4文で、何が話され・決まり・残ったかをまとめる' },
+  { title: '決定事項', hint: '決定・合意した内容だけを箇条書き' },
+  { title: '未決定・検討中', hint: '持ち越し・要検討の項目と理由を箇条書き' },
+  { title: '協議内容', hint: 'トピックごとに小見出しを立てて箇条書き' },
+  { title: '次回アクション', hint: '誰が・何を・いつまでに。決まっていなければ「—」' },
+];
+let outlines = [];
+let selectedOutlineId = null;
+let olState = null;
+
+function renderOutlineChips() {
+  const box = $id('outlineChips');
+  if (!box) return;
+  if (selectedOutlineId && !outlines.some(o => o.id === selectedOutlineId)) { selectedOutlineId = null; selectedAiStyle = 'standard'; }
+  const admin = isAdminUser();
+  let html = (outlines.length || admin) ? '<span class="ol-sep"></span>' : '';
+  html += outlines.map(o => {
+    const heads = ((o.config && o.config.sections) || []).map(s => s.title).join(' → ');
+    return `<button data-style="standard" data-outline="${o.id}" onclick="selectAiStyle(this)" title="${escHtml(heads)}"><i class="fa-solid fa-list-ol" style="margin-right:5px;"></i>${escHtml(o.name)}</button>`;
+  }).join('');
+  if (admin) {
+    if (selectedOutlineId) html += `<button class="ol-gear" onclick="openOutline(${selectedOutlineId})" title="この構成の見出しを変える"><i class="fa-solid fa-gear"></i></button>`;
+    html += '<button class="ol-dash" onclick="openOutline()" title="見出しと順番を自分で決める"><i class="fa-solid fa-plus" style="margin-right:5px;"></i>構成を作る</button>';
+  }
+  box.innerHTML = html;
+  document.querySelectorAll('#aiStyles button[data-style]').forEach(b => {
+    const oid = b.dataset.outline ? Number(b.dataset.outline) : null;
+    b.classList.toggle('on', selectedOutlineId ? oid === selectedOutlineId : (!oid && b.dataset.style === selectedAiStyle));
+  });
+  // 選んだボタンが横にかくれていたら見える位置へ
+  const on = document.querySelector('#aiStyles button.on');
+  const row = $id('aiStyles');
+  if (on && row && row.scrollWidth > row.clientWidth) {
+    const r = on.getBoundingClientRect(), rr = row.getBoundingClientRect();
+    if (r.right > rr.right - 40) row.scrollLeft += r.right - rr.right + 80;
+    else if (r.left < rr.left) row.scrollLeft -= rr.left - r.left + 8;
+  }
+}
+
+/* 会社の標準になっている構成があれば、最初からそれを選ぶ */
+function applyDefaultOutline() {
+  const def = outlines.find(o => o.is_default);
+  if (def) { selectedOutlineId = def.id; selectedAiStyle = 'standard'; }
+  renderOutlineChips();
+}
+
+function openOutline(editId) {
+  if (!isAdminUser()) return;
+  const o = editId ? outlines.find(x => x.id === editId) : null;
+  if (editId && !o) return;
+  olState = { id: o ? o.id : null, sections: JSON.parse(JSON.stringify(o ? ((o.config && o.config.sections) || []) : OUTLINE_PRESET)) };
+  $id('olName').value = o ? o.name : '';
+  $id('olDefault').checked = o ? !!o.is_default : false;
+  $id('olDeleteBtn').style.display = o ? '' : 'none';
+  $id('olTitle').textContent = o ? '議事録の構成を変える' : '議事録の構成を作る';
+  renderOlRows();
+  $id('outlineModal').classList.remove('hidden');
+}
+
+function closeOutline() {
+  $id('outlineModal').classList.add('hidden');
+  olState = null;
+}
+
+function renderOlRows() {
+  const n = olState.sections.length;
+  $id('olRows').innerHTML = olState.sections.map((s, i) => `
+    <div class="ol-row">
+      <span class="no">${i + 1}</span>
+      <input type="text" class="form-input ol-title" maxlength="40" placeholder="見出し（例: 決定事項）" value="${escHtml(s.title || '')}" oninput="olState.sections[${i}].title=this.value">
+      <input type="text" class="form-input ol-hint" maxlength="200" placeholder="何を書くか（空でもかまいません）" value="${escHtml(s.hint || '')}" oninput="olState.sections[${i}].hint=this.value">
+      <button class="ib" onclick="olMove(${i},-1)" title="上へ" ${i === 0 ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button>
+      <button class="ib" onclick="olMove(${i},1)" title="下へ" ${i === n - 1 ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
+      <button class="ib del" onclick="olRemove(${i})" title="この見出しを消す"><i class="fa-solid fa-xmark"></i></button>
+    </div>`).join('');
+  $id('olAddBtn').style.display = n >= OUTLINE_MAX ? 'none' : '';
+}
+
+function olAdd() {
+  if (olState.sections.length >= OUTLINE_MAX) return;
+  olState.sections.push({ title: '', hint: '' });
+  renderOlRows();
+  const inputs = document.querySelectorAll('#olRows .ol-title');
+  inputs[inputs.length - 1].focus();
+}
+
+function olMove(i, d) {
+  const j = i + d, a = olState.sections;
+  if (j < 0 || j >= a.length) return;
+  [a[i], a[j]] = [a[j], a[i]];
+  renderOlRows();
+}
+
+function olRemove(i) {
+  olState.sections.splice(i, 1);
+  renderOlRows();
+}
+
+async function olSave() {
+  const name = $id('olName').value.trim();
+  if (!name) { mlShowToast('構成の名前を入れてください', 'warning'); $id('olName').focus(); return; }
+  const sections = olState.sections
+    .map(s => ({ title: (s.title || '').trim(), hint: (s.hint || '').trim() }))
+    .filter(s => s.title);
+  if (!sections.length) { mlShowToast('見出しを1つ以上入れてください', 'warning'); return; }
+
+  const btn = $id('olSaveBtn');
+  btn.disabled = true;
+  const payload = { name, kind: 'outline', config: { sections }, is_default: $id('olDefault').checked };
+  let res;
+  if (olState.id) {
+    res = await mlUpdateTemplate(olState.id, payload);
+  } else {
+    payload.body = '';
+    payload.sort_order = templates.length;
+    res = await mlCreateTemplate(payload);
+  }
+  btn.disabled = false;
+  if (!res) { mlShowToast('保存に失敗しました', 'danger'); return; }
+
+  closeOutline();
+  selectedOutlineId = res.id;
+  selectedAiStyle = 'standard';
+  await loadTemplates();
+  mlShowToast('構成を保存しました。「AIで整えて紙に入れる」を押すと、この見出しで作り直します', 'success');
+}
+
+async function olDelete() {
+  if (!olState || !olState.id) return;
+  if (!confirm('この構成を削除しますか？（作成済みの議事録の文章はそのまま残ります）')) return;
+  const ok = await mlDeleteTemplate(olState.id);
+  if (!ok) { mlShowToast('削除に失敗しました', 'danger'); return; }
+  closeOutline();
+  await loadTemplates();
+  mlShowToast('構成を削除しました');
+}

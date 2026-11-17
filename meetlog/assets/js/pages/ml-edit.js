@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initPaperZoom();
   await Promise.all([loadTemplates(), minuteId ? loadMinute() : initNew()]);
   applyInitialForm();
+  applyDefaultOutline();
   updateMetaLine();
   isDirty = false;
   if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
@@ -115,9 +116,11 @@ async function loadTemplates() {
   forms = templates.filter(t => t.kind === 'xlsx');
   if (selectedForm) selectedForm = forms.find(f => f.id === selectedForm.id) || null;
   renderFormPills();
+  outlines = templates.filter(t => t.kind === 'outline');
+  renderOutlineChips();
 
   // メモのひな形（従来のテンプレート）
-  const textTpls = templates.filter(t => t.kind !== 'xlsx');
+  const textTpls = templates.filter(t => t.kind !== 'xlsx' && t.kind !== 'outline');
   const container = document.getElementById('templateBtns');
   if (!container) return;
   container.innerHTML = textTpls.length
@@ -139,7 +142,7 @@ function applyInitialForm() {
   } else if (!minuteId) {
     const def = forms.find(f => f.is_default);
     selectForm(def ? def.id : null, true);
-    const defText = templates.find(t => t.kind !== 'xlsx' && t.is_default);
+    const defText = templates.find(t => t.kind !== 'xlsx' && t.kind !== 'outline' && t.is_default);
     const btn = defText && document.querySelector(`.template-btn[data-id="${defText.id}"]`);
     if (btn) applyTemplate(btn);
   } else {
@@ -284,7 +287,7 @@ async function doAiFormat() {
     ? metaLines.join('\n') + '\n\n' + body
     : body;
 
-  let result = await mlAiFormat(fullText, selectedTemplate || '', selectedAiStyle);
+  let result = await mlAiFormat(fullText, selectedTemplate || '', selectedAiStyle, selectedOutlineId);
   if (result) {
     const keptImgs = (currentMarkdown().match(/!\[[^\]]*\]\(mlimg:\/\/\d+\)(\{width=\d+\})?/g) || [])
       .filter(tag => !result.includes(tag));
@@ -1224,8 +1227,9 @@ const AI_STYLE_LABELS = {
 
 /* まとめ方のチップ */
 function selectAiStyle(el) {
-  selectedAiStyle = el.dataset.style;
-  document.querySelectorAll('#aiStyles button').forEach(b => b.classList.toggle('on', b === el));
+  selectedAiStyle = el.dataset.style || 'standard';
+  selectedOutlineId = el.dataset.outline ? Number(el.dataset.outline) : null;
+  renderOutlineChips();
 }
 
 /* 左の「メモ / 次にやること」の切り替え */

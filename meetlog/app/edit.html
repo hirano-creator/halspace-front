@@ -156,6 +156,10 @@
       padding: 4px 11px; border-radius: 999px; border: 1.5px solid var(--border); background: #fff;
       font-size: 12px; font-weight: 500; color: var(--text-sub); white-space: nowrap; flex-shrink: 0;
     }
+    .styles button { white-space: nowrap; flex-shrink: 0; }
+    .styles button.ol-dash { border-style: dashed; }
+    .styles button.ol-gear { padding-left: 9px; padding-right: 9px; }
+    .styles .ol-sep { width: 1px; background: var(--border-md); margin: 3px 2px; flex-shrink: 0; }
     .styles button.on { border-color: var(--ml-purple); background: var(--ml-purple-lt); color: var(--ml-purple); font-weight: 700; }
     .go { display: flex; gap: 8px; }
     .btn-voice-sm { width: 44px; height: 44px; border-radius: 50%; background: var(--text); color: #fff; font-size: 16px; flex-shrink: 0; }
@@ -310,6 +314,30 @@
 
     /* ── 様式の登録 ── */
     .reg-modal { max-width: 960px; width: 100%; }
+
+    /* 議事録の構成（見出しと順番）を決める小窓 */
+    .ol-modal { max-width: 680px; width: 100%; }
+    .ol-lead { font-size: 12.5px; color: var(--text-sub); line-height: 1.7; margin-bottom: 4px; }
+    .ol-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+    .ol-row .no { width: 20px; text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); flex-shrink: 0; }
+    .ol-row .ol-title { flex: 0 0 34%; min-width: 0; font-weight: 700; }
+    .ol-row .ol-hint { flex: 1; min-width: 0; }
+    .ol-row .form-input { height: 36px; font-size: 13px; }
+    .ol-row .ib { width: 30px; height: 30px; border-radius: 7px; color: var(--text-sub); flex-shrink: 0; cursor: pointer; }
+    .ol-row .ib:hover { background: var(--ml-purple-lt); color: var(--ml-purple); }
+    .ol-row .ib:disabled { opacity: .25; cursor: default; background: none; }
+    .ol-row .ib.del:hover { background: #FEE2E2; color: var(--red); }
+    .ol-head { display: flex; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--muted); margin: 0 0 4px 26px; }
+    .ol-head span:first-child { flex: 0 0 34%; }
+    #olFoot { display: flex; gap: 8px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+    #olFoot .sp { flex: 1; }
+    @media (max-width: 767px) {
+      .ol-row { flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+      .ol-row .ol-title { flex: 1 1 calc(100% - 130px); }
+      .ol-row .ol-hint { flex: 1 1 100%; order: 9; margin-left: 26px; }
+      .ol-row .form-input { font-size: 16px; height: 40px; }
+      .ol-head { display: none; }
+    }
     #regSteps { display: flex; gap: 6px; margin: 2px 0 14px; }
     #regSteps span { font-size: 12px; font-weight: 700; color: var(--muted); padding: 4px 11px; border-radius: 999px; background: #F0F0F5; }
     #regSteps span.on { background: var(--ml-purple); color: #fff; }
@@ -544,6 +572,7 @@
           <button data-style="formal" onclick="selectAiStyle(this)" title="社内・社外に出せる丁寧な文">報告書</button>
           <button data-style="visual" onclick="selectAiStyle(this)" title="絵文字と表で現場向けに">現場向け</button>
           <button data-style="summary" onclick="selectAiStyle(this)" title="背景・決定・アクションだけ">3行まとめ</button>
+          <span id="outlineChips" style="display:contents;"></span>
         </div>
         <div class="go">
           <button class="btn-voice-sm" id="voiceBtn" title="話して入力"><i class="fa-solid fa-microphone"></i><span id="voiceBtnLabel">音声入力</span></button>
@@ -641,6 +670,33 @@
       <button class="btn btn-outline" id="emailCopyBtn" onclick="copyEmailText()" style="display:none;">
         <i class="fa-solid fa-copy"></i> コピー
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- 議事録の構成を決める（管理者） -->
+<div class="modal-overlay hidden" id="outlineModal">
+  <div class="modal ol-modal">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-list-ol" style="color:var(--ml-purple);"></i> <span id="olTitle">議事録の構成を作る</span></span>
+      <button class="modal-close" onclick="closeOutline()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p class="ol-lead">「AIで整えて紙に入れる」を押したときの、見出しと順番を決めます。上から順に紙に並びます。<br>いらない見出しは消し、足りない見出しは足してください。</p>
+    <label class="reg-lbl" for="olName">構成の名前（ボタンに出ます）</label>
+    <input type="text" id="olName" class="form-input" maxlength="100" placeholder="例: 打合せ用" style="width:100%;">
+    <label class="reg-lbl">見出し</label>
+    <div class="ol-head"><span>見出し</span><span>何を書くか（空でもかまいません）</span></div>
+    <div id="olRows"></div>
+    <button class="btn btn-outline btn-sm" id="olAddBtn" onclick="olAdd()" style="margin-top:4px;"><i class="fa-solid fa-plus"></i> 見出しを足す</button>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:14px;font-size:13px;cursor:pointer;">
+      <input type="checkbox" id="olDefault" style="width:16px;height:16px;accent-color:var(--ml-purple);">
+      会社の標準にする（最初からこの構成が選ばれます）
+    </label>
+    <div id="olFoot">
+      <button class="btn btn-ghost btn-sm" id="olDeleteBtn" onclick="olDelete()" style="color:var(--red);display:none;"><i class="fa-solid fa-trash"></i> この構成を削除</button>
+      <span class="sp"></span>
+      <button class="btn btn-outline" onclick="closeOutline()">やめる</button>
+      <button class="btn btn-accent" id="olSaveBtn" onclick="olSave()"><i class="fa-solid fa-check"></i> この構成で保存</button>
     </div>
   </div>
 </div>
@@ -754,8 +810,8 @@ function switchMobileTab(tab) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="../../../solid/assets/js/auth.js?v=13"></script>
-<script src="../assets/js/ml-api.js?v=3"></script>
-<script src="../assets/js/pages/ml-edit.js?v=24"></script>
-<script src="../assets/js/ml-forms.js?v=3"></script>
+<script src="../assets/js/ml-api.js?v=4"></script>
+<script src="../assets/js/pages/ml-edit.js?v=25"></script>
+<script src="../assets/js/ml-forms.js?v=4"></script>
 </body>
 </html>

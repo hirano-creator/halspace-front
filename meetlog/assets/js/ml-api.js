@@ -88,10 +88,12 @@ async function mlDeleteMinute(id) {
    AI支援
    ────────────────────────────── */
 
-async function mlAiFormat(rawText, templateType = '', outputStyle = 'standard') {
+async function mlAiFormat(rawText, templateType = '', outputStyle = 'standard', outlineId = null) {
+  const payload = { raw_text: rawText, template_type: templateType, output_style: outputStyle };
+  if (outlineId) payload.outline_id = outlineId; // 会社で決めた構成（見出しと順番）
   const res = await mlFetch('/meetlog/minutes/ai-format', {
     method: 'POST',
-    body: JSON.stringify({ raw_text: rawText, template_type: templateType, output_style: outputStyle }),
+    body: JSON.stringify(payload),
   });
   if (!res || !res.ok) return null;
   return (await res.json()).data?.body ?? null;
