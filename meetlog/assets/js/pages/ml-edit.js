@@ -791,7 +791,9 @@ async function parseMarkdownWithImages(md) {
   });
   // marked.parseに通すと<img>がそのままHTMLとして出力される
   marked.setOptions({ headerIds: false, mangle: false });
-  return marked.parse(resolved);
+  // breaks: AIは文ごとに改行して返すので、1行の改行もそのまま改行として出す
+  // （既定だと空白でつながり、長い1段落になって読みにくい）
+  return marked.parse(resolved, { breaks: true });
 }
 
 /* ────────────────────────────
@@ -929,7 +931,7 @@ async function buildPrintContent() {
     });
     bodyHtml = helper.innerHTML;
   } else {
-    bodyHtml = marked.parse(document.getElementById('bodyInput').value || '');
+    bodyHtml = marked.parse(document.getElementById('bodyInput').value || '', { breaks: true });
   }
 
   let actHtml = '';
