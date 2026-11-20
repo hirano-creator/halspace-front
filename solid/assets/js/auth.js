@@ -524,3 +524,75 @@ function initPasswordChangeModal() {
 
 /* DOMロード後にモバイルメニューを自動初期化 */
 document.addEventListener('DOMContentLoaded', initMobileMenu);
+
+/* ── メール送信経路の異常警告（super_admin のみ） ──
+   2段階認証コードと通知メールは halspace-web.com/mail-relay/send.php（ロリポップ）を中継して送る。
+   2026-11-20、HPリニューアルで公開フォルダが付け替わり中継が404になって全員ログイン不能になったが、
+   利用者の「コードが届かない」まで誰も気づけなかった。止まっていたら運営者の画面上部に出す。
+   API: GET /admin/mail-health（サーバー側で5分キャッシュ。ここでも10分に1回まで） */
+(function () {
+  const KEY = 'space_mail_health';
+  const HIDE_KEY = 'space_mail_health_hidden_until';
+  const INTERVAL_MS = 10 * 60 * 1000;
+
+  function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function render(h) {
+    document.getElementById('spaceMailHealthBar')?.remove();
+    if (!h || h.ok) return;
+    try { if (Date.now() < Number(sessionStorage.getItem(HIDE_KEY) || 0)) return; } catch (_) {}
+
+    const bar = document.createElement('div');
+    bar.id = 'spaceMailHealthBar';
+    bar.setAttribute('role', 'alert');
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:#b91c1c;color:#fff;'
+      + 'font-size:14px;line-height:1.5;padding:10px 16px;display:flex;gap:12px;align-items:center;'
+      + 'flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,.25)';
+    bar.innerHTML = `
+      <strong style="white-space:nowrap">⚠ メールが送れない状態です</strong>
+      <span style="flex:1;min-width:220px">2段階認証の確認コードと通知メールが届きません。${esc(h.reason)}</span>
+      <button type="button" data-act="retry" style="font-size:14px;padding:4px 12px;border-radius:6px;border:1px solid #fff;background:transparent;color:#fff;cursor:pointer">再確認</button>
+      <button type="button" data-act="hide" style="font-size:14px;padding:4px 12px;border-radius:6px;border:0;background:#fff;color:#b91c1c;cursor:pointer">1時間隠す</button>`;
+    bar.querySelector('[data-act="retry"]').addEventListener('click', () => check(true));
+    bar.querySelector('[data-act="hide"]').addEventListener('click', () => {
+      try { sessionStorage.setItem(HIDE_KEY, String(Date.now() + 60 * 60 * 1000)); } catch (_) {}
+      bar.remove();
+    });
+    document.body.appendChild(bar);
+  }
+
+  async function check(fresh) {
+    const token = sessionStorage.getItem('space_token');
+    if (!token) return;
+    try {
+      const res = await fetch(spaceApiBase() + '/admin/mail-health' + (fresh ? '?fresh=1' : ''), {
+        headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
+      });
+      if (!res.ok) return; // 権限・通信エラーでは何も出さない（この警告のせいで画面を邪魔しない）
+      const h = await res.json();
+      try { sessionStorage.setItem(KEY, JSON.stringify({ at: Date.now(), h })); } catch (_) {}
+      if (fresh && h.ok) {
+        try { sessionStorage.removeItem(HIDE_KEY); } catch (_) {}
+      }
+      render(h);
+    } catch (_) { /* 確認自体の失敗は無視 */ }
+  }
+
+  function init() {
+    let user = null;
+    try { user = getSpaceUser(); } catch (_) {}
+    if (!user || user.role !== 'super_admin') return;
+
+    let cached = null;
+    try { cached = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (_) {}
+    if (cached && Date.now() - cached.at < INTERVAL_MS) {
+      render(cached.h);
+    } else {
+      check(false);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+})();
