@@ -31,4 +31,5 @@
 ## デプロイ
 - **本番は `main` への push のみ**（Cloudflare Pages 自動デプロイ → space-apps.pages.dev/solid/）。作業ブランチ（`feat/cloudflare-migration`）にコミットし、main へは worktree で cherry-pick して push する。作業ツリーには他アプリの未コミット変更が多いので `git add` はファイル指定で
 - 反映確認は HTTP 200 ではなく `curl -sL "<URL>?cb=$RANDOM" | grep -c "<今回追加した固有文字列>"` で行う
+- メール（2段階認証コード・通知）はロリポップの `https://halspace-web.com/mail-relay/send.php` を中継して送る（Railway は SMTP 不可）。「コードが届かない」はまずこの URL が 405 か（404 なら消えている）を見る。止まると super_admin の画面上部に赤帯が出る（`GET /admin/mail-health`）
 - API は solid-api を Railway に push（起動時に migrate が走る）。ローカルは Laragon（`127.0.0.1:8000`）、localhost で開くと自動でローカル API に向く
