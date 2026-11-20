@@ -2785,6 +2785,13 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
    優先度・担当モデラーはフィルタで絞れるのでカードには出さない。
    会社名は依頼日のセル（.c-date-company）にもスマホ専用で入れてあり、1行にまとめて出す。 */
 .c-date-company { display: none; }
+/* 検査進捗（ダッシュボード。HaLSpace・PT.HILANO LCZ INDONESIA の2社だけに出る列）
+   すべて検査OKなら〇＋件数、途中なら細いバー＋件数 */
+.insp-ok { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--accent); }
+.insp-maru { width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--accent); flex-shrink: 0; }
+.insp-prog { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.insp-bar { width: 46px; height: 6px; border-radius: 3px; background: #e9ecef; overflow: hidden; }
+.insp-bar i { display: block; height: 100%; background: #b2bec3; }
 /* 依頼時刻：PCは日付の下に小さく、スマホのカードは日付の横に並べる */
 .c-date-time { display: block; font-size: 11px; margin-top: 2px; }
 @media (max-width: 768px) {
@@ -2799,7 +2806,7 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
       "code  code  code  status"
       "title title title title"
       "date  date  date  date"
-      "req   reply .     del";
+      "req   reply insp  del";
     align-items: center;
     gap: 6px 14px;
     padding: 10px 12px;
@@ -2834,6 +2841,8 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
   #projectTable .c-req::before   { content: '希望納期'; }
   #projectTable .c-reply::before { content: '回答'; }
   #projectTable .c-del    { grid-area: del; justify-self: end; }
+  #projectTable .c-insp   { grid-area: insp; justify-self: start; font-size: 12px !important; }
+  #projectTable .c-insp::before { content: '検査'; color: var(--muted); font-weight: 400; margin-right: 4px; }
   /* お客様削除の行は td ごと薄くしているので、カードの地も同じ色に */
   #projectTable tbody tr.row-client-deleted { background: #f5f5f5; }
 }
@@ -2846,7 +2855,8 @@ body.cr-resizing { cursor: col-resize; user-select: none; }
       "title title"
       "date  date"
       "req   del"
-      "reply del";
+      "reply del"
+      "insp  del";
     row-gap: 4px;
   }
 }

@@ -18,6 +18,27 @@ if (user) {
   renderSidebarUser(user);
 
   let allProjects = [];
+  let showInspection = false;
+
+  /* 検査進捗セル。3Dデータ（案件詳細の「3Dモデル・制作データ」）のうち検査OK・納品済みの件数。
+     すべて検査済みで未納品のファイルが残っていれば〇（出荷できる状態）。
+     納品完了・キャンセルの案件は役目を終えているので「—」 */
+  function inspectionCell(p) {
+    const i = p.inspection;
+    if (!i || !i.total || ['delivered', 'cancelled'].includes(p.status)) {
+      return '<span style="color:var(--muted)">—</span>';
+    }
+    const done = (i.ok || 0) + (i.delivered || 0);
+    const tip = `3Dデータ${i.total}件のうち検査OK ${i.ok}件・納品済み ${i.delivered}件`;
+    if (done >= i.total && i.ok > 0) {
+      return `<span class="insp-ok" title="${tip}（すべて検査OK）"><span class="insp-maru"></span>${done}/${i.total}</span>`;
+    }
+    if (done >= i.total) {
+      return `<span style="color:var(--muted);font-size:12px;" title="${tip}">納品済み</span>`;
+    }
+    const pct = Math.round(done / i.total * 100);
+    return `<span class="insp-prog" title="${tip}"><span class="insp-bar"><i style="width:${pct}%"></i></span>${done}/${i.total}</span>`;
+  }
   let activeCardFilter = ''; // サマリーカードによる絞り込み
 
   /* top-barに会社名表示（発注者・管理者・モデラー共通。自社名が無いユーザーは非表示のまま） */
@@ -101,6 +122,10 @@ if (user) {
       const data = await api.get('/projects' + params);
       if (!data) return true;   // 401はapiFetch側でログアウト済み
       allProjects = data.projects ?? [];
+      /* 検査進捗はAPIが2社（HaLSpace・PT.HILANO LCZ INDONESIA）にだけ返す。列の表示もそれに従う */
+      showInspection = data.show_inspection === true;
+      const inspCol = document.getElementById('inspCol');
+      if (inspCol) inspCol.style.display = showInspection ? '' : 'none';
       /* 発注者はチャットが無いので、一覧の未読数で通知音を鳴らす
          （社内側・モデラーはnotify-sound.jsが/chat/unreadで見ている） */
       if (typeof SolidSound !== 'undefined' && !canUseChat(user)) {
@@ -278,6 +303,7 @@ if (user) {
         <td class="c-prio" style="white-space:nowrap;"><span class="priority-${p.priority}">${PRIORITY_LABEL[p.priority]||p.priority}</span></td>
         <td class="c-req" style="font-size:13px;white-space:nowrap;${isAlert?'color:var(--danger);font-weight:700;':''}">${p.deadline_requested||'—'}</td>
         <td class="c-reply" style="font-size:13px;white-space:nowrap;">${replyCell}</td>
+        ${showInspection ? `<td class="c-insp" style="font-size:13px;white-space:nowrap;text-align:center;">${inspectionCell(p)}</td>` : ''}
         ${isAdmin(user) || isModeler(user) ? `<td class="c-modeler" style="font-size:13px;white-space:nowrap;">${modelerName||'<span style="color:var(--muted)">未割当</span>'}</td>` : ''}
         ${(isAdmin(user) || !isModeler(user)) ? `<td class="c-del" style="text-align:center;white-space:nowrap;">
           <button class="row-delete-btn" data-id="${p.id}" title="${deleted ? '完全に削除' : '削除'}">
