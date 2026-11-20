@@ -20,8 +20,9 @@ if (user) {
   let allProjects = [];
   let showInspection = false;
 
-  /* 検査進捗セル。3Dデータ（案件詳細の「3Dモデル・制作データ」）のうち検査OK・納品済みの件数。
-     すべて検査済みで未納品のファイルが残っていれば〇（出荷できる状態）。
+  /* 検査進捗セル。3Dデータ（案件詳細の「3Dモデル・制作データ」）をフォルダー単位で数える
+     （中のファイルがすべて検査OK・納品済みのフォルダーが「済み」。単発ファイルは1件）。
+     すべて済みで未納品のフォルダーが残っていれば〇（出荷できる状態）。
      納品完了・キャンセルの案件は役目を終えているので「—」 */
   function inspectionCell(p) {
     const i = p.inspection;
@@ -29,7 +30,7 @@ if (user) {
       return '<span style="color:var(--muted)">—</span>';
     }
     const done = (i.ok || 0) + (i.delivered || 0);
-    const tip = `3Dデータ${i.total}件のうち検査OK ${i.ok}件・納品済み ${i.delivered}件`;
+    const tip = `3Dデータのフォルダー${i.total}件のうち検査OK ${i.ok}件・納品済み ${i.delivered}件`;
     if (done >= i.total && i.ok > 0) {
       return `<span class="insp-ok" title="${tip}（すべて検査OK）"><span class="insp-maru"></span>${done}/${i.total}</span>`;
     }
