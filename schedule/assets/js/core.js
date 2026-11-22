@@ -18,12 +18,19 @@ window.SS = window.SS || {};
   Object.assign(SS, { pad, iso, parse, addD, diffD, today, mins, hm, h, WD, md, HOUR: 56 });
 
   /* カレンダーの色（濃い色＝線・点、淡い色＝背景）。API は色の名前だけを持つ */
+  /* 並びは色相順（選ぶ画面にこの順で出る）。名前を増やすときは API の SsCalendar / SsEvent の COLORS にも足す */
   SS.PAL = {
-    blue: ['#3565c9', '#e8eefb'], green: ['#2c8a69', '#e2f3ec'], orange: ['#c4622b', '#fbebdf'],
-    violet: ['#7158c4', '#eeeafa'], teal: ['#1d8795', '#e0f2f4'], rose: ['#bf4f68', '#fae8ec'],
-    amber: ['#a9781c', '#f8efd9'], gray: ['#6b7078', '#eceef0']
+    red: ['#c93a3a', '#fbe6e6'], rose: ['#bf4f68', '#fae8ec'], pink: ['#c8458f', '#fae6f1'],
+    orange: ['#c4622b', '#fbebdf'], amber: ['#a9781c', '#f8efd9'], olive: ['#7a7c1f', '#f1f1dc'],
+    lime: ['#5c9620', '#ecf5df'], green: ['#2c8a69', '#e2f3ec'], teal: ['#1d8795', '#e0f2f4'],
+    sky: ['#1f80c2', '#e1f0fa'], blue: ['#3565c9', '#e8eefb'], indigo: ['#4049a8', '#e7e8f7'],
+    navy: ['#2b3f6b', '#e4e8f0'], violet: ['#7158c4', '#eeeafa'], plum: ['#984aad', '#f3e7f7'],
+    brown: ['#8a5a3a', '#f2e9e2'], gray: ['#6b7078', '#eceef0']
   };
-  SS.COLOR_NAMES = { blue: '青', green: '緑', orange: 'オレンジ', violet: '紫', teal: '青緑', rose: 'ローズ', amber: '山吹', gray: 'グレー' };
+  SS.COLOR_NAMES = {
+    red: '赤', rose: 'ローズ', pink: 'ピンク', orange: 'オレンジ', amber: '山吹', olive: 'オリーブ', lime: '黄緑',
+    green: '緑', teal: '青緑', sky: '水色', blue: '青', indigo: '藍', navy: '紺', violet: '紫', plum: '赤紫', brown: '茶', gray: 'グレー'
+  };
   SS.NOTIFY = { '': '通知なし', '10': '10分前', '30': '30分前', '60': '1時間前', '1440': '前日' };
   SS.REPEAT = { none: '繰り返しなし', daily: '毎日', weekly: '毎週', monthly: '毎月' };
   SS.PERM = { all: '全社員', manager: '部署管理者以上', admin: '企業管理者のみ' };
