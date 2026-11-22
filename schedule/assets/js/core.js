@@ -178,7 +178,8 @@ window.SS = window.SS || {};
       return true;
     }
     if (sel === 'all') {
-      if (ev.cal === 'personal') return mine ? (raw || !S.hidden.personal) : (ev.shared && (raw || !S.hidden.shared));
+      // 自分の共有予定は、個人カレンダーを外していても共有カレンダーにチェックがあれば出す
+      if (ev.cal === 'personal') return raw || (mine && !S.hidden.personal) || (ev.shared && !S.hidden.shared);
       const c = SS.calList().find(x => x.id === ev.cal);
       return !!c && (raw || !S.hidden[c.id]);
     }
@@ -202,7 +203,7 @@ window.SS = window.SS || {};
   /* 中身は API が消して返す（予定ありのみ公開）。画面は印を見るだけ */
   SS.masked = ev => !!ev.masked;
   SS.titleOf = ev => ev.title;
-  SS.layerOf = ev => ev.cal !== 'personal' ? ev.cal : (ev.owner === D.me.id && S.cal !== 'shared' ? 'personal' : 'shared');
+  SS.layerOf = ev => ev.cal !== 'personal' ? ev.cal : (ev.owner === D.me.id && S.cal !== 'shared' && !(S.cal === 'all' && S.hidden.personal) ? 'personal' : 'shared');
   /* 予定に色を付けていればその色、なければ所属カレンダーの色 */
   SS.calColor = calId => { const c = SS.cal(calId); return SS.PAL[(c && c.color) || 'gray'] || SS.PAL.gray; };
   SS.colorOf = ev => (ev.color && SS.PAL[ev.color]) || SS.calColor(SS.layerOf(ev));
