@@ -1906,7 +1906,7 @@ function renderUserTable() {
         <td>
           <div style="display:flex;align-items:center;gap:8px;">
             <div style="width:26px;height:26px;border-radius:50%;background:var(--accent-lt);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">${h(u.name.charAt(0))}</div>
-            <div style="font-weight:600;">${h(u.name)}</div>
+            <div style="font-weight:600;white-space:nowrap;">${h(u.name)}</div>
           </div>
         </td>
         <td style="color:var(--muted);font-size:12px;">${h(u.email)}</td>
