@@ -726,6 +726,18 @@
   .setrow .t b { display: block; font-size: 13px; }
   .setrow .t span { font-size: 11px; color: var(--muted); }
 
+  .appdot-l { width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 800; flex-shrink: 0; font-family: 'Poppins', sans-serif; }
+  .av.sm { width: 24px; height: 24px; font-size: 10px; }
+  .dot-i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .kv-edit > div { padding: 9px 20px; }
+  .kv-edit > div:nth-child(odd) { padding-top: 18px; }
+  .kv-edit .form-input { max-width: 340px; padding: 7px 10px; }
+  .b-mem td { padding: 9px 16px; }
+  .b-mem tr:hover td { background: #f8f9fb; }
+  .act-code-b { font-family: 'Courier New', monospace; font-size: 11px; background: #f3f4f7; padding: 1px 6px; border-radius: 4px; white-space: nowrap; color: var(--text); }
+  .b-lt select.form-input { max-width: 96px; }
+  .b-lt .form-input { flex-basis: 90px; }
+
   /* 監査ログ */
   .b-logs { display: grid; grid-template-columns: 210px minmax(0,1fr); gap: 16px; align-items: start; }
   .facets { display: flex; flex-direction: column; gap: 2px; padding: 10px; }
@@ -872,13 +884,13 @@
             </div>
             <div class="panel">
               <div class="ph">
-                <i class="fa-solid fa-building" style="color:var(--accent);"></i>会社
-                <span class="note" style="font-weight:400;">注意が必要な会社を先に表示</span>
+                <i class="fa-solid fa-building" style="color:var(--accent);"></i>会社（定着率の低い順）
+                <span class="note" style="font-weight:400;">定着率＝30日以内にログインした人の割合</span>
                 <span class="r"><button class="btn btn-outline btn-xs" onclick="switchSection('companies')">すべて</button></span>
               </div>
               <div class="b-scroll-x">
                 <table class="data-table" id="dashCompanyTable">
-                  <thead><tr><th>会社名</th><th>プラン</th><th>利用者</th><th>契約アプリ</th><th>状態</th></tr></thead>
+                  <thead><tr><th>会社</th><th>プラン</th><th>利用者</th><th>定着率</th><th></th></tr></thead>
                   <tbody><tr class="loading-row"><td colspan="5"><span class="spinner"></span></td></tr></tbody>
                 </table>
               </div>
@@ -890,11 +902,12 @@
                 <div><div class="l">会社</div><div class="v" id="kpiCompanies">—</div><div class="s" id="kpiCompaniesSub">有効会社</div></div>
                 <div><div class="l">ユーザー</div><div class="v" id="kpiUsers">—</div><div class="s" id="kpiUsersSub">有効ユーザー</div></div>
                 <div><div class="l">月次売上</div><div class="v" id="kpiRevenue" style="font-size:18px;">—</div><div class="s">月額合計（有効会社）</div></div>
-                <div><div class="l">契約期限警告</div><div class="v" id="kpiExpiry">—</div><div class="s">30日以内に期限切れ</div></div>
+                <div><div class="l">今日ログイン</div><div class="v" id="kpiToday">—</div><div class="s">今日ログインした人</div></div>
+                <span id="kpiExpiry" hidden></span>
               </div>
             </div>
             <div class="panel">
-              <div class="ph"><span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;"></span>最近の動き
+              <div class="ph"><span style="width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;"></span>最近の動き<span class="note" style="font-weight:400;">開くたびに更新</span>
                 <span class="r"><button class="btn btn-outline btn-xs" id="dashLogsBtn" onclick="switchSection('logs')">監査ログ</button></span>
               </div>
               <div id="dashTimeline"><div class="b-empty"><span class="spinner"></span></div></div>
@@ -1077,11 +1090,11 @@
                 <option value="inactive">無効</option>
                 <option value="dormant">60日以上ログインなし</option>
               </select>
-              <button class="btn btn-outline btn-sm" id="userRefreshBtn" title="再読み込み"><i class="fa-solid fa-rotate-right"></i></button>
             </div>
             <div class="b-meta">
               <span class="cb" id="userCheckAll" title="表示中をすべて選択" style="cursor:pointer;"></span>
               <span id="userCount"></span>
+              <button class="btn btn-ghost btn-xs" id="userRefreshBtn" title="再読み込み" style="margin-left:auto;"><i class="fa-solid fa-rotate-right"></i></button>
             </div>
             <div class="b-scroll" id="userList"><div class="b-empty"><span class="spinner"></span></div></div>
             <div class="b-bulk" id="userBulk" style="display:none;"></div>
@@ -1098,8 +1111,12 @@
           <div class="panel">
             <div class="facets">
               <b>期間</b>
-              <input type="date" class="form-input" id="logDateFrom" aria-label="開始日">
-              <input type="date" class="form-input" id="logDateTo" aria-label="終了日" style="margin-top:4px;">
+              <div id="logPeriodFacet"></div>
+              <details style="margin:2px 8px 0;font-size:12px;" id="logRangeBox">
+                <summary style="cursor:pointer;color:var(--muted);padding:4px 0;">日付を指定</summary>
+                <input type="date" class="form-input" id="logDateFrom" aria-label="開始日" style="margin-top:4px;">
+                <input type="date" class="form-input" id="logDateTo" aria-label="終了日" style="margin-top:4px;">
+              </details>
               <b>アプリ</b>
               <div id="logAppFacet"></div>
               <b>操作の種類</b>
@@ -1118,7 +1135,7 @@
                 <option value="file">ファイル</option>
                 <option value="admin">管理操作</option>
               </select>
-              <button class="btn btn-primary btn-sm" id="logSearchBtn" style="margin-top:12px;justify-content:center;"><i class="fa-solid fa-magnifying-glass"></i> この条件で表示</button>
+              <button id="logSearchBtn" hidden></button>
             </div>
           </div>
           <div class="panel">
@@ -1132,12 +1149,13 @@
                   <th>日時</th>
                   <th>ユーザー</th>
                   <th>操作</th>
-                  <th>アプリ</th>
                   <th>対象</th>
+                  <th>アプリ</th>
                   <th>IPアドレス</th>
+                  <th>コード</th>
                 </tr></thead>
                 <tbody id="logTableBody">
-                  <tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr>
+                  <tr class="loading-row"><td colspan="7"><span class="spinner"></span></td></tr>
                 </tbody>
               </table>
             </div>
@@ -1151,8 +1169,15 @@
         <div style="max-width:780px;display:flex;flex-direction:column;gap:16px;">
           <!-- パスワード変更 -->
           <div class="panel">
-            <div class="ph"><i class="fa-solid fa-key" style="color:var(--accent);"></i>自分のパスワード</div>
-            <div style="padding:16px 18px;">
+            <div class="ph">自分のアカウント</div>
+            <div class="setrow">
+              <div class="t"><b>パスワード</b><span>ログインに使うパスワードを変えます</span></div>
+              <button class="btn btn-outline btn-xs" id="pwOpenBtn" onclick="openPwForm()">変更する</button>
+            </div>
+            <div class="setrow">
+              <div class="t"><b>メールアドレス</b><span id="sysMyEmail">—</span></div>
+            </div>
+            <div style="padding:16px 18px;border-top:1px solid #f2f3f6;display:none;" id="pwFormWrap">
               <!-- <form>で囲わずusername欄も無いと、ブラウザがページ内の無関係なテキスト欄
                    （このページでは「名前・メールで検索」欄）を「ユーザー名欄」とみなして紐付け、
                    保存後に自動入力してユーザー一覧の検索が勝手に走る不具合があった -->
@@ -1191,9 +1216,17 @@
             </div>
           </div>
 
+          <div class="panel">
+            <div class="ph">ログインの安全</div>
+            <div class="setrow">
+              <div class="t"><b>2段階認証（システム全体）</b><span>新しい端末からのログインでメールの確認コードを求めます。ユーザーごとのオン・オフはユーザー詳細の「セキュリティ」から</span></div>
+              <span id="sysMfaBadge"><span class="spinner"></span></span>
+            </div>
+          </div>
+
           <!-- メール中継（super_adminだけ）。止まると2段階認証のコードが届かず全員ログインできなくなる -->
           <div class="panel" id="sysMailPanel" style="display:none;">
-            <div class="ph"><i class="fa-solid fa-envelope" style="color:var(--accent);"></i>メール</div>
+            <div class="ph">メール</div>
             <div class="setrow">
               <div class="t"><b>メール中継</b><span id="sysMailText">確認中…</span></div>
               <span id="sysMailBadge"></span>
@@ -1203,7 +1236,7 @@
 
           <!-- アプリ一覧 -->
           <div class="panel">
-            <div class="ph"><i class="fa-solid fa-grip" style="color:var(--accent);"></i>アプリ
+            <div class="ph">アプリ
               <span class="r note">Space ポータルに表示されるアプリ</span>
             </div>
             <div id="appStatusList"></div>
@@ -1508,8 +1541,8 @@ const SECTION_TITLES = {
   system:    'システム設定',
 };
 const SECTION_ACTIONS = {
-  companies: () => isSuperAdmin ? `<button class="btn btn-primary btn-sm" id="addCompanyBtn"><i class="fa-solid fa-plus"></i> 会社を追加</button>` : '',
-  users:     () => `<button class="btn btn-primary btn-sm" id="addUserBtn"><i class="fa-solid fa-plus"></i> ユーザーを追加</button>`,
+  companies: () => isSuperAdmin ? `<button class="btn btn-primary btn-sm" id="addCompanyBtn"><i class="fa-solid fa-plus"></i> 会社</button>` : '',
+  users:     () => `<button class="btn btn-primary btn-sm" id="addUserBtn"><i class="fa-solid fa-plus"></i> ユーザー</button>`,
 };
 
 let currentSection = 'dashboard';
@@ -1590,6 +1623,24 @@ function relTime(d) {
 function fmtLocal(d) {
   return d ? d.toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
 }
+/* アプリの目印（色付きの四角＋略字）。モックと同じ見た目 */
+const APP_DOTS = {
+  solid: ['S', '#6366f1'], whatsno: ['W', '#3b82f6'], meetlog: ['M', '#10b981'], '3d-datashop': ['3D', '#64748b'],
+  tenq: ['T', '#0ea5e9'], partsgate: ['PG', '#059669'], schedule: ['SS', '#14b8a6'], aa: ['a', '#f43f5e'],
+};
+function appDot(id) {
+  const [t, c] = APP_DOTS[id] ?? [String(appName(id) ?? '?').slice(0, 2), '#9ca3af'];
+  return `<span class="appdot-l" style="background:${c}" title="${h(appName(id))}">${h(t)}</span>`;
+}
+function appCatalog() { return (typeof APP_CATALOG !== 'undefined' ? APP_CATALOG : []).filter(a => a.id !== 'future'); }
+/* 定着率 = 有効な利用者のうち30日以内にログインした人の割合。利用者0なら出さない */
+function companyRate(c) {
+  const m = usersCache.filter(u => u.company_id === c.id && u.is_active);
+  if (!m.length) return null;
+  const n = m.filter(u => { const d = daysSince(parseUtc(u.last_login_at)); return d !== null && d < 30; }).length;
+  return Math.round(n / m.length * 100);
+}
+function rateColor(r) { return r === null ? 'var(--muted)' : r < 40 ? 'var(--red)' : r < 70 ? 'var(--orange)' : 'var(--green)'; }
 const DORMANT_DAYS = 60;
 function isDormant(u) {
   if (!u.is_active) return false;
@@ -1642,7 +1693,7 @@ async function loadDashboard() {
   if (isMock) {
     /* API未接続時は空の状態で描画 */
     const msg = 'API未接続 — Laragonを起動するとデータが表示されます';
-    ['kpiCompanies','kpiUsers','kpiRevenue','kpiExpiry'].forEach(id => { document.getElementById(id).textContent = '—'; });
+    ['kpiCompanies','kpiUsers','kpiRevenue','kpiToday'].forEach(id => { document.getElementById(id).textContent = '—'; });
     document.getElementById('todoList').innerHTML     = `<div class="b-empty">${msg}</div>`;
     document.getElementById('dashTimeline').innerHTML = `<div class="b-empty">${msg}</div>`;
     document.querySelector('#dashCompanyTable tbody').innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">${msg}</td></tr>`;
@@ -1668,19 +1719,6 @@ async function loadDashboard() {
     document.getElementById('kpiRevenue').textContent      = '¥' + revenue.toLocaleString();
     document.getElementById('kpiExpiry').textContent       = expiring.length;
 
-    const sorted = [...companies].sort((a, b) =>
-      (companyNeedsCare(b) - companyNeedsCare(a)) || ((b.users_count ?? 0) - (a.users_count ?? 0)));
-    document.querySelector('#dashCompanyTable tbody').innerHTML = sorted.slice(0, 8).map(c => `
-      <tr style="cursor:pointer;" onclick="openCompanyDetail(${c.id})">
-        <td style="font-weight:700;white-space:nowrap;">${h(c.name)}</td>
-        <td>${planBadge(c.plan)}</td>
-        <td style="white-space:nowrap;">${c.users_count ?? 0} 名</td>
-        <td><div class="app-chips">${(c.apps_enabled ?? []).map(appChip).join('')}</div></td>
-        <td>${!c.is_active ? '<span class="badge badge-red">無効</span>'
-          : c.contract_expiry_warning ? `<span class="badge badge-orange">残り${c.contract_days_left}日</span>`
-          : !(c.users_count > 0) ? '<span class="badge badge-orange">利用者0</span>'
-          : '<span class="badge badge-green">有効</span>'}</td>
-      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">会社がありません</td></tr>';
   }
 
   if (usersRes?.ok) {
@@ -1695,6 +1733,9 @@ async function loadDashboard() {
   if (mailRes?.ok) mailHealth = await mailRes.json().catch(() => null);
 
   renderTodos();
+  renderDashCompanies();
+  const today = new Date().toDateString();
+  document.getElementById('kpiToday').textContent = usersCache.filter(u => parseUtc(u.last_login_at)?.toDateString() === today).length;
 
   const tl = document.getElementById('dashTimeline');
   if (!canViewAuditLogs) {
@@ -1716,6 +1757,22 @@ async function loadDashboard() {
   }
   /* いずれかのAPIが失敗した場合も残ったスピナーを消去 */
   clearSpinners();
+}
+
+/* 会社（定着率の低い順）。定着率は usersCache から出すのでユーザー取得後に描く */
+function renderDashCompanies() {
+  const rows = companiesCache.filter(c => c.is_active)
+    .map(c => ({ c, r: companyRate(c) }))
+    .sort((a, b) => (a.r ?? -1) - (b.r ?? -1));
+  document.querySelector('#dashCompanyTable tbody').innerHTML = rows.slice(0, 8).map(({ c, r }) => `
+    <tr style="cursor:pointer;" onclick="openCompanyDetail(${c.id})">
+      <td style="font-weight:700;white-space:nowrap;">${h(c.name)}</td>
+      <td>${planBadge(c.plan)}</td>
+      <td style="white-space:nowrap;">${c.users_count ?? 0} 名</td>
+      <td><b style="color:${rateColor(r)};">${r === null ? '—' : r + '%'}</b></td>
+      <td>${c.contract_expiry_warning ? `<span class="badge badge-orange">残り${c.contract_days_left}日</span>`
+        : !(c.users_count > 0) ? '<span class="badge badge-orange">利用者0</span>' : ''}</td>
+    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">会社がありません</td></tr>';
 }
 
 /* 「対応が必要」。データから毎回組み立てるので、片付けば自然に消える */
@@ -1850,41 +1907,53 @@ function renderCompanyDetail() {
   const members  = usersCache.filter(u => u.company_id === c.id);
   const enabled  = c.apps_enabled ?? [];
   const cfgs     = c.app_configs ?? {};
-  const catalog  = (typeof APP_CATALOG !== 'undefined' ? APP_CATALOG : []).filter(a => a.id !== 'future');
+  const catalog  = appCatalog();
   const canDelete = isSuperAdmin && c.id !== currentUser.company_id;
+  const rate = companyRate(c);
 
-  const tabs = [['apps', '契約アプリ'], ['members', `メンバー ${members.length}`]]
+  const tabs = [['apps', '契約アプリ'], ['members', `メンバー ${members.length}`], ['bill', '請求'], ['log', '操作ログ']]
     .map(([k, t]) => `<button class="${companyDetTab === k ? 'on' : ''}" onclick="companyDetTab='${k}';renderCompanyDetail()">${t}</button>`).join('');
 
-  const pane = companyDetTab === 'members'
-    ? (members.length ? members.map(u => `
-        <div class="li ${u.is_active ? '' : 'off'}" onclick="openUserDetail(${u.id})">
-          ${avatar(u.name)}
-          <div style="min-width:0;"><div class="n">${h(u.name)}</div><div class="s">${h(u.email)}</div></div>
-          <div class="x">${roleBadge(u.role)}${solidTypeBadge(u)}<div style="margin-top:2px;${isDormant(u) ? 'color:var(--red);' : ''}">${relTime(parseUtc(u.last_login_at))}</div></div>
-        </div>`).join('')
-        : `<div class="b-empty">まだメンバーがいません<br><button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="openAddUser()"><i class="fa-solid fa-plus"></i> ユーザーを追加</button></div>`)
-    : catalog.map(app => {
-        const on  = enabled.includes(app.id);
-        const cfg = cfgs[app.id] ?? {};
-        const col = APP_ICON_COLORS[app.id] ?? { bg: 'var(--bg)', color: 'var(--muted)' };
-        const used = members.filter(u => (u.effective_apps ?? []).includes(app.id)).length;
-        const meta = on ? [
-            `${used}人が利用`,
-            isSuperAdmin && cfg.price ? '¥' + Number(cfg.price).toLocaleString() + '/月' : '',
-            cfg.contract_date ? cfg.contract_date + ' 〜 ' + (cfg.contract_end_date ?? '') : (cfg.contract_end_date ? '〜 ' + cfg.contract_end_date : ''),
-          ].filter(Boolean).join(' ・ ') : '契約していません';
-        return `
-          <div class="setrow" style="${on ? '' : 'opacity:.5;'}">
-            <span class="appdot" style="background:${col.bg};color:${col.color};"><i class="${app.icon}"></i></span>
-            <div class="t"><b>${h(app.name)}</b><span>${h(meta)}</span></div>
-            ${on ? '<span class="badge badge-green">契約中</span>' : ''}
-          </div>`;
-      }).join('') + (isSuperAdmin ? `<div style="padding:12px 18px;"><button class="btn btn-outline btn-sm" onclick="openEditCompany(${c.id})"><i class="fa-solid fa-pen"></i> 契約アプリ・金額を変更</button></div>` : '');
+  const memberRows = list => list.length ? `<table class="data-table b-mem">${list.map(u => `
+      <tr onclick="openUserDetail(${u.id})" style="cursor:pointer;">
+        <td><span style="display:inline-flex;align-items:center;gap:8px;">${avatar(u.name, 'sm')}<b style="white-space:nowrap;">${h(u.name)}</b>${u.is_active ? '' : ' <span class="badge badge-gray">無効</span>'}</span></td>
+        <td>${roleBadge(u.role)}${solidTypeBadge(u)}</td>
+        <td style="white-space:nowrap;${isDormant(u) ? 'color:var(--red);' : ''}">${relTime(parseUtc(u.last_login_at))}</td>
+      </tr>`).join('')}</table>`
+    : `<div class="b-empty">まだメンバーがいません<br><button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="openAddUser()"><i class="fa-solid fa-plus"></i> ユーザーを追加</button></div>`;
 
-  const end = c.contract_end_date
-    ? `<span style="${c.contract_expiry_warning ? 'color:var(--orange);' : ''}">${h(c.contract_end_date)}</span>`
-    : '—';
+  let pane;
+  if (companyDetTab === 'members') {
+    pane = memberRows(members);
+  } else if (companyDetTab === 'bill') {
+    const billing = { subscription: '月次', annual: '年次' }[c.billing_type] ?? '—';
+    pane = `
+      <div class="kv">
+        <div>プラン</div><div>${planBadge(c.plan)}</div>
+        <div>請求方式</div><div>${billing}</div>
+        <div>月額（合計）</div><div>${c.price ? '¥' + c.price.toLocaleString() : '—'}</div>
+        <div>契約終了</div><div>${c.contract_end_date ? h(c.contract_end_date) + (c.contract_expiry_warning ? ` <span class="badge badge-orange">残り${c.contract_days_left}日</span>` : '') : '—'}</div>
+        ${enabled.map(id => { const cfg = cfgs[id] ?? {}; return `<div>${h(appName(id))}</div><div>${cfg.price ? '¥' + Number(cfg.price).toLocaleString() + '/月' : '—'}<span class="note" style="margin-left:8px;">${cfg.contract_date ? h(cfg.contract_date) + ' 〜 ' : ''}${cfg.contract_end_date ? h(cfg.contract_end_date) : ''}</span></div>`; }).join('')}
+      </div>
+      ${isSuperAdmin ? `<div style="padding:14px 20px;"><button class="btn btn-outline btn-sm" onclick="openEditCompany(${c.id})"><i class="fa-solid fa-pen"></i> 契約・金額を変更</button></div>` : ''}`;
+  } else if (companyDetTab === 'log') {
+    pane = `<div id="companyLogPane"><div class="b-empty"><span class="spinner"></span></div></div>`;
+  } else {
+    pane = `
+      <div class="appg">${catalog.map(app => {
+        const on = enabled.includes(app.id);
+        return `
+          <div class="appc">
+            ${appDot(app.id)}<span>${h(app.name)}</span>
+            <label class="toggle" ${isSuperAdmin ? '' : 'style="pointer-events:none;opacity:.6;"'}>
+              <input type="checkbox" ${on ? 'checked' : ''} onchange="setCompanyApp(${c.id}, '${app.id}', this.checked, this)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>`;
+      }).join('')}</div>
+      <div class="ph" style="border-top:1px solid var(--border);">メンバー</div>
+      ${memberRows(members)}`;
+  }
 
   el.innerHTML = `
     <div class="dhd">
@@ -1894,24 +1963,77 @@ function renderCompanyDetail() {
         <div class="nm">${h(c.name)}</div>
         <div class="note">${c.company_code ? 'コード ' + h(c.company_code) + ' ・ ' : ''}${planBadge(c.plan)}</div>
       </div>
-      <div class="acts">
-        ${isSuperAdmin ? `<label class="toggle" title="${c.is_active ? '有効（押すと無効）' : '無効（押すと有効）'}" style="align-self:center;margin-right:4px;">
+      <div class="acts" style="align-items:center;">
+        ${isSuperAdmin ? `<label class="toggle" title="${c.is_active ? '有効（押すと無効）' : '無効（押すと有効）'}">
           <input type="checkbox" ${c.is_active ? 'checked' : ''} onchange="toggleCompanyStatus(${c.id}, this.checked)">
           <span class="toggle-slider"></span>
         </label>` : ''}
-        ${isSuperAdmin ? `<button class="btn btn-outline btn-sm" onclick="openEditCompany(${c.id})"><i class="fa-solid fa-pen"></i> 編集</button>` : ''}
-        <button class="btn btn-outline btn-sm" onclick="switchSection('users');filterUsersByCompany(${c.id})"><i class="fa-solid fa-users"></i> ユーザー</button>
-        ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteCompany(${c.id})" title="削除"><i class="fa-solid fa-trash"></i></button>` : ''}
+        <div class="action-menu">
+          <button class="action-menu-btn" onclick="toggleActionMenu(this)" title="その他"><i class="fa-solid fa-ellipsis"></i></button>
+          <div class="action-dropdown">
+            ${isSuperAdmin ? `<button class="action-dropdown-item" onclick="openEditCompany(${c.id})"><i class="fa-solid fa-pen"></i> 会社情報・契約を編集</button>` : ''}
+            <button class="action-dropdown-item" onclick="closeAllActionMenus();switchSection('users');filterUsersByCompany(${c.id})"><i class="fa-solid fa-users"></i> ユーザー管理で開く</button>
+            ${canDelete ? `<div class="action-dropdown-divider"></div><button class="action-dropdown-item danger" onclick="deleteCompany(${c.id})"><i class="fa-solid fa-trash"></i> 会社を削除</button>` : ''}
+          </div>
+        </div>
       </div>
     </div>
     <div class="b-mini" style="grid-template-columns:repeat(4,1fr);border-radius:0;border-top:1px solid var(--border);">
       <div><div class="l">利用者</div><div class="v">${c.users_count ?? 0}<span class="note"> 名</span></div></div>
-      <div><div class="l">契約アプリ</div><div class="v">${enabled.length}</div></div>
+      <div><div class="l">定着率</div><div class="v" style="color:${rateColor(rate)};">${rate === null ? '—' : rate + '%'}</div><div class="s">30日以内にログイン</div></div>
       <div><div class="l">月額</div><div class="v" style="font-size:16px;">${c.price ? '¥' + c.price.toLocaleString() : '—'}</div></div>
-      <div><div class="l">契約終了</div><div class="v" style="font-size:15px;">${end}</div>${c.contract_expiry_warning ? `<div class="s" style="color:var(--orange);font-weight:700;">残り ${c.contract_days_left} 日</div>` : ''}</div>
+      <div><div class="l">契約終了</div><div class="v" style="font-size:16px;${c.contract_expiry_warning ? 'color:var(--orange);' : ''}">${c.contract_end_date ? h(c.contract_end_date.replaceAll('-', '/')) : '—'}</div>${c.contract_expiry_warning ? `<div class="s" style="color:var(--orange);font-weight:700;">残り ${c.contract_days_left} 日</div>` : ''}</div>
     </div>
     <div class="b-tabs" style="border-top:1px solid var(--border);">${tabs}</div>
     <div>${pane}</div>`;
+
+  if (companyDetTab === 'log') loadDetailLogs('companyLogPane', { company_id: c.id }, true);
+}
+
+/* 会社の契約アプリをその場で切り替える。APIは apps_enabled だけ送れば契約情報(app_configs)を保ったまま更新する */
+async function setCompanyApp(id, appId, on, input) {
+  const c = companiesCache.find(x => x.id === id);
+  if (!c) return;
+  if (!on && !confirm(`${c.name} の ${appName(appId)} の契約を外します。\nこの会社の全員が ${appName(appId)} を使えなくなります。\n\nよろしいですか？`)) {
+    input.checked = true; return;
+  }
+  const next = appCatalog().map(a => a.id).filter(a => a === appId ? on : (c.apps_enabled ?? []).includes(a));
+  input.disabled = true;
+  const res = await apiFetch(`/admin/companies/${id}`, { method: 'PATCH', body: JSON.stringify({ apps_enabled: next }) });
+  if (res?.ok) {
+    showToast(`${appName(appId)} を${on ? '契約に追加' : '契約から外し'}ました`, 'success');
+    await loadCompanies();   // 金額・ユーザーの利用アプリが連動して変わるので取り直す
+    usersCache = [];
+    const ur = await apiFetch('/admin/users');
+    if (ur?.ok) usersCache = (await ur.json()).data;
+    renderCompanyTable();
+  } else {
+    const err = await res?.json().catch(() => ({}));
+    showToast(err?.message || '更新に失敗しました', 'danger');
+    renderCompanyDetail();
+  }
+}
+
+/* 詳細の「操作ログ」タブ。user_id / company_id で絞って最近の30件 */
+async function loadDetailLogs(paneId, params, showUser) {
+  const pane = document.getElementById(paneId);
+  if (!pane) return;
+  if (!canViewAuditLogs) { pane.innerHTML = '<div class="b-empty">監査ログを見る権限がありません</div>'; return; }
+  const res = await apiFetch('/admin/audit-logs?' + new URLSearchParams({ ...params, per_page: 30 }));
+  if (!document.getElementById(paneId)) return;   // 待っている間に別の人・会社へ移った
+  if (!res?.ok) { pane.innerHTML = '<div class="b-empty">読み込めませんでした</div>'; return; }
+  const { data, meta } = await res.json();
+  pane.innerHTML = data.length ? `<table class="data-table">
+      <thead><tr><th>日時</th>${showUser ? '<th>ユーザー</th>' : ''}<th>操作</th><th>アプリ</th><th>対象</th></tr></thead>
+      <tbody>${data.map(l => `<tr>
+        <td style="white-space:nowrap;font-size:12px;color:var(--muted);">${formatDt(l.created_at)}</td>
+        ${showUser ? `<td style="white-space:nowrap;font-weight:700;font-size:12px;">${h(l.user?.name ?? '—')}</td>` : ''}
+        <td style="white-space:nowrap;"><span class="dot-i" style="background:${actionColor(l.action)}"></span>${h(actionLabel(l.action))}</td>
+        <td style="font-size:12px;">${h(appName(l.app))}</td>
+        <td style="font-size:11px;color:var(--muted);">${h(l.target_type ?? '')}${l.target_id ? ' #' + l.target_id : ''}</td>
+      </tr>`).join('')}</tbody></table>
+      ${meta.total > data.length ? `<div class="note" style="padding:10px 16px;">最近の${data.length}件を表示（全${meta.total.toLocaleString()}件）。すべては監査ログの画面で見られます。</div>` : ''}`
+    : '<div class="b-empty">まだ記録がありません</div>';
 }
 
 document.getElementById('companyList').addEventListener('click', e => {
@@ -2340,39 +2462,42 @@ function renderUserDetail() {
 
   const isSelf     = String(u.id) === String(currentUser.id);
   const canResetPw = !isSelf && !(u.role === 'super_admin' && !isSuperAdmin);
+  // adminはsuper_adminを触れない（サーバー側も403）。自分のロールは変えられない（サーバー側も422）
+  const lockedByRole = u.role === 'super_admin' && !isSuperAdmin;
   const last       = parseUtc(u.last_login_at);
   const companyApps = companyAppsOf(u);
-  const catalog    = (typeof APP_CATALOG !== 'undefined' ? APP_CATALOG : []).filter(a => a.id !== 'future');
+  const company    = companiesCache.find(c => c.id === u.company_id);
 
-  const tabs = [['basic', '基本'], ['apps', '利用アプリ'], ['sec', 'セキュリティ']]
+  const tabs = [['basic', '基本'], ['apps', '利用アプリ'], ['log', '操作ログ'], ['sec', 'セキュリティ']]
     .map(([k, t]) => `<button class="${userDetTab === k ? 'on' : ''}" onclick="userDetTab='${k}';renderUserDetail()">${t}</button>`).join('');
 
   let pane;
   if (userDetTab === 'apps') {
     // 未設定（null）は会社の契約アプリをすべて使える状態
     const mine = u.apps_enabled ?? companyApps;
-    pane = `<div class="appg">${catalog.map(app => {
+    pane = `<div class="appg">${appCatalog().map(app => {
       const contracted = companyApps.includes(app.id);
-      const col = APP_ICON_COLORS[app.id] ?? { bg: 'var(--bg)', color: 'var(--muted)' };
       return `
         <div class="appc ${contracted ? '' : 'off'}">
-          <span class="appdot" style="background:${col.bg};color:${col.color};"><i class="${app.icon}"></i></span>
-          <span>${h(app.name)}</span>
-          ${contracted ? `<label class="toggle"><input type="checkbox" ${mine.includes(app.id) ? 'checked' : ''} onchange="setUserApp(${u.id}, '${app.id}', this.checked, this)"><span class="toggle-slider"></span></label>`
-                       : '<span class="note" style="margin-left:auto;">会社が未契約</span>'}
+          ${appDot(app.id)}<span>${h(app.name)}</span>
+          ${contracted ? `<label class="toggle"><input type="checkbox" ${mine.includes(app.id) ? 'checked' : ''} ${lockedByRole ? 'disabled' : ''} onchange="setUserApp(${u.id}, '${app.id}', this.checked, this)"><span class="toggle-slider"></span></label>`
+                       : '<span class="note" style="margin-left:auto;">未契約</span>'}
         </div>`;
     }).join('')}</div>
-    <div class="note" style="padding:0 20px 16px;">切り替えるとすぐ保存されます。会社が契約していないアプリは選べません。</div>`;
+    <div class="note" style="padding:0 20px 16px;">会社が契約していないアプリは選べません（薄く表示）。切り替えるとすぐ保存されます。</div>`;
+  } else if (userDetTab === 'log') {
+    pane = `<div id="userLogPane"><div class="b-empty"><span class="spinner"></span></div></div>`;
   } else if (userDetTab === 'sec') {
     pane = `
       <div class="setrow">
-        <div class="t"><b>2段階認証</b><span>${u.mfa_enabled !== false ? 'ログイン時に確認コードを求めます' : 'オフ（メールアドレスとパスワードだけでログイン）'}${mfaGlobalEnabled ? '' : ' ・ 現在システム全体で停止中'}</span></div>
-        ${u.mfa_enabled !== false ? '<span class="badge badge-green">有効</span>' : '<span class="badge badge-orange">オフ</span>'}
-        ${isSuperAdmin ? `<button class="btn btn-outline btn-xs" onclick="openEditUser(${u.id})">変更</button>` : ''}
+        <div class="t"><b>2段階認証</b><span>${u.mfa_enabled !== false ? '有効（メール）・ログイン時に確認コードを求めます' : 'オフ（メールアドレスとパスワードだけでログイン）'}${mfaGlobalEnabled ? '' : ' ・ 現在システム全体で停止中'}</span></div>
+        ${isSuperAdmin
+          ? `<label class="toggle"><input type="checkbox" ${u.mfa_enabled !== false ? 'checked' : ''} onchange="saveUserField(${u.id}, 'mfa_enabled', this.checked, this)"><span class="toggle-slider"></span></label>`
+          : (u.mfa_enabled !== false ? '<span class="badge badge-green">有効</span>' : '<span class="badge badge-orange">オフ</span>')}
       </div>
       <div class="setrow">
         <div class="t"><b>パスワード</b><span>${isSelf ? '自分のパスワードはシステム設定から変更します' : canResetPw ? 'パスワードが分からない・変更できない人に、新しい仮パスワードを発行します' : 'Super Admin のパスワードはサイト運営者だけが扱えます'}</span></div>
-        ${isSelf ? `<button class="btn btn-outline btn-xs" onclick="switchSection('system');document.getElementById('pwCurrent')?.focus()">変更する</button>`
+        ${isSelf ? `<button class="btn btn-outline btn-xs" onclick="switchSection('system');openPwForm()">変更する</button>`
           : canResetPw ? `<button class="btn btn-outline btn-xs" id="detResetPwBtn" onclick="issueTempPassword(${u.id})"><i class="fa-solid fa-key"></i> 仮パスワードを発行</button>` : ''}
       </div>
       <div class="setrow" id="detTempPwRow" style="display:none;">
@@ -2381,21 +2506,25 @@ function renderUserDetail() {
         <button class="btn btn-outline btn-xs" onclick="navigator.clipboard.writeText(document.getElementById('detTempPw').value);showToast('パスワードをコピーしました','success')"><i class="fa-solid fa-copy"></i></button>
       </div>`;
   } else {
+    const roleOpts = [['general', '一般会員'], ['admin', '管理者'], ...(isSuperAdmin || u.role === 'super_admin' ? [['super_admin', 'Super Admin']] : [])]
+      .map(([v, t]) => `<option value="${v}" ${u.role === v ? 'selected' : ''}>${t}</option>`).join('');
+    const modelerOk = company?.is_modeler_only || u.company?.is_modeler_only;
+    const solidOpts = [['', '— なし —'], ['jp_client', '発注担当'], ...(modelerOk || u.solid_type === 'id_modeler' ? [['id_modeler', 'モデラー']] : [])]
+      .map(([v, t]) => `<option value="${v}" ${(u.solid_type ?? '') === v ? 'selected' : ''}>${t}</option>`).join('');
+    const dis = lockedByRole ? 'disabled' : '';
     pane = `
-      <div class="kv">
-        <div>会社</div><div>${h(u.company?.name ?? '—')}</div>
-        <div>ロール</div><div>${roleBadge(u.role)}</div>
-        ${userUsesSolid(u) ? `<div>SOLIDの立場</div><div>${u.solid_type ? solidTypeBadge(u) : '<span class="note">なし</span>'}</div>` : ''}
-        <div>状態</div><div style="display:flex;align-items:center;gap:8px;">
-          <label class="toggle"><input type="checkbox" ${u.is_active ? 'checked' : ''} ${isSelf ? 'disabled title="自分自身は無効にできません"' : ''} onchange="toggleUserStatus(${u.id}, this.checked)"><span class="toggle-slider"></span></label>
+      <div class="kv kv-edit">
+        <div>名前</div><div><input class="form-input" value="${h(u.name)}" ${dis} onchange="saveUserField(${u.id}, 'name', this.value.trim(), this)"></div>
+        <div>メール</div><div><input class="form-input" type="email" value="${h(u.email)}" ${dis} onchange="saveUserField(${u.id}, 'email', this.value.trim(), this)"></div>
+        <div>会社</div><div style="padding-top:18px;">${h(u.company?.name ?? '—')}</div>
+        <div>ロール</div><div><select class="form-input" style="width:auto;" ${dis || isSelf ? 'disabled' : ''} ${isSelf ? 'title="自分自身のロールは変更できません"' : ''} onchange="saveUserField(${u.id}, 'role', this.value, this)">${roleOpts}</select></div>
+        ${userUsesSolid(u) ? `<div>SOLIDの立場</div><div><select class="form-input" style="width:auto;" ${dis} onchange="saveUserField(${u.id}, 'solid_type', this.value || null, this)">${solidOpts}</select></div>` : ''}
+        <div>状態</div><div style="display:flex;align-items:center;gap:8px;padding-top:16px;">
+          <label class="toggle"><input type="checkbox" ${u.is_active ? 'checked' : ''} ${isSelf || lockedByRole ? 'disabled' : ''} ${isSelf ? 'title="自分自身は無効にできません"' : ''} onchange="toggleUserStatus(${u.id}, this.checked)"><span class="toggle-slider"></span></label>
           <span class="note">${u.is_active ? '有効' : '無効（ログインできません）'}</span></div>
-        <div>最終ログイン</div><div><span style="${isDormant(u) ? 'color:var(--red);font-weight:700;' : ''}">${relTime(last)}</span>${last ? ` <span class="note">（${fmtLocal(last)}）</span>` : ''}</div>
-        <div>利用アプリ</div><div><div class="app-chips">${(u.effective_apps ?? []).map(appChip).join('') || '<span class="note">なし</span>'}</div></div>
-        <div>登録日</div><div>${h(u.created_at ?? '—')}</div>
+        <div>最終ログイン</div><div style="padding-top:16px;"><span style="${isDormant(u) ? 'color:var(--red);font-weight:700;' : ''}">${last ? h(fmtLocal(last)) : '未ログイン'}</span>${last ? ` <span class="note">（${relTime(last)}）</span>` : ''}</div>
       </div>
-      <div style="padding:14px 20px;display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-primary btn-sm" onclick="openEditUser(${u.id})"><i class="fa-solid fa-pen"></i> 名前・メール・ロールを編集</button>
-      </div>`;
+      <div class="note" style="padding:12px 20px;"><i class="fa-solid fa-circle-check" style="color:var(--green);"></i> 変更は自動で保存されます${lockedByRole ? '（Super Admin の設定はサイト運営者だけが変えられます）' : ''}</div>`;
   }
 
   el.innerHTML = `
@@ -2408,12 +2537,47 @@ function renderUserDetail() {
         <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">${roleBadge(u.role)}${solidTypeBadge(u)}${u.is_active ? '' : ' <span class="badge badge-gray">無効</span>'}</div>
       </div>
       <div class="acts">
-        <button class="btn btn-outline btn-sm" onclick="openEditUser(${u.id})"><i class="fa-solid fa-pen"></i> 編集</button>
-        ${isSelf ? '' : `<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})" title="削除"><i class="fa-solid fa-trash"></i></button>`}
+        <div class="action-menu">
+          <button class="action-menu-btn" onclick="toggleActionMenu(this)" title="その他"><i class="fa-solid fa-ellipsis"></i></button>
+          <div class="action-dropdown">
+            <button class="action-dropdown-item" onclick="openEditUser(${u.id})"><i class="fa-solid fa-pen"></i> 編集画面で開く</button>
+            ${isSuperAdmin ? `<button class="action-dropdown-item" onclick="closeAllActionMenus();openCompanyDetail(${u.company_id})"><i class="fa-solid fa-building"></i> 会社を開く</button>` : ''}
+            ${isSelf ? '' : `<div class="action-dropdown-divider"></div><button class="action-dropdown-item danger" onclick="deleteUser(${u.id})"><i class="fa-solid fa-trash"></i> ユーザーを削除</button>`}
+          </div>
+        </div>
       </div>
     </div>
     <div class="b-tabs">${tabs}</div>
     <div>${pane}</div>`;
+
+  if (userDetTab === 'log') loadDetailLogs('userLogPane', { user_id: u.id }, false);
+}
+
+/* 基本タブのその場編集。APIは「送った項目だけ変える」ので1項目ずつ送る */
+const FIELD_LABELS = { name: '名前', email: 'メールアドレス', role: 'ロール', solid_type: 'SOLIDの立場', mfa_enabled: '2段階認証' };
+async function saveUserField(id, key, value, input) {
+  const u = usersCache.find(x => x.id === id);
+  if (!u) return;
+  if ((key === 'name' || key === 'email') && !value) { showToast(`${FIELD_LABELS[key]}は空にできません`, 'danger'); renderUserDetail(); return; }
+  if (key === 'role' && !confirm(`「${u.name}」のロールを「${roleLabel(value)}」に変えます。よろしいですか？`)) { renderUserDetail(); return; }
+  if (key === 'mfa_enabled' && !value && !confirm(`「${u.name}」の2段階認証をオフにします。\nこのユーザーはメールアドレスとパスワードだけでログインできるようになります。\n\nよろしいですか？`)) { renderUserDetail(); return; }
+  if (input) input.disabled = true;
+  const res = await apiFetch(`/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify({ [key]: value }) });
+  if (res?.ok) {
+    const d = await res.json().catch(() => null);
+    if (d?.user) Object.assign(u, d.user); else u[key] = value;
+    showToast(`${FIELD_LABELS[key]}を保存しました`, 'success');
+    if (String(id) === String(currentUser.id) && d?.user) {
+      patchAuthUser({ name: d.user.name, email: d.user.email, role: d.user.role, solid_type: d.user.solid_type });
+      currentUser.name = d.user.name;
+      document.getElementById('sidebarAvatar').textContent  = d.user.name.charAt(0);
+      document.getElementById('sidebarUserName').textContent = d.user.name;
+    }
+  } else {
+    const err = await res?.json().catch(() => ({}));
+    showToast(err?.message || '保存に失敗しました', 'danger');
+  }
+  renderUserTable();
 }
 
 /* 利用アプリのその場切り替え。APIは「送った項目だけ変える」ので apps_enabled だけ送る */
@@ -2669,7 +2833,7 @@ document.getElementById('userModalResetPwBtn').addEventListener('click', () =>
 document.getElementById('userModalGoToSystemBtn').addEventListener('click', () => {
   closeModal('userModal');
   switchSection('system');
-  document.getElementById('pwCurrent')?.focus();
+  openPwForm();
 });
 
 document.getElementById('userModalSave').addEventListener('click', async () => {
@@ -2765,7 +2929,24 @@ let logPage = 1;
 let logMeta = { last_page: 1, total: 0 };
 
 /* 左の絞り込み。値の持ち場は隠した select（CSV出力も同じ値を読む） */
+/* 期間のよく使う選択肢。値の持ち場は日付欄（logDateFrom / logDateTo） */
+const LOG_PERIODS = [['', 'すべて', null], ['today', '今日', 0], ['7', '直近7日', 6], ['30', '直近30日', 29]];
+function ymd(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function currentLogPeriod() {
+  const from = document.getElementById('logDateFrom').value, to = document.getElementById('logDateTo').value;
+  if (!from && !to) return '';
+  if (to) return 'custom';
+  const hit = LOG_PERIODS.find(([, , back]) => back !== null && ymd(new Date(Date.now() - back * 864e5)) === from);
+  return hit ? hit[0] : 'custom';
+}
+function renderPeriodFacet() {
+  const cur = currentLogPeriod();
+  document.getElementById('logPeriodFacet').innerHTML = LOG_PERIODS.map(([k, t, back]) =>
+    `<a class="${cur === k ? 'on' : ''}" data-period="${back ?? ''}">${t}</a>`).join('')
+    + (cur === 'custom' ? '<a class="on">指定した期間</a>' : '');
+}
 function renderLogFacets() {
+  renderPeriodFacet();
   [['logAppFacet', 'logAppFilter'], ['logActionFacet', 'logActionFilter']].forEach(([wrapId, selId]) => {
     const sel = document.getElementById(selId), wrap = document.getElementById(wrapId);
     if (!sel || !wrap) return;
@@ -2774,6 +2955,14 @@ function renderLogFacets() {
   });
 }
 document.querySelector('#sectionLogs .facets')?.addEventListener('click', e => {
+  const pa = e.target.closest('a[data-period]');
+  if (pa) {
+    const back = pa.dataset.period;
+    document.getElementById('logDateFrom').value = back === '' ? '' : ymd(new Date(Date.now() - Number(back) * 864e5));
+    document.getElementById('logDateTo').value = '';
+    loadLogs(1);
+    return;
+  }
   const a = e.target.closest('a[data-sel]');
   if (!a) return;
   document.getElementById(a.dataset.sel).value = a.dataset.val;
@@ -2796,7 +2985,7 @@ async function loadLogs(page = 1) {
   if (to)     params.set('date_to', to);
 
   const tbody = document.getElementById('logTableBody');
-  tbody.innerHTML = '<tr class="loading-row"><td colspan="6"><span class="spinner"></span></td></tr>';
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="7"><span class="spinner"></span></td></tr>';
 
   const res = await apiFetch('/admin/audit-logs?' + params);
   if (!res?.ok) { clearSpinners(); return; }
@@ -2805,19 +2994,17 @@ async function loadLogs(page = 1) {
   document.getElementById('logTotal').textContent = `${meta.total.toLocaleString()} 件`;
 
   if (!data.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">ログがありません</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">ログがありません</td></tr>';
   } else {
     tbody.innerHTML = data.map(l => `
       <tr>
         <td style="white-space:nowrap;font-size:12px;color:var(--muted);">${formatDt(l.created_at)}</td>
         <td style="font-size:12px;font-weight:700;white-space:nowrap;">${h(l.user?.name ?? '—')}</td>
-        <td style="white-space:nowrap;">
-          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${actionColor(l.action)};margin-right:6px;"></span>${h(actionLabel(l.action))}
-          ${ACTION_LABELS[l.action] ? `<div class="act-code">${h(l.action)}</div>` : ''}
-        </td>
-        <td>${appBadge(l.app)}</td>
-        <td style="font-size:11px;color:var(--muted);">${h(l.target_type ?? '')}${l.target_id ? ' #'+l.target_id : ''}</td>
+        <td style="white-space:nowrap;"><span class="dot-i" style="background:${actionColor(l.action)}"></span>${h(actionLabel(l.action))}</td>
+        <td style="font-size:12px;">${h(l.target_type ?? '')}${l.target_id ? ' #'+l.target_id : ''}</td>
+        <td style="font-size:12px;white-space:nowrap;">${h(appName(l.app))}</td>
         <td style="font-size:11px;color:var(--muted);font-family:monospace;">${h(l.ip_address ?? '—')}</td>
+        <td><code class="act-code-b">${h(l.action ?? '')}</code></td>
       </tr>
     `).join('');
   }
@@ -2879,6 +3066,8 @@ document.getElementById('pwChangeForm')?.addEventListener('submit', async e => {
   if (res?.ok) {
     showToast('パスワードを変更しました', 'success');
     ['pwCurrent','pwNew','pwConfirm'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('pwFormWrap').style.display = 'none';
+    document.getElementById('pwOpenBtn').style.display = '';
   } else {
     const err = await res?.json().catch(() => ({}));
     errEl.textContent = err.message || 'パスワードの変更に失敗しました';
@@ -3023,16 +3212,24 @@ document.getElementById('menuToggle').addEventListener('click', () => {
 _backdrop.addEventListener('click', closeSidebar);
 
 /* ── システム設定: アプリ一覧・メール中継 ── */
-function renderSystemSection() {
+function openPwForm() {
+  document.getElementById('pwFormWrap').style.display = '';
+  document.getElementById('pwOpenBtn').style.display = 'none';
+  document.getElementById('pwCurrent')?.focus();
+}
+async function renderSystemSection() {
+  document.getElementById('sysMyEmail').textContent = currentUser.email ?? '—';
+  const mfaBadge = () => { document.getElementById('sysMfaBadge').innerHTML = mfaGlobalEnabled ? '<span class="badge badge-green">有効</span>' : '<span class="badge badge-orange">停止中</span>'; };
+  if (usersCache.length) mfaBadge();
+  else apiFetch('/admin/users').then(async r => { if (r?.ok) { const d = await r.json(); usersCache = d.data; mfaGlobalEnabled = d.mfa_global_enabled !== false; } mfaBadge(); });
   const list = document.getElementById('appStatusList');
   if (list) {
     const catalog = (typeof APP_CATALOG !== 'undefined' ? APP_CATALOG : []).filter(a => a.id !== 'future');
     list.innerHTML = catalog.map(app => {
-      const col = APP_ICON_COLORS[app.id] ?? { bg: 'var(--bg)', color: 'var(--muted)' };
       const n = companiesCache.filter(c => (c.apps_enabled ?? []).includes(app.id)).length;
       return `
         <div class="setrow">
-          <span class="appdot" style="background:${col.bg};color:${col.color};"><i class="${app.icon}"></i></span>
+          ${appDot(app.id)}
           <div class="t"><b>${h(app.name)}</b><span>${isSuperAdmin && companiesCache.length ? n + '社が契約中' : h((app.desc ?? '').slice(0, 40))}</span></div>
           <span class="badge badge-green">稼働中</span>
         </div>`;
