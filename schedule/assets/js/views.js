@@ -160,12 +160,12 @@
       out.push(`<span class="fb-l">絞り込み</span>
         <select data-change="fDept" aria-label="部署"><option value="">全社（すべての部署）</option>${D.departments.map(d => `<option value="${d.id}" ${S.fDept === String(d.id) ? 'selected' : ''}>${h(d.name)}</option>`).join('')}</select>
         ${D.sites.length ? `<select data-change="fSite" aria-label="工場・拠点"><option value="">すべての工場・拠点</option>${D.sites.map(s => `<option value="${s.id}" ${S.fSite === String(s.id) ? 'selected' : ''}>${h(s.name)}</option>`).join('')}</select>` : ''}
-        <span class="fb-note">${I('share', 14)}個人カレンダーで共有ONにした予定が自動で表示されます</span>`);
+        <span class="fb-note">${I('share', 14)}予定は基本ここに入ります。「個人の予定にする」にした予定は出ません</span>`);
     } else if (S.cal === 'all') {
       const on = SS.calList().filter(c => !S.hidden[c.id]);
       if (!on.length) out.push(`<span class="fb-note">表示中のカレンダーがありません。左の一覧でチェックを入れてください。</span>`);
     } else if (S.cal === 'personal') {
-      out.push(`<span class="fb-note">${I('lock', 14)}共有OFFの予定は本人だけに表示されます</span>`);
+      out.push(`<span class="fb-note">${I('lock', 14)}自分が登録した予定です。「個人の予定にする」にした予定は本人だけに表示されます</span>`);
     } else {
       const c = SS.cal(S.cal); if (c) out.push(`<span class="fb-note">${h(c.desc || '')}</span>`);
     }
@@ -193,7 +193,7 @@
     const o = SS.occ(base, d, d)[0] || base, m = SS.masked(o), c = SS.cal(o.cal) || { name: '' }, a = o.assignee ? SS.emp(o.assignee) : null, ow = SS.emp(o.owner);
     const when = o.start === o.end ? SS.md(o.start) + '　' + (o.allDay ? '終日' : o.st + ' – ' + o.en) : SS.md(o.start) + (o.allDay ? '' : ' ' + o.st) + ' 〜 ' + SS.md(o.end) + (o.allDay ? '' : ' ' + o.en);
     const row = (icon, label, val) => val ? `<div class="d-row">${I(icon)}<div><span class="d-l">${label}</span><span class="d-v">${val}</span></div></div>` : '';
-    const share = o.cal !== 'personal' ? h(c.name) + 'の利用者に公開' : !o.shared ? '共有OFF（本人のみ閲覧）' : o.scope === 'busy' ? '共有ON・予定ありのみ公開' : '共有ON・詳細を公開';
+    const share = o.cal !== 'personal' ? h(c.name) + 'の利用者に公開' : !o.shared ? '個人の予定（本人のみ閲覧）' : o.scope === 'busy' ? '共有・予定ありのみ公開' : '共有・詳細を公開';
     const dept = SS.deptName(o.deptId) || (a ? a.dept : '');
     const repeat = o.repeat !== 'none' ? SS.REPEAT[o.repeat] + (o.until ? '（' + SS.md(o.until) + 'まで）' : '') : '';
     return `<div class="detail" ${sty(SS.colorOf(o))}>
@@ -224,7 +224,7 @@
         <div class="fld-4"><label class="fld"><span>開始日</span><input type="date" id="f_start" value="${ev.start}"></label><label class="fld"><span>開始時間</span><input type="time" id="f_st" value="${ev.st}" step="900"></label>
           <label class="fld"><span>終了日</span><input type="date" id="f_end" value="${ev.end}"></label><label class="fld"><span>終了時間</span><input type="time" id="f_en" value="${ev.en}" step="900"></label></div>
         <div class="checks"><label class="ckl"><input type="checkbox" id="f_allday" ${ev.allDay ? 'checked' : ''}>終日</label><label class="ckl"><input type="checkbox" id="f_imp" ${ev.important ? 'checked' : ''}>重要な予定にする</label></div>
-        <div class="fld-2"><label class="fld"><span>所属カレンダー</span><select id="f_cal">${cals.map(c => opt(c.id, calLabel(c), ev.cal)).join('')}</select></label>
+        <div class="fld-2"><label class="fld"><span>所属カレンダー</span><select id="f_cal">${cals.map(c => opt(c.id, c.type === 'personal' ? '共有カレンダー（基本）' : calLabel(c), ev.cal)).join('')}</select></label>
           <label class="fld"><span>場所</span><input id="f_place" value="${h(ev.place)}" placeholder="会議室・訪問先など" maxlength="200"></label></div>
         <div class="fld full"><span>色</span><div class="swatches ev-sw">${evSwatches(ev)}</div></div>
         <div class="fld-2"><label class="fld"><span>担当者</span><select id="f_assignee">${opt('', '（なし）', ev.assignee)}${D.members.map(e => opt(e.id, e.name + (SS.deptName(e.department_id) ? '（' + SS.deptName(e.department_id) + '）' : ''), ev.assignee)).join('')}</select></label>
@@ -233,7 +233,7 @@
           <label class="fld"><span>通知設定</span><select id="f_notify">${Object.keys(SS.NOTIFY).map(k => opt(k, SS.NOTIFY[k], ev.notify)).join('')}</select></label></div>
         <label class="fld" id="untilBox"><span>繰り返しの終わり（空欄なら続ける）</span><input type="date" id="f_until" value="${ev.until || ''}"></label>
         <div class="share-box" id="shareBox">
-          <label class="share-top"><div><b>共有カレンダーに表示する</b><small id="shareHint"></small></div><span class="swi"><input type="checkbox" id="f_shared" ${ev.shared ? 'checked' : ''}><i></i></span></label>
+          <label class="share-top own"><input type="checkbox" id="f_private" ${ev.shared ? '' : 'checked'}><div><b>個人の予定にする（共有しない）</b><small id="shareHint"></small></div></label>
           <div class="scope" id="scopeBox"><span>公開範囲</span>
             <label class="radio"><input type="radio" name="f_scope" value="detail" ${ev.scope !== 'busy' ? 'checked' : ''}><span><b>詳細を公開</b><small>予定名・場所・メモまで見える</small></span></label>
             <label class="radio"><input type="radio" name="f_scope" value="busy" ${ev.scope === 'busy' ? 'checked' : ''}><span><b>予定ありのみ公開</b><small>時間帯だけ見え、中身は「予定あり」</small></span></label></div>
@@ -283,7 +283,7 @@
     if (S.quick) {
       const q = S.quick;
       out += `<div class="pop float quick" id="float"><div class="q-h"><b>予定をすばやく追加</b><button class="icon-btn" data-act="closefloat" aria-label="閉じる">${I('x')}</button></div>
-        <input id="q_title" placeholder="予定名を入力して Enter" autocomplete="off" maxlength="200"><p>${SS.md(q.d)}　${q.allDay ? '終日' : q.st + ' – ' + q.en}・${h((SS.cal(q.cal) || {}).name || '')}</p>
+        <input id="q_title" placeholder="予定名を入力して Enter" autocomplete="off" maxlength="200"><p>${SS.md(q.d)}　${q.allDay ? '終日' : q.st + ' – ' + q.en}・${q.cal === 'personal' ? (q.shared ? '共有カレンダー' : '個人の予定') : h((SS.cal(q.cal) || {}).name || '')}</p>
         <div class="q-f"><button class="btn" data-act="quickmore">詳細を設定</button><button class="btn primary" data-act="quicksave" id="quickBtn">保存</button></div></div>`;
     }
     return out;

@@ -61,9 +61,9 @@
       return;
     }
     if (!$('f_cal')) return;
-    const personal = $('f_cal').value === 'personal', sh = $('f_shared').checked, ad = $('f_allday').checked;
+    const personal = $('f_cal').value === 'personal', sh = !$('f_private').checked, ad = $('f_allday').checked;
     $('shareBox').hidden = !personal; $('calNote').hidden = personal; $('scopeBox').hidden = !sh;
-    $('shareHint').textContent = sh ? '共有ON：共有カレンダーにも表示されます（予定は1件のまま・二重登録なし）' : '共有OFF：自分だけが見られます';
+    $('shareHint').textContent = sh ? '共有カレンダーに表示され、社内の人が見られます' : '自分だけが見られます（共有カレンダーには出ません）';
     $('f_st').disabled = $('f_en').disabled = ad;
     $('untilBox').hidden = $('f_repeat').value === 'none';
     const auto = SS.calColor($('f_cal').value); $('autoSw').style.cssText = `--c:${auto[0]};--cb:${auto[1]}`;
@@ -76,7 +76,7 @@
       allDay: $('f_allday').checked, st: g('f_st') || '09:00', en: g('f_en') || '10:00', place: g('f_place').trim(),
       assignee: g('f_assignee') ? +g('f_assignee') : null, deptId: g('f_dept') ? +g('f_dept') : null,
       repeat: g('f_repeat'), until: g('f_until'), notify: g('f_notify'), memo: g('f_memo').trim(), cal: g('f_cal'),
-      important: $('f_imp').checked, shared: $('f_shared').checked,
+      important: $('f_imp').checked, shared: !$('f_private').checked,
       scope: (document.querySelector('[name=f_scope]:checked') || {}).value || 'detail',
       color: (document.querySelector('[name=f_color]:checked') || {}).value || ''
     });
@@ -89,7 +89,7 @@
     const me = SS.D.me, custom = !['personal', 'shared', 'all'].includes(S.cal) && SS.canAddTo(S.cal);
     return {
       id: null, title: '', start: d, end: d, allDay: !!allDay, st: st || '09:00', en: en || '10:00', place: '', owner: me.id, assignee: me.id, deptId: me.department_id,
-      memo: '', cal: custom ? S.cal : 'personal', shared: S.cal === 'shared', scope: 'detail', notify: '10', repeat: 'none', until: '', important: false, color: ''
+      memo: '', cal: custom ? S.cal : 'personal', shared: true, scope: 'detail', notify: '10', repeat: 'none', until: '', important: false, color: ''
     };
   }
   const openEvent = (ev, isNew) => { S.modal = { type: 'event', ev, isNew }; S.float = S.quick = null; focusNew = isNew; };
@@ -135,7 +135,7 @@
     day(a, el, e) {
       S.selDate = S.date = a; S.selEvent = null;
       if (SS.isMobile()) { S.view = 'day'; return; }
-      S.quick = { d: a, st: '09:00', en: '10:00', cal: draft(a).cal, x: e.clientX, y: e.clientY }; focusNew = true;
+      S.quick = { d: a, st: '09:00', en: '10:00', cal: draft(a).cal, shared: draft(a).shared, x: e.clientX, y: e.clientY }; focusNew = true;
     },
     goday(a) { S.date = S.selDate = a; S.view = 'day'; SS._scroll = null; load(); },
     more(a) { A.goday(a); },
@@ -148,7 +148,7 @@
       const d = el.dataset.d; let st = '09:00', en = '10:00';
       if (a !== 'all') { const m = Math.max(0, Math.min(1380, Math.floor((e.clientY - el.getBoundingClientRect().top) / SS.HOUR * 2) * 30)); st = SS.hm(m); en = SS.hm(m + 60); }
       S.selDate = d;
-      if (!SS.isMobile()) { S.quick = { d, st, en, allDay: a === 'all', cal: draft(d).cal, x: e.clientX, y: e.clientY }; S.float = null; focusNew = true; }
+      if (!SS.isMobile()) { S.quick = { d, st, en, allDay: a === 'all', cal: draft(d).cal, shared: draft(d).shared, x: e.clientX, y: e.clientY }; S.float = null; focusNew = true; }
       else openEvent(draft(d, st, en, a === 'all'), true);
     },
     add() { openEvent(draft(S.selDate), true); S.drawer = false; },
@@ -173,7 +173,7 @@
           const saved = m.isNew ? await SS.createEvent(ev) : await SS.updateEvent(ev);
           S.modal = null; S.selEvent = saved.id; S.selDate = saved.start;
           if (!D.range || saved.start < D.range.from || saved.start > D.range.to) { S.date = saved.start; load(); }
-          SS.toast(m.isNew ? (saved.shared ? '予定を追加し、共有カレンダーにも表示しました' : '予定を追加しました') : '予定を更新しました');
+          SS.toast(m.isNew ? (saved.cal === 'personal' && !saved.shared ? '個人の予定として追加しました（自分だけに表示）' : '予定を追加しました') : '予定を更新しました');
           render();
         } catch (e) { fail(e); }
       });
