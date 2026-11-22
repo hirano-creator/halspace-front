@@ -281,6 +281,8 @@ body.ss-dragging, body.ss-dragging * { cursor: grabbing !important; }
 .share-box { border: 1px solid var(--line); border-radius: var(--r); }
 .share-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; }
 .share-top > div { display: flex; flex-direction: column; }
+.share-top.own { justify-content: flex-start; }
+.share-top.own input { accent-color: var(--accent); width: 18px; height: 18px; margin: 0; flex: none; }
 .swi { position: relative; width: 38px; height: 22px; flex: none; }
 .swi input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; width: 100%; height: 100%; }
 .swi i { position: absolute; inset: 0; border-radius: 11px; background: #cfd1d6; pointer-events: none; }

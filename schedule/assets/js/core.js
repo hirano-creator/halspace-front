@@ -49,8 +49,8 @@ window.SS = window.SS || {};
   const D = SS.D = { me: null, company: null, members: [], departments: [], sites: [], calendars: [], events: [], range: null };
 
   const FIXED = [
-    { id: 'personal', type: 'personal', name: '個人カレンダー', color: 'blue', icon: 'user', desc: '自分の予定。共有ONにした予定だけが共有カレンダーにも表示されます。' },
-    { id: 'shared', type: 'shared', name: '共有カレンダー', color: 'green', icon: 'users', desc: '社員が共有ONにした予定が自動で集まります。' }
+    { id: 'personal', type: 'personal', name: '個人カレンダー', color: 'blue', icon: 'user', desc: '自分が登録した予定。「個人の予定にする」にした予定は自分だけに表示されます。' },
+    { id: 'shared', type: 'shared', name: '共有カレンダー', color: 'green', icon: 'users', desc: '社員の予定は基本ここに集まります（個人の予定にしたものを除く）。' }
   ];
   const calFromApi = c => ({
     id: 'c' + c.id, sid: c.id, type: 'custom', parentId: c.parent_id ? 'c' + c.parent_id : null, name: c.name, desc: c.description || '', color: c.color, icon: c.icon,
