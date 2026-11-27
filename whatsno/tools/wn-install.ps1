@@ -340,15 +340,37 @@ using System.Runtime.InteropServices;
 public class WnShellExit {
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string c, string w);
   [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr wp, IntPtr lp);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
 }
 '@
     }
     $tray = [WnShellExit]::FindWindow('Shell_TrayWnd', $null)
     if ($tray -eq [IntPtr]::Zero) { return $false }
+    # 待つのは「タスクバーを持っているプロセス」だけ。explorer.exe 全体が消えるのを
+    # 待つと、フォルダを別プロセスで開く設定などで別の explorer が残り、
+    # 「終了できなかった」と誤判定してタスクバーの無いまま放置していた（2026-11-27 実例）。
+    [uint32]$shellPid = 0
+    [WnShellExit]::GetWindowThreadProcessId($tray, [ref]$shellPid) | Out-Null
     [WnShellExit]::PostMessage($tray, 0x5B4, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
-    for ($i = 0; $i -lt 60; $i++) {
+    for ($i = 0; $i -lt 80; $i++) {
         Start-Sleep -Milliseconds 250
-        if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) { return $true }
+        $alive = $shellPid -and (Get-Process -Id $shellPid -ErrorAction SilentlyContinue)
+        if (-not $alive -and [WnShellExit]::FindWindow('Shell_TrayWnd', $null) -eq [IntPtr]::Zero) { return $true }
+    }
+    return $false
+}
+
+# タスクバーが無ければ explorer を起動し、出てくるまで待つ（最大3回）。
+# Restart-WnExplorer は、終了の成否にかかわらず最後に必ずこれを通す。
+# ここを通らずに抜ける道を作ると、利用者の画面からタスクバーが消えたままになる。
+function Confirm-WnShellRunning {
+    for ($try = 0; $try -lt 3; $try++) {
+        if ([WnShellExit]::FindWindow('Shell_TrayWnd', $null) -ne [IntPtr]::Zero) { return $true }
+        Start-Process explorer.exe
+        for ($i = 0; $i -lt 40; $i++) {
+            Start-Sleep -Milliseconds 250
+            if ([WnShellExit]::FindWindow('Shell_TrayWnd', $null) -ne [IntPtr]::Zero) { return $true }
+        }
     }
     return $false
 }
@@ -356,16 +378,24 @@ public class WnShellExit {
 # 戻り値: 反映できたら $true、できなければ $false（次回サインイン時に反映される）
 function Restart-WnExplorer {
     Backup-WnDesktopLayout
-    if (-not (Stop-WnExplorerGracefully)) {
+    $stopped = Stop-WnExplorerGracefully
+    Start-Sleep -Seconds 1
+    $shellOk = Confirm-WnShellRunning
+    if (-not $shellOk) {
+        Write-Host "  タスクバーを戻せませんでした。Ctrl+Shift+Esc →「新しいタスクを実行する」→ explorer で戻せます。" -ForegroundColor Red
+        if ($DoneDialog -or $interactive) {
+            [System.Windows.Forms.MessageBox]::Show(
+                "画面（タスクバー）を自動で戻せませんでした。`n`nCtrl + Shift + Esc でタスクマネージャーを開き、`n「新しいタスクを実行する」→ explorer と入力して OK を押してください。",
+                "What'sNo セットアップ", 'OK', 'Warning') | Out-Null
+        }
+        return $false
+    }
+    if (-not $stopped) {
         Write-Host "  エクスプローラーを正常に終了できませんでした。強制終了はしません" -ForegroundColor Yellow
         Write-Host "  （アイコン配置が壊れるため）。次回サインイン時に反映されます。" -ForegroundColor Yellow
         return $false
     }
-    Start-Sleep -Seconds 1
-    if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) {
-        Start-Process explorer.exe
-    }
-    Start-Sleep -Seconds 4
+    Start-Sleep -Seconds 2
     return $true
 }
 
