@@ -438,10 +438,14 @@ if ($applyClassic -ne $classicOn) {
 # ── 完了 ──
 # 従来型メニューにしなかった場合は、項目がどこに出るかを明示しておく
 # （黙っていると「登録されていない」と誤解されるため）
-$where = if (Test-WnClassicMenu) { '右クリック' } else { '右クリック →「その他のオプションを確認」' }
+# 従来型を今回オンにしてもエクスプローラーを再起動していなければ、次回サインインまでは
+# まだ Windows 11 の新メニューのまま。レジストリだけ見て「右クリック」と案内すると、
+# 1クリック目に出ないので「出てこない」と言われる（2026-11-27 実例）。
+$where = if ((Test-WnClassicMenu) -and $menuApplied) { '右クリック' } else { '右クリック →「その他のオプションを確認」' }
 
-# 再起動していない場合、メニューの表示形式だけは次回サインインまで変わらない
-$pending = if ($menuApplied) { '' } else { "`n`n※ 右クリックメニューの表示形式は次回サインイン時から変わります。" }
+$pending = if ($menuApplied) { '' } else {
+    "`n`n※ 一度サインアウトして入り直す（またはパソコンを再起動する）と、「その他のオプションを確認」を開かなくても右クリックですぐ出るようになります。"
+}
 
 if ($interactive -or $DoneDialog) {
     [System.Windows.Forms.MessageBox]::Show(
@@ -450,6 +454,6 @@ if ($interactive -or $DoneDialog) {
 } else {
     Write-Host "セットアップ完了！$where →「What'sNoに保存」/「What'sNoを開く」が使えます。" -ForegroundColor Green
     if (-not $menuApplied) {
-        Write-Host "※ 右クリックメニューの表示形式は次回サインイン時から変わります。" -ForegroundColor Yellow
+        Write-Host "※ サインアウトして入り直すと、右クリックですぐ出るようになります。" -ForegroundColor Yellow
     }
 }

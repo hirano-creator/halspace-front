@@ -16,6 +16,15 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="../assets/css/wn-app.css?v=20261101b">
   <style>
+    /* デスクトップ連携：かんたん3ステップ */
+    .wn-desk-steps { list-style:none; margin:0; padding:0; counter-reset:wnds; display:flex; flex-direction:column; gap:14px; }
+    .wn-desk-steps > li { counter-increment:wnds; position:relative; padding-left:40px; min-height:28px; }
+    .wn-desk-steps > li::before { content:counter(wnds); position:absolute; left:0; top:0; width:28px; height:28px; border-radius:50%;
+      background:var(--accent); color:#fff; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; }
+    .wn-desk-step-title { font-size:14px; font-weight:600; line-height:28px; }
+    .wn-desk-step-note { font-size:12px; color:var(--muted); line-height:1.6; }
+    .wn-desk-steps kbd { display:inline-block; padding:1px 7px; border:1px solid var(--border); border-bottom-width:2px; border-radius:5px;
+      background:var(--surface2); font-family:inherit; font-size:12px; line-height:1.5; }
     /* ── 連絡先モーダル（2カラム＋タグ） ── */
     /* フォームと一覧を一度に見渡せるよう画面の広さに合わせて大きく取る。
        ペインの高さは3か所（.ct-body / .ct-nav / .ct-rows）で揃える必要があるため変数にする */
@@ -1110,13 +1119,17 @@
           <div class="wn-desk-step-title"><kbd>Ctrl</kbd> + <kbd>V</kbd> で貼り付けて <kbd>Enter</kbd></div>
           <div class="wn-desk-step-note">黒い画面が少し出たあと「セットアップが完了しました」と出れば終わりです。</div>
         </li>
+        <li>
+          <div class="wn-desk-step-title">サインアウトして入り直す</div>
+          <div class="wn-desk-step-note">右クリックですぐ「What'sNoに保存」が出るようになります（パソコンの再起動でもOK）。<br>入り直すまでは、右クリック →「その他のオプションを確認」の中にあります。</div>
+        </li>
       </ol>
 
       <div style="font-size:11px;color:var(--muted);line-height:1.8;">
         <i class="fa-solid fa-lock" style="margin-right:4px;"></i>
         コピーした文字にはあなたのログイン情報が入っています。人に送ったり貼ったりしないでください。<br>
         <i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>
-        Windows 11 では右クリックメニューを従来の形に切り替え、「What'sNoに保存」がすぐ出るようにします（次にサインインしたときから。アンインストールで元に戻せます）。
+        Windows 11 では右クリックメニューを従来の形に切り替えます（④のあとから。アンインストールで元に戻せます）。
       </div>
 
       <div style="font-size:12px;color:var(--muted);line-height:1.9;background:var(--surface2);border-radius:8px;padding:12px 14px;">
