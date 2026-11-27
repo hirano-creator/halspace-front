@@ -44,6 +44,28 @@ Remove-WnMenuKeys 'Software\Classes\DesktopBackground\shell'
 
 Remove-WnRegKey 'Software\Classes\whatsno'
 
+# 「プログラムから開く」→「What'sNoに保存」の登録を消す。
+# 各拡張子の OpenWithProgids から自分の値だけを抜く（他のアプリの値は触らない）。
+$saveProgId = 'WhatsNo.SaveFile'
+$cu = [Microsoft.Win32.Registry]::CurrentUser
+$classes = $cu.OpenSubKey('Software\Classes')
+if ($classes) {
+    $extKeys = @('*') + @($classes.GetSubKeyNames() | Where-Object { $_ -like '.*' })
+    $classes.Close()
+    foreach ($ext in $extKeys) {
+        $k = $cu.OpenSubKey("Software\Classes\$ext\OpenWithProgids", $true)
+        if (-not $k) { continue }
+        try { if ($k.GetValueNames() -contains $saveProgId) { $k.DeleteValue($saveProgId, $false) } } finally { $k.Close() }
+    }
+}
+Remove-WnRegKey "Software\Classes\$saveProgId"
+$toast = $cu.OpenSubKey('Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts', $true)
+if ($toast) {
+    try {
+        foreach ($n in $toast.GetValueNames()) { if ($n -like "${saveProgId}_*") { $toast.DeleteValue($n, $false) } }
+    } finally { $toast.Close() }
+}
+
 # ── Windows 11 の右クリックメニューを元に戻す（セットアップで従来型にしていた場合） ──
 # 従来型メニューは OS 全体の見た目に関わる設定なので、What'sNo の都合で勝手に戻さず
 # 必ず確認する（気に入って使い続けている利用者がいるため）。
@@ -66,25 +88,38 @@ using System.Runtime.InteropServices;
 public class WnShellExit {
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string c, string w);
   [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr wp, IntPtr lp);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
 }
 '@
         }
-        $exited = $false
+        # 待つのはタスクバーを持っているプロセスだけ。explorer.exe 全体の消滅を待つと、
+        # 別プロセスのフォルダ窓などが残って「失敗」と誤判定し、タスクバーが消えたまま
+        # 放置されていた（2026-11-27 セットアップ側で実例）。最後に必ずタスクバーを戻す。
         $tray = [WnShellExit]::FindWindow('Shell_TrayWnd', $null)
         if ($tray -ne [IntPtr]::Zero) {
+            [uint32]$shellPid = 0
+            [WnShellExit]::GetWindowThreadProcessId($tray, [ref]$shellPid) | Out-Null
             [WnShellExit]::PostMessage($tray, 0x5B4, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
-            for ($i = 0; $i -lt 60; $i++) {
+            for ($i = 0; $i -lt 80; $i++) {
                 Start-Sleep -Milliseconds 250
-                if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) { $exited = $true; break }
+                $alive = $shellPid -and (Get-Process -Id $shellPid -ErrorAction SilentlyContinue)
+                if (-not $alive -and [WnShellExit]::FindWindow('Shell_TrayWnd', $null) -eq [IntPtr]::Zero) { break }
+            }
+            Start-Sleep -Seconds 1
+        }
+        $shellOk = $false
+        for ($try = 0; $try -lt 3 -and -not $shellOk; $try++) {
+            if ([WnShellExit]::FindWindow('Shell_TrayWnd', $null) -ne [IntPtr]::Zero) { $shellOk = $true; break }
+            Start-Process explorer.exe
+            for ($i = 0; $i -lt 40; $i++) {
+                Start-Sleep -Milliseconds 250
+                if ([WnShellExit]::FindWindow('Shell_TrayWnd', $null) -ne [IntPtr]::Zero) { $shellOk = $true; break }
             }
         }
-        if ($exited) {
-            Start-Sleep -Seconds 1
-            if (-not (Get-Process -Name explorer -ErrorAction SilentlyContinue)) { Start-Process explorer.exe }
-        } else {
+        if (-not $shellOk) {
             [System.Windows.Forms.MessageBox]::Show(
-                'エクスプローラーを再起動できませんでした。次回サインイン時に元へ戻ります。',
-                "What'sNo アンインストール", 'OK', 'Information') | Out-Null
+                "画面（タスクバー）を自動で戻せませんでした。`n`nCtrl + Shift + Esc でタスクマネージャーを開き、`n「新しいタスクを実行する」→ explorer と入力して OK を押してください。",
+                "What'sNo アンインストール", 'OK', 'Warning') | Out-Null
         }
     }
 }

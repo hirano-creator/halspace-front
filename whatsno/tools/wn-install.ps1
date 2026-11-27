@@ -225,6 +225,56 @@ Set-WnRegKey "Software\Classes\*\shell\$saveKey" @{
 }
 Set-WnRegKey "Software\Classes\*\shell\$saveKey\command" @{ '' = $psCmd }
 
+# ── 「プログラムから開く」→「What'sNoに保存」 ──
+# 従来型メニューの切り替え（CLSID）は Windows の正式な機能ではなく、同じ Windows の
+# バージョンでも効かないパソコンがある（2026-11-27 実例: 設定もサインインし直しも正しいのに
+# 「その他のオプションを確認」の中のまま）。Windows 11 の新しいメニューでも1段目に必ずある
+# 「プログラムから開く」に出しておけば、どのパソコンでも2クリックで届く。
+#
+# 一覧に直接出るのは「おすすめ」の候補だけで、おすすめになるのは拡張子ごとの
+# OpenWithProgids に載せたものだけ（* に載せると「別のプログラムを選択」の奥になる。
+# SHAssocEnumHandlers で確認済み）。そこで、よく扱う種類は拡張子ごとに、
+# それ以外は * に載せて「別のプログラムを選択」から届くようにする。
+# 既定のアプリ（ダブルクリックで開くもの）は変えない。
+$saveProgId = 'WhatsNo.SaveFile'
+Set-WnRegKey "Software\Classes\$saveProgId" @{
+    ''                 = "What'sNoに保存"
+    'FriendlyTypeName' = "What'sNoに保存"
+}
+Set-WnRegKey "Software\Classes\$saveProgId\DefaultIcon" @{ '' = 'shell32.dll,13' }
+Set-WnRegKey "Software\Classes\$saveProgId\shell\open" @{ 'FriendlyAppName' = "What'sNoに保存" }
+Set-WnRegKey "Software\Classes\$saveProgId\shell\open\command" @{ '' = $psCmd }
+
+$openWithExts = @(
+    # 図面・CAD・3D
+    '.pdf', '.dxf', '.dwg', '.dwf', '.jww', '.jwc', '.sfc', '.p21', '.step', '.stp', '.igs', '.iges',
+    '.stl', '.obj', '.3mf', '.x_t', '.x_b', '.sldprt', '.sldasm', '.slddrw', '.ipt', '.iam', '.idw',
+    '.catpart', '.catproduct', '.prt', '.asm', '.3dm', '.skp',
+    # 画像・動画
+    '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tif', '.tiff', '.heic', '.webp', '.svg',
+    '.mp4', '.mov', '.avi', '.wmv', '.m4v',
+    # Office・文書・その他
+    '.xlsx', '.xls', '.xlsm', '.csv', '.docx', '.doc', '.pptx', '.ppt', '.txt', '.rtf',
+    '.html', '.htm', '.zip', '.eml', '.msg'
+)
+$cu = [Microsoft.Win32.Registry]::CurrentUser
+function Add-WnOpenWith([string]$Ext) {
+    $k = $cu.CreateSubKey("Software\Classes\$Ext\OpenWithProgids")
+    try { $k.SetValue($saveProgId, '', [Microsoft.Win32.RegistryValueKind]::String) } finally { $k.Close() }
+}
+Add-WnOpenWith '*'
+foreach ($ext in $openWithExts) { Add-WnOpenWith $ext }
+
+# 新しい「開けるアプリ」が増えると、次にその種類を開いたとき Windows が
+# 「このファイルを開く方法を選んでください」と聞いてくることがある。
+# 既に知らせた扱い（0）にしておき、ダブルクリックの動作を変えないようにする。
+$toast = $cu.CreateSubKey('Software\Microsoft\Windows\CurrentVersion\ApplicationAssociationToasts')
+try {
+    foreach ($ext in $openWithExts) {
+        $toast.SetValue("${saveProgId}_$ext", 0, [Microsoft.Win32.RegistryValueKind]::DWord)
+    }
+} finally { $toast.Close() }
+
 # ── 「What'sNoを開く」登録（アプリをブラウザで開くだけ・保存とは別） ──
 # ファイル上／フォルダ背景／デスクトップ背景の3か所に登録する。
 # from=desktop は「デスクトップから開いた」印で、これが付いているときだけ
@@ -522,7 +572,7 @@ $pending = if ($menuApplied) { '' } else {
 
 if ($interactive -or $DoneDialog) {
     [System.Windows.Forms.MessageBox]::Show(
-        "セットアップが完了しました！`n`n・ファイルを$where →「What'sNoに保存」`n・ファイル／デスクトップの背景を$where →「What'sNoを開く」$pending",
+        "セットアップが完了しました！`n`n・ファイルを$where →「What'sNoに保存」`n・ファイルを右クリック →「プログラムから開く」→「What'sNoに保存」でも送れます`n・ファイル／デスクトップの背景を$where →「What'sNoを開く」$pending",
         "What'sNo セットアップ完了", 'OK', 'Information') | Out-Null
 } else {
     Write-Host "セットアップ完了！$where →「What'sNoに保存」/「What'sNoを開く」が使えます。" -ForegroundColor Green
