@@ -369,6 +369,38 @@ function Restart-WnExplorer {
     return $true
 }
 
+# 従来型メニューの設定が「今動いているエクスプローラー」に効いているか。
+# 設定（レジストリキーの最終書き込み時刻）が、エクスプローラーの起動より後なら未反映。
+function Test-WnClassicPending {
+    if (-not (Test-WnClassicMenu)) { return $false }
+    if (-not ([System.Management.Automation.PSTypeName]'WnRegTime').Type) {
+        Add-Type -Language CSharp -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public class WnRegTime {
+  [DllImport("advapi32.dll", CharSet=CharSet.Unicode)]
+  static extern int RegQueryInfoKey(IntPtr hKey, IntPtr cls, IntPtr clsLen, IntPtr reserved,
+    IntPtr subKeys, IntPtr maxSubKeyLen, IntPtr maxClassLen, IntPtr values, IntPtr maxValueNameLen,
+    IntPtr maxValueLen, IntPtr secDesc, out long lastWrite);
+  public static DateTime LastWrite(Microsoft.Win32.RegistryKey key) {
+    long ft;
+    int rc = RegQueryInfoKey(key.Handle.DangerousGetHandle(), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero,
+      IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, out ft);
+    return rc == 0 ? DateTime.FromFileTime(ft) : DateTime.MinValue;
+  }
+}
+'@
+    }
+    $shell = Get-Process -Name explorer -ErrorAction SilentlyContinue |
+             Where-Object { $_.SessionId -eq (Get-Process -Id $PID).SessionId } |
+             Sort-Object StartTime | Select-Object -First 1
+    if (-not $shell) { return $false }
+    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($classicClsid)
+    if (-not $key) { return $false }
+    try { $written = [WnRegTime]::LastWrite($key) } finally { $key.Close() }
+    return ($written -gt $shell.StartTime)
+}
+
 $classicOn = Test-WnClassicMenu
 
 $applyClassic = switch ($ClassicMenu) {
@@ -432,6 +464,16 @@ if ($applyClassic -ne $classicOn) {
     } else {
         $menuApplied = $false
         Write-Host "  次回サインイン時に反映されます。" -ForegroundColor DarkGray
+    }
+} elseif ($applyClassic -and (Test-WnClassicPending)) {
+    # 従来型の設定は済んでいるが、今動いているエクスプローラーはその前から動いている
+    # （＝まだ「その他のオプションを確認」の中にある）。以前「次回サインイン時」で
+    # 入れたパソコンでセットアップを貼り直したとき、ここで反映させる。
+    if ($ApplyNow -eq 'now') {
+        Write-Host "  従来型メニューの設定がまだ反映されていないので、反映します。" -ForegroundColor Cyan
+        $menuApplied = Restart-WnExplorer
+    } else {
+        $menuApplied = $false
     }
 }
 

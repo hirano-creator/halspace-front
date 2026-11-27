@@ -4,7 +4,8 @@
 #   powershell -nop -ep bypass -c "$t='<token>';$u='https://.../whatsno/tools/';irm($u+'wn-setup.ps1')|iex"
 #
 # It downloads the scripts next to it, then runs wn-install.ps1 with the
-# recommended answers (classic context menu ON, apply at next sign-in) so the
+# recommended answers (classic context menu ON, applied right away by
+# restarting Explorer gracefully) so the
 # user never has to save files, open a folder, or answer Y/N questions.
 #
 # KEEP THIS FILE ASCII-ONLY: it is fetched with Invoke-RestMethod and the server
@@ -39,7 +40,7 @@ try {
     }
 
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $work 'wn-install.ps1') `
-        -Token $t -ClassicMenu on -ApplyNow next-logon -DoneDialog
+        -Token $t -ClassicMenu on -ApplyNow now -DoneDialog
     if ($LASTEXITCODE -ne 0) { throw "wn-install.ps1 exit $LASTEXITCODE" }
 } catch {
     # (Japanese message below)

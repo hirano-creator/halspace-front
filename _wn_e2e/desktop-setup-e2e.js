@@ -62,7 +62,7 @@ const server = http.createServer((req, res) => {
   await page.evaluate(() => document.getElementById('navDesktop').click());
   await page.waitForTimeout(300);
   check('モーダルが開く', await page.locator('#desktopModal').isVisible());
-  check('4ステップが出ている（最後はサインアウトし直し）', await page.locator('.wn-desk-steps > li').count() === 4);
+  check('3ステップが出ている', await page.locator('.wn-desk-steps > li').count() === 3);
 
   await page.click('#desktopTokenCopy');
   await page.waitForTimeout(200);
