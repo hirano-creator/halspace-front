@@ -40,7 +40,7 @@ try {
     }
 
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $work 'wn-install.ps1') `
-        -Token $t -ClassicMenu on -ApplyNow now -DoneDialog
+        -Token $t -ClassicMenu on -ApplyNow next-logon -DoneDialog
     if ($LASTEXITCODE -ne 0) { throw "wn-install.ps1 exit $LASTEXITCODE" }
 } catch {
     # (Japanese message below)

@@ -469,7 +469,8 @@ if ($applyClassic -ne $classicOn) {
     # 従来型の設定は済んでいるが、今動いているエクスプローラーはその前から動いている
     # （＝まだ「その他のオプションを確認」の中にある）。以前「次回サインイン時」で
     # 入れたパソコンでセットアップを貼り直したとき、ここで反映させる。
-    if ($ApplyNow -eq 'now') {
+    # 2026-11-27 一時停止: 再起動後にエクスプローラーが戻らない事例が出たため、原因が分かるまで自動再起動しない
+    if ($false) {
         Write-Host "  従来型メニューの設定がまだ反映されていないので、反映します。" -ForegroundColor Cyan
         $menuApplied = Restart-WnExplorer
     } else {
