@@ -5889,7 +5889,7 @@ function initDesktopIntegrationModal() {
       await writable.write(blob);
       await writable.close();
     }
-    saveAllStatus.textContent = '選んだフォルダ内の「WhatsNo連携」フォルダに4ファイルを保存しました。';
+    saveAllStatus.textContent = '選んだフォルダ内の「WhatsNo連携」フォルダに保存しました。';
   }
 
   /* Firefox/Safariなど非対応ブラウザ: ZIPをまとめてダウンロード */
@@ -5953,10 +5953,28 @@ function initDesktopIntegrationModal() {
   closeBtn?.addEventListener('click', closeModal);
   modal?.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 
-  copyBtn?.addEventListener('click', async () => {
-    const cmd = buildCommand();
-    await navigator.clipboard.writeText(cmd);
-    copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> コピー済み';
-    setTimeout(() => { copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i> コピー'; }, 2000);
-  });
+  // かんたん手順（Win+R に貼るだけ）。wn-setup.ps1 がスクリプト一式を取ってきて
+  // 推奨の答えで wn-install.ps1 を実行する。Win+R は 259 文字までなので短く保つこと。
+  // 配布元はこのページと同じ場所（preview 環境なら preview のスクリプト）。
+  function buildQuickCommand() {
+    const token = (sessionStorage.getItem('space_token') || '').replace(/'/g, "''");
+    const base  = new URL('../tools/', location.href).href;
+    return `powershell -nop -ep bypass -c "$t='${token}';$u='${base}';irm($u+'wn-setup.ps1')|iex"`;
+  }
+
+  async function copyWithFeedback(btn, text, label) {
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> コピーしました';
+    } catch {
+      btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> コピーできませんでした';
+    }
+    setTimeout(() => { btn.innerHTML = label; }, 2500);
+  }
+
+  const manualCopyBtn = document.getElementById('desktopManualCopy');
+  copyBtn?.addEventListener('click', () =>
+    copyWithFeedback(copyBtn, buildQuickCommand(), '<i class="fa-solid fa-copy"></i> セットアップ用の文字をコピー'));
+  manualCopyBtn?.addEventListener('click', () =>
+    copyWithFeedback(manualCopyBtn, buildCommand(), '<i class="fa-solid fa-copy"></i> コピー'));
 }

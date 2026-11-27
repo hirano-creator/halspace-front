@@ -12,11 +12,14 @@ param(
     #   ask = 確認する（既定）/ now = 今すぐ（エクスプローラーを再起動）
     #   next-logon = 次回サインイン時（再起動しない・既定の推奨）
     [ValidateSet('ask', 'now', 'next-logon')]
-    [string]$ApplyNow = 'ask'
+    [string]$ApplyNow = 'ask',
+    # 完了・失敗をダイアログでも知らせる（wn-setup.ps1 から Win+R 経由で起動したとき用。
+    # 窓は終わると閉じるので、コンソール表示だけだと結果が見えない）
+    [switch]$DoneDialog
 )
 
 $interactive = (-not $Token)  # Token未指定 = 対話モード（ダイアログ表示）
-if ($interactive) { Add-Type -AssemblyName System.Windows.Forms }
+if ($interactive -or $DoneDialog) { Add-Type -AssemblyName System.Windows.Forms }
 
 $appDir       = Join-Path $env:APPDATA 'WhatsNo'
 $uploadScript = Join-Path $appDir 'wn-upload.ps1'
@@ -440,7 +443,7 @@ $where = if (Test-WnClassicMenu) { '右クリック' } else { '右クリック �
 # 再起動していない場合、メニューの表示形式だけは次回サインインまで変わらない
 $pending = if ($menuApplied) { '' } else { "`n`n※ 右クリックメニューの表示形式は次回サインイン時から変わります。" }
 
-if ($interactive) {
+if ($interactive -or $DoneDialog) {
     [System.Windows.Forms.MessageBox]::Show(
         "セットアップが完了しました！`n`n・ファイルを$where →「What'sNoに保存」`n・ファイル／デスクトップの背景を$where →「What'sNoを開く」$pending",
         "What'sNo セットアップ完了", 'OK', 'Information') | Out-Null
